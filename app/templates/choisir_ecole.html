@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Écoles accessibles</h2>
+
+    {% if ecoles|length == 0 %}
+        <div class="alert alert-warning">
+            Aucune école assignée à votre compte. Contactez l'administrateur.
+        </div>
+    {% else %}
+        {% for ecole in ecoles %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    {{ ecole.nom }} (ID: {{ ecole.id }})
+                </div>
+                <div class="card-body">
+                    <h5>Journal de correction</h5>
+                    {% if ecole.journaux_correction|length == 0 %}
+                        <p>Aucun journal disponible pour cette école.</p>
+                    {% else %}
+                        <ul class="list-group mb-2">
+                            {% for journal in ecole.journaux_correction %}
+                                <li class="list-group-item">
+                                    [{{ journal.date.strftime('%d/%m/%Y %H:%M') }}] {{ journal.message }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+
+                    <h5>Problèmes</h5>
+                    {% if ecole.problemes|length == 0 %}
+                        <p>Aucun problème signalé.</p>
+                    {% else %}
+                        <ul class="list-group">
+                            {% for pb in ecole.problemes %}
+                                <li class="list-group-item text-danger">
+                                    [{{ pb.date.strftime('%d/%m/%Y %H:%M') }}] {{ pb.description }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if current_user.role == 'super_admin' %}
+        <div class="alert alert-info mt-3">
+            <strong>Super-Administrateur</strong> : Vous pouvez gérer {{ ecoles|length }} école{{ 's' if ecoles|length > 1 else '' }}.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

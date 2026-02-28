@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+
+    <h2 class="mb-4 text-primary">📋 Enregistrer la présence</h2>
+
+    <!-- Sélection classe -->
+    <form method="get" action="{{ url_for('main.presence') }}" class="mb-4">
+        <div class="mb-3">
+            <label for="classe_id" class="form-label">Classe :</label>
+            <select name="classe_id" id="classe_id" class="form-select" onchange="this.form.submit()">
+                <option value="">-- Sélectionner --</option>
+                {% for c in classes %}
+                    <option value="{{ c.id }}" {% if c.id == classe_id %}selected{% endif %}>
+                        {{ c.nom }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+
+    {% if eleves %}
+    <div class="card shadow-sm mb-5">
+        <div class="card-body">
+
+            <!-- FORMULAIRE DATE / HEURE / MATIERE -->
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="classe_id" value="{{ classe_id }}">
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label>Date :</label>
+                        <input type="date" name="date_presence" class="form-control"
+                               value="{{ date_selectionnee }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label>Heure :</label>
+                        <input type="time" name="heure_presence" class="form-control"
+                               value="{{ heure_selectionnee }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label>Matière :</label>
+                        <input type="text" name="matiere" placeholder="ex: Math"
+                               class="form-control" value="{{ matiere }}">
+                    </div>
+                </div>
+
+                <!-- TABLEAU ÉLÈVES -->
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Élève</th>
+                                <th class="text-center">Présent</th>
+                                <th class="text-center">Absent</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for eleve in eleves %}
+                            <tr>
+                                <td>{{ eleve.prenom }} {{ eleve.nom }}</td>
+                                <td class="text-center">
+                                    <input type="radio" name="eleve_{{ eleve.id }}" value="present"
+                                        {% if presences_existantes[eleve.id] == "present" %}checked{% endif %}>
+                                </td>
+                                <td class="text-center">
+                                    <input type="radio" name="eleve_{{ eleve.id }}" value="absent"
+                                        {% if presences_existantes[eleve.id] == "absent" %}checked{% endif %}>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <button type="submit" class="btn btn-success mt-3">
+                    <i class="bi bi-check2-circle"></i> Enregistrer
+                </button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+        {% if classe_id %}
+            <div class="alert alert-warning">Aucun élève dans cette classe.</div>
+        {% endif %}
+    {% endif %}
+
+    <!-- HISTORIQUE / CALENDRIER -->
+    <h3 class="text-secondary mb-3">📅 Historique des présences</h3>
+
+    <input type="date" id="calendar" class="form-control mb-3"
+           value="{{ date_selectionnee }}"
+           onchange="window.location='{{ url_for('main.presence') }}?classe_id={{ classe_id }}&date='+this.value">
+
+    {% if historique %}
+        <ul class="list-group">
+        {% for pres in historique %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{ pres.eleve.prenom }} {{ pres.eleve.nom }}
+                <span class="badge {% if pres.statut == 'present' %}bg-success{% else %}bg-danger{% endif %} rounded-pill">
+                    {{ pres.statut }}
+                </span>
+                <small class="text-muted ms-2">({{ pres.heure }} — {{ pres.matiere }})</small>
+            </li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <div class="alert alert-info">Aucune présence enregistrée pour ce jour.</div>
+    {% endif %}
+
+</div>
+{% endblock %}

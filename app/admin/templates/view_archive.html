@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultation des Archives - Gestion Scolaire</title>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='style.css') }}">
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            margin: 0; 
+            padding: 20px; 
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            background: #fff; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+            overflow: hidden;
+        }
+        .header { 
+            background: linear-gradient(135deg, #2d3436, #636e72);
+            color: white; 
+            padding: 30px; 
+            text-align: center;
+        }
+        .header h1 { 
+            margin: 0; 
+            font-size: 2.2em; 
+            font-weight: 300;
+        }
+        .header .subtitle { 
+            margin: 10px 0 0; 
+            opacity: 0.9; 
+            font-size: 1.1em;
+        }
+        .nav-breadcrumb { 
+            background: #dfe6e9; 
+            padding: 15px 30px; 
+            border-bottom: 1px solid #b2bec3;
+        }
+        .nav-breadcrumb a { 
+            color: #2d3436; 
+            text-decoration: none; 
+            margin-right: 5px; 
+            font-weight: 500;
+        }
+        .nav-breadcrumb a:hover { 
+            text-decoration: underline; 
+            color: #0984e3;
+        }
+        .content { 
+            padding: 30px; 
+        }
+        .card { 
+            background: #fff; 
+            border-radius: 10px; 
+            padding: 25px; 
+            margin-bottom: 25px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 1px solid #e1e8ed;
+        }
+        .card h2 { 
+            color: #2d3436; 
+            margin-top: 0; 
+            border-bottom: 2px solid #74b9ff; 
+            padding-bottom: 10px;
+        }
+        .info-banner { 
+            background: linear-gradient(135deg, #74b9ff, #0984e3);
+            color: white; 
+            padding: 20px; 
+            border-radius: 10px; 
+            margin-bottom: 20px;
+        }
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
+            gap: 15px; 
+            margin-top: 20px;
+        }
+        .stat-card { 
+            background: white; 
+            color: #2d3436; 
+            padding: 15px; 
+            border-radius: 8px; 
+            text-align: center;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        .stat-number { 
+            font-size: 2em; 
+            font-weight: bold; 
+            margin-bottom: 5px;
+            color: #0984e3;
+        }
+        .stat-label { 
+            font-size: 0.9em; 
+            opacity: 0.8;
+        }
+        .data-section { 
+            margin-top: 30px;
+        }
+        .table-container { 
+            overflow-x: auto; 
+            margin-top: 15px;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            background: white;
+        }
+        th, td { 
+            padding: 12px 15px; 
+            text-align: left; 
+            border-bottom: 1px solid #e1e8ed;
+        }
+        th { 
+            background: #f8f9fa; 
+            font-weight: 600; 
+            color: #2d3436;
+        }
+        tr:hover { 
+            background: #f8f9fa;
+        }
+        .empty-state { 
+            text-align: center; 
+            padding: 40px; 
+            color: #7f8c8d;
+        }
+        .button { 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            font-size: 14px; 
+            transition: all 0.3s ease; 
+            text-decoration: none; 
+            display: inline-block; 
+            text-align: center;
+        }
+        .button.primary { 
+            background: #74b9ff; 
+            color: white;
+        }
+        .button.primary:hover { 
+            background: #0984e3; 
+            transform: translateY(-2px);
+        }
+        .badge { 
+            padding: 4px 8px; 
+            border-radius: 12px; 
+            font-size: 0.8em; 
+            font-weight: 600;
+        }
+        .badge.success { background: #d5f4e6; color: #27ae60; }
+        .badge.warning { background: #fef9e7; color: #f39c12; }
+        .badge.info { background: #e8f4fd; color: #3498db; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 Consultation des Archives</h1>
+            <div class="subtitle">
+                {% if annee_scolaire %}
+                    {{ annee_scolaire.nom }}
+                    {% if classe %}
+                        - {{ classe.nom_complet }}
+                    {% else %}
+                        - Toutes les classes
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="nav-breadcrumb">
+            <a href="{{ url_for('admin.dashboard') }}">🏠 Tableau de bord</a> >
+            <a href="{{ url_for('admin.maintenance_page') }}">🔧 Maintenance</a> >
+            <a href="{{ url_for('admin.archive_data') }}">📦 Archivage</a> >
+            <span>👁️ Consultation</span>
+        </div>
+
+        <div class="content">
+            <!-- Informations de contexte -->
+            <div class="info-banner">
+                <h2 style="margin-top: 0; color: white;">
+                    {% if annee_scolaire %}
+                        Archives de {{ annee_scolaire.nom }}
+                        {% if classe %}
+                            - {{ classe.nom }}
+                        {% endif %}
+                    {% else %}
+                        Archives
+                    {% endif %}
+                </h2>
+                <p style="margin-bottom: 0; opacity: 0.9;">
+                    Données archivées consultables en lecture seule
+                </p>
+            </div>
+
+            <!-- Statistiques -->
+            <div class="card">
+                <h2>📊 Aperçu des Archives</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">{{ archived_data.notes|length }}</div>
+                        <div class="stat-label">Notes Archivées</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{{ archived_data.absences|length }}</div>
+                        <div class="stat-label">Absences Archivées</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{{ archive_stats.notes }}</div>
+                        <div class="stat-label">Total Notes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">{{ archive_stats.absences }}</div>
+                        <div class="stat-label">Total Absences</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes archivées -->
+            <div class="card">
+                <h2>📝 Notes Archivées</h2>
+                {% if archived_data.notes %}
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Élève ID</th>
+                                    <th>Cours ID</th>
+                                    <th>Valeur</th>
+                                    <th>Coefficient</th>
+                                    <th>Type</th>
+                                    <th>Période</th>
+                                    <th>Date Évaluation</th>
+                                    <th>Classe</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for note in archived_data.notes %}
+                                    <tr>
+                                        <td>{{ note.eleve_id }}</td>
+                                        <td>{{ note.cours_id }}</td>
+                                        <td><strong>{{ note.valeur }}/20</strong></td>
+                                        <td>{{ note.coefficient }}</td>
+                                        <td><span class="badge info">{{ note.type_evaluation or 'N/A' }}</span></td>
+                                        <td>{{ note.periode }}</td>
+                                        <td>{{ note.date_evaluation[:10] if note.date_evaluation else 'N/A' }}</td>
+                                        <td>{{ note.classe_id }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <h3>📭 Aucune note archivée</h3>
+                        <p>Aucune donnée de note trouvée pour cette sélection.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Absences archivées -->
+            <div class="card">
+                <h2>📅 Absences Archivées</h2>
+                {% if archived_data.absences %}
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Élève ID</th>
+                                    <th>Date</th>
+                                    <th>Motif</th>
+                                    <th>Statut</th>
+                                    <th>Cours ID</th>
+                                    <th>Classe</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for absence in archived_data.absences %}
+                                    <tr>
+                                        <td>{{ absence.eleve_id }}</td>
+                                        <td><strong>{{ absence.date_absence[:10] if absence.date_absence else 'N/A' }}</strong></td>
+                                        <td>{{ absence.motif or 'Non spécifié' }}</td>
+                                        <td>
+                                            <span class="badge {{ 'success' if absence.justifiee else 'warning' }}">
+                                                {{ 'Justifiée' if absence.justifiee else 'Non justifiée' }}
+                                            </span>
+                                        </td>
+                                        <td>{{ absence.cours_id or 'N/A' }}</td>
+                                        <td>{{ absence.classe_id }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <h3>📭 Aucune absence archivée</h3>
+                        <p>Aucune donnée d'absence trouvée pour cette sélection.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Actions -->
+            <div class="card" style="text-align: center;">
+                <a href="{{ url_for('admin.archive_data') }}" class="button primary">
+                    🔙 Retour à l'archivage
+                </a>
+                {% if archived_data.notes or archived_data.absences %}
+                    <a href="{{ url_for('admin.backup_complete') }}" class="button primary" style="margin-left: 10px;">
+                        💾 Sauvegarder ces archives
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

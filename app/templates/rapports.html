@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Rapports - EduManage{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <!-- Titre -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>📊 Rapports et Statistiques</h3>
+        <a href="{{ url_for('main.profile') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Retour au profil
+        </a>
+    </div>
+
+    <!-- Statistiques globales -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm text-center p-3">
+                <h4 class="text-primary">{{ statistiques.total_eleves }}</h4>
+                <p class="mb-0">Élèves inscrits</p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm text-center p-3">
+                <h4 class="text-success">{{ statistiques.total_professeurs }}</h4>
+                <p class="mb-0">Enseignants</p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm text-center p-3">
+                <h4 class="text-info">{{ statistiques.total_classes }}</h4>
+                <p class="mb-0">Classes</p>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm text-center p-3">
+                <h4 class="text-warning">{{ statistiques.taux_occupation }}%</h4>
+                <p class="mb-0">Taux d'occupation</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtre par classe -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <label for="classeFilter" class="form-label">Filtrer par classe :</label>
+            <select id="classeFilter" class="form-select" onchange="updateCharts()">
+                <option value="all">Toutes les classes</option>
+                {% for classe in classes %}
+                    <option value="{{ classe.nom }}">{{ classe.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4 d-flex align-items-center">
+            <span id="lastUpdate" class="ms-3 text-muted">Dernière mise à jour : --:--:--</span>
+        </div>
+    </div>
+
+    <!-- Graphiques -->
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <i class="fas fa-chart-line me-1 text-primary"></i> Moyenne des notes par classe
+                </div>
+                <div class="card-body">
+                    <canvas id="notesChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <i class="fas fa-user-clock me-1 text-danger"></i> Absences par classe
+                </div>
+                <div class="card-body">
+                    <canvas id="absencesChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let notesChart, absencesChart;
+
+async function fetchData(endpoint) {
+    const response = await fetch(endpoint);
+    if (!response.ok) return {}; // Retourne vide si erreur
+    return await response.json();
+}
+
+// Met à jour l'indicateur de dernière mise à jour avec effet clignotant
+function updateLastUpdate() {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString();
+    const el = document.getElementById('lastUpdate');
+    el.textContent = `Dernière mise à jour : ${timeStr}`;
+    el.style.transition = 'opacity 0.3s';
+    el.style.opacity = 0.2;
+    setTimeout(() => { el.style.opacity = 1; }, 300);
+}
+
+async function updateCharts() {
+    const classeFilter = document.getElementById('classeFilter').value;
+
+    let notesData = await fetchData("{{ url_for('main.rapport_notes_par_classe') }}");
+    let absencesData = await fetchData("{{ url_for('main.rapport_absences_par_classe') }}");
+
+    if (classeFilter !== 'all') {
+        notesData = {[classeFilter]: notesData[classeFilter] || 0};
+        absencesData = {[classeFilter]: absencesData[classeFilter] || 0};
+    }
+
+    const noteLabels = Object.keys(notesData);
+    const noteValues = Object.values(notesData);
+    const absenceLabels = Object.keys(absencesData);
+    const absenceValues = Object.values(absencesData);
+
+    // Chart des notes
+    if (notesChart) notesChart.destroy();
+    notesChart = new Chart(document.getElementById('notesChart'), {
+        type: 'bar',
+        data: {
+            labels: noteLabels,
+            datasets: [{
+                label: 'Moyenne des notes',
+                data: noteValues,
+                backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                tooltip: { mode: 'index', intersect: false },
+                legend: { display: true }
+            },
+            scales: {
+                y: { beginAtZero: true, max: 20 },
+                x: { title: { display: true, text: 'Classes' } }
+            }
+        }
+    });
+
+    // Chart des absences
+    if (absencesChart) absencesChart.destroy();
+    absencesChart = new Chart(document.getElementById('absencesChart'), {
+        type: 'bar',
+        data: {
+            labels: absenceLabels,
+            datasets: [{
+                label: 'Nombre d\'absences',
+                data: absenceValues,
+                backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                tooltip: { mode: 'index', intersect: false },
+                legend: { display: true }
+            },
+            scales: { 
+                y: { beginAtZero: true }, 
+                x: { title: { display: true, text: 'Classes' } } 
+            }
+        }
+    });
+
+    // Mise à jour de l'indicateur
+    updateLastUpdate();
+}
+
+// Initialisation au chargement
+document.addEventListener('DOMContentLoaded', () => {
+    updateCharts();
+    // Rafraîchissement automatique toutes les 60 secondes
+    setInterval(updateCharts, 60000);
+});
+</script>
+{% endblock %}

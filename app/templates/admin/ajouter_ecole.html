@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ajouter une école</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4e73df;
+            --secondary-color: #1cc88a;
+            --light-bg: #f8f9fc;
+            --card-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+        }
+        
+        body {
+            background-color: var(--light-bg);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .form-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+        }
+        
+        .form-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--light-bg);
+            padding-bottom: 1rem;
+        }
+        
+        .form-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .section-title {
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-title i {
+            font-size: 1.2rem;
+        }
+        
+        .form-label {
+            font-weight: 600;
+            color: #5a5c69;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-control {
+            border-radius: 6px;
+            padding: 0.75rem;
+            border: 1px solid #d1d3e2;
+            transition: all 0.3s;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            border-radius: 6px;
+            transition: all 0.3s;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2e59d9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .required::after {
+            content: " *";
+            color: #e74a3b;
+        }
+        
+        @media (max-width: 768px) {
+            .form-container {
+                margin: 1rem;
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <div class="form-header">
+            <h2><i class="fas fa-school"></i> Ajouter une nouvelle école</h2>
+            <p class="text-muted">Remplissez les informations ci-dessous pour créer une école et son compte administrateur</p>
+        </div>
+        
+        <form method="post" action="{{ url_for('main.ajouter_ecole') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="fas fa-info-circle"></i> Informations de l'École
+                </h4>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label required">Nom de l'école</label>
+                        <input type="text" name="nom_ecole" class="form-control" placeholder="Entrez le nom de l'école" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Directeur</label>
+                        <input type="text" name="directeur" class="form-control" placeholder="Nom du directeur">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Adresse</label>
+                    <input type="text" name="adresse" class="form-control" placeholder="Adresse complète de l'école">
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Téléphone</label>
+                        <input type="text" name="telephone" class="form-control" placeholder="Numéro de téléphone">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" placeholder="Adresse email de l'école">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h4 class="section-title">
+                    <i class="fas fa-user-shield"></i> Compte Administrateur associé
+                </h4>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label required">Nom</label>
+                        <input type="text" name="nom_admin" class="form-control" placeholder="Nom de l'administrateur" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Prénom</label>
+                        <input type="text" name="prenom_admin" class="form-control" placeholder="Prénom de l'administrateur">
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label required">Email</label>
+                        <input type="email" name="email_admin" class="form-control" placeholder="Email de l'administrateur" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Téléphone</label>
+                        <input type="text" name="telephone_admin" class="form-control" placeholder="Téléphone de l'administrateur">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label required">Mot de passe</label>
+                    <input type="password" name="mot_de_passe" class="form-control" placeholder="Créez un mot de passe sécurisé" required>
+                    <div class="form-text">Le mot de passe doit contenir au moins 8 caractères avec des lettres et des chiffres.</div>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-plus-circle"></i> Créer École + Admin
+            </button>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

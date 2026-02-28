@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier Élève{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Modifier Élève : {{ eleve.nom }} {{ eleve.prenom }}</h2>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, msg in messages %}
+                <div class="alert alert-{{ category }} mt-2">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('main.edit_eleve', eleve_id=eleve.id) }}">
+        {% if csrf_token %}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% endif %}
+
+        <div class="mb-3">
+            <label for="nom" class="form-label">Nom</label>
+            <input type="text" class="form-control" id="nom" name="nom" value="{{ eleve.nom }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="prenom" class="form-label">Prénom</label>
+            <input type="text" class="form-control" id="prenom" name="prenom" value="{{ eleve.prenom }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="date_naissance" class="form-label">Date de naissance</label>
+            <input type="date" class="form-control" id="date_naissance" name="date_naissance" value="{{ eleve.date_naissance }}">
+        </div>
+
+        <div class="mb-3">
+            <label for="classe_id" class="form-label">Classe</label>
+            <select class="form-select" id="classe_id" name="classe_id">
+                <option value="">-- Choisir une classe --</option>
+                {% for classe in classes %}
+                    <option value="{{ classe.id }}" {% if eleve.classe_id == classe.id %}selected{% endif %}>{{ classe.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Mettre à jour</button>
+        <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endblock %}

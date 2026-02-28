@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% block title %}Portail Parent - EduManage{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- En-tête -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="bg-animated p-4 rounded-3" style="background: var(--gradient-primary);">
+                <h2 class="text-white mb-1">
+                    <i class="fas fa-user-circle me-2"></i>Portail Parent
+                </h2>
+                <p class="text-white opacity-75 mb-0">Bienvenue {{ current_user.prenom }} {{ current_user.nom }}</p>
+            </div>
+        </div>
+    </div>
+
+    {% if enfants %}
+    <!-- Sélection d'enfant si plusieurs -->
+    {% if enfants|length > 1 %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg">
+                <div class="card-body">
+                    <label class="form-label">Sélectionner un enfant :</label>
+                    <select class="form-select" id="enfantSelect">
+                        {% for enfant in enfants %}
+                        <option value="{{ enfant.id }}">{{ enfant.prenom }} {{ enfant.nom }} - {{ enfant.classe }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Cartes de statistiques -->
+    <div class="row">
+        {% for enfant in enfants %}
+        <div class="col-12 enfant-panel" data-enfant-id="{{ enfant.id }}" {% if enfants|length > 1 %}style="display: none;"{% endif %}>
+            <!-- En-tête de l'enfant -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-lg">
+                        <div class="card-body text-center">
+                            <div class="bg-primary bg-opacity-10 rounded-circle p-4 mx-auto mb-3" style="width: 100px; height: 100px;">
+                                <i class="fas fa-user-graduate fa-3x text-primary"></i>
+                            </div>
+                            <h3 class="text-primary">{{ enfant.prenom }} {{ enfant.nom }}</h3>
+                            <p class="text-muted mb-0">{{ enfant.classe }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Carte Notes -->
+                <div class="col-md-4 mb-4">
+                    <div class="card border-0 shadow-lg h-100 text-center animate-pop-in">
+                        <div class="card-header py-3 text-white" style="background: var(--gradient-success);">
+                            <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Notes</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="display-4 fw-bold text-success mb-2">{{ enfant.moyenne|default(0) }}</div>
+                            <p class="text-muted">Moyenne générale /20</p>
+                            <p class="small text-muted">{{ enfant.total_notes|default(0) }} notes enregistrées</p>
+                            <a href="{{ url_for('main.export_notes_eleve_pdf', id=enfant.id) }}" 
+                               class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-download me-1"></i>Télécharger PDF
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Carte Absences -->
+                <div class="col-md-4 mb-4">
+                    <div class="card border-0 shadow-lg h-100 text-center animate-pop-in">
+                        <div class="card-header py-3 text-white" style="background: var(--gradient-warning);">
+                            <h5 class="mb-0"><i class="fas fa-user-times me-2"></i>Absences</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="display-4 fw-bold text-warning mb-2">{{ enfant.total_absences|default(0) }}</div>
+                            <p class="text-muted">Absences totales</p>
+                            <div class="progress mb-3" style="height: 8px;">
+                                {% set absences_pourcentage = (enfant.total_absences|default(0) / 10 * 100)|round(2) %}
+                                <div class="progress-bar bg-warning" role="progressbar" 
+                                     style="width: {{ absences_pourcentage }}%;" 
+                                     aria-valuenow="{{ absences_pourcentage }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100"></div>
+                            </div>
+                            <a href="{{ url_for('main.absences') }}" 
+                               class="btn btn-outline-warning btn-sm">
+                                <i class="fas fa-list me-1"></i>Voir le détail
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Carte Paiements -->
+                <div class="col-md-4 mb-4">
+                    <div class="card border-0 shadow-lg h-100 text-center animate-pop-in">
+                        <div class="card-header py-3 text-white" style="background: var(--gradient-info);">
+                            <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>Paiements</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="display-4 fw-bold text-info mb-2">{{ enfant.total_paiements|default(0) }}</div>
+                            <p class="text-muted">Paiements enregistrés</p>
+                            <a href="{{ url_for('main.paiements_parent') }}" 
+                               class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-receipt me-1"></i>Voir les paiements
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cartes supplémentaires -->
+            <div class="row">
+                <!-- Carte Bulletin -->
+                <div class="col-md-6 mb-4">
+                    <div class="card border-0 shadow-lg h-100 text-center animate-pop-in">
+                        <div class="card-header py-3 text-white" style="background: var(--gradient-danger);">
+                            <h5 class="mb-0"><i class="fas fa-file-pdf me-2"></i>Bulletin</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="display-1 text-danger mb-3">
+                                <i class="fas fa-graduation-cap"></i>
+                            </div>
+                            <p class="text-muted">Bulletin scolaire complet</p>
+                            <a href="{{ url_for('main.bulletin_eleve', id=enfant.id) }}" 
+                               class="btn btn-outline-danger">
+                                <i class="fas fa-eye me-1"></i>Consulter le bulletin
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Carte Informations -->
+                <div class="col-md-6 mb-4">
+                    <div class="card border-0 shadow-lg h-100 animate-pop-in">
+                        <div class="card-header py-3 text-white" style="background: var(--gradient-secondary);">
+                            <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informations</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-primary bg-opacity-10 rounded-circle p-2 me-3">
+                                    <i class="fas fa-phone text-primary"></i>
+                                </div>
+                                <div>
+                                    <small class="text-muted">Téléphone</small>
+                                    <div class="fw-bold">{{ enfant.telephone_parent or 'Non renseigné' }}</div>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="bg-success bg-opacity-10 rounded-circle p-2 me-3">
+                                    <i class="fas fa-envelope text-success"></i>
+                                </div>
+                                <div>
+                                    <small class="text-muted">Email</small>
+                                    <div class="fw-bold">{{ enfant.email_parent or 'Non renseigné' }}</div>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <div class="bg-info bg-opacity-10 rounded-circle p-2 me-3">
+                                    <i class="fas fa-birthday-cake text-info"></i>
+                                </div>
+                                <div>
+                                    <small class="text-muted">Date de naissance</small>
+                                    <div class="fw-bold">{{ enfant.date_naissance.strftime('%d/%m/%Y') if enfant.date_naissance else 'Non renseignée' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions rapides -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-lg">
+                        <div class="card-body text-center">
+                            <h5 class="mb-4">Actions rapides pour {{ enfant.prenom }}</h5>
+                            <div class="d-flex justify-content-center gap-3 flex-wrap">
+                                <a href="{{ url_for('main.voir_eleve', eleve_id=enfant.id) }}" 
+                                   class="btn btn-primary">
+                                    <i class="fas fa-user me-1"></i>Profil complet
+                                </a>
+                                <a href="{{ url_for('main.notes') }}" 
+                                   class="btn btn-success">
+                                    <i class="fas fa-sticky-note me-1"></i>Toutes les notes
+                                </a>
+                                <a href="{{ url_for('main.absences') }}" 
+                                   class="btn btn-warning">
+                                    <i class="fas fa-user-times me-1"></i>Absences
+                                </a>
+                                <a href="{{ url_for('main.paiements_parent') }}" 
+                                   class="btn btn-info">
+                                    <i class="fas fa-money-bill-wave me-1"></i>Paiements
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg text-center py-5">
+                <div class="card-body">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                    <h5 class="text-warning">Aucun enfant associé</h5>
+                    <p class="text-muted">Votre compte parent n'est associé à aucun élève.</p>
+                    <p class="text-muted">Veuillez contacter l'administration de l'établissement.</p>
+                    <a href="{{ url_for('main.logout') }}" class="btn btn-outline-primary mt-3">
+                        <i class="fas fa-sign-out-alt me-1"></i>Se déconnecter
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if enfants|length > 1 %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const select = document.getElementById('enfantSelect');
+    const panels = document.querySelectorAll('.enfant-panel');
+
+    if (panels.length > 0) {
+        panels[0].style.display = 'block';
+        select.value = panels[0].dataset.enfantId;
+    }
+
+    select.addEventListener('change', function() {
+        panels.forEach(panel => panel.style.display = 'none');
+        const selectedPanel = document.querySelector(`.enfant-panel[data-enfant-id="${this.value}"]`);
+        if (selectedPanel) selectedPanel.style.display = 'block';
+    });
+});
+</script>
+{% endif %}
+
+<style>
+.card { transition: transform 0.3s ease, box-shadow 0.3s ease; border-radius: 1rem; }
+.card:hover { transform:
+.card:hover { 
+    transform: translateY(-5px); 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important; 
+}
+
+.bg-animated {
+    background: linear-gradient(135deg, #4361ee, #3a0ca3);
+    background-size: 200% 200%;
+    animation: gradientAnimation 10s ease infinite;
+}
+
+@keyframes gradientAnimation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.animate-pop-in {
+    animation: popIn 0.6s ease-out;
+}
+
+@keyframes popIn {
+    0% { opacity: 0; transform: scale(0.8); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+.progress {
+    border-radius: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+</style>
+{% endblock %}

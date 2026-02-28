@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Gérer les écoles{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Liste des écoles</h2>
+    <a href="{{ url_for('main.ajouter_ecole') }}" class="btn btn-success mb-3">Ajouter une école</a>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nom</th>
+                <th>Adresse</th>
+                <th>Téléphone</th>
+                <th>Email</th>
+                <th>Directeur</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ecole in ecoles %}
+            <tr>
+                <td>{{ ecole.id }}</td>
+                <td>{{ ecole.nom }}</td>
+                <td>{{ ecole.adresse }}</td>
+                <td>{{ ecole.telephone }}</td>
+                <td>{{ ecole.email }}</td>
+                <td>{{ ecole.directeur }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,685 @@
+{% extends "base.html" %}
+{% block title %}Bulletins Scolaires - EduManage{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    
+    {% if current_user.role == 'parent' and not bulletins_accessibles %}
+    <!-- Message d'information pour les parents -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-info border-0 shadow-sm animate-pop-in" style="border-radius: 1.2rem;">
+                <div class="d-flex align-items-center">
+                    <div class="bg-info bg-opacity-10 rounded-circle p-3 me-3">
+                        <i class="fas fa-info-circle fa-2x text-info"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h4 class="alert-heading mb-2">Bulletins non disponibles</h4>
+                        <p class="mb-2">Les bulletins ne sont pas encore accessibles. L'administration les publiera prochainement.</p>
+                        <small class="text-muted">Vous serez notifié dès que les bulletins seront disponibles.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="bg-animated p-4 rounded-3 position-relative overflow-hidden" style="background: var(--gradient-success);">
+                <div class="position-absolute top-0 end-0 w-50 h-100 opacity-25">
+                    <i class="fas fa-file-pdf fa-10x text-white"></i>
+                </div>
+                <div class="d-flex justify-content-between align-items-center position-relative">
+                    <div class="text-white">
+                        <h2 class="mb-2"><i class="fas fa-file-pdf me-2"></i>Bulletins Scolaires</h2>
+                        <p class="mb-0 opacity-75">Consultez les résultats académiques de tous les élèves</p>
+                    </div>
+                    <div class="bg-white bg-opacity-20 rounded-circle p-4">
+                        <i class="fas fa-chart-bar fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-0 shadow-sm text-white animate-pop-in h-100" style="background: var(--gradient-primary); border-radius: 1rem;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-white bg-opacity-20 rounded-circle p-3 me-3">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h5 class="card-title mb-0">Élèves</h5>
+                            <h2 class="card-text mb-0">{{ total_eleves }}</h2>
+                            <small>Total inscrits</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-0 shadow-sm text-white animate-pop-in h-100" style="background: var(--gradient-info); border-radius: 1rem;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-white bg-opacity-20 rounded-circle p-3 me-3">
+                            <i class="fas fa-chart-line fa-2x"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h5 class="card-title mb-0">Moyenne</h5>
+                            <h2 class="card-text mb-0">{{ moyenne_generale }}</h2>
+                            <small>Générale de l'école</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-0 shadow-sm text-white animate-pop-in h-100" style="background: var(--gradient-warning); border-radius: 1rem;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-white bg-opacity-20 rounded-circle p-3 me-3">
+                            <i class="fas fa-trophy fa-2x"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h5 class="card-title mb-0">Meilleur</h5>
+                            <h2 class="card-text mb-0">{{ meilleure_moyenne }}</h2>
+                            <small>Score obtenu</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-0 shadow-sm text-white animate-pop-in h-100" style="background: var(--gradient-success); border-radius: 1rem;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-white bg-opacity-20 rounded-circle p-3 me-3">
+                            <i class="fas fa-graduation-cap fa-2x"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h5 class="card-title mb-0">Réussite</h5>
+                            <h2 class="card-text mb-0">{{ taux_reussite }}%</h2>
+                            <small>Taux de réussite</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres et Recherche -->
+    <div class="card border-0 shadow-lg mb-4 animate-pop-in" style="border-radius: 1.2rem; overflow: hidden;">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center" style="background: #f8f9fa;">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtres et Recherche</h5>
+            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filtresCollapse" aria-expanded="true">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+        <div class="card-body p-3 collapse show" id="filtresCollapse">
+            <div class="row g-3">
+                <!-- Barre de recherche globale -->
+                <div class="col-md-4">
+                    <label for="rechercheGlobale" class="form-label fw-semibold">Recherche</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" class="form-control" id="rechercheGlobale" placeholder="Nom, prénom, classe...">
+                        <button class="btn btn-outline-secondary" type="button" id="btnEffacerRechercheGlobale">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Filtre par classe -->
+                <div class="col-md-3">
+                    <label for="filtreClasse" class="form-label fw-semibold">Classe</label>
+                    <select class="form-select" id="filtreClasse">
+                        <option value="">Toutes les classes</option>
+                        {% set classes_uniques = [] %}
+                        {% for eleve_data in eleves %}
+                            {% if eleve_data.eleve.classe and eleve_data.eleve.classe not in classes_uniques %}
+                                {% set _ = classes_uniques.append(eleve_data.eleve.classe) %}
+                                <option value="{{ eleve_data.eleve.classe }}">{{ eleve_data.eleve.classe }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Filtre par appréciation -->
+                <div class="col-md-3">
+                    <label for="filtreAppreciation" class="form-label fw-semibold">Appréciation</label>
+                    <select class="form-select" id="filtreAppreciation">
+                        <option value="">Toutes les appréciations</option>
+                        <option value="excellent">Excellent</option>
+                        <option value="tres-bien">Très bien</option>
+                        <option value="bien">Bien</option>
+                        <option value="assez-bien">Assez bien</option>
+                        <option value="insuffisant">Insuffisant</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-2 d-flex align-items-end">
+                    <button id="btnReinitialiser" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-redo me-1"></i> Rétablir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau des Bulletins -->
+    <div class="card border-0 shadow-lg animate-pop-in" style="border-radius: 1.2rem; overflow: hidden;">
+        <div class="card-header py-4 text-white d-flex justify-content-between align-items-center" style="background: var(--gradient-dark);">
+            <h4 class="mb-0"><i class="fas fa-list me-2"></i>Liste des Élèves</h4>
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge bg-light text-dark fs-6">{{ eleves|length }} élève(s)</span>
+                <div class="d-flex align-items-center">
+                    <span class="text-white-50 me-2">Afficher</span>
+                    <select class="form-select form-select-sm w-auto" id="selectNbLignes">
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                <table class="table table-hover align-middle mb-0" id="tableauBulletins">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th class="ps-4 sortable" data-sort="eleve">Élève <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-sort="classe">Classe <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-sort="moyenne">Moyenne <i class="fas fa-sort"></i></th>
+                            <th class="text-center sortable" data-sort="rang">Rang <i class="fas fa-sort"></i></th>
+                            <th class="text-center sortable" data-sort="appreciation">Appréciation <i class="fas fa-sort"></i></th>
+                            <th class="text-center">Notes</th>
+                            <th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eleve_data in eleves %}
+                        {% set eleve = eleve_data.eleve %}
+                        {% set moyenne = eleve_data.moyenne %}
+                        <tr class="ligne-eleve" 
+                            data-eleve="{{ eleve.prenom }} {{ eleve.nom }}"
+                            data-classe="{{ eleve.classe }}"
+                            data-moyenne="{{ moyenne }}"
+                            data-rang="{{ loop.index }}"
+                            data-appreciation="{% if eleve_data.notes_count > 0 %}{% if moyenne >= 16 %}excellent{% elif moyenne >= 14 %}tres-bien{% elif moyenne >= 12 %}bien{% elif moyenne >= 10 %}assez-bien{% else %}insuffisant{% endif %}{% else %}non-evalue{% endif %}"
+                            data-notes="{{ eleve_data.notes_count }}">
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm me-3 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm">
+                                        {{ eleve.prenom[0] }}{{ eleve.nom[0] }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-dark">{{ eleve.prenom }} {{ eleve.nom }}</div>
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar-alt me-1"></i>
+                                            Inscrit le {{ eleve.date_inscription.strftime('%d/%m/%Y') }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 py-2 px-3">
+                                    <i class="fas fa-door-open me-1"></i>
+                                    {{ eleve.classe }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if eleve_data.notes_count > 0 %}
+                                <div class="d-flex align-items-center">
+                                    <div class="fw-bold fs-5 {% if moyenne >= 10 %}text-success{% else %}text-danger{% endif %} me-3" style="min-width: 60px;">
+                                        {{ moyenne }}/20
+                                    </div>
+                                    <div class="progress flex-grow-1" style="height: 8px; border-radius: 4px; max-width: 120px;">
+                                        <div class="progress-bar {% if moyenne >= 10 %}bg-success{% else %}bg-danger{% endif %}" 
+                                             role="progressbar" 
+                                             style="width: {{ (moyenne / 20 * 100)|round }}%"
+                                             data-bs-toggle="tooltip" 
+                                             title="{{ (moyenne / 20 * 100)|round }}%">
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <span class="text-muted fst-italic">Non évalué</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if eleve_data.notes_count > 0 %}
+                                <span class="badge bg-primary rounded-pill py-2 px-3 shadow-sm">#{{ loop.index }}</span>
+                                {% else %}
+                                <span class="text-muted fst-italic">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if eleve_data.notes_count > 0 %}
+                                    {% if moyenne >= 16 %}
+                                        <span class="badge bg-success py-2 px-3 shadow-sm">
+                                            <i class="fas fa-star me-1"></i>Excellent
+                                        </span>
+                                    {% elif moyenne >= 14 %}
+                                        <span class="badge bg-info py-2 px-3 shadow-sm">
+                                            <i class="fas fa-thumbs-up me-1"></i>Très bien
+                                        </span>
+                                    {% elif moyenne >= 12 %}
+                                        <span class="badge bg-primary py-2 px-3 shadow-sm">
+                                            <i class="fas fa-check me-1"></i>Bien
+                                        </span>
+                                    {% elif moyenne >= 10 %}
+                                        <span class="badge bg-warning py-2 px-3 shadow-sm">
+                                            <i class="fas fa-minus me-1"></i>Assez bien
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-danger py-2 px-3 shadow-sm">
+                                            <i class="fas fa-exclamation me-1"></i>Insuffisant
+                                        </span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted fst-italic">Non évalué</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-dark border py-2 px-3">
+                                    <i class="fas fa-sticky-note me-1"></i>
+                                    {{ eleve_data.notes_count }}
+                                </span>
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" 
+                                       class="btn btn-primary btn-sm fw-bold rounded-start" 
+                                       data-bs-toggle="tooltip" 
+                                       title="Consulter le bulletin">
+                                        <i class="fas fa-eye me-1"></i>Voir
+                                    </a>
+                                    <button class="btn btn-outline-primary btn-sm rounded-end" 
+                                            data-bs-toggle="tooltip" 
+                                            title="Télécharger le PDF">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="py-4">
+                                    <i class="fas fa-file-invoice fa-4x text-muted mb-3"></i>
+                                    <h4 class="text-muted">Aucun élève enregistré</h4>
+                                    <p class="text-muted">Les bulletins apparaîtront ici une fois les élèves ajoutés</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination et informations -->
+            <div class="d-flex justify-content-between align-items-center p-3 border-top bg-light">
+                <div class="text-muted" id="infoPagination">
+                    Affichage de <span id="debutLignes">1</span> à <span id="finLignes">{{ eleves|length }}</span> sur <span id="totalLignes">{{ eleves|length }}</span> élèves
+                </div>
+                <nav>
+                    <ul class="pagination mb-0" id="pagination">
+                        <!-- La pagination sera générée par JavaScript -->
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.avatar-sm {
+    width: 40px;
+    height: 40px;
+    font-size: 0.9rem;
+}
+
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.sortable:hover {
+    background-color: rgba(0,0,0,0.03);
+}
+
+.ligne-eleve {
+    transition: all 0.3s ease;
+}
+
+.ligne-eleve:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.table-responsive::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.stat-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+@media (max-width: 768px) {
+    .avatar-sm {
+        width: 32px;
+        height: 32px;
+        font-size: 0.8rem;
+    }
+    
+    .card-header h4 {
+        font-size: 1.1rem;
+    }
+    
+    .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .stat-card .card-body {
+        padding: 1rem;
+    }
+}
+
+/* Animation pour les lignes */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.ligne-eleve {
+    animation: fadeInUp 0.5s ease-out;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialisation des tooltips Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+    
+    // Variables globales
+    const filtreClasse = document.getElementById('filtreClasse');
+    const filtreAppreciation = document.getElementById('filtreAppreciation');
+    const btnReinitialiser = document.getElementById('btnReinitialiser');
+    const rechercheGlobale = document.getElementById('rechercheGlobale');
+    const btnEffacerRechercheGlobale = document.getElementById('btnEffacerRechercheGlobale');
+    const selectNbLignes = document.getElementById('selectNbLignes');
+    
+    let lignesEleves = Array.from(document.querySelectorAll('#tableauBulletins tbody tr.ligne-eleve'));
+    let lignesFiltrees = [...lignesEleves];
+    let colonneTri = 'moyenne';
+    let ordreTri = 'desc';
+    let pageCourante = 1;
+    let lignesParPage = 25;
+
+    // Recherche globale dans le tableau
+    if (rechercheGlobale) {
+        rechercheGlobale.addEventListener('input', function() {
+            appliquerFiltres();
+        });
+        
+        btnEffacerRechercheGlobale.addEventListener('click', function() {
+            rechercheGlobale.value = '';
+            appliquerFiltres();
+        });
+    }
+
+    // Filtrage des élèves
+    function appliquerFiltres() {
+        const classeValue = filtreClasse ? filtreClasse.value : '';
+        const appreciationValue = filtreAppreciation ? filtreAppreciation.value : '';
+        const rechercheValue = rechercheGlobale ? rechercheGlobale.value.toLowerCase() : '';
+
+        lignesFiltrees = lignesEleves.filter(ligne => {
+            // Filtre par classe
+            const showClasse = !classeValue || ligne.dataset.classe === classeValue;
+            
+            // Filtre par appréciation
+            const showAppreciation = !appreciationValue || ligne.dataset.appreciation === appreciationValue;
+            
+            // Filtre par recherche globale
+            let showRecherche = true;
+            if (rechercheValue) {
+                const texteLigne = ligne.textContent.toLowerCase();
+                showRecherche = texteLigne.includes(rechercheValue);
+            }
+            
+            return showClasse && showAppreciation && showRecherche;
+        });
+        
+        pageCourante = 1;
+        trierEtAfficher();
+    }
+
+    // Événements de filtrage
+    if (filtreClasse) filtreClasse.addEventListener('change', appliquerFiltres);
+    if (filtreAppreciation) filtreAppreciation.addEventListener('change', appliquerFiltres);
+
+    // Réinitialisation des filtres
+    if (btnReinitialiser) {
+        btnReinitialiser.addEventListener('click', () => {
+            if (filtreClasse) filtreClasse.value = '';
+            if (filtreAppreciation) filtreAppreciation.value = '';
+            if (rechercheGlobale) rechercheGlobale.value = '';
+            appliquerFiltres();
+        });
+    }
+
+    // Gestion du nombre de lignes par page
+    if (selectNbLignes) {
+        selectNbLignes.addEventListener('change', function() {
+            lignesParPage = parseInt(this.value);
+            pageCourante = 1;
+            trierEtAfficher();
+        });
+    }
+
+    // Tri du tableau
+    const entetesTriables = document.querySelectorAll('.sortable');
+    entetesTriables.forEach(entete => {
+        entete.addEventListener('click', function() {
+            const nouvelleColonne = this.dataset.sort;
+            if (colonneTri === nouvelleColonne) {
+                ordreTri = ordreTri === 'asc' ? 'desc' : 'asc';
+            } else {
+                colonneTri = nouvelleColonne;
+                ordreTri = 'asc';
+            }
+            trierEtAfficher();
+            mettreAJourIconesTri();
+        });
+    });
+
+    function trierTableau(colonne, ordre) {
+        lignesFiltrees.sort((a, b) => {
+            let valeurA, valeurB;
+            switch(colonne) {
+                case 'eleve': 
+                    valeurA = a.dataset.eleve.toLowerCase();
+                    valeurB = b.dataset.eleve.toLowerCase(); 
+                    break;
+                case 'classe': 
+                    valeurA = a.dataset.classe.toLowerCase();
+                    valeurB = b.dataset.classe.toLowerCase(); 
+                    break;
+                case 'moyenne': 
+                    valeurA = parseFloat(a.dataset.moyenne);
+                    valeurB = parseFloat(b.dataset.moyenne); 
+                    break;
+                case 'rang': 
+                    valeurA = parseInt(a.dataset.rang);
+                    valeurB = parseInt(b.dataset.rang); 
+                    break;
+                case 'appreciation': 
+                    valeurA = a.dataset.appreciation;
+                    valeurB = b.dataset.appreciation; 
+                    break;
+            }
+            if (valeurA === valeurB) return 0;
+            return (ordre === 'asc') ? (valeurA > valeurB ? 1 : -1) : (valeurA < valeurB ? 1 : -1);
+        });
+    }
+
+    function mettreAJourIconesTri() {
+        entetesTriables.forEach(entete => {
+            const icone = entete.querySelector('i');
+            if (entete.dataset.sort === colonneTri) {
+                icone.className = ordreTri === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+            } else icone.className = 'fas fa-sort';
+        });
+    }
+
+    // Pagination
+    function mettreAJourPagination() {
+        const totalPages = Math.ceil(lignesFiltrees.length / lignesParPage);
+        const pagination = document.getElementById('pagination');
+        pagination.innerHTML = '';
+        
+        // Bouton précédent
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${pageCourante === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="#" aria-label="Précédent"><span aria-hidden="true">&laquo;</span></a>`;
+        prevLi.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (pageCourante > 1) {
+                pageCourante--;
+                trierEtAfficher();
+            }
+        });
+        pagination.appendChild(prevLi);
+        
+        // Pages
+        const debutPage = Math.max(1, pageCourante - 2);
+        const finPage = Math.min(totalPages, debutPage + 4);
+        
+        for (let i = debutPage; i <= finPage; i++) {
+            const pageLi = document.createElement('li');
+            pageLi.className = `page-item ${i === pageCourante ? 'active' : ''}`;
+            pageLi.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+            pageLi.addEventListener('click', (e) => {
+                e.preventDefault();
+                pageCourante = i;
+                trierEtAfficher();
+            });
+            pagination.appendChild(pageLi);
+        }
+        
+        // Bouton suivant
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${pageCourante === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="#" aria-label="Suivant"><span aria-hidden="true">&raquo;</span></a>`;
+        nextLi.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (pageCourante < totalPages) {
+                pageCourante++;
+                trierEtAfficher();
+            }
+        });
+        pagination.appendChild(nextLi);
+        
+        // Mise à jour des informations de pagination
+        const debutLignes = document.getElementById('debutLignes');
+        const finLignes = document.getElementById('finLignes');
+        const totalLignes = document.getElementById('totalLignes');
+        
+        const debut = (pageCourante - 1) * lignesParPage + 1;
+        const fin = Math.min(pageCourante * lignesParPage, lignesFiltrees.length);
+        
+        debutLignes.textContent = lignesFiltrees.length === 0 ? '0' : debut;
+        finLignes.textContent = fin;
+        totalLignes.textContent = lignesFiltrees.length;
+    }
+
+    function afficherLignesPage() {
+        const tbody = document.querySelector('#tableauBulletins tbody');
+        tbody.innerHTML = '';
+        
+        const debut = (pageCourante - 1) * lignesParPage;
+        const fin = debut + lignesParPage;
+        const lignesPage = lignesFiltrees.slice(debut, fin);
+        
+        if (lignesPage.length === 0) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = document.querySelector('#tableauBulletins thead th').length;
+            td.className = 'text-center py-5';
+            td.innerHTML = `
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Aucun élève trouvé</h5>
+                <p class="text-muted">Aucun élève ne correspond à vos critères de recherche</p>
+            `;
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+        } else {
+            lignesPage.forEach(ligne => tbody.appendChild(ligne.cloneNode(true)));
+        }
+        
+        // Réinitialiser les tooltips
+        tooltipTriggerList.forEach(tooltipTriggerEl => {
+            new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+
+    function trierEtAfficher() {
+        trierTableau(colonneTri, ordreTri);
+        afficherLignesPage();
+        mettreAJourPagination();
+    }
+
+    // Initialisation
+    trierEtAfficher();
+    mettreAJourIconesTri();
+});
+</script>
+{% endblock %}

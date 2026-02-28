@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistiques - Gestion Scolaire</title>
+   <link rel="stylesheet" href="{{ url_for('admin.static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="nav-breadcrumb">
+            <a href="{{ url_for('admin.dashboard') }}">Tableau de bord</a> > Statistiques
+        </div>
+
+        <h1>Statistiques du système</h1>
+
+        <div class="card">
+            <h2>Utilisation des ressources</h2>
+            <p><strong>Espace disque utilisé:</strong> {{ stats.disk_usage }}%</p>
+            <p><strong>Dernière sauvegarde:</strong> {{ stats.last_backup if stats.last_backup else "Aucune" }}</p>
+            <p><strong>Version SQLite:</strong> {{ stats.db_version }}</p>
+        </div>
+
+        <div class="card">
+            <h2>Base de données</h2>
+            <p>Informations sur la structure et le contenu de la base de données.</p>
+            <a href="#" class="button">Voir le schéma de la base</a>
+        </div>
+
+        <a href="{{ url_for('admin.dashboard') }}" class="button">Retour au tableau de bord</a>
+    </div>
+</body>
+</html>

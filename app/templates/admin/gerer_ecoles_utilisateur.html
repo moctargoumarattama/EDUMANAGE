@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Gérer les écoles de {{ utilisateur.prenom }} {{ utilisateur.nom }}</h2>
+
+<div class="mb-4">
+    <h4>📊 Statistiques globales</h4>
+    <ul>
+        <li>Nombre d'écoles : {{ nb_ecoles }}</li>
+        <li>Nombre d'élèves : {{ nb_eleves }}</li>
+        <li>Nombre de parents : {{ nb_parents }}</li>
+        <li>Nombre d'enseignants : {{ nb_enseignants }}</li>
+        <li>Nombre d'administrateurs : {{ nb_admins }}</li>
+    </ul>
+</div>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+
+    <h4>Assignation des écoles</h4>
+    {% for stat in stats_ecoles %}
+    <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" name="ecoles" value="{{ stat.id }}"
+               id="ecole_{{ stat.id }}"
+               {% if stat.id in ecoles_actuelles %}checked{% endif %}>
+        <label class="form-check-label" for="ecole_{{ stat.id }}">
+            {{ stat.nom }} ({{ stat.eleves }} élèves)
+        </label>
+    </div>
+    {% endfor %}
+
+    <br>
+    {{ form.submit(class="btn btn-primary mt-3") }}
+    <a href="{{ url_for('main.gestion_utilisateurs') }}" class="btn btn-secondary mt-3">Annuler</a>
+</form>
+{% endblock %}

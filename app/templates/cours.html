@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Gestion des Cours - EduManage{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="p-4 rounded-3 text-white shadow" style="background: linear-gradient(90deg,#6a11cb,#2575fc)">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <div>
+                        <h2 class="fw-bold">
+                            <i class="fas fa-book me-2"></i>
+                            {% if current_user.role == 'admin' %}Gestion des Cours{% else %}Mes Cours{% endif %}
+                        </h2>
+                        <p class="opacity-75 mb-0">
+                            {% if current_user.role == 'admin' %}
+                                Créez et gérez les matières de l'établissement
+                            {% else %}
+                                Liste des cours qui vous sont assignés
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="fs-1"><i class="fas fa-graduation-cap"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulaire d'ajout -->
+    {% if form %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm rounded-3 border-0">
+                <div class="card-header bg-success text-white d-flex align-items-center">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    <h5 class="mb-0">Ajouter un nouveau cours</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('main.ajouter_cours') }}" novalidate>
+                        {{ form.hidden_tag() }}
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                {{ form.nom(class="form-control", placeholder="Nom du cours") }}
+                                {{ form.nom.label(class="form-label mt-1") }}
+                            </div>
+                            <div class="col-md-3">
+                                {{ form.professeur_id(class="form-select") }}
+                                {{ form.professeur_id.label(class="form-label mt-1") }}
+                            </div>
+                            <div class="col-md-2">
+                                {{ form.coefficient(class="form-control") }}
+                                {{ form.coefficient.label(class="form-label mt-1") }}
+                            </div>
+                            <div class="col-md-3">
+                                {{ form.classe_id(class="form-select") }}
+                                {{ form.classe_id.label(class="form-label mt-1") }}
+                            </div>
+                            <div class="col-12">
+                                {{ form.description(class="form-control", style="height:80px") }}
+                                {{ form.description.label(class="form-label mt-1") }}
+                            </div>
+                            <div class="col-md-2 mt-2">
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="fas fa-plus-circle me-1"></i>Ajouter
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tableau des cours -->
+    <div class="card shadow-sm rounded-3 border-0">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>
+                {% if current_user.role == 'admin' %}Liste des Cours{% else %}Mes Cours{% endif %}
+            </h5>
+            <span class="badge bg-white text-dark">{{ cours_count }} cours</span>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height:600px; overflow:auto;">
+                <table id="tableCours" class="table table-striped table-hover align-middle mb-0">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th>ID</th>
+                            <th>Matière</th>
+                            <th>Coeff.</th>
+                            {% if current_user.role == 'admin' %}<th>Professeur</th>{% endif %}
+                            <th>Classe</th>
+                            <th>Description</th>
+                            <th class="text-center">Notes</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in cours %}
+                        <tr class="align-middle">
+                            <td><span class="badge bg-secondary">{{ c.id }}</span></td>
+                            <td class="fw-bold">{{ c.nom }}</td>
+                            <td><span class="badge bg-primary">x{{ c.coefficient }}</span></td>
+
+                            {% if current_user.role == 'admin' %}
+                            <td>
+                                {% if c.professeur %}
+                                    <span class="badge bg-warning text-dark">{{ c.professeur.id }}</span>
+                                    {{ c.professeur.prenom }} {{ c.professeur.nom }}
+                                {% else %}
+                                    Non assigné
+                                {% endif %}
+                            </td>
+                            {% endif %}
+
+                            <td>
+                                {% if c.classe %}
+                                    {% set niveau_color = {
+                                        '6ème': 'bg-info',
+                                        '5ème': 'bg-success',
+                                        '4ème': 'bg-warning text-dark',
+                                        '3ème': 'bg-danger text-white'
+                                    } %}
+                                    <span class="badge {{ niveau_color.get(c.classe.niveau, 'bg-secondary') }}">{{ c.classe.id }}</span>
+                                    {{ c.classe.nom }} ({{ c.classe.niveau }})
+                                {% else %}
+                                    <span class="badge bg-secondary">?</span> Non assignée
+                                {% endif %}
+                            </td>
+
+                            <td>{{ c.description or "Aucune description" }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-success text-dark">{{ c.notes_count }}</span>
+                            </td>
+                            <td class="text-end">
+                                <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-outline-primary btn-sm me-1" title="Voir détails">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if current_user.role == 'admin' %}
+                                <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" onsubmit="return confirm('Supprimer le cours {{ c.nom }} ?');">
+                                    {{ delete_form.hidden_tag() }}
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">
+                                <i class="fas fa-book-open fa-2x mb-2"></i><br>Aucun cours enregistré
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DataTables CSS/JS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const table = $('#tableCours');
+    setTimeout(() => {
+        table.DataTable({
+            pageLength: 15,
+            lengthMenu: [10, 15, 25, 50, 100],
+            order: [[1, 'asc']],
+            responsive: true,
+            scrollY: '500px',
+            scrollCollapse: true,
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/fr-FR.json'
+            }
+        });
+    }, 150);
+});
+</script>
+{% endblock %}

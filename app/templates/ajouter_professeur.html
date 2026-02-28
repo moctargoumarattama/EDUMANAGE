@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Ajouter un professeur{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-success fw-bold">
+        <i class="fas fa-chalkboard-teacher me-2"></i>Ajouter un professeur
+    </h2>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-lg rounded-4 border-0 hover-card">
+                <div class="card-header bg-gradient-success text-white py-3 d-flex align-items-center">
+                    <div class="icon-floating bg-white bg-opacity-20 rounded-circle p-3 me-3">
+                        <i class="fas fa-chalkboard-teacher fa-2x"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0 fw-bold">Nouveau professeur</h5>
+                        <small class="opacity-75">Remplissez le formulaire pour ajouter le professeur</small>
+                    </div>
+                </div>
+
+                <div class="card-body p-5">
+                    <form method="POST" class="needs-validation" novalidate>
+                        {{ form.hidden_tag() }}
+
+                        <!-- Informations personnelles -->
+                        <h5 class="text-success mb-3"><i class="fas fa-user-tie me-2"></i>Informations personnelles</h5>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="input-icon">
+                                    <i class="fas fa-user"></i>
+                                    {{ form.nom(class="form-control form-control-lg ps-5", placeholder="Nom du professeur") }}
+                                </div>
+                                {% for error in form.nom.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="input-icon">
+                                    <i class="fas fa-user"></i>
+                                    {{ form.prenom(class="form-control form-control-lg ps-5", placeholder="Prénom du professeur") }}
+                                </div>
+                                {% for error in form.prenom.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="input-icon">
+                                    <i class="fas fa-calendar-alt"></i>
+                                    {{ form.date_naissance(class="form-control form-control-lg ps-5") }}
+                                </div>
+                                {% for error in form.date_naissance.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <div class="input-icon">
+                                    <i class="fas fa-phone"></i>
+                                    {{ form.telephone(class="form-control form-control-lg ps-5", placeholder="Téléphone du professeur") }}
+                                </div>
+                                {% for error in form.telephone.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="input-icon">
+                                <i class="fas fa-map-marker-alt"></i>
+                                {{ form.adresse(class="form-control form-control-lg ps-5", placeholder="Adresse du professeur", style="height: 100px;") }}
+                            </div>
+                            {% for error in form.adresse.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="input-icon">
+                                <i class="fas fa-envelope"></i>
+                                {{ form.email(class="form-control form-control-lg ps-5", type="email", placeholder="Email du professeur") }}
+                            </div>
+                            {% for error in form.email.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Informations professionnelles -->
+                        <h5 class="text-success mb-3"><i class="fas fa-book-open me-2"></i>Informations professionnelles</h5>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="input-icon">
+                                    <i class="fas fa-graduation-cap"></i>
+                                    {{ form.specialite(class="form-control form-control-lg ps-5", placeholder="Spécialité") }}
+                                </div>
+                                {% for error in form.specialite.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="input-icon">
+                                    <i class="fas fa-book"></i>
+                                    {{ form.matieres_enseignees(class="form-control form-control-lg ps-5", placeholder="Matières enseignées") }}
+                                </div>
+                                {% for error in form.matieres_enseignees.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Code d'accès -->
+                        <h5 class="text-success mb-3"><i class="fas fa-key me-2"></i>Code d'accès</h5>
+                        <div class="input-icon mb-3">
+                            <i class="fas fa-key"></i>
+                            {{ form.code_prof(class="form-control form-control-lg ps-5", placeholder="Code d'accès (laisser vide pour générer)") }}
+                        </div>
+                        <small class="text-muted">Si vous laissez vide, un code sera généré automatiquement.</small>
+                        {% for error in form.code_prof.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+
+                        <!-- Boutons -->
+                        <div class="d-flex justify-content-end mt-4 gap-2">
+                            <a href="{{ url_for('main.professeurs') }}" class="btn btn-outline-secondary btn-lg px-4 py-2">
+                                <i class="fas fa-arrow-left me-2"></i>Retour
+                            </a>
+                            <button type="submit" class="btn btn-gradient-success btn-lg px-4 py-2">
+                                <i class="fas fa-plus-circle me-2"></i>Ajouter le professeur
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Card Hover */
+.hover-card { transition: all 0.4s ease-in-out; }
+.hover-card:hover { transform: translateY(-5px); box-shadow: 0 20px 45px rgba(0,0,0,0.18); }
+
+/* Gradient Header */
+.bg-gradient-success { background: linear-gradient(135deg, #10b981 0%, #047857 100%) !important; }
+
+/* Floating icon */
+.icon-floating { animation: float 3s ease-in-out infinite; display: flex; align-items: center; justify-content: center; }
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+/* Input icons */
+.input-icon { position: relative; }
+.input-icon i { position: absolute; top: 50%; left: 1rem; transform: translateY(-50%); color: #10b981; pointer-events: none; }
+.input-icon input, .input-icon select, .input-icon textarea { padding-left: 3rem !important; transition: all 0.3s ease; }
+
+/* Buttons */
+.btn-gradient-success {
+    background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+    color: white;
+    border-radius: 0.8rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+.btn-gradient-success:hover { transform: scale(1.05); box-shadow: 0 8px 20px rgba(16,185,129,0.35); }
+
+/* Outline secondary */
+.btn-outline-secondary { border-radius: 0.8rem; transition: all 0.25s ease; }
+.btn-outline-secondary:hover { background: #f1f5f9; color: #1e293b; border-color: #94a3b8; }
+
+/* Form focus */
+.form-control:focus, .form-select:focus { border-color: #10b981; box-shadow: 0 0 0 0.25rem rgba(16,185,129,0.2); }
+</style>
+
+<script>
+(function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms)
+        .forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                }
+                form.classList.add('was-validated')
+            }, false)
+        })
+})();
+</script>
+{% endblock %}

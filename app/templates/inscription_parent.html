@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscription Parent / Élève - EduManage</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4e54c8;
+            --primary-dark: #3f43a7;
+            --secondary: #8f94fb;
+            --success: #17a2b8;
+            --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            --card-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.08);
+            --card-shadow-hover: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f5f7fb;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 20px 0;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(79, 84, 200, 0.03) 0%, rgba(79, 84, 200, 0) 25%),
+                radial-gradient(circle at 85% 30%, rgba(143, 148, 251, 0.03) 0%, rgba(143, 148, 251, 0) 25%);
+        }
+        
+        .form-container {
+            max-width: 900px;
+            margin: 0 auto;
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        .card {
+            border-radius: 16px;
+            overflow: hidden;
+            border: none;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            box-shadow: var(--card-shadow-hover);
+            transform: translateY(-5px);
+        }
+        
+        .card-header {
+            background: var(--gradient-primary);
+            color: white;
+            font-weight: 600;
+            text-align: center;
+            font-size: 1.4rem;
+            padding: 1.5rem;
+            border-bottom: 0;
+        }
+        
+        .card-body {
+            padding: 2rem;
+        }
+        
+        .section-title {
+            position: relative;
+            padding-bottom: 0.75rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 50px;
+            height: 3px;
+            background: var(--gradient-primary);
+            border-radius: 3px;
+        }
+        
+        .form-label {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #495057;
+        }
+        
+        .form-control, .form-select {
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            border: 1px solid #e1e5eb;
+            transition: all 0.3s;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 0.25rem rgba(78, 84, 200, 0.25);
+        }
+        
+        .btn-primary {
+            background: var(--gradient-primary);
+            border: none;
+            border-radius: 50px;
+            padding: 0.875rem 2rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(78, 84, 200, 0.35);
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(78, 84, 200, 0.45);
+        }
+        
+        .form-step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+        
+        .form-step-indicator::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e9ecef;
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+        
+        .step {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #6c757d;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .step.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+        
+        .step.completed {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+        
+        .step-label {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            color: #6c757d;
+        }
+        
+        .step.active .step-label {
+            color: var(--primary);
+            font-weight: 500;
+        }
+        
+        .form-section {
+            display: none;
+        }
+        
+        .form-section.active {
+            display: block;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .form-navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+        }
+        
+        .alert {
+            border-radius: 10px;
+            border: none;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .input-group-icon {
+            position: relative;
+        }
+        
+        .input-group-icon .form-control {
+            padding-left: 2.5rem;
+        }
+        
+        .input-group-icon i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            z-index: 3;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .card-body {
+                padding: 1.5rem;
+            }
+            
+            .form-step-indicator {
+                margin-bottom: 1.5rem;
+            }
+            
+            .step-label {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <div class="text-center mb-4">
+                <h1 class="fw-bold" style="color: var(--primary);">EduManage</h1>
+                <p class="text-muted">Plateforme de gestion scolaire</p>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-user-graduate me-2"></i>Inscription Parent / Élève
+                </div>
+                <div class="card-body">
+                    <!-- Step Indicator -->
+                    <div class="form-step-indicator">
+                        <div class="step active">
+                            <span>1</span>
+                            <div class="step-label">Enfant</div>
+                        </div>
+                        <div class="step">
+                            <span>2</span>
+                            <div class="step-label">Parent</div>
+                        </div>
+                        <div class="step">
+                            <span>3</span>
+                            <div class="step-label">Confirmation</div>
+                        </div>
+                    </div>
+
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                      {% if messages %}
+                        {% for category, message in messages %}
+                          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                              <i class="fas fa-{% if category == 'success' %}check-circle{% else %}exclamation-circle{% endif %} me-2"></i>
+                              {{ message }}
+                              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                          </div>
+                        {% endfor %}
+                      {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" action="{{ url_for('main.inscription_parent') }}" id="inscriptionForm">
+                        <!-- Section 1: Informations de l'enfant -->
+                        <div class="form-section active" id="section1">
+                            <h5 class="section-title"><i class="fas fa-child me-2"></i>Informations de l'enfant</h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="nom_enfant" class="form-label">Nom</label>
+                                    <div class="input-group-icon">
+                                        <i class="fas fa-user"></i>
+                                        <input type="text" class="form-control" id="nom_enfant" name="nom_enfant" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="prenom_enfant" class="form-label">Prénom</label>
+                                    <div class="input-group-icon">
+                                        <i class="fas fa-signature"></i>
+                                        <input type="text" class="form-control" id="prenom_enfant" name="prenom_enfant" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="date_naissance" class="form-label">Date de naissance</label>
+                                    <div class="input-group-icon">
+                                        <i class="fas fa-calendar-alt"></i>
+                                        <input type="date" class="form-control" id="date_naissance" name="date_naissance" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="classe" class="form-label">Classe</label>
+                                    <div class="input-group-icon">
+                                        <i class="fas fa-graduation-cap"></i>
+                                        <select class="form-select" id="classe" name="classe" required>
+    <option value="">-- Sélectionnez une classe --</option>
+    {% for c in classes %}
+        <option value="{{ c.id }}" {% if request.form.classe == c.id|string %}selected{% endif %}>
+            {{ c.nom }} ({{ c.niveau }})
+        </option>
+    {% endfor %}
+</select>
+
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-navigation">
+                                <button type="button" class="btn btn-outline-primary" disabled>Précédent</button>
+                                <button type="button" class="btn btn-primary" onclick="showSection(2)">Suivant</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Section 2: Informations du parent -->
+                        <div class="form-section" id="section2">
+                            <h5 class="section-title"><i class="fas fa-users me-2"></i>Informations du parent</h5>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="nom_parent" class="form-label">Nom</label>
+                                    <div class="input-group-icon">
+                                        <i class="fas fa-user"></i>
+                                        <input type="text" class="form-control" id="nom_parent" name="nom_parent" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="prenom_parent" class="form-label">Prénom</label>
+                                    <div class="input-group-icon">
+                                        <i class="fas fa-signature"></i>
+                                        <input type="text" class="form-control" id="prenom_parent" name="prenom_parent" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="email" class="form-label">Email</label>
+                                    <div class="input-group-icon">
+                                        <i class="fas fa-envelope"></i>
+                                        <input type="email" class="form-control" id="email" name="email" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="telephone_parent" class="form-label">Téléphone</label>
+                                    <div class="input-group-icon">
+                                        <i class="fas fa-phone"></i>
+                                        <input type="text" class="form-control" id="telephone_parent" name="telephone_parent" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-navigation">
+                                <button type="button" class="btn btn-outline-primary" onclick="showSection(1)">Précédent</button>
+                                <button type="submit" class="btn btn-primary">Inscrire l'enfant</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <p class="text-muted">Vous avez déjà un compte? <a href="#" style="color: var(--primary); text-decoration: none;">Connectez-vous</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Function to navigate between form sections
+        function showSection(sectionNumber) {
+            // Hide all sections
+            document.querySelectorAll('.form-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Show the selected section
+            document.getElementById('section' + sectionNumber).classList.add('active');
+            
+            // Update step indicator
+            document.querySelectorAll('.step').forEach((step, index) => {
+                step.classList.remove('active', 'completed');
+                if (index + 1 < sectionNumber) {
+                    step.classList.add('completed');
+                } else if (index + 1 === sectionNumber) {
+                    step.classList.add('active');
+                }
+            });
+        }
+        
+        // Form validation before submission
+        document.getElementById('inscriptionForm').addEventListener('submit', function(event) {
+            let isValid = true;
+            
+            // Validate child information
+            if (!document.getElementById('nom_enfant').value) {
+                isValid = false;
+                highlightError('nom_enfant');
+            }
+            
+            if (!document.getElementById('prenom_enfant').value) {
+                isValid = false;
+                highlightError('prenom_enfant');
+            }
+            
+            if (!document.getElementById('date_naissance').value) {
+                isValid = false;
+                highlightError('date_naissance');
+            }
+            
+            if (!document.getElementById('classe').value) {
+                isValid = false;
+                highlightError('classe');
+            }
+            
+            // Validate parent information
+            if (!document.getElementById('nom_parent').value) {
+                isValid = false;
+                highlightError('nom_parent');
+            }
+            
+            if (!document.getElementById('prenom_parent').value) {
+                isValid = false;
+                highlightError('prenom_parent');
+            }
+            
+            if (!document.getElementById('email').value) {
+                isValid = false;
+                highlightError('email');
+            }
+            
+            if (!document.getElementById('telephone_parent').value) {
+                isValid = false;
+                highlightError('telephone_parent');
+            }
+            
+            if (!isValid) {
+                event.preventDefault();
+                alert('Veuillez remplir tous les champs obligatoires.');
+                showSection(1); // Go back to first section to show errors
+            }
+        });
+        
+        function highlightError(fieldId) {
+            const field = document.getElementById(fieldId);
+            field.style.borderColor = '#dc3545';
+            field.focus();
+            
+            // Remove error highlight after 3 seconds
+            setTimeout(() => {
+                field.style.borderColor = '';
+            }, 3000);
+        }
+        
+        // Add animation to form elements
+        document.addEventListener('DOMContentLoaded', function() {
+            const formElements = document.querySelectorAll('.form-control, .form-select, .btn');
+            formElements.forEach((element, index) => {
+                element.style.animationDelay = `${index * 0.05}s`;
+                element.classList.add('animate__animated', 'animate__fadeIn');
+            });
+        });
+    </script>
+</body>
+</html>

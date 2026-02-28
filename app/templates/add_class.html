@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- En-tête avec navigation -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.liste_classes') }}">Classes</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Nouvelle classe</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Carte du formulaire -->
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-primary text-white py-3">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-chalkboard-teacher fa-2x me-3"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h4 class="mb-0">Créer une nouvelle classe</h4>
+                            <p class="mb-0 opacity-75">Remplissez les informations requises pour ajouter une classe</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" id="classeForm">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Nom de la classe -->
+                        <div class="mb-4">
+                            {{ form.nom.label(class="form-label fw-bold") }}
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">
+                                    <i class="fas fa-signature text-primary"></i>
+                                </span>
+                                {{ form.nom(class="form-control form-control-lg", placeholder="Ex: 6ème A, Terminale S") }}
+                            </div>
+                            <div class="form-text">Utilisez un nom clair et descriptif pour la classe</div>
+                            {% for error in form.nom.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="row">
+                            <!-- Niveau -->
+                            <div class="col-md-6 mb-4">
+                                {{ form.niveau.label(class="form-label fw-bold") }}
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light">
+                                        <i class="fas fa-layer-group text-primary"></i>
+                                    </span>
+                                    {{ form.niveau(class="form-select form-select-lg") }}
+                                </div>
+                                {% for error in form.niveau.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Effectif -->
+                            <div class="col-md-6 mb-4">
+                                {{ form.effectif.label(class="form-label fw-bold") }}
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light">
+                                        <i class="fas fa-users text-primary"></i>
+                                    </span>
+                                    {{ form.effectif(class="form-control form-control-lg", type="number", min="0", max="50", placeholder="0") }}
+                                </div>
+                                <div class="form-text">Nombre actuel d'élèves dans cette classe</div>
+                                {% for error in form.effectif.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Année scolaire -->
+                        <div class="mb-4">
+                            <label for="annee_scolaire" class="form-label fw-bold">Année scolaire</label>
+                            <select class="form-select form-select-lg" id="annee_scolaire" name="annee_scolaire_id" required>
+                                {% for annee in annees_ecole %}
+                                    <option value="{{ annee.id }}" {% if annee.id == annee_active.id %}selected{% endif %}>
+                                        {{ annee.nom }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Capacité maximale -->
+                        <div class="mb-4">
+                            <label for="capacite" class="form-label fw-bold">Capacité maximale</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">
+                                    <i class="fas fa-user-plus text-primary"></i>
+                                </span>
+                                <input type="number" class="form-control form-control-lg" id="capacite" name="capacite" 
+                                       min="10" max="50" value="30" placeholder="30">
+                            </div>
+                            <div class="form-text">Nombre maximum d'élèves autorisés dans cette classe</div>
+                        </div>
+
+                        <!-- Salle de classe -->
+                        <div class="mb-4">
+                            <label for="salle" class="form-label fw-bold">Salle de classe</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">
+                                    <i class="fas fa-door-open text-primary"></i>
+                                </span>
+                                {{ form.salle(class="form-control form-control-lg", placeholder="Ex: Salle 101, Bâtiment A") }}
+                            </div>
+                        </div>
+
+                        <!-- Professeur principal -->
+                        <div class="mb-4">
+                            <label for="professeur" class="form-label fw-bold">Professeur principal</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light">
+                                    <i class="fas fa-user-tie text-primary"></i>
+                                </span>
+                                <select class="form-select form-select-lg" id="professeur" name="professeur_principal_id">
+                                    <option value="">Sélectionner un professeur</option>
+                                    {% for prof in professeurs %}
+                                        <option value="{{ prof.id }}">{{ prof.nom }} - {{ prof.matiere or "N/A" }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{{ url_for('main.liste_classes') }}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+                            </a>
+                            <div>
+                                <button type="reset" class="btn btn-outline-danger btn-lg me-2">
+                                    <i class="fas fa-eraser me-2"></i>Réinitialiser
+                                </button>
+                                {{ form.submit(class="btn btn-primary btn-lg px-4") }}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Aide contextuelle -->
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-lightbulb text-warning me-2"></i>Conseils pour créer une classe</h5>
+                    <ul class="list-unstyled mb-0">
+                        <li><i class="fas fa-check-circle text-success me-2"></i>Utilisez un nom clair et cohérent avec le système de nommage de l'établissement</li>
+                        <li><i class="fas fa-check-circle text-success me-2"></i>Vérifiez qu'une classe du même nom n'existe pas déjà</li>
+                        <li><i class="fas fa-check-circle text-success me-2"></i>Pensez à assigner un professeur principal pour faciliter la gestion</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Styles et validation JS -->
+<style>
+    .card { border-radius: 0.75rem; overflow: hidden; }
+    .card-header { border-radius: 0.75rem 0.75rem 0 0 !important; }
+    .form-control, .form-select { border-left: none; transition: all 0.3s ease; }
+    .input-group-text { border-right: none; transition: all 0.3s ease; }
+    .form-control:focus, .form-select:focus { box-shadow: none; border-color: #ced4da; }
+    .form-control:focus + .input-group-text, .form-select:focus + .input-group-text {
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    }
+    .btn { border-radius: 0.5rem; transition: all 0.3s ease; }
+    .breadcrumb { background-color: transparent; padding: 0; }
+    .form-check-input:checked { background-color: var(--bs-primary); border-color: var(--bs-primary); }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('classeForm');
+    const nomInput = document.getElementById('{{ form.nom.id }}');
+    const effectifInput = document.getElementById('{{ form.effectif.id }}');
+    const capaciteInput = document.getElementById('capacite');
+
+    function showValidation(input, isValid, message = '') {
+        const feedbackEl = input.nextElementSibling;
+        if (isValid) {
+            input.classList.remove('is-invalid');
+            input.classList.add('is-valid');
+            if (feedbackEl && feedbackEl.classList.contains('invalid-feedback')) feedbackEl.style.display = 'none';
+        } else {
+            input.classList.remove('is-valid');
+            input.classList.add('is-invalid');
+            if (feedbackEl && feedbackEl.classList.contains('invalid-feedback')) {
+                feedbackEl.textContent = message;
+                feedbackEl.style.display = 'block';
+            }
+        }
+    }
+
+    nomInput.addEventListener('blur', function() {
+        if (this.value.trim().length < 2) showValidation(this, false, 'Le nom de la classe doit contenir au moins 2 caractères');
+        else showValidation(this, true);
+    });
+
+    effectifInput.addEventListener('blur', function() {
+        const effectif = parseInt(this.value);
+        const capacite = parseInt(capaciteInput.value);
+        if (isNaN(effectif) || effectif < 0) showValidation(this, false, "L'effectif doit être un nombre positif");
+        else if (effectif > capacite) showValidation(this, false, `L'effectif ne peut pas dépasser la capacité maximale (${capacite})`);
+        else showValidation(this, true);
+    });
+
+    capaciteInput.addEventListener('blur', function() {
+        const capacite = parseInt(this.value);
+        const effectif = parseInt(effectifInput.value);
+        if (isNaN(capacite) || capacite < 10) showValidation(this, false, 'La capacité doit être au moins de 10 élèves');
+        else if (!isNaN(effectif) && effectif > capacite) showValidation(this, false, `La capacité ne peut pas être inférieure à l'effectif actuel (${effectif})`);
+        else showValidation(this, true);
+    });
+
+    effectifInput.addEventListener('change', function() {
+        const effectif = parseInt(this.value);
+        const capacite = parseInt(capaciteInput.value);
+        if (!isNaN(effectif) && effectif > capacite) capaciteInput.value = effectif;
+    });
+
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        if (nomInput.value.trim().length < 2) { showValidation(nomInput, false, 'Le nom de la classe doit contenir au moins 2 caractères'); isValid = false; }
+        const effectif = parseInt(effectifInput.value);
+        const capacite = parseInt(capaciteInput.value);
+        if (isNaN(effectif) || effectif < 0) { showValidation(effectifInput, false, "L'effectif doit être un nombre positif"); isValid = false; }
+        if (isNaN(capacite) || capacite < 10) { showValidation(capaciteInput, false, 'La capacité doit être au moins de 10 élèves'); isValid = false; }
+        if (effectif > capacite) { showValidation(effectifInput, false, `L'effectif ne peut pas dépasser la capacité maximale (${capacite})`); isValid = false; }
+        if (!isValid) {
+            e.preventDefault();
+            const firstError = form.querySelector('.is-invalid');
+            if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
+});
+</script>
+{% endblock %}

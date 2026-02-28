@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Modifier une Note - EduManage{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-lg animate-pop-in" style="border-radius: 1.2rem; overflow: hidden;">
+                <div class="card-header py-4 text-white" style="background: var(--gradient-warning);">
+                    <h3 class="mb-0"><i class="fas fa-edit me-2"></i>Modifier une Note</h3>
+                </div>
+                <div class="card-body p-5">
+                    <form method="POST" class="needs-validation" novalidate>
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-4">
+                            <div class="form-floating">
+                                {{ form.eleve_id(class="form-select", style="border-radius: 0.8rem;") }}
+                                {{ form.eleve_id.label(class="form-label") }}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="form-floating">
+                                {{ form.cours_id(class="form-select", style="border-radius: 0.8rem;") }}
+                                {{ form.cours_id.label(class="form-label") }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <div class="form-floating">
+                                    {{ form.valeur(class="form-control", placeholder="Ex: 15", min=0, max=20, style="border-radius: 0.8rem;") }}
+                                    {{ form.valeur.label(class="form-label") }}
+                                    <div class="invalid-feedback">Note entre 0 et 20.</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-4">
+                                <div class="form-floating">
+                                    {{ form.coefficient(class="form-control", placeholder="Ex: 2", min=1, style="border-radius: 0.8rem;") }}
+                                    {{ form.coefficient.label(class="form-label") }}
+                                    <div class="invalid-feedback">Coefficient valide requis.</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <div class="form-floating">
+                                    {{ form.type_evaluation(class="form-select", style="border-radius: 0.8rem;") }}
+                                    {{ form.type_evaluation.label(class="form-label") }}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-4">
+                                <div class="form-floating">
+                                    {{ form.periode(class="form-select", style="border-radius: 0.8rem;") }}
+                                    {{ form.periode.label(class="form-label") }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('main.notes') }}" class="btn btn-outline-secondary me-md-2 px-4 py-2" style="border-radius: 0.8rem;">
+                                <i class="fas fa-arrow-left me-2"></i>Annuler
+                            </a>
+                            <button type="submit" class="btn btn-warning px-4 py-2" style="border-radius: 0.8rem;">
+                                <i class="fas fa-save me-2"></i>Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

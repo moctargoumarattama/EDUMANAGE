@@ -1,0 +1,624 @@
+{% extends "base.html" %}
+
+{% block title %}Synchronisation hors-ligne{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="mb-4">Synchronisation hors-ligne</h1>
+    
+    <!-- Messages d'alerte dynamiques -->
+    <div id="alertContainer"></div>
+    
+    <!-- Bannière d'état -->
+    <div id="statusBanner" class="alert alert-info d-none">
+        <i class="fas fa-info-circle me-2"></i>
+        <span id="statusMessage"></span>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sync-alt me-2"></i>
+                        Gestion des données hors-ligne
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        Système avancé de gestion hors-ligne avec <strong>IndexedDB</strong>, <strong>Service Worker</strong> et <strong>synchronisation automatique</strong>.
+                    </p>
+                    
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Fonctionnalités :</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>📦 Stockage robuste avec IndexedDB</li>
+                            <li>🔄 Synchronisation automatique en arrière-plan</li>
+                            <li>🌐 Détection automatique de la connexion</li>
+                            <li>💾 Cache intelligent des ressources</li>
+                        </ul>
+                    </div>
+
+                    <div class="mt-4">
+                        <h6>Actions rapides :</h6>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button id="btnAddNote" class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-sticky-note me-1"></i>Ajouter une note
+                            </button>
+                            <button id="btnAddAbsence" class="btn btn-outline-warning btn-sm">
+                                <i class="fas fa-user-times me-1"></i>Ajouter une absence
+                            </button>
+                            <button id="btnAddPaiement" class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-money-bill me-1"></i>Ajouter un paiement
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-network-wired me-2"></i>
+                        État du système
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="connectionStatus" class="mb-3 text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Initialisation...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small class="text-muted">Service Worker</small>
+                            <span id="swStatus" class="badge bg-secondary">Chargement...</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Auto-sync</small>
+                            <span id="autoSyncStatus" class="badge bg-secondary">-</span>
+                        </div>
+                    </div>
+                    
+                    <button id="syncButton" class="btn btn-primary w-100 mb-2" disabled>
+                        <i class="fas fa-sync-alt me-2"></i>
+                        Synchroniser maintenant
+                    </button>
+                    
+                    <div class="d-grid gap-2">
+                        <button id="toggleAutoSync" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-pause me-1"></i>
+                            <span id="autoSyncBtnText">Désactiver auto-sync</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Statistiques
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="border rounded p-2 bg-light">
+                                <div class="h5 mb-0" id="statNotes">0</div>
+                                <small class="text-muted">Notes</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-2 bg-light">
+                                <div class="h5 mb-0" id="statAbsences">0</div>
+                                <small class="text-muted">Absences</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-2 bg-light">
+                                <div class="h5 mb-0" id="statPaiements">0</div>
+                                <small class="text-muted">Paiements</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-database me-2"></i>
+                Données en attente de synchronisation
+            </h5>
+            <span class="badge bg-warning" id="totalBadge">0 éléments</span>
+        </div>
+        <div class="card-body">
+            <div id="offlineDataContainer" class="mt-2">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    <p class="text-muted mt-2">Chargement des données...</p>
+                </div>
+            </div>
+            
+            <div class="mt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div id="statsContainer" class="text-muted small">
+                    <span id="totalCount">0</span> données au total •
+                    Dernière synchro: <span id="lastSync">Jamais</span>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button id="clearAllBtn" class="btn btn-outline-danger btn-sm" disabled>
+                        <i class="fas fa-trash me-1"></i>
+                        Tout supprimer
+                    </button>
+                    <button id="addDemoBtn" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i>
+                        Données de test
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.offline-item {
+    transition: all 0.3s ease;
+    border-left: 4px solid #007bff;
+}
+.offline-item.note {
+    border-left-color: #28a745;
+}
+.offline-item.absence {
+    border-left-color: #ffc107;
+}
+.offline-item.paiement {
+    border-left-color: #17a2b8;
+}
+.offline-item:hover {
+    background-color: #f8f9fa;
+    transform: translateX(5px);
+}
+.pulse-animation {
+    animation: pulse 2s infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Charger les dépendances -->
+<script src="{{ url_for('static', filename='js/db.js') }}"></script>
+<script src="{{ url_for('static', filename='js/offline-manager.js') }}"></script>
+
+<script>
+(function() {
+    'use strict';
+
+    let lastSyncTime = null;
+
+    // ========== UTILITAIRES ==========
+    function showAlert(message, type = 'info') {
+        const alertContainer = document.getElementById('alertContainer');
+        const alertId = 'alert-' + Date.now();
+        
+        const alertDiv = document.createElement('div');
+        alertDiv.id = alertId;
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        alertContainer.appendChild(alertDiv);
+        
+        setTimeout(() => {
+            const alert = document.getElementById(alertId);
+            if (alert) alert.remove();
+        }, 5000);
+    }
+
+    function showStatusBanner(message, permanent = false) {
+        const banner = document.getElementById('statusBanner');
+        const msgEl = document.getElementById('statusMessage');
+        msgEl.textContent = message;
+        banner.classList.remove('d-none');
+        
+        if (!permanent) {
+            setTimeout(() => {
+                banner.classList.add('d-none');
+            }, 3000);
+        }
+    }
+
+    // ========== AFFICHAGE ==========
+    async function afficherDonnees() {
+        const container = document.getElementById('offlineDataContainer');
+        
+        try {
+            const data = await offlineManager.getPendingData();
+            
+            if (data.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fas fa-database fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Aucune donnée en attente de synchronisation</p>
+                        <small class="text-muted">Les données seront automatiquement synchronisées quand vous serez en ligne</small>
+                    </div>
+                `;
+                mettreAJourCompteur();
+                return;
+            }
+            
+            let html = '';
+            data.forEach((item, index) => {
+                const typeClass = item.type || 'default';
+                let details = '';
+                
+                if (item.type === 'note') {
+                    details = `
+                        <div><strong>Élève:</strong> #${item.eleve_id}</div>
+                        <div><strong>Note:</strong> ${item.valeur}/20 (Coeff: ${item.coefficient})</div>
+                        <div><strong>Type:</strong> ${item.type_evaluation} - ${item.periode}</div>
+                    `;
+                } else if (item.type === 'absence') {
+                    details = `
+                        <div><strong>Élève:</strong> #${item.eleve_id}</div>
+                        <div><strong>Date:</strong> ${item.date_absence}</div>
+                        <div><strong>Motif:</strong> ${item.motif}</div>
+                    `;
+                } else if (item.type === 'paiement') {
+                    details = `
+                        <div><strong>Élève:</strong> #${item.eleve_id}</div>
+                        <div><strong>Montant:</strong> ${item.montant?.toLocaleString()} FCFA</div>
+                        <div><strong>Période:</strong> ${item.mois}/${item.annee}</div>
+                    `;
+                }
+                
+                html += `
+                    <div class="offline-item ${typeClass} p-3 mb-3 border rounded">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge bg-${getBadgeColor(item.type)} me-2">${getTypeLabel(item.type)}</span>
+                                    <small class="text-muted">${new Date(item.timestamp).toLocaleString()}</small>
+                                </div>
+                                ${details}
+                            </div>
+                            <div class="ms-3">
+                                <button class="btn btn-sm btn-outline-danger" onclick="supprimerItem(${item.id})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            mettreAJourCompteur();
+            
+        } catch (error) {
+            console.error('❌ Erreur affichage:', error);
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Erreur de chargement des données
+                </div>
+            `;
+        }
+    }
+
+    function getBadgeColor(type) {
+        const colors = {
+            'note': 'success',
+            'absence': 'warning',
+            'paiement': 'info'
+        };
+        return colors[type] || 'secondary';
+    }
+
+    function getTypeLabel(type) {
+        const labels = {
+            'note': '📝 Note',
+            'absence': '⏰ Absence',
+            'paiement': '💰 Paiement'
+        };
+        return labels[type] || type;
+    }
+
+    window.supprimerItem = async function(id) {
+        if (confirm('Êtes-vous sûr de vouloir supprimer cet élément ?')) {
+            try {
+                await offlineManager.deletePending(id);
+                showAlert('Élément supprimé avec succès!', 'info');
+                afficherDonnees();
+            } catch (error) {
+                showAlert('Erreur lors de la suppression', 'danger');
+            }
+        }
+    };
+
+    async function mettreAJourCompteur() {
+        try {
+            const stats = await offlineManager.getStats();
+            
+            document.getElementById('totalCount').textContent = stats.total;
+            document.getElementById('totalBadge').textContent = stats.total + ' élément' + (stats.total !== 1 ? 's' : '');
+            document.getElementById('clearAllBtn').disabled = stats.total === 0;
+            
+            document.getElementById('statNotes').textContent = stats.notes;
+            document.getElementById('statAbsences').textContent = stats.absences;
+            document.getElementById('statPaiements').textContent = stats.paiements;
+            
+            // Activer le bouton sync si des données sont présentes
+            document.getElementById('syncButton').disabled = stats.total === 0 || !offlineManager.isOnline;
+            
+        } catch (error) {
+            console.error('❌ Erreur stats:', error);
+        }
+    }
+
+    // ========== ÉTAT CONNEXION ==========
+    function updateConnectionStatus() {
+        const statusElement = document.getElementById('connectionStatus');
+        const status = offlineManager.getStatus();
+
+        if (status.isOnline) {
+            statusElement.innerHTML = `
+                <i class="fas fa-wifi fa-2x text-success"></i>
+                <p class="mt-2 mb-0"><strong>En ligne</strong></p>
+                <small class="text-muted">Synchronisation disponible</small>
+            `;
+        } else {
+            statusElement.innerHTML = `
+                <i class="fas fa-wifi-slash fa-2x text-danger"></i>
+                <p class="mt-2 mb-0"><strong>Hors ligne</strong></p>
+                <small class="text-muted">Mode hors ligne activé</small>
+            `;
+        }
+
+        // Statut Service Worker
+        const swBadge = document.getElementById('swStatus');
+        if (status.serviceWorkerActive) {
+            swBadge.className = 'badge bg-success';
+            swBadge.textContent = 'Actif';
+        } else {
+            swBadge.className = 'badge bg-warning';
+            swBadge.textContent = 'Inactif';
+        }
+
+        // Statut auto-sync
+        const autoSyncBadge = document.getElementById('autoSyncStatus');
+        if (status.autoSyncEnabled) {
+            autoSyncBadge.className = 'badge bg-success';
+            autoSyncBadge.textContent = 'Activé';
+        } else {
+            autoSyncBadge.className = 'badge bg-secondary';
+            autoSyncBadge.textContent = 'Désactivé';
+        }
+
+        mettreAJourCompteur();
+    }
+
+    // ========== AJOUT DONNÉES TEST ==========
+    async function ajouterNoteTest() {
+        try {
+            const note = {
+                eleve_id: Math.floor(Math.random() * 50) + 1,
+                valeur: Math.floor(Math.random() * 10) + 10,
+                coefficient: [1, 2, 3][Math.floor(Math.random() * 3)],
+                type_evaluation: ['DS', 'Interro', 'Composition'][Math.floor(Math.random() * 3)],
+                periode: '2024-2025',
+                cours_id: Math.floor(Math.random() * 10) + 1,
+                date_evaluation: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ')
+            };
+            
+            await offlineManager.addToSync('note', note);
+            showAlert('✅ Note ajoutée', 'success');
+            afficherDonnees();
+        } catch (error) {
+            showAlert('❌ Erreur: ' + error.message, 'danger');
+        }
+    }
+
+    async function ajouterAbsenceTest() {
+        try {
+            const absence = {
+                eleve_id: Math.floor(Math.random() * 50) + 1,
+                date_absence: new Date(Date.now() - Math.random() * 15 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+                motif: ['Maladie', 'Familiale', 'Transport'][Math.floor(Math.random() * 3)],
+                justifiee: Math.random() > 0.5,
+                cours_id: Math.floor(Math.random() * 10) + 1
+            };
+            
+            await offlineManager.addToSync('absence', absence);
+            showAlert('✅ Absence ajoutée', 'warning');
+            afficherDonnees();
+        } catch (error) {
+            showAlert('❌ Erreur: ' + error.message, 'danger');
+        }
+    }
+
+    async function ajouterPaiementTest() {
+        try {
+            const paiement = {
+                eleve_id: Math.floor(Math.random() * 50) + 1,
+                montant: [25000, 50000, 75000][Math.floor(Math.random() * 3)],
+                mois: Math.floor(Math.random() * 12) + 1,
+                annee: 2024,
+                mode_paiement: ['Espèces', 'Chèque', 'Virement'][Math.floor(Math.random() * 3)],
+                reference: 'PAY' + Date.now().toString().slice(-6)
+            };
+            
+            await offlineManager.addToSync('paiement', paiement);
+            showAlert('✅ Paiement ajouté', 'info');
+            afficherDonnees();
+        } catch (error) {
+            showAlert('❌ Erreur: ' + error.message, 'danger');
+        }
+    }
+
+    // ========== SYNCHRONISATION ==========
+    async function synchroniser() {
+        try {
+            const syncBtn = document.getElementById('syncButton');
+            const originalText = syncBtn.innerHTML;
+            
+            syncBtn.disabled = true;
+            syncBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Synchronisation...';
+            
+            const result = await offlineManager.sync(true);
+            
+            if (result.success) {
+                lastSyncTime = new Date();
+                document.getElementById('lastSync').textContent = lastSyncTime.toLocaleTimeString();
+                
+                if (result.count > 0) {
+                    showAlert(`✅ ${result.count} élément(s) synchronisé(s)`, 'success');
+                } else {
+                    showAlert('ℹ️ Aucune donnée à synchroniser', 'info');
+                }
+                
+                if (result.errors && result.errors.length > 0) {
+                    setTimeout(() => {
+                        showAlert(`⚠️ ${result.errors.length} erreur(s)`, 'warning');
+                    }, 1000);
+                }
+            } else {
+                showAlert(`❌ ${result.message}`, 'danger');
+            }
+            
+            syncBtn.innerHTML = originalText;
+            
+        } catch (error) {
+            console.error('❌ Erreur sync:', error);
+            showAlert('❌ Erreur de synchronisation', 'danger');
+        } finally {
+            afficherDonnees();
+        }
+    }
+
+    // ========== ÉVÉNEMENTS OFFLINE MANAGER ==========
+    function setupOfflineManagerListeners() {
+        // Quand prêt
+        offlineManager.on('ready', () => {
+            console.log('✅ Système prêt');
+            updateConnectionStatus();
+            afficherDonnees();
+        });
+
+        // Changement de connexion
+        offlineManager.on('online', () => {
+            showStatusBanner('🌐 Connexion rétablie - Synchronisation automatique...', true);
+            updateConnectionStatus();
+        });
+
+        offlineManager.on('offline', () => {
+            showStatusBanner('📡 Hors ligne - Les données seront synchronisées plus tard');
+            updateConnectionStatus();
+        });
+
+        // Événements de synchronisation
+        offlineManager.on('sync-start', () => {
+            console.log('🔄 Début synchronisation');
+        });
+
+        offlineManager.on('sync-success', (data) => {
+            console.log('✅ Sync réussie:', data);
+            lastSyncTime = new Date();
+            document.getElementById('lastSync').textContent = lastSyncTime.toLocaleTimeString();
+            afficherDonnees();
+        });
+
+        offlineManager.on('sync-error', (data) => {
+            console.error('❌ Sync échouée:', data);
+        });
+
+        // Ajout de données
+        offlineManager.on('data-added', () => {
+            afficherDonnees();
+        });
+
+        offlineManager.on('data-deleted', () => {
+            afficherDonnees();
+        });
+
+        offlineManager.on('data-cleared', () => {
+            afficherDonnees();
+        });
+    }
+
+    // ========== INITIALISATION ==========
+    document.addEventListener('DOMContentLoaded', async function() {
+        console.log('🎯 Initialisation page synchronisation avancée');
+        
+        try {
+            // Initialiser le gestionnaire hors-ligne
+            await offlineManager.init();
+            
+            // Configurer les événements
+            setupOfflineManagerListeners();
+            
+            // Affichage initial
+            updateConnectionStatus();
+            await afficherDonnees();
+            
+            // Boutons
+            document.getElementById('syncButton').addEventListener('click', synchroniser);
+            document.getElementById('btnAddNote').addEventListener('click', ajouterNoteTest);
+            document.getElementById('btnAddAbsence').addEventListener('click', ajouterAbsenceTest);
+            document.getElementById('btnAddPaiement').addEventListener('click', ajouterPaiementTest);
+            
+            document.getElementById('addDemoBtn').addEventListener('click', async function() {
+                await ajouterNoteTest();
+                await ajouterAbsenceTest();
+                await ajouterPaiementTest();
+            });
+            
+            document.getElementById('clearAllBtn').addEventListener('click', async function() {
+                if (confirm('Êtes-vous sûr de vouloir supprimer TOUTES les données ?')) {
+                    await offlineManager.clearAll();
+                    showAlert('Toutes les données ont été supprimées.', 'info');
+                }
+            });
+
+            document.getElementById('toggleAutoSync').addEventListener('click', function() {
+                if (offlineManager.autoSyncEnabled) {
+                    offlineManager.stopAutoSync();
+                    offlineManager.autoSyncEnabled = false;
+                    this.innerHTML = '<i class="fas fa-play me-1"></i><span id="autoSyncBtnText">Activer auto-sync</span>';
+                    showAlert('⏸️ Synchronisation automatique désactivée', 'info');
+                } else {
+                    offlineManager.autoSyncEnabled = true;
+                    offlineManager.startAutoSync();
+                    this.innerHTML = '<i class="fas fa-pause me-1"></i><span id="autoSyncBtnText">Désactiver auto-sync</span>';
+                    showAlert('▶️ Synchronisation automatique activée', 'success');
+                }
+                updateConnectionStatus();
+            });
+            
+            console.log('✅ Page initialisée avec succès');
+            
+        } catch (error) {
+            console.error('❌ Erreur initialisation:', error);
+            showAlert('❌ Erreur d\'initialisation du système hors-ligne', 'danger');
+        }
+    });
+})();
+</script>
+{% endblock %}

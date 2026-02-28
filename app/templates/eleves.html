@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Liste des élèves{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h2 class="mb-0">Liste des élèves</h2>
+      <small class="text-muted">Gestion multi-écoles</small>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-success">
+        <i class="fas fa-plus me-1"></i> Ajouter un élève
+      </a>
+      <button id="refreshBtn" class="btn btn-outline-secondary">
+        <i class="fas fa-sync-alt"></i> Rafraîchir
+      </button>
+    </div>
+  </div>
+
+  <!-- Filtres -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-5">
+      <select id="selectClasse" class="form-select">
+        <option value="">-- Toutes les classes --</option>
+      </select>
+    </div>
+    <div class="col-md-5">
+      <input id="searchInput" type="search" class="form-control" placeholder="Rechercher un élève...">
+    </div>
+    <div class="col-md-2 text-end">
+      <span>Élèves affichés : <span id="countBadge" class="badge bg-primary">0</span></span>
+    </div>
+  </div>
+
+  <!-- Conteneur élèves -->
+  <div id="elevesContainer" class="row g-3" style="max-height:70vh; overflow-y:auto;"></div>
+</div>
+
+<style>
+/* Cards centrées et responsive avec couleurs par classe */
+.card-eleve {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.card-eleve:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+}
+.card-body .badge {
+  font-size: 0.8rem;
+}
+.classe-color-1 { background-color: #e3f2fd; }  /* Exemple pour 6em A */
+.classe-color-2 { background-color: #fff3e0; }  /* Exemple pour 5em B */
+.classe-color-3 { background-color: #f3e5f5; }  /* Exemple pour 4em C */
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const selectClasse = document.getElementById('selectClasse');
+  const searchInput = document.getElementById('searchInput');
+  const countBadge = document.getElementById('countBadge');
+  const elevesContainer = document.getElementById('elevesContainer');
+  const refreshBtn = document.getElementById('refreshBtn');
+
+  const apiClassesUrl = '{{ url_for("main.api_classes") }}';
+  const apiElevesTemplate = `{{ url_for("main.api_eleves_par_classe", classe_id=0) }}`;
+  const csrfToken = '{{ csrf_token() }}';
+
+  const viewUrlPrefix = '/voir_eleve/';
+  const bulletinUrlPrefix = '/bulletin_eleve/';
+  const supprimerPrefix = '/eleve/';
+
+  const cacheClasses = new Map();
+  let currentEleves = [];
+
+  async function loadClasses() {
+    try {
+      const res = await fetch(apiClassesUrl, { credentials: 'same-origin' });
+      const classes = await res.json();
+      selectClasse.innerHTML = '<option value="">-- Toutes les classes --</option>';
+      classes.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.nom;
+        selectClasse.appendChild(opt);
+      });
+    } catch(err) { console.error(err); }
+  }
+
+  async function loadElevesForClasse(classeId) {
+    if(!classeId) return renderEleves([]);
+    if(cacheClasses.has(classeId)) return renderEleves(cacheClasses.get(classeId));
+
+    try {
+      const url = apiElevesTemplate.replace('0', encodeURIComponent(classeId));
+      const res = await fetch(url, { credentials:'same-origin' });
+      const data = await res.json();
+      const eleves = data.eleves || [];
+      cacheClasses.set(classeId, eleves);
+      renderEleves(eleves);
+    } catch(err) { console.error(err); renderEleves([]); }
+  }
+
+  function renderEleves(eleves) {
+    currentEleves = eleves;
+    countBadge.textContent = eleves.length;
+    elevesContainer.innerHTML = '';
+
+    if(!eleves.length){
+      elevesContainer.innerHTML = '<div class="alert alert-info w-100 text-center">Aucun élève</div>';
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+
+    eleves.forEach((e, idx) => {
+      const card = document.createElement('div');
+      card.className = 'col-sm-6 col-md-4 col-lg-3';
+      
+      // Couleur par classe (modifiez selon vos classes)
+      let classeColor = 'classe-color-1';
+      if (e.classe && e.classe.includes('5em')) classeColor = 'classe-color-2';
+      if (e.classe && e.classe.includes('4em')) classeColor = 'classe-color-3';
+
+      card.innerHTML = `
+        <div class="card card-eleve h-100 ${classeColor}">
+          <div class="card-body">
+            <h5 class="card-title">${e.nom} ${e.prenom}</h5>
+            <p class="card-text mb-1"><strong>Classe:</strong> ${e.classe || '-'}</p>
+            <p class="card-text mb-1"><strong>Parent:</strong> ${e.parent || '-'}</p>
+            <p class="card-text mb-1"><strong>Téléphone:</strong> ${e.telephone || '-'}</p>
+            <div class="d-flex justify-content-between mt-2">
+              <a href="${viewUrlPrefix}${e.id}" class="btn btn-sm btn-info" title="Voir"><i class="fas fa-eye"></i></a>
+              <a href="${bulletinUrlPrefix}${e.id}" class="btn btn-sm btn-primary" title="Bulletin"><i class="fas fa-file-alt"></i></a>
+              <button class="btn btn-sm btn-danger btn-delete" data-id="${e.id}" title="Supprimer"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+        </div>`;
+      fragment.appendChild(card);
+    });
+
+    elevesContainer.appendChild(fragment);
+  }
+
+  searchInput.addEventListener('input', (e)=>{
+    const term = e.target.value.trim().toLowerCase();
+    const filtered = currentEleves.filter(e=> (e.nom + ' ' + e.prenom).toLowerCase().includes(term));
+    renderEleves(filtered);
+  });
+
+  selectClasse.addEventListener('change', ()=>loadElevesForClasse(selectClasse.value));
+  refreshBtn.addEventListener('click', ()=>{
+    cacheClasses.clear(); 
+    loadClasses(); 
+    if(selectClasse.value) loadElevesForClasse(selectClasse.value); 
+  });
+
+  document.body.addEventListener('click', (ev)=>{
+    const btn = ev.target.closest('.btn-delete');
+    if(!btn) return;
+    const id = btn.dataset.id;
+    if(confirm('Confirmer la suppression de cet élève ?')) {
+      fetch(supprimerPrefix + id + '/supprimer-cascade', {
+        method:'POST',
+        headers: {'X-CSRFToken': csrfToken},
+      }).then(r=>r.ok ? loadElevesForClasse(selectClasse.value) : alert('Erreur suppression'));
+    }
+  });
+
+  loadClasses();
+});
+</script>
+{% endblock %}

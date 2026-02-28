@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+
+    <h2 class="mb-4 text-primary fw-bold"><i class="fas fa-calendar-alt me-2"></i>Gestion des Périodes de Bulletins</h2>
+
+    <div class="alert alert-info shadow-sm rounded-3">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Fonctionnement :</strong> Lorsque vous publiez une période, les parents peuvent télécharger les bulletins. 
+        Une seule période peut être active à la fois.
+    </div>
+
+    <div class="card mt-4 shadow-lg rounded-4 border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Nom</th>
+                            <th>Année</th>
+                            <th>École</th>
+                            <th>État</th>
+                            <th>Date publication</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for periode in periodes %}
+                        <tr class="table-row-hover">
+                            <td class="fw-semibold">{{ periode.nom }}</td>
+                            <td>{{ periode.annee.nom }}</td>
+                            <td>{{ periode.ecole.nom }}</td>
+                            <td>
+                                {% if periode.publie %}
+                                    <span class="badge bg-success">Publié</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Non publié</span>
+                                {% endif %}
+                                {% if periode.periode_active %}
+                                    <span class="badge bg-primary ms-1">Active</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if periode.date_publication %}
+                                    {{ periode.date_publication.strftime('%d/%m/%Y %H:%M') }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('main.toggle_periode', id=periode.id) }}"
+                                       class="btn {% if periode.publie %}btn-warning{% else %}btn-success{% endif %}"
+                                       onclick="return confirm('{% if periode.publie %}Désactiver{% else %}Publier{% endif %} cette période ?')">
+                                        {% if periode.publie %}Désactiver{% else %}Publier{% endif %}
+                                    </a>
+
+                                    {% if not periode.periode_active and periode.publie %}
+                                    <a href="{{ url_for('main.activer_periode', id=periode.id) }}"
+                                       class="btn btn-info"
+                                       onclick="return confirm('Rendre cette période active ?')">
+                                        Activer
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                <i class="fas fa-calendar-times fa-2x mb-2"></i><br>
+                                Aucune période enregistrée
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4 text-end">
+        <a href="{{ url_for('main.creer_periode') }}" class="btn btn-primary btn-lg shadow-sm">
+            <i class="fas fa-plus me-2"></i> Créer une nouvelle période
+        </a>
+    </div>
+</div>
+
+<style>
+    /* === STYLES ULTRA MODERNES === */
+    .table-hover tbody tr:hover {
+        background-color: #f3f6ff;
+        transition: 0.2s ease-in-out;
+    }
+
+    .badge {
+        font-weight: 600;
+        font-size: 0.85em;
+        padding: 0.45em 0.75em;
+        border-radius: 0.6rem;
+        transition: 0.2s;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        transition: 0.2s;
+    }
+
+    .table-row-hover {
+        transition: background-color 0.2s ease-in-out;
+    }
+
+    .alert-info {
+        font-size: 0.95rem;
+        border-radius: 0.8rem;
+        display: flex;
+        align-items: center;
+    }
+
+    .card {
+        transition: all 0.3s ease-in-out;
+    }
+
+    .card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}

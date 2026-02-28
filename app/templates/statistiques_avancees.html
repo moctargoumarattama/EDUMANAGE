@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau de Bord Statistiques | Gestion Scolaire</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4e73df;
+            --primary-light: #7a9ef0;
+            --primary-dark: #3a56b6;
+            --success: #1cc88a;
+            --success-light: #4adfa8;
+            --info: #36b9cc;
+            --info-light: #65d1e2;
+            --warning: #f6c23e;
+            --warning-light: #f9d476;
+            --danger: #e74a3b;
+            --danger-light: #ee7a70;
+            --secondary: #858796;
+            --light: #f8f9fc;
+            --dark: #2e3a59;
+            --darker: #1a2035;
+            --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            --gradient-success: linear-gradient(135deg, var(--success) 0%, var(--success-light) 100%);
+            --gradient-info: linear-gradient(135deg, var(--info) 0%, var(--info-light) 100%);
+            --gradient-warning: linear-gradient(135deg, var(--warning) 0%, var(--warning-light) 100%);
+            --gradient-danger: linear-gradient(135deg, var(--danger) 0%, var(--danger-light) 100%);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e5e9f2 100%);
+            font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--darker);
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(31, 38, 135, 0.2);
+        }
+        
+        .page-header {
+            padding: 20px 0;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        
+        .page-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+        }
+        
+        .page-title {
+            font-weight: 700;
+            color: var(--darker);
+            font-size: 2.2rem;
+            margin-bottom: 5px;
+        }
+        
+        .page-subtitle {
+            color: var(--secondary);
+            font-weight: 400;
+        }
+        
+        .stat-card {
+            padding: 25px;
+            position: relative;
+            height: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 6px;
+            height: 100%;
+        }
+        
+        .stat-card-primary::before { background: var(--gradient-primary); }
+        .stat-card-success::before { background: var(--gradient-success); }
+        .stat-card-info::before { background: var(--gradient-info); }
+        .stat-card-warning::before { background: var(--gradient-warning); }
+        
+        .stat-icon {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 2.5rem;
+            opacity: 0.15;
+            color: var(--dark);
+        }
+        
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            background: linear-gradient(135deg, var(--dark) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-label {
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--secondary);
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-detail {
+            font-size: 0.9rem;
+            margin-top: 10px;
+            color: var(--secondary);
+        }
+        
+        .chart-container {
+            padding: 25px;
+            margin-bottom: 25px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        .chart-title {
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 20px;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .chart-title i {
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 1.5rem;
+        }
+        
+        .recent-list {
+            padding: 25px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        .recent-item {
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--primary);
+            transition: all 0.3s ease;
+        }
+        
+        .recent-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+        }
+        
+        .filter-section {
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        
+        .dropdown-toggle {
+            border-radius: 12px;
+            padding: 10px 20px;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .dropdown-toggle:hover {
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        .form-control, .form-select {
+            border-radius: 12px;
+            padding: 12px 15px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.7);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+        }
+        
+        .form-control:focus, .form-select:focus {
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 0 0.25rem rgba(78, 115, 223, 0.15);
+        }
+        
+        .btn-primary {
+            background: var(--gradient-primary);
+            border: none;
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-weight: 500;
+            box-shadow: 0 4px 15px rgba(78, 115, 223, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(78, 115, 223, 0.4);
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+        }
+        
+        .badge {
+            border-radius: 10px;
+            padding: 6px 12px;
+            font-weight: 500;
+        }
+        
+        .badge-absence {
+            background: var(--gradient-danger);
+        }
+        
+        .badge-paiement {
+            background: var(--gradient-success);
+        }
+        
+        .badge-note {
+            background: var(--gradient-info);
+        }
+        
+        .table {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .table th {
+            background: var(--gradient-primary);
+            color: white;
+            font-weight: 500;
+            border: none;
+            padding: 15px;
+        }
+        
+        .table td {
+            padding: 15px;
+            vertical-align: middle;
+            border-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: rgba(78, 115, 223, 0.05);
+        }
+        
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fadeIn {
+            animation: fadeIn 0.6s ease forwards;
+        }
+        
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .page-title {
+                font-size: 1.8rem;
+            }
+            
+            .stat-value {
+                font-size: 1.8rem;
+            }
+            
+            .chart-container, .recent-list, .filter-section {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- En-tête de page -->
+        <div class="page-header glass-card animate-fadeIn">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="page-title"><i class="bi bi-graph-up"></i> Tableau de Bord des Statistiques</h1>
+                    <p class="page-subtitle">Analyse complète des données de votre établissement scolaire</p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-primary dropdown-toggle" type="button" id="periodeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-calendar"></i> Période: {{ periode }}
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="periodeDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('main.statistiques_avancees', periode='today') }}">Aujourd'hui</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.statistiques_avancees', periode='week') }}">Cette semaine</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.statistiques_avancees', periode='month') }}">Ce mois</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.statistiques_avancees', periode='year') }}">Cette année</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.statistiques_avancees', periode='all') }}">Toutes périodes</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtres -->
+        <div class="filter-section animate-fadeIn delay-1">
+            <form method="GET" action="{{ url_for('main.statistiques_avancees') }}">
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label for="date_debut" class="form-label">Date de début</label>
+                        <input type="date" class="form-control" id="date_debut" name="date_debut" value="{{ date_debut }}">
+                    </div>
+                    <div class="col-md-5">
+                        <label for="date_fin" class="form-label">Date de fin</label>
+                        <input type="date" class="form-control" id="date_fin" name="date_fin" value="{{ date_fin }}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Appliquer</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Cartes statistiques -->
+        <div class="row g-4">
+            <div class="col-xl-3 col-md-6">
+                <div class="glass-card stat-card stat-card-primary animate-fadeIn delay-1">
+                    <div class="card-body">
+                        <div class="stat-label">Élèves</div>
+                        <div class="stat-value">{{ stats.eleves }}</div>
+                        <div class="stat-detail">
+                            <i class="bi bi-arrow-up text-success"></i> {{ stats.nouveaux_eleves }} nouveaux cette période
+                        </div>
+                        <i class="bi bi-people stat-icon"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6">
+                <div class="glass-card stat-card stat-card-success animate-fadeIn delay-2">
+                    <div class="card-body">
+                        <div class="stat-label">Enseignants</div>
+                        <div class="stat-value">{{ stats.enseignants }}</div>
+                        <div class="stat-detail">
+                            {{ stats.cours }} cours dispensés
+                        </div>
+                        <i class="bi bi-person-badge stat-icon"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6">
+                <div class="glass-card stat-card stat-card-info animate-fadeIn delay-3">
+                    <div class="card-body">
+                        <div class="stat-label">Revenus (FCFA)</div>
+                        <div class="stat-value">{{ "{:,.0f}".format(stats.revenu_periode).replace(",", " ") }}</div>
+                        <div class="stat-detail">
+                            {{ stats.paiements }} paiements enregistrés
+                        </div>
+                        <i class="bi bi-currency-exchange stat-icon"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6">
+                <div class="glass-card stat-card stat-card-warning animate-fadeIn delay-4">
+                    <div class="card-body">
+                        <div class="stat-label">Moyenne générale</div>
+                        <div class="stat-value">{{ stats.moyenne_generale or 'N/A' }}</div>
+                        <div class="stat-detail">
+                            {{ stats.notes }} notes enregistrées
+                        </div>
+                        <i class="bi bi-clipboard-data stat-icon"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Graphiques et données -->
+        <div class="row g-4 mt-2">
+            <!-- Graphique des absences -->
+            <div class="col-lg-8">
+                <div class="chart-container animate-fadeIn">
+                    <h5 class="chart-title"><i class="bi bi-clipboard-x"></i> Absences par élève</h5>
+                    <canvas id="chartAbsences"></canvas>
+                </div>
+            </div>
+            
+            <!-- Top des classes -->
+            <div class="col-lg-4">
+                <div class="chart-container animate-fadeIn">
+                    <h5 class="chart-title"><i class="bi bi-trophy"></i> Top 5 des classes</h5>
+                    <canvas id="chartClasses"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mt-2">
+            <!-- Répartition des notes -->
+            <div class="col-lg-6">
+                <div class="chart-container animate-fadeIn">
+                    <h5 class="chart-title"><i class="bi bi-bar-chart"></i> Répartition des notes</h5>
+                    <canvas id="chartNotes"></canvas>
+                </div>
+            </div>
+            
+            <!-- Derniers élèves inscrits -->
+            <div class="col-lg-6">
+                <div class="recent-list animate-fadeIn">
+                    <h5 class="chart-title"><i class="bi bi-clock-history"></i> Derniers élèves inscrits</h5>
+                    {% for eleve in recent_eleves %}
+                    <div class="recent-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>{{ eleve.prenom }} {{ eleve.nom }}</strong>
+                            <span class="badge bg-primary">{{ eleve.classe }}</span>
+                        </div>
+                        <div class="text-muted small mt-1">
+                            Inscrit le {{ eleve.date_inscription.strftime('%d/%m/%Y') if eleve.date_inscription else 'Date non disponible' }}
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-3">Aucun élève inscrit récemment.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Activités récentes -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="chart-container animate-fadeIn">
+                    <h5 class="chart-title"><i class="bi bi-activity"></i> Activités récentes</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Détails</th>
+                                    <th>Date</th>
+                                    <th>Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activite in activites_recentes %}
+                                <tr>
+                                    <td>
+                                        {% if activite.type == 'absence' %}
+                                        <span class="badge badge-absence">Absence</span>
+                                        {% elif activite.type == 'paiement' %}
+                                        <span class="badge badge-paiement">Paiement</span>
+                                        {% elif activite.type == 'note' %}
+                                        <span class="badge badge-note">Note</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ activite.details }}</td>
+                                    <td>{{ activite.date.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>
+                                        {% if activite.statut == 'completed' %}
+                                        <span class="badge bg-success">Terminé</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">En attente</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">Aucune activité récente</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Graphique des absences par élève
+        const ctxAbsences = document.getElementById('chartAbsences');
+        new Chart(ctxAbsences, {
+            type: 'bar',
+            data: {
+                labels: {{ noms_eleves | tojson }},
+                datasets: [{
+                    label: "Nombre d'absences",
+                    data: {{ absences_par_eleve | tojson }},
+                    backgroundColor: 'rgba(78, 115, 223, 0.7)',
+                    borderColor: 'rgba(78, 115, 223, 1)',
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    hoverBackgroundColor: 'rgba(78, 115, 223, 0.9)'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // Graphique des meilleures classes
+        const ctxClasses = document.getElementById('chartClasses');
+        new Chart(ctxClasses, {
+            type: 'doughnut',
+            data: {
+                labels: {{ classes_labels | tojson }},
+                datasets: [{
+                    data: {{ classes_data | tojson }},
+                    backgroundColor: [
+                        'rgba(78, 115, 223, 0.8)',
+                        'rgba(28, 200, 138, 0.8)',
+                        'rgba(54, 185, 204, 0.8)',
+                        'rgba(246, 194, 62, 0.8)',
+                        'rgba(231, 74, 59, 0.8)'
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 15
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Graphique de répartition des notes
+        const ctxNotes = document.getElementById('chartNotes');
+        new Chart(ctxNotes, {
+            type: 'pie',
+            data: {
+                labels: ['0-5', '5-10', '10-15', '15-20'],
+                datasets: [{
+                    data: {{ repartition_notes | tojson }},
+                    backgroundColor: [
+                        'rgba(231, 74, 59, 0.8)',
+                        'rgba(246, 194, 62, 0.8)',
+                        'rgba(54, 185, 204, 0.8)',
+                        'rgba(28, 200, 138, 0.8)'
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 15
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Animation au défilement
+        document.addEventListener('DOMContentLoaded', function() {
+            const animatedElements = document.querySelectorAll('.animate-fadeIn');
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.visibility = 'visible';
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.1 });
+            
+            animatedElements.forEach(el => {
+                el.style.visibility = 'hidden';
+                observer.observe(el);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sauvegarde par École - Gestion Scolaire</title>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='style.css') }}">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f8; margin: 0; padding: 0; }
+        .container { max-width: 1000px; margin: 30px auto; padding: 20px; background: #fff; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .nav-breadcrumb a { color: #555; text-decoration: none; margin-right: 5px; }
+        .nav-breadcrumb a:hover { text-decoration: underline; }
+        h1 { color: #333; margin-bottom: 20px; }
+        .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        h2 { color: #222; margin-bottom: 15px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; }
+        select, input { width: 100%; padding: 8px 10px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px; }
+        button.button { padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; transition: 0.3s; }
+        .button.success { background-color: #28a745; color: white; }
+        .button.success:hover { background-color: #218838; }
+        .button.warning { background-color: #ffc107; color: #212529; }
+        .button.warning:hover { background-color: #e0a800; }
+        .button.danger { background-color: #dc3545; color: white; }
+        .button.danger:hover { background-color: #c82333; }
+        .button.small { padding: 5px 10px; font-size: 13px; margin-right: 5px; }
+        .backup-list { list-style: none; padding-left: 0; }
+        .backup-list li { background: #f9f9f9; border: 1px solid #eee; padding: 10px; margin-bottom: 8px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .backup-info { font-size: 14px; color: #333; }
+        .backup-actions a { margin-left: 5px; }
+        .flash { padding: 10px; border-radius: 5px; margin-bottom: 15px; }
+        .flash.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-breadcrumb">
+            <a href="{{ url_for('admin.dashboard') }}">Tableau de bord</a> >
+            <a href="{{ url_for('admin.backup_page') }}">Sauvegardes</a> > Par École
+        </div>
+
+        <h1>Sauvegarde par École</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Formulaire de création de sauvegarde -->
+        <div class="card">
+            <h2>Créer une sauvegarde</h2>
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label for="ecole_id">Sélectionnez une école :</label>
+                    <select name="ecole_id" id="ecole_id" required>
+                        <option value="">-- Choisir une école --</option>
+                        {% for ecole in ecoles %}
+                            <option value="{{ ecole.id }}">{{ ecole.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="button success">Créer la sauvegarde</button>
+            </form>
+        </div>
+
+        <!-- Liste des sauvegardes par école -->
+        <div class="card">
+            <h2>Sauvegardes d'écoles existantes</h2>
+            {% for ecole in ecoles %}
+                <h3>{{ ecole.nom }}</h3>
+                {% set school_backups = get_school_backups(ecole.id) %}
+                {% if school_backups %}
+                    <ul class="backup-list">
+                        {% for backup in school_backups %}
+                            <li>
+                                <div class="backup-info">
+                                    <strong>{{ backup.filename }}</strong><br>
+                                    Date : {{ backup.timestamp }}<br>
+                                    Taille : {{ (backup.size / 1024)|round(2) }} KB
+                                </div>
+                                <div class="backup-actions">
+                                    <a href="{{ url_for('admin.restore_school', filename=backup.filename) }}" class="button warning small" onclick="return confirm('Restaurer cette école?')">Restaurer</a>
+                                    <a href="{{ url_for('admin.download_backup', filename=backup.filename) }}" class="button small">Télécharger</a>
+                                    <a href="{{ url_for('admin.delete_backup', filename=backup.filename) }}" class="button danger small" onclick="return confirm('Supprimer cette sauvegarde?')">Supprimer</a>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>Aucune sauvegarde pour cette école.</p>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <a href="{{ url_for('admin.backup_page') }}" class="button">Retour aux sauvegardes</a>
+    </div>
+</body>
+</html>

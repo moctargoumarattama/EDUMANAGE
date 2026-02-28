@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}Gestion des Emplois du Temps - EduManage{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 fade-in">
+
+    <!-- En-tête -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+        <div class="mb-3 mb-md-0">
+            <h2 class="fw-bold text-primary mb-1">
+                <i class="fas fa-calendar-week me-2"></i>Gestion des Emplois du Temps
+            </h2>
+            <p class="text-muted mb-0">Planifiez, modifiez et visualisez les emplois du temps par classe</p>
+        </div>
+        <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-gradient px-4 py-2 shadow-sm d-flex align-items-center">
+            <i class="fas fa-plus me-2"></i>Ajouter un emploi
+        </a>
+    </div>
+
+    <!-- Barre d'outils -->
+    <div class="card glass-card border-0 shadow-sm mb-4">
+        <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+            <div class="input-group w-100 w-md-50">
+                <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-primary"></i></span>
+                <input type="text" id="searchInput" class="form-control border-start-0" placeholder="Rechercher par classe, professeur, matière...">
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="filterTable('')">Tout</button>
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="filterTable('Lundi')">Lundi</button>
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="filterTable('Mardi')">Mardi</button>
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="filterTable('Mercredi')">Mercredi</button>
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="filterTable('Jeudi')">Jeudi</button>
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="filterTable('Vendredi')">Vendredi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau -->
+    <div class="card glass-card border-0 shadow-lg rounded-4 overflow-hidden">
+        <div class="card-header bg-gradient-primary text-white py-3">
+            <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Liste des Emplois du Temps</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+                <table class="table table-hover align-middle mb-0" id="emploiTable">
+                    <thead class="bg-light text-secondary sticky-top" style="z-index: 1;">
+                        <tr>
+                            <th class="ps-4">Classe</th>
+                            <th>Professeur</th>
+                            <th>Matière</th>
+                            <th>Jour</th>
+                            <th>Horaire</th>
+                            <th>Salle</th>
+                            <th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in emplois %}
+                        <tr class="table-row-hover">
+                            <td class="ps-4 fw-semibold text-dark">
+                                <div class="d-flex align-items-center">
+                                    <div class="icon-circle bg-primary-subtle me-3">
+                                        <i class="fas fa-users text-primary"></i>
+                                    </div>
+                                    <div>
+                                        {{ e.classe.nom if e.classe else 'N/A' }}<br>
+                                        <small class="text-muted">{{ e.classe.niveau if e.classe else '' }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="icon-circle bg-info-subtle me-2">
+                                        <i class="fas fa-chalkboard-teacher text-info"></i>
+                                    </div>
+                                    <span>{{ e.professeur.prenom if e.professeur else 'N/A' }} {{ e.professeur.nom if e.professeur else '' }}</span>
+                                </div>
+                            </td>
+                            <td><span class="badge bg-light text-dark border">{{ e.cours.nom if e.cours else 'N/A' }}</span></td>
+                            <td><span class="badge bg-primary-subtle text-primary">{{ e.jour }}</span></td>
+                            <td><small class="text-muted">{{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }} - {{ e.heure_fin.strftime('%H:%M') if e.heure_fin else '' }}</small></td>
+                            <td>{% if e.salle %}<span class="badge bg-info-subtle text-info">{{ e.salle }}</span>{% else %}<span class="text-muted">-</span>{% endif %}</td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group">
+                                    <a href="{{ url_for('main.modifier_emploi', id=e.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="d-inline">
+                                        {{ delete_form.hidden_tag() }}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Voulez-vous vraiment supprimer cet emploi du temps ?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">Aucun emploi du temps enregistré</h5>
+                                <p class="text-muted">Ajoutez un emploi pour commencer la planification.</p>
+                                <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-gradient mt-2 px-4 py-2">
+                                    <i class="fas fa-plus me-2"></i>Ajouter un emploi
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Styles ultra sophistiqués -->
+<style>
+    .btn-gradient {
+        background: linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%);
+        color: white;
+        border: none;
+        border-radius: 0.8rem;
+        transition: 0.3s ease;
+    }
+    .btn-gradient:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.4);
+    }
+
+    .glass-card {
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(10px);
+        border-radius: 1rem;
+    }
+
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%) !important;
+    }
+
+    .table thead th {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa;
+    }
+
+    .table-row-hover:hover {
+        background-color: rgba(59, 130, 246, 0.06) !important;
+        transition: 0.25s ease-in-out;
+    }
+
+    .icon-circle {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background-color: rgba(37, 99, 235, 0.08);
+    }
+
+    .fade-in {
+        animation: fadeIn 0.6s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from {opacity: 0; transform: translateY(10px);}
+        to {opacity: 1; transform: translateY(0);}
+    }
+
+    /* Scroll personnalisé */
+    .table-responsive::-webkit-scrollbar {
+        width: 8px;
+    }
+    .table-responsive::-webkit-scrollbar-thumb {
+        background: rgba(37, 99, 235, 0.3);
+        border-radius: 10px;
+    }
+    .table-responsive::-webkit-scrollbar-thumb:hover {
+        background: rgba(37, 99, 235, 0.5);
+    }
+</style>
+
+<!-- JS - Recherche et filtre -->
+<script>
+function filterTable(jour) {
+    const rows = document.querySelectorAll('#emploiTable tbody tr');
+    rows.forEach(row => {
+        const jourCell = row.cells[3]?.innerText.trim();
+        row.style.display = (!jour || jourCell === jour) ? '' : 'none';
+    });
+}
+
+document.getElementById('searchInput').addEventListener('keyup', function() {
+    const query = this.value.toLowerCase();
+    document.querySelectorAll('#emploiTable tbody tr').forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}Bulletin - {{ eleve.prenom }} {{ eleve.nom }} - EduManage{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="bg-animated p-4 rounded-3" style="background: var(--gradient-info);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="text-white">
+                        <h2 class="mb-1"><i class="fas fa-graduation-cap me-2"></i>Bulletin Scolaire</h2>
+                        <p class="mb-0 opacity-75">{{ eleve.prenom }} {{ eleve.nom }} - {{ eleve.classe }}</p>
+                    </div>
+                    <div class="bg-white bg-opacity-20 rounded-circle p-4">
+                        <i class="fas fa-user-graduate fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Informations élève -->
+        <div class="col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 1rem;">
+                <div class="card-header bg-transparent py-3">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2 text-primary"></i>Informations de l'élève</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                            <i class="fas fa-user text-primary"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0">{{ eleve.prenom }} {{ eleve.nom }}</h6>
+                            <small class="text-muted">Élève</small>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-info bg-opacity-10 rounded-circle p-3 me-3">
+                            <i class="fas fa-chalkboard text-info"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0">{{ eleve.classe }}</h6>
+                            <small class="text-muted">Classe</small>
+                        </div>
+                    </div>
+                    {% if eleve.date_naissance %}
+                    <div class="d-flex align-items-center">
+                        <div class="bg-success bg-opacity-10 rounded-circle p-3 me-3">
+                            <i class="fas fa-birthday-cake text-success"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0">{{ eleve.date_naissance.strftime('%d/%m/%Y') }}</h6>
+                            <small class="text-muted">Date de naissance</small>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Résumé performance -->
+        <div class="col-md-6 mb-4">
+            <div class="card border-0 shadow-sm h-100" style="border-radius: 1rem;">
+                <div class="card-header bg-transparent py-3">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2 text-warning"></i>Résumé de performance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="display-4 fw-bold {% if moyenne_generale >= 10 %}text-success{% else %}text-danger{% endif %}">
+                            {{ moyenne_generale }}/20
+                        </div>
+                        <div class="text-muted">Moyenne générale</div>
+                    </div>
+                    <div class="progress mb-3" style="height: 12px; border-radius: 6px;">
+                        <div class="progress-bar {% if moyenne_generale >= 10 %}bg-success{% else %}bg-danger{% endif %}" 
+                             role="progressbar" style="width: {{ (moyenne_generale / 20 * 100)|round }}%">
+                        </div>
+                    </div>
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="h4 mb-1 text-primary">{{ notes_par_cours|length }}</div>
+                            <small class="text-muted">Matières</small>
+                        </div>
+                        <div class="col-6">
+                            {% set total_notes = namespace(value=0) %}
+                            {% for cours, notes in notes_par_cours.items() %}
+                                {% set total_notes.value = total_notes.value + notes|length %}
+                            {% endfor %}
+                            <div class="h4 mb-1 text-info">{{ total_notes.value }}</div>
+                            <small class="text-muted">Notes totales</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulletin Details -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg animate-pop-in" style="border-radius: 1.2rem; overflow: hidden;">
+                <div class="card-header py-4 text-white d-flex justify-content-between align-items-center" style="background: var(--gradient-dark);">
+                    <h4 class="mb-0"><i class="fas fa-book-open me-2"></i>Détail des Notes par Matière</h4>
+                    <span class="badge bg-light text-dark">{{ notes_par_cours|length }} matières</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Matière</th>
+                                    <th class="text-center">Notes</th>
+                                    <th class="text-center">Moyenne</th>
+                                    <th class="text-center">Appréciation</th>
+                                    <th class="text-center">Coefficient</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for cours, notes in notes_par_cours.items() %}
+                                <tr class="animate-pop-in">
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                                                <i class="fas fa-book text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">{{ cours }}</div>
+                                                <small class="text-muted">{{ notes|length }} note(s)</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex flex-wrap justify-content-center gap-1">
+                                            {% for n in notes %}
+                                            <span class="badge {% if n.valeur >= 10 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10 text-{% if n.valeur >= 10 %}success{% else %}danger{% endif %} border border-{% if n.valeur >= 10 %}success{% else %}danger{% endif %} border-opacity-25 py-2 px-2">
+                                                {{ n.valeur }}/20
+                                            </span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="fw-bold fs-5 {% if moyennes_par_cours[cours] >= 10 %}text-success{% else %}text-danger{% endif %}">
+                                            {{ moyennes_par_cours[cours] }}/20
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if moyennes_par_cours[cours] >= 16 %}
+                                            <span class="badge bg-success py-2">Excellent</span>
+                                        {% elif moyennes_par_cours[cours] >= 14 %}
+                                            <span class="badge bg-info py-2">Très bien</span>
+                                        {% elif moyennes_par_cours[cours] >= 12 %}
+                                            <span class="badge bg-primary py-2">Bien</span>
+                                        {% elif moyennes_par_cours[cours] >= 10 %}
+                                            <span class="badge bg-warning py-2">Assez bien</span>
+                                        {% else %}
+                                            <span class="badge bg-danger py-2">Insuffisant</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary py-2 px-3">
+                                            x{{ notes[0].coefficient if notes else 1 }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5">
+                                        <i class="fas fa-edit fa-3x text-muted mb-3"></i>
+                                        <h5 class="text-muted">Aucune note enregistrée</h5>
+                                        <p class="text-muted">Les notes apparaîtront ici une fois ajoutées</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg" style="border-radius: 1.2rem; overflow: hidden;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-center gap-3 flex-wrap">
+                        <button onclick="window.print()" class="btn btn-primary px-4 py-3 fw-bold" style="border-radius: 0.8rem;">
+                            <i class="fas fa-print me-2"></i>Imprimer le bulletin
+                        </button>
+                        <a href="{{ url_for('main.export_notes_eleve_pdf', id=eleve.id) }}" class="btn btn-success px-4 py-3 fw-bold" style="border-radius: 0.8rem;">
+                            <i class="fas fa-download me-2"></i>Télécharger PDF
+                        </a>
+                        <a href="{{ url_for('main.bulletins') }}" class="btn btn-outline-secondary px-4 py-3 fw-bold" style="border-radius: 0.8rem;">
+                            <i class="fas fa-arrow-left me-2"></i>Retour aux bulletins
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .container {
+        width: 100%;
+        max-width: none;
+    }
+    .card {
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+    }
+    .btn, .bg-animated {
+        display: none !important;
+    }
+}
+</style>
+{% endblock %}

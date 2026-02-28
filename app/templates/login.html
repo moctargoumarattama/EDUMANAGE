@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}Connexion - EduManage{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+
+            <!-- Login Card -->
+            <div class="card border-0 shadow-lg animate-pop-in" 
+                 style="border-radius: 2rem; overflow: hidden; background: rgba(255,255,255,0.15); backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.3); transition: transform 0.3s ease, box-shadow 0.3s ease;">
+                
+                <!-- Header -->
+                <div class="card-header py-5 text-center position-relative" 
+                     style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+                    
+                    <!-- Symbole élégant -->
+                    <div class="symbol-circle mx-auto mb-3 shadow">
+                        <i class="fas fa-book-reader fa-2x text-white"></i>
+                    </div>
+
+                    <!-- Titres stylés -->
+                    <h3 class="mb-1 fw-bold text-white header-title">Bienvenue sur EduManage</h3>
+                    <p class="mb-0 header-subtitle">Plateforme de gestion scolaire</p>
+                </div>
+
+                <!-- Body -->
+                <div class="card-body p-5">
+                    <form method="POST" action="{{ url_for('main.login') }}" class="needs-validation" novalidate>
+                        {{ form.hidden_tag() }}
+
+                        <!-- Email -->
+                        <div class="mb-4">
+                            <div class="form-floating">
+                                {{ form.email(class="form-control form-control-lg", placeholder="Entrez votre email", style="border-radius: 1rem;") }}
+                                {{ form.email.label(class="form-label") }}
+                                <div class="invalid-feedback">Veuillez saisir une adresse email valide.</div>
+                            </div>
+                            {% for error in form.email.errors %}
+                                <div class="text-danger small mt-2">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Password -->
+                        <div class="mb-4">
+                            <div class="form-floating">
+                                {{ form.mot_de_passe(class="form-control form-control-lg", placeholder="Entrez votre mot de passe", style="border-radius: 1rem;") }}
+                                {{ form.mot_de_passe.label(class="form-label") }}
+                                <div class="invalid-feedback">Veuillez saisir votre mot de passe.</div>
+                            </div>
+                            {% for error in form.mot_de_passe.errors %}
+                                <div class="text-danger small mt-2">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Remember & Forgot -->
+                        <div class="mb-4 d-flex justify-content-between align-items-center">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="rememberMe">
+                                <label class="form-check-label text-muted" for="rememberMe">
+                                    Se souvenir de moi
+                                </label>
+                            </div>
+                            <a href="{{ url_for('main.request_reset_password') }}" class="text-white text-decoration-none fw-bold">
+                                Mot de passe oublié ?
+                            </a>
+                        </div>
+
+                        <!-- Submit -->
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-gradient btn-lg py-3 btn-hover-glow" style="border-radius: 1rem;">
+                                <i class="fas fa-sign-in-alt me-2"></i>Se connecter
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Divider -->
+                    <div class="position-relative my-4">
+                        <hr class="opacity-25">
+                        <span class="position-absolute top-50 start-50 translate-middle bg-white px-3 text-muted">ou</span>
+                    </div>
+
+                    <!-- Request Access -->
+                    <div class="text-center">
+                       <p class="text-white mb-3">
+    Accès réservé aux utilisateurs enregistrés. Contactez votre administrateur pour créer un compte.
+</p>
+
+                        <a href="#" class="btn btn-outline-light btn-lg btn-hover-glow" style="border-radius: 1rem;">
+                            <i class="fas fa-user-plus me-2"></i>Demander un accès
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features -->
+            <div class="row mt-5 text-center">
+                <div class="col-md-4 mb-4 animate-pop-in">
+                    <div class="feature-icon-light mb-2 feature-hover">
+                        <i class="fas fa-users fa-lg"></i>
+                    </div>
+                    <h6 class="fw-bold text-white">Gestion complète</h6>
+                    <p class="text-white small">Élèves, professeurs et classes</p>
+                </div>
+                <div class="col-md-4 mb-4 animate-pop-in">
+                    <div class="feature-icon-light mb-2 feature-hover">
+                        <i class="fas fa-chart-line fa-lg"></i>
+                    </div>
+                    <h6 class="fw-bold text-white">Suivi détaillé</h6>
+                    <p class="text-white small">Notes et bulletins en temps réel</p>
+                </div>
+                <div class="col-md-4 mb-4 animate-pop-in">
+                    <div class="feature-icon-light mb-2 feature-hover">
+                        <i class="fas fa-shield-alt fa-lg"></i>
+                    </div>
+                    <h6 class="fw-bold text-white">Sécurité</h6>
+                    <p class="text-white small">Données chiffrées et sécurisées</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Symbole cercle élégant */
+.symbol-circle {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.symbol-circle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+}
+
+/* Header Titles */
+.header-title {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 2rem;
+    color: #ffffff;
+    text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+}
+.header-subtitle {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    font-size: 1.1rem;
+    color: #f0f0f0;
+    opacity: 0.9;
+    text-shadow: 1px 1px 6px rgba(0,0,0,0.4);
+}
+
+/* Features */
+.feature-icon-light {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.25);
+    color: #5eff00ff;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+.feature-icon-light.feature-hover:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+    background: rgba(255,255,255,0.35);
+}
+
+/* Animation Pop-In */
+@keyframes pop-in {
+    0% { opacity: 0; transform: scale(0.8);}
+    100% { opacity: 1; transform: scale(1);}
+}
+.animate-pop-in {
+    animation: pop-in 0.6s ease forwards;
+}
+
+/* Body & background */
+body {
+    background: url('/static/login.jpg') no-repeat center center fixed;
+    background-size: cover;
+    position: relative;
+    min-height: 100vh;
+}
+body::before {
+    content: "";
+    position: absolute;
+    top:0; left:0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,50,0.4); /* overlay bleu sombre pour contraste */
+    z-index: 0;
+}
+.container {
+    position: relative;
+    z-index: 1;
+}
+
+/* Gradient Button */
+.btn-gradient {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: #fff;
+    font-weight: 600;
+    transition: 0.3s;
+}
+.btn-gradient:hover, .btn-hover-glow:hover {
+    background: linear-gradient(135deg, #2a5298 0%, #1e3c72 100%);
+    box-shadow: 0 0 15px rgba(255,255,255,0.6), 0 8px 20px rgba(0,0,0,0.3);
+    color: #fff;
+    transform: translateY(-2px);
+}
+</style>
+
+<script>
+(function () {
+    'use strict'
+    var forms = document.querySelectorAll('.needs-validation')
+    Array.prototype.slice.call(forms)
+        .forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (!form.checkValidity()) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                }
+                form.classList.add('was-validated')
+            }, false)
+        })
+})();
+</script>
+{% endblock %}

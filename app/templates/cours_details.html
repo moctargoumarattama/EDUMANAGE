@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+
+{% block title %}{{ cours.nom }} - EduManage{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Carte principale du cours -->
+    <div class="card shadow-lg border-0 rounded-4 overflow-hidden premium-card">
+        <div class="card-header bg-gradient-primary text-white py-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="card-title mb-0 display-6 fw-bold">
+                    <i class="fas fa-book-open me-2"></i>{{ cours.nom }}
+                </h2>
+                {% if cours.coefficient %}
+                <span class="badge bg-light text-primary fs-6 p-2 premium-badge">
+                    <i class="fas fa-weight-hanging me-1"></i>Coefficient: {{ cours.coefficient }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+            <!-- Description -->
+            <div class="mb-4">
+                <h5 class="text-primary mb-3 premium-section-title">
+                    <i class="fas fa-align-left me-2"></i>Description
+                </h5>
+                <p class="card-text fs-5 text-dark lh-base bg-light p-3 rounded-3 premium-description">
+                    {{ cours.description or "Aucune description disponible" }}
+                </p>
+            </div>
+
+            <!-- Infos principales -->
+            <div class="row mb-4">
+                {% if cours.professeur %}
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex align-items-center p-3 bg-light rounded-3 h-100 premium-info-card">
+                        <div class="bg-primary text-white rounded-circle p-3 me-3 premium-icon">
+                            <i class="fas fa-user-tie fa-lg"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-1 text-muted">Professeur</h6>
+                            <p class="mb-0 fs-5 fw-bold text-dark">{{ cours.professeur.prenom }} {{ cours.professeur.nom }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="col-md-6 mb-3">
+                    <div class="d-flex align-items-center p-3 bg-light rounded-3 h-100 premium-info-card">
+                        <div class="bg-info text-white rounded-circle p-3 me-3 premium-icon">
+                            <i class="fas fa-clipboard-list fa-lg"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-1 text-muted">Notes enregistrées</h6>
+                            <p class="mb-0 fs-5 fw-bold text-dark">{{ notes|length }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Boutons retour -->
+            <div class="d-flex justify-content-between mt-4 pt-3 border-top premium-button-group">
+                <a href="{{ url_for('main.cours') }}" class="btn btn-outline-primary btn-lg rounded-3 px-4 premium-btn">
+                    <i class="fas fa-arrow-left me-2"></i>Retour aux cours
+                </a>
+                {% if current_user.role == 'admin' %}
+                <a href="#" class="btn btn-outline-secondary btn-lg rounded-3 px-4 premium-btn">
+                    <i class="fas fa-edit me-2"></i>Modifier le cours
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Notes des élèves et export Excel -->
+    {% if current_user.role in ['admin', 'professeur'] %}
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-2 premium-section-header">
+        <h4 class="mb-0 premium-title">Gestion des notes</h4>
+        <div>
+            <a href="{{ url_for('main.export_notes_excel', id=cours.id) }}" class="btn btn-success premium-btn">
+                <i class="fas fa-file-excel me-1"></i>Exporter les notes
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow-lg border-0 rounded-4 mb-4 premium-card">
+        <div class="card-header bg-light py-3 premium-card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-clipboard-list me-2 text-primary"></i>Notes des élèves
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if notes %}
+            <div class="table-responsive">
+                <table class="table table-hover premium-table">
+                    <thead class="table-primary">
+                        <tr>
+                            <th>Nom</th>
+                            <th>Prénom</th>
+                            <th>Classe</th>
+                            <th>Note</th>
+                            <th>Type</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for note in notes %}
+                        <tr class="premium-table-row">
+                            <td>{{ note.eleve.nom }}</td>
+                            <td>{{ note.eleve.prenom }}</td>
+                            <td>{{ note.eleve.classe }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if note.valeur >= 10 else 'danger' }} premium-note-badge">
+                                    {{ note.valeur }}/20
+                                </span>
+                            </td>
+                            <td>{{ note.type_evaluation or 'Non spécifié' }}</td>
+                            <td>{{ note.date_evaluation.strftime('%d/%m/%Y') if note.date_evaluation else 'N/A' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4 premium-empty-state">
+                <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Aucune note enregistrée</h5>
+                <p class="text-muted">Commencez par importer des notes ou les saisir manuellement.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Ressources du cours -->
+    <div class="card shadow-lg border-0 rounded-4 mb-4 premium-card">
+        <div class="card-header bg-light py-3 premium-card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-paperclip me-2 text-primary"></i>Ressources du cours
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <!-- PDF -->
+                <div class="col-md-4 mb-3">
+                    <div class="card border-0 shadow-sm h-100 premium-resource-card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-file-pdf text-danger fa-3x mb-3 premium-resource-icon"></i>
+                            <h6>Notes de cours</h6>
+                            <p class="text-muted small">PDF disponible</p>
+                            <a href="{{ url_for('main.export_notes_eleve_pdf', id=cours.id) }}"
+                               class="btn btn-outline-primary btn-sm premium-btn">Télécharger</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Exercices / anciens examens -->
+                <div class="col-md-4 mb-3">
+                    <div class="card border-0 shadow-sm h-100 premium-resource-card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-tasks text-success fa-3x mb-3 premium-resource-icon"></i>
+                            <h6>Exercices</h6>
+                            <p class="text-muted small">Supports pratiques</p>
+                            <a href="{{ url_for('main.export_notes', id=cours.id) }}" class="btn btn-outline-primary btn-sm premium-btn">
+                                <i class="fas fa-file-excel me-1"></i> Télécharger les notes
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Modèles d'importation -->
+                <div class="col-md-4 mb-3">
+                    <div class="card border-0 shadow-sm h-100 premium-resource-card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-download text-info fa-3x mb-3 premium-resource-icon"></i>
+                            <h6>Modèles</h6>
+                            <p class="text-muted small">Fichiers modèles</p>
+                            <div class="d-flex flex-column gap-2">
+                                <a href="{{ url_for('main.modele_import_notes', id=cours.id) }}" 
+                                   class="btn btn-outline-success btn-sm premium-btn">
+                                    <i class="fas fa-file-excel me-1"></i> Modèle Excel
+                                </a>
+                                <a href="{{ url_for('main.modele_import_notes', id=cours.id, format='csv') }}" 
+                                   class="btn btn-outline-primary btn-sm premium-btn">
+                                    <i class="fas fa-file-csv me-1"></i> Modèle CSV
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+<div class="d-flex justify-content-end mb-3">
+    <a href="{{ url_for('main.imports_historique') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-history"></i> Historique des imports
+    </a>
+</div>
+
+  <form action="{{ url_for('main.import_notes_excel', id=cours.id) }}" 
+      method="POST" enctype="multipart/form-data" class="premium-form">
+
+    <!-- ✅ Ajout du token CSRF -->
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="mb-3">
+        <label for="file" class="form-label premium-form-label">Choisir un fichier Excel/CSV</label>
+        <input type="file" name="file" id="file" class="form-control premium-form-control" required accept=".xlsx,.xls,.csv">
+        <div class="form-text premium-form-text">
+            Format attendu: Colonnes [Nom, Prénom, Classe, Note, Coefficient, Type évaluation]
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary premium-btn">
+        <i class="fas fa-upload me-1"></i>Importer
+    </button>
+</form>
+{% endif %}
+
+<style>
+.premium-card {
+    transition: all 0.3s ease;
+    border: none;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.08);
+    margin-bottom: 2rem;
+}
+
+.premium-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.15);
+}
+
+.premium-card-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.premium-badge {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.premium-section-title {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid #4e73df;
+    padding-bottom: 0.5rem;
+    display: inline-block;
+}
+
+.premium-description {
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-left: 4px solid #4e73df;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.04);
+}
+
+.premium-info-card {
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.03);
+}
+
+.premium-info-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.05);
+}
+
+.premium-icon {
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.premium-info-card:hover .premium-icon {
+    transform: scale(1.1);
+}
+
+.premium-btn {
+    transition: all 0.3s ease;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: none;
+}
+
+.premium-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.premium-section-header {
+    padding: 1rem 0;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.premium-title {
+    font-weight: 700;
+    color: #2c3e50;
+    letter-spacing: 0.5px;
+}
+
+.premium-table {
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.04);
+}
+
+.premium-table th {
+    background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+    color: white;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border: none;
+    padding: 1rem 0.75rem;
+}
+
+.premium-table-row {
+    transition: all 0.2s ease;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.premium-table-row:hover {
+    background-color: #f8f9fa;
+    transform: translateX(4px);
+}
+
+.premium-note-badge {
+    font-weight: 600;
+    padding: 0.5rem 0.75rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.1);
+}
+
+.premium-empty-state {
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+.premium-empty-state:hover {
+    opacity: 1;
+}
+
+.premium-resource-card {
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.premium-resource-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1);
+}
+
+.premium-resource-icon {
+    transition: transform 0.3s ease;
+}
+
+.premium-resource-card:hover .premium-resource-icon {
+    transform: scale(1.1);
+}
+
+.premium-form-label {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.premium-form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.premium-form-control:focus {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+    transform: translateY(-1px);
+}
+
+.premium-form-text {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-top: 0.5rem;
+}
+
+.bg-gradient-primary { 
+    background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); 
+}
+
+.rounded-4 { 
+    border-radius: 1rem !important; 
+}
+
+.display-6 { 
+    font-size: 2rem; 
+    font-weight: 300; 
+}
+
+/* Animations douces */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.premium-card {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.premium-table-row {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .premium-button-group {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .premium-btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .premium-section-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+}
+</style>
+{% endblock %}

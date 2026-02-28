@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier {{ eleve.nom }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <h1>Modifier l'élève {{ eleve.nom }} {{ eleve.prenom }}</h1>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="nom" class="form-label">Nom</label>
+            <input type="text" class="form-control" id="nom" name="nom" value="{{ eleve.nom }}">
+        </div>
+        <div class="mb-3">
+            <label for="prenom" class="form-label">Prénom</label>
+            <input type="text" class="form-control" id="prenom" name="prenom" value="{{ eleve.prenom }}">
+        </div>
+        <div class="mb-3">
+            <label for="classe_id" class="form-label">Classe</label>
+            <select name="classe_id" class="form-select" id="classe_id">
+                {% for c in classes %}
+                <option value="{{ c.id }}" {% if c.id == eleve.classe_id %}selected{% endif %}>{{ c.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-success">Enregistrer</button>
+        <a href="{{ url_for('main.detail_eleve', eleve_id=eleve.id) }}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endblock %}

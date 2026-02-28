@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier Utilisateur{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Modifier Utilisateur : {{ user.nom }} {{ user.prenom }}</h2>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, msg in messages %}
+                <div class="alert alert-{{ category }} mt-2">{{ msg }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('main.edit_utilisateur', id=user.id) }}">
+        {% if csrf_token %}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% endif %}
+
+        <div class="mb-3">
+            <label for="nom" class="form-label">Nom</label>
+            <input type="text" class="form-control" id="nom" name="nom" value="{{ user.nom }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="prenom" class="form-label">Prénom</label>
+            <input type="text" class="form-control" id="prenom" name="prenom" value="{{ user.prenom }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="telephone" class="form-label">Téléphone</label>
+            <input type="text" class="form-control" id="telephone" name="telephone" value="{{ user.telephone }}">
+        </div>
+
+        <div class="mb-3">
+            <label for="role" class="form-label">Rôle</label>
+            <select class="form-select" id="role" name="role">
+                {% for r in ['super_admin','admin','enseignant','parent'] %}
+                    <option value="{{ r }}" {% if user.role == r %}selected{% endif %}>{{ r|capitalize }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="statut" class="form-label">Statut</label>
+            <select class="form-select" id="statut" name="statut">
+                <option value="actif" {% if user.statut == 'actif' %}selected{% endif %}>Actif</option>
+                <option value="inactif" {% if user.statut == 'inactif' %}selected{% endif %}>Inactif</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Mettre à jour</button>
+        <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance - Gestion Scolaire</title>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='style.css') }}">
+    <!-- Font Awesome pour les icônes -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="nav-breadcrumb">
+            <a href="{{ url_for('admin.dashboard') }}">Tableau de bord</a> &gt; Maintenance
+        </div>
+
+        <h1>Maintenance du système</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Nettoyage des anciennes données -->
+        <div class="card">
+            <h2>Nettoyage des anciennes données</h2>
+            <p>Supprime les données obsolètes pour optimiser les performances du système.</p>
+            <a href="{{ url_for('admin.clean') }}" class="button warning" 
+               onclick="return confirm('Êtes-vous sûr de vouloir lancer le nettoyage? Cette action est irréversible.')">
+               Lancer le nettoyage
+            </a>
+        </div>
+
+        <!-- Migrations / Mise à jour -->
+        <div class="card">
+            <h2>Migrations / Mise à jour</h2>
+            <p>Exécute les migrations de base de données pour les mises à jour système.</p>
+            <a href="{{ url_for('admin.migrate') }}" class="button" 
+               onclick="return confirm('Êtes-vous sûr de vouloir lancer la migration?')">
+               Lancer la migration
+            </a>
+        </div>
+<!-- Ajouter cette carte dans maintenance.html -->
+<div class="card">
+    <h2>📦 Archivage des Données</h2>
+    <p>Archivez les notes et absences par promotion (Classe - Année Scolaire) pour organiser vos données historiques.</p>
+    <div class="action-buttons">
+        <a href="{{ url_for('admin.archive_data') }}" class="button primary">Gérer l'archivage</a>
+        <a href="{{ url_for('admin.init_annees') }}" class="button" onclick="return confirm('Initialiser les années scolaires?')">Initialiser années</a>
+    </div>
+</div>
+        <!-- Vérification d'intégrité -->
+        <div class="card">
+            <h2>Vérification d'intégrité de la base</h2>
+            <a href="{{ url_for('admin.integrity_check_route') }}" class="button primary mb-3">
+                <i class="fas fa-sync-alt"></i> Lancer la vérification
+            </a>
+
+            {% if integrity_summary %}
+                <div class="mb-3">
+                    <strong>Total vérifié :</strong> {{ integrity_summary.total | default(0) }} |
+                    <strong>Succès :</strong> {{ integrity_summary.success | default(0) }} ✅ |
+                    <strong>Erreurs :</strong> {{ integrity_summary.errors | default(0) }} ❌
+                </div>
+            {% endif %}
+
+            {% if integrity_results %}
+                <ul class="list-group">
+                    {% for msg in integrity_results %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center
+                                   {% if 'Erreur' in msg or 'manquante' in msg %}list-group-item-danger{% else %}list-group-item-success{% endif %}">
+                            {{ msg }}
+                            {% if 'Erreur' in msg or 'manquante' in msg %}
+                                <i class="fas fa-times-circle text-danger"></i>
+                            {% else %}
+                                <i class="fas fa-check-circle text-success"></i>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+
+        <br>
+        <a href="{{ url_for('admin.dashboard') }}" class="button">Retour au tableau de bord</a>
+    </div>
+</body>
+</html>

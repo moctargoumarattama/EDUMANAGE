@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- En-tête avec titre et boutons d'action -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-1">Gestion des Classes</h1>
+            <p class="text-muted mb-0">Consultez et gérez toutes les classes de l'établissement</p>
+        </div>
+        {% if current_user.role == 'admin' %}
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary">
+                <i class="fas fa-plus-circle me-2"></i>Nouvelle classe
+            </a>
+            <button class="btn btn-outline-secondary" id="exportBtn">
+                <i class="fas fa-download me-2"></i>Exporter
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Cartes de statistiques visibles seulement pour admin -->
+    {% if current_user.role == 'admin' %}
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary bg-opacity-10 border-0 mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="fw-bold mb-0">{{ pagination.total if pagination else classes|length }}</h4>
+                            <p class="text-muted mb-0">Classes totales</p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-chalkboard text-primary fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success bg-opacity-10 border-0 mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="fw-bold mb-0">{{ total_eleves }}</h4>
+                            <p class="text-muted mb-0">Élèves total</p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-users text-success fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-info bg-opacity-10 border-0 mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="fw-bold mb-0">{{ moyenne_effectif }}</h4>
+                            <p class="text-muted mb-0">Moyenne d'effectif</p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-chart-bar text-info fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning bg-opacity-10 border-0 mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="fw-bold mb-0">{{ classes_pleines }}</h4>
+                            <p class="text-muted mb-0">Classes pleines</p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle text-warning fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filtres et recherche visibles uniquement admin -->
+    {% if current_user.role == 'admin' %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form id="filterForm" method="GET" action="{{ url_for('main.liste_classes') }}">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text bg-transparent"><i class="fas fa-search"></i></span>
+                            <input type="text" name="search" class="form-control" placeholder="Rechercher une classe..." value="{{ current_filters.search }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="niveau" onchange="this.form.submit()">
+                            <option value="">Tous les niveaux</option>
+                            <option value="Primaire" {% if current_filters.niveau == 'Primaire' %}selected{% endif %}>Primaire</option>
+                            <option value="Collège" {% if current_filters.niveau == 'Collège' %}selected{% endif %}>Collège</option>
+                            <option value="Lycée" {% if current_filters.niveau == 'Lycée' %}selected{% endif %}>Lycée</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" name="sort" onchange="this.form.submit()">
+                            <option value="nom" {% if current_filters.sort == 'nom' %}selected{% endif %}>Trier par: Nom</option>
+                            <option value="effectif" {% if current_filters.sort == 'effectif' %}selected{% endif %}>Trier par: Effectif</option>
+                            <option value="niveau" {% if current_filters.sort == 'niveau' %}selected{% endif %}>Trier par: Niveau</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tableau des classes -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="classesTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Nom de la classe</th>
+                            <th>Niveau</th>
+                            <th>Effectif</th>
+                            <th>Capacité</th>
+                            <th>Statut</th>
+                            <th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for classe in classes %}
+                        <tr class="class-row">
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="class-avatar bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-chalkboard"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">{{ classe.nom }}</h6>
+                                        <small class="text-muted">Salle: {{ classe.salle or 'N/A' }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="badge bg-secondary bg-opacity-10 text-secondary">{{ classe.niveau }}</span></td>
+                            <td><span class="fw-bold">{{ classe.effectif }}</span> élèves</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="progress flex-grow-1 me-2" style="height: 8px;">
+                                        {% set capacity_percentage = (classe.effectif / (classe.capacite or 30)) * 100 %}
+                                        <div class="progress-bar {% if capacity_percentage >= 90 %}bg-danger{% elif capacity_percentage >= 70 %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ capacity_percentage }}%"></div>
+                                    </div>
+                                    <small class="text-muted">{{ classe.capacite or 30 }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                {% if capacity_percentage >= 90 %}
+                                <span class="badge bg-danger">Complet</span>
+                                {% elif capacity_percentage >= 70 %}
+                                <span class="badge bg-warning">Presque complet</span>
+                                {% else %}
+                                <span class="badge bg-success">Disponible</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                {% if current_user.role == 'admin' %}
+                                <!-- Admin voit tout -->
+                                <div class="btn-group">
+                                    <a href="{{ url_for('main.detail_classe', classe_id=classe.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye me-1"></i> Voir
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+                                        <span class="visually-hidden">Options</span>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><a class="dropdown-item" href="#"><i class="fas fa-edit me-2"></i> Modifier</a></li>
+                                     
+                                        <li><a class="dropdown-item" href="#"><i class="fas fa-calendar me-2"></i> Emploi du temps</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-trash me-2"></i> Supprimer</a></li>
+                                    </ul>
+                                </div>
+                                {% elif current_user.role in ['prof', 'enseignant'] %}
+                                <!-- Prof voit seulement Voir -->
+                                <a href="{{ url_for('main.detail_classe', classe_id=classe.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye me-1"></i> Voir
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">Aucune classe trouvée</h5>
+                                {% if current_user.role == 'admin' %}
+                                <p class="text-muted">Commencez par ajouter votre première classe</p>
+                                <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary mt-2">
+                                    <i class="fas fa-plus me-2"></i>Ajouter une classe
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+   <!-- Pagination sophistiquée seulement pour admin -->
+{% if current_user.role == 'admin' and pagination and pagination.pages > 1 %}
+<div class="d-flex justify-content-between align-items-center mt-4">
+    <div class="text-muted">
+        Affichage de <span class="fw-bold">{{ start_item }}</span> 
+        à <span class="fw-bold">{{ end_item }}</span> 
+        sur <span class="fw-bold">{{ pagination.total }}</span> classes
+    </div>
+    
+    <nav aria-label="Navigation des pages">
+        <ul class="pagination mb-0">
+            <!-- Bouton Précédent -->
+            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('main.liste_classes', page=pagination.prev_num, search=current_filters.search, niveau=current_filters.niveau, sort=current_filters.sort) if pagination.has_prev else '#' }}">
+                    <i class="fas fa-chevron-left me-1"></i> Précédent
+                </a>
+            </li>
+
+            <!-- Pages numérotées -->
+            {% for page_num in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                {% if page_num %}
+                    {% if page_num != pagination.page %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('main.liste_classes', page=page_num, search=current_filters.search, niveau=current_filters.niveau, sort=current_filters.sort) }}">{{ page_num }}</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                    {% endif %}
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">…</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <!-- Bouton Suivant -->
+            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('main.liste_classes', page=pagination.next_num, search=current_filters.search, niveau=current_filters.niveau, sort=current_filters.sort) if pagination.has_next else '#' }}">
+                    Suivant <i class="fas fa-chevron-right ms-1"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</div>
+{% endif %}
+   
+</div>
+
+<!-- JavaScript pour les fonctionnalités avancées -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Export des données
+    document.getElementById('exportBtn').addEventListener('click', function() {
+        // Implémentez l'export ici
+        alert('Fonctionnalité d\'export à implémenter');
+    });
+
+    // Recherche en temps réel avec debounce
+    let searchTimeout;
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            document.getElementById('filterForm').submit();
+        }, 500);
+    });
+
+    // Indicateur de chargement
+    const filterForm = document.getElementById('filterForm');
+    if (filterForm) {
+        filterForm.addEventListener('submit', function() {
+            // Afficher un indicateur de chargement
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Chargement...';
+                submitBtn.disabled = true;
+            }
+        });
+    }
+});
+</script>
+
+<style>
+/* Styles pour une pagination plus élégante */
+.pagination .page-link {
+    border-radius: 8px;
+    margin: 0 2px;
+    border: 1px solid #e9ecef;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+
+.pagination .page-link:hover {
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+}
+
+/* Animation pour les lignes du tableau */
+.class-row {
+    transition: all 0.2s ease-in-out;
+}
+
+.class-row:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Style pour la barre de progression */
+.progress {
+    border-radius: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+    transition: width 0.6s ease;
+}
+</style>
+{% endblock %}

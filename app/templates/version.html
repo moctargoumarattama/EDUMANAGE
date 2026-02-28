@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informations de version - Gestion Scolaire</title>
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='style.css') }}">
+    <style>
+        /* Styles hacker ajoutés */
+        body {
+            background-color: #0a0a0a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Effet de scanlines */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(transparent 50%, rgba(0, 255, 0, 0.03) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        /* Effet de bruit */
+        body::after {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .nav-breadcrumb {
+            color: #00cc00;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        
+        .nav-breadcrumb a {
+            color: #00ff00;
+            text-decoration: none;
+            transition: text-shadow 0.3s;
+        }
+        
+        .nav-breadcrumb a:hover {
+            text-shadow: 0 0 5px #00ff00;
+        }
+        
+        h1 {
+            color: #00ff00;
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(0, 255, 0, 0.7);
+            position: relative;
+            padding-bottom: 10px;
+        }
+        
+        h1::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 25%;
+            width: 50%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #00ff00, transparent);
+        }
+        
+        h2 {
+            color: #00ff00;
+            border-bottom: 1px solid #00cc00;
+            padding-bottom: 10px;
+            margin-top: 0;
+            font-size: 20px;
+        }
+        
+        h3 {
+            color: #00cc00;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+        
+        .card {
+            background-color: rgba(10, 20, 10, 0.7);
+            border: 1px solid #00cc00;
+            border-radius: 4px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent, rgba(0, 255, 0, 0.05), transparent);
+            pointer-events: none;
+        }
+        
+        .version-info p, .changelog ul {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        
+        .version-info strong {
+            color: #00ff00;
+        }
+        
+        .changelog ul {
+            padding-left: 20px;
+        }
+        
+        .changelog li {
+            margin-bottom: 8px;
+            position: relative;
+        }
+        
+        .changelog li::before {
+            content: "> ";
+            color: #00ff00;
+        }
+        
+        .button {
+            display: inline-block;
+            background-color: transparent;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 10px 20px;
+            text-decoration: none;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        
+        .button:hover {
+            background-color: rgba(0, 255, 0, 0.1);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        .button::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.2), transparent);
+            transition: all 0.5s;
+        }
+        
+        .button:hover::before {
+            left: 100%;
+        }
+        
+        /* Animation de texte terminal */
+        .terminal-text {
+            overflow: hidden;
+            border-right: 2px solid #00ff00;
+            white-space: nowrap;
+            animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
+        }
+        
+        @keyframes typing {
+            from { width: 0 }
+            to { width: 100% }
+        }
+        
+        @keyframes blink-caret {
+            from, to { border-color: transparent }
+            50% { border-color: #00ff00 }
+        }
+        
+        /* Effet de pulsation pour les données importantes */
+        @keyframes pulse {
+            0% { text-shadow: 0 0 5px rgba(0, 255, 0, 0.7); }
+            50% { text-shadow: 0 0 15px rgba(0, 255, 0, 0.9); }
+            100% { text-shadow: 0 0 5px rgba(0, 255, 0, 0.7); }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .card {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-breadcrumb">
+            <a href="{{ url_for('admin.dashboard') }}">Tableau de bord</a> > <span class="terminal-text">Version</span>
+        </div>
+
+        <h1>Informations de version</h1>
+
+        <div class="card">
+            <h2>Application</h2>
+            <div class="version-info">
+                <p><strong>Version :</strong> <span class="pulse">{{ stats.app_version }}</span></p>
+                <p><strong>Environnement :</strong> Production</p>
+                <p><strong>Dernière mise à jour :</strong> {{ stats.last_backup if stats.last_backup else "N/A" }}</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Base de données</h2>
+            <div class="version-info">
+                <p><strong>Moteur :</strong> SQLite {{ stats.db_version }}</p>
+                <p><strong>Nombre de tables :</strong> {{ stats.table_count }}</p>
+                <p><strong>Espace disque utilisé :</strong> {{ stats.disk_usage }}%</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Journalisation</h2>
+            <div class="version-info">
+                <p><strong>Total des entrées :</strong> {{ stats.log_count }}</p>
+                <p><strong>Entrées cette semaine :</strong> {{ stats.log_recent }}</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Changelog</h2>
+            <div class="changelog">
+                <h3>Version 2.2.0 (Current)</h3>
+                <ul>
+                    <li>Système complet de maintenance et sauvegarde</li>
+                    <li>Journalisation des événements système</li>
+                    <li>Archivage des données anciennes</li>
+                    <li>Optimisation de la base de données</li>
+                </ul>
+
+                <h3>Version 2.1.0</h3>
+                <ul>
+                    <li>Gestion des emplois du temps</li>
+                    <li>Export/Import de données</li>
+                    <li>Amélioration de l'interface parentale</li>
+                </ul>
+
+                <h3>Version 2.0.0</h3>
+                <ul>
+                    <li>Version initiale avec gestion des élèves, notes et paiements</li>
+                    <li>Interface d'administration</li>
+                    <li>Système d'authentification multi-rôles</li>
+                </ul>
+            </div>
+        </div>
+
+        <a href="{{ url_for('admin.dashboard') }}" class="button">Retour au tableau de bord</a>
+    </div>
+
+    <script>
+        // Ajout d'effets interactifs supplémentaires
+        document.addEventListener('DOMContentLoaded', function() {
+            // Effet de saisie pour chaque carte
+            const cards = document.querySelectorAll('.card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    card.style.transition = 'opacity 0.8s, transform 0.8s';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, 200 * index);
+            });
+            
+            // Effet aléatoire de scintillement sur les textes
+            function randomFlicker() {
+                const elements = document.querySelectorAll('h1, h2, h3, .card, .button');
+                const randomElement = elements[Math.floor(Math.random() * elements.length)];
+                
+                randomElement.style.opacity = '0.7';
+                setTimeout(() => {
+                    randomElement.style.opacity = '1';
+                }, 50);
+                
+                setTimeout(randomFlicker, Math.random() * 3000 + 1000);
+            }
+            
+            randomFlicker();
+        });
+    </script>
+</body>
+</html>

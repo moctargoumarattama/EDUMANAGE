@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Détails Élève - {{ eleve.prenom }} {{ eleve.nom }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Header Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="bg-gradient p-4 rounded-3 shadow-lg">
+                <div class="d-flex align-items-center">
+                    <div class="bg-white bg-opacity-20 rounded-circle p-4 me-4">
+                        <i class="fas fa-user-graduate fa-3x text-white"></i>
+                    </div>
+                    <div class="text-white">
+                        <h2 class="mb-1">{{ eleve.prenom }} {{ eleve.nom }}</h2>
+                        <p class="mb-0 opacity-75">{{ eleve.classe }} • Inscrit le {{ eleve.date_inscription.strftime('%d/%m/%Y') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques rapides -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm text-center p-3">
+                <h5>Moyenne générale</h5>
+                <h3 class="text-primary">{{ moyenne_generale }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm text-center p-3">
+                <h5>Absences</h5>
+                <h3 class="text-danger">{{ absences|length }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm text-center p-3">
+                <h5>Notes</h5>
+                <h3 class="text-success">{{ notes|length }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card shadow-sm text-center p-3">
+                <h5>Paiements</h5>
+                <h3 class="text-warning">{{ paiements|length }}</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphiques Notes / Absences -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-3">
+            <div class="card shadow-sm p-3">
+                <h5 class="mb-3">Moyennes par matière</h5>
+                <canvas id="notesChart"></canvas>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-3">
+            <div class="card shadow-sm p-3">
+                <h5 class="mb-3">Absences par matière</h5>
+                <canvas id="absencesChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paiements -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm p-3">
+                <h5 class="mb-3">Historique des paiements</h5>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Montant</th>
+                                <th>Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in paiements %}
+                            <tr>
+                                <td>{{ p.date_paiement.strftime('%d/%m/%Y') }}</td>
+                                <td>{{ p.montant }} FCFA</td>
+                                <td>
+                                    <span class="badge {{ 'bg-success' if p.statut=='Payé' else 'bg-warning' }}">
+                                        {{ p.statut }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="3" class="text-center">Aucun paiement enregistré</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-center gap-3">
+                <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" class="btn btn-primary px-4 py-3">
+                    <i class="fas fa-file-pdf me-2"></i>Voir le bulletin
+                </a>
+                <a href="{{ url_for('main.eleves') }}" class="btn btn-outline-secondary px-4 py-3">
+                    <i class="fas fa-arrow-left me-2"></i>Retour
+                </a>
+                <button class="btn btn-outline-info px-4 py-3">
+                    <i class="fas fa-edit me-2"></i>Modifier
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const notesData = {{ moyennes_par_matiere | tojson }};
+const absencesData = {};
+{% for mat, notes_moy in moyennes_par_matiere.items() %}
+    absencesData["{{ mat }}"] = {{ absences | selectattr("cours.nom", "equalto", mat) | list | length }};
+{% endfor %}
+
+const ctxNotes = document.getElementById('notesChart').getContext('2d');
+new Chart(ctxNotes, {
+    type: 'bar',
+    data: {
+        labels: Object.keys(notesData),
+        datasets: [{
+            label: 'Moyenne',
+            data: Object.values(notesData),
+            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: { responsive: true, scales: { y: { beginAtZero: true, max: 20 } } }
+});
+
+const ctxAbsences = document.getElementById('absencesChart').getContext('2d');
+new Chart(ctxAbsences, {
+    type: 'bar',
+    data: {
+        labels: Object.keys(absencesData),
+        datasets: [{
+            label: 'Absences',
+            data: Object.values(absencesData),
+            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+            borderColor: 'rgba(255, 99, 132, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: { responsive: true, scales: { y: { beginAtZero: true } } }
+});
+</script>
+
+<style>
+.card {
+    border-radius: 1rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card:hover { transform: translateY(-5px); }
+.bg-gradient {
+    background: linear-gradient(90deg, #4e54c8 0%, #8f94fb 100%);
+}
+</style>
+{% endblock %}

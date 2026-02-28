@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-lg rounded-3 p-4 form-card">
+        <h2 class="mb-4 text-primary">Créer un nouvel utilisateur</h2>
+        <form id="userForm" action="{{ url_for('main.creer_utilisateur') }}" method="POST" novalidate>
+            <div class="row g-3">
+                <!-- Nom -->
+                <div class="col-md-6 position-relative">
+                    <label for="nom" class="form-label">Nom</label>
+                    <div class="input-icon">
+                        <i class="fas fa-user"></i>
+                        <input type="text" class="form-control rounded-1" id="nom" name="nom" required>
+                    </div>
+                    <div class="invalid-feedback">Le nom est requis.</div>
+                </div>
+                <!-- Prénom -->
+                <div class="col-md-6 position-relative">
+                    <label for="prenom" class="form-label">Prénom</label>
+                    <div class="input-icon">
+                        <i class="fas fa-user"></i>
+                        <input type="text" class="form-control rounded-1" id="prenom" name="prenom" required>
+                    </div>
+                    <div class="invalid-feedback">Le prénom est requis.</div>
+                </div>
+                <!-- Email -->
+                <div class="col-md-6 position-relative">
+                    <label for="email" class="form-label">Email</label>
+                    <div class="input-icon">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" class="form-control rounded-1" id="email" name="email" required>
+                    </div>
+                    <div class="invalid-feedback">Email invalide.</div>
+                </div>
+                <!-- Téléphone -->
+                <div class="col-md-6 position-relative">
+                    <label for="telephone" class="form-label">Téléphone</label>
+                    <div class="input-icon">
+                        <i class="fas fa-phone"></i>
+                        <input type="text" class="form-control rounded-1" id="telephone" name="telephone">
+                    </div>
+                </div>
+                <!-- Rôle -->
+                <div class="col-md-6 position-relative">
+                    <label for="role" class="form-label">Rôle</label>
+                    <div class="input-icon">
+                        <i class="fas fa-user-tag"></i>
+                        <select class="form-select rounded-1" id="role" name="role" required>
+                            <option value="">Sélectionner un rôle</option>
+                            <option value="admin">Admin</option>
+                            <option value="enseignant">Enseignant</option>
+                            <option value="parent">Parent</option>
+                        </select>
+                    </div>
+                    <div class="invalid-feedback">Veuillez choisir un rôle.</div>
+                </div>
+                <!-- Mot de passe -->
+                <div class="col-md-6 position-relative">
+                    <label for="mot_de_passe" class="form-label">Mot de passe</label>
+                    <div class="input-icon">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" class="form-control rounded-1" id="mot_de_passe" name="mot_de_passe" required>
+                    </div>
+                    <div class="invalid-feedback">Le mot de passe est requis.</div>
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary rounded-1 px-4">Créer l'utilisateur</button>
+                <a href="{{ url_for('main.gestion_utilisateurs') }}" class="btn btn-secondary rounded-1 px-4">Annuler</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+/* Card */
+.form-card {
+    background-color: #fff;
+    border: none;
+    transition: all 0.3s ease;
+}
+.form-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+}
+
+/* Input icons */
+.input-icon {
+    position: relative;
+}
+.input-icon i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+}
+.input-icon input, .input-icon select {
+    padding-left: 35px !important;
+}
+
+/* Validation */
+input:invalid, select:invalid {
+    border-color: #dc3545;
+}
+input:valid, select:valid {
+    border-color: #198754;
+}
+
+/* Focus */
+input:focus, select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13,110,253,0.25);
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(135deg, #0d6efd, #6610f2);
+    border: none;
+    transition: all 0.3s;
+}
+.btn-primary:hover {
+    background: linear-gradient(135deg, #6610f2, #0d6efd);
+}
+.btn-secondary {
+    background-color: #6c757d;
+    border: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .row.g-3 > .col-md-6 { flex: 0 0 100%; max-width: 100%; }
+}
+</style>
+
+<script>
+// Validation en live
+const form = document.getElementById('userForm');
+form.addEventListener('input', function(e) {
+    const target = e.target;
+    if (target.checkValidity()) {
+        target.classList.remove('is-invalid');
+        target.classList.add('is-valid');
+    } else {
+        target.classList.remove('is-valid');
+        target.classList.add('is-invalid');
+    }
+});
+</script>
+{% endblock %}

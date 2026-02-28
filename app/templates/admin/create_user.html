@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Créer un utilisateur{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Créer un nouvel utilisateur</h2>
+    <form method="POST" action="">
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+            {{ form.nom.label(class="form-label") }}
+            {{ form.nom(class="form-control") }}
+        </div>
+
+        <div class="mb-3">
+            {{ form.email.label(class="form-label") }}
+            {{ form.email(class="form-control") }}
+        </div>
+
+        <div class="mb-3">
+            {{ form.password.label(class="form-label") }}
+            {{ form.password(class="form-control") }}
+        </div>
+
+        <div class="mb-3">
+            {{ form.confirm_password.label(class="form-label") }}
+            {{ form.confirm_password(class="form-control") }}
+        </div>
+
+        <div class="mb-3">
+            {{ form.role.label(class="form-label") }}
+            {{ form.role(class="form-select", id="roleSelect") }}
+        </div>
+
+        <div class="mb-3" id="eleveField" style="display:none;">
+            {{ form.eleve_id.label(class="form-label") }}
+            {{ form.eleve_id(class="form-select") }}
+        </div>
+
+        {{ form.submit(class="btn btn-primary") }}
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const roleSelect = document.getElementById("roleSelect");
+    const eleveField = document.getElementById("eleveField");
+
+    function toggleEleveField() {
+        if (roleSelect.value === "parent") {
+            eleveField.style.display = "block";
+        } else {
+            eleveField.style.display = "none";
+        }
+    }
+
+    roleSelect.addEventListener("change", toggleEleveField);
+    toggleEleveField();  // Initialisation
+});
+</script>
+{% endblock %}

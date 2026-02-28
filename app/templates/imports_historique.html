@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Historique des imports{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Historique des imports</h2>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Utilisateur</th>
+                <th>Cours</th>
+                <th>Fichier erreurs</th>
+                <th>Notes importées</th>
+                <th>Erreurs</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for h in historiques %}
+            <tr>
+                <td>{{ h.date_import.strftime("%d/%m/%Y %H:%M") }}</td>
+                <td>
+                    {{ h.utilisateur.prenom }} {{ h.utilisateur.nom }} 
+                    ({{ h.utilisateur.email }})
+                </td>
+                <td>{{ h.cours.nom }}</td>
+                <td>
+    {% if h.fichier_erreurs %}
+        <a href="{{ url_for('main.telecharger_import', filename=h.fichier_erreurs) }}" 
+           class="btn btn-sm btn-warning">
+           Télécharger
+        </a>
+    {% else %}
+        Aucun
+    {% endif %}
+</td>
+                <td>{{ h.nb_notes }}</td>
+                <td>{{ h.nb_erreurs }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

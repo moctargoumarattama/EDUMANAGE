@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Accueil Parent - EduManage{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="bg-animated p-5 rounded-3 text-center" style="background: var(--gradient-primary);">
+                <h1 class="text-white mb-3">
+                    <i class="fas fa-home me-2"></i>Bienvenue {{ current_user.prenom }} {{ current_user.nom }}
+                </h1>
+                <p class="text-white opacity-75 lead">
+                    Portail de suivi scolaire de vos enfants
+                </p>
+                
+                <!-- Affichage du nombre d'enfants -->
+                {% set enfants_list = current_user.enfants.all() %}
+                {% set enfants_count = enfants_list|length %}
+                <div class="alert alert-info bg-white bg-opacity-20 border-0 text-white mt-4">
+                    <i class="fas fa-user-graduate me-2"></i>
+                    Vous avez {{ enfants_count }} enfant{{ 's' if enfants_count > 1 else '' }} inscrit{{ 's' if enfants_count > 1 else '' }}
+                </div>
+                
+                <div class="mt-4">
+                    <a href="{{ url_for('main.parent_dashboard') }}" class="btn btn-light btn-lg me-3">
+                        <i class="fas fa-users me-1"></i>Mes Enfants
+                    </a>
+                    <a href="{{ url_for('main.portal_parent') }}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-tachometer-alt me-1"></i>Tableau de Bord
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section rapide des enfants si existants -->
+    {% if enfants_count > 0 %}
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-white py-3">
+                    <h4 class="mb-0 text-primary">
+                        <i class="fas fa-user-graduate me-2"></i>Vos enfants
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for enfant in enfants_list %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-body text-center">
+                                    <div class="bg-primary bg-opacity-10 rounded-circle p-3 mx-auto mb-3" style="width: 80px; height: 80px;">
+                                        <i class="fas fa-user-graduate fa-2x text-primary"></i>
+                                    </div>
+                                    <h5 class="card-title">{{ enfant.prenom }} {{ enfant.nom }}</h5>
+                                    <p class="card-text">
+                                        <span class="badge bg-primary">{{ enfant.classe }}</span>
+                                    </p>
+                                    <a href="{{ url_for('main.voir_eleve', eleve_id=enfant.id) }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye me-1"></i>Voir le profil
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg text-center py-5">
+                <div class="card-body">
+                    <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Aucun élève associé</h5>
+                    <p class="text-muted">Aucun élève n'est actuellement associé à votre compte parent.</p>
+                    <p class="text-muted">Veuillez contacter l'administration de l'établissement pour associer un élève à votre compte.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Section des actions rapides -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <h4 class="mb-4 text-primary">
+                <i class="fas fa-bolt me-2"></i>Actions rapides
+            </h4>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card border-0 shadow-sm h-100 text-center">
+                <div class="card-body">
+                    <div class="bg-success bg-opacity-10 rounded-circle p-3 mx-auto mb-3" style="width: 60px; height: 60px;">
+                        <i class="fas fa-file-pdf fa-2x text-success"></i>
+                    </div>
+                    <h5 class="card-title">Bulletins</h5>
+                    <p class="card-text small">Consulter les bulletins de vos enfants</p>
+                    {% if enfants_count > 0 %}
+                    <a href="{{ url_for('main.bulletins') }}" class="btn btn-outline-success btn-sm">
+
+                        <i class="fas fa-eye me-1"></i>Voir les bulletins
+                    </a>
+                    {% else %}
+                    <button class="btn btn-outline-secondary btn-sm" disabled>
+                        <i class="fas fa-lock me-1"></i>Non disponible
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card border-0 shadow-sm h-100 text-center">
+                <div class="card-body">
+                    <div class="bg-info bg-opacity-10 rounded-circle p-3 mx-auto mb-3" style="width: 60px; height: 60px;">
+                        <i class="fas fa-chart-line fa-2x text-info"></i>
+                    </div>
+                    <h5 class="card-title">Statistiques</h5>
+                    <p class="card-text small">Voir les performances de vos enfants</p>
+                    {% if enfants_count > 0 %}
+                    <a href="{{ url_for('main.parent_dashboard') }}" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-chart-bar me-1"></i>Voir les stats
+                    </a>
+                    {% else %}
+                    <button class="btn btn-outline-secondary btn-sm" disabled>
+                        <i class="fas fa-lock me-1"></i>Non disponible
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card border-0 shadow-sm h-100 text-center">
+                <div class="card-body">
+                    <div class="bg-warning bg-opacity-10 rounded-circle p-3 mx-auto mb-3" style="width: 60px; height: 60px;">
+                        <i class="fas fa-money-bill-wave fa-2x text-warning"></i>
+                    </div>
+                    <h5 class="card-title">Paiements</h5>
+                    <p class="card-text small">Consulter l'état des paiements</p>
+                    {% if enfants_count > 0 %}
+                    <a href="{{ url_for('main.paiements_parent') }}" class="btn btn-outline-warning btn-sm">
+                        <i class="fas fa-receipt me-1"></i>Voir les paiements
+                    </a>
+                    {% else %}
+                    <button class="btn btn-outline-secondary btn-sm" disabled>
+                        <i class="fas fa-lock me-1"></i>Non disponible
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-radius: 1rem;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+    }
+    
+    .bg-animated {
+        background: linear-gradient(135deg, #4361ee, #3a0ca3);
+        background-size: 200% 200%;
+        animation: gradientAnimation 10s ease infinite;
+    }
+    
+    @keyframes gradientAnimation {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+</style>
+{% endblock %}

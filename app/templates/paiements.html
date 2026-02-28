@@ -1,0 +1,1005 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid px-3 px-md-4 my-3 my-md-4">
+    <!-- En-tête principal -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="bg-animated p-3 p-md-4 rounded-3" style="background: var(--gradient-success);">
+                <h1 class="text-white mb-2 mb-md-3 text-center">
+                    <i class="fas fa-money-bill-wave me-2"></i>Gestion des Paiements
+                </h1>
+                <p class="text-white text-center mb-0">
+                    Suivez et enregistrez les paiements des étudiants de manière efficace
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section de filtrage -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-3 p-md-4">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-filter me-2 text-primary"></i>Filtrer les étudiants
+                    </h5>
+                    <form method="GET" class="row g-2 g-md-3 align-items-end">
+                        <div class="col-lg-4 col-md-6">
+                            <label for="classe" class="form-label fw-semibold">Classe</label>
+                            <select name="classe" id="classe" class="form-select" onchange="this.form.submit()">
+                                <option value="">Toutes les classes</option>
+                                {% for c in classes %}
+                                    <option value="{{ c.id }}" {% if classe_id == c.id %}selected{% endif %}>{{ c.nom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-lg-5 col-md-6">
+                            <label for="recherche" class="form-label fw-semibold">Rechercher un étudiant</label>
+                            <div class="input-group">
+                                <input type="text" name="recherche" id="recherche" class="form-control" 
+                                       placeholder="Nom, prénom..." value="{{ recherche }}">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-1"></i> Filtrer
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-lg-3 col-md-12">
+                            <div class="d-grid">
+                                <a href="{{ url_for('main.paiements') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-refresh me-1"></i> Réinitialiser
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques rapides -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="p-3 rounded-3" style="background-color: rgba(13, 110, 253, 0.1);">
+                                <i class="fas fa-users fa-2x text-primary"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="card-title text-muted mb-1">Étudiants</h5>
+                            <h3 class="mb-0">{{ stats.total_eleves }}</h3>
+                            <small class="text-muted">
+                                {% if eleves_pagination.pages > 1 %}
+                                ({{ eleves_pagination.items|length }} affichés)
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="p-3 rounded-3" style="background-color: rgba(25, 135, 84, 0.1);">
+                                <i class="fas fa-check-circle fa-2x text-success"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="card-title text-muted mb-1">Paiements complets</h5>
+                            <h3 class="mb-0">{{ stats.complet }}</h3>
+                            <small class="text-muted">
+                                {% if stats.total_eleves > 0 %}
+                                {{ "%.1f"|format((stats.complet / stats.total_eleves * 100)) }}%
+                                {% else %}
+                                0%
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="p-3 rounded-3" style="background-color: rgba(255, 193, 7, 0.1);">
+                                <i class="fas fa-exclamation-circle fa-2x text-warning"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="card-title text-muted mb-1">Paiements partiels</h5>
+                            <h3 class="mb-0">{{ stats.partiel }}</h3>
+                            <small class="text-muted">
+                                {% if stats.total_eleves > 0 %}
+                                {{ "%.1f"|format((stats.partiel / stats.total_eleves * 100)) }}%
+                                {% else %}
+                                0%
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="p-3 rounded-3" style="background-color: rgba(220, 53, 69, 0.1);">
+                                <i class="fas fa-times-circle fa-2x text-danger"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="card-title text-muted mb-1">Aucun paiement</h5>
+                            <h3 class="mb-0">{{ stats.aucun }}</h3>
+                            <small class="text-muted">
+                                {% if stats.total_eleves > 0 %}
+                                {{ "%.1f"|format((stats.aucun / stats.total_eleves * 100)) }}%
+                                {% else %}
+                                0%
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Récapitulatif des paiements par élève - OPTIMISÉ -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header py-3 text-white d-flex flex-column flex-md-row justify-content-between align-items-center" 
+                     style="background: var(--gradient-info);">
+                    <h4 class="mb-2 mb-md-0">
+                        <i class="fas fa-chart-pie me-2"></i>Récapitulatif des Paiements par Classe
+                    </h4>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-light text-dark fs-6 me-3">{{ eleves_pagination.total }} étudiant(s)</span>
+                        <div class="dropdown">
+                            <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-download me-1"></i> Exporter
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-file-excel me-2"></i>Excel</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-file-pdf me-2"></i>PDF</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <!-- En-tête des statistiques du tableau -->
+                    <div class="bg-light p-3 border-bottom">
+                        <div class="row text-center g-2">
+                            <div class="col-6 col-md-3">
+                                <small class="text-muted d-block">Total collecté</small>
+                                <div class="fw-bold text-success fs-6">
+                                    {% set total_collecte_tableau = namespace(value=0) %}
+                                    {% for eleve in eleves_pagination.items %}
+                                        {% set total_collecte_tableau.value = total_collecte_tableau.value + paiements_par_eleve[eleve.id].total_paye %}
+                                    {% endfor %}
+                                    <i class="fas fa-franc-sign me-1"></i>{{ "{:,.0f}".format(total_collecte_tableau.value) }}
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <small class="text-muted d-block">Reste à collecter</small>
+                                <div class="fw-bold text-danger fs-6">
+                                    {% set total_reste_tableau = namespace(value=0) %}
+                                    {% for eleve in eleves_pagination.items %}
+                                        {% set total_reste_tableau.value = total_reste_tableau.value + paiements_par_eleve[eleve.id].reste_a_payer %}
+                                    {% endfor %}
+                                    <i class="fas fa-franc-sign me-1"></i>{{ "{:,.0f}".format(total_reste_tableau.value) }}
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <small class="text-muted d-block">Taux de collecte</small>
+                                <div class="fw-bold text-primary fs-6">
+                                    {% set total_frais_tableau = namespace(value=0) %}
+                                    {% for eleve in eleves_pagination.items %}
+                                        {% set total_frais_tableau.value = total_frais_tableau.value + paiements_par_eleve[eleve.id].frais_annuels %}
+                                    {% endfor %}
+                                    {% if total_frais_tableau.value > 0 %}
+                                        {{ "%.1f"|format((total_collecte_tableau.value / total_frais_tableau.value * 100)) }}%
+                                    {% else %}
+                                        0%
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <small class="text-muted d-block">Affichage</small>
+                                <div class="fw-bold text-info fs-6">
+                                    {{ eleves_pagination.items|length }} / {{ eleves_pagination.total }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" style="max-height: 500px;">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th class="ps-3">Étudiant</th>
+                                    <th class="d-none d-md-table-cell">Classe</th>
+                                    <th class="text-end">Frais annuels</th>
+                                    <th class="text-end">Total versé</th>
+                                    <th class="text-end">Reste à payer</th>
+                                    <th class="text-center">Progression</th>
+                                    <th class="text-center pe-3">Statut</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set current_classe = None %}
+                                {% for eleve in eleves_pagination.items %}
+                                {% set data = paiements_par_eleve[eleve.id] %}
+                                
+                                <!-- En-tête de classe -->
+                                {% if eleve.classe and eleve.classe.nom != current_classe %}
+                                    {% set current_classe = eleve.classe.nom %}
+                                    <tr class="table-group-divider">
+                                        <td colspan="7" class="bg-light fw-bold text-dark py-2">
+                                            <i class="fas fa-users-class me-2"></i>Classe : {{ current_classe }}
+                                        </td>
+                                    </tr>
+                                {% elif not eleve.classe and current_classe != 'Sans classe' %}
+                                    {% set current_classe = 'Sans classe' %}
+                                    <tr class="table-group-divider">
+                                        <td colspan="7" class="bg-light fw-bold text-dark py-2">
+                                            <i class="fas fa-user-slash me-2"></i>Sans classe
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                                
+                                <tr class="animate-fade-in">
+                                    <td class="ps-3">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm me-2 d-none d-sm-flex">
+                                                <div class="avatar-title bg-light rounded-circle">
+                                                    <i class="fas fa-user text-primary"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="fw-semibold">{{ eleve.prenom }} {{ eleve.nom }}</div>
+                                                <small class="text-muted d-block d-md-none">
+                                                    {{ eleve.classe.nom if eleve.classe else 'Sans classe' }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="d-none d-md-table-cell">
+                                        <span class="badge bg-secondary">{{ eleve.classe.nom if eleve.classe else 'Sans classe' }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="fw-bold" data-bs-toggle="tooltip" title="Frais annuels">
+                                            <i class="fas fa-franc-sign me-1 small"></i>{{ "{:,.0f}".format(data.frais_annuels) }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-success">
+                                            <i class="fas fa-franc-sign me-1 small"></i>{{ "{:,.0f}".format(data.total_paye) }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="fw-bold {{ 'text-danger' if data.reste_a_payer > 0 else 'text-success' }}">
+                                            <i class="fas fa-franc-sign me-1 small"></i>{{ "{:,.0f}".format(data.reste_a_payer) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-grow-1 me-2">
+                                                <div class="progress" style="height: 6px;">
+                                                    {% set pourcentage = (data.total_paye / data.frais_annuels * 100) if data.frais_annuels > 0 else 0 %}
+                                                    {% set pourcentage_arrondi = pourcentage | round %}
+                                                    <div class="progress-bar 
+                                                        {% if pourcentage_arrondi < 50 %}bg-danger
+                                                        {% elif pourcentage_arrondi < 100 %}bg-warning
+                                                        {% else %}bg-success{% endif %}" 
+                                                        role="progressbar" 
+                                                        style="width: {{ pourcentage_arrondi }}%;" 
+                                                        aria-valuenow="{{ pourcentage_arrondi }}">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="flex-shrink-0">
+                                                <small class="text-muted">{{ pourcentage_arrondi }}%</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center pe-3">
+                                        {% if data.reste_a_payer <= 0 %}
+                                            <span class="badge bg-success"><i class="fas fa-check me-1"></i>Complet</span>
+                                        {% elif data.total_paye == 0 %}
+                                            <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Aucun</span>
+                                        {% else %}
+                                            <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Partiel</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <i class="fas fa-users fa-2x text-muted mb-2"></i>
+                                        <h6 class="text-muted">Aucun étudiant trouvé</h6>
+                                        <p class="text-muted small">Ajustez vos filtres ou ajoutez des étudiants</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination élèves compacte -->
+                    {% if eleves_pagination.pages > 1 %}
+                    <div class="card-footer bg-transparent py-2">
+                        <div class="row align-items-center">
+                            <div class="col-md-6 mb-2 mb-md-0">
+                                <small class="text-muted">
+                                    Page <strong>{{ eleves_pagination.page }}</strong> sur 
+                                    <strong>{{ eleves_pagination.pages }}</strong> • 
+                                    <strong>{{ eleves_pagination.total }}</strong> étudiants
+                                </small>
+                            </div>
+                            <div class="col-md-6">
+                                <nav aria-label="Pagination étudiants">
+                                    <ul class="pagination pagination-sm justify-content-end mb-0">
+                                        {% if eleves_pagination.has_prev %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('main.paiements', page=eleves_pagination.prev_num, page_paiements=paiements_pagination.page, classe=classe_id, recherche=recherche) }}">
+                                                ‹
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item disabled"><span class="page-link">‹</span></li>
+                                        {% endif %}
+
+                                        {% for p in eleves_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                                            {% if p %}
+                                                {% if p == eleves_pagination.page %}
+                                                    <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                                                {% else %}
+                                                    <li class="page-item"><a class="page-link" href="{{ url_for('main.paiements', page=p, page_paiements=paiements_pagination.page, classe=classe_id, recherche=recherche) }}">{{ p }}</a></li>
+                                                {% endif %}
+                                            {% else %}
+                                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                                            {% endif %}
+                                        {% endfor %}
+
+                                        {% if eleves_pagination.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('main.paiements', page=eleves_pagination.next_num, page_paiements=paiements_pagination.page, classe=classe_id, recherche=recherche) }}">
+                                                ›
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item disabled"><span class="page-link">›</span></li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulaire Paiement -->
+    <div class="row justify-content-center mb-4">
+        <div class="col-xl-10">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header py-3 text-white d-flex justify-content-between align-items-center" style="background: var(--gradient-success);">
+                    <h4 class="mb-0">
+                        <i class="fas fa-credit-card me-2"></i>Enregistrer un Paiement
+                    </h4>
+                    <i class="fas fa-plus-circle"></i>
+                </div>
+                <div class="card-body p-3 p-md-4">
+                    <form method="POST" action="{{ url_for('main.paiements') }}">
+                        {{ form.hidden_tag() }}
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    {{ form.eleve_id(class="form-select") }}
+                                    {{ form.eleve_id.label(class="form-label") }}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    {{ form.montant(class="form-control", placeholder="Ex: 15000") }}
+                                    {{ form.montant.label(class="form-label") }}
+                                    <div class="form-text">
+                                        <i class="fas fa-franc-sign me-1"></i>Montant en FCFA
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    {{ form.mois(class="form-select") }}
+                                    {{ form.mois.label(class="form-label") }}
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    {{ form.annee(class="form-control") }}
+                                    {{ form.annee.label(class="form-label") }}
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    {{ form.mode_paiement(class="form-select") }}
+                                    {{ form.mode_paiement.label(class="form-label") }}
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-floating">
+                                    {{ form.reference(class="form-control", placeholder="Référence") }}
+                                    {{ form.reference.label(class="form-label") }}
+                                </div>
+                            </div>
+
+                            <div class="col-12 mt-2">
+                                <div class="d-grid">
+                                    {{ form.submit(class="btn btn-success btn-lg py-3 fw-semibold") }}
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Historique Paiements avec Pagination -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header py-3 text-white d-flex flex-column flex-md-row justify-content-between align-items-center" style="background: var(--gradient-dark);">
+                    <div class="d-flex align-items-center mb-2 mb-md-0">
+                        <h4 class="mb-0 me-3">
+                            <i class="fas fa-history me-2"></i>Historique des Paiements
+                        </h4>
+                        <div class="dropdown">
+                            <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-cog me-1"></i> Options
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" id="export-pdf"><i class="fas fa-file-pdf me-2"></i>Exporter en PDF</a></li>
+                                <li><a class="dropdown-item" href="#" id="export-excel"><i class="fas fa-file-excel me-2"></i>Exporter en Excel</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#" id="refresh-data"><i class="fas fa-sync me-2"></i>Actualiser</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-light text-dark fs-6 me-3" id="total-paiements">
+                            {{ paiements_pagination.total }} paiement(s)
+                        </span>
+                        <div class="input-group input-group-sm" style="width: 200px;">
+                            <input type="text" class="form-control" placeholder="Rechercher..." id="search-paiements">
+                            <button class="btn btn-outline-light" type="button">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <!-- En-tête de statistiques des paiements -->
+                    <div class="bg-light p-3 border-bottom">
+                        <div class="row text-center g-2">
+                            <div class="col-6 col-md-3">
+                                <small class="text-muted">Affichage</small>
+                                <div class="fw-bold text-primary">{{ paiements_pagination.items|length }} / {{ paiements_pagination.total }}</div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <small class="text-muted">Page actuelle</small>
+                                <div class="fw-bold text-info">{{ paiements_pagination.page }} / {{ paiements_pagination.pages }}</div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <small class="text-muted">Total collecté</small>
+                                <div class="fw-bold text-success">
+                                    {% set total_collecte = namespace(value=0) %}
+                                    {% for p in paiements_pagination.items %}
+                                        {% set total_collecte.value = total_collecte.value + p.montant %}
+                                    {% endfor %}
+                                    <i class="fas fa-franc-sign me-1"></i>{{ "{:,.0f}".format(total_collecte.value) }}
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <small class="text-muted">Dernier paiement</small>
+                                <div class="fw-bold text-dark">
+                                    {% if paiements_pagination.items %}
+                                        {{ paiements_pagination.items[0].date_paiement.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" style="max-height: 500px;">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th class="ps-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="select-all">
+                                        </div>
+                                    </th>
+                                    <th>Étudiant</th>
+                                    <th class="d-none d-md-table-cell">Classe</th>
+                                    <th>Période</th>
+                                    <th class="text-end">Montant</th>
+                                    <th class="d-none d-sm-table-cell">Date</th>
+                                    <th>Mode</th>
+                                    <th class="text-center pe-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in paiements_pagination.items %}
+                                <tr class="animate-fade-in" data-paiement-id="{{ p.id }}">
+                                    <td class="ps-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input select-paiement" type="checkbox" value="{{ p.id }}">
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm me-2 d-none d-sm-flex">
+                                                <div class="avatar-title bg-light rounded-circle">
+                                                    <i class="fas fa-user text-primary"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="fw-semibold">{{ p.eleve.prenom }} {{ p.eleve.nom }}</div>
+                                                <small class="text-muted">{{ p.reference or 'N/A' }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="d-none d-md-table-cell">
+                                        <span class="badge bg-secondary">{{ p.eleve.classe.nom if p.eleve.classe else 'Sans classe' }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="fw-semibold">{{ p.mois }}</span> / {{ p.annee }}
+                                    </td>
+                                    <td class="text-end fw-bold text-success">
+                                        <i class="fas fa-franc-sign me-1"></i>{{ "{:,.0f}".format(p.montant) }}
+                                    </td>
+                                    <td class="d-none d-sm-table-cell">
+                                        <span class="d-block">{{ p.date_paiement.strftime('%d/%m/%Y') }}</span>
+                                        <small class="text-muted">{{ p.date_paiement.strftime('%H:%M') }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">
+                                            <i class="fas fa-{{ 'mobile-alt' if p.mode_paiement == 'mobile' else 'credit-card' if p.mode_paiement == 'carte' else 'money-bill-wave' }} me-1"></i>
+                                            {{ p.mode_paiement }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center pe-3">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ url_for('main.recu_paiement', id=p.id) }}" class="btn btn-outline-info" data-bs-toggle="tooltip" title="Voir le reçu">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('main.generer_recu_pdf', id=p.id) }}" class="btn btn-outline-primary" data-bs-toggle="tooltip" title="Télécharger PDF">
+                                                <i class="fas fa-file-pdf"></i>
+                                            </a>
+                                            {% if current_user.role == 'admin' %}
+                                            <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}" method="POST" 
+                                                  onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce paiement ?');"
+                                                  class="d-inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit" class="btn btn-outline-danger" data-bs-toggle="tooltip" title="Supprimer">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="8" class="text-center py-4">
+                                        <i class="fas fa-receipt fa-2x text-muted mb-2"></i>
+                                        <h6 class="text-muted">Aucun paiement enregistré</h6>
+                                        <p class="text-muted small">Utilisez le formulaire ci-dessus pour enregistrer un paiement</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination avancée historique des paiements -->
+                    {% if paiements_pagination.pages > 1 %}
+                    <div class="card-footer bg-transparent py-2">
+                        <div class="row align-items-center">
+                            <div class="col-md-4 mb-2 mb-md-0">
+                                <small class="text-muted">
+                                    Affichage de <strong>{{ paiements_pagination.first }}</strong> à 
+                                    <strong>{{ paiements_pagination.last }}</strong> sur 
+                                    <strong>{{ paiements_pagination.total }}</strong> paiements
+                                </small>
+                            </div>
+                            <div class="col-md-8">
+                                <nav aria-label="Pagination historique des paiements">
+                                    <ul class="pagination pagination-sm justify-content-end mb-0">
+                                        <!-- Premier -->
+                                        {% if paiements_pagination.has_prev %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('main.paiements', page_paiements=1, page=eleves_pagination.page, classe=classe_id, recherche=recherche) }}">
+                                                <i class="fas fa-angle-double-left"></i>
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item disabled"><span class="page-link"><i class="fas fa-angle-double-left"></i></span></li>
+                                        {% endif %}
+
+                                        <!-- Précédent -->
+                                        {% if paiements_pagination.has_prev %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('main.paiements', page_paiements=paiements_pagination.prev_num, page=eleves_pagination.page, classe=classe_id, recherche=recherche) }}">
+                                                ‹
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item disabled"><span class="page-link">‹</span></li>
+                                        {% endif %}
+
+                                        <!-- Pages -->
+                                        {% for p in paiements_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                                            {% if p %}
+                                                {% if p == paiements_pagination.page %}
+                                                    <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                                                {% else %}
+                                                    <li class="page-item"><a class="page-link" href="{{ url_for('main.paiements', page_paiements=p, page=eleves_pagination.page, classe=classe_id, recherche=recherche) }}">{{ p }}</a></li>
+                                                {% endif %}
+                                            {% else %}
+                                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                                            {% endif %}
+                                        {% endfor %}
+
+                                        <!-- Suivant -->
+                                        {% if paiements_pagination.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('main.paiements', page_paiements=paiements_pagination.next_num, page=eleves_pagination.page, classe=classe_id, recherche=recherche) }}">
+                                                ›
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item disabled"><span class="page-link">›</span></li>
+                                        {% endif %}
+
+                                        <!-- Dernier -->
+                                        {% if paiements_pagination.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('main.paiements', page_paiements=paiements_pagination.pages, page=eleves_pagination.page, classe=classe_id, recherche=recherche) }}">
+                                                <i class="fas fa-angle-double-right"></i>
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item disabled"><span class="page-link"><i class="fas fa-angle-double-right"></i></span></li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.avatar-sm {
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+    white-space: nowrap;
+}
+
+.table td {
+    vertical-align: middle;
+    padding: 0.75rem 0.5rem;
+}
+
+.table-responsive {
+    border-radius: 0 0 10px 10px;
+}
+
+.progress {
+    border-radius: 4px;
+    background-color: #e9ecef;
+}
+
+.progress-bar {
+    border-radius: 4px;
+}
+
+.bg-animated {
+    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+    background-size: 400% 400%;
+    animation: gradient 15s ease infinite;
+}
+
+@keyframes gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.btn-group .btn {
+    border-radius: 6px !important;
+    margin: 0 1px;
+}
+
+.form-floating {
+    margin-bottom: 0;
+}
+
+.form-floating > .form-control, 
+.form-floating > .form-select {
+    height: calc(3rem + 2px);
+    line-height: 1.25;
+}
+
+.form-floating > label {
+    padding: 0.875rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.04);
+    transform: translateX(2px);
+    transition: all 0.2s ease;
+}
+
+.pagination .page-link {
+    border-radius: 6px;
+    margin: 0 1px;
+    border: none;
+    color: #495057;
+    font-size: 0.875rem;
+}
+
+.pagination .page-item.active .page-link {
+    background: var(--gradient-primary);
+    border: none;
+}
+
+/* Table group divider for classes */
+.table-group-divider td {
+    border-top: 2px solid #dee2e6;
+    font-size: 0.9rem;
+}
+
+/* Money symbol styling */
+.fa-franc-sign {
+    font-size: 0.8em;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+    
+    .table-responsive {
+        font-size: 0.8rem;
+    }
+    
+    .avatar-sm {
+        width: 30px;
+        height: 30px;
+    }
+    
+    .btn-group .btn {
+        padding: 0.2rem 0.3rem;
+        font-size: 0.7rem;
+    }
+    
+    .form-floating > .form-control, 
+    .form-floating > .form-select {
+        height: calc(2.8rem + 2px);
+    }
+    
+    .card-header h4 {
+        font-size: 1rem;
+    }
+    
+    .badge {
+        font-size: 0.65rem;
+    }
+    
+    .table th, .table td {
+        padding: 0.5rem 0.25rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .row.g-3 {
+        margin-bottom: 0.5rem;
+    }
+    
+    .col-lg-4, .col-lg-5, .col-lg-3 {
+        margin-bottom: 0.75rem;
+    }
+    
+    .input-group .btn {
+        padding: 0.375rem 0.5rem;
+    }
+    
+    .pagination .page-link {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+    }
+}
+
+/* Loading animation */
+.loading-skeleton {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Improved focus states */
+.form-control:focus,
+.form-select:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    border-color: #80bdff;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animation pour les lignes du tableau
+    const tableRows = document.querySelectorAll('tbody tr');
+    tableRows.forEach((row, index) => { 
+        row.style.animationDelay = `${index * 0.03}s`; 
+    });
+
+    // Initialisation des tooltips Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    tooltipTriggerList.map(function (tooltipTriggerEl) { 
+        return new bootstrap.Tooltip(tooltipTriggerEl); 
+    });
+
+    // Sélection multiple
+    const selectAll = document.getElementById('select-all');
+    const selectPaiements = document.querySelectorAll('.select-paiement');
+    
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            selectPaiements.forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+            });
+        });
+    }
+
+    // Recherche en temps réel dans l'historique
+    const searchInput = document.getElementById('search-paiements');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const paiementRows = document.querySelectorAll('tbody tr[data-paiement-id]');
+            
+            paiementRows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
+        });
+    }
+
+    // Export PDF
+    document.getElementById('export-pdf')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        alert('Fonctionnalité d\'export PDF à implémenter');
+    });
+
+    // Export Excel
+    document.getElementById('export-excel')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        alert('Fonctionnalité d\'export Excel à implémenter');
+    });
+
+    // Actualisation des données
+    document.getElementById('refresh-data')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.location.reload();
+    });
+
+    // Auto-submit des filtres sur mobile
+    const selectElements = document.querySelectorAll('select.form-select');
+    selectElements.forEach(select => {
+        select.addEventListener('change', function() {
+            if (window.innerWidth < 768) {
+                this.form.submit();
+            }
+        });
+    });
+
+    // Amélioration de l'expérience mobile
+    let startX;
+    const tableContainers = document.querySelectorAll('.table-responsive');
+    
+    tableContainers.forEach(container => {
+        container.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+        });
+        
+        container.addEventListener('touchmove', (e) => {
+            if (!startX) return;
+            const x = e.touches[0].clientX;
+            const diff = startX - x;
+            
+            if (Math.abs(diff) > 50) {
+                // Swipe detected
+                startX = null;
+            }
+        });
+    });
+
+    // Confirmation avant suppression
+    const deleteForms = document.querySelectorAll('form[action*="supprimer_paiement"]');
+    deleteForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            if (!confirm('Êtes-vous sûr de vouloir supprimer ce paiement ? Cette action est irréversible.')) {
+                e.preventDefault();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

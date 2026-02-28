@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}Liste des professeurs - EduManage{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">Gestion des Professeurs</h2>
+            <p class="text-muted mb-0">Consultez et gérez l'ensemble des enseignants de l'établissement</p>
+        </div>
+        <a href="{{ url_for('main.ajouter_professeur') }}" class="btn btn-primary rounded-2 px-4 py-2 mt-2 mt-md-0">
+            <i class="fas fa-plus-circle me-2"></i>Ajouter un professeur
+        </a>
+    </div>
+
+    <!-- Recherche et Tri -->
+    <div class="d-flex flex-wrap justify-content-between mb-3">
+        <input type="text" id="searchInput" class="form-control w-100 w-md-50 mb-2" placeholder="Rechercher un professeur par nom ou spécialité">
+        <select id="sortOption" class="form-select w-auto mb-2">
+            <option value="name-asc">Nom (A → Z)</option>
+            <option value="name-desc">Nom (Z → A)</option>
+            <option value="specialite-asc">Spécialité (A → Z)</option>
+            <option value="specialite-desc">Spécialité (Z → A)</option>
+            <option value="email-asc">Email (A → Z)</option>
+            <option value="email-desc">Email (Z → A)</option>
+        </select>
+    </div>
+
+    <!-- Carousel -->
+    <div class="carousel-wrapper position-relative">
+        <button class="carousel-btn prev-btn"><i class="fas fa-chevron-left"></i></button>
+        <div class="professor-carousel">
+            {% for prof in professeurs.items %}
+            <div class="prof-card animate-pop-in">
+                <div class="prof-header bg-gradient-primary text-white p-3 rounded-top">
+                    <h5 class="mb-0">{{ prof.prenom }} {{ prof.nom }}</h5>
+                    <small>{{ prof.email }}</small>
+                </div>
+                <div class="prof-body p-3">
+                    <div class="mb-2">
+                        <span class="badge badge-specialite">{{ prof.specialite or "Non défini" }}</span>
+                    </div>
+                    <div class="mb-2"><i class="fas fa-phone me-2"></i>{{ prof.telephone or "-" }}</div>
+                    <div class="mb-2"><i class="fas fa-envelope me-2"></i>{{ prof.email or "-" }}</div>
+                    <div class="mb-2"><strong>Matières:</strong> {{ (prof.matieres_enseignees or "-")|truncate(20) }}</div>
+                    <div class="mb-2">
+                        <span class="badge bg-success rounded-pill py-1 px-2">
+                            <i class="fas fa-circle me-1" style="font-size:0.5rem;"></i> Actif
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between mt-3">
+                        <a href="{{ url_for('main.professeur_details', id=prof.id) }}" class="btn btn-outline-primary btn-sm flex-fill me-1">
+                            <i class="fas fa-eye"></i> Détails
+                        </a>
+                        <a href="{{ url_for('main.assigner_classes_professeur', id=prof.id) }}" class="btn btn-outline-info btn-sm flex-fill me-1">
+                            <i class="fas fa-chalkboard"></i> Classes
+                        </a>
+                        <form action="{{ url_for('main.supprimer_professeur', id=prof.id) }}" method="POST" 
+                              onsubmit="return confirm('Supprimer {{ prof.prenom }} {{ prof.nom }} ?');"
+                              class="flex-fill">
+                            {{ delete_form.hidden_tag() }}
+                            <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                                <i class="fas fa-trash"></i> Supprimer
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-5 w-100">
+                <i class="fas fa-chalkboard-teacher fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Aucun professeur enregistré</h5>
+                <p class="text-muted">Les professeurs apparaîtront ici une fois ajoutés</p>
+                <a href="{{ url_for('main.ajouter_professeur') }}" class="btn btn-primary mt-2">
+                    <i class="fas fa-plus me-2"></i>Ajouter le premier professeur
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        <button class="carousel-btn next-btn"><i class="fas fa-chevron-right"></i></button>
+    </div>
+
+    <!-- Pagination -->
+    <div class="d-flex justify-content-between mt-4">
+        <div>Page {{ professeurs.page }} sur {{ professeurs.pages }}</div>
+        <div>
+            {% if professeurs.has_prev %}
+                <a href="{{ url_for('main.professeurs', page=professeurs.prev_num) }}" class="btn btn-outline-primary btn-sm">Précédent</a>
+            {% endif %}
+            {% if professeurs.has_next %}
+                <a href="{{ url_for('main.professeurs', page=professeurs.next_num) }}" class="btn btn-outline-primary btn-sm">Suivant</a>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<style>
+/* Carousel */
+.carousel-wrapper { position: relative; }
+.professor-carousel {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+    scroll-behavior: smooth;
+}
+.professor-carousel::-webkit-scrollbar { height: 8px; }
+.professor-carousel::-webkit-scrollbar-thumb { background-color: rgba(0,0,0,0.2); border-radius: 4px; }
+.prof-card {
+    min-width: 280px;
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    flex-shrink: 0;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.prof-card:hover { transform: translateY(-5px); box-shadow: 0 20px 45px rgba(0,0,0,0.15); }
+.bg-gradient-primary { background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%) !important; }
+.badge-specialite { background-color: rgba(13,110,253,0.1); color: #0d6efd; border-radius: 0.6rem; padding: 0.3rem 0.7rem; font-size: 0.85rem; }
+.animate-pop-in { animation: popIn 0.3s ease forwards; opacity: 0; }
+@keyframes popIn { to { opacity: 1; transform: translateY(0); } from { opacity: 0; transform: translateY(10px); } }
+
+/* Buttons */
+.carousel-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: rgba(0,0,0,0.2);
+    color: #fff;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10;
+}
+.prev-btn { left: -20px; }
+.next-btn { right: -20px; }
+.carousel-btn:hover { background: rgba(0,0,0,0.4); }
+.btn-outline-primary:hover { background-color: #0d6efd; color: #fff; }
+.btn-outline-info:hover { background-color: #0dcaf0; color: #fff; }
+.btn-outline-danger:hover { background-color: #dc3545; color: #fff; }
+</style>
+
+<script>
+const sortOption = document.getElementById("sortOption");
+const searchInput = document.getElementById("searchInput");
+const carousel = document.querySelector(".professor-carousel");
+let cards = Array.from(document.querySelectorAll(".prof-card"));
+
+// Sorting cards
+sortOption.addEventListener("change", sortCards);
+searchInput.addEventListener("input", searchCards);
+
+function sortCards() {
+    let option = sortOption.value;
+    cards.sort((a,b) => {
+        let valA="", valB="";
+        if(option.startsWith("name")) {
+            valA = a.querySelector(".prof-header h5")?.innerText.toLowerCase();
+            valB = b.querySelector(".prof-header h5")?.innerText.toLowerCase();
+        } else if(option.startsWith("specialite")) {
+            valA = a.querySelector(".badge-specialite")?.innerText.toLowerCase();
+            valB = b.querySelector(".badge-specialite")?.innerText.toLowerCase();
+        } else if(option.startsWith("email")) {
+            valA = a.querySelector(".prof-header small")?.innerText.toLowerCase();
+            valB = b.querySelector(".prof-header small")?.innerText.toLowerCase();
+        }
+        return option.endsWith("asc") ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    });
+    cards.forEach(c => carousel.appendChild(c));
+}
+
+// Search cards
+function searchCards() {
+    let query = searchInput.value.toLowerCase();
+    cards.forEach(card => {
+        let name = card.querySelector(".prof-header h5")?.innerText.toLowerCase();
+        let spec = card.querySelector(".badge-specialite")?.innerText.toLowerCase();
+        card.style.display = (name.includes(query) || spec.includes(query)) ? "block" : "none";
+    });
+}
+
+// Carousel navigation
+document.querySelector(".prev-btn").addEventListener("click", () => {
+    carousel.scrollBy({ left: -300, behavior: 'smooth' });
+});
+document.querySelector(".next-btn").addEventListener("click", () => {
+    carousel.scrollBy({ left: 300, behavior: 'smooth' });
+});
+</script>
+
+{% endblock %}

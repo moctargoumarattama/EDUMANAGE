@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}Emploi du Temps - Enseignant{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1 fw-bold text-dark">Mon Emploi du Temps</h2>
+                    <p class="text-muted mb-0">Vos horaires de cours hebdomadaires</p>
+                </div>
+                <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+                    <i class="fas fa-calendar-alt fa-2x text-primary"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vue par jour avec onglets -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-white px-0 pt-0 border-0">
+                    <ul class="nav nav-tabs nav-justified" id="joursTabs" role="tablist">
+                        {% set jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'] %}
+                        {% for jour in jours %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if loop.first %}active{% endif %} fw-semibold" 
+                                    id="{{ jour|lower }}-tab" 
+                                    data-bs-toggle="tab" 
+                                    data-bs-target="#{{ jour|lower }}" 
+                                    type="button" 
+                                    role="tab"
+                                    style="border-radius: 0.5rem 0.5rem 0 0;">
+                                {{ jour }}
+                            </button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="joursTabsContent">
+                        {% for jour in jours %}
+                        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" 
+                             id="{{ jour|lower }}" 
+                             role="tabpanel">
+                            {% set emplois_jour = emplois|selectattr('jour', 'equalto', jour)|list %}
+                            
+                            {% if emplois_jour %}
+                            <div class="row g-3">
+                                {% for emploi in emplois_jour|sort(attribute='heure_debut') %}
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="card border-0 shadow-sm h-100 hover-lift">
+                                        <div class="card-header bg-primary text-white py-3">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <h6 class="mb-0 fw-semibold">{{ emploi.cours.nom if emploi.cours else 'Matière' }}</h6>
+                                                <span class="badge bg-white text-primary">{{ emploi.heure_debut.strftime('%H:%M') }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center mb-2">
+                                                <i class="fas fa-users text-muted me-2"></i>
+                                                <span class="text-dark fw-medium">{{ emploi.classe.nom if emploi.classe else 'N/A' }}</span>
+                                            </div>
+                                            <div class="d-flex align-items-center mb-2">
+                                                <i class="fas fa-clock text-muted me-2"></i>
+                                                <span class="text-muted">{{ emploi.heure_debut.strftime('%H:%M') }} - {{ emploi.heure_fin.strftime('%H:%M') }}</span>
+                                            </div>
+                                            {% if emploi.salle %}
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-door-open text-muted me-2"></i>
+                                                <span class="text-muted">{{ emploi.salle }}</span>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="card-footer bg-transparent border-0 pt-0">
+                                            <div class="d-grid">
+                                                <span class="badge bg-primary bg-opacity-10 text-primary text-center">
+                                                    {{ emploi.jour }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted fw-semibold">Aucun cours ce jour</h5>
+                                <p class="text-muted">Aucun cours n'est programmé pour le {{ jour }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vue synthétique complète -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 fw-semibold text-dark">
+                        <i class="fas fa-list-alt text-primary me-2"></i>
+                        Vue Synthétique de la Semaine
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Jour</th>
+                                    <th>Matière</th>
+                                    <th>Classe</th>
+                                    <th>Horaire</th>
+                                    <th>Salle</th>
+                                    <th class="pe-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for jour in ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'] %}
+                                {% set emplois_jour = emplois|selectattr('jour', 'equalto', jour)|sort(attribute='heure_debut') %}
+                                {% if emplois_jour %}
+                                {% for emploi in emplois_jour %}
+                                <tr class="hover-lift">
+                                    <td class="ps-4">
+                                        <span class="badge bg-primary bg-opacity-10 text-primary fw-semibold">{{ emploi.jour }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-primary bg-opacity-10 rounded-circle p-2 me-3">
+                                                <i class="fas fa-book text-primary"></i>
+                                            </div>
+                                            <span class="fw-medium text-dark">{{ emploi.cours.nom if emploi.cours else 'N/A' }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted">{{ emploi.classe.nom if emploi.classe else 'N/A' }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info bg-opacity-10 text-info">
+                                            {{ emploi.heure_debut.strftime('%H:%M') }} - {{ emploi.heure_fin.strftime('%H:%M') }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if emploi.salle %}
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary">{{ emploi.salle }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="pe-4">
+                                        <button class="btn btn-sm btn-outline-primary rounded-pill" data-bs-toggle="tooltip" title="Voir détails">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td class="ps-4" colspan="6">
+                                        <div class="text-center py-3 text-muted">
+                                            <i class="fas fa-calendar-times me-2"></i>
+                                            Aucun cours le {{ jour }}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .nav-tabs .nav-link {
+        border: none;
+        color: #6c757d;
+        padding: 1rem 1.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: #3b82f6;
+        background-color: rgba(59, 130, 246, 0.1);
+        border: none;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        color: #3b82f6;
+        background-color: rgba(59, 130, 246, 0.05);
+    }
+    
+    .hover-lift {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .hover-lift:hover {
+        transform: translateY(-1px);
+        background-color: #f8f9fa;
+    }
+    
+    .card {
+        border-radius: 1rem;
+    }
+    
+    .table th {
+        border-top: none;
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .badge {
+        font-weight: 500;
+        padding: 0.5em 0.75em;
+    }
+    
+    .tab-content {
+        min-height: 300px;
+    }
+</style>
+
+<script>
+    // Activation des tooltips Bootstrap
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    })
+</script>
+{% endblock %}

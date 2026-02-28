@@ -1,0 +1,869 @@
+{% extends "base.html" %}
+
+{% block title %}Gestion des Utilisateurs - EduManage{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Sidebar de navigation dynamique selon le rôle -->
+        <div class="col-lg-3 col-md-4 mb-4">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-white border-0 py-3">
+                    <h5 class="mb-0 d-flex align-items-center">
+                        <i class="fas fa-cog text-primary me-2"></i> 
+                        {% if current_user.role == 'super_admin' %}Administration Globale
+                        {% else %}Administration - {{ current_user.ecole.nom if current_user.ecole else 'Mon École' }}
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% if current_user.role == 'super_admin' %}
+                            <!-- Sidebar Super Admin -->
+                            <a href="#ecoles" class="list-group-item list-group-item-action border-0 active" data-bs-toggle="tab">
+                                <i class="fas fa-school me-2"></i> Écoles
+                            </a>
+                            <a href="#utilisateurs" class="list-group-item list-group-item-action border-0" data-bs-toggle="tab">
+                                <i class="fas fa-users me-2"></i> Administrateurs
+                            </a>
+                        {% elif current_user.role == 'admin' %}
+                            <!-- Sidebar Admin -->
+                            <a href="#utilisateurs" class="list-group-item list-group-item-action border-0 active" data-bs-toggle="tab">
+                                <i class="fas fa-users me-2"></i> Utilisateurs
+                            </a>
+                            <a href="#eleves" class="list-group-item list-group-item-action border-0" data-bs-toggle="tab">
+                                <i class="fas fa-graduation-cap me-2"></i> Élèves
+                            </a>
+                            <a href="#rapports" class="list-group-item list-group-item-action border-0" data-bs-toggle="tab">
+                                <i class="fas fa-chart-bar me-2"></i> Rapports
+                            </a>
+                        {% else %}
+                            <!-- Sidebar pour autres rôles -->
+                            <a href="#profil" class="list-group-item list-group-item-action border-0 active" data-bs-toggle="tab">
+                                <i class="fas fa-user me-2"></i> Mon Profil
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenu principal -->
+        <div class="col-lg-9 col-md-8">
+            <div class="tab-content">
+                {% if current_user.role == 'super_admin' %}
+                    <!-- SECTION SUPER ADMIN -->
+                    
+                    <!-- Section Écoles -->
+                    <div class="tab-pane fade show active" id="ecoles">
+                        <div class="card border-0 shadow-lg mb-4">
+                            <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-school me-2 text-primary"></i> Gestion des Écoles
+                                </h5>
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#ajouterEcoleModal">
+                                    <i class="fas fa-plus me-1"></i> Nouvelle École
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                {% if ecoles %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Nom</th>
+                                                <th>Email</th>
+                                                <th>Téléphone</th>
+                                                <th>Directeur</th>
+                                                <th>Date création</th>
+                                                <th>Statut</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for ecole in ecoles %}
+                                            <tr>
+                                                <td>
+                                                    <div class="fw-bold">{{ ecole.nom }}</div>
+                                                    <small class="text-muted">{{ ecole.adresse }}</small>
+                                                </td>
+                                                <td>{{ ecole.email }}</td>
+                                                <td>{{ ecole.telephone }}</td>
+                                                <td>{{ ecole.directeur }}</td>
+                                                <td>{{ ecole.date_creation.strftime('%d/%m/%Y') if ecole.date_creation else 'N/A' }}</td>
+                                                <td>
+                                                    <span class="badge bg-{{ 'success' if ecole.statut == 'active' else 'secondary' }}">
+                                                        {{ ecole.statut }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group">
+                                                        <button class="btn btn-sm btn-outline-primary" 
+                                                                onclick="modifierEcole({{ ecole.id }})">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-{{ 'success' if ecole.statut == 'inactive' else 'warning' }}" 
+                                                                onclick="toggleEcoleStatus({{ ecole.id }}, '{{ ecole.statut }}')">
+                                                            <i class="fas fa-{{ 'check' if ecole.statut == 'inactive' else 'pause' }}"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-danger" 
+                                                                onclick="supprimerEcole({{ ecole.id }})">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-school fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">Aucune école n'a été créée pour le moment.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section Administrateurs -->
+                    <div class="tab-pane fade" id="utilisateurs">
+                        <div class="card border-0 shadow-lg mb-4">
+                            <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-users me-2 text-primary"></i> Gestion des Administrateurs
+                                </h5>
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#ajouterAdminModal">
+                                    <i class="fas fa-plus me-1"></i> Nouvel Admin
+                                </button>
+                            </div>
+                            
+                            <!-- Barre de filtres et recherche -->
+                            <div class="card-body border-bottom">
+                                <div class="row align-items-center">
+                                    <div class="col-md-6">
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" placeholder="Rechercher..." id="searchInput" value="{{ search }}">
+                                            <button class="btn btn-outline-secondary" type="button" onclick="applyFilters()">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <select class="form-select" id="ecoleFilter" onchange="applyFilters()">
+                                            <option value="">Toutes les écoles</option>
+                                            {% for ecole in ecoles %}
+                                            <option value="{{ ecole.id }}" {% if request.args.get('ecole') == ecole.id|string %}selected{% endif %}>
+                                                {{ ecole.nom }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <select class="form-select" id="roleFilter" onchange="applyFilters()">
+                                            <option value="">Tous les rôles</option>
+                                            <option value="super_admin" {% if role_filter == 'super_admin' %}selected{% endif %}>Super Admin</option>
+                                            <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admin</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body">
+                                {% if utilisateurs.items %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Nom</th>
+                                                <th>Email</th>
+                                                <th>Rôle</th>
+                                                <th>École</th>
+                                                <th>Statut</th>
+                                                <th>Date création</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for user in utilisateurs.items %}
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                                            {{ user.prenom[0] if user.prenom else user.nom[0] }}
+                                                        </div>
+                                                        <div>
+                                                            <div class="fw-bold">{{ user.prenom }} {{ user.nom }}</div>
+                                                            <small class="text-muted">{{ user.telephone if user.telephone else 'Aucun téléphone' }}</small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>{{ user.email }}</td>
+                                                <td>
+                                                    <span class="badge bg-{{ 'danger' if user.role == 'super_admin' else 'primary' }}">
+                                                        {{ user.role|replace('_', ' ')|title }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    {% if user.ecole %}
+                                                        {{ user.ecole.nom }}
+                                                    {% else %}
+                                                        <span class="text-muted">Global</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-{{ 'success' if user.statut == 'actif' else 'secondary' }}">
+                                                        {{ user.statut if user.statut else 'actif' }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ user.date_creation.strftime('%d/%m/%Y') if user.date_creation else 'N/A' }}</td>
+                                                <td>
+                                                    <div class="btn-group">
+                                                        <button class="btn btn-sm btn-outline-primary" 
+                                                                onclick="modifierUtilisateur({{ user.id }})">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        {% if user.id != current_user.id %}
+                                                        <button class="btn btn-sm btn-outline-{{ 'success' if user.statut == 'inactif' else 'warning' }}" 
+                                                                onclick="toggleUserStatus({{ user.id }}, '{{ user.statut }}')">
+                                                            <i class="fas fa-{{ 'check' if user.statut == 'inactif' else 'ban' }}"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-danger" 
+                                                                onclick="supprimerUtilisateur({{ user.id }})">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <!-- Pagination -->
+                                {% if utilisateurs.pages > 1 %}
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination justify-content-center">
+                                        <li class="page-item {% if not utilisateurs.has_prev %}disabled{% endif %}">
+                                            <a class="page-link" href="{{ url_for('main.profile', page=utilisateurs.prev_num, search=search, ecole=request.args.get('ecole', ''), role=role_filter) }}">
+                                                Précédent
+                                            </a>
+                                        </li>
+                                        
+                                        {% for page_num in utilisateurs.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                                            {% if page_num %}
+                                                <li class="page-item {% if page_num == utilisateurs.page %}active{% endif %}">
+                                                    <a class="page-link" href="{{ url_for('main.profile', page=page_num, search=search, ecole=request.args.get('ecole', ''), role=role_filter) }}">
+                                                        {{ page_num }}
+                                                    </a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                                            {% endif %}
+                                        {% endfor %}
+                                        
+                                        <li class="page-item {% if not utilisateurs.has_next %}disabled{% endif %}">
+                                            <a class="page-link" href="{{ url_for('main.profile', page=utilisateurs.next_num, search=search, ecole=request.args.get('ecole', ''), role=role_filter) }}">
+                                                Suivant
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                                {% endif %}
+                                {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">Aucun administrateur trouvé.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                {% elif current_user.role == 'admin' %}
+                    <!-- SECTION ADMIN D'ÉCOLE -->
+                    
+                    <!-- Section Utilisateurs -->
+                    <div class="tab-pane fade show active" id="utilisateurs">
+                        <div class="card border-0 shadow-lg mb-4">
+                            <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-users me-2 text-primary"></i> Gestion des Utilisateurs - {{ current_user.ecole.nom if current_user.ecole else 'Mon École' }}
+                                </h5>
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#ajouterUtilisateurModal">
+                                    <i class="fas fa-plus me-1"></i> Nouvel Utilisateur
+                                </button>
+                            </div>
+                            
+                            <!-- Barre de filtres et recherche -->
+                            <div class="card-body border-bottom">
+                                <div class="row align-items-center">
+                                    <div class="col-md-4">
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" placeholder="Rechercher..." id="searchInput" value="{{ search }}">
+                                            <button class="btn btn-outline-secondary" type="button" onclick="applyFilters()">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <select class="form-select" id="roleFilter" onchange="applyFilters()">
+                                            <option value="">Tous les rôles</option>
+                                            <option value="enseignant" {% if role_filter == 'enseignant' %}selected{% endif %}>Enseignant</option>
+                                            <option value="parent" {% if role_filter == 'parent' %}selected{% endif %}>Parent</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <select class="form-select" id="statutFilter" onchange="applyFilters()">
+                                            <option value="">Tous les statuts</option>
+                                            <option value="actif" {% if request.args.get('statut') == 'actif' %}selected{% endif %}>Actif</option>
+                                            <option value="inactif" {% if request.args.get('statut') == 'inactif' %}selected{% endif %}>Inactif</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body">
+                                {% if utilisateurs.items %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Nom</th>
+                                                <th>Email</th>
+                                                <th>Rôle</th>
+                                                <th>Statut</th>
+                                                <th>Date création</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for user in utilisateurs.items %}
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                                            {{ user.prenom[0] if user.prenom else user.nom[0] }}
+                                                        </div>
+                                                        <div>
+                                                            <div class="fw-bold">{{ user.prenom }} {{ user.nom }}</div>
+                                                            <small class="text-muted">{{ user.telephone if user.telephone else 'Aucun téléphone' }}</small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>{{ user.email }}</td>
+                                                <td>
+                                                    <span class="badge bg-{{ 'success' if user.role == 'enseignant' else 'info' if user.role == 'parent' else 'primary' }}">
+                                                        {{ user.role|title }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-{{ 'success' if user.statut == 'actif' else 'secondary' }}">
+                                                        {{ user.statut if user.statut else 'actif' }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ user.date_creation.strftime('%d/%m/%Y') if user.date_creation else 'N/A' }}</td>
+                                                <td>
+                                                    <div class="btn-group">
+                                                        <button class="btn btn-sm btn-outline-primary" 
+                                                                onclick="modifierUtilisateur({{ user.id }})">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        {% if user.id != current_user.id %}
+                                                        <button class="btn btn-sm btn-outline-{{ 'success' if user.statut == 'inactif' else 'warning' }}" 
+                                                                onclick="toggleUserStatus({{ user.id }}, '{{ user.statut }}')">
+                                                            <i class="fas fa-{{ 'check' if user.statut == 'inactif' else 'ban' }}"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-danger" 
+                                                                onclick="supprimerUtilisateur({{ user.id }})">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <!-- Pagination -->
+                                {% if utilisateurs.pages > 1 %}
+                                <nav aria-label="Page navigation">
+                                    <ul class="pagination justify-content-center">
+                                        <li class="page-item {% if not utilisateurs.has_prev %}disabled{% endif %}">
+                                            <a class="page-link" href="{{ url_for('main.profile', page=utilisateurs.prev_num, search=search, role=role_filter, statut=request.args.get('statut', '')) }}">
+                                                Précédent
+                                            </a>
+                                        </li>
+                                        
+                                        {% for page_num in utilisateurs.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                                            {% if page_num %}
+                                                <li class="page-item {% if page_num == utilisateurs.page %}active{% endif %}">
+                                                    <a class="page-link" href="{{ url_for('main.profile', page=page_num, search=search, role=role_filter, statut=request.args.get('statut', '')) }}">
+                                                        {{ page_num }}
+                                                    </a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                                            {% endif %}
+                                        {% endfor %}
+                                        
+                                        <li class="page-item {% if not utilisateurs.has_next %}disabled{% endif %}">
+                                            <a class="page-link" href="{{ url_for('main.profile', page=utilisateurs.next_num, search=search, role=role_filter, statut=request.args.get('statut', '')) }}">
+                                                Suivant
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </nav>
+                                {% endif %}
+                                {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">Aucun utilisateur trouvé.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section Élèves -->
+<div class="tab-pane fade" id="eleves">
+    <div class="card border-0 shadow-lg mb-4">
+        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-graduation-cap me-2 text-warning"></i> Gestion des Élèves
+            </h5>
+            <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#ajouterEleveModal">
+                <i class="fas fa-plus me-1"></i> Nouvel Élève
+            </button>
+        </div>
+        <div class="card-body">
+            {% if eleves %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Élève</th>
+                            <th>Classe</th>
+                            <th>Date naissance</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eleve in eleves %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-warning text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                        {{ eleve.prenom[0] }}{{ eleve.nom[0] }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold">{{ eleve.prenom }} {{ eleve.nom }}</div>
+                                        <small class="text-muted">{{ eleve.matricule if eleve.matricule else 'N/A' }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ eleve.classe.nom if eleve.classe else 'Non assigné' }}</span>
+                            </td>
+                            <td>{{ eleve.date_naissance.strftime('%d/%m/%Y') if eleve.date_naissance else 'N/A' }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if eleve.statut == 'actif' else 'secondary' }}">
+                                    {{ eleve.statut if eleve.statut else 'actif' }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <!-- Modifier -->
+                                    <button class="btn btn-sm btn-outline-warning" onclick="modifierEleve({{ eleve.id }})">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <!-- Supprimer -->
+                                    <button class="btn btn-sm btn-outline-danger" onclick="supprimerEleve({{ eleve.id }})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    <!-- Régénérer code parent -->
+                                    <button class="btn btn-sm btn-outline-info" onclick="regenererCodeParent({{ eleve.id }})">
+                                        <i class="fas fa-key"></i>
+                                    </button>
+                                    <!-- Envoyer identifiants par email -->
+                                    {% if eleve.code_parent %}
+                                    <button class="btn btn-sm btn-outline-success" onclick="envoyerCredentialsParent({{ eleve.parent_id }})">
+                                        <i class="fas fa-envelope"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-graduation-cap fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Aucun élève trouvé.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript pour actions -->
+<script>
+function regenererCodeParent(eleveId) {
+    if (!confirm("Voulez-vous vraiment régénérer le code parent ?")) return;
+
+    fetch(`/admin/eleve/${eleveId}/regenerer-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Nouveau code parent : ${data.nouveau_code}`);
+        } else {
+            alert(`Erreur : ${data.message}`);
+        }
+    })
+    .catch(err => alert(`Erreur réseau : ${err}`));
+}
+
+function envoyerCredentialsParent(parentId) {
+    if (!confirm("Voulez-vous envoyer les identifiants au parent par email ?")) return;
+
+    fetch(`/admin/parent/${parentId}/envoyer-credentials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert("Email envoyé avec succès !");
+        } else {
+            alert(`Erreur : ${data.message}`);
+        }
+    })
+    .catch(err => alert(`Erreur réseau : ${err}`));
+}
+
+function modifierEleve(eleveId) {
+    window.location.href = `/admin/eleve/${eleveId}/modifier`;
+}
+
+function supprimerEleve(eleveId) {
+    if (!confirm("Voulez-vous vraiment supprimer cet élève ?")) return;
+    fetch(`/admin/eleve/${eleveId}/supprimer`, { method: 'POST' })
+        .then(() => window.location.reload())
+        .catch(err => alert(`Erreur réseau : ${err}`));
+}
+</script>
+
+
+                 <!-- Section Rapports -->
+<div class="tab-pane fade" id="rapports">
+    <div class="card border-0 shadow-lg">
+        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-chart-bar me-2 text-primary"></i> Rapports et Statistiques
+            </h5>
+            <!-- Bouton pour accéder aux rapports complets -->
+            <a href="{{ url_for('main.rapports') }}" class="btn btn-success">
+                <i class="fas fa-chart-bar me-1"></i> Voir les Rapports
+            </a>
+        </div>
+        <div class="card-body">
+            {% if statistiques %}
+            <div class="row">
+                <div class="col-md-3 mb-4">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h3>{{ statistiques.total_eleves }}</h3>
+                            <p class="mb-0">Élèves inscrits</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h3>{{ statistiques.total_professeurs }}</h3>
+                            <p class="mb-0">Enseignants</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h3>{{ statistiques.total_classes }}</h3>
+                            <p class="mb-0">Classes</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body text-center">
+                            <h3>{{ statistiques.taux_occupation }}%</h3>
+                            <p class="mb-0">Taux d'occupation</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                <p class="text-muted">Aucune statistique disponible.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+                    <!-- SECTION POUR AUTRES RÔLES (Enseignant, Parent, Élève) -->
+                    <div class="tab-pane fade show active" id="profil">
+                        <div class="card border-0 shadow-lg">
+                            <div class="card-header bg-white border-0 py-3">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-user me-2 text-primary"></i> Mon Profil
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4 text-center">
+                                        <div class="avatar-xl bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3">
+                                            {{ current_user.prenom[0] }}{{ current_user.nom[0] }}
+                                        </div>
+                                        <h4>{{ current_user.prenom }} {{ current_user.nom }}</h4>
+                                        <span class="badge bg-{{ 'primary' if current_user.role == 'admin' else 'success' if current_user.role == 'enseignant' else 'info' if current_user.role == 'parent' else 'warning' }}">
+                                            {{ current_user.role|title }}
+                                        </span>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p><strong>Email:</strong> {{ current_user.email }}</p>
+                                                <p><strong>Téléphone:</strong> {{ current_user.telephone if current_user.telephone else 'Non renseigné' }}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p><strong>Date de création:</strong> {{ current_user.date_creation.strftime('%d/%m/%Y') if current_user.date_creation else 'N/A' }}</p>
+                                                <p><strong>Statut:</strong> 
+                                                    <span class="badge bg-{{ 'success' if current_user.statut == 'actif' else 'secondary' }}">
+                                                        {{ current_user.statut if current_user.statut else 'actif' }}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {% if current_user.ecole %}
+                                        <div class="mt-3 p-3 bg-light rounded">
+                                            <h6>École</h6>
+                                            <p class="mb-1"><strong>{{ current_user.ecole.nom }}</strong></p>
+                                            <p class="mb-1">{{ current_user.ecole.adresse }}</p>
+                                            <p class="mb-0">{{ current_user.ecole.telephone }} • {{ current_user.ecole.email }}</p>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Inclusion des modals selon le rôle -->
+{% if current_user.role == 'super_admin' %}
+    {% include 'modals/super_admin_modals.html' %}
+{% elif current_user.role == 'admin' %}
+    {% include 'modals/admin_modals.html' %}
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Fonction pour appliquer les filtres
+function applyFilters() {
+    const search = document.getElementById('searchInput')?.value || '';
+    const role = document.getElementById('roleFilter')?.value || '';
+    
+    {% if current_user.role == 'super_admin' %}
+        const ecole = document.getElementById('ecoleFilter')?.value || '';
+        const params = new URLSearchParams({
+            search: search,
+            role: role,
+            ecole: ecole
+        });
+    {% else %}
+        const statut = document.getElementById('statutFilter')?.value || '';
+        const params = new URLSearchParams({
+            search: search,
+            role: role,
+            statut: statut
+        });
+    {% endif %}
+    
+    window.location.href = `{{ url_for('main.profile') }}?${params.toString()}`;
+}
+
+// Fonction pour changer le statut d'un utilisateur
+function toggleUserStatus(userId, currentStatus) {
+    const newStatus = currentStatus === 'actif' ? 'inactif' : 'actif';
+    const action = newStatus === 'inactif' ? 'désactiver' : 'activer';
+    
+    if (confirm(`Êtes-vous sûr de vouloir ${action} cet utilisateur ?`)) {
+        fetch(`/api/users/${userId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ statut: newStatus })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur lors de la modification du statut: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Erreur réseau');
+        });
+    }
+}
+
+// Fonction pour supprimer un utilisateur
+function supprimerUtilisateur(userId) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.')) {
+        fetch(`/api/users/${userId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur lors de la suppression: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Erreur réseau');
+        });
+    }
+}
+
+// Fonction pour changer le statut d'une école (Super Admin)
+function toggleEcoleStatus(ecoleId, currentStatus) {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const action = newStatus === 'inactive' ? 'désactiver' : 'activer';
+    
+    if (confirm(`Êtes-vous sûr de vouloir ${action} cette école ?`)) {
+        fetch(`/api/ecoles/${ecoleId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ statut: newStatus })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur lors de la modification du statut: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Erreur réseau');
+        });
+    }
+}
+
+// Fonction pour supprimer une école
+function supprimerEcole(ecoleId) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cette école ? Toutes les données associées seront perdues.')) {
+        fetch(`/api/ecoles/${ecoleId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur lors de la suppression: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Erreur réseau');
+        });
+    }
+}
+
+// Fonction pour supprimer un élève
+function supprimerEleve(eleveId) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cet élève ?')) {
+        fetch(`/api/eleves/${eleveId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur lors de la suppression: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            alert('Erreur réseau');
+        });
+    }
+}
+
+// Fonctions de modification (à implémenter)
+function modifierUtilisateur(userId) {
+    alert('Fonction de modification utilisateur à implémenter pour l\'ID: ' + userId);
+}
+
+function modifierEcole(ecoleId) {
+    alert('Fonction de modification école à implémenter pour l\'ID: ' + ecoleId);
+}
+
+function modifierEleve(eleveId) {
+    alert('Fonction de modification élève à implémenter pour l\'ID: ' + eleveId);
+}
+
+// Initialisation des onglets
+document.addEventListener('DOMContentLoaded', function() {
+    // Gestion de la recherche avec la touche Entrée
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                applyFilters();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

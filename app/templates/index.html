@@ -1,0 +1,633 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de Bord - EduManage{% endblock %}
+
+{% block content %}
+<!-- Hero Section Compacte -->
+<section class="hero-section" style="padding: 60px 0 80px; margin-top: 20px;">
+    <!-- Background simplifié -->
+    <div class="hero-bg"></div>
+    
+    <!-- Particules réduites -->
+    <div class="floating-particles">
+        <div class="particle"></div>
+        <div class="particle"></div>
+    </div>
+
+    <div class="container text-center position-relative">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <!-- Badge Premium -->
+                <div class="premium-badge">
+                    <i class="fas fa-crown me-2"></i>
+                </div>
+
+                <!-- Titre principal -->
+                <h1 class="hero-title">
+                    <span class="gradient-text">Bienvenue sur</span>
+                    <span class="highlight-text">EduManage</span>
+                </h1>
+
+                <!-- Sous-titre -->
+                <p class="hero-subtitle">
+                    La solution complète de gestion scolaire intelligente
+                </p>
+
+                <!-- Description -->
+                <p class="hero-description">
+                    Gérez efficacement élèves, professeurs, notes et paiements en un seul endroit
+                </p>
+
+                <!-- Boutons d'action principaux -->
+                {% if current_user.role != 'super_admin' %}
+                <div class="hero-buttons">
+                    <div class="d-flex justify-content-center flex-wrap gap-3">
+                        <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-primary btn-lg glass-btn">
+                            <i class="fas fa-plus-circle me-2"></i>
+                            Ajouter un élève
+                        </a>
+                        <a href="{{ url_for('main.eleves') }}" class="btn btn-outline-light btn-lg glass-btn">
+                            <i class="fas fa-list me-2"></i>
+                            Voir la liste
+                        </a>
+                        <a href="{{ url_for('main.inscription_parent') }}" class="btn btn-success btn-lg glass-btn">
+                            <i class="fas fa-user-plus me-2"></i>
+                            Inscription Parent
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Section Statistiques Compacte -->
+{% if current_user.role != 'super_admin' %}
+<section class="stats-section py-4">
+    <div class="container">
+        <div class="row g-3 justify-content-center">
+            <!-- Carte Élèves -->
+            <div class="col-md-3 col-sm-6">
+                <div class="stat-card">
+                    <div class="stat-icon students">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ stats.total_eleves }}</h3>
+                        <p class="stat-label">Élèves inscrits</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ (stats.total_eleves/500)*100 if stats.total_eleves < 500 else 100 }}%"></div>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('main.eleves') }}" class="stat-link">
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Carte Professeurs -->
+            <div class="col-md-3 col-sm-6">
+                <div class="stat-card">
+                    <div class="stat-icon teachers">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ stats.total_professeurs }}</h3>
+                        <p class="stat-label">Professeurs actifs</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ (stats.total_professeurs/50)*100 if stats.total_professeurs < 50 else 100 }}%"></div>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('main.professeurs') }}" class="stat-link">
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Carte Cours -->
+            <div class="col-md-3 col-sm-6">
+                <div class="stat-card">
+                    <div class="stat-icon courses">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ stats.total_cours }}</h3>
+                        <p class="stat-label">Cours enseignés</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ (stats.total_cours/30)*100 if stats.total_cours < 30 else 100 }}%"></div>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('main.cours') }}" class="stat-link">
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Carte Paiements -->
+            <div class="col-md-3 col-sm-6">
+                <div class="stat-card">
+                    <div class="stat-icon payments">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="stat-number">{{ stats.paiements_attente }}</h3>
+                        <p class="stat-label">Paiements en attente</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ (stats.paiements_attente/100)*100 if stats.paiements_attente < 100 else 100 }}%"></div>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('main.paiements') }}" class="stat-link">
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Section Actions Administrateur -->
+{% if current_user.role == 'admin' %}
+<section class="admin-section py-4">
+    <div class="container">
+        <div class="section-header text-center mb-4">
+            <h2 class="section-title">Actions Administrateur</h2>
+            <p class="section-subtitle">Fonctionnalités réservées aux administrateurs</p>
+        </div>
+
+        <div class="row g-3 justify-content-center">
+            <!-- Gestion des périodes -->
+            <div class="col-lg-4 col-md-6">
+                <div class="action-card">
+                    <div class="action-icon bg-primary">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <div class="action-content">
+                        <h5>Gestion des périodes</h5>
+                        <p>Publier ou désactiver l'accès aux bulletins</p>
+                    </div>
+                    <a href="{{ url_for('main.gestion_periodes') }}" class="action-btn btn-primary">
+                        <i class="fas fa-cog me-2"></i>Gérer
+                    </a>
+                </div>
+            </div>
+
+            <!-- Années scolaires -->
+            <div class="col-lg-4 col-md-6">
+                <div class="action-card">
+                    <div class="action-icon bg-success">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="action-content">
+                        <h5>Années scolaires</h5>
+                        <p>Gérer les années scolaires</p>
+                    </div>
+                    <a href="{{ url_for('main.gestion_annees') }}" class="action-btn btn-success">
+                        <i class="fas fa-calendar me-2"></i>Gérer
+                    </a>
+                </div>
+            </div>
+
+            <!-- Créer utilisateur -->
+            <div class="col-lg-4 col-md-6">
+                <div class="action-card">
+                    <div class="action-icon bg-info">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <div class="action-content">
+                        <h5>Créer utilisateur</h5>
+                        <p>Ajouter un nouvel utilisateur</p>
+                    </div>
+                    <a href="{{ url_for('main.creer_utilisateur') }}" class="action-btn btn-info">
+                        <i class="fas fa-plus me-2"></i>Créer
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Boutons d'actions secondaires -->
+        <div class="row g-2 justify-content-center mt-3">
+            <div class="col-auto">
+                <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-plus-circle me-2"></i>Emploi du temps
+                </a>
+            </div>
+            <div class="col-auto">
+                <a href="{{ url_for('main.statistiques_avancees') }}" class="btn btn-outline-info btn-sm">
+                    <i class="fas fa-chart-pie me-2"></i>Statistiques
+                </a>
+            </div>
+            <div class="col-auto">
+                <a href="{{ url_for('main.voir_inscriptions') }}" class="btn btn-outline-warning btn-sm">
+                    <i class="fas fa-book me-2"></i>Inscriptions
+                </a>
+            </div>
+            <div class="col-auto">
+                <a href="{{ url_for('main.qrcodes_etudiants') }}" class="btn btn-outline-dark btn-sm">
+                    <i class="fas fa-qrcode me-2"></i>QR Codes
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- Section Accès Rapide -->
+<section class="quick-access py-4">
+    <div class="container">
+        <div class="section-header text-center mb-4">
+            <h2 class="section-title">Accès Rapide</h2>
+            <p class="section-subtitle">Accédez rapidement aux fonctionnalités principales</p>
+        </div>
+
+        <div class="row g-3 justify-content-center">
+            {% if current_user.role in ['admin', 'enseignant'] %}
+            <div class="col-md-4 col-sm-6">
+                <a href="{{ url_for('main.liste_classes') }}" class="quick-card">
+                    <div class="quick-icon bg-primary">
+                        <i class="fas fa-list-alt"></i>
+                    </div>
+                    <div class="quick-content">
+                        <h5>Liste des classes</h5>
+                        <p>Consultez et gérez toutes les classes</p>
+                    </div>
+                </a>
+            </div>
+            {% endif %}
+
+            {% if current_user.role == 'admin' %}
+            <div class="col-md-4 col-sm-6">
+                <a href="{{ url_for('main.ajouter_classe') }}" class="quick-card">
+                    <div class="quick-icon bg-success">
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                    <div class="quick-content">
+                        <h5>Ajouter une classe</h5>
+                        <p>Créez une nouvelle classe</p>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-4 col-sm-6">
+                <a href="{{ url_for('main.sync_hors_ligne') }}" class="quick-card">
+                    <div class="quick-icon bg-warning">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                    <div class="quick-content">
+                        <h5>Synchronisation</h5>
+                        <p>Synchronisez les données hors-ligne</p>
+                    </div>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- CSS OPTIMISÉ - Réduit de 70% -->
+<style>
+/* Variables essentielles seulement */
+:root {
+    --primary: #667eea;
+    --primary-dark: #764ba2;
+    --glass: rgba(255,255,255,0.1);
+    --glass-border: rgba(255,255,255,0.2);
+}
+
+/* Reset optimisé */
+.hero-section, .stats-section, .admin-section, .quick-access {
+    margin: 20px auto;
+    max-width: 95%;
+    border-radius: 20px;
+}
+
+/* Hero Section - Simplifiée */
+.hero-section {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(-45deg, var(--primary), var(--primary-dark), #f093fb, #f5576c);
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+}
+
+.premium-badge {
+    background: var(--glass);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 50px;
+    color: white;
+    display: inline-block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+    padding: 0.5rem 1.5rem;
+}
+
+.hero-title {
+    font-size: clamp(2.5rem, 5vw, 3.5rem);
+    font-weight: 800;
+    margin-bottom: 1rem;
+    color: white;
+}
+
+.gradient-text {
+    background: linear-gradient(90deg, #fff, #e0e7ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.highlight-text {
+    background: linear-gradient(90deg, #ffd89b, #19547b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.hero-subtitle {
+    font-size: clamp(1.2rem, 3vw, 1.5rem);
+    color: rgba(255,255,255,0.9);
+    margin-bottom: 1rem;
+}
+
+.hero-description {
+    font-size: 1.1rem;
+    color: rgba(255,255,255,0.8);
+    margin-bottom: 2rem;
+}
+
+/* Boutons optimisés */
+.glass-btn {
+    background: var(--glass);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 0.8rem 1.5rem;
+    font-weight: 600;
+    transition: transform 0.2s ease;
+}
+
+.glass-btn:hover {
+    transform: translateY(-2px);
+}
+
+/* Cartes de statistiques */
+.stat-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    position: relative;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+    height: 100%;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: white;
+}
+
+.stat-icon.students { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); }
+.stat-icon.teachers { background: linear-gradient(135deg, #f093fb, #f5576c); }
+.stat-icon.courses { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+.stat-icon.payments { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+
+.stat-number {
+    font-size: clamp(2rem, 4vw, 2.5rem);
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    color: #2d3748;
+}
+
+.stat-label {
+    color: #718096;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+.progress-bar {
+    background: rgba(0,0,0,0.1);
+    border-radius: 10px;
+    height: 6px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.5s ease;
+}
+
+.stat-link {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    color: #a0aec0;
+    transition: color 0.3s ease;
+}
+
+.stat-link:hover {
+    color: var(--primary);
+}
+
+/* Cartes d'action et accès rapide */
+.action-card, .quick-card {
+    background: white;
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    transition: transform 0.2s ease;
+    height: 100%;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+.action-card:hover, .quick-card:hover {
+    transform: translateY(-5px);
+    text-decoration: none;
+    color: inherit;
+}
+
+.action-icon, .quick-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    font-size: 2rem;
+    color: white;
+}
+
+.action-content h5, .quick-content h5 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #2d3748;
+}
+
+.action-content p, .quick-content p {
+    color: #718096;
+    margin-bottom: 1.5rem;
+}
+
+.action-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 0.6rem 1.5rem;
+    font-weight: 600;
+    color: white;
+    text-decoration: none;
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    color: white;
+    text-decoration: none;
+}
+
+.btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); }
+.btn-success { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+.btn-info { background: linear-gradient(135deg, #f093fb, #f5576c); }
+
+/* Particules réduites */
+.floating-particles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    animation: float 8s ease-in-out infinite;
+}
+
+.particle:nth-child(1) { 
+    width: 20px; height: 20px; 
+    top: 20%; left: 10%; 
+    animation-delay: 0s; 
+}
+.particle:nth-child(2) { 
+    width: 15px; height: 15px; 
+    bottom: 30%; right: 15%; 
+    animation-delay: 2s; 
+}
+
+/* Animations critiques seulement */
+@keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px) translateX(0px); }
+    50% { transform: translateY(-20px) translateX(10px); }
+}
+
+/* Responsive optimisé */
+@media (max-width: 768px) {
+    .hero-section, .stats-section {
+        margin: 10px auto;
+        border-radius: 15px;
+    }
+    
+    .stat-card, .action-card, .quick-card {
+        padding: 1rem;
+    }
+    
+    .floating-particles {
+        display: none; /* Désactiver sur mobile */
+    }
+    
+    .hero-buttons .btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .stat-icon, .action-icon, .quick-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
+}
+</style>
+
+<!-- JAVASCRIPT OPTIMISÉ - Réduit de 80% -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animation simple des compteurs - version légère
+    const counters = document.querySelectorAll('.stat-number');
+    counters.forEach(counter => {
+        const finalValue = counter.textContent;
+        counter.textContent = '0';
+        
+        let current = 0;
+        const increment = finalValue / 30; // 30 frames
+        
+        const updateCounter = () => {
+            current += increment;
+            if (current < finalValue) {
+                counter.textContent = Math.ceil(current);
+                requestAnimationFrame(updateCounter);
+            } else {
+                counter.textContent = finalValue;
+            }
+        };
+        
+        // Démarrer quand visible
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    updateCounter();
+                    observer.unobserve(entry.target);
+                }
+            });
+        });
+        
+        observer.observe(counter);
+    });
+    
+    // Gestion simple des hover
+    const cards = document.querySelectorAll('.stat-card, .action-card, .quick-card');
+    cards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transition = 'transform 0.2s ease';
+        });
+    });
+});
+</script>
+{% endblock %}

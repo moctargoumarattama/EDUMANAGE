@@ -1,0 +1,56 @@
+<nav aria-label="Navigation des pages">
+    <ul class="pagination pagination-sm justify-content-center mb-0">
+        <!-- Première page -->
+        <li class="page-item {% if page == 1 %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('main.alertes', page=1, filter=request.args.get('filter', 'all')) }}">
+                <i class="fas fa-angle-double-left"></i>
+            </a>
+        </li>
+        
+        <!-- Page précédente -->
+        <li class="page-item {% if page == 1 %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('main.alertes', page=page-1, filter=request.args.get('filter', 'all')) }}">
+                <i class="fas fa-angle-left"></i>
+            </a>
+        </li>
+
+        <!-- Pages autour de la page courante -->
+        {% set start_page = [1, page-2]|max %}
+        {% set end_page = [total_pages, page+2]|min %}
+        
+        {% if start_page > 1 %}
+        <li class="page-item disabled"><span class="page-link">...</span></li>
+        {% endif %}
+        
+        {% for p in range(start_page, end_page + 1) %}
+        <li class="page-item {% if p == page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('main.alertes', page=p, filter=request.args.get('filter', 'all')) }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        
+        {% if end_page < total_pages %}
+        <li class="page-item disabled"><span class="page-link">...</span></li>
+        {% endif %}
+
+        <!-- Page suivante -->
+        <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('main.alertes', page=page+1, filter=request.args.get('filter', 'all')) }}">
+                <i class="fas fa-angle-right"></i>
+            </a>
+        </li>
+        
+        <!-- Dernière page -->
+        <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('main.alertes', page=total_pages, filter=request.args.get('filter', 'all')) }}">
+                <i class="fas fa-angle-double-right"></i>
+            </a>
+        </li>
+    </ul>
+    
+    <div class="text-center mt-2">
+        <small class="text-muted">
+            Page {{ page }} sur {{ total_pages }} • 
+            {{ alertes|length }} alerte(s) sur cette page
+        </small>
+    </div>
+</nav>

@@ -1,0 +1,679 @@
+{% extends "base.html" %}
+{% block title %}Gestion des Notes - EduManage{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="bg-animated p-4 rounded-3" style="background: var(--gradient-info);">
+                <h2 class="text-white mb-3"><i class="fas fa-edit me-2"></i>Gestion des Notes</h2>
+                <p class="text-white opacity-75">
+                    {% if current_user.role in ['admin', 'enseignant'] %}
+                    Ajoutez et consultez les évaluations des élèves
+                    {% else %}
+                    Consultez les évaluations de votre enfant
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulaire d'ajout et Statistiques -->
+    {% if current_user.role in ['admin', 'enseignant'] %}
+    <div class="row g-4">
+        <!-- Formulaire d'ajout -->
+        <div class="col-xl-6 col-lg-12 mb-4">
+            <div class="card border-0 shadow-lg h-100 animate-pop-in" style="border-radius: 1.2rem;">
+                <div class="card-header py-4 text-white d-flex justify-content-between align-items-center" style="background: var(--gradient-info);">
+                    <h4 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Ajouter une Note</h4>
+                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#formNoteCollapse" aria-expanded="true" aria-controls="formNoteCollapse">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div class="card-body p-4 collapse show" id="formNoteCollapse">
+                    <form method="POST" action="{{ url_for('main.notes') }}" class="needs-validation" novalidate>
+                        {{ form.hidden_tag() }}
+
+                        <!-- Année Scolaire -->
+                        {% if form.annee_id %}
+                        <div class="mb-4">
+                            <div class="form-floating">
+                                {{ form.annee_id(class="form-select", style="border-radius: 0.8rem;") }}
+                                {{ form.annee_id.label(class="form-label") }}
+                                <div class="invalid-feedback">Veuillez sélectionner une année scolaire.</div>
+                            </div>
+                        </div>
+                        {% elif annee_active %}
+                        <input type="hidden" name="annee_id" value="{{ annee_active.id }}">
+                        {% endif %}
+
+                        <!-- Recherche et sélection d'élève -->
+                        <div class="mb-4">
+                            <label class="form-label">Rechercher un élève</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" id="rechercheEleve" placeholder="Nom, prénom ou classe..." style="border-radius: 0.8rem 0 0 0.8rem;">
+                                <button class="btn btn-outline-secondary" type="button" id="btnEffacerRecherche" style="border-radius: 0 0.8rem 0.8rem 0;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="form-floating mt-2">
+                                {{ form.eleve_id(class="form-select", style="border-radius: 0.8rem; height: auto; max-height: 150px; overflow-y: auto;") }}
+                                {{ form.eleve_id.label(class="form-label") }}
+                                <div class="invalid-feedback">Veuillez sélectionner un élève.</div>
+                            </div>
+                        </div>
+
+                        <!-- Cours -->
+                        <div class="mb-4">
+                            <div class="form-floating">
+                                {{ form.cours_id(class="form-select", style="border-radius: 0.8rem;") }}
+                                {{ form.cours_id.label(class="form-label") }}
+                                <div class="invalid-feedback">Veuillez sélectionner un cours.</div>
+                            </div>
+                        </div>
+
+                        <!-- Valeur + coefficient -->
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <div class="form-floating">
+                                    {{ form.valeur(class="form-control", placeholder="Ex: 15", min=0, max=20, style="border-radius: 0.8rem;") }}
+                                    {{ form.valeur.label(class="form-label") }}
+                                    <div class="invalid-feedback">Note entre 0 et 20.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-4">
+                                <div class="form-floating">
+                                    {{ form.coefficient(class="form-control", placeholder="Ex: 2", min=1, style="border-radius: 0.8rem;") }}
+                                    {{ form.coefficient.label(class="form-label") }}
+                                    <div class="invalid-feedback">Coefficient valide requis.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Type -->
+                        <div class="mb-4">
+                            <div class="form-floating">
+                                {{ form.type_evaluation(class="form-select", style="border-radius: 0.8rem;") }}
+                                {{ form.type_evaluation.label(class="form-label") }}
+                                <div class="invalid-feedback">Veuillez sélectionner un type.</div>
+                            </div>
+                        </div>
+
+                        <!-- Période -->
+                        {% if form.periode %}
+                        <div class="mb-4">
+                            <div class="form-floating">
+                                {{ form.periode(class="form-select", style="border-radius: 0.8rem;") }}
+                                {{ form.periode.label(class="form-label") }}
+                                <div class="invalid-feedback">Veuillez sélectionner une période.</div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg py-3" style="border-radius: 0.8rem;">
+                                <i class="fas fa-check-circle me-2"></i>Ajouter la note
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques -->
+        <div class="col-xl-6 col-lg-12 mb-4">
+            <div class="card border-0 shadow-lg h-100 animate-pop-in" style="border-radius: 1.2rem;">
+                <div class="card-header py-4 text-white d-flex justify-content-between align-items-center" style="background: var(--gradient-success);">
+                    <h4 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Statistiques</h4>
+                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#statsCollapse" aria-expanded="true" aria-controls="statsCollapse">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div class="card-body p-4 collapse show" id="statsCollapse">
+                    <div class="row text-center">
+                        <div class="col-6 col-md-6 mb-4">
+                            <div class="p-3 border rounded-3 bg-light h-100 d-flex flex-column justify-content-center">
+                                <div class="fs-2 fw-bold text-primary mb-1">{{ notes|length }}</div>
+                                <small class="text-muted">Notes enregistrées</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-6 mb-4">
+                            <div class="p-3 border rounded-3 bg-light h-100 d-flex flex-column justify-content-center">
+                                <div class="fs-2 fw-bold text-success mb-1">
+                                    {{ moyenne_generale or '0' }}
+                                </div>
+                                <small class="text-muted">Moyenne générale</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-6">
+                            <div class="p-3 border rounded-3 bg-light h-100 d-flex flex-column justify-content-center">
+                                <div class="fs-2 fw-bold text-info mb-1">{{ taux_reussite or '0%' }}</div>
+                                <small class="text-muted">Taux de réussite</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-6">
+                            <div class="p-3 border rounded-3 bg-light h-100 d-flex flex-column justify-content-center">
+                                <div class="fs-2 fw-bold text-warning mb-1">{{ matieres_evaluees or 0 }}</div>
+                                <small class="text-muted">Matières évaluées</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filtres et Recherche -->
+    <div class="card border-0 shadow-lg mb-4 animate-pop-in" style="border-radius: 1.2rem;">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center" style="background: #f8f9fa;">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtres et Recherche</h5>
+            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filtresCollapse" aria-expanded="true" aria-controls="filtresCollapse">
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+        <div class="card-body p-3 collapse show" id="filtresCollapse">
+            <div class="row g-3">
+                <!-- Barre de recherche globale -->
+                <div class="col-md-4">
+                    <label for="rechercheGlobale" class="form-label">Recherche globale</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" id="rechercheGlobale" placeholder="Rechercher dans toutes les colonnes...">
+                        <button class="btn btn-outline-secondary" type="button" id="btnEffacerRechercheGlobale">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                {% if current_user.role in ['admin', 'enseignant'] %}
+                <div class="col-md-2">
+                    <label for="filtreEleve" class="form-label">Élève</label>
+                    <select class="form-select" id="filtreEleve">
+                        <option value="">Tous les élèves</option>
+                        {% for eleve in eleves %}
+                        <option value="{{ eleve.id }}">{{ eleve.prenom }} {{ eleve.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="filtreCours" class="form-label">Cours</label>
+                    <select class="form-select" id="filtreCours">
+                        <option value="">Tous les cours</option>
+                        {% for cours in tous_les_cours %}
+                        <option value="{{ cours.id }}">{{ cours.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="filtrePeriode" class="form-label">Période</label>
+                    <select class="form-select" id="filtrePeriode">
+                        <option value="">Toutes les périodes</option>
+                        <option value="Trimestre 1">Trimestre 1</option>
+                        <option value="Trimestre 2">Trimestre 2</option>
+                        <option value="Trimestre 3">Trimestre 3</option>
+                        <option value="Semestre 1">Semestre 1</option>
+                        <option value="Semestre 2">Semestre 2</option>
+                        <option value="Annuelle">Annuelle</option>
+                    </select>
+                </div>
+                {% endif %}
+                
+                <div class="col-md-2 d-flex align-items-end">
+                    <button id="btnReinitialiser" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-redo me-1"></i> Rétablir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau -->
+    <div class="card border-0 shadow-lg animate-pop-in" style="border-radius: 1.2rem;">
+        <div class="card-header py-4 text-white d-flex justify-content-between align-items-center" style="background: var(--gradient-dark);">
+            <h4 class="mb-0"><i class="fas fa-history me-2"></i>
+                {% if current_user.role in ['admin', 'enseignant'] %}
+                Dernières Notes Ajoutées
+                {% else %}
+                Notes de mon enfant
+                {% endif %}
+            </h4>
+            <div class="d-flex align-items-center">
+                <span class="me-2">Afficher</span>
+                <select class="form-select form-select-sm w-auto" id="selectNbLignes">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <span class="ms-2">lignes</span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="tableauNotes">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4 sortable" data-sort="eleve">Élève <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-sort="cours">Cours <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-sort="note">Note <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-sort="coefficient">Coefficient <i class="fas fa-sort"></i></th>
+                            <th class="sortable" data-sort="type">Type <i class="fas fa-sort"></i></th>
+                            <th class="text-center sortable" data-sort="date">Date <i class="fas fa-sort"></i></th>
+                            {% if current_user.role in ['admin', 'enseignant'] %}
+                            <th class="text-center pe-4">Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for note in notes %}
+                        <tr data-eleve="{{ note.eleve.id }}" data-cours="{{ note.cours.id }}" data-periode="{{ note.periode }}">
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm me-2 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                        {{ note.eleve.prenom[0] }}{{ note.eleve.nom[0] }}
+                                    </div>
+                                    <div>
+                                        <div>{{ note.eleve.prenom }} {{ note.eleve.nom }}</div>
+                                        <small class="text-muted">{{ note.eleve.classe.nom if note.eleve.classe else 'Sans classe' }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-book text-primary me-2"></i>
+                                    {{ note.cours.nom }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge {% if note.valeur >= 16 %}bg-success
+                                                    {% elif note.valeur >= 14 %}bg-info
+                                                    {% elif note.valeur >= 12 %}bg-primary
+                                                    {% elif note.valeur >= 10 %}bg-warning
+                                                    {% else %}bg-danger{% endif %} fs-6">
+                                    {{ note.valeur }}/20
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary fs-6">x{{ note.coefficient }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark fs-6">{{ note.type_evaluation }}</span>
+                            </td>
+                            <td class="text-center">{{ note.date_evaluation.strftime('%d/%m/%Y') }}</td>
+                            {% if current_user.role in ['admin', 'enseignant'] %}
+                            <td class="text-center pe-4">
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('main.modifier_note', note_id=note.id) }}" class="btn btn-sm btn-outline-primary rounded-start" data-bs-toggle="tooltip" title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-end" onclick="return confirm('Confirmer la suppression ?')" data-bs-toggle="tooltip" title="Supprimer">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="{% if current_user.role in ['admin', 'enseignant'] %}7{% else %}6{% endif %}" class="text-center py-5">
+                                <i class="fas fa-edit fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">Aucune note enregistrée</h5>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                <div class="text-muted" id="infoPagination">
+                    Affichage de <span id="debutLignes">1</span> à <span id="finLignes">{{ notes|length }}</span> sur <span id="totalLignes">{{ notes|length }}</span> entrées
+                </div>
+                <nav>
+                    <ul class="pagination mb-0" id="pagination">
+                        <!-- La pagination sera générée par JavaScript -->
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JS -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialisation des tooltips Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+    
+    // Variables globales
+    const filtreEleve = document.getElementById('filtreEleve');
+    const filtreCours = document.getElementById('filtreCours');
+    const filtrePeriode = document.getElementById('filtrePeriode');
+    const btnReinitialiser = document.getElementById('btnReinitialiser');
+    const rechercheGlobale = document.getElementById('rechercheGlobale');
+    const btnEffacerRechercheGlobale = document.getElementById('btnEffacerRechercheGlobale');
+    const rechercheEleve = document.getElementById('rechercheEleve');
+    const btnEffacerRecherche = document.getElementById('btnEffacerRecherche');
+    const selectEleve = document.querySelector('select[name="eleve_id"]');
+    const selectNbLignes = document.getElementById('selectNbLignes');
+    
+    let lignesNotes = Array.from(document.querySelectorAll('#tableauNotes tbody tr'));
+    let lignesFiltrees = [...lignesNotes];
+    let colonneTri = 'date';
+    let ordreTri = 'desc';
+    let pageCourante = 1;
+    let lignesParPage = 10;
+
+    // Recherche d'élève dans le formulaire
+    if (rechercheEleve && selectEleve) {
+        rechercheEleve.addEventListener('input', function() {
+            const terme = this.value.toLowerCase();
+            const options = selectEleve.options;
+            
+            for (let i = 0; i < options.length; i++) {
+                const texte = options[i].text.toLowerCase();
+                options[i].style.display = texte.includes(terme) ? '' : 'none';
+            }
+        });
+        
+        btnEffacerRecherche.addEventListener('click', function() {
+            rechercheEleve.value = '';
+            const options = selectEleve.options;
+            for (let i = 0; i < options.length; i++) {
+                options[i].style.display = '';
+            }
+        });
+    }
+
+    // Recherche globale dans le tableau
+    if (rechercheGlobale) {
+        rechercheGlobale.addEventListener('input', function() {
+            appliquerFiltres();
+        });
+        
+        btnEffacerRechercheGlobale.addEventListener('click', function() {
+            rechercheGlobale.value = '';
+            appliquerFiltres();
+        });
+    }
+
+    // Filtrage
+    function appliquerFiltres() {
+        const eleveValue = filtreEleve ? filtreEleve.value : '';
+        const coursValue = filtreCours ? filtreCours.value : '';
+        const periodeValue = filtrePeriode ? filtrePeriode.value : '';
+        const rechercheValue = rechercheGlobale ? rechercheGlobale.value.toLowerCase() : '';
+
+        lignesFiltrees = lignesNotes.filter(ligne => {
+            const showEleve = !eleveValue || ligne.dataset.eleve === eleveValue;
+            const showCours = !coursValue || ligne.dataset.cours === coursValue;
+            const showPeriode = !periodeValue || ligne.dataset.periode === periodeValue;
+            
+            let showRecherche = true;
+            if (rechercheValue) {
+                const texteLigne = ligne.textContent.toLowerCase();
+                showRecherche = texteLigne.includes(rechercheValue);
+            }
+            
+            return showEleve && showCours && showPeriode && showRecherche;
+        });
+        
+        pageCourante = 1;
+        trierEtAfficher();
+    }
+
+    // Réinitialisation des filtres
+    if (btnReinitialiser) {
+        btnReinitialiser.addEventListener('click', () => {
+            if (filtreEleve) filtreEleve.value = '';
+            if (filtreCours) filtreCours.value = '';
+            if (filtrePeriode) filtrePeriode.value = '';
+            if (rechercheGlobale) rechercheGlobale.value = '';
+            if (rechercheEleve) rechercheEleve.value = '';
+            
+            if (selectEleve) {
+                const options = selectEleve.options;
+                for (let i = 0; i < options.length; i++) {
+                    options[i].style.display = '';
+                }
+            }
+            
+            appliquerFiltres();
+        });
+    }
+
+    // Événements de filtrage
+    if (filtreEleve) filtreEleve.addEventListener('change', appliquerFiltres);
+    if (filtreCours) filtreCours.addEventListener('change', appliquerFiltres);
+    if (filtrePeriode) filtrePeriode.addEventListener('change', appliquerFiltres);
+
+    // Gestion du nombre de lignes par page
+    if (selectNbLignes) {
+        selectNbLignes.addEventListener('change', function() {
+            lignesParPage = parseInt(this.value);
+            pageCourante = 1;
+            trierEtAfficher();
+        });
+    }
+
+    // Tri
+    const entetesTriables = document.querySelectorAll('.sortable');
+    entetesTriables.forEach(entete => {
+        entete.addEventListener('click', function() {
+            const nouvelleColonne = this.dataset.sort;
+            if (colonneTri === nouvelleColonne) {
+                ordreTri = ordreTri === 'asc' ? 'desc' : 'asc';
+            } else {
+                colonneTri = nouvelleColonne;
+                ordreTri = 'asc';
+            }
+            trierEtAfficher();
+            mettreAJourIconesTri();
+        });
+    });
+
+    function trierTableau(colonne, ordre) {
+        lignesFiltrees.sort((a, b) => {
+            let valeurA, valeurB;
+            switch(colonne) {
+                case 'eleve': 
+                    valeurA = a.querySelector('td:first-child').textContent.toLowerCase();
+                    valeurB = b.querySelector('td:first-child').textContent.toLowerCase(); 
+                    break;
+                case 'cours': 
+                    valeurA = a.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                    valeurB = b.querySelector('td:nth-child(2)').textContent.toLowerCase(); 
+                    break;
+                case 'note': 
+                    valeurA = parseFloat(a.querySelector('td:nth-child(3)').textContent);
+                    valeurB = parseFloat(b.querySelector('td:nth-child(3)').textContent); 
+                    break;
+                case 'coefficient': 
+                    valeurA = parseFloat(a.querySelector('td:nth-child(4)').textContent.replace('x', ''));
+                    valeurB = parseFloat(b.querySelector('td:nth-child(4)').textContent.replace('x', '')); 
+                    break;
+                case 'type': 
+                    valeurA = a.querySelector('td:nth-child(5)').textContent.toLowerCase();
+                    valeurB = b.querySelector('td:nth-child(5)').textContent.toLowerCase(); 
+                    break;
+                case 'date': 
+                    const dA = a.querySelector('td:nth-child(6)').textContent.split('/');
+                    const dB = b.querySelector('td:nth-child(6)').textContent.split('/');
+                    valeurA = new Date(dA[2], dA[1]-1, dA[0]).getTime();
+                    valeurB = new Date(dB[2], dB[1]-1, dB[0]).getTime(); 
+                    break;
+            }
+            if (valeurA === valeurB) return 0;
+            return (ordre === 'asc') ? (valeurA > valeurB ? 1 : -1) : (valeurA < valeurB ? 1 : -1);
+        });
+    }
+
+    function mettreAJourIconesTri() {
+        entetesTriables.forEach(entete => {
+            const icone = entete.querySelector('i');
+            if (entete.dataset.sort === colonneTri) {
+                icone.className = ordreTri === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+            } else icone.className = 'fas fa-sort';
+        });
+    }
+
+    // Pagination
+    function mettreAJourPagination() {
+        const totalPages = Math.ceil(lignesFiltrees.length / lignesParPage);
+        const pagination = document.getElementById('pagination');
+        pagination.innerHTML = '';
+        
+        // Bouton précédent
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${pageCourante === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="#" aria-label="Précédent"><span aria-hidden="true">&laquo;</span></a>`;
+        prevLi.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (pageCourante > 1) {
+                pageCourante--;
+                trierEtAfficher();
+            }
+        });
+        pagination.appendChild(prevLi);
+        
+        // Pages
+        const debutPage = Math.max(1, pageCourante - 2);
+        const finPage = Math.min(totalPages, debutPage + 4);
+        
+        for (let i = debutPage; i <= finPage; i++) {
+            const pageLi = document.createElement('li');
+            pageLi.className = `page-item ${i === pageCourante ? 'active' : ''}`;
+            pageLi.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+            pageLi.addEventListener('click', (e) => {
+                e.preventDefault();
+                pageCourante = i;
+                trierEtAfficher();
+            });
+            pagination.appendChild(pageLi);
+        }
+        
+        // Bouton suivant
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${pageCourante === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="#" aria-label="Suivant"><span aria-hidden="true">&raquo;</span></a>`;
+        nextLi.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (pageCourante < totalPages) {
+                pageCourante++;
+                trierEtAfficher();
+            }
+        });
+        pagination.appendChild(nextLi);
+        
+        // Mise à jour des informations de pagination
+        const debutLignes = document.getElementById('debutLignes');
+        const finLignes = document.getElementById('finLignes');
+        const totalLignes = document.getElementById('totalLignes');
+        
+        const debut = (pageCourante - 1) * lignesParPage + 1;
+        const fin = Math.min(pageCourante * lignesParPage, lignesFiltrees.length);
+        
+        debutLignes.textContent = lignesFiltrees.length === 0 ? '0' : debut;
+        finLignes.textContent = fin;
+        totalLignes.textContent = lignesFiltrees.length;
+    }
+
+    function afficherLignesPage() {
+        const tbody = document.querySelector('#tableauNotes tbody');
+        tbody.innerHTML = '';
+        
+        const debut = (pageCourante - 1) * lignesParPage;
+        const fin = debut + lignesParPage;
+        const lignesPage = lignesFiltrees.slice(debut, fin);
+        
+        lignesPage.forEach(ligne => tbody.appendChild(ligne));
+    }
+
+    function trierEtAfficher() {
+        trierTableau(colonneTri, ordreTri);
+        afficherLignesPage();
+        mettreAJourPagination();
+    }
+
+    // Initialisation
+    trierEtAfficher();
+    mettreAJourIconesTri();
+
+    // Validation Bootstrap
+    var forms = document.querySelectorAll('.needs-validation');
+    Array.prototype.slice.call(forms).forEach(form => {
+        form.addEventListener('submit', function(event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+});
+</script>
+
+<style>
+.avatar-sm {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.badge {
+    padding: 0.5em 0.75em;
+}
+
+.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.sortable:hover {
+    background-color: rgba(0,0,0,0.03);
+}
+
+.table-responsive {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+    .card-header h4, .card-header h5 {
+        font-size: 1.1rem;
+    }
+    
+    .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .badge {
+        font-size: 0.75rem !important;
+    }
+}
+
+/* Animation pour les lignes du tableau */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#tableauNotes tbody tr {
+    animation: fadeIn 0.3s ease-out;
+}
+</style>
+{% endblock %}

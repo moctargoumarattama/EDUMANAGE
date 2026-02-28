@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}Classe {{ classe.nom }} | École{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- En-tête avec informations de la classe -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="d-flex align-items-center mb-3">
+                <div class="bg-primary p-3 rounded-circle me-3">
+                    <i class="fas fa-chalkboard-teacher text-white fa-2x"></i>
+                </div>
+                <div>
+                    <h1 class="h2 mb-0">{{ classe.nom }}</h1>
+                    <p class="text-muted mb-0">Détails de la classe</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 text-lg-end">
+            <div class="btn-group">
+                <button class="btn btn-outline-primary">
+                    <i class="fas fa-print me-1"></i> Imprimer
+                </button>
+                <button class="btn btn-outline-secondary">
+                    <i class="fas fa-download me-1"></i> Exporter
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cartes d'informations -->
+    <div class="row mb-5">
+        <div class="col-md-4 mb-3">
+            <div class="card card-hover h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="text-muted mb-1">Niveau</h6>
+                            <h3 class="fw-bold mb-0">{{ classe.niveau }}</h3>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-graduation-cap text-primary fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card card-hover h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="text-muted mb-1">Effectif</h6>
+                            <h3 class="fw-bold mb-0">{{ classe.effectif }}</h3>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-users text-primary fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card card-hover h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="text-muted mb-1">Présence</h6>
+                            <h3 class="fw-bold mb-0">92%</h3>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-user-check text-primary fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des élèves -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Liste des élèves</h5>
+            <div>
+                <input type="text" class="form-control form-control-sm" placeholder="Rechercher un élève..." id="searchInput">
+            </div>
+        </div>
+        <div class="card-body">
+            {% if classe.eleves %}
+            <div class="table-responsive">
+                <table class="table table-hover" id="studentsTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Nom complet</th>
+                            <th>Date de naissance</th>
+                            <th>Contact</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eleve in classe.eleves %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-light rounded-circle me-3 d-flex align-items-center justify-content-center">
+                                        <span class="text-dark fw-bold">{{ eleve.prenom[0] }}{{ eleve.nom[0] }}</span>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">{{ eleve.prenom }} {{ eleve.nom }}</h6>
+                                        <small class="text-muted">ID: {{ "%04d"|format(eleve.id) }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>01/01/2010</td>
+                            <td>
+                                <div>{{ eleve.contact_parent if eleve.contact_parent else "Non renseigné" }}</div>
+                                <small class="text-muted">{{ eleve.email if eleve.email else "" }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">Présent</span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-outline-secondary">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <div class="mb-4">
+                    <i class="fas fa-user-slash fa-3x text-muted"></i>
+                </div>
+                <h5 class="text-muted">Aucun élève inscrit</h5>
+                <p class="text-muted">Ajoutez des élèves à cette classe pour commencer.</p>
+                <button class="btn btn-primary mt-2">
+                    <i class="fas fa-plus me-1"></i> Ajouter un élève
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Statistiques et professeurs assignés -->
+    <div class="row mt-4">
+        <!-- Répartition par genre -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">Répartition par genre</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-center">
+                        <div class="w-75">
+                            <canvas id="genderChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes moyennes -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">Notes moyennes</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-center">
+                        <div class="w-100">
+                            <canvas id="gradesChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Professeurs assignés -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-user-tie me-2"></i>Professeurs assignés</h6>
+                </div>
+                <div class="card-body">
+                    {% if classe.professeurs_assignes.count() > 0 %}
+                        <ul class="list-unstyled mb-0">
+                            {% for prof in classe.professeurs_assignes %}
+                                <li class="mb-2">
+                                    <i class="fas fa-user text-primary me-2"></i>
+                                    {{ prof.prenom }} {{ prof.nom }}
+                                    {% if prof.specialite %}
+                                        <small class="text-muted">({{ prof.specialite }})</small>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted mb-0">Aucun professeur assigné</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card-hover:hover {
+        transform: translateY(-5px);
+        transition: all 0.3s ease;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    
+    .avatar-sm {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .bg-light-gradient {
+        background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const table = document.getElementById('studentsTable');
+
+    if (searchInput && table) {
+        searchInput.addEventListener('keyup', function() {
+            const filter = searchInput.value.toLowerCase();
+            const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+            for (let i = 0; i < rows.length; i++) {
+                const nameColumn = rows[i].getElementsByTagName('td')[1];
+                if (nameColumn) {
+                    const txtValue = nameColumn.textContent || nameColumn.innerText;
+                    rows[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? '' : 'none';
+                }
+            }
+        });
+    }
+
+    // Graphique de répartition par genre
+    const genderCtx = document.getElementById('genderChart').getContext('2d');
+    new Chart(genderCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Filles', 'Garçons'],
+            datasets: [{
+                data: [12, 18],
+                backgroundColor: ['rgba(255, 99, 132, 0.7)','rgba(54, 162, 235, 0.7)'],
+                borderWidth: 1
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+
+    // Graphique des notes moyennes
+    const gradesCtx = document.getElementById('gradesChart').getContext('2d');
+    new Chart(gradesCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Maths','Français','Histoire','SVT','Anglais','Sport'],
+            datasets: [{
+                label: 'Moyenne de la classe',
+                data: [14, 12.5, 13.2, 15, 11.8, 16.5],
+                backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: false, min: 0, max: 20 } } }
+    });
+});
+</script>
+{% endblock %}

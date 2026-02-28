@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Assigner des classes - {{ professeur.prenom }} {{ professeur.nom }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="fw-bold text-primary mb-2">Assigner des classes</h2>
+                    <p class="text-muted">Attribuer une ou plusieurs classes à {{ professeur.prenom }} {{ professeur.nom }}</p>
+                </div>
+                <a href="{{ url_for('main.professeurs') }}" class="btn btn-outline-secondary py-2 px-4" style="border-radius: 0.8rem;">
+                    <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulaire d'assignation -->
+    <div class="card border-0 shadow-lg animate-pop-in" style="border-radius: 1.2rem;">
+        <div class="card-body p-4">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+
+                <div class="mb-3">
+                    <label for="classes" class="form-label fw-bold">Sélectionnez les classes :</label>
+                    {{ form.classes(class="form-select", multiple=True, size=10) }}
+                    <small class="text-muted d-block mt-1">Maintenez Ctrl (ou Cmd) pour sélectionner plusieurs classes.</small>
+                </div>
+
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary py-2 px-4 me-2" style="border-radius: 0.8rem;">
+                        <i class="fas fa-save me-2"></i>Enregistrer
+                    </button>
+                    <a href="{{ url_for('main.professeurs') }}" class="btn btn-outline-secondary py-2 px-4" style="border-radius: 0.8rem;">
+                        <i class="fas fa-times me-2"></i>Annuler
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Affichage des classes actuelles -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm" style="border-radius: 1rem;">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-chalkboard me-2"></i>Classes actuellement assignées</h6>
+                </div>
+                <div class="card-body">
+                    {% if professeur.classes_assignees.count() > 0 %}
+                        <ul class="list-unstyled mb-0">
+                            {% for c in professeur.classes_assignees %}
+                                <li class="mb-2">
+                                    <i class="fas fa-chalkboard text-primary me-2"></i>
+                                    {{ c.nom }} - {{ c.niveau }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted mb-0">Aucune classe assignée pour le moment.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Optionnel : style pour la multi-selection */
+.form-select[multiple] {
+    height: auto;
+    min-height: 200px;
+}
+</style>
+{% endblock %}

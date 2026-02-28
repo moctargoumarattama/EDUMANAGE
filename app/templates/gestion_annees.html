@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestion des Années Scolaires - EduManage</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* === DESIGN ULTRA MODERNE === */
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(145deg, #eef2ff, #f8fafc);
+            min-height: 100vh;
+            padding: 3rem 1rem;
+        }
+
+        h1 {
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: #2563eb;
+        }
+
+        .card {
+            border-radius: 1.5rem;
+            border: none;
+            padding: 2rem;
+            background: #ffffff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            transition: 0.3s ease-in-out;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        }
+
+        .form-control, .form-select {
+            border-radius: 0.8rem;
+            border: 1.5px solid #cbd5e1;
+            padding: 0.85rem 1rem;
+            font-size: 1rem;
+            transition: all 0.25s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+        }
+
+        .btn-success, .btn-primary {
+            border-radius: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(34,197,94,0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(37,99,235,0.3);
+        }
+
+        .badge {
+            font-size: 0.85em;
+            padding: 0.45em 0.75em;
+            border-radius: 0.6rem;
+            font-weight: 500;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: #f3f6ff;
+            transition: 0.2s ease-in-out;
+        }
+
+        .no-data {
+            font-style: italic;
+            color: #6b7280;
+        }
+
+        .divider {
+            height: 2px;
+            background: linear-gradient(to right, transparent, #cbd5e1, transparent);
+            margin: 1.5rem 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1><i class="fas fa-school me-2"></i>Gestion des Années Scolaires</h1>
+
+    <!-- Formulaire Ajouter Année -->
+    <div class="card mb-4">
+        <form method="POST" action="{{ url_for('main.gestion_annees') }}" class="row g-3 needs-validation" novalidate>
+            {{ csrf_form.hidden_tag() }}
+
+            <!-- Sélection École -->
+            {% if ecoles|length == 1 %}
+                <input type="hidden" name="ecole_id" value="{{ ecoles[0].id }}">
+                <div class="col-12">
+                    <label class="form-label">École</label>
+                    <input type="text" class="form-control" value="{{ ecoles[0].nom }}" disabled>
+                </div>
+            {% else %}
+                <div class="col-12">
+                    <label class="form-label">École</label>
+                    <select name="ecole_id" class="form-select" required>
+                        <option value="">-- Sélectionner une école --</option>
+                        {% for ecole in ecoles %}
+                            <option value="{{ ecole.id }}">{{ ecole.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            {% endif %}
+
+            <div class="col-md-3">
+                <label class="form-label">Nom de l'année</label>
+                <input type="text" name="nom" class="form-control" placeholder="ex: 2025-2026" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Début</label>
+                <input type="date" name="date_debut" class="form-control" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Fin</label>
+                <input type="date" name="date_fin" class="form-control" required>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <input type="hidden" name="action" value="ajouter">
+                <button type="submit" class="btn btn-success w-100"><i class="fas fa-plus me-2"></i>Ajouter</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Liste des Années -->
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>École</th>
+                        <th>Nom</th>
+                        <th>Début</th>
+                        <th>Fin</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for annee in annees %}
+                    <tr>
+                        <td>{{ annee.ecole.nom }}</td>
+                        <td>{{ annee.nom }}</td>
+                        <td>{{ annee.date_debut.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ annee.date_fin.strftime('%d/%m/%Y') }}</td>
+                        <td>
+                            {% if annee.statut == 'active' %}
+                                <span class="badge bg-success">Active</span>
+                            {% elif annee.statut == 'planifiee' %}
+                                <span class="badge bg-warning text-dark">Planifiée</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Archivée</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if annee.statut != 'active' %}
+                            <form method="POST" action="{{ url_for('main.gestion_annees') }}" class="d-inline">
+                                {{ csrf_form.hidden_tag() }}
+                                <input type="hidden" name="action" value="activer">
+                                <input type="hidden" name="annee_id" value="{{ annee.id }}">
+                                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-check me-1"></i>Activer</button>
+                            </form>
+                            {% else %}
+                                <span class="badge bg-success">Active</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center no-data">Aucune année scolaire trouvée</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

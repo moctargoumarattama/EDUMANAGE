@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Recherche - EduManage{% endblock %}
+
+{% block content %}
+
+{% if current_user.role != 'parent' %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-lg">
+            <div class="card-header bg-white border-0 py-3">
+                <h5 class="mb-0 d-flex align-items-center">
+                    <i class="fas fa-search text-primary me-2"></i> Recherche Avancée
+                </h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('main.recherche') }}" method="GET">
+                    <div class="input-group input-group-lg">
+                        <input type="text" name="q" class="form-control form-control-lg" 
+                               placeholder="Rechercher élèves, professeurs, cours..." 
+                               value="{{ request.args.get('q', '') }}"
+                               aria-label="Recherche">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search me-1"></i> Rechercher
+                        </button>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <select class="form-select" name="type">
+                                <option value="all" {% if request.args.get('type') == 'all' %}selected{% endif %}>Tous les types</option>
+                                <option value="eleves" {% if request.args.get('type') == 'eleves' %}selected{% endif %}>Élèves</option>
+                                <option value="professeurs" {% if request.args.get('type') == 'professeurs' %}selected{% endif %}>Professeurs</option>
+                                <option value="cours" {% if request.args.get('type') == 'cours' %}selected{% endif %}>Cours</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" name="classe">
+                                <option value="">Toutes les classes</option>
+                                {% for classe in ['6ème', '5ème', '4ème', '3ème', 'Seconde', 'Première', 'Terminale'] %}
+                                <option value="{{ classe }}" {% if request.args.get('classe') == classe %}selected{% endif %}>{{ classe }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if results %}
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow-lg">
+            <div class="card-header bg-white border-0 py-3">
+                <h5 class="mb-0 d-flex align-items-center">
+                    <i class="fas fa-list text-primary me-2"></i> Résultats de la recherche ({{ results.total }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if results.eleves %}
+                <h6 class="text-muted mb-3"><i class="fas fa-user-graduate me-2"></i> Élèves ({{ results.eleves|length }})</h6>
+                <div class="row">
+                    {% for eleve in results.eleves %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-shrink-0 bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                                        <i class="fas fa-user-graduate text-primary"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-0">{{ eleve.prenom }} {{ eleve.nom }}</h6>
+                                        <small class="text-muted">{{ eleve.classe }}</small>
+                                    </div>
+                                    <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-sm btn-outline-primary">Voir</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if results.professeurs %}
+                <h6 class="text-muted mb-3 mt-4"><i class="fas fa-chalkboard-teacher me-2"></i> Professeurs ({{ results.professeurs|length }})</h6>
+                <div class="row">
+                    {% for prof in results.professeurs %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-shrink-0 bg-success bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                                        <i class="fas fa-chalkboard-teacher text-success"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-0">{{ prof.prenom }} {{ prof.nom }}</h6>
+                                        <small class="text-muted">{{ prof.specialite }}</small>
+                                    </div>
+                                    <a href="{{ url_for('main.professeur_details', id=prof.id) }}" class="btn btn-sm btn-outline-success">Voir</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if results.cours %}
+                <h6 class="text-muted mb-3 mt-4"><i class="fas fa-book me-2"></i> Cours ({{ results.cours|length }})</h6>
+                <div class="row">
+                    {% for cours in results.cours %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-shrink-0 bg-info bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                                        <i class="fas fa-book text-info"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-0">{{ cours.nom }}</h6>
+                                        <small class="text-muted">Enseignant: {{ cours.professeur }}</small>
+                                    </div>
+                                    <a href="{{ url_for('main.cours_details', id=cours.id) }}" class="btn btn-sm btn-outline-info">Voir</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% elif request.args.get('q') %}
+<div class="text-center py-5">
+    <i class="fas fa-search fa-4x text-muted mb-3"></i>
+    <h5 class="text-muted">Aucun résultat trouvé</h5>
+    <p class="text-muted">Aucun élément ne correspond à votre recherche "{{ request.args.get('q') }}"</p>
+</div>
+{% endif %}
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-ban fa-4x text-danger mb-3"></i>
+    <h5 class="text-muted">Accès restreint</h5>
+    <p class="text-muted">Les parents n'ont pas accès à la recherche avancée.</p>
+</div>
+{% endif %}
+
+{% endblock %}

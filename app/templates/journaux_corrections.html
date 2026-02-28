@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>📔 Journal des corrections</h2>
+
+    <!-- Formulaire filtres -->
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-2">
+            <select name="ecole_id" class="form-select">
+                <option value="">Toutes écoles</option>
+                {% for ecole in toutes_ecoles %}
+                <option value="{{ ecole.id }}" {% if filtre.ecole_id == ecole.id %}selected{% endif %}>{{ ecole.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="user_id" class="form-select">
+                <option value="">Tous utilisateurs</option>
+                {% for u in tous_users %}
+                <option value="{{ u.id }}" {% if filtre.user_id == u.id %}selected{% endif %}>{{ u.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <input type="text" name="action" class="form-control" placeholder="Action" value="{{ filtre.action }}">
+        </div>
+        <div class="col-md-2">
+            <select name="niveau" class="form-select">
+                <option value="">Tous niveaux</option>
+                <option value="info" {% if filtre.niveau == "info" %}selected{% endif %}>Info</option>
+                <option value="warning" {% if filtre.niveau == "warning" %}selected{% endif %}>Warning</option>
+                <option value="critique" {% if filtre.niveau == "critique" %}selected{% endif %}>Critique</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <input type="date" name="date_debut" class="form-control" value="{{ filtre.date_debut }}">
+        </div>
+        <div class="col-md-2">
+            <input type="date" name="date_fin" class="form-control" value="{{ filtre.date_fin }}">
+        </div>
+        <div class="col-md-12 mt-2">
+            <button class="btn btn-primary w-100">Filtrer</button>
+        </div>
+    </form>
+
+    <!-- Table journal -->
+    <table class="table table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Date</th>
+                <th>Utilisateur</th>
+                <th>École</th>
+                <th>Action</th>
+                <th>Description</th>
+                <th>Ancienne → Nouvelle</th>
+                <th>Niveau</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in corrections %}
+            <tr>
+                <td>{{ c.date.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                <td>{{ c.user.nom if c.user else "—" }}</td>
+                <td>{{ c.ecole.nom }}</td>
+                <td>{{ c.action }}</td>
+                <td>{{ c.description }}</td>
+                <td>
+                    {% if c.ancienne_valeur or c.nouvelle_valeur %}
+                        <span class="text-danger">{{ c.ancienne_valeur or "—" }}</span>
+                        →
+                        <span class="text-success">{{ c.nouvelle_valeur or "—" }}</span>
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>
+                    {% if c.niveau == "info" %}
+                        <span class="badge bg-success">Info</span>
+                    {% elif c.niveau == "warning" %}
+                        <span class="badge bg-warning text-dark">Warning</span>
+                    {% elif c.niveau == "critique" %}
+                        <span class="badge bg-danger">Critique</span>
+                    {% else %}
+                        <span class="badge bg-secondary">{{ c.niveau }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

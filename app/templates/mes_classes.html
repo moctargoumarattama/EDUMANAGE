@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Mes classes et élèves</h2>
+
+    {% if classes %}
+        {% for classe in classes %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    Classe : <strong>{{ classe.nom }}</strong>
+                </div>
+                <div class="card-body">
+                    {% if classe.eleves %}
+                        <ul class="list-group">
+                            {% for eleve in classe.eleves %}
+                                <li class="list-group-item">
+                                    {{ eleve.prenom }} {{ eleve.nom }}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">Aucun élève dans cette classe.</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p class="text-muted">Aucune classe assignée.</p>
+    {% endif %}
+</div>
+{% endblock %}
