@@ -147,25 +147,6 @@ def creer_utilisateur():
             db.session.add(nouvel_utilisateur)
             db.session.commit()
 
-            # Créer automatiquement le profil Professeur si rôle enseignant
-            if role == 'enseignant':
-                prof_profile = Professeur(
-                    utilisateur_id=nouvel_utilisateur.id,
-                    nom=nom or "NomProf",
-                    prenom=prenom or "PrenomProf",
-                    email=email or "prof@exemple.com",
-                    telephone=telephone or "+22700000000",
-                    date_naissance=datetime(1990, 1, 1),
-                    adresse="Adresse par défaut",
-                    specialite="Non définie",
-                    matieres_enseignees="Aucune",
-                    photo="default_prof.png",
-                    date_embauche=datetime.utcnow()
-                )
-                ajouter_ecole_id(prof_profile)
-                db.session.add(prof_profile)
-                db.session.commit()
-
             flash('Utilisateur créé avec succès', 'success')
             return redirect(url_for('main.gestion_utilisateurs'))
         except Exception as e:
@@ -192,12 +173,12 @@ def modifier_utilisateur(id):
         email = request.form.get('email', '').strip().lower()
 
         if role not in roles_autorises:
-            flash("RÃ´le utilisateur invalide.", "danger")
+            flash("Rôle utilisateur invalide.", "danger")
             return redirect(url_for('main.modifier_utilisateur', id=user.id))
 
         doublon = Utilisateur.query.filter(Utilisateur.email == email, Utilisateur.id != user.id).first()
         if doublon:
-            flash("Cet email est dÃ©jÃ  utilisÃ©.", "danger")
+            flash("Cet email est déjà utilisé.", "danger")
             return redirect(url_for('main.modifier_utilisateur', id=user.id))
 
         user.nom = request.form.get('nom', user.nom).strip()
@@ -212,7 +193,7 @@ def modifier_utilisateur(id):
             user.mot_de_passe = bcrypt.generate_password_hash(password).decode('utf-8')
 
         db.session.commit()
-        flash("Utilisateur modifiÃ© avec succÃ¨s.", "success")
+        flash("Utilisateur modifié avec succès.", "success")
         return redirect(url_for('main.gestion_utilisateurs'))
 
     return render_template('edit_utilisateur.html', user=user, roles=roles_autorises)

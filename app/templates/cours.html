@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}Gestion des Cours - EduManage{% endblock %}
 
 {% block content %}
@@ -16,9 +16,9 @@
                         </h2>
                         <p class="opacity-75 mb-0">
                             {% if current_user.role == 'admin' %}
-                                CrÃ©ez et gÃ©rez les matiÃ¨res de l'Ã©tablissement
+                                Créez et gérez les matières de l'établissement
                             {% else %}
-                                Liste des cours qui vous sont assignÃ©s
+                                Liste des cours qui vous sont assignés
                             {% endif %}
                         </p>
                     </div>
@@ -90,7 +90,7 @@
                     <thead class="table-light sticky-top">
                         <tr>
                             <th>ID</th>
-                            <th>MatiÃ¨re</th>
+                            <th>Matière</th>
                             <th>Coeff.</th>
                             {% if current_user.role == 'admin' %}<th>Professeur</th>{% endif %}
                             <th>Classe</th>
@@ -112,7 +112,7 @@
                                     <span class="badge bg-warning text-dark">{{ c.professeur.id }}</span>
                                     {{ c.professeur.prenom }} {{ c.professeur.nom }}
                                 {% else %}
-                                    Non assignÃ©
+                                    Non assigné
                                 {% endif %}
                             </td>
                             {% endif %}
@@ -120,15 +120,15 @@
                             <td>
                                 {% if c.classe %}
                                     {% set niveau_color = {
-                                        '6Ã¨me': 'bg-info',
-                                        '5Ã¨me': 'bg-success',
-                                        '4Ã¨me': 'bg-warning text-dark',
-                                        '3Ã¨me': 'bg-danger text-white'
+                                        '6ème': 'bg-info',
+                                        '5ème': 'bg-success',
+                                        '4ème': 'bg-warning text-dark',
+                                        '3ème': 'bg-danger text-white'
                                     } %}
                                     <span class="badge {{ niveau_color.get(c.classe.niveau, 'bg-secondary') }}">{{ c.classe.id }}</span>
                                     {{ c.classe.nom }} ({{ c.classe.niveau }})
                                 {% else %}
-                                    <span class="badge bg-secondary">?</span> Non assignÃ©e
+                                    <span class="badge bg-secondary">?</span> Non assignée
                                 {% endif %}
                             </td>
 
@@ -137,7 +137,7 @@
                                 <span class="badge bg-success text-dark">{{ c.notes_count }}</span>
                             </td>
                             <td class="text-end">
-                                <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-outline-primary btn-sm me-1" title="Voir dÃ©tails">
+                                <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-outline-primary btn-sm me-1" title="Voir détails">
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 {% if current_user.role == 'admin' %}
@@ -156,7 +156,7 @@
                         {% else %}
                         <tr>
                             <td colspan="8" class="text-center py-5 text-muted">
-                                <i class="fas fa-book-open fa-2x mb-2"></i><br>Aucun cours enregistrÃ©
+                                <i class="fas fa-book-open fa-2x mb-2"></i><br>Aucun cours enregistré
                             </td>
                         </tr>
                         {% endfor %}

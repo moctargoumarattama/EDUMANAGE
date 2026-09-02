@@ -1,4 +1,4 @@
-﻿from . import main
+from . import main
 from .common import (
     Absence,
     Classe,
@@ -40,15 +40,15 @@ CACHE_DURATION = 60
 @login_required
 @role_required('admin', 'enseignant')
 def api_stats_notes_moyennes():
-    """Retourne les moyennes de notes par matiÃ¨re avec cache sÃ©curisÃ©."""
+    """Retourne les moyennes de notes par matière avec cache sécurisé."""
     user_id = current_user.id
 
-    # VÃ©rification du cache
+    # Vérification du cache
     cached = get_cache(user_id, 'notes_moyennes')
     if cached:
         return jsonify(cached)
 
-    # Filtrage par Ã©cole
+    # Filtrage par école
     if current_user.role == 'enseignant':
         cours_ids = [c.id for c in filtre_par_ecole(
             Cours.query.filter_by(professeur_id=current_user.id), Cours
@@ -76,22 +76,22 @@ def api_stats_notes_moyennes():
 @login_required
 @role_required('admin')
 def api_stats_absences_par_mois():
-    """Retourne le nombre d'absences par mois (derniers 6 mois) avec cache sÃ©curisÃ©."""
+    """Retourne le nombre d'absences par mois (derniers 6 mois) avec cache sécurisé."""
     user_id = current_user.id
 
-    # VÃ©rification du cache
+    # Vérification du cache
     cached = get_cache(user_id, 'absences_par_mois')
     if cached:
         return jsonify(cached)
 
     six_mois = datetime.now() - timedelta(days=180)
 
-    # Filtrage par Ã©cole
+    # Filtrage par école
     absences_query = filtre_par_ecole(
         Absence.query.filter(Absence.date_absence >= six_mois), Absence
     )
 
-    # CompatibilitÃ© SQLite / PostgreSQL
+    # Compatibilité SQLite / PostgreSQL
     try:
         result = db.session.query(
             func.strftime('%Y', Absence.date_absence).label('annee'),
@@ -131,7 +131,7 @@ def profile():
     # Base query
     query = Utilisateur.query
 
-    # ---------------------- Gestion par rÃ´le ----------------------
+    # ---------------------- Gestion par rôle ----------------------
     if current_user.role == 'super_admin':
         query = query.filter(Utilisateur.role.in_(['admin', 'super_admin']))
         ecoles = get_ecole_filter_query(Ecole).all()
@@ -146,7 +146,7 @@ def profile():
         ecoles = [current_user.ecole] if current_user.ecole else []
         classes = Classe.query.filter_by(ecole_id=current_user.ecole_id).all()
 
-        # Pagination des Ã©lÃ¨ves
+        # Pagination des élèves
         eleves = Eleve.query.filter_by(ecole_id=current_user.ecole_id).limit(100).all()
 
         # Filtre par classe via les parents d'eleves, Utilisateur n'a pas classe_id
@@ -169,7 +169,7 @@ def profile():
         classes = []
         eleves = []
 
-    # ---------------------- Filtres supplÃ©mentaires ----------------------
+    # ---------------------- Filtres supplémentaires ----------------------
     if search:
         query = query.filter(
             db.or_(
@@ -188,7 +188,7 @@ def profile():
     if statut_filter:
         query = query.filter(Utilisateur.statut == statut_filter)
 
-    # ---------------------- Tri sÃ©curisÃ© ----------------------
+    # ---------------------- Tri sécurisé ----------------------
     colonnes_autorisees = ['nom', 'prenom', 'email', 'role', 'statut']
     if sort not in colonnes_autorisees:
         sort = 'nom'
@@ -213,7 +213,7 @@ def profile():
             Utilisateur.role == 'parent'
         ).limit(100).all()
 
-        # Chargement des enfants pour Ã©viter N+1
+        # Chargement des enfants pour éviter N+1
         parent_ids = [p.id for p in parents]
         enfants = Eleve.query.filter(Eleve.parent_id.in_(parent_ids)).all()
         enfants_par_parent = {}
@@ -267,7 +267,7 @@ def rapport_notes_par_classe():
     if _rapports_cache['notes_par_classe'] and (now - _rapports_cache['timestamp_notes']).total_seconds() < CACHE_DURATION:
         return jsonify(_rapports_cache['notes_par_classe'])
 
-    # Filtrage selon rÃ´le
+    # Filtrage selon rôle
     query_eleves = Eleve.query.options(db.joinedload(Eleve.notes), db.joinedload(Eleve.classe))
     if current_user.role == 'admin':
         query_eleves = query_eleves.filter(Eleve.ecole_id == current_user.ecole_id)
@@ -276,7 +276,7 @@ def rapport_notes_par_classe():
 
     classes_dict = {}
     for e in eleves:
-        classe_nom = e.classe.nom if e.classe else "Non assignÃ©"
+        classe_nom = e.classe.nom if e.classe else "Non assigné"
         classes_dict.setdefault(classe_nom, []).append(e)
 
     data = {}
@@ -312,7 +312,7 @@ def rapport_absences_par_classe():
 
     classes_dict = {}
     for e in eleves:
-        classe_nom = e.classe.nom if e.classe else "Non assignÃ©"
+        classe_nom = e.classe.nom if e.classe else "Non assigné"
         classes_dict.setdefault(classe_nom, []).append(e)
 
     data = {}
@@ -330,7 +330,7 @@ def rapport_absences_par_classe():
 @login_required
 @role_required('admin', 'super_admin')
 def rapports():
-    # Classes filtrÃ©es selon rÃ´le
+    # Classes filtrées selon rôle
     classes_query = Classe.query
     if current_user.role == 'admin':
         classes_query = classes_query.filter(Classe.ecole_id == current_user.ecole_id)
@@ -364,14 +364,14 @@ def rapports():
 def notifications():
     """
     Retourne les notifications pour l'utilisateur courant,
-    avec filtrage multi-Ã©cole pour les admins.
+    avec filtrage multi-école pour les admins.
     """
     notifications = []
     now = datetime.now()
 
     # --- Admin ---
     if current_user.role == 'admin':
-        # Paiements en attente uniquement pour l'Ã©cole de l'admin
+        # Paiements en attente uniquement pour l'école de l'admin
         paiements_attente = Paiement.query.join(Eleve).filter(
             Paiement.statut == 'en attente',
             Eleve.ecole_id == current_user.ecole_id
@@ -385,7 +385,7 @@ def notifications():
                 'priority': 2
             })
 
-        # Nouvelles inscriptions ce mois-ci (filtrÃ©es par Ã©cole)
+        # Nouvelles inscriptions ce mois-ci (filtrées par école)
         nouvelles_inscriptions = Eleve.query.filter(
             Eleve.ecole_id == current_user.ecole_id,
             Eleve.date_inscription >= now.replace(day=1)
@@ -401,7 +401,7 @@ def notifications():
 
     # --- Parent ---
     elif current_user.role == 'parent':
-        # RÃ©cupÃ©rer uniquement ses propres enfants
+        # Récupérer uniquement ses propres enfants
         enfants = Eleve.query.filter_by(parent_id=current_user.id).all()
         for enfant in enfants:
             # Notes des 7 derniers jours
@@ -418,7 +418,7 @@ def notifications():
                     'priority': 2
                 })
 
-            # Absences non justifiÃ©es des 7 derniers jours
+            # Absences non justifiées des 7 derniers jours
             absences_non_justifiees = Absence.query.filter(
                 Absence.eleve_id == enfant.id,
                 Absence.justifiee == False,
@@ -427,13 +427,13 @@ def notifications():
             if absences_non_justifiees > 0:
                 notifications.append({
                     'type': 'warning',
-                    'message': f'{absences_non_justifiees} absence(s) non justifiÃ©e(s) pour {enfant.prenom}',
+                    'message': f'{absences_non_justifiees} absence(s) non justifiée(s) pour {enfant.prenom}',
                     'lien': url_for('main.portal_parent'),
                     'date': now.strftime("%d/%m/%Y %H:%M"),
                     'priority': 3
                 })
 
-    # --- Tri des notifications par prioritÃ© dÃ©croissante ---
+    # --- Tri des notifications par priorité décroissante ---
     notifications.sort(key=lambda n: n['priority'], reverse=True)
 
     if request.args.get('format') == 'json':
@@ -457,7 +457,7 @@ def recherche():
 
     queries = []
 
-    # ---------- Ã‰LÃˆVES ----------
+    # ---------- ÉLÈVES ----------
     if type_recherche in ['all', 'eleves']:
         eleve_query = db.session.query(
             Eleve.id.label('id'),
@@ -529,12 +529,12 @@ def recherche():
         )
         queries.append(cours_query)
 
-    # Union de toutes les requÃªtes (sans limit dans les sous-requÃªtes)
+    # Union de toutes les requêtes (sans limit dans les sous-requêtes)
     if queries:
         final_query = queries[0]
         for q in queries[1:]:
             final_query = final_query.union_all(q)
-        results_raw = final_query.limit(30).all()  # Limite globale aprÃ¨s l'union
+        results_raw = final_query.limit(30).all()  # Limite globale après l'union
     else:
         results_raw = []
 

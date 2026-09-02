@@ -867,11 +867,6 @@
                 <div class="col-lg-4 mb-4 mb-lg-0">
                     <h5 class="mb-3">EduManage</h5>
                     <p class="opacity-80">Plateforme de gestion scolaire complète pour les établissements d'enseignement modernes.</p>
-                    <div class="d-flex mt-3">
-                        <a href="#" class="text-white me-3 fs-5"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#" class="text-white me-3 fs-5"><i class="fab fa-twitter"></i></a>
-                        <a href="#" class="text-white fs-5"><i class="fab fa-linkedin-in"></i></a>
-                    </div>
                 </div>
                 <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
                     <h5 class="mb-3">Navigation</h5>
@@ -892,9 +887,6 @@
                     <h5 class="mb-3">Support</h5>
                     <ul class="list-unstyled">
                         <li class="mb-2"><a href="{{ url_for('main.aide') }}">Centre d'Aide</a></li>
-                        <li class="mb-2"><a href="#">FAQ</a></li>
-                        <li class="mb-2"><a href="#">Guide d'utilisation</a></li>
-                        <li class="mb-2"><a href="#">Politique de confidentialité</a></li>
                     </ul>
                 </div>
                 <div class="col-lg-3 col-md-4">
@@ -909,7 +901,7 @@
             </div>
             <hr class="my-4 bg-light opacity-25">
             <div class="text-center">
-                <p class="mb-0 opacity-80">&copy; {{ moment().year }} EduManage. Tous droits réservés. | Version 2.1.0</p>
+                <p class="mb-0 opacity-80">&copy; {{ moment().year }} EduManage. Tous droits réservés. | Version {{ config.get('VERSION', 'N/A') }}</p>
             </div>
             <meta name="csrf-token" content="{{ csrf_token() }}">
         </div>

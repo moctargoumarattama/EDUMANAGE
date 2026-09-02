@@ -484,8 +484,8 @@ def export_eleves_excel():
                 try:
                     if cell.value:
                         max_length = max(max_length, len(str(cell.value)))
-                except:
-                    pass
+                except (TypeError, ValueError) as e:
+                    current_app.logger.debug(f"Impossible d'ajuster la largeur Excel eleves: {e}")
             adjusted_width = max_length + 2
             ws.column_dimensions[column].width = adjusted_width
         for cell in ws[1]:
@@ -558,10 +558,10 @@ def modifier_eleve(eleve_id):
         parent = Utilisateur.query.filter_by(id=parent_id, ecole_id=current_user.ecole_id, role='parent').first() if parent_id else None
 
         if classe_id and not classe:
-            flash("Classe invalide pour cette Ã©cole.", "danger")
+            flash("Classe invalide pour cette école.", "danger")
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id))
         if parent_id and not parent:
-            flash("Parent invalide pour cette Ã©cole.", "danger")
+            flash("Parent invalide pour cette école.", "danger")
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id))
 
         eleve.nom = request.form.get('nom', eleve.nom).strip()
@@ -574,7 +574,7 @@ def modifier_eleve(eleve_id):
         eleve.email_parent = parent.email if parent else request.form.get('email_parent') or eleve.email_parent
         eleve.contact_parent = parent.telephone if parent else request.form.get('telephone_parent') or eleve.contact_parent
         db.session.commit()
-        flash("Ã‰lÃ¨ve modifiÃ© avec succÃ¨s.", "success")
+        flash("Élève modifié avec succès.", "success")
         return redirect(url_for('main.voir_eleve', eleve_id=eleve.id))
 
     return render_template('edit_eleve.html', eleve=eleve, classes=classes, parents=parents)

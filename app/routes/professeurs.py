@@ -226,7 +226,7 @@ def modifier_professeur(id):
                 Utilisateur.id != professeur.utilisateur_id
             ).first()
             if doublon_prof or doublon_user:
-                flash("Cet email est dÃ©jÃ  utilisÃ©.", "danger")
+                flash("Cet email est déjà utilisé.", "danger")
                 return redirect(url_for('main.modifier_professeur', id=professeur.id))
 
         professeur.nom = form.nom.data.strip()
@@ -247,7 +247,7 @@ def modifier_professeur(id):
             professeur.utilisateur.telephone = professeur.telephone
 
         db.session.commit()
-        flash("Professeur modifiÃ© avec succÃ¨s.", "success")
+        flash("Professeur modifié avec succès.", "success")
         return redirect(url_for('main.professeur_details', id=professeur.id))
 
     return render_template('modifier_professeur.html', form=form, professeur=professeur)

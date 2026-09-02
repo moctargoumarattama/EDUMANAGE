@@ -51,7 +51,7 @@ def get_ecole_courante():
             if ecole_id:
                 try:
                     ecole_id = int(ecole_id)
-                except Exception:
+                except (TypeError, ValueError):
                     ecole_id = None
             if ecole_id:
                 ecole = Ecole.query.get(ecole_id)
@@ -76,7 +76,7 @@ def get_ecole_courante():
                 # Synchroniser session si absent ou différent
                 try:
                     session['ecole_id'] = int(ecole.id)
-                except Exception:
+                except (TypeError, ValueError):
                     session['ecole_id'] = ecole.id
                 g.ecole_courante = ecole
                 return ecole
@@ -95,7 +95,8 @@ def get_annee_courante():
     """
     try:
         from app.utils import get_annee_active
-    except Exception:
+    except ImportError as e:
+        current_app.logger.error(f"Impossible d'importer get_annee_active: {e}")
         return None
 
     result = get_ecole_courante()
@@ -121,19 +122,16 @@ def set_ecole_courante(ecole_id):
 
     try:
         ecole = Ecole.query.get(int(ecole_id))
-    except Exception:
+    except (TypeError, ValueError):
         return False
 
     if ecole:
         try:
             session['ecole_id'] = int(ecole_id)
-        except Exception:
+        except (TypeError, ValueError):
             session['ecole_id'] = ecole_id
         g.ecole_courante = ecole
-        try:
-            current_app.logger.info(f"Super-admin {getattr(current_user, 'email', '?')} a sélectionné l'école {ecole.nom}")
-        except Exception:
-            pass
+        current_app.logger.info(f"Super-admin {getattr(current_user, 'email', '?')} a sélectionné l'école {ecole.nom}")
         return True
     return False
 
@@ -142,15 +140,9 @@ def clear_ecole_courante():
     """Efface l'école courante de la session"""
     session.pop('ecole_id', None)
     if hasattr(g, 'ecole_courante'):
-        try:
-            del g.ecole_courante
-        except Exception:
-            pass
+        del g.ecole_courante
     if hasattr(g, 'annee_courante'):
-        try:
-            del g.annee_courante
-        except Exception:
-            pass
+        del g.annee_courante
 
 
 # ====================================================================
@@ -226,8 +218,8 @@ def filtre_par_ecole(query, modele=None):
         try:
             if hasattr(query, 'filter'):
                 return query.filter(False)
-        except Exception:
-            pass
+        except Exception as e:
+            current_app.logger.debug(f"Impossible de retourner une query vide filtrée: {e}")
         return []
 
     ecole_id = ecole.id
@@ -313,8 +305,8 @@ def ecole_access_required(model_class, id_param_name='id', ecole_field='ecole_id
                         f"Tentative d'accès non autorisé: {getattr(current_user, 'email', '?')} "
                         f"vers {model_class.__name__} ID={object_id}"
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    current_app.logger.debug(f"Impossible de journaliser un accès refusé: {e}")
                 flash("Accès non autorisé à cette ressource.", "danger")
                 return redirect(url_for('main.index'))
 
@@ -360,16 +352,16 @@ def has_ecole_access(ecole_id):
     try:
         if getattr(current_user, 'ecole_id', None) == ecole_id:
             return True
-    except Exception:
-        pass
+    except Exception as e:
+        current_app.logger.debug(f"Erreur lecture ecole_id utilisateur: {e}")
 
     # si l'utilisateur gère plusieurs écoles (attribut optionnel)
     try:
         ecoles_gerees = getattr(current_user, 'ecoles_gerees', None) or []
         if any(getattr(e, 'id', e) == ecole_id or e == ecole_id for e in ecoles_gerees):
             return True
-    except Exception:
-        pass
+    except Exception as e:
+        current_app.logger.debug(f"Erreur lecture ecoles_gerees utilisateur: {e}")
 
     return False
 
@@ -387,7 +379,7 @@ def log_action(module, action, level="INFO", user_id=None, details=None):
         ecole_id = get_ecole_id()
         try:
             ip_address = request.remote_addr if request else None
-        except Exception:
+        except RuntimeError:
             ip_address = None
 
         log_entry = Log(
@@ -434,7 +426,8 @@ def setup_template_context():
         try:
             if not isinstance(ec_res, tuple) and ec_res:
                 annee = get_annee_courante()
-        except Exception:
+        except Exception as e:
+            current_app.logger.debug(f"Impossible d'injecter l'année courante: {e}")
             annee = None
 
         return {
@@ -457,7 +450,8 @@ def before_request_handler():
         # Précharger l'année courante
         try:
             g.annee_courante = get_annee_courante()
-        except Exception:
+        except Exception as e:
+            current_app.logger.debug(f"Impossible de précharger l'année courante: {e}")
             g.annee_courante = None
 
         # Logger l'accès pour audit
@@ -467,8 +461,8 @@ def before_request_handler():
                     f"Accès: {getattr(current_user, 'email', 'anonymous')} ({getattr(current_user, 'role', '?')}) "
                     f"-> {request.endpoint} [École: {get_ecole_id()}]"
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                current_app.logger.debug(f"Impossible d'écrire le log d'accès: {e}")
 
 
 def after_request_handler(response):
@@ -476,12 +470,12 @@ def after_request_handler(response):
     try:
         if hasattr(g, 'ecole_courante'):
             del g.ecole_courante
-    except Exception:
+    except RuntimeError:
         pass
     try:
         if hasattr(g, 'annee_courante'):
             del g.annee_courante
-    except Exception:
+    except RuntimeError:
         pass
     return response
 
@@ -499,7 +493,4 @@ def init_middleware(app):
     # Ajouter la fonction de log au contexte de l'app
     app.log_action = log_action
 
-    try:
-        app.logger.info("Middleware multi-écoles initialisé avec succès")
-    except Exception:
-        pass
+    app.logger.info("Middleware multi-écoles initialisé avec succès")

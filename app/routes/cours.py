@@ -292,7 +292,7 @@ def modifier_cours(id):
         professeur = Professeur.query.filter_by(id=form.professeur_id.data, ecole_id=ecole_courante.id).first()
         classe = Classe.query.filter_by(id=form.classe_id.data, ecole_id=ecole_courante.id).first()
         if not professeur or not classe:
-            flash("Le professeur ou la classe n'appartient pas Ã  votre Ã©cole.", "danger")
+            flash("Le professeur ou la classe n'appartient pas à votre école.", "danger")
             return redirect(url_for('main.modifier_cours', id=cours.id))
 
         cours.nom = form.nom.data
@@ -301,7 +301,7 @@ def modifier_cours(id):
         cours.professeur_id = professeur.id
         cours.classe_id = classe.id
         db.session.commit()
-        flash("Cours modifiÃ© avec succÃ¨s.", "success")
+        flash("Cours modifié avec succès.", "success")
         return redirect(url_for('main.cours_details', id=cours.id))
 
     return render_template('modifier_cours.html', form=form, cours=cours)
@@ -456,7 +456,7 @@ def import_notes_excel(id):
                     if not (0 <= note_valeur <= 20):
                         erreurs.append(f"Ligne {index+2}: Note invalide ({note_valeur})")
                         continue
-                except:
+                except (TypeError, ValueError):
                     erreurs.append(f"Ligne {index+2}: Format de note invalide ({row['note']})")
                     continue
 

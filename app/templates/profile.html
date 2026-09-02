@@ -98,10 +98,6 @@
                                                 </td>
                                                 <td>
                                                     <div class="btn-group">
-                                                        <button class="btn btn-sm btn-outline-primary" 
-                                                                onclick="modifierEcole({{ ecole.id }})">
-                                                            <i class="fas fa-edit"></i>
-                                                        </button>
                                                         <button class="btn btn-sm btn-outline-{{ 'success' if ecole.statut == 'inactive' else 'warning' }}" 
                                                                 onclick="toggleEcoleStatus({{ ecole.id }}, '{{ ecole.statut }}')">
                                                             <i class="fas fa-{{ 'check' if ecole.statut == 'inactive' else 'pause' }}"></i>
@@ -220,10 +216,10 @@
                                                 <td>{{ user.date_creation.strftime('%d/%m/%Y') if user.date_creation else 'N/A' }}</td>
                                                 <td>
                                                     <div class="btn-group">
-                                                        <button class="btn btn-sm btn-outline-primary" 
-                                                                onclick="modifierUtilisateur({{ user.id }})">
+                                                        <a class="btn btn-sm btn-outline-primary"
+                                                                href="{{ url_for('main.modifier_utilisateur', id=user.id) }}">
                                                             <i class="fas fa-edit"></i>
-                                                        </button>
+                                                        </a>
                                                         {% if user.id != current_user.id %}
                                                         <button class="btn btn-sm btn-outline-{{ 'success' if user.statut == 'inactif' else 'warning' }}" 
                                                                 onclick="toggleUserStatus({{ user.id }}, '{{ user.statut }}')">
@@ -364,10 +360,10 @@
                                                 <td>{{ user.date_creation.strftime('%d/%m/%Y') if user.date_creation else 'N/A' }}</td>
                                                 <td>
                                                     <div class="btn-group">
-                                                        <button class="btn btn-sm btn-outline-primary" 
-                                                                onclick="modifierUtilisateur({{ user.id }})">
+                                                        <a class="btn btn-sm btn-outline-primary"
+                                                                href="{{ url_for('main.modifier_utilisateur', id=user.id) }}">
                                                             <i class="fas fa-edit"></i>
-                                                        </button>
+                                                        </a>
                                                         {% if user.id != current_user.id %}
                                                         <button class="btn btn-sm btn-outline-{{ 'success' if user.statut == 'inactif' else 'warning' }}" 
                                                                 onclick="toggleUserStatus({{ user.id }}, '{{ user.statut }}')">
@@ -476,9 +472,9 @@
                             <td>
                                 <div class="btn-group">
                                     <!-- Modifier -->
-                                    <button class="btn btn-sm btn-outline-warning" onclick="modifierEleve({{ eleve.id }})">
+                                    <a class="btn btn-sm btn-outline-warning" href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id) }}">
                                         <i class="fas fa-edit"></i>
-                                    </button>
+                                    </a>
                                     <!-- Supprimer -->
                                     <button class="btn btn-sm btn-outline-danger" onclick="supprimerEleve({{ eleve.id }})">
                                         <i class="fas fa-trash"></i>
@@ -546,10 +542,6 @@ function envoyerCredentialsParent(parentId) {
         }
     })
     .catch(err => alert(`Erreur réseau : ${err}`));
-}
-
-function modifierEleve(eleveId) {
-    window.location.href = `/admin/eleve/${eleveId}/modifier`;
 }
 
 function supprimerEleve(eleveId) {
@@ -835,19 +827,6 @@ function supprimerEleve(eleveId) {
             alert('Erreur réseau');
         });
     }
-}
-
-// Fonctions de modification (à implémenter)
-function modifierUtilisateur(userId) {
-    alert('Fonction de modification utilisateur à implémenter pour l\'ID: ' + userId);
-}
-
-function modifierEcole(ecoleId) {
-    alert('Fonction de modification école à implémenter pour l\'ID: ' + ecoleId);
-}
-
-function modifierEleve(eleveId) {
-    alert('Fonction de modification élève à implémenter pour l\'ID: ' + eleveId);
 }
 
 // Initialisation des onglets

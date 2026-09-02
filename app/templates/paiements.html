@@ -170,8 +170,7 @@
                                 <i class="fas fa-download me-1"></i> Exporter
                             </button>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-file-excel me-2"></i>Excel</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-file-pdf me-2"></i>PDF</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('main.export_paiements_excel') }}"><i class="fas fa-file-excel me-2"></i>Excel</a></li>
                             </ul>
                         </div>
                     </div>
@@ -478,10 +477,9 @@
                                 <i class="fas fa-cog me-1"></i> Options
                             </button>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#" id="export-pdf"><i class="fas fa-file-pdf me-2"></i>Exporter en PDF</a></li>
-                                <li><a class="dropdown-item" href="#" id="export-excel"><i class="fas fa-file-excel me-2"></i>Exporter en Excel</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('main.export_paiements_excel') }}"><i class="fas fa-file-excel me-2"></i>Exporter en Excel</a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="#" id="refresh-data"><i class="fas fa-sync me-2"></i>Actualiser</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('main.paiements') }}" id="refresh-data"><i class="fas fa-sync me-2"></i>Actualiser</a></li>
                             </ul>
                         </div>
                     </div>
@@ -941,18 +939,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
-
-    // Export PDF
-    document.getElementById('export-pdf')?.addEventListener('click', function(e) {
-        e.preventDefault();
-        alert('Fonctionnalité d\'export PDF à implémenter');
-    });
-
-    // Export Excel
-    document.getElementById('export-excel')?.addEventListener('click', function(e) {
-        e.preventDefault();
-        alert('Fonctionnalité d\'export Excel à implémenter');
-    });
 
     // Actualisation des données
     document.getElementById('refresh-data')?.addEventListener('click', function(e) {

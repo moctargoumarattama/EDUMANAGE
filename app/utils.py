@@ -660,4 +660,5 @@ def log_action(user_id, action, details=None):
         db.session.add(log)
         db.session.commit()
     except Exception as e:
-        print(f"[log_action] Erreur : {e}")
+        db.session.rollback()
+        current_app.logger.error(f"[log_action] Erreur : {e}")

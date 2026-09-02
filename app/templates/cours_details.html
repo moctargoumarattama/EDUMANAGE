@@ -65,7 +65,7 @@
                     <i class="fas fa-arrow-left me-2"></i>Retour aux cours
                 </a>
                 {% if current_user.role == 'admin' %}
-                <a href="#" class="btn btn-outline-secondary btn-lg rounded-3 px-4 premium-btn">
+                <a href="{{ url_for('main.modifier_cours', id=cours.id) }}" class="btn btn-outline-secondary btn-lg rounded-3 px-4 premium-btn">
                     <i class="fas fa-edit me-2"></i>Modifier le cours
                 </a>
                 {% endif %}

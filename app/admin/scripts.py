@@ -303,7 +303,8 @@ def get_system_stats():
     try:
         total, used, free = shutil.disk_usage("/")
         stats['disk_usage'] = round((used / total) * 100, 1)
-    except:
+    except OSError as e:
+        current_app.logger.warning(f"Impossible de lire l'utilisation disque: {e}")
         stats['disk_usage'] = "N/A"
 
     try:
@@ -321,7 +322,8 @@ def get_system_stats():
         stats['tables'] = [table[0] for table in tables]
         
         conn.close()
-    except:
+    except sqlite3.Error as e:
+        current_app.logger.warning(f"Impossible de lire les statistiques SQLite: {e}")
         stats['db_version'] = "N/A"
         stats['table_count'] = "N/A"
         stats['tables'] = []
@@ -572,7 +574,8 @@ def get_school_backups(ecole_id):
                     'timestamp_sort': ts_obj or datetime.min,
                     'size': os.path.getsize(file_path)
                 })
-            except Exception:
+            except (OSError, ValueError) as e:
+                current_app.logger.warning(f"Backup ignoré car illisible ({file_path}): {e}")
                 continue
 
     backups.sort(key=lambda x: x['timestamp_sort'], reverse=True)

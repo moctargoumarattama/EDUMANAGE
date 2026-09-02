@@ -13,9 +13,6 @@
             <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary">
                 <i class="fas fa-plus-circle me-2"></i>Nouvelle classe
             </a>
-            <button class="btn btn-outline-secondary" id="exportBtn">
-                <i class="fas fa-download me-2"></i>Exporter
-            </button>
         </div>
         {% endif %}
     </div>
@@ -181,8 +178,6 @@
                                     <ul class="dropdown-menu dropdown-menu-end">
                                         <li><a class="dropdown-item" href="{{ url_for('main.modifier_classe', classe_id=classe.id) }}"><i class="fas fa-edit me-2"></i> Modifier</a></li>
                                      
-                                        <li><a class="dropdown-item" href="#"><i class="fas fa-calendar me-2"></i> Emploi du temps</a></li>
-                                        <li><hr class="dropdown-divider"></li>
                                         <li>
                                             <form method="POST" action="{{ url_for('main.supprimer_classe', classe_id=classe.id) }}" onsubmit="return confirm('Supprimer cette classe ?');">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -272,12 +267,6 @@
 <!-- JavaScript pour les fonctionnalités avancées -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Export des données
-    document.getElementById('exportBtn').addEventListener('click', function() {
-        // Implémentez l'export ici
-        alert('Fonctionnalité d\'export à implémenter');
-    });
-
     // Recherche en temps réel avec debounce
     let searchTimeout;
     document.getElementById('searchInput').addEventListener('input', function(e) {

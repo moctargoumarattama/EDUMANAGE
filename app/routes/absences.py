@@ -266,7 +266,7 @@ def presence():
 
     try:
         date_selectionnee = datetime.strptime(date_str, "%Y-%m-%d").date()
-    except:
+    except ValueError:
         date_selectionnee = date.today()
 
     heure_selectionnee = request.form.get("heure_presence", "")
@@ -296,7 +296,7 @@ def presence():
         # Conversion obligatoire
         try:
             date_p = datetime.strptime(date_p_str, "%Y-%m-%d").date()
-        except:
+        except (TypeError, ValueError):
             flash("Date invalide.", "danger")
             return redirect(request.url)
 
