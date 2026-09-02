@@ -1,0 +1,985 @@
+[
+  {
+    "rule": "/admin/api/classes/<int:annee_scolaire_id>",
+    "endpoint": "admin.api_classes_by_annee",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/archive",
+    "endpoint": "admin.archive_data",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/admin/backup",
+    "endpoint": "admin.backup",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/backup_complete",
+    "endpoint": "admin.backup_complete",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/backup_page",
+    "endpoint": "admin.backup_page",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/backup_school",
+    "endpoint": "admin.backup_school",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/admin/clean",
+    "endpoint": "admin.clean",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/create_tables",
+    "endpoint": "admin.create_tables",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin",
+    "endpoint": "admin.dashboard",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/delete_backup/<filename>",
+    "endpoint": "admin.delete_backup",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/deploy",
+    "endpoint": "admin.deploy",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/admin/download_backup/<filename>",
+    "endpoint": "admin.download_backup",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/init_annees",
+    "endpoint": "admin.init_annees",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/integrity_check",
+    "endpoint": "admin.integrity_check_route",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/maintenance_page",
+    "endpoint": "admin.maintenance_page",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/migrate",
+    "endpoint": "admin.migrate",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/optimize",
+    "endpoint": "admin.optimize",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/restore/<filename>",
+    "endpoint": "admin.restore",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/restore_school/<filename>",
+    "endpoint": "admin.restore_school",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/static/<path:filename>",
+    "endpoint": "admin.static",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/stats",
+    "endpoint": "admin.stats",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/version",
+    "endpoint": "admin.version_info",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/archive/view",
+    "endpoint": "admin.view_archive",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/logs",
+    "endpoint": "admin.view_logs",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/api/sync",
+    "endpoint": "api_sync.sync_data",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/absences",
+    "endpoint": "main.absences",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/activer_periode/<int:id>",
+    "endpoint": "main.activer_periode",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/dashboard",
+    "endpoint": "main.admin_dashboard",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/emplois",
+    "endpoint": "main.admin_emplois",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/aide",
+    "endpoint": "main.aide",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/classes/add",
+    "endpoint": "main.ajouter_classe",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/ajouter_cours",
+    "endpoint": "main.ajouter_cours",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/admin/ecoles/ajouter",
+    "endpoint": "main.ajouter_ecole",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/ajouter_eleve",
+    "endpoint": "main.ajouter_eleve",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/admin/ajouter_emploi",
+    "endpoint": "main.ajouter_emploi",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/ajouter_professeur",
+    "endpoint": "main.ajouter_professeur",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/alertes",
+    "endpoint": "main.alertes",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/api/alertes",
+    "endpoint": "main.api_alertes",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/api/classes",
+    "endpoint": "main.api_classes",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/api/classes/annee/<int:annee_id>",
+    "endpoint": "main.api_classes_par_annee",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/api/ecoles",
+    "endpoint": "main.api_ecoles",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/api/eleves/classe/<int:classe_id>",
+    "endpoint": "main.api_eleves_par_classe",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/api/stats/absences_par_mois",
+    "endpoint": "main.api_stats_absences_par_mois",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/api/stats/notes_moyennes",
+    "endpoint": "main.api_stats_notes_moyennes",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/api/sync",
+    "endpoint": "main.api_sync",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/professeur/<int:id>/assigner_classes",
+    "endpoint": "main.assigner_classes_professeur",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/admin/ecoles/<int:ecole_id>/assigner",
+    "endpoint": "main.assigner_ecole",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/bulletin_eleve/<int:id>",
+    "endpoint": "main.bulletin_eleve",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/bulletins",
+    "endpoint": "main.bulletins",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/changer_annee/<int:annee_id>",
+    "endpoint": "main.changer_annee",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/admin/utilisateur/<int:user_id>/statut",
+    "endpoint": "main.changer_statut_utilisateur",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/choisir-ecole",
+    "endpoint": "main.choisir_ecole",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/cours",
+    "endpoint": "main.cours",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/cours/<int:id>",
+    "endpoint": "main.cours_details",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/create_user",
+    "endpoint": "main.create_user",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/creer_periode",
+    "endpoint": "main.creer_periode",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/admin/creer_utilisateur",
+    "endpoint": "main.creer_utilisateur",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/dashboard",
+    "endpoint": "main.dashboard",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/absences/delete/<int:absence_id>",
+    "endpoint": "main.delete_absence",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/api/users/<int:user_id>",
+    "endpoint": "main.delete_user",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "rule": "/classes/<int:classe_id>",
+    "endpoint": "main.detail_classe",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/absences/edit/<int:absence_id>",
+    "endpoint": "main.edit_absence",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/eleves",
+    "endpoint": "main.eleves",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/enseignant/dashboard",
+    "endpoint": "main.enseignant_dashboard",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/enseignant",
+    "endpoint": "main.enseignant_home",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/parent/<int:parent_id>/envoyer-credentials",
+    "endpoint": "main.envoyer_credentials_parent",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/api/notifications/test",
+    "endpoint": "main.envoyer_notification_test",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/absences/export_excel",
+    "endpoint": "main.export_absences_excel",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/eleves/export_excel",
+    "endpoint": "main.export_eleves_excel",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/cours/<int:id>/export_notes",
+    "endpoint": "main.export_notes",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/eleve/<int:id>/export_notes_pdf",
+    "endpoint": "main.export_notes_eleve_pdf",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/notes/export_excel",
+    "endpoint": "main.export_notes_excel",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/paiements/export_excel",
+    "endpoint": "main.export_paiements_excel",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/eleve/<int:id>/qrcode",
+    "endpoint": "main.generer_qrcode_eleve",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/paiement/<int:id>/pdf",
+    "endpoint": "main.generer_recu_pdf",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/utilisateur/<int:user_id>/ecoles",
+    "endpoint": "main.gerer_ecoles_utilisateur",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/annees",
+    "endpoint": "main.gestion_annees",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/admin/ecoles",
+    "endpoint": "main.gestion_ecoles",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/periodes",
+    "endpoint": "main.gestion_periodes",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/utilisateurs",
+    "endpoint": "main.gestion_utilisateurs",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/get_classes/<int:annee_id>",
+    "endpoint": "main.get_classes",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/cours/<int:id>/import_notes_excel",
+    "endpoint": "main.import_notes_excel",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/imports/historique",
+    "endpoint": "main.imports_historique",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/",
+    "endpoint": "main.index",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/inscription_parent",
+    "endpoint": "main.inscription_parent",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/journaux_corrections",
+    "endpoint": "main.journaux_corrections",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/classes",
+    "endpoint": "main.liste_classes",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/login",
+    "endpoint": "main.login",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/logout",
+    "endpoint": "main.logout",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/api/alertes/<string:alert_id>/read",
+    "endpoint": "main.marquer_alerte_lue",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/mes_classes",
+    "endpoint": "main.mes_classes",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/cours/<int:id>/modele_import_notes",
+    "endpoint": "main.modele_import_notes",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/emploi/<int:id>/modifier",
+    "endpoint": "main.modifier_emploi",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/note/<int:note_id>/modifier",
+    "endpoint": "main.modifier_note",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/notes",
+    "endpoint": "main.notes",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/notifications",
+    "endpoint": "main.notifications",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/offline",
+    "endpoint": "main.offline_page",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/paiements",
+    "endpoint": "main.paiements",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/parent/paiements",
+    "endpoint": "main.paiements_parent",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/parent/dashboard",
+    "endpoint": "main.parent_dashboard",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/portal_parent",
+    "endpoint": "main.portal_parent",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/presence",
+    "endpoint": "main.presence",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/professeur/<int:id>",
+    "endpoint": "main.professeur_details",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/professeurs",
+    "endpoint": "main.professeurs",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/profile",
+    "endpoint": "main.profile",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/qrcodes_etudiants",
+    "endpoint": "main.qrcodes_etudiants",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/rapport/absences_par_classe",
+    "endpoint": "main.rapport_absences_par_classe",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/rapport/notes_par_classe",
+    "endpoint": "main.rapport_notes_par_classe",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/rapports",
+    "endpoint": "main.rapports",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/recherche",
+    "endpoint": "main.recherche",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/recherche_json",
+    "endpoint": "main.recherche_json",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/paiement/<int:id>/recu",
+    "endpoint": "main.recu_paiement",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/admin/eleve/<int:eleve_id>/regenerer-code",
+    "endpoint": "main.regenerer_code_parent",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/request_reset_password",
+    "endpoint": "main.request_reset_password",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/reset_password/<token>",
+    "endpoint": "main.reset_password_token",
+    "methods": [
+      "GET",
+      "POST"
+    ]
+  },
+  {
+    "rule": "/service-worker.js",
+    "endpoint": "main.service_worker",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/statistiques/avancees",
+    "endpoint": "main.statistiques_avancees",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/cours/<int:id>/supprimer",
+    "endpoint": "main.supprimer_cours",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/api/ecoles/<int:ecole_id>",
+    "endpoint": "main.supprimer_ecole",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "rule": "/eleve/<int:id>/supprimer",
+    "endpoint": "main.supprimer_eleve",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/api/eleves/<int:eleve_id>",
+    "endpoint": "main.supprimer_eleve_api",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "rule": "/eleve/<int:id>/supprimer-cascade",
+    "endpoint": "main.supprimer_eleve_cascade",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/eleve/<int:id>/supprimer",
+    "endpoint": "main.supprimer_eleve_route",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/emploi/<int:id>/supprimer",
+    "endpoint": "main.supprimer_emploi",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/notes/supprimer/<int:note_id>",
+    "endpoint": "main.supprimer_note",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/paiement/<int:id>/supprimer",
+    "endpoint": "main.supprimer_paiement",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/professeur/<int:id>/supprimer",
+    "endpoint": "main.supprimer_professeur",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/professeur/<int:id>/supprimer",
+    "endpoint": "main.supprimer_professeur_route",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "rule": "/admin/utilisateur/<int:user_id>",
+    "endpoint": "main.supprimer_utilisateur",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "rule": "/sync-hors-ligne",
+    "endpoint": "main.sync_hors_ligne",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/imports/telecharger/<filename>",
+    "endpoint": "main.telecharger_import",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/api/ecoles/<int:ecole_id>/status",
+    "endpoint": "main.toggle_ecole_status",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "rule": "/toggle_periode/<int:id>",
+    "endpoint": "main.toggle_periode",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/api/users/<int:user_id>/status",
+    "endpoint": "main.toggle_user_status",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "rule": "/voir_eleve/<int:eleve_id>",
+    "endpoint": "main.voir_eleve",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/inscriptions",
+    "endpoint": "main.voir_inscriptions",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "rule": "/static/<path:filename>",
+    "endpoint": "static",
+    "methods": [
+      "GET"
+    ]
+  }
+]

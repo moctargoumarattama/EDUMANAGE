@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const viewUrlPrefix = '/voir_eleve/';
   const bulletinUrlPrefix = '/bulletin_eleve/';
+  const editUrlPrefix = '/eleve/';
   const supprimerPrefix = '/eleve/';
 
   const cacheClasses = new Map();
@@ -132,6 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="d-flex justify-content-between mt-2">
               <a href="${viewUrlPrefix}${e.id}" class="btn btn-sm btn-info" title="Voir"><i class="fas fa-eye"></i></a>
               <a href="${bulletinUrlPrefix}${e.id}" class="btn btn-sm btn-primary" title="Bulletin"><i class="fas fa-file-alt"></i></a>
+              <a href="${editUrlPrefix}${e.id}/modifier" class="btn btn-sm btn-warning" title="Modifier"><i class="fas fa-edit"></i></a>
               <button class="btn btn-sm btn-danger btn-delete" data-id="${e.id}" title="Supprimer"><i class="fas fa-trash"></i></button>
             </div>
           </div>

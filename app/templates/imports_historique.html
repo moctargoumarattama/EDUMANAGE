@@ -10,10 +10,7 @@
             <tr>
                 <th>Date</th>
                 <th>Utilisateur</th>
-                <th>Cours</th>
-                <th>Fichier erreurs</th>
-                <th>Notes importées</th>
-                <th>Erreurs</th>
+                <th>Fichier importé</th>
             </tr>
         </thead>
         <tbody>
@@ -24,19 +21,7 @@
                     {{ h.utilisateur.prenom }} {{ h.utilisateur.nom }} 
                     ({{ h.utilisateur.email }})
                 </td>
-                <td>{{ h.cours.nom }}</td>
-                <td>
-    {% if h.fichier_erreurs %}
-        <a href="{{ url_for('main.telecharger_import', filename=h.fichier_erreurs) }}" 
-           class="btn btn-sm btn-warning">
-           Télécharger
-        </a>
-    {% else %}
-        Aucun
-    {% endif %}
-</td>
-                <td>{{ h.nb_notes }}</td>
-                <td>{{ h.nb_erreurs }}</td>
+                <td>{{ h.fichier }}</td>
             </tr>
         {% endfor %}
         </tbody>

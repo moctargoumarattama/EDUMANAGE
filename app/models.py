@@ -57,8 +57,6 @@ class AnneeScolaire(db.Model):
     nom = db.Column(db.String(20), nullable=False)
     date_debut = db.Column(db.Date, nullable=False)
     date_fin = db.Column(db.Date, nullable=False)
-    active = db.Column(db.Boolean, default=False)
-
     statut = db.Column(db.String(20), default='planifiee')  # planifiee, active, archivee
     
     # Lien avec l'école
@@ -73,6 +71,7 @@ class AnneeScolaire(db.Model):
     # Contrainte unique nom + ecole
     __table_args__ = (
         db.UniqueConstraint('nom', 'ecole_id', name='_annee_ecole_uc'),
+        db.Index('idx_ecole_id', 'ecole_id'),
     )
     
     def __repr__(self):
@@ -911,14 +910,18 @@ class Inscription(db.Model):
 def creer_inscription(mapper, connection, target):
     """Créer automatiquement une inscription quand un élève est ajouté."""
     # Récupérer l'année scolaire active
-    annee_active = AnneeScolaire.query.filter_by(statut='active').first()
+    annee_active = AnneeScolaire.query.filter_by(
+        ecole_id=target.ecole_id,
+        statut='active'
+    ).first()
     if not annee_active:
         # Créer une année scolaire par défaut si aucune n'existe
         annee_active = AnneeScolaire(
             nom=f"{datetime.now().year}-{datetime.now().year+1}",
             date_debut=date(datetime.now().year, 9, 1),
             date_fin=date(datetime.now().year+1, 7, 31),
-            statut='active'
+            statut='active',
+            ecole_id=target.ecole_id
         )
         db.session.add(annee_active)
         db.session.commit()

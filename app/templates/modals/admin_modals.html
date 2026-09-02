@@ -1,50 +1,3 @@
-<!-- Modals pour Admin -->
-<div class="modal fade" id="ajouterUtilisateurModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Ajouter un Utilisateur</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post" action="{{ url_for('main.creer_utilisateur') }}">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Nom</label>
-                        <input type="text" name="nom" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Prénom</label>
-                        <input type="text" name="prenom" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <input type="email" name="email" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Téléphone</label>
-                        <input type="text" name="telephone" class="form-control">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Rôle</label>
-                        <select name="role" class="form-control" required>
-                            <option value="enseignant">Enseignant</option>
-                            <option value="parent">Parent</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Mot de passe</label>
-                        <input type="password" name="mot_de_passe" class="form-control" required>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary">Créer</button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <!-- Modal Ajouter Professeur -->
 <div class="modal fade" id="ajouterProfesseurModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
@@ -60,7 +13,7 @@
                         <input type="text" name="nom" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Prénom</label>
+                        <label class="form-label">Prenom</label>
                         <input type="text" name="prenom" class="form-control" required>
                     </div>
                     <div class="mb-3">
@@ -68,20 +21,20 @@
                         <input type="email" name="email" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Téléphone</label>
+                        <label class="form-label">Telephone</label>
                         <input type="text" name="telephone" class="form-control">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Spécialité</label>
+                        <label class="form-label">Specialite</label>
                         <input type="text" name="specialite" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Matières enseignées</label>
+                        <label class="form-label">Matieres enseignees</label>
                         <input type="text" name="matieres_enseignees" class="form-control">
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-success">Créer</button>
+                    <button type="submit" class="btn btn-success">Creer</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                 </div>
             </form>
@@ -89,12 +42,12 @@
     </div>
 </div>
 
-<!-- Modal Ajouter Élève -->
+<!-- Modal Ajouter Eleve -->
 <div class="modal fade" id="ajouterEleveModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-warning text-white">
-                <h5 class="modal-title">Ajouter un Élève</h5>
+                <h5 class="modal-title">Ajouter un Eleve</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="post" action="{{ url_for('main.ajouter_eleve') }}">
@@ -104,7 +57,7 @@
                         <input type="text" name="nom" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Prénom</label>
+                        <label class="form-label">Prenom</label>
                         <input type="text" name="prenom" class="form-control" required>
                     </div>
                     <div class="mb-3">
@@ -121,7 +74,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-warning">Créer</button>
+                    <button type="submit" class="btn btn-warning">Creer</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                 </div>
             </form>

@@ -1,0 +1,31 @@
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Environnements virtuels
+.venv/
+venv/
+env/
+
+# Bases de données locales
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# IDE / Windows
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+
+# Secrets
+.env
+.env.*
+!.env.example

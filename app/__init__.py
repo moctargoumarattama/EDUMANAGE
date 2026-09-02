@@ -108,7 +108,7 @@ def create_app():
                 pass
             elif ecole:
                 annee_active = get_annee_active(ecole.id)
-            elif current_user.is_authenticated and hasattr(current_user, 'ecole'):
+            elif current_user.is_authenticated and getattr(current_user, 'ecole', None):
                 annee_active = get_annee_active(current_user.ecole.id)
 
             return dict(annee_active=annee_active)

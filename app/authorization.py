@@ -111,7 +111,7 @@ def with_annee_active(f):
         annee_active = get_annee_active(ecole.id)
         if not annee_active:
             flash("Aucune année scolaire active n'est configurée pour cette école.", "warning")
-            return redirect(url_for('main.configurer_annees'))
+            return redirect(url_for('main.gestion_annees'))
 
         g.annee_active = annee_active
         return f(*args, **kwargs)

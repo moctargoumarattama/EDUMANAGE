@@ -504,7 +504,7 @@
                 <ul class="navbar-nav me-auto">
                     {% if current_user.is_authenticated %}
                         
-                        <!-- 🔹 SUPER ADMIN : Accès à tout le système -->
+                        <!-- 🔹 SUPER ADMIN : Gestion de la plateforme et des écoles -->
                         {% if current_user.role == 'super_admin' %}
                             <li class="nav-item">
                                 <a class="nav-link {{ 'active' if request.endpoint == 'main.index' }}" href="{{ url_for('main.index') }}">
@@ -519,34 +519,20 @@
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" href="{{ url_for('main.gestion_ecoles') }}"><i class="fas fa-cog me-2"></i>Gérer les écoles</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.ajouter_ecole') }}"><i class="fas fa-plus me-2"></i>Ajouter une école</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('main.choisir_ecole') }}"><i class="fas fa-exchange-alt me-2"></i>Changer d'école</a></li>
-                                </ul>
-                            </li>
-
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                    <i class="fas fa-users me-1"></i>Utilisateurs
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{{ url_for('main.gestion_utilisateurs') }}"><i class="fas fa-list me-2"></i>Tous les utilisateurs</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('main.creer_utilisateur') }}"><i class="fas fa-user-plus me-2"></i>Créer utilisateur</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('main.gerer_ecoles_utilisateur', user_id=1) }}"><i class="fas fa-school me-2"></i>Gérer écoles utilisateur</a></li>
-                                </ul>
-                            </li>
-
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                    <i class="fas fa-archive me-1"></i>Archives
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{{ url_for('admin.archive_data') }}"><i class="fas fa-archive me-2"></i>Archives</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('admin.view_logs') }}"><i class="fas fa-file-alt me-2"></i>Logs</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('main.journaux_corrections') }}"><i class="fas fa-edit me-2"></i>Journal corrections</a></li>
                                 </ul>
                             </li>
 
                         <!-- 🔹 ADMIN : Accès limité à ses écoles -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-file-alt me-1"></i>Journalisation
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.view_logs') }}"><i class="fas fa-file-alt me-2"></i>Logs systeme</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('main.journaux_corrections') }}"><i class="fas fa-edit me-2"></i>Journal corrections</a></li>
+                                </ul>
+                            </li>
+
                         {% elif current_user.role == 'admin' %}
                             <li class="nav-item">
                                 <a class="nav-link {{ 'active' if request.endpoint == 'main.index' }}" href="{{ url_for('main.index') }}">
@@ -584,6 +570,7 @@
                                 </ul>
                             </li>
                             
+                            <li class="nav-item"><a class="nav-link" href="{{ url_for('main.gestion_utilisateurs') }}"><i class="fas fa-users me-1"></i>Utilisateurs</a></li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('main.cours') }}"><i class="fas fa-book me-1"></i>Cours</a></li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('main.notes') }}"><i class="fas fa-edit me-1"></i>Notes</a></li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('main.paiements') }}"><i class="fas fa-money-bill-wave me-1"></i>Paiements</a></li>
@@ -627,34 +614,6 @@
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('main.enseignant_home') }}">
                                     <i class="fas fa-calendar-alt me-1"></i>Mon Emploi du temps
-                                </a>
-                            </li>
-
-                        <!-- 🔹 ÉLÈVE : Accès à ses propres données -->
-                        {% elif current_user.role == 'eleve' %}
-                            <li class="nav-item">
-                                <a class="nav-link {{ 'active' if request.endpoint == 'main.eleve_dashboard' }}" href="{{ url_for('main.eleve_dashboard') }}">
-                                    <i class="fas fa-home me-1"></i>Accueil
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('main.mes_notes') }}">
-                                    <i class="fas fa-chart-line me-1"></i>Mes Notes
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('main.mon_bulletin') }}">
-                                    <i class="fas fa-file-pdf me-1"></i>Mon Bulletin
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('main.mon_emploi_temps') }}">
-                                    <i class="fas fa-calendar-alt me-1"></i>Mon Emploi du temps
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('main.mes_alertes') }}">
-                                    <i class="fas fa-bell me-1"></i>Mes Alertes
                                 </a>
                             </li>
 
@@ -808,7 +767,6 @@
                                     <ul class="list-unstyled">
                                         <li><a class="dropdown-item small" href="{{ url_for('admin.dashboard') }}">Dashboard Global</a></li>
                                         <li><a class="dropdown-item small" href="{{ url_for('admin.view_logs') }}">Logs Système</a></li>
-                                        <li><a class="dropdown-item small" href="{{ url_for('admin.archive_data') }}">Archivage Global</a></li>
                                         <li><a class="dropdown-item small" href="{{ url_for('admin.optimize') }}">Optimiser DB</a></li>
                                         <li><a class="dropdown-item small" href="{{ url_for('admin.version_info') }}">Version</a></li>
                                     </ul>
@@ -824,11 +782,9 @@
                                     <ul class="list-unstyled">
                                         {% if current_user.role == 'super_admin' %}
                                             <li><a class="dropdown-item small" href="{{ url_for('admin.dashboard') }}">Dashboard École</a></li>
-                                            <li><a class="dropdown-item small" href="{{ url_for('admin.archive_data') }}">Archivage</a></li>
                                             <li><a class="dropdown-item small" href="{{ url_for('main.creer_utilisateur') }}">Créer Utilisateur</a></li>
                                             <li><a class="dropdown-item small" href="{{ url_for('main.journaux_corrections') }}">Corrections</a></li>
                                         {% elif current_user.role == 'admin' %}
-                                            <li><a class="dropdown-item small" href="{{ url_for('admin.archive_data') }}">Archivage</a></li>
                                             <li><a class="dropdown-item small" href="{{ url_for('main.creer_utilisateur') }}">Créer Utilisateur</a></li>
                                         {% endif %}
                                     </ul>
@@ -840,11 +796,6 @@
                             {% endif %}
 
                            
-
-                            {% if current_user.role == 'eleve' %}
-                            <li><a class="dropdown-item" href="{{ url_for('main.mes_performances') }}"><i class="fas fa-trophy me-2"></i>Mes Performances</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            {% endif %}
 
                             {% if current_user.role == 'parent' %}
                             <li><a class="dropdown-item" href="{{ url_for('main.notifications') }}"><i class="fas fa-bell me-2"></i>Notifications</a></li>
@@ -931,8 +882,6 @@
                             <li class="mb-2"><a href="{{ url_for('main.dashboard') }}">Tableau de bord</a></li>
                             {% elif current_user.role == 'professeur' %}
                             <li class="mb-2"><a href="{{ url_for('main.enseignant_dashboard') }}">Mon Espace</a></li>
-                            {% elif current_user.role == 'eleve' %}
-                            <li class="mb-2"><a href="{{ url_for('main.eleve_dashboard') }}">Mon Espace</a></li>
                             {% elif current_user.role == 'parent' %}
                             <li class="mb-2"><a href="{{ url_for('main.parent_dashboard') }}">Mon Espace</a></li>
                             {% endif %}

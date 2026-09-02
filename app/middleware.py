@@ -256,6 +256,13 @@ def filtre_par_ecole(query, modele=None):
 # 🛡️ VÉRIFICATION D'ACCÈS AUX RESSOURCES
 # ====================================================================
 
+def ajouter_ecole_id(obj):
+    """Assigne automatiquement l'ecole_id courant a un objet avant creation."""
+    ecole = get_ecole_courante()
+    if ecole and not isinstance(ecole, tuple) and hasattr(obj, 'ecole_id'):
+        obj.ecole_id = ecole.id
+
+
 def check_ecole_access(model_class, object_id=None, ecole_field='ecole_id'):
     """
     Vérifie qu'un objet appartient bien à l'école courante.

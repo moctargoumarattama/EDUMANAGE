@@ -78,7 +78,7 @@
     <div class="d-flex justify-content-between align-items-center mt-4 mb-2 premium-section-header">
         <h4 class="mb-0 premium-title">Gestion des notes</h4>
         <div>
-            <a href="{{ url_for('main.export_notes_excel', id=cours.id) }}" class="btn btn-success premium-btn">
+            <a href="{{ url_for('main.export_notes', id=cours.id) }}" class="btn btn-success premium-btn">
                 <i class="fas fa-file-excel me-1"></i>Exporter les notes
             </a>
         </div>
@@ -141,19 +141,6 @@
         </div>
         <div class="card-body">
             <div class="row">
-                <!-- PDF -->
-                <div class="col-md-4 mb-3">
-                    <div class="card border-0 shadow-sm h-100 premium-resource-card">
-                        <div class="card-body text-center">
-                            <i class="fas fa-file-pdf text-danger fa-3x mb-3 premium-resource-icon"></i>
-                            <h6>Notes de cours</h6>
-                            <p class="text-muted small">PDF disponible</p>
-                            <a href="{{ url_for('main.export_notes_eleve_pdf', id=cours.id) }}"
-                               class="btn btn-outline-primary btn-sm premium-btn">Télécharger</a>
-                        </div>
-                    </div>
-                </div>
-                
                 <!-- Exercices / anciens examens -->
                 <div class="col-md-4 mb-3">
                     <div class="card border-0 shadow-sm h-100 premium-resource-card">

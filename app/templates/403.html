@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="text-center mt-5">
+    <h1>403</h1>
+    <p>Vous n'avez pas l'autorisation d'acceder a cette page.</p>
+    <a href="{{ url_for('main.index') }}">Retour a l'accueil</a>
+</div>
+{% endblock %}

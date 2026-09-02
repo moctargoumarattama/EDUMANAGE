@@ -1,29 +1,45 @@
 {% extends "base.html" %}
 
-{% block title %}Modifier {{ eleve.nom }}{% endblock %}
+{% block title %}Modifier classe{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <h1>Modifier l'élève {{ eleve.nom }} {{ eleve.prenom }}</h1>
-    <form method="POST">
-        <div class="mb-3">
-            <label for="nom" class="form-label">Nom</label>
-            <input type="text" class="form-control" id="nom" name="nom" value="{{ eleve.nom }}">
+<div class="container py-4">
+    <h2 class="mb-4">Modifier la classe {{ classe.nom }}</h2>
+
+    <form method="POST" action="{{ url_for('main.modifier_classe', classe_id=classe.id) }}">
+        {{ form.hidden_tag() }}
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                {{ form.nom.label(class="form-label") }}
+                {{ form.nom(class="form-control") }}
+            </div>
+            <div class="col-md-6">
+                {{ form.niveau.label(class="form-label") }}
+                {{ form.niveau(class="form-select") }}
+            </div>
+            <div class="col-md-4">
+                {{ form.effectif.label(class="form-label") }}
+                {{ form.effectif(class="form-control", type="number", min="0") }}
+            </div>
+            <div class="col-md-4">
+                {{ form.salle.label(class="form-label") }}
+                {{ form.salle(class="form-control") }}
+            </div>
+            <div class="col-md-4">
+                {{ form.annee_scolaire_id.label(class="form-label") }}
+                {{ form.annee_scolaire_id(class="form-select") }}
+            </div>
+            <div class="col-12">
+                {{ form.professeur_principal_id.label(class="form-label") }}
+                {{ form.professeur_principal_id(class="form-select") }}
+            </div>
         </div>
-        <div class="mb-3">
-            <label for="prenom" class="form-label">Prénom</label>
-            <input type="text" class="form-control" id="prenom" name="prenom" value="{{ eleve.prenom }}">
+
+        <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <a href="{{ url_for('main.liste_classes') }}" class="btn btn-outline-secondary">Annuler</a>
         </div>
-        <div class="mb-3">
-            <label for="classe_id" class="form-label">Classe</label>
-            <select name="classe_id" class="form-select" id="classe_id">
-                {% for c in classes %}
-                <option value="{{ c.id }}" {% if c.id == eleve.classe_id %}selected{% endif %}>{{ c.nom }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <button type="submit" class="btn btn-success">Enregistrer</button>
-        <a href="{{ url_for('main.detail_eleve', eleve_id=eleve.id) }}" class="btn btn-secondary">Annuler</a>
     </form>
 </div>
 {% endblock %}

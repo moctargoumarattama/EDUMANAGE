@@ -43,15 +43,6 @@
                Lancer la migration
             </a>
         </div>
-<!-- Ajouter cette carte dans maintenance.html -->
-<div class="card">
-    <h2>📦 Archivage des Données</h2>
-    <p>Archivez les notes et absences par promotion (Classe - Année Scolaire) pour organiser vos données historiques.</p>
-    <div class="action-buttons">
-        <a href="{{ url_for('admin.archive_data') }}" class="button primary">Gérer l'archivage</a>
-        <a href="{{ url_for('admin.init_annees') }}" class="button" onclick="return confirm('Initialiser les années scolaires?')">Initialiser années</a>
-    </div>
-</div>
         <!-- Vérification d'intégrité -->
         <div class="card">
             <h2>Vérification d'intégrité de la base</h2>

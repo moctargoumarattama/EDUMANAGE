@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier professeur{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Modifier {{ professeur.prenom }} {{ professeur.nom }}</h2>
+
+    <form method="POST" action="{{ url_for('main.modifier_professeur', id=professeur.id) }}">
+        {{ form.hidden_tag() }}
+
+        <div class="row g-3">
+            <div class="col-md-6">{{ form.nom.label(class="form-label") }}{{ form.nom(class="form-control") }}</div>
+            <div class="col-md-6">{{ form.prenom.label(class="form-label") }}{{ form.prenom(class="form-control") }}</div>
+            <div class="col-md-6">{{ form.email.label(class="form-label") }}{{ form.email(class="form-control") }}</div>
+            <div class="col-md-6">{{ form.telephone.label(class="form-label") }}{{ form.telephone(class="form-control") }}</div>
+            <div class="col-md-6">{{ form.date_naissance.label(class="form-label") }}{{ form.date_naissance(class="form-control") }}</div>
+            <div class="col-md-6">{{ form.specialite.label(class="form-label") }}{{ form.specialite(class="form-control") }}</div>
+            <div class="col-12">{{ form.adresse.label(class="form-label") }}{{ form.adresse(class="form-control") }}</div>
+            <div class="col-12">{{ form.matieres_enseignees.label(class="form-label") }}{{ form.matieres_enseignees(class="form-control") }}</div>
+            <div class="col-md-6">{{ form.code_prof.label(class="form-label") }}{{ form.code_prof(class="form-control") }}</div>
+        </div>
+
+        <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <a href="{{ url_for('main.professeur_details', id=professeur.id) }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

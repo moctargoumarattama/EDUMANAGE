@@ -23,7 +23,7 @@ class CreateUserForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Mot de passe', validators=[DataRequired(), Length(min=6)])
     confirm_password = PasswordField('Confirmer mot de passe', validators=[DataRequired(), EqualTo('password')])
-    role = SelectField('Rôle', choices=[('enseignant', 'Enseignant'), ('parent', 'Parent')], validators=[DataRequired()])
+    role = SelectField('Rôle', choices=[('admin', 'Admin')], validators=[DataRequired()])
 
     # Liste des élèves pour rattacher un parent (optionnel)
     eleve_id = SelectField('Élève', coerce=int, choices=[], validate_choice=False)
@@ -182,7 +182,7 @@ class NoteForm(FlaskForm):
 
             # --- Années scolaires ---
             annees_query = AnneeScolaire.query.order_by(AnneeScolaire.nom.desc()).all()
-            annees_choices = [(a.id, a.nom) for a in annees_query if a.active]
+            annees_choices = [(a.id, a.nom) for a in annees_query if a.statut == 'active']
             self.annee_id.choices = annees_choices or [(0, "--- Aucune année active ---")]
         else:
             self.eleve_id.choices = [(0, "--- Aucun élève ---")]

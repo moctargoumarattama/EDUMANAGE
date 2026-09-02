@@ -68,7 +68,7 @@
     <div class="container">
         <div class="row g-3 justify-content-center">
             <!-- Carte Élèves -->
-            <div class="col-md-3 col-sm-6">
+            <div class="col-6 col-md-3">
                 <div class="stat-card">
                     <div class="stat-icon students">
                         <i class="fas fa-users"></i>
@@ -87,7 +87,7 @@
             </div>
 
             <!-- Carte Professeurs -->
-            <div class="col-md-3 col-sm-6">
+            <div class="col-6 col-md-3">
                 <div class="stat-card">
                     <div class="stat-icon teachers">
                         <i class="fas fa-chalkboard-teacher"></i>
@@ -106,7 +106,7 @@
             </div>
 
             <!-- Carte Cours -->
-            <div class="col-md-3 col-sm-6">
+            <div class="col-6 col-md-3">
                 <div class="stat-card">
                     <div class="stat-icon courses">
                         <i class="fas fa-book"></i>
@@ -125,7 +125,7 @@
             </div>
 
             <!-- Carte Paiements -->
-            <div class="col-md-3 col-sm-6">
+            <div class="col-6 col-md-3">
                 <div class="stat-card">
                     <div class="stat-icon payments">
                         <i class="fas fa-money-bill-wave"></i>
@@ -158,7 +158,7 @@
 
         <div class="row g-3 justify-content-center">
             <!-- Gestion des périodes -->
-            <div class="col-lg-4 col-md-6">
+            <div class="col-6 col-lg-4">
                 <div class="action-card">
                     <div class="action-icon bg-primary">
                         <i class="fas fa-calendar-alt"></i>
@@ -174,7 +174,7 @@
             </div>
 
             <!-- Années scolaires -->
-            <div class="col-lg-4 col-md-6">
+            <div class="col-6 col-lg-4">
                 <div class="action-card">
                     <div class="action-icon bg-success">
                         <i class="fas fa-calendar-check"></i>
@@ -190,7 +190,7 @@
             </div>
 
             <!-- Créer utilisateur -->
-            <div class="col-lg-4 col-md-6">
+            <div class="col-6 col-lg-4">
                 <div class="action-card">
                     <div class="action-icon bg-info">
                         <i class="fas fa-user-plus"></i>
@@ -234,6 +234,7 @@
 {% endif %}
 
 <!-- Section Accès Rapide -->
+{% if current_user.role in ['admin', 'enseignant'] %}
 <section class="quick-access py-4">
     <div class="container">
         <div class="section-header text-center mb-4">
@@ -243,7 +244,7 @@
 
         <div class="row g-3 justify-content-center">
             {% if current_user.role in ['admin', 'enseignant'] %}
-            <div class="col-md-4 col-sm-6">
+            <div class="col-6 col-md-4">
                 <a href="{{ url_for('main.liste_classes') }}" class="quick-card">
                     <div class="quick-icon bg-primary">
                         <i class="fas fa-list-alt"></i>
@@ -257,7 +258,7 @@
             {% endif %}
 
             {% if current_user.role == 'admin' %}
-            <div class="col-md-4 col-sm-6">
+            <div class="col-6 col-md-4">
                 <a href="{{ url_for('main.ajouter_classe') }}" class="quick-card">
                     <div class="quick-icon bg-success">
                         <i class="fas fa-plus-circle"></i>
@@ -269,7 +270,7 @@
                 </a>
             </div>
 
-            <div class="col-md-4 col-sm-6">
+            <div class="col-6 col-md-4">
                 <a href="{{ url_for('main.sync_hors_ligne') }}" class="quick-card">
                     <div class="quick-icon bg-warning">
                         <i class="fas fa-sync-alt"></i>
@@ -284,6 +285,7 @@
         </div>
     </div>
 </section>
+{% endif %}
 
 <!-- CSS OPTIMISÉ - Réduit de 70% -->
 <style>
@@ -558,13 +560,111 @@
 
 /* Responsive optimisé */
 @media (max-width: 768px) {
-    .hero-section, .stats-section {
+    .hero-section, .stats-section, .admin-section, .quick-access {
         margin: 10px auto;
-        border-radius: 15px;
+        max-width: calc(100% - 16px);
+        border-radius: 12px;
+    }
+
+    .hero-section {
+        padding: 28px 0 34px !important;
+    }
+
+    .hero-title {
+        font-size: 1.75rem;
+        line-height: 1.15;
+    }
+
+    .hero-subtitle {
+        font-size: 1rem;
+        margin-bottom: 0.65rem;
+    }
+
+    .hero-description {
+        font-size: 0.92rem;
+        margin-bottom: 1.1rem;
+    }
+
+    .premium-badge {
+        margin-bottom: 1rem;
+        padding: 0.35rem 1rem;
+        font-size: 0.8rem;
+    }
+
+    .hero-buttons .d-flex {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem !important;
+    }
+
+    .hero-buttons .btn:last-child {
+        grid-column: 1 / -1;
+        justify-self: center;
+        min-width: 56%;
+    }
+
+    .hero-buttons .btn {
+        width: 100%;
+        min-height: 40px;
+        white-space: normal;
     }
     
     .stat-card, .action-card, .quick-card {
-        padding: 1rem;
+        border-radius: 12px;
+        padding: 0.85rem;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        min-height: 132px;
+    }
+
+    .stat-card:hover, .action-card:hover, .quick-card:hover,
+    .glass-btn:hover, .action-btn:hover {
+        transform: none;
+    }
+
+    .stat-icon, .action-icon, .quick-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        font-size: 1rem;
+        margin-bottom: 0.65rem;
+    }
+
+    .stat-number {
+        font-size: 1.45rem;
+        margin-bottom: 0.15rem;
+    }
+
+    .stat-label, .action-content p, .quick-content p {
+        font-size: 0.78rem;
+        line-height: 1.25;
+        margin-bottom: 0.65rem;
+    }
+
+    .action-content h5, .quick-content h5 {
+        font-size: 0.9rem;
+        line-height: 1.2;
+        margin-bottom: 0.35rem;
+    }
+
+    .action-btn {
+        border-radius: 8px;
+        padding: 0.45rem 0.75rem;
+        font-size: 0.8rem;
+    }
+
+    .stat-link {
+        top: 0.85rem;
+        right: 0.85rem;
+        font-size: 0.85rem;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+    }
+
+    .section-subtitle {
+        font-size: 0.85rem;
+        margin-bottom: 0;
     }
     
     .floating-particles {
@@ -572,16 +672,35 @@
     }
     
     .hero-buttons .btn {
-        padding: 0.6rem 1rem;
-        font-size: 0.9rem;
+        padding: 0.6rem 0.7rem;
+        font-size: 0.82rem;
     }
 }
 
 @media (max-width: 576px) {
-    .stat-icon, .action-icon, .quick-icon {
-        width: 50px;
-        height: 50px;
-        font-size: 1.2rem;
+    .stats-section, .admin-section, .quick-access {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+    }
+
+    .stats-section .row, .admin-section .row, .quick-access .row {
+        --bs-gutter-x: 0.65rem;
+        --bs-gutter-y: 0.65rem;
+    }
+
+    .stat-card, .action-card, .quick-card {
+        min-height: 118px;
+        padding: 0.75rem;
+    }
+
+    .quick-card, .action-card {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .progress-bar {
+        height: 4px;
     }
 }
 </style>

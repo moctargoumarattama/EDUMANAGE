@@ -6,7 +6,7 @@ import sqlite3
 import subprocess
 from datetime import datetime, timedelta, date
 from app import db
-from app.models import Log, ArchiveNote, ArchiveAbsence, ParametreSysteme
+from app.models import Log, ParametreSysteme
 import json
 from app.models import Note, Absence, Ecole, Classe, Eleve, Professeur, Utilisateur, AnneeScolaire
 
@@ -91,21 +91,6 @@ def create_missing_tables():
         columns = [col[1] for col in cursor.fetchall()]
         if 'annee_scolaire_id' not in columns:
             cursor.execute("ALTER TABLE classe ADD COLUMN annee_scolaire_id INTEGER DEFAULT 1")
-        
-        # Ajouter les colonnes aux tables d'archive
-        cursor.execute("PRAGMA table_info(archive_note)")
-        archive_note_columns = [col[1] for col in cursor.fetchall()]
-        if 'classe_id' not in archive_note_columns:
-            cursor.execute("ALTER TABLE archive_note ADD COLUMN classe_id INTEGER")
-        if 'annee_scolaire_id' not in archive_note_columns:
-            cursor.execute("ALTER TABLE archive_note ADD COLUMN annee_scolaire_id INTEGER")
-        
-        cursor.execute("PRAGMA table_info(archive_absence)")
-        archive_absence_columns = [col[1] for col in cursor.fetchall()]
-        if 'classe_id' not in archive_absence_columns:
-            cursor.execute("ALTER TABLE archive_absence ADD COLUMN classe_id INTEGER")
-        if 'annee_scolaire_id' not in archive_absence_columns:
-            cursor.execute("ALTER TABLE archive_absence ADD COLUMN annee_scolaire_id INTEGER")
         
         conn.commit()
         current_app.logger.info("Tables manquantes créées avec succès")
@@ -212,95 +197,6 @@ def clean_data():
         conn.close()
 
     return result
-
-# --- Archivage des données anciennes (NOUVELLE VERSION) ---
-def archive_old_data(annee_scolaire_id, classe_id=None):
-    """Archive les notes et absences d'une année scolaire et classe spécifique"""
-    try:
-        annee_scolaire = AnneeScolaire.query.get(annee_scolaire_id)
-        if not annee_scolaire:
-            return "Année scolaire non trouvée"
-        
-        # Filtrer par classe si spécifiée
-        if classe_id:
-            classes = [Classe.query.get(classe_id)]
-            if not classes[0]:
-                return "Classe non trouvée"
-        else:
-            # Toutes les classes de cette année scolaire
-            classes = Classe.query.filter_by(annee_scolaire_id=annee_scolaire_id).all()
-        
-        total_notes = 0
-        total_absences = 0
-        
-        for classe in classes:
-            # Récupérer les élèves de cette classe
-            eleves_classe = Eleve.query.filter_by(classe_id=classe.id).all()
-            eleve_ids = [e.id for e in eleves_classe]
-            
-            if eleve_ids:
-                # Archiver les notes
-                notes_a_archiver = Note.query.filter(
-                    Note.eleve_id.in_(eleve_ids)
-                ).all()
-                
-                for note in notes_a_archiver:
-                    archive_note = ArchiveNote(
-                        eleve_id=note.eleve_id,
-                        cours_id=note.cours_id,
-                        valeur=note.valeur,
-                        coefficient=note.coefficient,
-                        type_evaluation=note.type_evaluation,
-                        periode=note.periode,
-                        date_evaluation=note.date_evaluation,
-                        classe_id=classe.id,
-                        annee_scolaire_id=annee_scolaire_id,
-                        annee_scolaire=annee_scolaire.nom
-                    )
-                    db.session.add(archive_note)
-                    db.session.delete(note)
-                    total_notes += 1
-                
-                # Archiver les absences
-                absences_a_archiver = Absence.query.filter(
-                    Absence.eleve_id.in_(eleve_ids)
-                ).all()
-                
-                for absence in absences_a_archiver:
-                    archive_absence = ArchiveAbsence(
-                        eleve_id=absence.eleve_id,
-                        cours_id=absence.cours_id,
-                        date_absence=absence.date_absence,
-                        motif=absence.motif,
-                        justifiee=absence.justifiee,
-                        classe_id=classe.id,
-                        annee_scolaire_id=annee_scolaire_id,
-                        annee_scolaire=annee_scolaire.nom
-                    )
-                    db.session.add(archive_absence)
-                    db.session.delete(absence)
-                    total_absences += 1
-        
-        db.session.commit()
-        
-        if classe_id:
-            classe_nom = classes[0].nom_complet
-            result = f"{total_notes} notes et {total_absences} absences archivées pour {classe_nom}"
-        else:
-            result = f"{total_notes} notes et {total_absences} absences archivées pour l'année {annee_scolaire.nom}"
-        
-        log_action("ARCHIVAGE", result)
-        return result
-        
-    except Exception as e:
-        db.session.rollback()
-        error_msg = f"Erreur lors de l'archivage: {str(e)}"
-        log_action("ERREUR", error_msg, level="ERROR")
-        return error_msg
-
-def get_classes_by_annee(annee_scolaire_id):
-    """Récupère toutes les classes d'une année scolaire"""
-    return Classe.query.filter_by(annee_scolaire_id=annee_scolaire_id).all()
 
 # --- Migration / Mise à jour ---
 def migrate_db():
@@ -683,51 +579,3 @@ def get_school_backups(ecole_id):
     return backups
 
 
-# --- Statistiques des archives ---
-def get_archive_stats():
-    """
-    Retourne des statistiques globales sur les données archivées
-    """
-    try:
-        notes_count = ArchiveNote.query.count()
-        absences_count = ArchiveAbsence.query.count()
-        annees = db.session.query(ArchiveNote.annee_scolaire).distinct().all()
-        annees_abs = db.session.query(ArchiveAbsence.annee_scolaire).distinct().all()
-        annees_scolaires = sorted(set([a[0] for a in annees] + [a[0] for a in annees_abs]))
-
-        return {
-            "notes": notes_count,
-            "absences": absences_count,
-            "annees_scolaires": annees_scolaires
-        }
-    except Exception as e:
-        log_action("ERREUR", f"Erreur get_archive_stats: {str(e)}", level="ERROR")
-        return {
-            "notes": 0,
-            "absences": 0,
-            "annees_scolaires": []
-        }
-
-# --- Consultation des données archivées (NOUVELLE VERSION) ---
-def view_archived_data(annee_scolaire_id, classe_id=None):
-    """
-    Retourne les notes et absences archivées pour une année scolaire et classe
-    """
-    try:
-        query_notes = ArchiveNote.query.filter_by(annee_scolaire_id=annee_scolaire_id)
-        query_absences = ArchiveAbsence.query.filter_by(annee_scolaire_id=annee_scolaire_id)
-        
-        if classe_id:
-            query_notes = query_notes.filter_by(classe_id=classe_id)
-            query_absences = query_absences.filter_by(classe_id=classe_id)
-        
-        notes = query_notes.all()
-        absences = query_absences.all()
-
-        return {
-            "notes": [n.to_dict() for n in notes],
-            "absences": [a.to_dict() for a in absences]
-        }
-    except Exception as e:
-        log_action("ERREUR", f"Erreur view_archived_data: {str(e)}", level="ERROR")
-        return {"notes": [], "absences": []}

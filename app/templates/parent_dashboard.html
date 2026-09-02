@@ -202,7 +202,7 @@
 // Fonction pour récupérer les notifications
 async function fetchNotifications() {
     try {
-        const response = await fetch('/notifications');
+        const response = await fetch('/notifications?format=json');
         if (response.ok) {
             const notifications = await response.json();
             updateNotificationBadge(notifications.length);

@@ -14,7 +14,7 @@
         {% endif %}
     {% endwith %}
 
-    <form method="POST" action="{{ url_for('main.edit_utilisateur', id=user.id) }}">
+    <form method="POST" action="{{ url_for('main.modifier_utilisateur', id=user.id) }}">
         {% if csrf_token %}
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% endif %}
@@ -42,7 +42,7 @@
         <div class="mb-3">
             <label for="role" class="form-label">Rôle</label>
             <select class="form-select" id="role" name="role">
-                {% for r in ['super_admin','admin','enseignant','parent'] %}
+                {% for r in roles %}
                     <option value="{{ r }}" {% if user.role == r %}selected{% endif %}>{{ r|capitalize }}</option>
                 {% endfor %}
             </select>
@@ -57,7 +57,7 @@
         </div>
 
         <button type="submit" class="btn btn-primary">Mettre à jour</button>
-        <a href="{{ url_for('main.profile') }}" class="btn btn-secondary">Annuler</a>
+        <a href="{{ url_for('main.gestion_utilisateurs') }}" class="btn btn-secondary">Annuler</a>
     </form>
 </div>
 {% endblock %}

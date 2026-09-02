@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier cours{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Modifier {{ cours.nom }}</h2>
+
+    <form method="POST" action="{{ url_for('main.modifier_cours', id=cours.id) }}">
+        {{ form.hidden_tag() }}
+
+        <div class="row g-3">
+            <div class="col-md-6">{{ form.nom.label(class="form-label") }}{{ form.nom(class="form-control") }}</div>
+            <div class="col-md-6">{{ form.coefficient.label(class="form-label") }}{{ form.coefficient(class="form-control") }}</div>
+            <div class="col-md-6">{{ form.professeur_id.label(class="form-label") }}{{ form.professeur_id(class="form-select") }}</div>
+            <div class="col-md-6">{{ form.classe_id.label(class="form-label") }}{{ form.classe_id(class="form-select") }}</div>
+            <div class="col-12">{{ form.description.label(class="form-label") }}{{ form.description(class="form-control", rows="4") }}</div>
+        </div>
+
+        <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <a href="{{ url_for('main.cours_details', id=cours.id) }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -10,7 +10,7 @@ import re
 from datetime import datetime
 
 # Import modèles
-from app.models import Log, Note, Ecole, ArchiveNote, ArchiveAbsence, AnneeScolaire, Classe
+from app.models import Log, Ecole
 
 # Formulaires
 from app.admin.forms import BackupSchoolForm
@@ -25,7 +25,6 @@ from .scripts import (
     delete_backup_file,
     download_backup_file,
     integrity_check,
-    archive_old_data,
     deploy_app,
     optimize_database,
     create_missing_tables,
@@ -33,15 +32,14 @@ from .scripts import (
     create_school_backup,
     restore_school_backup,
     get_school_backups,
-    get_archive_stats,
-    view_archived_data,
-    get_classes_by_annee,
     init_annees_scolaires
 )
 
 BACKUP_DIR = 'backups'
 
 # --- Dashboard ---
+# SECURITY TODO: ce blueprint admin expose plusieurs routes sans @login_required/@role_required ici.
+# Vérifier s'il existe une protection globale avant toute mise en production.
 @admin_bp.route('/admin')
 def dashboard():
     stats = get_system_stats()
@@ -152,75 +150,6 @@ def view_logs():
     logs = Log.query.order_by(Log.timestamp.desc()).paginate(page=page, per_page=per_page, error_out=False)
     
     return render_template('logs.html', logs=logs)
-
-# --- Archivage (NOUVELLE VERSION) ---
-@admin_bp.route('/admin/archive', methods=['GET', 'POST'])
-def archive_data():
-    """Archive les données par année scolaire et classe"""
-    if request.method == 'POST':
-        annee_scolaire_id = request.form.get('annee_scolaire_id')
-        classe_id = request.form.get('classe_id')
-        action = request.form.get('action', 'archive')  # 'archive' ou 'view'
-        
-        if annee_scolaire_id:
-            if action == 'archive':
-                # Archiver l'année scolaire ou la classe spécifique
-                result = archive_old_data(annee_scolaire_id, classe_id)
-                flash(result, 'success' if 'erreur' not in result.lower() else 'error')
-            elif action == 'view':
-                # Consulter les données archivées
-                return redirect(url_for('admin.view_archive', 
-                                      annee_scolaire_id=annee_scolaire_id,
-                                      classe_id=classe_id))
-            
-            return redirect(url_for('admin.archive_data'))
-    
-    # Récupérer les années scolaires et classes
-    annees_scolaires = AnneeScolaire.query.order_by(AnneeScolaire.date_debut.desc()).all()
-    classes = []
-    
-    annee_selected = request.args.get('annee_scolaire_id')
-    if annee_selected:
-        classes = get_classes_by_annee(annee_selected)
-    
-    archive_stats = get_archive_stats()
-    
-    return render_template('archive.html', 
-                         annees_scolaires=annees_scolaires,
-                         classes=classes,
-                         archive_stats=archive_stats)
-
-# --- Consultation des données archivées (NOUVELLE VERSION) ---
-@admin_bp.route('/admin/archive/view')
-def view_archive():
-    """Affiche les données archivées par année scolaire et classe"""
-    annee_scolaire_id = request.args.get('annee_scolaire_id')
-    classe_id = request.args.get('classe_id')
-    
-    if not annee_scolaire_id:
-        flash("Aucune année scolaire spécifiée", "error")
-        return redirect(url_for('admin.archive_data'))
-    
-    # Récupérer les données archivées
-    archived_data = view_archived_data(annee_scolaire_id, classe_id)
-    archive_stats = get_archive_stats()
-    
-    annee_scolaire = AnneeScolaire.query.get(annee_scolaire_id)
-    classe = Classe.query.get(classe_id) if classe_id else None
-    
-    return render_template('view_archive.html',
-                         annee_scolaire=annee_scolaire,
-                         classe=classe,
-                         archived_data=archived_data,
-                         archive_stats=archive_stats)
-
-# --- API pour récupérer les classes d'une année scolaire ---
-@admin_bp.route('/admin/api/classes/<int:annee_scolaire_id>')
-def api_classes_by_annee(annee_scolaire_id):
-    """API pour récupérer les classes d'une année scolaire"""
-    classes = get_classes_by_annee(annee_scolaire_id)
-    classes_data = [{'id': c.id, 'nom_complet': c.nom_complet} for c in classes]
-    return jsonify(classes_data)
 
 # --- Déploiement ---
 @admin_bp.route('/admin/deploy', methods=['POST'])
