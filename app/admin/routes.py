@@ -1,4 +1,5 @@
-from flask import render_template, redirect, url_for, flash, send_file, request, jsonify
+from flask import abort, render_template, redirect, url_for, flash, send_file, request, jsonify
+from flask_login import current_user
 from app.utils import get_ecole_filter_query
 from . import admin_bp
 
@@ -37,9 +38,19 @@ from .scripts import (
 
 BACKUP_DIR = 'backups'
 
+
+@admin_bp.before_request
+def require_super_admin_for_admin_blueprint():
+    if request.endpoint == 'admin.static':
+        return None
+    if not getattr(current_user, 'is_authenticated', False):
+        return redirect(url_for('main.login'))
+    if getattr(current_user, 'role', None) != 'super_admin':
+        abort(403)
+    return None
+
+
 # --- Dashboard ---
-# SECURITY TODO: ce blueprint admin expose plusieurs routes sans @login_required/@role_required ici.
-# Vérifier s'il existe une protection globale avant toute mise en production.
 @admin_bp.route('/admin')
 def dashboard():
     stats = get_system_stats()

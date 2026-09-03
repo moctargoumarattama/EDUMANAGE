@@ -53,7 +53,14 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
 from app.authorization import (
+    can_access_absence,
+    can_access_class,
+    can_access_cours,
+    can_access_eleve,
+    can_access_note,
+    can_access_paiement,
     check_parent_access,
+    get_current_professeur,
     parent_access_required,
     role_required,
 )
@@ -108,10 +115,7 @@ from app.models import (
 )
 from app.models import Professeur as User
 from app.notifications import (
-    TELEGRAM_CHAT_ID,
     envoyer_email,
-    envoyer_telegram,
-    envoyer_telegram_image,
 )
 from app.utils import (
     allowed_file,
@@ -160,12 +164,6 @@ def envoyer_email_smtp(destinataire, sujet, message):
     except Exception as e:
         current_app.logger.error(f"Erreur lors de l'envoi de l'email: {e}")
         return False
-
-
-def envoyer_sms(numero, message):
-    """Fonction pour envoyer des SMS (simulée, à implémenter avec un service SMS)."""
-    current_app.logger.info(f"📱 SMS simulé à {numero}: {message}")
-    return True
 
 
 try:

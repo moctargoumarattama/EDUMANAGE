@@ -1,72 +1,85 @@
 {% extends "base.html" %}
+
 {% block title %}Modifier une Note - EduManage{% endblock %}
 
 {% block content %}
 <div class="container py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.notes') }}">Notes</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Modifier</li>
+        </ol>
+    </nav>
+
     <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-lg animate-pop-in" style="border-radius: 1.2rem; overflow: hidden;">
-                <div class="card-header py-4 text-white" style="background: var(--gradient-warning);">
-                    <h3 class="mb-0"><i class="fas fa-edit me-2"></i>Modifier une Note</h3>
+        <div class="col-lg-9 col-xl-8">
+            <div class="form-card animate-pop-in">
+                <div class="form-header">
+                    <div class="form-header-content">
+                        <div class="form-header-icon">
+                            <i class="fas fa-award"></i>
+                        </div>
+                        <div>
+                            <h2 class="form-header-title">Modifier l'évaluation</h2>
+                            <p class="form-header-subtitle">Mise à jour de la note et des paramètres du coefficient</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body p-5">
+
+                <div class="form-card-body">
                     <form method="POST" class="needs-validation" novalidate>
                         {{ form.hidden_tag() }}
-                        
-                        <div class="mb-4">
-                            <div class="form-floating">
-                                {{ form.eleve_id(class="form-select", style="border-radius: 0.8rem;") }}
-                                {{ form.eleve_id.label(class="form-label") }}
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="form-floating">
-                                {{ form.cours_id(class="form-select", style="border-radius: 0.8rem;") }}
-                                {{ form.cours_id.label(class="form-label") }}
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-4">
-                                <div class="form-floating">
-                                    {{ form.valeur(class="form-control", placeholder="Ex: 15", min=0, max=20, style="border-radius: 0.8rem;") }}
-                                    {{ form.valeur.label(class="form-label") }}
-                                    <div class="invalid-feedback">Note entre 0 et 20.</div>
+
+                        <div class="form-section">
+                            <h5 class="form-section-title">
+                                <i class="fas fa-user-graduate"></i> Élève et Matière
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Élève évalué</label>
+                                    {{ form.eleve_id(class="form-select") }}
                                 </div>
-                            </div>
-                            
-                            <div class="col-md-6 mb-4">
-                                <div class="form-floating">
-                                    {{ form.coefficient(class="form-control", placeholder="Ex: 2", min=1, style="border-radius: 0.8rem;") }}
-                                    {{ form.coefficient.label(class="form-label") }}
-                                    <div class="invalid-feedback">Coefficient valide requis.</div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Matière / Cours</label>
+                                    {{ form.cours_id(class="form-select") }}
                                 </div>
                             </div>
                         </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-4">
-                                <div class="form-floating">
-                                    {{ form.type_evaluation(class="form-select", style="border-radius: 0.8rem;") }}
-                                    {{ form.type_evaluation.label(class="form-label") }}
+
+                        <div class="form-section">
+                            <h5 class="form-section-title">
+                                <i class="fas fa-calculator"></i> Note & Paramètres d'évaluation
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Valeur (/20) <span class="text-danger">*</span></label>
+                                    {{ form.valeur(class="form-control", placeholder="Ex: 15", min=0, max=20) }}
+                                    <div class="invalid-feedback">La note doit être comprise entre 0 et 20.</div>
                                 </div>
-                            </div>
-                            
-                            <div class="col-md-6 mb-4">
-                                <div class="form-floating">
-                                    {{ form.periode(class="form-select", style="border-radius: 0.8rem;") }}
-                                    {{ form.periode.label(class="form-label") }}
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Coefficient <span class="text-danger">*</span></label>
+                                    {{ form.coefficient(class="form-control", placeholder="Ex: 2", min=1) }}
+                                    <div class="invalid-feedback">Veuillez indiquer un coefficient valide.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Type d'évaluation</label>
+                                    {{ form.type_evaluation(class="form-select") }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Période scolaire</label>
+                                    {{ form.periode(class="form-select") }}
                                 </div>
                             </div>
                         </div>
-                        
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="{{ url_for('main.notes') }}" class="btn btn-outline-secondary me-md-2 px-4 py-2" style="border-radius: 0.8rem;">
-                                <i class="fas fa-arrow-left me-2"></i>Annuler
+
+                        <div class="form-actions">
+                            <a href="{{ url_for('main.notes') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>Annuler
                             </a>
-                            <button type="submit" class="btn btn-warning px-4 py-2" style="border-radius: 0.8rem;">
-                                <i class="fas fa-save me-2"></i>Enregistrer
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-save me-1"></i>Enregistrer la note
                             </button>
                         </div>
                     </form>

@@ -258,22 +258,6 @@
                                         </label>
                                     </div>
                                 </div>
-                                <div class="col-12">
-                                    <div class="form-check form-switch p-2 bg-light rounded-2">
-                                        <input class="form-check-input" type="checkbox" id="notif-telegram">
-                                        <label class="form-check-label fw-medium small" for="notif-telegram">
-                                            <i class="fas fa-paper-plane text-info me-2"></i>Telegram
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <div class="form-check form-switch p-2 bg-light rounded-2">
-                                        <input class="form-check-input" type="checkbox" id="notif-sms">
-                                        <label class="form-check-label fw-medium small" for="notif-sms">
-                                            <i class="fas fa-comment-sms text-info me-2"></i>SMS
-                                        </label>
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
@@ -383,7 +367,7 @@
                                     <label for="testContact" class="form-label fw-semibold small">Contact</label>
                                     <input type="text" class="form-control form-control-sm" id="testContact" 
                                            placeholder="+227XXXXXXXX ou email@exemple.com">
-                                    <div class="form-text small">Obligatoire pour Email et SMS</div>
+                                    <div class="form-text small">Obligatoire pour Email</div>
                                 </div>
                                 
                                 <div class="mb-3">
@@ -397,8 +381,6 @@
                                     <select class="form-select form-select-sm" id="testChannel">
                                         <option value="app">Application</option>
                                         <option value="email">Email</option>
-                                        <option value="telegram">Telegram</option>
-                                        <option value="sms">SMS</option>
                                     </select>
                                 </div>
                                 
@@ -417,21 +399,13 @@
                                 </div>
                                 <p class="mb-2">
                                     Testez l'envoi de notifications par <b class="text-primary">Email</b>, 
-                                    <b class="text-primary">SMS</b>, <b class="text-primary">Telegram</b> 
+                                    dans l'<b class="text-primary">Application</b>.
                                     ou dans l'<b class="text-primary">Application</b>.
                                 </p>
                                 <ul class="list-unstyled mb-0 small">
                                     <li class="mb-1">
                                         <i class="fas fa-check-circle text-success me-2"></i>
-                                        Pour Telegram, utilisez votre chat ID personnel
-                                    </li>
-                                    <li class="mb-1">
-                                        <i class="fas fa-check-circle text-success me-2"></i>
                                         Les emails nécessitent une adresse valide
-                                    </li>
-                                    <li>
-                                        <i class="fas fa-check-circle text-success me-2"></i>
-                                        Les SMS nécessitent un numéro international
                                     </li>
                                 </ul>
                             </div>
@@ -513,7 +487,7 @@ async function sendTestNotification() {
     const resultDiv = document.getElementById('testResult');
 
     // Validation
-    if ((channel === 'email' || channel === 'sms') && !contact) {
+    if (channel === 'email' && !contact) {
         resultDiv.innerHTML = `
             <div class="alert alert-danger d-flex align-items-center small">
                 <i class="fas fa-exclamation-triangle me-2"></i>
@@ -529,7 +503,7 @@ async function sendTestNotification() {
     };
 
     // Ajouter le contact selon le canal
-    if (channel === 'email' || channel === 'sms') {
+    if (channel === 'email') {
         payload.contact = contact;
     }
 

@@ -1,261 +1,94 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Détails du Professeur | Éducation</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --primary: #3498db;
-            --primary-dark: #2980b9;
-            --secondary: #2c3e50;
-            --accent: #9b59b6;
-            --light: #ecf0f1;
-            --lighter: #f8f9fa;
-            --dark: #2c3e50;
-            --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            --transition: all 0.3s ease;
-            --radius: 16px;
-        }
+{% extends "base.html" %}
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% block title %}Détails Professeur - {{ professeur.prenom }} {{ professeur.nom }}{% endblock %}
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f4f7f9 0%, #e2e8f0 100%);
-            color: var(--dark);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
+{% block content %}
+<div class="container py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.professeurs') }}">Professeurs</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ professeur.prenom }} {{ professeur.nom }}</li>
+        </ol>
+    </nav>
 
-        .container {
-            width: 100%;
-            max-width: 800px;
-            background: #fff;
-            padding: 40px;
-            border-radius: var(--radius);
-            box-shadow: var(--shadow);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 8px;
-            background: linear-gradient(90deg, var(--primary), var(--accent));
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            position: relative;
-        }
-
-        .header h1 {
-            color: var(--secondary);
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            font-weight: 700;
-        }
-
-        .header::after {
-            content: '';
-            display: block;
-            width: 60px;
-            height: 4px;
-            background: var(--primary);
-            margin: 15px auto;
-            border-radius: 2px;
-        }
-
-        .detail-card {
-            background: var(--lighter);
-            border-radius: var(--radius);
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-            border-left: 5px solid var(--primary);
-            transition: var(--transition);
-        }
-
-        .detail-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .detail-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-        }
-
-        .detail-item:last-child {
-            margin-bottom: 0;
-            padding-bottom: 0;
-            border-bottom: none;
-        }
-
-        .detail-icon {
-            width: 50px;
-            height: 50px;
-            background: var(--primary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 20px;
-            color: white;
-            font-size: 1.2rem;
-            flex-shrink: 0;
-        }
-
-        .detail-content {
-            flex: 1;
-        }
-
-        .label {
-            font-weight: 600;
-            color: var(--primary-dark);
-            display: block;
-            margin-bottom: 5px;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .value {
-            font-size: 1.2rem;
-            color: var(--dark);
-            font-weight: 500;
-        }
-
-        .button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 12px 28px;
-            background: var(--primary);
-            color: white;
-            text-decoration: none;
-            border-radius: 50px;
-            font-weight: 600;
-            transition: var(--transition);
-            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
-            border: none;
-            cursor: pointer;
-            font-size: 1rem;
-        }
-
-        .button:hover {
-            background: var(--primary-dark);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(52, 152, 219, 0.4);
-        }
-
-        .button i {
-            margin-right: 8px;
-        }
-
-        .button-container {
-            text-align: center;
-            margin-top: 20px;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 30px 20px;
-            }
-            
-            .header h1 {
-                font-size: 2rem;
-            }
-            
-            .detail-item {
-                flex-direction: column;
-                text-align: center;
-            }
-            
-            .detail-icon {
-                margin-right: 0;
-                margin-bottom: 15px;
-            }
-        }
-
-        .avatar {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: var(--primary);
-            margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 3rem;
-            font-weight: bold;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <div class="avatar">{{ professeur.prenom[0] }}{{ professeur.nom[0] }}</div>
-            <h1>Détails du Professeur</h1>
-        </div>
-        
-        <div class="detail-card">
-            <div class="detail-item">
-                <div class="detail-icon">
-                    <i class="fas fa-user"></i>
-                </div>
-                <div class="detail-content">
-                    <span class="label">Nom complet</span>
-                    <span class="value">{{ professeur.prenom }} {{ professeur.nom }}</span>
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="p-4 rounded-3 shadow-sm text-white animate-pop-in" style="background: var(--gradient-primary);">
+                <div class="d-flex align-items-center flex-wrap gap-3">
+                    <div class="bg-white text-primary rounded-circle d-flex align-items-center justify-content-center shadow" style="width: 72px; height: 72px; font-size: 1.8rem; font-weight: bold;">
+                        {{ professeur.prenom[0] }}{{ professeur.nom[0] }}
+                    </div>
+                    <div>
+                        <h2 class="mb-1 text-white fw-bold">{{ professeur.prenom }} {{ professeur.nom }}</h2>
+                        <p class="mb-0 text-white-50">
+                            <i class="fas fa-chalkboard-teacher me-1"></i>Enseignant &bull; 
+                            <i class="fas fa-book me-1 ms-2"></i>{{ professeur.matiere or professeur.specialite or "Enseignement général" }}
+                        </p>
+                    </div>
                 </div>
             </div>
-            
-            <div class="detail-item">
-                <div class="detail-icon">
-                    <i class="fas fa-envelope"></i>
-                </div>
-                <div class="detail-content">
-                    <span class="label">Email</span>
-                    <span class="value">{{ professeur.email }}</span>
-                </div>
-            </div>
-            
-            <div class="detail-item">
-                <div class="detail-icon">
-                    <i class="fas fa-book"></i>
-                </div>
-                <div class="detail-content">
-                    <span class="label">Matière</span>
-                    <span class="value">{{ professeur.matiere }}</span>
-                </div>
-            </div>
-        </div>
-        
-        <div class="button-container">
-            <a href="{{ url_for('main.professeurs') }}" class="button">
-                <i class="fas fa-arrow-left"></i> Retour à la liste
-            </a>
         </div>
     </div>
-</body>
-</html>
+
+    <!-- Informations détaillées -->
+    <div class="row g-4 justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="mb-0 text-primary fw-bold">
+                        <i class="fas fa-id-card me-2"></i>Fiche d'informations
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="text-muted small text-uppercase fw-semibold d-block mb-1">Nom complet</label>
+                            <div class="fs-6 fw-bold text-dark">{{ professeur.prenom }} {{ professeur.nom }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small text-uppercase fw-semibold d-block mb-1">Adresse Email</label>
+                            <div class="fs-6 text-dark"><i class="fas fa-envelope text-primary me-2"></i>{{ professeur.email or "Non renseigné" }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small text-uppercase fw-semibold d-block mb-1">Téléphone</label>
+                            <div class="fs-6 text-dark"><i class="fas fa-phone text-success me-2"></i>{{ professeur.telephone or "Non renseigné" }}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted small text-uppercase fw-semibold d-block mb-1">Spécialité / Discipline</label>
+                            <div class="fs-6 text-dark"><span class="badge bg-primary bg-opacity-10 text-primary fs-6">{{ professeur.specialite or professeur.matiere or "Générale" }}</span></div>
+                        </div>
+                        {% if professeur.adresse %}
+                        <div class="col-12">
+                            <label class="text-muted small text-uppercase fw-semibold d-block mb-1">Adresse postale</label>
+                            <div class="fs-6 text-dark"><i class="fas fa-map-marker-alt text-danger me-2"></i>{{ professeur.adresse }}</div>
+                        </div>
+                        {% endif %}
+                        {% if professeur.matieres_enseignees %}
+                        <div class="col-12">
+                            <label class="text-muted small text-uppercase fw-semibold d-block mb-1">Matières assignées</label>
+                            <div class="fs-6 text-dark">{{ professeur.matieres_enseignees }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions du profil -->
+            <div class="d-flex justify-content-center flex-wrap gap-2">
+                <a href="{{ url_for('main.professeurs') }}" class="btn btn-outline-secondary px-4 py-2">
+                    <i class="fas fa-arrow-left me-2"></i>Retour à la liste
+                </a>
+                <a href="{{ url_for('main.assigner_classes_professeur', id=professeur.id) }}" class="btn btn-outline-info px-4 py-2">
+                    <i class="fas fa-chalkboard me-2"></i>Gérer les classes
+                </a>
+                <a href="{{ url_for('main.modifier_professeur', id=professeur.id) }}" class="btn btn-primary px-4 py-2">
+                    <i class="fas fa-edit me-2"></i>Modifier l'enseignant
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

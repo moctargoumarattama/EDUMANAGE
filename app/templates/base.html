@@ -15,6 +15,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto+Slab:wght@300;400;500;600&display=swap" rel="stylesheet">
     
     <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         :root {
             --primary: #4361ee;
@@ -753,9 +754,6 @@
 
                             <!-- Menu selon le rôle -->
                             {% if current_user.role in ['admin', 'super_admin'] %}
-                            <li><a class="dropdown-item" href="{{ url_for('main.profile') }}"><i class="fas fa-user me-2"></i>Mon Profil</a></li>
-                            <li><hr class="dropdown-divider"></li>
-
                             <!-- Menu Admin/Super Admin -->
                             {% if current_user.role == 'super_admin' %}
                             <li>
@@ -1023,13 +1021,12 @@
         });
     </script>
     
+    <!-- Scripts frontend communs -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
     <!-- Scripts spécifiques aux pages -->
     {% block scripts %}{% endblock %}
-    <!-- ... autres scripts ... -->
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-
-
-{% block extra_js %}{% endblock %}  <!-- ⚠️ IMPORTANT -->
+    {% block extra_js %}{% endblock %}
 
 </body>
 </html>

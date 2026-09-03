@@ -1,4 +1,4 @@
-from . import main
+﻿from . import main
 from .common import (
     AnneeScolaire,
     AssignerClassesForm,
@@ -31,15 +31,15 @@ from app.services import check_ecole_access
 @login_required
 @role_required('admin')
 def professeurs():
-    """Liste de tous les professeurs avec pagination filtrée par école et recherche optionnelle"""
+    """Liste de tous les professeurs avec pagination filtrÃ©e par Ã©cole et recherche optionnelle"""
     page = request.args.get('page', 1, type=int)
     per_page = 50
     search = request.args.get('search', '', type=str).strip()
 
-    # Filtrage par école de l'utilisateur
+    # Filtrage par Ã©cole de l'utilisateur
     profs_query = Professeur.query.filter_by(ecole_id=current_user.ecole_id)
 
-    # Recherche sur nom, prénom, email et spécialité
+    # Recherche sur nom, prÃ©nom, email et spÃ©cialitÃ©
     if search:
         profs_query = profs_query.filter(
             db.or_(
@@ -66,7 +66,7 @@ def professeurs():
 @login_required
 @role_required('admin')
 def ajouter_professeur():
-    """Ajout d'un professeur avec contrôle de cohérence et notifications"""
+    """Ajout d'un professeur avec contrÃ´le de cohÃ©rence et notifications"""
     form = ProfesseurForm()
     ecole_id = current_user.ecole_id
 
@@ -75,16 +75,16 @@ def ajouter_professeur():
             # ---------------- Code professeur ----------------
             code_prof = form.code_prof.data.strip() if form.code_prof.data else Professeur.generer_code()
 
-            # ---------------- Vérification unicité ----------------
+            # ---------------- VÃ©rification unicitÃ© ----------------
             if Professeur.query.filter_by(code_prof=code_prof, ecole_id=ecole_id).first():
-                flash("Ce code professeur existe déjà dans votre école.", "danger")
+                flash("Ce code professeur existe dÃ©jÃ  dans votre Ã©cole.", "danger")
                 return redirect(url_for('main.ajouter_professeur'))
 
             if Utilisateur.query.filter_by(email=form.email.data, ecole_id=ecole_id).first():
-                flash("Cet email est déjà utilisé dans votre école.", "danger")
+                flash("Cet email est dÃ©jÃ  utilisÃ© dans votre Ã©cole.", "danger")
                 return redirect(url_for('main.ajouter_professeur'))
 
-            # ---------------- Création utilisateur ----------------
+            # ---------------- CrÃ©ation utilisateur ----------------
             utilisateur = Utilisateur(
                 nom=form.nom.data.strip(),
                 prenom=form.prenom.data.strip(),
@@ -96,7 +96,7 @@ def ajouter_professeur():
                 ecole_id=ecole_id
             )
 
-            # ---------------- Création professeur ----------------
+            # ---------------- CrÃ©ation professeur ----------------
             nouveau_professeur = Professeur(
                 nom=form.nom.data.strip(),
                 prenom=form.prenom.data.strip(),
@@ -119,7 +119,7 @@ def ajouter_professeur():
             # ---------------- Journalisation ----------------
             current_app.log_correction(
                 action="ajout",
-                description=f"Professeur ajouté : {nouveau_professeur.nom} {nouveau_professeur.prenom}",
+                description=f"Professeur ajoutÃ© : {nouveau_professeur.nom} {nouveau_professeur.prenom}",
                 ecole_id=ecole_id,
                 cible_type="professeur",
                 cible_id=nouveau_professeur.id,
@@ -137,12 +137,12 @@ def ajouter_professeur():
             if nouveau_professeur.email:
                 try:
                     from app.notifications import envoyer_email
-                    sujet = "Création de votre compte professeur"
+                    sujet = "CrÃ©ation de votre compte professeur"
                     message = f"""<html>
                     <body style="font-family:Arial,sans-serif; background:#f4f4f4; padding:20px;">
                         <div style="max-width:600px; margin:auto; background:#fff; border-radius:10px; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.1);">
                             <h2 style="color:#2196F3;">Bonjour {nouveau_professeur.prenom or ''} {nouveau_professeur.nom},</h2>
-                            <p>Votre compte professeur a été créé avec succès !</p>
+                            <p>Votre compte professeur a Ã©tÃ© crÃ©Ã© avec succÃ¨s !</p>
                             <h3>Vos identifiants :</h3>
                             <ul>
                                 <li><b>Email:</b> {nouveau_professeur.email}</li>
@@ -155,34 +155,19 @@ def ajouter_professeur():
                     </body>
                     </html>"""
                     envoyer_email(nouveau_professeur.email, sujet, message)
-                    current_app.logger.info(f"Email envoyé à {nouveau_professeur.email}")
+                    current_app.logger.info(f"Email envoyÃ© Ã  {nouveau_professeur.email}")
                 except Exception as e:
                     current_app.logger.error(f"Erreur envoi email: {e}")
-                    flash("Professeur ajouté mais email non envoyé.", "warning")
+                    flash("Professeur ajoutÃ© mais email non envoyÃ©.", "warning")
 
-            # ---------------- Notification Telegram ----------------
-            try:
-                from app.notifications import envoyer_telegram
-                telegram_message = (
-                    f"👨‍🏫 Nouveau compte professeur créé !\n"
-                    f"Nom: {nouveau_professeur.prenom or ''} {nouveau_professeur.nom}\n"
-                    f"Email: {nouveau_professeur.email}\n"
-                    f"Mot de passe: {code_prof}\n"
-                    f"Connexion: {request.host_url}login"
-                )
-                envoyer_telegram(telegram_message)
-                current_app.logger.info("Notification Telegram envoyée")
-            except Exception as e:
-                current_app.logger.error(f"Erreur envoi Telegram: {e}")
-
-            flash(f"✅ Professeur ajouté avec succès. Code d'accès: {code_prof}", "success")
+            flash(f"âœ… Professeur ajoutÃ© avec succÃ¨s. Code d'accÃ¨s: {code_prof}", "success")
             return redirect(url_for('main.professeurs'))
 
         except Exception as e:
             db.session.rollback()
             import traceback
             current_app.logger.error(f"Erreur ajout professeur: {e}\n{traceback.format_exc()}")
-            flash("❌ Erreur lors de l'ajout du professeur.", "danger")
+            flash("âŒ Erreur lors de l'ajout du professeur.", "danger")
 
     return render_template('ajouter_professeur.html', form=form)
 
@@ -192,7 +177,7 @@ def ajouter_professeur():
 def professeur_details(id):
     professeur = Professeur.query.options(
         joinedload(Professeur.cours).joinedload(Cours.notes)
-    ).get_or_404(id)
+    ).filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
 
     if not check_ecole_access(professeur, "professeur"):
         return redirect(url_for('main.profile'))
@@ -226,7 +211,7 @@ def modifier_professeur(id):
                 Utilisateur.id != professeur.utilisateur_id
             ).first()
             if doublon_prof or doublon_user:
-                flash("Cet email est déjà utilisé.", "danger")
+                flash("Cet email est dÃ©jÃ  utilisÃ©.", "danger")
                 return redirect(url_for('main.modifier_professeur', id=professeur.id))
 
         professeur.nom = form.nom.data.strip()
@@ -247,7 +232,7 @@ def modifier_professeur(id):
             professeur.utilisateur.telephone = professeur.telephone
 
         db.session.commit()
-        flash("Professeur modifié avec succès.", "success")
+        flash("Professeur modifiÃ© avec succÃ¨s.", "success")
         return redirect(url_for('main.professeur_details', id=professeur.id))
 
     return render_template('modifier_professeur.html', form=form, professeur=professeur)
@@ -256,20 +241,20 @@ def modifier_professeur(id):
 @login_required
 @role_required('admin')
 def supprimer_professeur(id):
-    professeur = Professeur.query.get_or_404(id)
+    professeur = Professeur.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
 
-    # 🛡️ Sécurité multi-écoles : empêche la suppression inter-écoles
+    # ðŸ›¡ï¸ SÃ©curitÃ© multi-Ã©coles : empÃªche la suppression inter-Ã©coles
     if current_user.role != 'super_admin' and professeur.ecole_id != current_user.ecole_id:
-        flash("Action non autorisée : ce professeur appartient à une autre école.", "danger")
+        flash("Action non autorisÃ©e : ce professeur appartient Ã  une autre Ã©cole.", "danger")
         return redirect(url_for('main.professeurs'))
 
-    # Vérifier s'il y a des cours associés
+    # VÃ©rifier s'il y a des cours associÃ©s
     if professeur.cours:
-        flash("Impossible de supprimer ce professeur car il a des cours associés.", "danger")
+        flash("Impossible de supprimer ce professeur car il a des cours associÃ©s.", "danger")
         return redirect(url_for('main.professeurs'))
 
     try:
-        # Supprimer aussi l'utilisateur associé si existe
+        # Supprimer aussi l'utilisateur associÃ© si existe
         if professeur.utilisateur_id:
             utilisateur = Utilisateur.query.get(professeur.utilisateur_id)
             if utilisateur:
@@ -277,8 +262,8 @@ def supprimer_professeur(id):
 
         db.session.delete(professeur)
         db.session.commit()
-        current_app.logger.info(f"Professeur supprimé : {professeur.nom} (ID={professeur.id}) par {current_user.email}")
-        flash("Professeur supprimé avec succès.", "success")
+        current_app.logger.info(f"Professeur supprimÃ© : {professeur.nom} (ID={professeur.id}) par {current_user.email}")
+        flash("Professeur supprimÃ© avec succÃ¨s.", "success")
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur lors de la suppression du professeur {professeur.id} : {e}")
@@ -292,12 +277,12 @@ def supprimer_professeur_route(id):
     """Supprimer un professeur"""
     professeur = Professeur.query.get_or_404(id)
     
-    # Vérifier s'il y a des cours associés
+    # VÃ©rifier s'il y a des cours associÃ©s
     if professeur.cours:
-        flash("Impossible de supprimer ce professeur car il a des cours associés.", "danger")
+        flash("Impossible de supprimer ce professeur car il a des cours associÃ©s.", "danger")
         return redirect(url_for('main.profile'))
     
-    # Supprimer aussi l'utilisateur associé si existe
+    # Supprimer aussi l'utilisateur associÃ© si existe
     if professeur.utilisateur_id:
         utilisateur = Utilisateur.query.get(professeur.utilisateur_id)
         if utilisateur:
@@ -305,23 +290,23 @@ def supprimer_professeur_route(id):
     
     db.session.delete(professeur)
     db.session.commit()
-    flash("Professeur supprimé avec succès.", "success")
+    flash("Professeur supprimÃ© avec succÃ¨s.", "success")
     return redirect(url_for('main.profile'))
 
 @main.route('/professeur/<int:id>/assigner_classes', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
 def assigner_classes_professeur(id):
-    professeur = Professeur.query.get_or_404(id)
+    professeur = Professeur.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
 
-    # ✅ Vérification multi-école
+    # âœ… VÃ©rification multi-Ã©cole
     if professeur.ecole_id != current_user.ecole_id:
-        flash("Accès refusé : ce professeur appartient à une autre école", "danger")
+        flash("AccÃ¨s refusÃ© : ce professeur appartient Ã  une autre Ã©cole", "danger")
         return redirect(url_for("main.professeurs"))
 
     form = AssignerClassesForm()
 
-    # Classes de l'école et année scolaire active
+    # Classes de l'Ã©cole et annÃ©e scolaire active
     classes_ecole = Classe.query.join(AnneeScolaire).filter(
         AnneeScolaire.ecole_id == current_user.ecole_id,
         AnneeScolaire.statut == "active"
@@ -340,8 +325,8 @@ def assigner_classes_professeur(id):
 
             # Ajouter nouvelles classes
             for classe_id in form.classes.data:
-                classe = Classe.query.get(classe_id)
-                if classe and classe.ecole_id == current_user.ecole_id:  # ✅ Sécurité en plus
+                classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first()
+                if classe:  # âœ… SÃ©curitÃ© en plus
                     db.session.execute(
                         professeur_classes.insert().values(
                             professeur_id=professeur.id,
@@ -366,7 +351,7 @@ def assigner_classes_professeur(id):
                 niveau="info"
             )
 
-            flash(f"Classes assignées avec succès à {professeur.prenom} {professeur.nom}", "success")
+            flash(f"Classes assignÃ©es avec succÃ¨s Ã  {professeur.prenom} {professeur.nom}", "success")
             return redirect(url_for('main.professeur_details', id=professeur.id))
 
         except Exception as e:
@@ -387,16 +372,17 @@ def assigner_classes_professeur(id):
 @login_required
 @role_required('enseignant', 'professeur')  # seulement pour consultation
 def mes_classes():
-    # Récupération de l'objet Professeur lié à l'utilisateur
+    # RÃ©cupÃ©ration de l'objet Professeur liÃ© Ã  l'utilisateur
     prof = current_user.professeur_rel
     if not prof:
-        flash("Aucune information de professeur trouvée.", "warning")
+        flash("Aucune information de professeur trouvÃ©e.", "warning")
         return redirect(url_for('main.index'))
 
-    # Récupérer uniquement les classes assignées au professeur
+    # RÃ©cupÃ©rer uniquement les classes assignÃ©es au professeur
     try:
         classes = prof.classes_assignees.all()  # si lazy='dynamic'
     except AttributeError:
         classes = prof.classes_assignees  # si lazy='select'
 
     return render_template("mes_classes.html", classes=classes)
+

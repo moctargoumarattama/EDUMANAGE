@@ -1,0 +1,120 @@
+{# ==================================================
+   EDUMANAGE - COMPOSANTS UI JINJA PARTAGÉS
+   ================================================== #}
+
+{# --- MACRO : PAGE HEADER --- #}
+{% macro page_header(title, subtitle=none, icon=none, breadcrumbs=none, back_url=none, back_label="Retour") %}
+<div class="page-header">
+    {% if breadcrumbs %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
+            {% for item in breadcrumbs %}
+                {% if loop.last or not item.url %}
+                <li class="breadcrumb-item active" aria-current="page">{{ item.label }}</li>
+                {% else %}
+                <li class="breadcrumb-item"><a href="{{ item.url }}">{{ item.label }}</a></li>
+                {% endif %}
+            {% endfor %}
+        </ol>
+    </nav>
+    {% endif %}
+
+    <div class="page-header-body">
+        <div class="page-title-group">
+            {% if icon %}
+            <div class="page-icon">
+                <i class="fas {{ icon }}"></i>
+            </div>
+            {% endif %}
+            <div>
+                <h1 class="page-title">{{ title }}</h1>
+                {% if subtitle %}
+                <p class="page-subtitle">{{ subtitle }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="page-actions">
+            {% if back_url %}
+            <a href="{{ back_url }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>{{ back_label }}
+            </a>
+            {% endif %}
+            {{ caller() if caller else '' }}
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+
+{# --- MACRO : STAT CARD --- #}
+{% macro stat_card(value, label, icon="fa-chart-bar", color="primary", link=none, link_label="Voir détails") %}
+<div class="stat-card">
+    <div class="stat-card-body">
+        <div class="stat-info">
+            <div class="stat-number">{{ value }}</div>
+            <p class="stat-label">{{ label }}</p>
+        </div>
+        <div class="stat-icon {{ color }}">
+            <i class="fas {{ icon }}"></i>
+        </div>
+    </div>
+    {% if link %}
+    <div class="card-footer bg-transparent border-0 pt-0 pb-3 px-4">
+        <a href="{{ link }}" class="small text-decoration-none fw-semibold text-{{ color }} d-flex align-items-center justify-content-between">
+            <span>{{ link_label }}</span>
+            <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+
+{# --- MACRO : EMPTY STATE --- #}
+{% macro empty_state(title="Aucune donnée trouvée", subtitle=none, icon="fa-inbox", action_url=none, action_label=none, action_icon="fa-plus") %}
+<div class="empty-state">
+    <div class="empty-state-icon">
+        <i class="fas {{ icon }}"></i>
+    </div>
+    <h4 class="empty-state-title">{{ title }}</h4>
+    {% if subtitle %}
+    <p class="empty-state-text">{{ subtitle }}</p>
+    {% endif %}
+    {% if action_url and action_label %}
+    <a href="{{ action_url }}" class="btn btn-primary">
+        <i class="fas {{ action_icon }} me-1"></i>{{ action_label }}
+    </a>
+    {% endif %}
+</div>
+{% endmacro %}
+
+
+{# --- MACRO : FORM CARD WRAPPER --- #}
+{% macro form_card(title, subtitle=none, icon="fa-edit", max_width="900px") %}
+<div class="row justify-content-center">
+    <div class="col-12" style="max-width: {{ max_width }};">
+        <div class="form-card animate-pop-in">
+            <div class="form-header">
+                <div class="form-header-content">
+                    {% if icon %}
+                    <div class="form-header-icon">
+                        <i class="fas {{ icon }}"></i>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <h2 class="form-header-title">{{ title }}</h2>
+                        {% if subtitle %}
+                        <p class="form-header-subtitle">{{ subtitle }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="form-card-body">
+                {{ caller() }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}

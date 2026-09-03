@@ -1,6 +1,7 @@
-from . import main
+﻿from . import main
 from .common import (
     AnneeScolaire,
+    can_access_class,
     Classe,
     ClasseForm,
     Cours,
@@ -8,6 +9,7 @@ from .common import (
     Inscription,
     Note,
     Professeur,
+    professeur_classes,
     current_app,
     current_user,
     db,
@@ -32,17 +34,30 @@ from app.services import get_statistics
 @role_required('admin', 'enseignant')
 @ecole_required
 def api_classes():
-    """Retourne la liste des classes filtrée par école et année active (JSON)"""
-    # Détermination de l'école
+    """Retourne la liste des classes filtrÃ©e par Ã©cole et annÃ©e active (JSON)"""
+    # DÃ©termination de l'Ã©cole
     ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
     if not ecole_id:
-        return jsonify([]), 403  # Super-admin sans école sélectionnée
+        return jsonify([]), 403  # Super-admin sans Ã©cole sÃ©lectionnÃ©e
 
-    # Récupération de l'année scolaire active
+    # RÃ©cupÃ©ration de l'annÃ©e scolaire active
     annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
 
     # Filtrage des classes
     classes_query = Classe.query.filter_by(ecole_id=ecole_id)
+    if current_user.role in ('enseignant', 'professeur'):
+        professeur = current_user.get_professeur()
+        if not professeur:
+            return jsonify([]), 403
+        classes_query = classes_query.filter(
+            db.or_(
+                Classe.professeur_id == professeur.id,
+                Classe.id.in_(
+                    db.session.query(professeur_classes.c.classe_id)
+                    .filter(professeur_classes.c.professeur_id == professeur.id)
+                )
+            )
+        )
     if annee_active:
         classes_query = classes_query.filter_by(annee_scolaire_id=annee_active.id)
     classes = classes_query.order_by(Classe.nom).all()
@@ -53,14 +68,14 @@ def api_classes():
 @login_required
 def liste_classes():
     page = request.args.get('page', 1, type=int)
-    per_page = 10  # Nombre d'éléments par page
+    per_page = 10  # Nombre d'Ã©lÃ©ments par page
     
     # Filtres
     search = request.args.get('search', '')
     niveau = request.args.get('niveau', '')
     sort_by = request.args.get('sort', 'nom')
     
-    # Base query pour l'école de l'utilisateur
+    # Base query pour l'Ã©cole de l'utilisateur
     base_query = Classe.query.filter_by(ecole_id=current_user.ecole_id)
     
     if current_user.role in ('professeur', 'enseignant'):
@@ -82,7 +97,7 @@ def liste_classes():
         base_query = base_query.order_by(Classe.effectif.desc())
     elif sort_by == 'niveau':
         base_query = base_query.order_by(Classe.niveau)
-    else:  # tri par nom par défaut
+    else:  # tri par nom par dÃ©faut
         base_query = base_query.order_by(Classe.nom)
     
     # Pagination
@@ -90,7 +105,7 @@ def liste_classes():
         page=page, per_page=per_page, error_out=False
     )
     
-    # Récupérer toutes les classes pour les statistiques (sans pagination)
+    # RÃ©cupÃ©rer toutes les classes pour les statistiques (sans pagination)
     all_classes = base_query.all()
     
     # Calculer les valeurs pour la pagination
@@ -118,29 +133,29 @@ def liste_classes():
 @role_required('admin')
 def ajouter_classe():
     form = ClasseForm()
-    # Professeurs filtrés par école
+    # Professeurs filtrÃ©s par Ã©cole
     professeurs = get_ecole_filter_query(Professeur).filter_by(ecole_id=current_user.ecole_id).all()
 
-    # Charger les années scolaires pour le form
+    # Charger les annÃ©es scolaires pour le form
     from app.models import AnneeScolaire
     annees_ecole = AnneeScolaire.query.filter_by(ecole_id=current_user.ecole_id).order_by(AnneeScolaire.id.desc()).all()
     form.annee_scolaire_id.choices = [(a.id, a.nom) for a in annees_ecole]
 
-    # Pré-selection année active
+    # PrÃ©-selection annÃ©e active
     annee_active = AnneeScolaire.query.filter_by(ecole_id=current_user.ecole_id, statut='active').first()
     if annee_active:
         form.annee_scolaire_id.data = annee_active.id
 
     if form.validate_on_submit():
         try:
-            # Vérifier doublon : même nom + année + école
+            # VÃ©rifier doublon : mÃªme nom + annÃ©e + Ã©cole
             existing = Classe.query.filter_by(
                 nom=form.nom.data,
                 annee_scolaire_id=form.annee_scolaire_id.data,
                 ecole_id=current_user.ecole_id
             ).first()
             if existing:
-                flash("Une classe avec ce nom existe déjà pour cette année scolaire.", "warning")
+                flash("Une classe avec ce nom existe dÃ©jÃ  pour cette annÃ©e scolaire.", "warning")
                 return redirect(url_for("main.ajouter_classe"))
 
             classe = Classe(
@@ -154,7 +169,7 @@ def ajouter_classe():
             )
             db.session.add(classe)
             db.session.commit()
-            flash("Classe ajoutée avec succès âœ…", "success")
+            flash("Classe ajoutÃ©e avec succÃ¨s Ã¢Å“â€¦", "success")
             return redirect(url_for("main.liste_classes"))
         except Exception as e:
             db.session.rollback()
@@ -166,19 +181,27 @@ def ajouter_classe():
 
 @main.route("/classes/<int:classe_id>")
 @login_required
+@role_required('admin', 'enseignant', 'professeur')
 def detail_classe(classe_id):
-    # Sécurité multi-écoles : vérifier ecole_id
-    classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first_or_404()
-    
-    # Professeur/enseignant : accès uniquement aux classes assignées
     if current_user.role in ('professeur', 'enseignant'):
         professeur = current_user.get_professeur()
-        classe_assignee = professeur and professeur.classes_assignees.filter(Classe.id == classe.id).first()
-        if not classe_assignee:
-            flash("Accès non autorisé à cette classe.", "danger")
+        if not professeur:
+            flash("Acces non autorise a cette classe.", "danger")
             return redirect(url_for('main.liste_classes'))
-
-    # Récupérer inscriptions et notes avec optimisation N+1
+        classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first_or_404()
+        is_assigned = bool(
+            classe.professeur_id == professeur.id
+            or db.session.query(professeur_classes).filter(
+                professeur_classes.c.professeur_id == professeur.id,
+                professeur_classes.c.classe_id == classe.id
+            ).first()
+        )
+        if not is_assigned:
+            flash("Acces non autorise a cette classe.", "danger")
+            return redirect(url_for('main.liste_classes'))
+    else:
+        classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first_or_404()
+    # RÃ©cupÃ©rer inscriptions et notes avec optimisation N+1
     inscriptions = Inscription.query.options(
         joinedload(Inscription.eleve).joinedload(Eleve.notes).joinedload(Note.cours)
     ).filter_by(classe_id=classe.id).all()
@@ -234,10 +257,10 @@ def modifier_classe(classe_id):
             professeur = Professeur.query.filter_by(id=form.professeur_principal_id.data, ecole_id=current_user.ecole_id).first()
 
         if not annee:
-            flash("Année scolaire invalide pour cette école.", "danger")
+            flash("AnnÃ©e scolaire invalide pour cette Ã©cole.", "danger")
             return redirect(url_for("main.modifier_classe", classe_id=classe.id))
         if form.professeur_principal_id.data and not professeur:
-            flash("Professeur invalide pour cette école.", "danger")
+            flash("Professeur invalide pour cette Ã©cole.", "danger")
             return redirect(url_for("main.modifier_classe", classe_id=classe.id))
 
         classe.nom = form.nom.data
@@ -247,7 +270,7 @@ def modifier_classe(classe_id):
         classe.professeur_id = professeur.id if professeur else None
         classe.annee_scolaire_id = annee.id
         db.session.commit()
-        flash("Classe modifiée avec succès.", "success")
+        flash("Classe modifiÃ©e avec succÃ¨s.", "success")
         return redirect(url_for("main.liste_classes"))
 
     return render_template("modifier_classe.html", form=form, classe=classe, annees_ecole=annees_ecole)
@@ -265,13 +288,13 @@ def supprimer_classe(classe_id):
         or Inscription.query.filter_by(classe_id=classe.id).first()
     )
     if has_dependencies:
-        flash("Impossible de supprimer une classe contenant des élèves, cours ou emplois du temps.", "warning")
+        flash("Impossible de supprimer une classe contenant des Ã©lÃ¨ves, cours ou emplois du temps.", "warning")
         return redirect(url_for("main.liste_classes"))
 
     try:
         db.session.delete(classe)
         db.session.commit()
-        flash("Classe supprimée avec succès.", "success")
+        flash("Classe supprimÃ©e avec succÃ¨s.", "success")
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur suppression classe {classe_id}: {e}")
@@ -281,17 +304,28 @@ def supprimer_classe(classe_id):
 
 @main.route('/get_classes/<int:annee_id>')
 @login_required
-@role_required('admin', 'enseignant', 'super_admin')
+@role_required('admin', 'enseignant')
 def get_classes(annee_id):
     from app.models import Classe
 
-    if current_user.role == 'super_admin':
-        classes = Classe.query.filter_by(annee_scolaire_id=annee_id).order_by(Classe.nom).all()
-    else:
-        classes = Classe.query.filter(
-            Classe.ecole_id == current_user.ecole_id,
-            Classe.annee_scolaire_id == annee_id
-        ).order_by(Classe.nom).all()
+    classes_query = Classe.query.filter(
+        Classe.ecole_id == current_user.ecole_id,
+        Classe.annee_scolaire_id == annee_id
+    )
+    if current_user.role in ('enseignant', 'professeur'):
+        professeur = current_user.get_professeur()
+        if not professeur:
+            return jsonify({'classes': []}), 403
+        classes_query = classes_query.filter(
+            db.or_(
+                Classe.professeur_id == professeur.id,
+                Classe.id.in_(
+                    db.session.query(professeur_classes.c.classe_id)
+                    .filter(professeur_classes.c.professeur_id == professeur.id)
+                )
+            )
+        )
+    classes = classes_query.order_by(Classe.nom).all()
 
     classes_list = [{'id': c.id, 'nom': c.nom or c.nom_complet} for c in classes]
 
@@ -299,18 +333,15 @@ def get_classes(annee_id):
 
 @main.route('/api/classes/annee/<int:annee_id>')
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def api_classes_par_annee(annee_id):
-    """API pour récupérer les classes d'une année scolaire spécifique"""
+    """API pour rÃ©cupÃ©rer les classes d'une annÃ©e scolaire spÃ©cifique"""
     from app.models import Classe
 
-    if current_user.role == 'super_admin':
-        classes = Classe.query.filter_by(annee_scolaire_id=annee_id).order_by(Classe.nom).all()
-    else:
-        classes = Classe.query.filter(
-            Classe.ecole_id == current_user.ecole_id,
-            Classe.annee_scolaire_id == annee_id
-        ).order_by(Classe.nom).all()
+    classes = Classe.query.filter(
+        Classe.ecole_id == current_user.ecole_id,
+        Classe.annee_scolaire_id == annee_id
+    ).order_by(Classe.nom).all()
     
     classes_list = [{
         'id': c.id, 
@@ -320,3 +351,4 @@ def api_classes_par_annee(annee_id):
     } for c in classes]
     
     return jsonify(classes_list)
+

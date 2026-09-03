@@ -4,7 +4,7 @@ from flask import Blueprint
 main = Blueprint("main", __name__)
 
 
-from .common import envoyer_email, envoyer_email_smtp, envoyer_sms, limiter
+from .common import envoyer_email, envoyer_email_smtp, limiter
 from app.services import (
     check_ecole_access,
     generer_alertes_automatiques,

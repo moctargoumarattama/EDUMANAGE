@@ -19,7 +19,7 @@ from .common import (
 
 @main.route('/annees', methods=['GET', 'POST'])
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def gestion_annees():
     csrf_form = CSRFForm()
 
@@ -102,9 +102,9 @@ def gestion_annees():
 
 @main.route('/changer_annee/<int:annee_id>', methods=['POST'])
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def changer_annee(annee_id):
-    annee = AnneeScolaire.query.get_or_404(annee_id)
+    annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=current_user.ecole_id).first_or_404()
     try:
         # Désactiver toutes les années de la même école
         AnneeScolaire.query.filter_by(ecole_id=annee.ecole_id).update({'statut': 'archivee'})

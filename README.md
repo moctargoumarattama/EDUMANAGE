@@ -50,7 +50,7 @@ Le système est conçu avec une architecture **multi-écoles**, permettant à pl
 * Association à un parent
 * Inscription automatique aux cours
 * Génération de code parent + QR code
-* Notifications email et Telegram
+* Notifications email
 
 ---
 
@@ -59,7 +59,7 @@ Le système est conçu avec une architecture **multi-écoles**, permettant à pl
 * Création de comptes enseignants
 * Attribution aux classes et cours
 * Génération automatique de code d’accès
-* Notification email + Telegram
+* Notification email
 
 ---
 
@@ -117,7 +117,7 @@ Le système est conçu avec une architecture **multi-écoles**, permettant à pl
 * **Sécurité** : Flask-Limiter, Bcrypt
 * **Base de données** : SQLite
 * **Export** : Pandas, ReportLab
-* **Notifications** : Email (SMTP), Telegram
+* **Notifications** : Email (SMTP)
 * **Autres** : QR Code, JSON API
 
 ---
@@ -131,7 +131,7 @@ Le projet est structuré en modules :
 * `forms.py` → formulaires
 * `middleware` → sécurité multi-écoles
 * `utils` → fonctions auxiliaires
-* `notifications` → email / Telegram
+* `notifications` → email
 
 ---
 

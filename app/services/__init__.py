@@ -16,14 +16,13 @@ from sqlalchemy import func
 
 from app import db
 from app.models import Absence, Cours, Eleve, Inscription, Note, Paiement, Professeur
-from app.notifications import envoyer_email, envoyer_telegram
+from app.notifications import envoyer_email
 from app.utils import get_ecole_filter_query
 
 
 _stats_cache = {}
 CACHE_DURATION = 60
 PER_PAGE_ALERTES = 10
-TELEGRAM_CHAT_ID = "TON_CHAT_ID_GLOBAL"
 
 
 def get_cache(user_id, key):
@@ -53,12 +52,17 @@ def check_ecole_access(obj, objet_type="generic"):
         if getattr(obj, 'ecole_id', None) != current_user.ecole_id:
             flash(f"Acces refuse : {objet_type} d'une autre ecole", "danger")
             return False
-    elif current_user.role == 'enseignant':
-        if isinstance(obj, Cours) and obj.professeur_id != current_user.id:
+    elif current_user.role in ('enseignant', 'professeur'):
+        professeur = getattr(current_user, 'professeur_rel', None)
+        professeur_id = getattr(professeur, 'id', None)
+        if not professeur_id:
+            flash("Acces non autorise : profil professeur introuvable", "danger")
+            return False
+        if isinstance(obj, Cours) and obj.professeur_id != professeur_id:
             flash("Acces non autorise : cours non lie", "danger")
             return False
         if isinstance(obj, Eleve):
-            cours_ids = [c.id for c in Professeur.query.get(current_user.id).cours]
+            cours_ids = [c.id for c in Cours.query.filter_by(professeur_id=professeur_id).all()]
             eleve_ids = [n.eleve_id for n in Note.query.filter(Note.cours_id.in_(cours_ids)).all()]
             if obj.id not in eleve_ids:
                 flash("Acces non autorise : eleve non lie a vos cours", "danger")
@@ -222,7 +226,6 @@ def notifier_alertes(alertes):
                             message
                         )
 
-                    envoyer_telegram(message)
                     a['notifie'] = True
 
             try:

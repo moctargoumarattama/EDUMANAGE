@@ -1,63 +1,108 @@
 {% extends "base.html" %}
 
-{% block title %}Modifier Utilisateur{% endblock %}
+{% block title %}Modifier l'Utilisateur - {{ user.prenom }} {{ user.nom }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2>Modifier Utilisateur : {{ user.nom }} {{ user.prenom }}</h2>
-    
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, msg in messages %}
-                <div class="alert alert-{{ category }} mt-2">{{ msg }}</div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+<div class="container py-4">
+    <!-- Breadcrumb & Header -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.gestion_utilisateurs') }}">Utilisateurs</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Modifier {{ user.prenom }} {{ user.nom }}</li>
+        </ol>
+    </nav>
 
-    <form method="POST" action="{{ url_for('main.modifier_utilisateur', id=user.id) }}">
-        {% if csrf_token %}
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        {% endif %}
+    <div class="row justify-content-center">
+        <div class="col-lg-9 col-xl-8">
+            <div class="form-card animate-pop-in">
+                <!-- En-tête du formulaire -->
+                <div class="form-header">
+                    <div class="form-header-content">
+                        <div class="form-header-icon">
+                            <i class="fas fa-user-cog"></i>
+                        </div>
+                        <div>
+                            <h2 class="form-header-title">Modifier l'utilisateur</h2>
+                            <p class="form-header-subtitle">{{ user.prenom }} {{ user.nom }} &bull; Rôle actuel : {{ user.role|capitalize }}</p>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="mb-3">
-            <label for="nom" class="form-label">Nom</label>
-            <input type="text" class="form-control" id="nom" name="nom" value="{{ user.nom }}" required>
+                <!-- Corps du formulaire -->
+                <div class="form-card-body">
+                    <form method="POST" action="{{ url_for('main.modifier_utilisateur', id=user.id) }}" class="needs-validation" novalidate>
+                        {% if csrf_token %}
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {% endif %}
+
+                        <div class="form-section">
+                            <h5 class="form-section-title">
+                                <i class="fas fa-id-card"></i> Identité & Contact
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="nom" class="form-label">Nom <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="nom" name="nom" value="{{ user.nom }}" required>
+                                    <div class="invalid-feedback">Veuillez renseigner le nom.</div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="prenom" class="form-label">Prénom <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="prenom" name="prenom" value="{{ user.prenom }}" required>
+                                    <div class="invalid-feedback">Veuillez renseigner le prénom.</div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="email" class="form-label">Adresse Email <span class="text-danger">*</span></label>
+                                    <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                                    <div class="invalid-feedback">Veuillez renseigner une adresse email valide.</div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="telephone" class="form-label">Téléphone</label>
+                                    <input type="text" class="form-control" id="telephone" name="telephone" value="{{ user.telephone }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h5 class="form-section-title">
+                                <i class="fas fa-user-shield"></i> Droits & Statut
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="role" class="form-label">Rôle attribué <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="role" name="role" required>
+                                        {% for r in roles %}
+                                            <option value="{{ r }}" {% if user.role == r %}selected{% endif %}>{{ r|capitalize }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="statut" class="form-label">Statut du compte <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="statut" name="statut" required>
+                                        <option value="actif" {% if user.statut == 'actif' %}selected{% endif %}>Actif</option>
+                                        <option value="inactif" {% if user.statut == 'inactif' %}selected{% endif %}>Inactif</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="form-actions">
+                            <a href="{{ url_for('main.gestion_utilisateurs') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>Annuler
+                            </a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-save me-1"></i>Enregistrer les modifications
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-
-        <div class="mb-3">
-            <label for="prenom" class="form-label">Prénom</label>
-            <input type="text" class="form-control" id="prenom" name="prenom" value="{{ user.prenom }}" required>
-        </div>
-
-        <div class="mb-3">
-            <label for="email" class="form-label">Email</label>
-            <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
-        </div>
-
-        <div class="mb-3">
-            <label for="telephone" class="form-label">Téléphone</label>
-            <input type="text" class="form-control" id="telephone" name="telephone" value="{{ user.telephone }}">
-        </div>
-
-        <div class="mb-3">
-            <label for="role" class="form-label">Rôle</label>
-            <select class="form-select" id="role" name="role">
-                {% for r in roles %}
-                    <option value="{{ r }}" {% if user.role == r %}selected{% endif %}>{{ r|capitalize }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="mb-3">
-            <label for="statut" class="form-label">Statut</label>
-            <select class="form-select" id="statut" name="statut">
-                <option value="actif" {% if user.statut == 'actif' %}selected{% endif %}>Actif</option>
-                <option value="inactif" {% if user.statut == 'inactif' %}selected{% endif %}>Inactif</option>
-            </select>
-        </div>
-
-        <button type="submit" class="btn btn-primary">Mettre à jour</button>
-        <a href="{{ url_for('main.gestion_utilisateurs') }}" class="btn btn-secondary">Annuler</a>
-    </form>
+    </div>
 </div>
 {% endblock %}

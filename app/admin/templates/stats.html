@@ -1,33 +1,80 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Statistiques - Gestion Scolaire</title>
-   <link rel="stylesheet" href="{{ url_for('admin.static', filename='style.css') }}">
-</head>
-<body>
-    <div class="container">
-        <div class="nav-breadcrumb">
-            <a href="{{ url_for('admin.dashboard') }}">Tableau de bord</a> > Statistiques
+﻿{% extends "base_admin.html" %}
+
+{% block title %}Statistiques système{% endblock %}
+
+{% block breadcrumb %}
+<span class="separator">›</span> Statistiques
+{% endblock %}
+
+{% block content %}
+<div class="admin-page-header">
+    <h1><i class="fas fa-chart-bar"></i> Statistiques du système</h1>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> Retour au tableau de bord
+    </a>
+</div>
+
+<!-- Métriques rapides -->
+<div class="admin-stat-row">
+    <div class="admin-stat-card">
+        <div class="stat-icon amber"><i class="fas fa-hdd"></i></div>
+        <div class="stat-body">
+            <div class="value">{{ stats.disk_usage }}%</div>
+            <div class="label">Espace disque utilisé</div>
         </div>
-
-        <h1>Statistiques du système</h1>
-
-        <div class="card">
-            <h2>Utilisation des ressources</h2>
-            <p><strong>Espace disque utilisé:</strong> {{ stats.disk_usage }}%</p>
-            <p><strong>Dernière sauvegarde:</strong> {{ stats.last_backup if stats.last_backup else "Aucune" }}</p>
-            <p><strong>Version SQLite:</strong> {{ stats.db_version }}</p>
-        </div>
-
-        <div class="card">
-            <h2>Base de données</h2>
-            <p>Informations sur la structure et le contenu de la base de données.</p>
-            <a href="#" class="button">Voir le schéma de la base</a>
-        </div>
-
-        <a href="{{ url_for('admin.dashboard') }}" class="button">Retour au tableau de bord</a>
     </div>
-</body>
-</html>
+    <div class="admin-stat-card">
+        <div class="stat-icon blue"><i class="fas fa-database"></i></div>
+        <div class="stat-body">
+            <div class="value" style="font-size:1rem;">{{ stats.db_version }}</div>
+            <div class="label">Version SQLite</div>
+        </div>
+    </div>
+    <div class="admin-stat-card">
+        <div class="stat-icon green"><i class="fas fa-save"></i></div>
+        <div class="stat-body">
+            <div class="value" style="font-size:.95rem;">{{ stats.last_backup if stats.last_backup else "Aucune" }}</div>
+            <div class="label">Dernière sauvegarde</div>
+        </div>
+    </div>
+</div>
+
+<!-- Utilisation des ressources -->
+<div class="admin-card">
+    <h2><i class="fas fa-server"></i> Utilisation des ressources</h2>
+    <div class="mb-3">
+        <div class="d-flex justify-content-between mb-1" style="font-size:.85rem;">
+            <span>Espace disque</span>
+            <strong>{{ stats.disk_usage }}%</strong>
+        </div>
+        <div class="progress" style="height:8px;">
+            <div class="progress-bar {% if stats.disk_usage > 80 %}bg-danger{% elif stats.disk_usage > 60 %}bg-warning{% else %}bg-success{% endif %}"
+                 style="width:{{ stats.disk_usage }}%"></div>
+        </div>
+    </div>
+    <div class="row g-3 mt-1">
+        <div class="col-sm-6">
+            <div class="fw-semibold" style="font-size:.85rem;color:#64748b;">Dernière sauvegarde</div>
+            <div>{{ stats.last_backup if stats.last_backup else "Aucune" }}</div>
+        </div>
+        <div class="col-sm-6">
+            <div class="fw-semibold" style="font-size:.85rem;color:#64748b;">Version SQLite</div>
+            <div>{{ stats.db_version }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Base de données -->
+<div class="admin-card">
+    <h2><i class="fas fa-database"></i> Base de données</h2>
+    <p class="text-muted" style="font-size:.9rem;">Informations sur la structure et le contenu de la base de données.</p>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.backup_page') }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-save me-1"></i> Gérer les sauvegardes
+        </a>
+        <a href="{{ url_for('admin.maintenance_page') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-tools me-1"></i> Maintenance
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -6,6 +6,7 @@ from .common import (
     Note,
     PeriodeBulletin,
     PeriodeForm,
+    can_access_eleve,
     bulletins_accessible_pour_parent,
     check_parent_access,
     current_app,
@@ -49,8 +50,8 @@ def bulletin_eleve(id):
             return redirect(url_for('main.parent_dashboard'))
 
     # 🔒 Vérification multi-école
-    eleve = Eleve.query.filter_by(id=id, ecole_id=current_user.ecole_id).first()
-    if not eleve:
+    eleve = Eleve.query.filter_by(id=id).first()
+    if not can_access_eleve(eleve):
         flash("Élève introuvable ou appartenant à une autre école.", "danger")
         return redirect(url_for('main.profile'))
 
@@ -125,7 +126,16 @@ def bulletins():
         return redirect(url_for('main.parent_dashboard'))  # adapte selon ton projet
 
     # Récupérer tous les élèves de l'école du user
-    eleves = Eleve.query.filter_by(ecole_id=current_user.ecole_id).all()
+    if current_user.role == 'parent':
+        eleves = Eleve.query.filter_by(parent_id=current_user.id, ecole_id=current_user.ecole_id).all()
+    elif current_user.role in ('enseignant', 'professeur'):
+        professeur = getattr(current_user, 'professeur_rel', None)
+        classe_ids = [c.id for c in professeur.classes_assignees.all()] if professeur else []
+        eleves = Eleve.query.filter(Eleve.ecole_id == current_user.ecole_id, Eleve.classe_id.in_(classe_ids)).all() if classe_ids else []
+    elif current_user.role == 'admin':
+        eleves = Eleve.query.filter_by(ecole_id=current_user.ecole_id).all()
+    else:
+        eleves = []
 
     # Calculer les moyennes pour chaque élève
     eleves_avec_moyennes = []
@@ -171,7 +181,7 @@ def bulletins():
 @login_required
 @role_required('admin')
 def toggle_periode(id):
-    periode = PeriodeBulletin.query.get_or_404(id)
+    periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
     periode.publie = not periode.publie  # on inverse l’état
     if periode.publie:
         periode.date_publication = datetime.utcnow()
@@ -195,7 +205,7 @@ def activer_periode(id):
     PeriodeBulletin.query.filter_by(ecole_id=current_user.ecole_id).update({'periode_active': False})
     
     # Activer la période sélectionnée
-    periode = PeriodeBulletin.query.get_or_404(id)
+    periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
     periode.periode_active = True
     periode.publie = True  # S'assurer qu'elle est publiée
     periode.date_publication = datetime.utcnow()
@@ -217,6 +227,10 @@ def creer_periode():
     if form.validate_on_submit():
         nom = form.nom.data
         annee_id = form.annee_id.data
+        annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=current_user.ecole_id).first()
+        if not annee:
+            flash("Annee scolaire invalide pour cette ecole.", "danger")
+            return redirect(url_for('main.creer_periode'))
         
         # Créer la période
         nouvelle_periode = PeriodeBulletin(

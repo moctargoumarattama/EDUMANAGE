@@ -1,16 +1,14 @@
 from . import main
 from .common import (
-    TELEGRAM_CHAT_ID,
     datetime,
     envoyer_email,
-    envoyer_telegram,
     jsonify,
     login_required,
     render_template,
     request,
     role_required,
 )
-from app.services import PER_PAGE_ALERTES, TELEGRAM_CHAT_ID, generer_alertes_automatiques, notifier_alertes
+from app.services import PER_PAGE_ALERTES, generer_alertes_automatiques, notifier_alertes
 
 
 @main.route('/alertes')
@@ -68,7 +66,7 @@ def envoyer_notification_test():
         message = data.get('message', 'Message de test depuis EduManage')
         channel = data.get('channel', 'app').lower()
 
-        if channel not in ['app', 'telegram'] and not contact:
+        if channel not in ['app'] and not contact:
             return jsonify({'success': False, 'message': f'Contact requis pour le canal {channel}'}), 400
 
         if channel == 'app':
@@ -77,11 +75,6 @@ def envoyer_notification_test():
         if channel == 'email':
             ok = envoyer_email(contact, "Test de notification - EduManage", message)
             return jsonify({'success': ok, 'message': 'Email envoyé' if ok else 'Échec envoi email'})
-
-        if channel == 'telegram':
-            chat_id = contact if contact else TELEGRAM_CHAT_ID
-            ok = envoyer_telegram(message, chat_id)
-            return jsonify({'success': ok, 'message': 'Message Telegram envoyé' if ok else 'Échec envoi Telegram'})
 
         return jsonify({'success': False, 'message': 'Canal inconnu'}), 400
 

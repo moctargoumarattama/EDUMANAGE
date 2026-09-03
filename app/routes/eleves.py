@@ -1,7 +1,9 @@
-from . import main
+﻿from . import main
 from .common import (
     Absence,
     AnneeScolaire,
+    can_access_class,
+    can_access_eleve,
     Classe,
     Eleve,
     EleveForm,
@@ -24,6 +26,7 @@ from .common import (
     jsonify,
     login_required,
     parent_access_required,
+    professeur_classes,
     redirect,
     render_template,
     request,
@@ -42,23 +45,23 @@ from app.services import check_ecole_access
 
 @main.route('/eleves')
 @login_required
-@role_required('admin', 'enseignant', 'super_admin')
+@role_required('admin', 'enseignant')
 def eleves():
-    """Liste des élèves, filtrée par école et rôle avec sécurité multi-écoles"""
+    """Liste des Ã©lÃ¨ves, filtrÃ©e par Ã©cole et rÃ´le avec sÃ©curitÃ© multi-Ã©coles"""
     page = request.args.get('page', 1, type=int)
-    per_page = 50  # peut rester à 50 pour la pagination
+    per_page = 50  # peut rester Ã  50 pour la pagination
 
-    # ---------------- Base query avec relations pour éviter N+1 ----------------
+    # ---------------- Base query avec relations pour Ã©viter N+1 ----------------
     base_query = Eleve.query.options(
         db.selectinload(Eleve.classe),
         db.selectinload(Eleve.parent)
     )
 
-    # ---------------- Filtrage multi-écoles selon rôle ----------------
+    # ---------------- Filtrage multi-Ã©coles selon rÃ´le ----------------
     if current_user.role == 'admin':
         eleves_query = filtre_par_ecole(base_query, Eleve).order_by(Eleve.nom, Eleve.prenom)
 
-    elif current_user.role == 'enseignant':
+    elif current_user.role in ('enseignant', 'professeur'):
         professeur_id = getattr(current_user.professeur_rel, 'id', None)
         eleves_query = (
             base_query.join(Classe)
@@ -66,22 +69,18 @@ def eleves():
                 Classe.ecole_id == current_user.ecole_id,
                 db.or_(
                     Classe.professeur_id == professeur_id,
-                    Classe.professeurs_assignes.any(id=professeur_id)
+                    Classe.id.in_(
+                        db.session.query(professeur_classes.c.classe_id)
+                        .filter(professeur_classes.c.professeur_id == professeur_id)
+                    )
                 ),
                 Eleve.ecole_id == current_user.ecole_id
             )
             .order_by(Eleve.nom, Eleve.prenom)
         )
 
-    elif current_user.role == 'super_admin':
-        ecole_id = session.get('ecole_id')
-        if ecole_id:
-            eleves_query = base_query.filter(Eleve.ecole_id == ecole_id).order_by(Eleve.nom, Eleve.prenom)
-        else:
-            eleves_query = base_query.order_by(Eleve.nom, Eleve.prenom)
-
     else:
-        abort(403)  # Sécurité supplémentaire
+        abort(403)  # SÃ©curitÃ© supplÃ©mentaire
 
     # ---------------- Pagination ----------------
     eleves_pagination = eleves_query.paginate(page=page, per_page=per_page, error_out=False)
@@ -92,19 +91,19 @@ def eleves():
 @login_required
 @role_required('admin')
 def ajouter_eleve():
-    """Ajout d’un élève avec contrôle de cohérence, sécurité multi-écoles et notifications parent."""
+    """Ajout dâ€™un Ã©lÃ¨ve avec contrÃ´le de cohÃ©rence, sÃ©curitÃ© multi-Ã©coles et notifications parent."""
     form = EleveForm()
 
-    # ---------------- École courante ----------------
+    # ---------------- Ã‰cole courante ----------------
     if current_user.role == 'super_admin':
         ecole_id = session.get('ecole_id')
         if not ecole_id:
-            flash("⚠️ Aucune école sélectionnée pour le super-admin.", "danger")
+            flash("âš ï¸ Aucune Ã©cole sÃ©lectionnÃ©e pour le super-admin.", "danger")
             return redirect(url_for('main.eleves'))
     else:
         ecole_id = current_user.ecole_id
 
-    # ---------------- Année scolaire active ----------------
+    # ---------------- AnnÃ©e scolaire active ----------------
     annees_ecole = AnneeScolaire.query.filter_by(ecole_id=ecole_id).order_by(AnneeScolaire.id.desc()).all()
     annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
     if not annee_active and annees_ecole:
@@ -114,7 +113,7 @@ def ajouter_eleve():
     classes = Classe.query.filter_by(ecole_id=ecole_id).order_by(Classe.nom).all()
     form.classe_id.choices = [(c.id, c.nom_complet) for c in classes]
     if not classes:
-        flash("⚠️ Aucune classe disponible. Créez une classe avant d’ajouter un élève.", "warning")
+        flash("âš ï¸ Aucune classe disponible. CrÃ©ez une classe avant dâ€™ajouter un Ã©lÃ¨ve.", "warning")
 
     # ---------------- Parents ----------------
     form.parent_id.choices = [(0, "--- Aucun parent ---")]
@@ -124,10 +123,10 @@ def ajouter_eleve():
     # ---------------- Soumission du formulaire ----------------
     if form.validate_on_submit():
         try:
-            # 🔸 Vérif classe valide avec filtre multi-écoles
+            # ðŸ”¸ VÃ©rif classe valide avec filtre multi-Ã©coles
             classe_selectionnee = filtre_par_ecole(Classe.query, Classe).filter_by(id=form.classe_id.data).first()
             if not classe_selectionnee or classe_selectionnee.ecole_id != ecole_id:
-                flash("❌ Classe invalide ou non autorisée.", "danger")
+                flash("âŒ Classe invalide ou non autorisÃ©e.", "danger")
                 return redirect(url_for('main.ajouter_eleve'))
 
             # ---------------- Gestion parent ----------------
@@ -136,20 +135,20 @@ def ajouter_eleve():
             email_parent = request.form.get("parent_email")
             telephone_parent = request.form.get("parent_telephone")
 
-            # 🔸 Nouveau parent
+            # ðŸ”¸ Nouveau parent
             if form.parent_id.data == 0 and any([
                 request.form.get("parent_nom"),
                 request.form.get("parent_prenom"),
                 email_parent,
                 telephone_parent
             ]):
-                # Vérifie doublon parent par email
+                # VÃ©rifie doublon parent par email
                 if email_parent and Utilisateur.query.filter_by(email=email_parent, role='parent', ecole_id=ecole_id).first():
-                    flash("❌ Cet email est déjà utilisé par un autre parent.", "danger")
+                    flash("âŒ Cet email est dÃ©jÃ  utilisÃ© par un autre parent.", "danger")
                     return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
                                            annee_active=annee_active, classes=classes)
 
-                # Génère le code parent
+                # GÃ©nÃ¨re le code parent
                 code_parent = Eleve.generer_code_parent()
                 parent_utilisateur = Utilisateur(
                     nom=request.form.get("parent_nom"),
@@ -161,24 +160,24 @@ def ajouter_eleve():
                 )
                 parent_utilisateur.set_mot_de_passe(code_parent)
                 db.session.add(parent_utilisateur)
-                db.session.flush()  # Pour récupérer l'ID
+                db.session.flush()  # Pour rÃ©cupÃ©rer l'ID
                 parent_id_final = parent_utilisateur.id
 
                 email_parent = parent_utilisateur.email
                 telephone_parent = parent_utilisateur.telephone
 
             else:
-                # 🔸 Parent existant avec filtre multi-écoles
+                # ðŸ”¸ Parent existant avec filtre multi-Ã©coles
                 parent_id_final = form.parent_id.data or None
                 parent_obj = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=parent_id_final).first() if parent_id_final else None
                 if parent_obj:
                     email_parent = parent_obj.email
                     telephone_parent = parent_obj.telephone
                 elif parent_obj is None and parent_id_final:
-                    flash("❌ Ce parent n'appartient pas à votre école.", "danger")
+                    flash("âŒ Ce parent n'appartient pas Ã  votre Ã©cole.", "danger")
                     return redirect(url_for('main.ajouter_eleve'))
 
-            # ---------------- Création élève ----------------
+            # ---------------- CrÃ©ation Ã©lÃ¨ve ----------------
             nouvel_eleve = Eleve(
                 nom=form.nom.data.strip(),
                 prenom=form.prenom.data.strip(),
@@ -186,7 +185,7 @@ def ajouter_eleve():
                 lieu_naissance=form.lieu_naissance.data.strip() if form.lieu_naissance.data else None,
                 adresse=form.adresse.data.strip() if form.adresse.data else None,
                 
-                # Suppression des champs email/téléphone élève
+                # Suppression des champs email/tÃ©lÃ©phone Ã©lÃ¨ve
                 contact_parent=telephone_parent,
                 email_parent=email_parent.lower() if email_parent else None,
                 
@@ -213,7 +212,7 @@ def ajouter_eleve():
 
             db.session.commit()
 
-            # ---------------- Notifications après commit ----------------
+            # ---------------- Notifications aprÃ¨s commit ----------------
             if parent_id_final and code_parent:
                 try:
                     import qrcode, io, base64
@@ -232,13 +231,13 @@ def ajouter_eleve():
                     # Envoi email
                     if email_parent:
                         from app.notifications import envoyer_email
-                        sujet = "Création de votre compte parent"
+                        sujet = "CrÃ©ation de votre compte parent"
                         message = f"""
                         <html>
                         <body style="font-family:Arial,sans-serif; background:#f4f4f4; padding:20px;">
                             <div style="max-width:600px; margin:auto; background:#fff; border-radius:10px; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.1);">
                                 <h2 style="color:#4CAF50;">Bonjour {parent_utilisateur.prenom or ''} {parent_utilisateur.nom},</h2>
-                                <p>Un compte parent a été créé pour suivre la scolarité de votre enfant.</p>
+                                <p>Un compte parent a Ã©tÃ© crÃ©Ã© pour suivre la scolaritÃ© de votre enfant.</p>
                                 <h3>Vos identifiants :</h3>
                                 <ul>
                                     <li><b>Email :</b> {email_parent}</li>
@@ -248,31 +247,24 @@ def ajouter_eleve():
                                     <a href="{request.host_url}login_parent" style="display:inline-block; padding:10px 20px; background:#4CAF50; color:#fff; text-decoration:none; border-radius:5px;">Se connecter</a>
                                 </p>
                                 <img src="data:image/png;base64,{qr_base64}" width="150" height="150"/><br>
-                                <p style="font-size:12px; color:#555;">Cordialement,<br>L’administration</p>
+                                <p style="font-size:12px; color:#555;">Cordialement,<br>Lâ€™administration</p>
                             </div>
                         </body>
                         </html>
                         """
                         envoyer_email(email_parent, sujet, message)
 
-                    # Envoi Telegram (optionnel)
-                    try:
-                        from app.notifications import envoyer_telegram_image
-                        envoyer_telegram_image(buffer, caption=f"👨‍👩‍👧 Nouveau compte parent : {parent_utilisateur.prenom} {parent_utilisateur.nom}")
-                    except Exception as e:
-                        current_app.logger.warning(f"Erreur Telegram parent : {e}")
-
                 except Exception as e:
-                    current_app.logger.error(f"Erreur QR/Email/Telegram : {e}")
+                    current_app.logger.error(f"Erreur QR/Email : {e}")
 
-            flash("✅ Élève ajouté avec succès et inscrit à tous les cours de sa classe.", "success")
+            flash("âœ… Ã‰lÃ¨ve ajoutÃ© avec succÃ¨s et inscrit Ã  tous les cours de sa classe.", "success")
             return redirect(url_for('main.eleves'))
 
         except Exception as e:
             db.session.rollback()
             import traceback
-            current_app.logger.error(f"Erreur ajout élève: {e}\n{traceback.format_exc()}")
-            flash("❌ Erreur lors de l'ajout de l'élève. Veuillez vérifier les informations saisies.", "danger")
+            current_app.logger.error(f"Erreur ajout Ã©lÃ¨ve: {e}\n{traceback.format_exc()}")
+            flash("âŒ Erreur lors de l'ajout de l'Ã©lÃ¨ve. Veuillez vÃ©rifier les informations saisies.", "danger")
 
         
     # ---------------- Affichage du formulaire ----------------
@@ -281,51 +273,51 @@ def ajouter_eleve():
 
 @main.route('/api/eleves/classe/<int:classe_id>')
 @login_required
-@role_required('admin', 'enseignant', 'super_admin')
+@role_required('admin', 'enseignant')
 @ecole_required
 def api_eleves_par_classe(classe_id):
-    """Retourne la liste des élèves d'une classe filtrée par école et année active (JSON)"""
+    """Retourne la liste des Ã©lÃ¨ves d'une classe filtrÃ©e par Ã©cole et annÃ©e active (JSON)"""
 
-    # --- Détermination de l'école selon le rôle ---
-    if current_user.role == 'super_admin':
-        ecole_id = None  # super_admin n'a pas besoin d'école
-    else:
-        ecole_id = current_user.ecole_id
-        if not ecole_id:
+    ecole_id = current_user.ecole_id
+    if not ecole_id:
+        return jsonify({'eleves': []}), 403
+
+    annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
+
+    classe = Classe.query.filter_by(id=classe_id, ecole_id=ecole_id).first()
+    if not classe:
+        return jsonify({'eleves': []}), 404
+    if current_user.role in ('enseignant', 'professeur'):
+        professeur = getattr(current_user, 'professeur_rel', None)
+        professeur_id = getattr(professeur, 'id', None)
+        is_assigned = bool(
+            professeur_id
+            and (
+                classe.professeur_id == professeur_id
+                or db.session.query(professeur_classes).filter(
+                    professeur_classes.c.professeur_id == professeur_id,
+                    professeur_classes.c.classe_id == classe.id
+                ).first()
+            )
+        )
+        if not is_assigned:
             return jsonify({'eleves': []}), 403
+    query = Eleve.query.filter(Eleve.classe_id == classe_id, Eleve.ecole_id == ecole_id)
+    if annee_active:
+        query = query.join(Classe).filter(Classe.annee_scolaire_id == annee_active.id)
 
-    # --- Récupération de l'année scolaire active (uniquement si ecole_id défini) ---
-    annee_active = None
-    if ecole_id:
-        annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
-
-    # --- Vérification que la classe appartient à l'école (si admin/enseignant) ---
-    if ecole_id:
-        classe = Classe.query.filter_by(id=classe_id, ecole_id=ecole_id).first()
-        if not classe:
-            return jsonify({'eleves': []}), 404
-        query = Eleve.query.filter(Eleve.classe_id == classe_id, Eleve.ecole_id == ecole_id)
-        if annee_active:
-            query = query.join(Classe).filter(Classe.annee_scolaire_id == annee_active.id)
-    else:
-        # super_admin : accès global
-        classe = Classe.query.get(classe_id)
-        if not classe:
-            return jsonify({'eleves': []}), 404
-        query = Eleve.query.filter(Eleve.classe_id == classe_id)
-
-    # --- Récupération des élèves ---
+    # --- RÃ©cupÃ©ration des Ã©lÃ¨ves ---
     eleves = query.order_by(Eleve.nom, Eleve.prenom).all()
 
-    # --- Construction du JSON CORRIGÉ ---
+    # --- Construction du JSON CORRIGÃ‰ ---
     eleves_list = [
         {
             'id': e.id,
             'nom': e.nom,
             'prenom': e.prenom,
-            'telephone': e.contact_parent or '-',  # ← CORRECTION ICI : utiliser contact_parent au lieu de telephone
+            'telephone': e.contact_parent or '-',  # â† CORRECTION ICI : utiliser contact_parent au lieu de telephone
             'classe': e.classe.nom if e.classe else "Sans classe",
-            'parent': f"{e.parent.prenom} {e.parent.nom}" if e.parent else "Non assigné"
+            'parent': f"{e.parent.prenom} {e.parent.nom}" if e.parent else "Non assignÃ©"
         } for e in eleves
     ]
 
@@ -333,63 +325,82 @@ def api_eleves_par_classe(classe_id):
 
 @main.route('/eleve/<int:id>/export_notes_pdf') 
 @login_required
-@role_required('super-admin', 'admin', 'enseignant', 'parent')
+@role_required('admin', 'enseignant', 'parent')
 def export_notes_eleve_pdf(id):
-    """Génère et retourne le relevé de notes PDF d'un élève avec contrôle multi-écoles"""
+    """GÃ©nÃ¨re et retourne le relevÃ© de notes PDF d'un Ã©lÃ¨ve avec contrÃ´le multi-Ã©coles"""
     eleve = Eleve.query.get_or_404(id)
+    if not can_access_eleve(eleve):
+        flash("AccÃ¨s non autorisÃ© Ã  cet Ã©lÃ¨ve.", "danger")
+        return redirect(url_for('main.index'))
 
-    # Vérification des accès selon rôle
+    # VÃ©rification des accÃ¨s selon rÃ´le
     if current_user.role == 'parent' and not check_parent_access(id):
-        flash("Accès non autorisé à cet élève.", "danger")
+        flash("AccÃ¨s non autorisÃ© Ã  cet Ã©lÃ¨ve.", "danger")
         return redirect(url_for('main.parent_dashboard'))
 
-    if current_user.role in ['admin', 'enseignant'] and eleve.ecole_id != current_user.ecole_id:
-        flash("Accès non autorisé à cet élève.", "danger")
+    if current_user.role in ['admin', 'enseignant', 'professeur'] and eleve.ecole_id != current_user.ecole_id:
+        flash("AccÃ¨s non autorisÃ© Ã  cet Ã©lÃ¨ve.", "danger")
         return redirect(url_for('main.eleves'))
 
-    if current_user.role == 'enseignant' and (not eleve.classe or eleve.classe.professeur_id != current_user.id):
-        flash("Accès non autorisé à cet élève.", "danger")
-        return redirect(url_for('main.eleves'))
+    if current_user.role in ['enseignant', 'professeur']:
+        professeur = getattr(current_user, 'professeur_rel', None)
+        professeur_id = getattr(professeur, 'id', None)
+        classe_autorisee = (
+            professeur_id and eleve.classe and (
+                eleve.classe.professeur_id == professeur_id
+                or db.session.query(professeur_classes).filter(
+                    professeur_classes.c.professeur_id == professeur_id,
+                    professeur_classes.c.classe_id == eleve.classe.id
+                ).first()
+            )
+        )
+        if not classe_autorisee:
+            flash("AccÃ¨s non autorisÃ© Ã  cet Ã©lÃ¨ve.", "danger")
+            return redirect(url_for('main.eleves'))
 
-    # Création PDF
+    if current_user.role == 'parent' and eleve.ecole_id != current_user.ecole_id:
+        flash("AccÃ¨s non autorisÃ© Ã  cet Ã©lÃ¨ve.", "danger")
+        return redirect(url_for('main.parent_dashboard'))
+
+    # CrÃ©ation PDF
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=18)
     styles = getSampleStyleSheet()
     elements = []
 
-    # Nom de l'école et titre
+    # Nom de l'Ã©cole et titre
     ecole_nom = eleve.ecole.nom if eleve.ecole else "N/A"
     elements.append(Paragraph(f"{ecole_nom}", ParagraphStyle('SchoolTitle', fontSize=18, alignment=1, spaceAfter=5, fontName='Helvetica-Bold')))
-    elements.append(Paragraph("RELEVÉ DE NOTES", ParagraphStyle('Title', fontSize=16, alignment=1, spaceAfter=10, fontName='Helvetica-Bold')))
+    elements.append(Paragraph("RELEVÃ‰ DE NOTES", ParagraphStyle('Title', fontSize=16, alignment=1, spaceAfter=10, fontName='Helvetica-Bold')))
 
-    # Année scolaire active
+    # AnnÃ©e scolaire active
     annee_active = AnneeScolaire.query.filter_by(
         ecole_id=eleve.ecole_id,
         statut="active"
     ).first()
     annee_text = annee_active.nom if annee_active else "N/A"
-    elements.append(Paragraph(f"<b>Année scolaire :</b> {annee_text}", styles['Normal']))
+    elements.append(Paragraph(f"<b>AnnÃ©e scolaire :</b> {annee_text}", styles['Normal']))
     elements.append(Spacer(1, 10))
 
-    # Informations élève
+    # Informations Ã©lÃ¨ve
     premiere_annee = str(eleve.annee_premiere_ecole) if eleve.annee_premiere_ecole else "N/A"
     info_text = f"""
-    <b>Élève :</b> {eleve.prenom} {eleve.nom}<br/>
-    <b>Classe :</b> {eleve.classe.nom if eleve.classe else 'Non assignée'}<br/>
-    <b>Date de naissance :</b> {eleve.date_naissance.strftime('%d/%m/%Y') if eleve.date_naissance else 'Non renseignée'}<br/>
+    <b>Ã‰lÃ¨ve :</b> {eleve.prenom} {eleve.nom}<br/>
+    <b>Classe :</b> {eleve.classe.nom if eleve.classe else 'Non assignÃ©e'}<br/>
+    <b>Date de naissance :</b> {eleve.date_naissance.strftime('%d/%m/%Y') if eleve.date_naissance else 'Non renseignÃ©e'}<br/>
     <b>Parent :</b> {eleve.parent.nom if eleve.parent else 'N/A'}<br/>
-    <b>1ère année dans l'école :</b> {premiere_annee}<br/>
-    <b>Date d'édition :</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}
+    <b>1Ã¨re annÃ©e dans l'Ã©cole :</b> {premiere_annee}<br/>
+    <b>Date d'Ã©dition :</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}
     """
     elements.append(Paragraph(info_text, styles['Normal']))
     elements.append(Spacer(1, 20))
 
-    # Notes filtrées par année active
+    # Notes filtrÃ©es par annÃ©e active
     notes = [n for n in eleve.notes if not annee_active or n.annee_id == annee_active.id]
     notes = sorted(notes, key=lambda n: (n.cours.nom if n.cours else "", n.date_evaluation))
 
-    # Création d'un tableau unique
-    data = [['Matière', 'Date', 'Type d\'évaluation', 'Note', 'Coefficient']]
+    # CrÃ©ation d'un tableau unique
+    data = [['MatiÃ¨re', 'Date', 'Type d\'Ã©valuation', 'Note', 'Coefficient']]
     total_pondere_global = 0
     total_coefficients_global = 0
 
@@ -405,10 +416,10 @@ def export_notes_eleve_pdf(id):
         total_pondere_global += note.valeur * note.coefficient
         total_coefficients_global += note.coefficient
 
-    # Moyenne générale
+    # Moyenne gÃ©nÃ©rale
     moyenne_generale = round(total_pondere_global / total_coefficients_global, 2) if total_coefficients_global > 0 else 0
     data.append(['', '', '', '', ''])
-    data.append(['', '', 'Moyenne générale', str(moyenne_generale), str(total_coefficients_global)])
+    data.append(['', '', 'Moyenne gÃ©nÃ©rale', str(moyenne_generale), str(total_coefficients_global)])
 
     table = Table(data, colWidths=[100, 70, 150, 60, 60])
     table.setStyle(TableStyle([
@@ -428,7 +439,7 @@ def export_notes_eleve_pdf(id):
     buffer.seek(0)
 
     # Logging export
-    current_app.logger.info(f"Export PDF notes élève {eleve.id} ({eleve.prenom} {eleve.nom}) par {current_user.id}")
+    current_app.logger.info(f"Export PDF notes Ã©lÃ¨ve {eleve.id} ({eleve.prenom} {eleve.nom}) par {current_user.id}")
 
     return send_file(
         buffer,
@@ -439,33 +450,33 @@ def export_notes_eleve_pdf(id):
 
 @main.route('/eleves/export_excel')
 @login_required
-@role_required('super-admin', 'admin')
+@role_required('admin')
 def export_eleves_excel():
-    # Année scolaire active
+    # AnnÃ©e scolaire active
     annee_active = AnneeScolaire.query.filter_by(
         statut="active",
         ecole_id=current_user.ecole_id if current_user.role == "admin" else None
     ).first()
 
-    # Filtrage selon rôle et année
+    # Filtrage selon rÃ´le et annÃ©e
     if current_user.role == 'super-admin':
         eleves = get_ecole_filter_query(Eleve).all()
     else:
         eleves = Eleve.query.filter_by(ecole_id=current_user.ecole_id).all()
 
-    # Filtrer seulement élèves inscrits dans l'année active
+    # Filtrer seulement Ã©lÃ¨ves inscrits dans l'annÃ©e active
     if annee_active:
         eleves = [e for e in eleves if e.date_inscription.year <= int(annee_active.nom.split('-')[0])]
 
     data = {
         'ID': [e.id for e in eleves],
         'Nom': [e.nom for e in eleves],
-        'Prénom': [e.prenom for e in eleves],
+        'PrÃ©nom': [e.prenom for e in eleves],
         'Date de naissance': [e.date_naissance.strftime('%d/%m/%Y') if e.date_naissance else '' for e in eleves],
-        'Classe': [e.classe.nom if e.classe else "Non assignée" for e in eleves],
-        'Téléphone': [e.telephone for e in eleves],
+        'Classe': [e.classe.nom if e.classe else "Non assignÃ©e" for e in eleves],
+        'TÃ©lÃ©phone': [e.telephone for e in eleves],
         'Email': [e.email for e in eleves],
-        'Téléphone parent': [e.contact_parent for e in eleves],
+        'TÃ©lÃ©phone parent': [e.contact_parent for e in eleves],
         'Email parent': [e.email_parent for e in eleves],
         'Date inscription': [e.date_inscription.strftime('%d/%m/%Y') for e in eleves]
     }
@@ -473,10 +484,10 @@ def export_eleves_excel():
     df = pd.DataFrame(data)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name='Élèves', index=False)
+        df.to_excel(writer, sheet_name='Ã‰lÃ¨ves', index=False)
 
-        # Mise en forme Excel : largeur automatique et en-têtes en gras
-        ws = writer.sheets['Élèves']
+        # Mise en forme Excel : largeur automatique et en-tÃªtes en gras
+        ws = writer.sheets['Ã‰lÃ¨ves']
         for col in ws.columns:
             max_length = 0
             column = col[0].column_letter
@@ -494,7 +505,7 @@ def export_eleves_excel():
     output.seek(0)
 
     # Log de l'export
-    current_app.logger.info(f"Export Excel élèves par {current_user.id} ({current_user.role})")
+    current_app.logger.info(f"Export Excel Ã©lÃ¨ves par {current_user.id} ({current_user.role})")
 
     return send_file(
         output,
@@ -514,7 +525,7 @@ def voir_eleve(eleve_id):
         joinedload(Eleve.paiements)
     ).get_or_404(eleve_id)
 
-    if not check_ecole_access(eleve, "élève"):
+    if not check_ecole_access(eleve, "Ã©lÃ¨ve"):
         return redirect(url_for('main.profile'))
 
     notes = sorted(eleve.notes, key=lambda n: n.date_evaluation, reverse=True)
@@ -558,10 +569,10 @@ def modifier_eleve(eleve_id):
         parent = Utilisateur.query.filter_by(id=parent_id, ecole_id=current_user.ecole_id, role='parent').first() if parent_id else None
 
         if classe_id and not classe:
-            flash("Classe invalide pour cette école.", "danger")
+            flash("Classe invalide pour cette Ã©cole.", "danger")
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id))
         if parent_id and not parent:
-            flash("Parent invalide pour cette école.", "danger")
+            flash("Parent invalide pour cette Ã©cole.", "danger")
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id))
 
         eleve.nom = request.form.get('nom', eleve.nom).strip()
@@ -574,7 +585,7 @@ def modifier_eleve(eleve_id):
         eleve.email_parent = parent.email if parent else request.form.get('email_parent') or eleve.email_parent
         eleve.contact_parent = parent.telephone if parent else request.form.get('telephone_parent') or eleve.contact_parent
         db.session.commit()
-        flash("Élève modifié avec succès.", "success")
+        flash("Ã‰lÃ¨ve modifiÃ© avec succÃ¨s.", "success")
         return redirect(url_for('main.voir_eleve', eleve_id=eleve.id))
 
     return render_template('edit_eleve.html', eleve=eleve, classes=classes, parents=parents)
@@ -583,27 +594,27 @@ def modifier_eleve(eleve_id):
 @login_required
 @role_required('admin')
 def supprimer_eleve(id):
-    eleve = Eleve.query.get_or_404(id)
+    eleve = filtre_par_ecole(Eleve.query, Eleve).filter_by(id=id).first_or_404()
 
-    # 🛡️ Sécurité multi-écoles : empêche la suppression inter-écoles
+    # ðŸ›¡ï¸ SÃ©curitÃ© multi-Ã©coles : empÃªche la suppression inter-Ã©coles
     if current_user.role != 'super_admin' and eleve.ecole_id != current_user.ecole_id:
-        flash("Action non autorisée : cet élève appartient à une autre école.", "danger")
+        flash("Action non autorisÃ©e : cet Ã©lÃ¨ve appartient Ã  une autre Ã©cole.", "danger")
         return redirect(url_for('main.eleves'))
 
-    # Vérifier s'il y a des données liées
+    # VÃ©rifier s'il y a des donnÃ©es liÃ©es
     if eleve.notes or eleve.paiements or eleve.absences:
-        flash("Impossible de supprimer cet élève car il a des données associées.", "danger")
+        flash("Impossible de supprimer cet Ã©lÃ¨ve car il a des donnÃ©es associÃ©es.", "danger")
         return redirect(url_for('main.eleves'))
 
     try:
         db.session.delete(eleve)
         db.session.commit()
-        current_app.logger.info(f"Élève supprimé : {eleve.nom} (ID={eleve.id}) par {current_user.email}")
-        flash("Élève supprimé avec succès.", "success")
+        current_app.logger.info(f"Ã‰lÃ¨ve supprimÃ© : {eleve.nom} (ID={eleve.id}) par {current_user.email}")
+        flash("Ã‰lÃ¨ve supprimÃ© avec succÃ¨s.", "success")
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erreur lors de la suppression de l’élève {eleve.id} : {e}")
-        flash("Erreur lors de la suppression de l’élève.", "danger")
+        current_app.logger.error(f"Erreur lors de la suppression de lâ€™Ã©lÃ¨ve {eleve.id} : {e}")
+        flash("Erreur lors de la suppression de lâ€™Ã©lÃ¨ve.", "danger")
 
     return redirect(url_for('main.eleves'))
 
@@ -611,25 +622,25 @@ def supprimer_eleve(id):
 @login_required
 @role_required('admin')
 def supprimer_eleve_cascade(id):
-    """Supprime un élève et toutes ses données associées, avec journalisation."""
+    """Supprime un Ã©lÃ¨ve et toutes ses donnÃ©es associÃ©es, avec journalisation."""
     eleve = filtre_par_ecole(Eleve.query, Eleve).filter_by(id=id).first_or_404()
 
     try:
         ancienne_valeur = f"{eleve.nom} {eleve.prenom} (Classe: {eleve.classe_id})"
 
-        # Supprimer toutes les données associées
+        # Supprimer toutes les donnÃ©es associÃ©es
         Note.query.filter_by(eleve_id=id).delete(synchronize_session=False)
         Paiement.query.filter_by(eleve_id=id).delete(synchronize_session=False)
         Absence.query.filter_by(eleve_id=id).delete(synchronize_session=False)
-        Inscription.query.filter_by(eleve_id=id).delete(synchronize_session=False)  # <-- Ajouté
+        Inscription.query.filter_by(eleve_id=id).delete(synchronize_session=False)  # <-- AjoutÃ©
 
         db.session.delete(eleve)
         db.session.commit()
 
-        # ✅ Journalisation complète
+        # âœ… Journalisation complÃ¨te
         current_app.log_correction(
             action="suppression_cascade",
-            description=f"Élève et données associées supprimés : {eleve.nom} {eleve.prenom}",
+            description=f"Ã‰lÃ¨ve et donnÃ©es associÃ©es supprimÃ©s : {eleve.nom} {eleve.prenom}",
             ecole_id=eleve.ecole_id,
             cible_type="eleve",
             cible_id=id,
@@ -638,50 +649,51 @@ def supprimer_eleve_cascade(id):
             niveau="info"
         )
 
-        flash("Élève et toutes ses données associées supprimés avec succès.", "success")
+        flash("Ã‰lÃ¨ve et toutes ses donnÃ©es associÃ©es supprimÃ©s avec succÃ¨s.", "success")
         return redirect(url_for('main.eleves'))
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erreur suppression cascade élève {id}: {e}")
+        current_app.logger.error(f"Erreur suppression cascade Ã©lÃ¨ve {id}: {e}")
         flash("Erreur inattendue lors de la suppression.", "danger")
         return redirect(url_for('main.eleves'))
 
 @login_required
 @role_required('admin')
 def supprimer_eleve_route(id):
-    """Supprimer un élève"""
+    """Supprimer un Ã©lÃ¨ve"""
     eleve = Eleve.query.get_or_404(id)
     
-    # Vérifier s'il y a des données liées
+    # VÃ©rifier s'il y a des donnÃ©es liÃ©es
     if eleve.notes or eleve.paiements or eleve.absences:
-        flash("Impossible de supprimer cet élève car il a des données associées.", "danger")
+        flash("Impossible de supprimer cet Ã©lÃ¨ve car il a des donnÃ©es associÃ©es.", "danger")
         return redirect(url_for('main.profile'))
     
     db.session.delete(eleve)
     db.session.commit()
-    flash("Élève supprimé avec succès.", "success")
+    flash("Ã‰lÃ¨ve supprimÃ© avec succÃ¨s.", "success")
     return redirect(url_for('main.profile'))
 
 @main.route('/api/eleves/<int:eleve_id>', methods=['DELETE'])
 @login_required
 @role_required('admin')
 def supprimer_eleve_api(eleve_id):
-    """Supprimer un élève via API"""
-    eleve = Eleve.query.get_or_404(eleve_id)
+    """Supprimer un Ã©lÃ¨ve via API"""
+    eleve = filtre_par_ecole(Eleve.query, Eleve).filter_by(id=eleve_id).first_or_404()
     
-    # Vérifier que l'élève appartient à l'école de l'admin
+    # VÃ©rifier que l'Ã©lÃ¨ve appartient Ã  l'Ã©cole de l'admin
     if current_user.role == 'admin' and eleve.ecole_id != current_user.ecole_id:
-        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
+        return jsonify({'success': False, 'message': 'Non autorisÃ©'}), 403
     
-    # Vérifier s'il y a des données liées
+    # VÃ©rifier s'il y a des donnÃ©es liÃ©es
     if eleve.notes or eleve.paiements or eleve.absences:
         return jsonify({
             'success': False, 
-            'message': 'Impossible de supprimer cet élève car il a des données associées'
+            'message': 'Impossible de supprimer cet Ã©lÃ¨ve car il a des donnÃ©es associÃ©es'
         }), 400
     
     db.session.delete(eleve)
     db.session.commit()
     
     return jsonify({'success': True})
+

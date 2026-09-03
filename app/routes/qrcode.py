@@ -1,12 +1,16 @@
 from . import main
 from .common import (
+    Classe,
     Eleve,
+    abort,
     current_user,
+    db,
     login_required,
     os,
     render_template,
     role_required,
     send_file,
+    professeur_classes,
 )
 import qrcode
 from app.services import get_qr_cache_path
@@ -17,6 +21,8 @@ from app.services import get_qr_cache_path
 @role_required('admin')
 def generer_qrcode_eleve(id):
     eleve = Eleve.query.get_or_404(id)
+    if eleve.ecole_id != current_user.ecole_id:
+        abort(403)
 
     cache_path = get_qr_cache_path(eleve)
 
@@ -55,12 +61,24 @@ def qrcodes_etudiants():
     from collections import defaultdict
     import base64
 
-    etudiants = (
-        Eleve.query
-        .filter_by(ecole_id=current_user.ecole_id)
-        .order_by(Eleve.classe_id, Eleve.nom)
-        .all()
-    )
+    etudiants_query = Eleve.query.filter_by(ecole_id=current_user.ecole_id)
+    if current_user.role in ('enseignant', 'professeur'):
+        professeur = getattr(current_user, 'professeur_rel', None)
+        if not professeur:
+            abort(403)
+        etudiants_query = etudiants_query.filter(
+            Eleve.classe.has(
+                db.or_(
+                    Classe.professeur_id == professeur.id,
+                    Classe.id.in_(
+                        db.session.query(professeur_classes.c.classe_id)
+                        .filter(professeur_classes.c.professeur_id == professeur.id)
+                    )
+                )
+            )
+        )
+
+    etudiants = etudiants_query.order_by(Eleve.classe_id, Eleve.nom).all()
 
     qrcodes_par_classe = defaultdict(list)
 

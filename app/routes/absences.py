@@ -2,6 +2,9 @@ from . import main
 from .common import (
     Absence,
     AbsenceForm,
+    can_access_absence,
+    can_access_cours,
+    can_access_eleve,
     Classe,
     Cours,
     Eleve,
@@ -50,6 +53,19 @@ def absences():
             for e in enfants
         ]
         form.eleve_id.render_kw = {'disabled': True} if len(enfants) == 1 else {}
+    elif current_user.role in ('enseignant', 'professeur'):
+        professeur = getattr(current_user, 'professeur_rel', None)
+        classe_ids = [c.id for c in professeur.classes_assignees.all()] if professeur else []
+        enfants = (
+            filtre_par_ecole(Eleve.query.options(selectinload(Eleve.classe)), Eleve)
+            .filter(Eleve.classe_id.in_(classe_ids))
+            .all()
+        ) if classe_ids else []
+        enfants.sort(key=lambda e: ((e.classe.nom if e.classe else ""), e.nom))
+        form.eleve_id.choices = [
+            (e.id, f"{e.prenom} {e.nom} - {e.classe.nom if e.classe else 'Sans classe'}")
+            for e in enfants
+        ]
     else:
         enfants_query = filtre_par_ecole(
             Eleve.query.options(selectinload(Eleve.classe)), Eleve
@@ -64,6 +80,9 @@ def absences():
 
     # --- Choix des cours ---
     cours_query = filtre_par_ecole(Cours.query.order_by(Cours.nom), Cours)
+    if current_user.role in ('enseignant', 'professeur'):
+        professeur = getattr(current_user, 'professeur_rel', None)
+        cours_query = cours_query.filter(Cours.professeur_id == professeur.id) if professeur else cours_query.filter(False)
     cours_list = to_list(cours_query)
     form.cours_id.choices = [(c.id, c.nom) for c in cours_list]
 
@@ -74,6 +93,12 @@ def absences():
             return redirect(url_for('main.absences'))
 
         try:
+            eleve = filtre_par_ecole(Eleve.query.filter_by(id=form.eleve_id.data), Eleve).first()
+            cours = filtre_par_ecole(Cours.query.filter_by(id=form.cours_id.data), Cours).first()
+            if not can_access_eleve(eleve) or (cours and not can_access_cours(cours)):
+                flash("AccÃ¨s non autorisÃ© pour cet Ã©lÃ¨ve ou ce cours.", "danger")
+                return redirect(url_for('main.absences'))
+
             nouvelle_absence = Absence(
                 date_absence=form.date_absence.data,
                 motif=form.motif.data,
@@ -86,9 +111,6 @@ def absences():
             db.session.commit()
 
             # --- Notification email ---
-            eleve = filtre_par_ecole(Eleve.query.filter_by(id=form.eleve_id.data), Eleve).first()
-            cours = filtre_par_ecole(Cours.query.filter_by(id=form.cours_id.data), Cours).first()
-
             if eleve and eleve.email_parent and cours:
                 sujet = f"Absence de {eleve.prenom} {eleve.nom}"
                 message = f"""Bonjour,
@@ -117,6 +139,12 @@ L'équipe pédagogique"""
         enfants_ids = [e.id for e in enfants]
         absences_query = filtre_par_ecole(
             Absence.query.filter(Absence.eleve_id.in_(enfants_ids))
+                         .options(selectinload(Absence.eleve).selectinload(Eleve.classe)), Absence
+        )
+    elif current_user.role in ('enseignant', 'professeur'):
+        eleve_ids = [e.id for e in enfants]
+        absences_query = filtre_par_ecole(
+            Absence.query.filter(Absence.eleve_id.in_(eleve_ids))
                          .options(selectinload(Absence.eleve).selectinload(Eleve.classe)), Absence
         )
     else:
@@ -184,6 +212,9 @@ def export_absences_excel():
 @login_required
 def edit_absence(absence_id):
     absence = Absence.query.get_or_404(absence_id)
+    if not can_access_absence(absence) or current_user.role == 'parent':
+        flash("AccÃ¨s non autorisÃ© Ã  cette absence.", "danger")
+        return redirect(url_for('main.absences'))
     form = AbsenceForm(obj=absence)
     
     # Remplir les choix des élèves
@@ -194,21 +225,38 @@ def edit_absence(absence_id):
             for e in enfants
         ]
         form.eleve_id.render_kw = {'disabled': True} if len(enfants) == 1 else {}
+    elif current_user.role in ('enseignant', 'professeur'):
+        professeur = getattr(current_user, 'professeur_rel', None)
+        classe_ids = [c.id for c in professeur.classes_assignees.all()] if professeur else []
+        eleves = filtre_par_ecole(Eleve.query.join(Classe, isouter=True), Eleve).filter(Eleve.classe_id.in_(classe_ids)).order_by(Classe.nom, Eleve.nom).all() if classe_ids else []
+        form.eleve_id.choices = [
+            (e.id, f"{e.prenom} {e.nom} - {e.classe.nom if e.classe else 'Sans classe'}")
+            for e in eleves
+        ]
     else:
-        eleves = Eleve.query.join(Classe, isouter=True).order_by(Classe.nom, Eleve.nom).all()
+        eleves = filtre_par_ecole(Eleve.query.join(Classe, isouter=True), Eleve).order_by(Classe.nom, Eleve.nom).all()
         form.eleve_id.choices = [
             (e.id, f"{e.prenom} {e.nom} - {e.classe.nom if e.classe else 'Sans classe'}")
             for e in eleves
         ]
     
     # Remplir les choix des cours
-    form.cours_id.choices = [(c.id, c.nom) for c in Cours.query.order_by(Cours.nom).all()]
+    cours_query = filtre_par_ecole(Cours.query.order_by(Cours.nom), Cours)
+    if current_user.role in ('enseignant', 'professeur'):
+        professeur = getattr(current_user, 'professeur_rel', None)
+        cours_query = cours_query.filter(Cours.professeur_id == professeur.id) if professeur else cours_query.filter(False)
+    form.cours_id.choices = [(c.id, c.nom) for c in cours_query.all()]
 
     # Mettre à jour la sélection actuelle
     form.eleve_id.data = absence.eleve_id
     form.cours_id.data = absence.cours_id
 
     if form.validate_on_submit():
+        eleve = filtre_par_ecole(Eleve.query.filter_by(id=form.eleve_id.data), Eleve).first()
+        cours = filtre_par_ecole(Cours.query.filter_by(id=form.cours_id.data), Cours).first()
+        if not can_access_eleve(eleve) or (cours and not can_access_cours(cours)):
+            flash("AccÃ¨s non autorisÃ© pour cet Ã©lÃ¨ve ou ce cours.", "danger")
+            return redirect(url_for('main.absences'))
         absence.eleve_id = form.eleve_id.data
         absence.cours_id = form.cours_id.data
         absence.date_absence = form.date_absence.data
@@ -226,6 +274,9 @@ def edit_absence(absence_id):
 def delete_absence(absence_id):
     try:
         absence = Absence.query.get_or_404(absence_id)
+        if not can_access_absence(absence) or current_user.role == 'parent':
+            flash("AccÃ¨s non autorisÃ© Ã  cette absence.", "danger")
+            return redirect(url_for('main.absences'))
         db.session.delete(absence)
         db.session.commit()
         flash("Absence supprimée avec succès.", "success")

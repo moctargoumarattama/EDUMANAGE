@@ -43,6 +43,10 @@ def paiements():
     # --- TRAITEMENT DU POST ---
     if form.validate_on_submit():
         try:
+            eleve = filtre_par_ecole(Eleve.query, Eleve).filter_by(id=form.eleve_id.data).first()
+            if not eleve:
+                flash("Eleve invalide pour votre ecole.", "danger")
+                return redirect(url_for('main.paiements'))
             paiement = Paiement(
                 eleve_id=form.eleve_id.data,
                 montant=form.montant.data,

@@ -1,333 +1,167 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Informations de version - Gestion Scolaire</title>
-    <link rel="stylesheet" href="{{ url_for('admin.static', filename='style.css') }}">
-    <style>
-        /* Styles hacker ajoutés */
-        body {
-            background-color: #0a0a0a;
-            color: #00ff00;
-            font-family: 'Courier New', monospace;
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-        }
-        
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
-            position: relative;
-            z-index: 1;
-        }
-        
-        /* Effet de scanlines */
-        body::before {
-            content: "";
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(transparent 50%, rgba(0, 255, 0, 0.03) 50%);
-            background-size: 100% 4px;
-            pointer-events: none;
-            z-index: 0;
-        }
-        
-        /* Effet de bruit */
-        body::after {
-            content: "";
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
-            pointer-events: none;
-            z-index: 0;
-        }
-        
-        .nav-breadcrumb {
-            color: #00cc00;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-        
-        .nav-breadcrumb a {
-            color: #00ff00;
-            text-decoration: none;
-            transition: text-shadow 0.3s;
-        }
-        
-        .nav-breadcrumb a:hover {
-            text-shadow: 0 0 5px #00ff00;
-        }
-        
-        h1 {
-            color: #00ff00;
-            text-align: center;
-            font-size: 28px;
-            margin-bottom: 30px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            text-shadow: 0 0 10px rgba(0, 255, 0, 0.7);
-            position: relative;
-            padding-bottom: 10px;
-        }
-        
-        h1::after {
-            content: "";
-            position: absolute;
-            bottom: 0;
-            left: 25%;
-            width: 50%;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, #00ff00, transparent);
-        }
-        
-        h2 {
-            color: #00ff00;
-            border-bottom: 1px solid #00cc00;
-            padding-bottom: 10px;
-            margin-top: 0;
-            font-size: 20px;
-        }
-        
-        h3 {
-            color: #00cc00;
-            margin-top: 20px;
-            font-size: 16px;
-        }
-        
-        .card {
-            background-color: rgba(10, 20, 10, 0.7);
-            border: 1px solid #00cc00;
-            border-radius: 4px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 0 15px rgba(0, 255, 0, 0.1);
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .card:hover {
-            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
-            transform: translateY(-2px);
-        }
-        
-        .card::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(45deg, transparent, rgba(0, 255, 0, 0.05), transparent);
-            pointer-events: none;
-        }
-        
-        .version-info p, .changelog ul {
-            margin: 10px 0;
-            line-height: 1.6;
-        }
-        
-        .version-info strong {
-            color: #00ff00;
-        }
-        
-        .changelog ul {
-            padding-left: 20px;
-        }
-        
-        .changelog li {
-            margin-bottom: 8px;
-            position: relative;
-        }
-        
-        .changelog li::before {
-            content: "> ";
-            color: #00ff00;
-        }
-        
-        .button {
-            display: inline-block;
-            background-color: transparent;
-            color: #00ff00;
-            border: 1px solid #00ff00;
-            padding: 10px 20px;
-            text-decoration: none;
-            font-family: 'Courier New', monospace;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-            margin-top: 20px;
-        }
-        
-        .button:hover {
-            background-color: rgba(0, 255, 0, 0.1);
-            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
-        }
-        
-        .button::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.2), transparent);
-            transition: all 0.5s;
-        }
-        
-        .button:hover::before {
-            left: 100%;
-        }
-        
-        /* Animation de texte terminal */
-        .terminal-text {
-            overflow: hidden;
-            border-right: 2px solid #00ff00;
-            white-space: nowrap;
-            animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
-        }
-        
-        @keyframes typing {
-            from { width: 0 }
-            to { width: 100% }
-        }
-        
-        @keyframes blink-caret {
-            from, to { border-color: transparent }
-            50% { border-color: #00ff00 }
-        }
-        
-        /* Effet de pulsation pour les données importantes */
-        @keyframes pulse {
-            0% { text-shadow: 0 0 5px rgba(0, 255, 0, 0.7); }
-            50% { text-shadow: 0 0 15px rgba(0, 255, 0, 0.9); }
-            100% { text-shadow: 0 0 5px rgba(0, 255, 0, 0.7); }
-        }
-        
-        .pulse {
-            animation: pulse 2s infinite;
-        }
-        
-        /* Responsive */
-        @media (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-            
-            h1 {
-                font-size: 24px;
-            }
-            
-            .card {
-                padding: 15px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="nav-breadcrumb">
-            <a href="{{ url_for('admin.dashboard') }}">Tableau de bord</a> > <span class="terminal-text">Version</span>
-        </div>
+{% extends "base.html" %}
 
-        <h1>Informations de version</h1>
+{% block title %}Informations de Version - EduManage{% endblock %}
 
-        <div class="card">
-            <h2>Application</h2>
-            <div class="version-info">
-                <p><strong>Version :</strong> <span class="pulse">{{ stats.app_version }}</span></p>
-                <p><strong>Environnement :</strong> Production</p>
-                <p><strong>Dernière mise à jour :</strong> {{ stats.last_backup if stats.last_backup else "N/A" }}</p>
+{% block content %}
+<div class="container py-4">
+    <!-- Breadcrumb & Header -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Administration</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Version système</li>
+        </ol>
+    </nav>
+
+    <div class="page-header">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon">
+                    <i class="fas fa-code-branch"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">Informations de Version</h1>
+                    <p class="page-subtitle">État technique, versioning et journal des versions de la plateforme</p>
+                </div>
+            </div>
+            <div class="page-actions">
+                <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Retour au tableau de bord
+                </a>
             </div>
         </div>
-
-        <div class="card">
-            <h2>Base de données</h2>
-            <div class="version-info">
-                <p><strong>Moteur :</strong> SQLite {{ stats.db_version }}</p>
-                <p><strong>Nombre de tables :</strong> {{ stats.table_count }}</p>
-                <p><strong>Espace disque utilisé :</strong> {{ stats.disk_usage }}%</p>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>Journalisation</h2>
-            <div class="version-info">
-                <p><strong>Total des entrées :</strong> {{ stats.log_count }}</p>
-                <p><strong>Entrées cette semaine :</strong> {{ stats.log_recent }}</p>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>Changelog</h2>
-            <div class="changelog">
-                <h3>Version 2.2.0 (Current)</h3>
-                <ul>
-                    <li>Système complet de maintenance et sauvegarde</li>
-                    <li>Journalisation des événements système</li>
-                    <li>Optimisation de la base de données</li>
-                </ul>
-
-                <h3>Version 2.1.0</h3>
-                <ul>
-                    <li>Gestion des emplois du temps</li>
-                    <li>Export/Import de données</li>
-                    <li>Amélioration de l'interface parentale</li>
-                </ul>
-
-                <h3>Version 2.0.0</h3>
-                <ul>
-                    <li>Version initiale avec gestion des élèves, notes et paiements</li>
-                    <li>Interface d'administration</li>
-                    <li>Système d'authentification multi-rôles</li>
-                </ul>
-            </div>
-        </div>
-
-        <a href="{{ url_for('admin.dashboard') }}" class="button">Retour au tableau de bord</a>
     </div>
 
-    <script>
-        // Ajout d'effets interactifs supplémentaires
-        document.addEventListener('DOMContentLoaded', function() {
-            // Effet de saisie pour chaque carte
-            const cards = document.querySelectorAll('.card');
-            cards.forEach((card, index) => {
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(20px)';
-                setTimeout(() => {
-                    card.style.transition = 'opacity 0.8s, transform 0.8s';
-                    card.style.opacity = '1';
-                    card.style.transform = 'translateY(0)';
-                }, 200 * index);
-            });
-            
-            // Effet aléatoire de scintillement sur les textes
-            function randomFlicker() {
-                const elements = document.querySelectorAll('h1, h2, h3, .card, .button');
-                const randomElement = elements[Math.floor(Math.random() * elements.length)];
-                
-                randomElement.style.opacity = '0.7';
-                setTimeout(() => {
-                    randomElement.style.opacity = '1';
-                }, 50);
-                
-                setTimeout(randomFlicker, Math.random() * 3000 + 1000);
-            }
-            
-            randomFlicker();
-        });
-    </script>
-</body>
-</html>
+    <!-- Grille télémétrie -->
+    <div class="row g-4 mb-4">
+        <!-- Application -->
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="mb-0 fw-bold text-primary">
+                        <i class="fas fa-laptop-code me-2"></i>Application
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-3 d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Version actuelle :</span>
+                            <span class="badge bg-primary fs-6 px-3 py-1">v{{ stats.app_version or "2.2.0" }}</span>
+                        </li>
+                        <li class="mb-3 d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Environnement :</span>
+                            <span class="badge bg-success bg-opacity-10 text-success fw-bold">Production</span>
+                        </li>
+                        <li class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Dernière sauvegarde :</span>
+                            <span class="fw-semibold text-dark">{{ stats.last_backup if stats.last_backup else "N/A" }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Base de données -->
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="mb-0 fw-bold text-info">
+                        <i class="fas fa-database me-2"></i>Base de données
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-3 d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Moteur :</span>
+                            <span class="fw-semibold text-dark">SQLite {{ stats.db_version or "3.x" }}</span>
+                        </li>
+                        <li class="mb-3 d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Nombre de tables :</span>
+                            <span class="badge bg-info bg-opacity-10 text-info fw-bold">{{ stats.table_count or 0 }} tables</span>
+                        </li>
+                        <li class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Espace disque :</span>
+                            <span class="fw-semibold text-dark">{{ stats.disk_usage or 0 }}%</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Journalisation -->
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="mb-0 fw-bold text-warning">
+                        <i class="fas fa-clipboard-check me-2"></i>Journalisation
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-3 d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Total des entrées :</span>
+                            <span class="fw-bold text-dark">{{ stats.log_count or 0 }}</span>
+                        </li>
+                        <li class="mb-3 d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Entrées récentes :</span>
+                            <span class="badge bg-warning bg-opacity-10 text-warning fw-bold">{{ stats.log_recent or 0 }} cette semaine</span>
+                        </li>
+                        <li class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Audit système :</span>
+                            <a href="{{ url_for('admin.view_logs') }}" class="small text-decoration-none fw-semibold">Consulter les logs &rarr;</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Changelog de la plateforme -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="mb-0 fw-bold text-dark">
+                <i class="fas fa-history me-2 text-primary"></i>Historique des versions (Changelog)
+            </h5>
+        </div>
+        <div class="card-body p-4">
+            <div class="timeline">
+                <div class="mb-4 pb-3 border-bottom">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge bg-primary">v2.2.0</span>
+                        <h6 class="mb-0 fw-bold">Version stable actuelle</h6>
+                    </div>
+                    <ul class="text-muted mb-0 ps-3">
+                        <li>Système complet de maintenance, vérification d'intégrité et sauvegarde</li>
+                        <li>Journalisation et audit centralisé des événements système</li>
+                        <li>Harmonisation de la charte graphique et standardisation du design</li>
+                    </ul>
+                </div>
+
+                <div class="mb-4 pb-3 border-bottom">
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge bg-secondary">v2.1.0</span>
+                        <h6 class="mb-0 fw-bold">Gestion des emplois du temps</h6>
+                    </div>
+                    <ul class="text-muted mb-0 ps-3">
+                        <li>Emplois du temps hebdomadaires par classe et par enseignant</li>
+                        <li>Export et import des données tabulaires (élèves, cours)</li>
+                        <li>Amélioration de l'espace parental et consultation en temps réel</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="badge bg-light text-dark">v2.0.0</span>
+                        <h6 class="mb-0 fw-bold">Refonte architecture multi-écoles</h6>
+                    </div>
+                    <ul class="text-muted mb-0 ps-3">
+                        <li>Support complet multi-établissements avec isolation stricte</li>
+                        <li>Gestion avancée des rôles et autorisations utilisateur</li>
+                        <li>Génération de bulletins périodiques automatisés</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

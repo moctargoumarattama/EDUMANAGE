@@ -1,51 +1,89 @@
 {% extends "base.html" %}
 
-{% block title %}Modifier Élève{% endblock %}
+{% block title %}Modifier l'Élève - {{ eleve.prenom }} {{ eleve.nom }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2>Modifier Élève : {{ eleve.nom }} {{ eleve.prenom }}</h2>
-    
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, msg in messages %}
-                <div class="alert alert-{{ category }} mt-2">{{ msg }}</div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+<div class="container py-4">
+    <!-- Breadcrumb & Header -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.eleves') }}">Élèves</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}">{{ eleve.prenom }} {{ eleve.nom }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Modifier</li>
+        </ol>
+    </nav>
 
-    <form method="POST" action="{{ url_for('main.modifier_eleve', eleve_id=eleve.id) }}">
-        {% if csrf_token %}
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        {% endif %}
+    <div class="row justify-content-center">
+        <div class="col-lg-9 col-xl-8">
+            <div class="form-card animate-pop-in">
+                <!-- En-tête du formulaire -->
+                <div class="form-header">
+                    <div class="form-header-content">
+                        <div class="form-header-icon">
+                            <i class="fas fa-user-graduate"></i>
+                        </div>
+                        <div>
+                            <h2 class="form-header-title">Modifier l'élève</h2>
+                            <p class="form-header-subtitle">{{ eleve.prenom }} {{ eleve.nom }} &bull; Matricule / Identifiant : #{{ eleve.id }}</p>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="mb-3">
-            <label for="nom" class="form-label">Nom</label>
-            <input type="text" class="form-control" id="nom" name="nom" value="{{ eleve.nom }}" required>
+                <!-- Corps du formulaire -->
+                <div class="form-card-body">
+                    <form method="POST" action="{{ url_for('main.modifier_eleve', eleve_id=eleve.id) }}" class="needs-validation" novalidate>
+                        {% if csrf_token %}
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {% endif %}
+
+                        <div class="form-section">
+                            <h5 class="form-section-title">
+                                <i class="fas fa-id-card"></i> Identité de l'élève
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="nom" class="form-label">Nom <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="nom" name="nom" value="{{ eleve.nom }}" required>
+                                    <div class="invalid-feedback">Veuillez saisir le nom de l'élève.</div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="prenom" class="form-label">Prénom <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="prenom" name="prenom" value="{{ eleve.prenom }}" required>
+                                    <div class="invalid-feedback">Veuillez saisir le prénom de l'élève.</div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="date_naissance" class="form-label">Date de naissance</label>
+                                    <input type="date" class="form-control" id="date_naissance" name="date_naissance" value="{{ eleve.date_naissance }}">
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="classe_id" class="form-label">Classe d'affectation</label>
+                                    <select class="form-select" id="classe_id" name="classe_id">
+                                        <option value="">-- Choisir une classe --</option>
+                                        {% for classe in classes %}
+                                            <option value="{{ classe.id }}" {% if eleve.classe_id == classe.id %}selected{% endif %}>{{ classe.nom }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="form-actions">
+                            <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>Annuler
+                            </a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-save me-1"></i>Enregistrer les modifications
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-
-        <div class="mb-3">
-            <label for="prenom" class="form-label">Prénom</label>
-            <input type="text" class="form-control" id="prenom" name="prenom" value="{{ eleve.prenom }}" required>
-        </div>
-
-        <div class="mb-3">
-            <label for="date_naissance" class="form-label">Date de naissance</label>
-            <input type="date" class="form-control" id="date_naissance" name="date_naissance" value="{{ eleve.date_naissance }}">
-        </div>
-
-        <div class="mb-3">
-            <label for="classe_id" class="form-label">Classe</label>
-            <select class="form-select" id="classe_id" name="classe_id">
-                <option value="">-- Choisir une classe --</option>
-                {% for classe in classes %}
-                    <option value="{{ classe.id }}" {% if eleve.classe_id == classe.id %}selected{% endif %}>{{ classe.nom }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <button type="submit" class="btn btn-primary">Mettre à jour</button>
-        <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-secondary">Annuler</a>
-    </form>
+    </div>
 </div>
 {% endblock %}

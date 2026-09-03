@@ -50,9 +50,10 @@ def api_stats_notes_moyennes():
 
     # Filtrage par école
     if current_user.role == 'enseignant':
+        professeur_id = getattr(getattr(current_user, 'professeur_rel', None), 'id', None)
         cours_ids = [c.id for c in filtre_par_ecole(
-            Cours.query.filter_by(professeur_id=current_user.id), Cours
-        ).all()]
+            Cours.query.filter_by(professeur_id=professeur_id), Cours
+        ).all()] if professeur_id else []
         result = db.session.query(
             Cours.nom,
             func.avg(Note.valeur).label('moyenne')
@@ -61,7 +62,7 @@ def api_stats_notes_moyennes():
         result = db.session.query(
             Cours.nom,
             func.avg(Note.valeur).label('moyenne')
-        ).join(Note).group_by(Cours.nom).all()
+        ).join(Note).filter(Cours.ecole_id == current_user.ecole_id, Note.ecole_id == current_user.ecole_id).group_by(Cours.nom).all()
 
     data = {
         'matieres': [r[0] for r in result],
@@ -261,7 +262,7 @@ def profile():
 
 @main.route('/rapport/notes_par_classe')
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def rapport_notes_par_classe():
     now = datetime.now()
     if _rapports_cache['notes_par_classe'] and (now - _rapports_cache['timestamp_notes']).total_seconds() < CACHE_DURATION:
@@ -269,8 +270,7 @@ def rapport_notes_par_classe():
 
     # Filtrage selon rôle
     query_eleves = Eleve.query.options(db.joinedload(Eleve.notes), db.joinedload(Eleve.classe))
-    if current_user.role == 'admin':
-        query_eleves = query_eleves.filter(Eleve.ecole_id == current_user.ecole_id)
+    query_eleves = query_eleves.filter(Eleve.ecole_id == current_user.ecole_id)
 
     eleves = query_eleves.all()
 
@@ -298,15 +298,14 @@ def rapport_notes_par_classe():
 
 @main.route('/rapport/absences_par_classe')
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def rapport_absences_par_classe():
     now = datetime.now()
     if _rapports_cache['absences_par_classe'] and (now - _rapports_cache['timestamp_absences']).total_seconds() < CACHE_DURATION:
         return jsonify(_rapports_cache['absences_par_classe'])
 
     query_eleves = Eleve.query.options(db.joinedload(Eleve.absences), db.joinedload(Eleve.classe))
-    if current_user.role == 'admin':
-        query_eleves = query_eleves.filter(Eleve.ecole_id == current_user.ecole_id)
+    query_eleves = query_eleves.filter(Eleve.ecole_id == current_user.ecole_id)
 
     eleves = query_eleves.all()
 
@@ -328,25 +327,17 @@ def rapport_absences_par_classe():
 
 @main.route('/rapports')
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def rapports():
     # Classes filtrées selon rôle
-    classes_query = Classe.query
-    if current_user.role == 'admin':
-        classes_query = classes_query.filter(Classe.ecole_id == current_user.ecole_id)
+    classes_query = Classe.query.filter(Classe.ecole_id == current_user.ecole_id)
     classes = classes_query.all()
 
     # Statistiques globales
-    if current_user.role == 'admin':
-        total_eleves = Eleve.query.filter(Eleve.ecole_id == current_user.ecole_id).count()
-        total_professeurs = Utilisateur.query.filter_by(role='enseignant', ecole_id=current_user.ecole_id).count()
-        total_classes = len(classes)
-        capacite_totale = sum(c.capacite_max for c in classes) if classes else 1
-    else:  # super_admin
-        total_eleves = Eleve.query.count()
-        total_professeurs = Utilisateur.query.filter_by(role='enseignant').count()
-        total_classes = Classe.query.count()
-        capacite_totale = sum(c.capacite_max for c in Classe.query.all()) if total_classes > 0 else 1
+    total_eleves = Eleve.query.filter(Eleve.ecole_id == current_user.ecole_id).count()
+    total_professeurs = Utilisateur.query.filter_by(role='enseignant', ecole_id=current_user.ecole_id).count()
+    total_classes = len(classes)
+    capacite_totale = sum(c.capacite_max for c in classes) if classes else 1
 
     taux_occupation = round((total_eleves / capacite_totale) * 100, 2) if capacite_totale > 0 else 0
 
@@ -452,7 +443,7 @@ def recherche():
         return render_template('recherche.html', results=None)
 
     ecole_id = None
-    if current_user.role in ['admin', 'enseignant']:
+    if current_user.role in ['admin', 'enseignant', 'professeur', 'parent']:
         ecole_id = current_user.ecole_id
 
     queries = []
@@ -474,12 +465,11 @@ def recherche():
         if ecole_id:
             eleve_query = eleve_query.filter(Classe.ecole_id == ecole_id)
 
-        if current_user.role == 'enseignant':
+        if current_user.role in ('enseignant', 'professeur'):
             professeur = Professeur.query.filter_by(utilisateur_id=current_user.id).first()
             if professeur:
-                cours_ids = db.session.query(Cours.id).filter_by(professeur_id=professeur.id).subquery()
-                eleve_ids = db.session.query(Note.eleve_id).filter(Note.cours_id.in_(cours_ids)).subquery()
-                eleve_query = eleve_query.filter(Eleve.id.in_(eleve_ids))
+                classe_ids = [c.id for c in professeur.classes_assignees.all()]
+                eleve_query = eleve_query.filter(Eleve.classe_id.in_(classe_ids))
 
         elif current_user.role == 'parent':
             eleve_query = eleve_query.filter(Eleve.parent_id == current_user.id)
@@ -487,7 +477,7 @@ def recherche():
         queries.append(eleve_query)
 
     # ---------- PROFESSEURS ----------
-    if type_recherche in ['all', 'professeurs'] and current_user.role != 'enseignant':
+    if type_recherche in ['all', 'professeurs'] and current_user.role == 'admin':
         prof_query = db.session.query(
             Professeur.id.label('id'),
             Professeur.nom.label('nom'),
@@ -507,7 +497,7 @@ def recherche():
         queries.append(prof_query)
 
     # ---------- COURS ----------
-    if type_recherche in ['all', 'cours']:
+    if type_recherche in ['all', 'cours'] and current_user.role in ('admin', 'enseignant', 'professeur'):
         cours_query = db.session.query(
             Cours.id.label('id'),
             Cours.nom.label('nom'),
@@ -517,9 +507,9 @@ def recherche():
         ).join(Professeur, isouter=True).join(Utilisateur, Professeur.utilisateur_id == Utilisateur.id, isouter=True)
 
         if ecole_id:
-            cours_query = cours_query.filter(Utilisateur.ecole_id == ecole_id)
+            cours_query = cours_query.filter(Cours.ecole_id == ecole_id)
 
-        if current_user.role == 'enseignant':
+        if current_user.role in ('enseignant', 'professeur'):
             professeur = Professeur.query.filter_by(utilisateur_id=current_user.id).first()
             if professeur:
                 cours_query = cours_query.filter(Cours.professeur_id == professeur.id)

@@ -1,71 +1,73 @@
 {% extends "base.html" %}
-{% block title %}Modifier Absence - EduManage{% endblock %}
+
+{% block title %}Modifier une Absence - EduManage{% endblock %}
 
 {% block content %}
 <div class="container py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.absences') }}">Absences</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Modifier</li>
+        </ol>
+    </nav>
+
     <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-lg animate-pop-in" style="border-radius: 1.2rem; overflow: hidden;">
-                <div class="card-header py-4 text-white" style="background: var(--gradient-warning);">
-                    <div class="d-flex align-items-center">
-                        <div class="bg-white bg-opacity-20 rounded-circle p-3 me-3">
-                            <i class="fas fa-edit fa-2x"></i>
+        <div class="col-lg-9 col-xl-8">
+            <div class="form-card animate-pop-in">
+                <div class="form-header">
+                    <div class="form-header-content">
+                        <div class="form-header-icon">
+                            <i class="fas fa-user-clock"></i>
                         </div>
                         <div>
-                            <h3 class="mb-0">Modifier l'absence</h3>
-                            <p class="mb-0 opacity-75">Modifiez les informations de l'absence</p>
+                            <h2 class="form-header-title">Modifier l'absence</h2>
+                            <p class="form-header-subtitle">Mise à jour de la justification et du motif d'absence</p>
                         </div>
                     </div>
                 </div>
-                <div class="card-body p-5">
+
+                <div class="form-card-body">
                     <form method="POST" class="needs-validation" novalidate>
                         {{ form.hidden_tag() }}
-                        
-                        <div class="mb-4">
-                            <div class="form-floating">
-                                {{ form.eleve_id(class="form-select", style="border-radius: 0.8rem;") }}
-                                {{ form.eleve_id.label(class="form-label") }}
-                                <div class="invalid-feedback">Veuillez sélectionner un élève.</div>
+
+                        <div class="form-section">
+                            <h5 class="form-section-title">
+                                <i class="fas fa-calendar-times"></i> Informations de l'absence
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Élève concerné</label>
+                                    {{ form.eleve_id(class="form-select") }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Matière / Cours</label>
+                                    {{ form.cours_id(class="form-select") }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Date de l'absence</label>
+                                    {{ form.date_absence(class="form-control") }}
+                                </div>
+                                <div class="col-md-6 d-flex align-items-center pt-md-4">
+                                    <div class="form-check form-switch fs-5">
+                                        {{ form.justifiee(class="form-check-input") }}
+                                        <label class="form-check-label fs-6 fw-semibold ms-2" for="{{ form.justifiee.id }}">Absence justifiée</label>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold">Motif / Justificatif</label>
+                                    {{ form.motif(class="form-control", rows="3", placeholder="Motif ou observations...") }}
+                                </div>
                             </div>
                         </div>
-                        
-                        <div class="mb-4">
-                            <div class="form-floating">
-                                {{ form.cours_id(class="form-select", style="border-radius: 0.8rem;") }}
-                                {{ form.cours_id.label(class="form-label") }}
-                                <div class="invalid-feedback">Veuillez sélectionner un cours.</div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="form-floating">
-                                {{ form.date_absence(class="form-control", style="border-radius: 0.8rem;") }}
-                                {{ form.date_absence.label(class="form-label") }}
-                                <div class="invalid-feedback">Veuillez sélectionner une date.</div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="form-floating">
-                                {{ form.motif(class="form-control", placeholder="Motif de l'absence", style="border-radius: 0.8rem; min-height: 100px;") }}
-                                {{ form.motif.label(class="form-label") }}
-                                <div class="invalid-feedback">Veuillez saisir un motif.</div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="form-check form-switch">
-                                {{ form.justifiee(class="form-check-input", style="width: 3rem; height: 1.5rem;") }}
-                                {{ form.justifiee.label(class="form-check-label fw-bold") }}
-                            </div>
-                        </div>
-                        
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="{{ url_for('main.absences') }}" class="btn btn-outline-secondary me-md-2 px-4 py-2" style="border-radius: 0.8rem;">
-                                <i class="fas fa-arrow-left me-2"></i>Annuler
+
+                        <div class="form-actions">
+                            <a href="{{ url_for('main.absences') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>Annuler
                             </a>
-                            <button type="submit" class="btn btn-warning px-4 py-2 text-white fw-bold" style="border-radius: 0.8rem;">
-                                <i class="fas fa-save me-2"></i>Enregistrer les modifications
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-save me-1"></i>Enregistrer les modifications
                             </button>
                         </div>
                     </form>
@@ -74,22 +76,4 @@
         </div>
     </div>
 </div>
-
-<script>
-    // Validation des formulaires
-    (function () {
-        'use strict'
-        var forms = document.querySelectorAll('.needs-validation')
-        Array.prototype.slice.call(forms)
-            .forEach(function (form) {
-                form.addEventListener('submit', function (event) {
-                    if (!form.checkValidity()) {
-                        event.preventDefault()
-                        event.stopPropagation()
-                    }
-                    form.classList.add('was-validated')
-                }, false)
-            })
-    })()
-</script>
 {% endblock %}

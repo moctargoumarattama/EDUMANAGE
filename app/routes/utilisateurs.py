@@ -1,4 +1,4 @@
-from . import main
+﻿from . import main
 from .common import (
     CreateUserForm,
     Ecole,
@@ -34,7 +34,7 @@ from .common import (
 @login_required
 @role_required('admin')
 def create_user():
-    """Création d'utilisateurs par l'administrateur"""
+    """CrÃ©ation d'utilisateurs par l'administrateur"""
     form = CreateUserForm()
     form.eleve_id.choices = [(0, "--- Aucun ---")] + [(e.id, f"{e.nom} {e.prenom} ({e.classe})") for e in get_ecole_filter_query(Eleve).all()]
 
@@ -57,20 +57,20 @@ def create_user():
 
             db.session.add(user)
             db.session.commit()
-            flash(f"Utilisateur {user.nom} créé avec succès !", "success")
+            flash(f"Utilisateur {user.nom} crÃ©Ã© avec succÃ¨s !", "success")
             return redirect(url_for('main.dashboard'))
             
         except IntegrityError as e:
             db.session.rollback()
             if 'email' in str(e):
-                flash("Cet email est déjà utilisé.", "danger")
+                flash("Cet email est dÃ©jÃ  utilisÃ©.", "danger")
             else:
-                flash("Erreur lors de la création de l'utilisateur.", "danger")
+                flash("Erreur lors de la crÃ©ation de l'utilisateur.", "danger")
                 current_app.logger.error(f"IntegrityError: {e}")
         except Exception as e:
             db.session.rollback()
-            flash("Erreur inattendue lors de la création.", "danger")
-            current_app.logger.error(f"Erreur création utilisateur: {e}")
+            flash("Erreur inattendue lors de la crÃ©ation.", "danger")
+            current_app.logger.error(f"Erreur crÃ©ation utilisateur: {e}")
 
     return render_template('admin/create_user.html', form=form)
 
@@ -86,7 +86,7 @@ def gestion_utilisateurs():
 
     try:
         if not ecole:
-            flash("Votre compte n'est associé à aucune école.", "danger")
+            flash("Votre compte n'est associÃ© Ã  aucune Ã©cole.", "danger")
             return redirect(url_for('main.index'))
 
         utilisateurs_query = filtre_par_ecole(Utilisateur.query, Utilisateur)
@@ -106,7 +106,7 @@ def gestion_utilisateurs():
 
     except Exception as e:
         current_app.logger.error(f"Erreur gestion utilisateurs: {e}")
-        flash("Erreur lors de la récupération des utilisateurs.", "danger")
+        flash("Erreur lors de la rÃ©cupÃ©ration des utilisateurs.", "danger")
         return redirect(url_for('main.index'))
 
 @main.route('/admin/creer_utilisateur', methods=['GET', 'POST'])
@@ -124,11 +124,11 @@ def creer_utilisateur():
         mot_de_passe = request.form.get('mot_de_passe', '').strip()
 
         if not all([nom, prenom, email, mot_de_passe]):
-            flash("Tous les champs obligatoires doivent être remplis.", "warning")
+            flash("Tous les champs obligatoires doivent Ãªtre remplis.", "warning")
             return redirect(url_for('main.creer_utilisateur'))
 
         if Utilisateur.query.filter_by(email=email).first():
-            flash('Cet email est déjà utilisé', 'danger')
+            flash('Cet email est dÃ©jÃ  utilisÃ©', 'danger')
             return redirect(url_for('main.gestion_utilisateurs'))
 
         try:
@@ -147,12 +147,12 @@ def creer_utilisateur():
             db.session.add(nouvel_utilisateur)
             db.session.commit()
 
-            flash('Utilisateur créé avec succès', 'success')
+            flash('Utilisateur crÃ©Ã© avec succÃ¨s', 'success')
             return redirect(url_for('main.gestion_utilisateurs'))
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Erreur création utilisateur: {e}")
-            flash("Erreur lors de la création de l'utilisateur.", "danger")
+            current_app.logger.error(f"Erreur crÃ©ation utilisateur: {e}")
+            flash("Erreur lors de la crÃ©ation de l'utilisateur.", "danger")
             return redirect(url_for('main.gestion_utilisateurs'))
 
     return render_template('admin/creer_utilisateur.html')
@@ -173,12 +173,12 @@ def modifier_utilisateur(id):
         email = request.form.get('email', '').strip().lower()
 
         if role not in roles_autorises:
-            flash("Rôle utilisateur invalide.", "danger")
+            flash("RÃ´le utilisateur invalide.", "danger")
             return redirect(url_for('main.modifier_utilisateur', id=user.id))
 
         doublon = Utilisateur.query.filter(Utilisateur.email == email, Utilisateur.id != user.id).first()
         if doublon:
-            flash("Cet email est déjà utilisé.", "danger")
+            flash("Cet email est dÃ©jÃ  utilisÃ©.", "danger")
             return redirect(url_for('main.modifier_utilisateur', id=user.id))
 
         user.nom = request.form.get('nom', user.nom).strip()
@@ -193,7 +193,7 @@ def modifier_utilisateur(id):
             user.mot_de_passe = bcrypt.generate_password_hash(password).decode('utf-8')
 
         db.session.commit()
-        flash("Utilisateur modifié avec succès.", "success")
+        flash("Utilisateur modifiÃ© avec succÃ¨s.", "success")
         return redirect(url_for('main.gestion_utilisateurs'))
 
     return render_template('edit_utilisateur.html', user=user, roles=roles_autorises)
@@ -203,10 +203,10 @@ def modifier_utilisateur(id):
 @role_required('admin')
 def changer_statut_utilisateur(user_id):
     try:
-        user = Utilisateur.query.get_or_404(user_id)
+        user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
         data = request.get_json()
         if not data or 'statut' not in data:
-            return jsonify({'success': False, 'message': 'Données JSON requises'}), 400
+            return jsonify({'success': False, 'message': 'DonnÃ©es JSON requises'}), 400
 
         nouveau_statut = data.get('statut')
         if nouveau_statut not in ['actif', 'bloque']:
@@ -224,10 +224,10 @@ def changer_statut_utilisateur(user_id):
 @login_required
 @role_required('admin')
 def supprimer_utilisateur(user_id):
-    user = Utilisateur.query.get_or_404(user_id)
+    user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
 
     if user.id == current_user.id:
-        return jsonify({'success': False, 'message': 'Vous ne pouvez pas vous supprimer vous-même'}), 403
+        return jsonify({'success': False, 'message': 'Vous ne pouvez pas vous supprimer vous-mÃªme'}), 403
 
     try:
         db.session.delete(user)
@@ -242,7 +242,7 @@ def supprimer_utilisateur(user_id):
 @login_required
 @role_required('admin')
 def regenerer_code_parent(eleve_id):
-    eleve = Eleve.query.get_or_404(eleve_id)
+    eleve = filtre_par_ecole(Eleve.query, Eleve).filter_by(id=eleve_id).first_or_404()
     try:
         nouveau_code = Eleve.generer_code_parent()
         eleve.code_parent = nouveau_code
@@ -250,7 +250,7 @@ def regenerer_code_parent(eleve_id):
         return jsonify({'success': True, 'nouveau_code': nouveau_code}), 200
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erreur génération code parent: {e}")
+        current_app.logger.error(f"Erreur gÃ©nÃ©ration code parent: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @main.route('/admin/parent/<int:parent_id>/envoyer-credentials', methods=['POST'])
@@ -259,11 +259,11 @@ def regenerer_code_parent(eleve_id):
 def envoyer_credentials_parent(parent_id):
     parent = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=parent_id, role='parent').first()
     if not parent:
-        return jsonify({'success': False, 'message': "Parent introuvable ou non autorisé."}), 404
+        return jsonify({'success': False, 'message': "Parent introuvable ou non autorisÃ©."}), 404
 
     eleve = parent.enfants[0] if parent.enfants else None
     if not eleve:
-        return jsonify({'success': False, 'message': "Aucun élève associé à ce parent."}), 400
+        return jsonify({'success': False, 'message': "Aucun Ã©lÃ¨ve associÃ© Ã  ce parent."}), 400
 
     if not eleve.code_parent:
         eleve.code_parent = Eleve.generer_code_parent()
@@ -284,33 +284,34 @@ def envoyer_credentials_parent(parent_id):
         sujet = "Vos identifiants de connexion - EduManage"
         message = f"""
         <h3>Bonjour {parent.prenom or ''} {parent.nom},</h3>
-        <p>Voici vos identifiants pour accéder au portail parent :</p>
+        <p>Voici vos identifiants pour accÃ©der au portail parent :</p>
         <ul>
             <li>Email : {parent.email}</li>
-            <li>Code d'accès : {eleve.code_parent}</li>
+            <li>Code d'accÃ¨s : {eleve.code_parent}</li>
         </ul>
         <img src="data:image/png;base64,{qr_base64}" width="150" height="150"/>
         """
 
         from app.notifications import envoyer_email
         if envoyer_email(parent.email, sujet, message):
-            return jsonify({'success': True, 'message': 'Email envoyé avec succès.'}), 200
+            return jsonify({'success': True, 'message': 'Email envoyÃ© avec succÃ¨s.'}), 200
         else:
-            return jsonify({'success': False, 'message': 'Erreur lors de l’envoi de l’email.'}), 500
+            return jsonify({'success': False, 'message': 'Erreur lors de lâ€™envoi de lâ€™email.'}), 500
 
     except Exception as e:
         from flask import current_app
-        current_app.logger.error(f"Erreur lors de l’envoi des credentials: {e}")
+        current_app.logger.error(f"Erreur lors de lâ€™envoi des credentials: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @main.route('/journaux_corrections', methods=['GET'])
 @login_required
+@role_required('admin', 'super_admin')
 def journaux_corrections():
-    # Récupération des écoles et utilisateurs accessibles
+    # RÃ©cupÃ©ration des Ã©coles et utilisateurs accessibles
     toutes_ecoles = get_ecole_filter_query(Ecole).all()
     tous_users = get_ecole_filter_query(User).all()
 
-    # Récupération des filtres
+    # RÃ©cupÃ©ration des filtres
     ecole_id = request.args.get('ecole_id', type=int)
     user_id = request.args.get('user_id', type=int)
     action = request.args.get('action', '').strip()
@@ -318,13 +319,13 @@ def journaux_corrections():
     date_debut = request.args.get('date_debut')
     date_fin = request.args.get('date_fin')
 
-    # Construire la requête avec pré-chargement
+    # Construire la requÃªte avec prÃ©-chargement
     query = JournalCorrection.query.options(
         joinedload(JournalCorrection.ecole),
         joinedload(JournalCorrection.user)
     )
 
-    # Filtrage multi-écoles si l'utilisateur n'est pas super_admin
+    # Filtrage multi-Ã©coles si l'utilisateur n'est pas super_admin
     if current_user.role != 'super_admin':
         ecoles_accessibles = [e.id for e in getattr(current_user, 'ecoles_gerees', [])]
         if getattr(current_user, 'ecole', None):
@@ -345,7 +346,7 @@ def journaux_corrections():
             dt_start = datetime.strptime(date_debut, "%Y-%m-%d")
             query = query.filter(JournalCorrection.date >= dt_start)
         except ValueError:
-            flash("Format de date de début invalide", "warning")
+            flash("Format de date de dÃ©but invalide", "warning")
     if date_fin:
         try:
             dt_end = datetime.strptime(date_fin, "%Y-%m-%d") + timedelta(days=1)
@@ -353,7 +354,7 @@ def journaux_corrections():
         except ValueError:
             flash("Format de date de fin invalide", "warning")
 
-    # Récupération des corrections
+    # RÃ©cupÃ©ration des corrections
     corrections = query.order_by(JournalCorrection.date.desc()).all()
 
     return render_template(
@@ -375,16 +376,16 @@ def journaux_corrections():
 @login_required
 def toggle_user_status(user_id):
     """Changer le statut d'un utilisateur"""
-    if current_user.role not in ['super_admin', 'admin']:
-        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
+    if current_user.role not in ['admin']:
+        return jsonify({'success': False, 'message': 'Non autorisÃ©'}), 403
         
-    user = Utilisateur.query.get_or_404(user_id)
+    user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
     
-    # Vérifier les permissions
-    if current_user.role == 'admin' and user.ecole_id != current_user.ecole_id:
-        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
+    # VÃ©rifier les permissions
+    if user.ecole_id != current_user.ecole_id:
+        return jsonify({'success': False, 'message': 'Non autorisÃ©'}), 403
         
-    # Empêcher de se désactiver soi-même
+    # EmpÃªcher de se dÃ©sactiver soi-mÃªme
     if user.id == current_user.id:
         return jsonify({'success': False, 'message': 'Vous ne pouvez pas modifier votre propre statut'}), 400
     
@@ -396,51 +397,52 @@ def toggle_user_status(user_id):
 @main.route('/api/users/<int:user_id>', methods=['DELETE'])
 @login_required
 def delete_user(user_id):
-    """Supprimer un utilisateur et toutes ses dépendances (enfants + inscriptions)"""
+    """Supprimer un utilisateur et toutes ses dÃ©pendances (enfants + inscriptions)"""
     
-    # Vérification des rôles
-    if current_user.role not in ['super_admin', 'admin']:
-        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
+    # VÃ©rification des rÃ´les
+    if current_user.role not in ['admin']:
+        return jsonify({'success': False, 'message': 'Non autorisÃ©'}), 403
 
-    user = Utilisateur.query.get_or_404(user_id)
+    user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
 
-    # Empêcher un admin de supprimer un utilisateur d'une autre école
-    if current_user.role == 'admin' and user.ecole_id != current_user.ecole_id:
-        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
+    # EmpÃªcher un admin de supprimer un utilisateur d'une autre Ã©cole
+    if user.ecole_id != current_user.ecole_id:
+        return jsonify({'success': False, 'message': 'Non autorisÃ©'}), 403
 
-    # Empêcher de se supprimer soi-même
+    # EmpÃªcher de se supprimer soi-mÃªme
     if user.id == current_user.id:
         return jsonify({'success': False, 'message': 'Vous ne pouvez pas vous supprimer'}), 400
 
     try:
-        # 1️⃣ Supprimer les inscriptions des enfants
+        # 1ï¸âƒ£ Supprimer les inscriptions des enfants
         for enfant in user.get_enfants():
             for inscription in enfant.inscriptions:
                 db.session.delete(inscription)
 
-        # 2️⃣ Supprimer les enfants
+        # 2ï¸âƒ£ Supprimer les enfants
         for enfant in user.get_enfants():
             db.session.delete(enfant)
 
-        # 3️⃣ Supprimer les relations professeur si existantes
+        # 3ï¸âƒ£ Supprimer les relations professeur si existantes
         if user.professeur_rel:
-            # Supprimer les cours enseignés par ce professeur si nécessaire
+            # Supprimer les cours enseignÃ©s par ce professeur si nÃ©cessaire
             for cours in user.cours_enseignes:
                 cours.enseignant_id = None  # ou supprimer si tu veux
             db.session.delete(user.professeur_rel)
 
-        # 4️⃣ Supprimer alertes et logs
+        # 4ï¸âƒ£ Supprimer alertes et logs
         for alerte in user.alertes:
             db.session.delete(alerte)
         for log in user.logs:
             db.session.delete(log)
 
-        # 5️⃣ Supprimer l’utilisateur
+        # 5ï¸âƒ£ Supprimer lâ€™utilisateur
         db.session.delete(user)
 
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Utilisateur supprimé avec toutes ses dépendances.'})
+        return jsonify({'success': True, 'message': 'Utilisateur supprimÃ© avec toutes ses dÃ©pendances.'})
 
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Erreur lors de la suppression: {str(e)}'}), 500
+

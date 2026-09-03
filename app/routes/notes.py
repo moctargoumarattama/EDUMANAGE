@@ -1,6 +1,9 @@
 from . import main
 from .common import (
     AnneeScolaire,
+    can_access_cours,
+    can_access_eleve,
+    can_access_note,
     Classe,
     Cours,
     Eleve,
@@ -91,6 +94,14 @@ def notes():
         cours = filtre_par_ecole(Cours.query.filter_by(id=form.cours_id.data), Cours).first()
         if not cours:
             flash("Cours introuvable pour cette école.", "danger")
+            return redirect(url_for('main.notes'))
+
+        eleve = filtre_par_ecole(Eleve.query.filter_by(id=form.eleve_id.data), Eleve).first()
+        if not eleve or not can_access_eleve(eleve) or not can_access_cours(cours):
+            flash("Acces non autorise pour cet eleve ou ce cours.", "danger")
+            return redirect(url_for('main.notes'))
+        if cours.classe_id and eleve.classe_id != cours.classe_id:
+            flash("Cet eleve n'appartient pas a la classe de ce cours.", "danger")
             return redirect(url_for('main.notes'))
 
         if cours.classe_id:
@@ -263,6 +274,9 @@ def export_notes_excel():
 @role_required('admin', 'enseignant')
 def modifier_note(note_id):
     note = Note.query.get_or_404(note_id)
+    if not can_access_note(note):
+        flash("Acces non autorise a cette note.", "danger")
+        return redirect(url_for('main.notes'))
 
     # --- Récupérer l'école courante ---
     ecole = get_ecole_courante()
@@ -299,6 +313,15 @@ def modifier_note(note_id):
                 return redirect(url_for('main.notes'))
 
         # Mise à jour
+        eleve = filtre_par_ecole(Eleve.query.filter_by(id=form.eleve_id.data), Eleve).first()
+        cours = filtre_par_ecole(Cours.query.filter_by(id=form.cours_id.data), Cours).first()
+        if not eleve or not cours or not can_access_eleve(eleve) or not can_access_cours(cours):
+            flash("Acces non autorise pour cet eleve ou ce cours.", "danger")
+            return redirect(url_for('main.notes'))
+        if cours.classe_id and eleve.classe_id != cours.classe_id:
+            flash("Cet eleve n'appartient pas a la classe de ce cours.", "danger")
+            return redirect(url_for('main.notes'))
+
         note.valeur = form.valeur.data
         note.coefficient = form.coefficient.data
         note.type_evaluation = form.type_evaluation.data
@@ -315,9 +338,13 @@ def modifier_note(note_id):
 
 @main.route('/notes/supprimer/<int:note_id>', methods=['POST'])
 @login_required
+@role_required('admin', 'enseignant', 'professeur')
 def supprimer_note(note_id):
     # Récupérer la note et la supprimer
     note = Note.query.get_or_404(note_id)
+    if not can_access_note(note):
+        flash("Acces non autorise a cette note.", "danger")
+        return redirect(url_for('main.notes'))
     db.session.delete(note)
     db.session.commit()
     flash("Note supprimée avec succès.", "success")

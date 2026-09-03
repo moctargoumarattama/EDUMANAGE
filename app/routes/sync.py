@@ -1,12 +1,14 @@
-from . import main
+﻿from . import main
 from .common import (
     Absence,
     AnneeScolaire,
     Classe,
+    Cours,
     Eleve,
     Inscription,
     Note,
     Paiement,
+    current_app,
     current_user,
     datetime,
     db,
@@ -16,42 +18,70 @@ from .common import (
     render_template,
     render_template_string,
     request,
+    role_required,
     send_from_directory,
 )
 
 
+def _get_sync_eleve_cours(eleve_id, cours_id):
+    try:
+        eleve_id = int(eleve_id)
+        cours_id = int(cours_id)
+    except (TypeError, ValueError):
+        return None, None
+    return Eleve.query.get(eleve_id), Cours.query.get(cours_id)
+
+
+def _can_sync_school_item(eleve, cours):
+    if not eleve or not cours:
+        return False
+    if eleve.ecole_id != getattr(current_user, 'ecole_id', None):
+        return False
+    if cours.ecole_id != getattr(current_user, 'ecole_id', None):
+        return False
+    if current_user.role == 'admin':
+        return True
+    if current_user.role in ('enseignant', 'professeur'):
+        professeur = getattr(current_user, 'professeur_rel', None)
+        if not professeur:
+            return False
+        return cours.professeur_id == professeur.id
+    return False
+
+
 @main.route("/sync-hors-ligne")
+@login_required
+@role_required('admin', 'enseignant', 'professeur')
 def sync_hors_ligne():
     return render_template("sync_hors_ligne.html")
 
 @main.route('/api/sync', methods=['POST'])
 @login_required
+@role_required('admin', 'enseignant', 'professeur')
 def api_sync():
-    """API pour synchroniser les données hors ligne"""
+    """API pour synchroniser les donnÃ©es hors ligne"""
     try:
-        # Vérifier le Content-Type
+        # VÃ©rifier le Content-Type
         if not request.is_json:
             return jsonify({
                 'success': False, 
-                'message': 'Content-Type doit être application/json'
+                'message': 'Content-Type doit Ãªtre application/json'
             }), 400
 
         data = request.get_json()
-        print(f"📥 Données reçues: {data}")
-        print(f"📥 Type de données: {type(data)}")
-        print(f"📥 Nombre d'éléments: {len(data) if data else 0}")
+        current_app.logger.info(f"Sync hors ligne: {len(data) if data else 0} Ã©lÃ©ment(s) reÃ§us par {current_user.id}")
         
         if not data:
             return jsonify({
                 'success': False, 
-                'message': 'Aucune donnée reçue'
+                'message': 'Aucune donnÃ©e reÃ§ue'
             }), 400
 
-        # Vérifier que data est une liste
+        # VÃ©rifier que data est une liste
         if not isinstance(data, list):
             return jsonify({
                 'success': False,
-                'message': 'Les données doivent être un tableau'
+                'message': 'Les donnÃ©es doivent Ãªtre un tableau'
             }), 400
 
         processed_count = 0
@@ -60,21 +90,21 @@ def api_sync():
         for index, item in enumerate(data):
             try:
                 if not isinstance(item, dict):
-                    errors.append(f"Élément {index}: format invalide")
+                    errors.append(f"Ã‰lÃ©ment {index}: format invalide")
                     continue
 
                 item_type = item.get('type')
-                print(f"🔄 Traitement élément {index}: type={item_type}")
+                current_app.logger.debug(f"Sync Ã©lÃ©ment {index}: type={item_type}")
 
                 if item_type == 'note':
-                    # Vérifier les champs requis
+                    # VÃ©rifier les champs requis
                     required_fields = ['eleve_id', 'cours_id', 'valeur', 'date_evaluation']
                     missing = [f for f in required_fields if not item.get(f)]
                     if missing:
                         errors.append(f"Note {index}: champs manquants {missing}")
                         continue
 
-                    # ✅ CONVERTIR LA DATE
+                    # âœ… CONVERTIR LA DATE
                     date_eval = item.get('date_evaluation')
                     if isinstance(date_eval, str):
                         try:
@@ -87,12 +117,18 @@ def api_sync():
                             errors.append(f"Note {index}: format de date invalide ({e})")
                             continue
 
-                    # Vérifier si la note existe déjà
+                    eleve, cours = _get_sync_eleve_cours(item.get('eleve_id'), item.get('cours_id'))
+                    if not _can_sync_school_item(eleve, cours):
+                        errors.append(f"Note {index}: accÃ¨s non autorisÃ©")
+                        continue
+
+                    # VÃ©rifier si la note existe dÃ©jÃ 
                     existing_note = Note.query.filter_by(
-                        eleve_id=item.get('eleve_id'),
-                        cours_id=item.get('cours_id'),
+                        eleve_id=eleve.id,
+                        cours_id=cours.id,
                         date_evaluation=date_eval,
-                        type_evaluation=item.get('type_evaluation')
+                        type_evaluation=item.get('type_evaluation'),
+                        ecole_id=eleve.ecole_id
                     ).first()
                     
                     if not existing_note:
@@ -101,15 +137,15 @@ def api_sync():
                             coefficient=float(item.get('coefficient', 1)),
                             type_evaluation=item.get('type_evaluation'),
                             periode=item.get('periode'),
-                            eleve_id=int(item.get('eleve_id')),
-                            cours_id=int(item.get('cours_id')),
-                            date_evaluation=date_eval  # ✅ Objet datetime
+                            eleve_id=eleve.id,
+                            cours_id=cours.id,
+                            date_evaluation=date_eval,
+                            ecole_id=eleve.ecole_id  # âœ… Objet datetime
                         )
                         db.session.add(note)
                         processed_count += 1
-                        print(f"✅ Note ajoutée pour l'élève {item.get('eleve_id')}")
                     else:
-                        print(f"⚠️ Note déjà existante pour l'élève {item.get('eleve_id')}")
+                        current_app.logger.debug(f"Sync note dÃ©jÃ  existante pour Ã©lÃ¨ve {eleve.id}")
 
                 elif item_type == 'absence':
                     required_fields = ['eleve_id', 'cours_id', 'date_absence']
@@ -118,7 +154,7 @@ def api_sync():
                         errors.append(f"Absence {index}: champs manquants {missing}")
                         continue
 
-                    # ✅ CONVERTIR LA DATE
+                    # âœ… CONVERTIR LA DATE
                     date_abs = item.get('date_absence')
                     if isinstance(date_abs, str):
                         try:
@@ -128,25 +164,31 @@ def api_sync():
                             errors.append(f"Absence {index}: format de date invalide ({e})")
                             continue
 
+                    eleve, cours = _get_sync_eleve_cours(item.get('eleve_id'), item.get('cours_id'))
+                    if not _can_sync_school_item(eleve, cours):
+                        errors.append(f"Absence {index}: accÃ¨s non autorisÃ©")
+                        continue
+
                     existing_absence = Absence.query.filter_by(
-                        eleve_id=item.get('eleve_id'),
-                        cours_id=item.get('cours_id'),
-                        date_absence=date_abs
+                        eleve_id=eleve.id,
+                        cours_id=cours.id,
+                        date_absence=date_abs,
+                        ecole_id=eleve.ecole_id
                     ).first()
                     
                     if not existing_absence:
                         absence = Absence(
-                            date_absence=date_abs,  # ✅ Objet date
+                            date_absence=date_abs,  # âœ… Objet date
                             motif=item.get('motif'),
                             justifiee=bool(item.get('justifiee', False)),
-                            eleve_id=int(item.get('eleve_id')),
-                            cours_id=int(item.get('cours_id'))
+                            eleve_id=eleve.id,
+                            cours_id=cours.id,
+                            ecole_id=eleve.ecole_id
                         )
                         db.session.add(absence)
                         processed_count += 1
-                        print(f"✅ Absence ajoutée pour l'élève {item.get('eleve_id')}")
                     else:
-                        print(f"⚠️ Absence déjà existante pour l'élève {item.get('eleve_id')}")
+                        current_app.logger.debug(f"Sync absence dÃ©jÃ  existante pour Ã©lÃ¨ve {eleve.id}")
 
                 elif item_type == 'paiement':
                     required_fields = ['eleve_id', 'montant', 'mois', 'annee']
@@ -155,11 +197,20 @@ def api_sync():
                         errors.append(f"Paiement {index}: champs manquants {missing}")
                         continue
 
+                    if current_user.role != 'admin':
+                        errors.append(f"Paiement {index}: accÃ¨s non autorisÃ©")
+                        continue
+                    eleve = Eleve.query.get(item.get('eleve_id'))
+                    if not eleve or eleve.ecole_id != current_user.ecole_id:
+                        errors.append(f"Paiement {index}: Ã©lÃ¨ve non autorisÃ©")
+                        continue
+
                     existing_paiement = Paiement.query.filter_by(
-                        eleve_id=item.get('eleve_id'),
+                        eleve_id=eleve.id,
                         mois=item.get('mois'),
                         annee=item.get('annee'),
-                        reference=item.get('reference')
+                        reference=item.get('reference'),
+                        ecole_id=eleve.ecole_id
                     ).first()
                     
                     if not existing_paiement:
@@ -169,53 +220,47 @@ def api_sync():
                             annee=int(item.get('annee')),
                             mode_paiement=item.get('mode_paiement'),
                             reference=item.get('reference'),
-                            eleve_id=int(item.get('eleve_id'))
+                            eleve_id=eleve.id,
+                            ecole_id=eleve.ecole_id
                         )
                         db.session.add(paiement)
                         processed_count += 1
-                        print(f"✅ Paiement ajouté pour l'élève {item.get('eleve_id')}")
                     else:
-                        print(f"⚠️ Paiement déjà existant pour l'élève {item.get('eleve_id')}")
+                        current_app.logger.debug(f"Sync paiement dÃ©jÃ  existant pour Ã©lÃ¨ve {eleve.id}")
 
                 elif item_type == 'test':
-                    print("🔧 Test reçu - ignoré")
                     continue
                     
                 else:
-                    errors.append(f"Élément {index}: type inconnu ({item_type})")
-                    print(f"❌ Type inconnu: {item_type}")
+                    errors.append(f"Ã‰lÃ©ment {index}: type inconnu ({item_type})")
 
             except Exception as e:
-                error_msg = f"Élément {index}: {str(e)}"
+                error_msg = f"Ã‰lÃ©ment {index}: {str(e)}"
                 errors.append(error_msg)
-                print(f"❌ Erreur sur l'élément {index}: {str(e)}")
-                import traceback
-                traceback.print_exc()
+                current_app.logger.warning(f"Erreur sync Ã©lÃ©ment {index}: {e}")
                 continue
 
-        # Commit seulement s'il y a des données traitées
+        # Commit seulement s'il y a des donnÃ©es traitÃ©es
         if processed_count > 0:
             db.session.commit()
-            print(f"✅ Synchronisation terminée: {processed_count} éléments traités")
+            current_app.logger.info(f"Synchronisation terminÃ©e: {processed_count} Ã©lÃ©ment(s) traitÃ©(s)")
 
         response_data = {
             'success': True,
-            'message': f'{processed_count} élément(s) synchronisé(s) avec succès',
+            'message': f'{processed_count} Ã©lÃ©ment(s) synchronisÃ©(s) avec succÃ¨s',
             'processed': processed_count,
             'total': len(data)
         }
         
         if errors:
             response_data['errors'] = errors
-            response_data['message'] = f'{processed_count} élément(s) synchronisé(s), {len(errors)} erreur(s)'
+            response_data['message'] = f'{processed_count} Ã©lÃ©ment(s) synchronisÃ©(s), {len(errors)} erreur(s)'
 
         return jsonify(response_data), 200
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Erreur générale de synchronisation: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        current_app.logger.exception("Erreur gÃ©nÃ©rale de synchronisation")
         return jsonify({
             'success': False,
             'message': f'Erreur de synchronisation: {str(e)}'
@@ -228,7 +273,7 @@ def service_worker():
 
 @main.route('/offline')
 def offline_page():
-    """Page affichée quand l'utilisateur est hors ligne"""
+    """Page affichÃ©e quand l'utilisateur est hors ligne"""
     offline_html = """
     <!DOCTYPE html>
     <html lang="fr">
@@ -267,16 +312,16 @@ def offline_page():
             <div class="offline-icon">
                 <i class="fas fa-wifi-slash"></i>
             </div>
-            <h1 class="mb-3">Vous êtes hors ligne</h1>
+            <h1 class="mb-3">Vous Ãªtes hors ligne</h1>
             <p class="lead mb-4">
-                Vérifiez votre connexion Internet pour continuer.
+                VÃ©rifiez votre connexion Internet pour continuer.
             </p>
             <p class="text-white-50">
-                Vos données seront automatiquement synchronisées dès que vous serez reconnecté.
+                Vos donnÃ©es seront automatiquement synchronisÃ©es dÃ¨s que vous serez reconnectÃ©.
             </p>
             <button class="btn btn-light mt-4" onclick="location.reload()">
                 <i class="fas fa-sync-alt me-2"></i>
-                Réessayer
+                RÃ©essayer
             </button>
         </div>
         
@@ -293,6 +338,7 @@ def offline_page():
 
 @main.route("/inscriptions")
 @login_required
+@role_required('admin')
 def voir_inscriptions():
     classe_filtre = request.args.get("classe")
     annee_filtre = request.args.get("annee")
@@ -328,7 +374,7 @@ def voir_inscriptions():
         if ins.annee_scolaire:
             annees_set.add(ins.annee_scolaire)
 
-        # Calcul de la première année de l'élève dans l'école
+        # Calcul de la premiÃ¨re annÃ©e de l'Ã©lÃ¨ve dans l'Ã©cole
         if eleve.inscriptions:
             premiere_inscription = min(
                 [i for i in eleve.inscriptions if i.annee_scolaire],
@@ -370,20 +416,26 @@ def voir_inscriptions():
         annee_filtre=annee_filtre
     )
 
-# SECURITY TODO: endpoint JSON sans @login_required ni filtre ecole_id explicite.
 @main.route("/recherche_json")
+@login_required
+@role_required('admin')
 def recherche_json():
     inscription_id = request.args.get("inscription_id", type=int)
     if not inscription_id:
         return {"error": "inscription_id manquant"}, 400
 
-    ins = Inscription.query.get(inscription_id)
+    ins = (
+        Inscription.query
+        .join(Eleve)
+        .filter(Inscription.id == inscription_id, Eleve.ecole_id == current_user.ecole_id)
+        .first()
+    )
     if not ins:
         return {"error": "Inscription introuvable"}, 404
 
     eleve = ins.eleve
 
-    # Calculer la première année scolaire de l'élève
+    # Calculer la premiÃ¨re annÃ©e scolaire de l'Ã©lÃ¨ve
     annee_premiere_ecole = "N/A"
     if eleve and eleve.inscriptions:
         premiere_inscription = min(
@@ -413,3 +465,4 @@ def recherche_json():
         if eleve and eleve.notes
         else []
     }
+
