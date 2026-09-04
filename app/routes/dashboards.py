@@ -35,74 +35,11 @@ def dashboard():
     """Redirection vers le tableau de bord approprié selon le rôle"""
     role = getattr(current_user, "role", None)
     endpoint_par_role = {
-        "admin": "main.admin_dashboard",
+        "admin": "main.index",
         "enseignant": "main.enseignant_dashboard",
         "parent": "main.parent_dashboard",
     }
     return redirect(url_for(endpoint_par_role.get(role, "main.index")))
-
-@main.route('/admin/dashboard')
-@login_required
-@role_required('admin', 'super_admin')
-def admin_dashboard():
-    """Tableau de bord administrateur filtré par école, interdit aux super admin"""
-    
-    # Redirection immédiate si c'est un super admin
-    if current_user.role == 'super_admin':
-        # Tu peux rediriger vers la page d'accueil ou vers un tableau de bord super admin
-        return redirect(url_for('main.index'))  # <-- changer 'main.index' selon ton projet
-
-    from app.middleware import get_ecole_courante, filtre_par_ecole
-
-    ecole = get_ecole_courante()  # récupère l'école courante si sélectionnée
-
-    # --- Récupération des années scolaires ---
-    annees_scolaires = AnneeScolaire.query.filter_by(ecole_id=ecole.id).order_by(AnneeScolaire.nom.desc()).all()
-
-    # Statistiques filtrées par école
-    stats = {
-        'total_eleves': filtre_par_ecole(Eleve.query, Eleve).count(),
-        'total_professeurs': filtre_par_ecole(Professeur.query, Professeur).count(),
-        'total_cours': filtre_par_ecole(Cours.query, Cours).count(),
-        'total_classes': filtre_par_ecole(Classe.query, Classe).count(),
-        'total_bulletins': filtre_par_ecole(Bulletin.query, Bulletin).count(),
-        'paiements_attente': filtre_par_ecole(Paiement.query.filter_by(statut='en attente'), Paiement).count(),
-        'paiements_valide': filtre_par_ecole(Paiement.query.filter_by(statut='valide'), Paiement).count(),
-        'eleves_nouveaux': filtre_par_ecole(
-            Eleve.query.filter(Eleve.date_inscription >= datetime.now().replace(day=1)),
-            Eleve
-        ).count(),
-        'absences_recents': filtre_par_ecole(
-            Absence.query.filter(Absence.date_absence >= datetime.now().replace(day=1)),
-            Absence
-        ).count(),
-        'notes_recents': filtre_par_ecole(
-            Note.query.filter(Note.date_evaluation >= datetime.now().replace(day=1)),
-            Note
-        ).count()
-    }
-
-    # Données récentes filtrées par école
-    dernieres_notes = filtre_par_ecole(
-        Note.query.order_by(Note.date_evaluation.desc()), Note
-    ).limit(5).all()
-
-    dernieres_absences = filtre_par_ecole(
-        Absence.query.order_by(Absence.date_absence.desc()), Absence
-    ).limit(5).all()
-
-    derniers_paiements = filtre_par_ecole(
-        Paiement.query.order_by(Paiement.date_paiement.desc()), Paiement
-    ).limit(5).all()
-
-    return render_template(
-        'admin_dashboard.html',
-        stats=stats,
-        dernieres_notes=dernieres_notes,
-        dernieres_absences=dernieres_absences,
-        derniers_paiements=derniers_paiements,
-        annees_scolaires=annees_scolaires
-    )
 
 @main.route('/parent/dashboard')
 @login_required

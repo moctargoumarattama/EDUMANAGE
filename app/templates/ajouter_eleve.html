@@ -1,209 +1,168 @@
 {% extends "base.html" %}
 
-{% block title %}Ajouter un Élève - EduManage{% endblock %}
+{% block title %}Ajouter un élève - EduManage{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-10">
-        <div class="card border-0 shadow-lg animate-pop-in" style="border-radius: 1.2rem; overflow: hidden;">
-            <div class="card-header py-4 text-white" style="background: var(--gradient-primary);">
-                <div class="d-flex align-items-center">
-                    <div class="bg-white bg-opacity-20 rounded-circle p-3 me-3">
-                        <i class="fas fa-user-graduate fa-2x"></i>
+<section class="page-header">
+    <div class="page-header-body">
+        <div class="page-title-group">
+            <div class="page-icon">
+                <i class="fas fa-user-graduate"></i>
+            </div>
+            <div>
+                <h1 class="page-title">Ajouter un élève</h1>
+                <p class="page-subtitle">Création de l’élève et rattachement parent/classe</p>
+            </div>
+        </div>
+        <a href="{{ url_for('main.eleves') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i>
+            Retour
+        </a>
+    </div>
+</section>
+
+<div class="form-card">
+    <div class="form-card-header surface-gradient-primary text-white mobile-hidden-form-header">
+        <h2 class="h5 mb-1 text-white">Informations de l’élève</h2>
+        <p class="mb-0 opacity-75">Remplissez les champs utiles à l’inscription.</p>
+    </div>
+
+    <div class="form-card-body">
+        <form method="POST" action="{{ url_for('main.ajouter_eleve') }}" class="needs-validation" novalidate>
+            {{ form.hidden_tag() }}
+
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-user"></i> Informations personnelles</h3>
+                <div class="responsive-form-grid">
+                    <div class="form-floating">
+                        {{ form.nom(class="form-control", placeholder="Nom de l'élève") }}
+                        <label for="{{ form.nom.id }}">Nom de l'élève</label>
                     </div>
-                    <div>
-                        <h3 class="mb-0">Ajouter un nouvel élève</h3>
-                        <p class="mb-0 opacity-75">Renseignez les informations de l'élève</p>
+                    <div class="form-floating">
+                        {{ form.prenom(class="form-control", placeholder="Prénom de l'élève") }}
+                        <label for="{{ form.prenom.id }}">Prénom de l'élève</label>
+                    </div>
+                    <div class="form-floating">
+                        {{ form.date_naissance(class="form-control", type="date") }}
+                        {{ form.date_naissance.label(class="form-label") }}
+                    </div>
+                    <div class="form-floating">
+                        {{ form.lieu_naissance(class="form-control", placeholder="Lieu de naissance") }}
+                        {{ form.lieu_naissance.label(class="form-label") }}
                     </div>
                 </div>
             </div>
-            <div class="card-body p-5">
-                <form method="POST" action="{{ url_for('main.ajouter_eleve') }}" class="needs-validation" novalidate>
-                    {{ form.hidden_tag() }}
 
-                    <!-- Informations personnelles -->
-                    <div class="mb-4">
-                        <h5 class="text-primary mb-3"><i class="fas fa-user me-2"></i>Informations personnelles</h5>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <div class="form-floating">
-                                    {{ form.nom(class="form-control", placeholder="Nom") }}
-                                    {{ form.nom.label(class="form-label") }}
-                                    <div class="invalid-feedback">Veuillez saisir le nom</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <div class="form-floating">
-                                    {{ form.prenom(class="form-control", placeholder="Prénom") }}
-                                    {{ form.prenom.label(class="form-label") }}
-                                    <div class="invalid-feedback">Veuillez saisir le prénom</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <div class="form-floating">
-                                    {{ form.date_naissance(class="form-control", type="date") }}
-                                    {{ form.date_naissance.label(class="form-label") }}
-                                    <div class="invalid-feedback">Veuillez sélectionner une date</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <div class="form-floating">
-                                    {{ form.lieu_naissance(class="form-control", placeholder="Lieu de naissance") }}
-                                    {{ form.lieu_naissance.label(class="form-label") }}
-                                    <div class="invalid-feedback">Veuillez saisir le lieu de naissance</div>
-                                </div>
-                            </div>
-                        </div>
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-school"></i> Informations scolaires</h3>
+                <div class="responsive-form-grid">
+                    <div class="form-floating">
+                        <select class="form-select" name="annee_scolaire_id" required>
+                            {% for annee in annees_ecole %}
+                            <option value="{{ annee.id }}" {% if annee_active and annee.id == annee_active.id %}selected{% endif %}>{{ annee.nom }}</option>
+                            {% endfor %}
+                        </select>
+                        <label>Année scolaire</label>
                     </div>
-
-                    <!-- Informations scolaires -->
-                    <div class="mb-4">
-                        <h5 class="text-primary mb-3"><i class="fas fa-school me-2"></i>Informations scolaires</h5>
-                        <div class="row">
-                            <!-- Année Scolaire -->
-                            <div class="col-md-6 mb-3">
-                                <div class="form-floating">
-                                    <select class="form-control" name="annee_scolaire_id" required>
-                                        {% for annee in annees_ecole %}
-                                            <option value="{{ annee.id }}" {% if annee.id == annee_active.id %}selected{% endif %}>
-                                                {{ annee.nom }}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                    <label class="form-label">Année Scolaire</label>
-                                    <div class="invalid-feedback">Veuillez sélectionner une année scolaire</div>
-                                </div>
-                            </div>
-
-                            <!-- Classe -->
-                            <div class="col-md-6 mb-3">
-                                <div class="form-floating">
-                                    <select class="form-control" name="classe_id" required>
-                                        {% if form.classe_id.choices %}
-                                            {% for id, nom in form.classe_id.choices %}
-                                                <option value="{{ id }}">{{ nom }}</option>
-                                            {% endfor %}
-                                        {% else %}
-                                            <option value="">-- Sélectionnez une classe --</option>
-                                        {% endif %}
-                                    </select>
-                                    <label class="form-label">Classe</label>
-                                    <div class="invalid-feedback">Veuillez sélectionner une classe</div>
-                                </div>
-                            </div>
-
-                            <!-- Frais annuels -->
-                            <div class="col-md-6 mb-3">
-                                <div class="form-floating">
-                                    {{ form.frais_annuels(class="form-control", placeholder="Ex: 150000") }}
-                                    {{ form.frais_annuels.label(class="form-label") }}
-                                </div>
-                            </div>
-                        </div>
+                    <div class="form-floating">
+                        <select class="form-select" name="classe_id" required>
+                            {% if form.classe_id.choices %}
+                                {% for id, nom in form.classe_id.choices %}
+                                <option value="{{ id }}">{{ nom }}</option>
+                                {% endfor %}
+                            {% else %}
+                                <option value="">Sélectionnez une classe</option>
+                            {% endif %}
+                        </select>
+                        <label>Classe</label>
                     </div>
-
-                    <!-- Parent -->
-                    <div class="mb-4">
-                        <h5 class="text-primary mb-3"><i class="fas fa-user-friends me-2"></i>Parent</h5>
-                        <div class="mb-3">
-                            <div class="form-floating">
-                                {{ form.parent_id(class="form-control") }}
-                                {{ form.parent_id.label(class="form-label") }}
-                            </div>
-                            <small class="text-muted">Sélectionnez un parent existant ou laissez "Aucun" pour créer un nouveau parent.</small>
-                        </div>
-                        <div id="nouveau-parent" class="mt-3" {% if form.parent_id.data and form.parent_id.data != 0 %}style="display:none;"{% endif %}>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <div class="form-floating">
-                                        <input type="text" name="parent_prenom" class="form-control" placeholder="Prénom du parent">
-                                        <label class="form-label">Prénom du parent</label>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <div class="form-floating">
-                                        <input type="text" name="parent_nom" class="form-control" placeholder="Nom du parent">
-                                        <label class="form-label">Nom du parent</label>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <div class="form-floating">
-                                        <input type="email" name="parent_email" class="form-control" placeholder="Email du parent">
-                                        <label class="form-label">Email du parent</label>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <div class="form-floating">
-                                        <input type="text" name="parent_telephone" class="form-control" placeholder="Téléphone du parent">
-                                        <label class="form-label">Téléphone du parent</label>
-                                    </div>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <div class="form-floating">
-                                        <input type="text" name="code_parent" class="form-control" placeholder="Code parent (laisser vide pour générer)">
-                                        <label class="form-label">Code parent</label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <small class="text-muted">Si vous remplissez ces champs, un nouveau compte parent sera créé automatiquement avec le mot de passe = code parent.</small>
+                    <div class="form-floating">
+                        {{ form.frais_annuels(class="form-control", placeholder="Frais annuels") }}
+                        {{ form.frais_annuels.label(class="form-label") }}
                     </div>
-
-                    <!-- Coordonnées de l'élève -->
-                    <div class="mb-4">
-                        <h5 class="text-primary mb-3"><i class="fas fa-address-card me-2"></i>Coordonnées de l'élève</h5>
-                        <div class="form-floating mb-3">
-                            {{ form.adresse(class="form-control", placeholder="Adresse") }}
-                            {{ form.adresse.label(class="form-label") }}
-                        </div>
-                    </div>
-
-                    <!-- Boutons -->
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                        <a href="{{ url_for('main.eleves') }}" class="btn btn-outline-secondary me-md-2 px-4 py-2">
-                            <i class="fas fa-arrow-left me-2"></i>Retour
-                        </a>
-                        <button type="submit" class="btn btn-primary px-4 py-2">
-                            <i class="fas fa-plus-circle me-2"></i>Ajouter l'élève
-                        </button>
-                    </div>
-                </form>
+                </div>
             </div>
-        </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-user-friends"></i> Parent</h3>
+                <div class="form-floating mb-2">
+                    {{ form.parent_id(class="form-select") }}
+                    {{ form.parent_id.label(class="form-label") }}
+                </div>
+                <div id="nouveau-parent" class="responsive-form-grid mt-3 {% if form.parent_id.data and form.parent_id.data != 0 %}d-none{% endif %}">
+                    <div class="form-floating">
+                        <input type="text" name="parent_nom" class="form-control" placeholder="Nom du parent">
+                        <label>Nom du parent</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="email" name="parent_email" class="form-control" placeholder="Email du parent">
+                        <label>Email du parent</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="text" name="parent_telephone" class="form-control" placeholder="Téléphone du parent">
+                        <label>Téléphone du parent</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="text" name="code_parent" class="form-control" placeholder="Code parent">
+                        <label>Code parent</label>
+                    </div>
+                </div>
+                <p class="form-help mt-2">Si ces champs sont remplis, un compte parent sera créé automatiquement.</p>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-address-card"></i> Coordonnées</h3>
+                <div class="form-floating">
+                    {{ form.adresse(class="form-control form-textarea", placeholder="Adresse") }}
+                    {{ form.adresse.label(class="form-label") }}
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{{ url_for('main.eleves') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    Annuler
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-plus-circle"></i>
+                    Ajouter l’élève
+                </button>
+            </div>
+        </form>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
-    // Affichage / masquage du nouveau parent
+document.addEventListener('DOMContentLoaded', () => {
     const parentSelect = document.querySelector('select[name="parent_id"]');
     const nouveauParentDiv = document.getElementById('nouveau-parent');
-    parentSelect.addEventListener('change', () => {
-        nouveauParentDiv.style.display = parentSelect.value === '0' ? 'block' : 'none';
-    });
+    if (parentSelect && nouveauParentDiv) {
+        parentSelect.addEventListener('change', () => {
+            nouveauParentDiv.classList.toggle('d-none', parentSelect.value !== '0');
+        });
+    }
 
-    // Mise à jour dynamique des classes selon l'année scolaire
     const anneeSelect = document.querySelector('select[name="annee_scolaire_id"]');
     const classeSelect = document.querySelector('select[name="classe_id"]');
-
-    const chargerClasses = (anneeId) => {
-        fetch(`/get_classes/${anneeId}`)
-            .then(res => res.json())
-            .then(data => {
-                classeSelect.innerHTML = '<option value="">-- Sélectionnez une classe --</option>';
-                data.classes.forEach(c => {
-                    const option = document.createElement('option');
-                    option.value = c.id;
-                    option.textContent = c.nom;
-                    classeSelect.appendChild(option);
-                });
-                // Sélection automatique de la première classe si disponible
-                if(data.classes.length > 0) classeSelect.value = data.classes[0].id;
-            })
-            .catch(err => console.error('Erreur lors du chargement des classes:', err));
-    };
-
-    anneeSelect.addEventListener('change', () => chargerClasses(anneeSelect.value));
+    if (anneeSelect && classeSelect) {
+        anneeSelect.addEventListener('change', () => {
+            fetch(`/get_classes/${anneeSelect.value}`)
+                .then(res => res.json())
+                .then(data => {
+                    classeSelect.innerHTML = '<option value="">Sélectionnez une classe</option>';
+                    data.classes.forEach(c => {
+                        const option = document.createElement('option');
+                        option.value = c.id;
+                        option.textContent = c.nom;
+                        classeSelect.appendChild(option);
+                    });
+                    if (data.classes.length > 0) classeSelect.value = data.classes[0].id;
+                })
+                .catch(err => console.error('Erreur lors du chargement des classes:', err));
+        });
+    }
+});
 </script>
 {% endblock %}

@@ -2,174 +2,126 @@
 {% block title %}Liste des élèves{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-      <h2 class="mb-0">Liste des élèves</h2>
-      <small class="text-muted">Gestion multi-écoles</small>
+<section class="page-header">
+    <div class="page-header-body">
+        <div class="page-title-group">
+            <div class="page-icon">
+                <i class="fas fa-user-graduate"></i>
+            </div>
+            <div>
+                <h1 class="page-title">Liste des élèves</h1>
+                <p class="page-subtitle">Gestion multi-écoles</p>
+            </div>
+        </div>
+        {% if current_user.role == 'admin' %}
+        <div class="page-actions">
+            <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-success">
+                <i class="fas fa-plus"></i>
+                Ajouter un élève
+            </a>
+        </div>
+        {% endif %}
     </div>
-    <div class="d-flex gap-2">
-      <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-success">
-        <i class="fas fa-plus me-1"></i> Ajouter un élève
-      </a>
-      <button id="refreshBtn" class="btn btn-outline-secondary">
-        <i class="fas fa-sync-alt"></i> Rafraîchir
-      </button>
-    </div>
-  </div>
+</section>
 
-  <!-- Filtres -->
-  <div class="row g-3 mb-3">
-    <div class="col-md-5">
-      <select id="selectClasse" class="form-select">
-        <option value="">-- Toutes les classes --</option>
-      </select>
+<form method="get" class="filter-card">
+    <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-4">
+            <label for="classe_id" class="form-label">Classe</label>
+            <select id="classe_id" name="classe_id" class="form-select">
+                <option value="">Toutes les classes</option>
+                {% for classe in classes %}
+                <option value="{{ classe.id }}" {% if classe_id == classe.id %}selected{% endif %}>{{ classe.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-md-5">
+            <label for="search" class="form-label">Recherche</label>
+            <input id="search" name="search" type="search" class="form-control" value="{{ search or '' }}" placeholder="Nom ou prénom">
+        </div>
+        <div class="col-12 col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-fill">
+                <i class="fas fa-search"></i>
+                Filtrer
+            </button>
+            <a href="{{ url_for('main.eleves') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-sync-alt"></i>
+            </a>
+        </div>
     </div>
-    <div class="col-md-5">
-      <input id="searchInput" type="search" class="form-control" placeholder="Rechercher un élève...">
-    </div>
-    <div class="col-md-2 text-end">
-      <span>Élèves affichés : <span id="countBadge" class="badge bg-primary">0</span></span>
-    </div>
-  </div>
+</form>
 
-  <!-- Conteneur élèves -->
-  <div id="elevesContainer" class="row g-3" style="max-height:70vh; overflow-y:auto;"></div>
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <span class="text-muted">Élèves affichés : <span class="badge bg-primary">{{ eleves.total }}</span></span>
+    {% if eleves.pages > 1 %}
+    <span class="text-muted small">Page {{ eleves.page }} / {{ eleves.pages }}</span>
+    {% endif %}
 </div>
 
-<style>
-/* Cards centrées et responsive avec couleurs par classe */
-.card-eleve {
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.card-eleve:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.2);
-}
-.card-body .badge {
-  font-size: 0.8rem;
-}
-.classe-color-1 { background-color: #e3f2fd; }  /* Exemple pour 6em A */
-.classe-color-2 { background-color: #fff3e0; }  /* Exemple pour 5em B */
-.classe-color-3 { background-color: #f3e5f5; }  /* Exemple pour 4em C */
-</style>
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const selectClasse = document.getElementById('selectClasse');
-  const searchInput = document.getElementById('searchInput');
-  const countBadge = document.getElementById('countBadge');
-  const elevesContainer = document.getElementById('elevesContainer');
-  const refreshBtn = document.getElementById('refreshBtn');
-
-  const apiClassesUrl = '{{ url_for("main.api_classes") }}';
-  const apiElevesTemplate = `{{ url_for("main.api_eleves_par_classe", classe_id=0) }}`;
-  const csrfToken = '{{ csrf_token() }}';
-
-  const viewUrlPrefix = '/voir_eleve/';
-  const bulletinUrlPrefix = '/bulletin_eleve/';
-  const editUrlPrefix = '/eleve/';
-  const supprimerPrefix = '/eleve/';
-
-  const cacheClasses = new Map();
-  let currentEleves = [];
-
-  async function loadClasses() {
-    try {
-      const res = await fetch(apiClassesUrl, { credentials: 'same-origin' });
-      const classes = await res.json();
-      selectClasse.innerHTML = '<option value="">-- Toutes les classes --</option>';
-      classes.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = c.nom;
-        selectClasse.appendChild(opt);
-      });
-    } catch(err) { console.error(err); }
-  }
-
-  async function loadElevesForClasse(classeId) {
-    if(!classeId) return renderEleves([]);
-    if(cacheClasses.has(classeId)) return renderEleves(cacheClasses.get(classeId));
-
-    try {
-      const url = apiElevesTemplate.replace('0', encodeURIComponent(classeId));
-      const res = await fetch(url, { credentials:'same-origin' });
-      const data = await res.json();
-      const eleves = data.eleves || [];
-      cacheClasses.set(classeId, eleves);
-      renderEleves(eleves);
-    } catch(err) { console.error(err); renderEleves([]); }
-  }
-
-  function renderEleves(eleves) {
-    currentEleves = eleves;
-    countBadge.textContent = eleves.length;
-    elevesContainer.innerHTML = '';
-
-    if(!eleves.length){
-      elevesContainer.innerHTML = '<div class="alert alert-info w-100 text-center">Aucun élève</div>';
-      return;
-    }
-
-    const fragment = document.createDocumentFragment();
-
-    eleves.forEach((e, idx) => {
-      const card = document.createElement('div');
-      card.className = 'col-sm-6 col-md-4 col-lg-3';
-      
-      // Couleur par classe (modifiez selon vos classes)
-      let classeColor = 'classe-color-1';
-      if (e.classe && e.classe.includes('5em')) classeColor = 'classe-color-2';
-      if (e.classe && e.classe.includes('4em')) classeColor = 'classe-color-3';
-
-      card.innerHTML = `
-        <div class="card card-eleve h-100 ${classeColor}">
-          <div class="card-body">
-            <h5 class="card-title">${e.nom} ${e.prenom}</h5>
-            <p class="card-text mb-1"><strong>Classe:</strong> ${e.classe || '-'}</p>
-            <p class="card-text mb-1"><strong>Parent:</strong> ${e.parent || '-'}</p>
-            <p class="card-text mb-1"><strong>Téléphone:</strong> ${e.telephone || '-'}</p>
-            <div class="d-flex justify-content-between mt-2">
-              <a href="${viewUrlPrefix}${e.id}" class="btn btn-sm btn-info" title="Voir"><i class="fas fa-eye"></i></a>
-              <a href="${bulletinUrlPrefix}${e.id}" class="btn btn-sm btn-primary" title="Bulletin"><i class="fas fa-file-alt"></i></a>
-              <a href="${editUrlPrefix}${e.id}/modifier" class="btn btn-sm btn-warning" title="Modifier"><i class="fas fa-edit"></i></a>
-              <button class="btn btn-sm btn-danger btn-delete" data-id="${e.id}" title="Supprimer"><i class="fas fa-trash"></i></button>
+{% if eleves.items %}
+<div class="responsive-card-grid">
+    {% for eleve in eleves.items %}
+    <article class="card h-100 student-card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between gap-2 mb-3">
+                <div class="min-w-0">
+                    <h2 class="h5 mb-1">{{ eleve.prenom }} {{ eleve.nom }}</h2>
+                    <p class="text-muted mb-0 small">{{ eleve.classe.nom if eleve.classe else 'Sans classe' }}</p>
+                </div>
+                <span class="badge bg-primary-subtle text-primary align-self-start">Élève</span>
             </div>
-          </div>
-        </div>`;
-      fragment.appendChild(card);
-    });
+            <p class="mb-1 small"><strong>Parent :</strong> {{ eleve.parent.prenom ~ ' ' ~ eleve.parent.nom if eleve.parent else 'Non assigné' }}</p>
+            <p class="mb-3 small"><strong>Téléphone :</strong> {{ eleve.contact_parent or '-' }}</p>
+            <div class="table-actions">
+                <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-sm btn-info" title="Voir" aria-label="Voir">
+                    <i class="fas fa-eye"></i>
+                </a>
+                <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" class="btn btn-sm btn-primary" title="Bulletin" aria-label="Bulletin">
+                    <i class="fas fa-file-alt"></i>
+                </a>
+                {% if current_user.role == 'admin' %}
+                <a href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id) }}" class="btn btn-sm btn-warning" title="Modifier" aria-label="Modifier">
+                    <i class="fas fa-edit"></i>
+                </a>
+                <form method="post" action="{{ url_for('main.supprimer_eleve', id=eleve.id) }}" class="d-inline" onsubmit="return confirm('Confirmer la suppression de cet élève ?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-danger" title="Supprimer" aria-label="Supprimer">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state card">
+    <div class="empty-state-icon"><i class="fas fa-user-slash"></i></div>
+    <h2 class="empty-state-title">Aucun élève</h2>
+    <p class="empty-state-text">Aucun élève ne correspond aux filtres actuels.</p>
+</div>
+{% endif %}
 
-    elevesContainer.appendChild(fragment);
-  }
-
-  searchInput.addEventListener('input', (e)=>{
-    const term = e.target.value.trim().toLowerCase();
-    const filtered = currentEleves.filter(e=> (e.nom + ' ' + e.prenom).toLowerCase().includes(term));
-    renderEleves(filtered);
-  });
-
-  selectClasse.addEventListener('change', ()=>loadElevesForClasse(selectClasse.value));
-  refreshBtn.addEventListener('click', ()=>{
-    cacheClasses.clear(); 
-    loadClasses(); 
-    if(selectClasse.value) loadElevesForClasse(selectClasse.value); 
-  });
-
-  document.body.addEventListener('click', (ev)=>{
-    const btn = ev.target.closest('.btn-delete');
-    if(!btn) return;
-    const id = btn.dataset.id;
-    if(confirm('Confirmer la suppression de cet élève ?')) {
-      fetch(supprimerPrefix + id + '/supprimer-cascade', {
-        method:'POST',
-        headers: {'X-CSRFToken': csrfToken},
-      }).then(r=>r.ok ? loadElevesForClasse(selectClasse.value) : alert('Erreur suppression'));
-    }
-  });
-
-  loadClasses();
-});
-</script>
+{% if eleves.pages > 1 %}
+<nav class="mt-4" aria-label="Pagination élèves">
+    <ul class="pagination justify-content-center">
+        <li class="page-item {% if not eleves.has_prev %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('main.eleves', page=eleves.prev_num, classe_id=classe_id, search=search) if eleves.has_prev else '#' }}">Précédent</a>
+        </li>
+        {% for page in eleves.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if page %}
+            <li class="page-item {% if page == eleves.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('main.eleves', page=page, classe_id=classe_id, search=search) }}">{{ page }}</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+        {% endfor %}
+        <li class="page-item {% if not eleves.has_next %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('main.eleves', page=eleves.next_num, classe_id=classe_id, search=search) if eleves.has_next else '#' }}">Suivant</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
 {% endblock %}

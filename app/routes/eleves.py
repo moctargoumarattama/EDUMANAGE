@@ -50,6 +50,8 @@ def eleves():
     """Liste des Ã©lÃ¨ves, filtrÃ©e par Ã©cole et rÃ´le avec sÃ©curitÃ© multi-Ã©coles"""
     page = request.args.get('page', 1, type=int)
     per_page = 50  # peut rester Ã  50 pour la pagination
+    classe_id = request.args.get('classe_id', type=int)
+    search = (request.args.get('search') or '').strip()
 
     # ---------------- Base query avec relations pour Ã©viter N+1 ----------------
     base_query = Eleve.query.options(
@@ -82,10 +84,33 @@ def eleves():
     else:
         abort(403)  # SÃ©curitÃ© supplÃ©mentaire
 
+    if classe_id:
+        if not can_access_class(Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first()):
+            abort(403)
+        eleves_query = eleves_query.filter(Eleve.classe_id == classe_id)
+
+    if search:
+        like = f"%{search}%"
+        eleves_query = eleves_query.filter(db.or_(Eleve.nom.ilike(like), Eleve.prenom.ilike(like)))
+
     # ---------------- Pagination ----------------
     eleves_pagination = eleves_query.paginate(page=page, per_page=per_page, error_out=False)
 
-    return render_template('eleves.html', eleves=eleves_pagination)
+    classes_query = Classe.query.filter_by(ecole_id=current_user.ecole_id)
+    if current_user.role in ('enseignant', 'professeur'):
+        professeur_id = getattr(current_user.professeur_rel, 'id', None)
+        classes_query = classes_query.filter(
+            db.or_(
+                Classe.professeur_id == professeur_id,
+                Classe.id.in_(
+                    db.session.query(professeur_classes.c.classe_id)
+                    .filter(professeur_classes.c.professeur_id == professeur_id)
+                )
+            )
+        )
+    classes = classes_query.order_by(Classe.nom).all()
+
+    return render_template('eleves.html', eleves=eleves_pagination, classes=classes, classe_id=classe_id, search=search)
 
 @main.route('/ajouter_eleve', methods=['GET', 'POST'])
 @login_required
@@ -134,13 +159,14 @@ def ajouter_eleve():
             code_parent = None
             email_parent = request.form.get("parent_email")
             telephone_parent = request.form.get("parent_telephone")
+            code_parent_saisi = (request.form.get("code_parent") or "").strip()
 
             # ðŸ”¸ Nouveau parent
             if form.parent_id.data == 0 and any([
                 request.form.get("parent_nom"),
-                request.form.get("parent_prenom"),
                 email_parent,
-                telephone_parent
+                telephone_parent,
+                code_parent_saisi
             ]):
                 # VÃ©rifie doublon parent par email
                 if email_parent and Utilisateur.query.filter_by(email=email_parent, role='parent', ecole_id=ecole_id).first():
@@ -148,11 +174,10 @@ def ajouter_eleve():
                     return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
                                            annee_active=annee_active, classes=classes)
 
-                # GÃ©nÃ¨re le code parent
-                code_parent = Eleve.generer_code_parent()
+                code_parent = code_parent_saisi or Eleve.generer_code_parent()
                 parent_utilisateur = Utilisateur(
                     nom=request.form.get("parent_nom"),
-                    prenom=request.form.get("parent_prenom"),
+                    prenom=None,
                     email=email_parent,
                     telephone=telephone_parent,
                     role='parent',

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" data-bs-theme="light">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -365,23 +365,6 @@
             animation: pulse 1.5s infinite;
         }
 
-        /* Theme toggle */
-        .theme-toggle {
-            background: none;
-            border: none;
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: var(--transition);
-            padding: 0.5rem;
-            border-radius: 50%;
-        }
-
-        .theme-toggle:hover {
-            color: white;
-            background: rgba(255, 255, 255, 0.1);
-        }
-
         /* Animations */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(15px); }
@@ -422,49 +405,6 @@
             background: var(--primary-dark);
         }
 
-        /* Dark mode support */
-        [data-bs-theme="dark"] {
-            --gray-100: #1a1d21;
-            --gray-200: #24272b;
-            --gray-300: #2c3035;
-            --gray-800: #e4e6ea;
-            
-            --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.3);
-            --shadow-medium: 0 8px 30px rgba(0, 0, 0, 0.35);
-            --shadow-strong: 0 15px 40px rgba(0, 0, 0, 0.4);
-        }
-
-        [data-bs-theme="dark"] body {
-            background-color: var(--gray-100);
-            color: #adb5bd;
-        }
-
-        [data-bs-theme="dark"] .card {
-            background-color: var(--gray-200);
-        }
-
-        [data-bs-theme="dark"] .card-header {
-            background-color: var(--gray-200);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        [data-bs-theme="dark"] .dropdown-menu {
-            background: var(--gray-200);
-        }
-
-        [data-bs-theme="dark"] .dropdown-item {
-            color: #adb5bd;
-        }
-
-        [data-bs-theme="dark"] .dropdown-item:hover {
-            background: var(--primary);
-            color: white;
-        }
-
-        [data-bs-theme="dark"] .alert {
-            background-color: var(--gray-200);
-            color: #adb5bd;
-        }
 
         /* Responsive adjustments */
         @media (max-width: 992px) {
@@ -496,9 +436,17 @@
                 <i class="fas fa-graduation-cap"></i>EduManage
             </a>
 
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-expanded="false">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+            <div class="navbar-mobile-actions">
+                {% if current_user.is_authenticated and current_user.role == 'parent' %}
+                <button id="notif-badge" class="btn btn-outline-light btn-sm nav-icon-button position-relative" type="button" title="Notifications" aria-label="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span id="notif-count" class="notification-badge">0</span>
+                </button>
+                {% endif %}
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-expanded="false" aria-label="Ouvrir le menu">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+            </div>
             
             <div class="collapse navbar-collapse" id="navbarNav">
                 <!-- Navigation principale selon le rôle -->
@@ -571,18 +519,32 @@
                                 </ul>
                             </li>
                             
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('main.gestion_utilisateurs') }}"><i class="fas fa-users me-1"></i>Utilisateurs</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('main.cours') }}"><i class="fas fa-book me-1"></i>Cours</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('main.notes') }}"><i class="fas fa-edit me-1"></i>Notes</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('main.paiements') }}"><i class="fas fa-money-bill-wave me-1"></i>Paiements</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('main.absences') }}"><i class="fas fa-calendar-times me-1"></i>Absences</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('main.bulletins') }}"><i class="fas fa-file-pdf me-1"></i>Bulletins</a></li>
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('main.admin_emplois') }}"><i class="fas fa-calendar-alt me-1"></i>Emplois du temps</a></li>
                             <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('main.alertes') }}">
-                                    <i class="fas fa-bell me-1"></i>Alertes
-                                    <span class="notification-badge">3</span>
+                                <a class="nav-link" href="{{ url_for('main.gestion_utilisateurs') }}">
+                                    <i class="fas fa-users me-1"></i>Utilisateurs
                                 </a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-layer-group me-1"></i>Scolarité
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{{ url_for('main.cours') }}"><i class="fas fa-book me-2"></i>Cours</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('main.notes') }}"><i class="fas fa-edit me-2"></i>Notes</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('main.absences') }}"><i class="fas fa-calendar-times me-2"></i>Absences</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('main.admin_emplois') }}"><i class="fas fa-calendar-alt me-2"></i>Emplois du temps</a></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-briefcase me-1"></i>Suivi
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{{ url_for('main.paiements') }}"><i class="fas fa-money-bill-wave me-2"></i>Paiements</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('main.bulletins') }}"><i class="fas fa-file-pdf me-2"></i>Bulletins</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('main.alertes') }}"><i class="fas fa-bell me-2"></i>Alertes</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('main.rapports') }}"><i class="fas fa-chart-bar me-2"></i>Rapport global</a></li>
+                                </ul>
                             </li>
 
                         <!-- 🔹 PROFESSEUR/ENSEIGNANT : Accès à ses classes et cours -->
@@ -675,15 +637,7 @@
                         </a>
                     </li>
                     {% endif %}
-
-                    <!-- Toggle thème -->
-                    <li class="nav-item me-2 d-flex align-items-center">
-                        <button class="btn btn-outline-light btn-sm rounded-circle" id="themeToggle" title="Changer le thème">
-                            <i class="fas fa-moon"></i>
-                        </button>
-                    </li>
-
-                    {% if current_user.is_authenticated %}
+{% if current_user.is_authenticated %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <!-- Avatar avec initiales -->
@@ -858,53 +812,41 @@
         </div>
     </main>
 
+    {% if request.endpoint == 'main.index' %}
     <!-- Footer -->
-    <footer>
+    <footer class="app-footer">
         <div class="container">
-            <div class="row">
-                <div class="col-lg-4 mb-4 mb-lg-0">
-                    <h5 class="mb-3">EduManage</h5>
-                    <p class="opacity-80">Plateforme de gestion scolaire complète pour les établissements d'enseignement modernes.</p>
+            <div class="footer-compact">
+                <div class="footer-brand">
+                    <h5>EduManage</h5>
+                    <p>Gestion scolaire simple et centralisée.</p>
                 </div>
-                <div class="col-lg-2 col-md-4 mb-4 mb-md-0">
-                    <h5 class="mb-3">Navigation</h5>
-                    <ul class="list-unstyled">
-                        <li class="mb-2"><a href="{{ url_for('main.index') }}">Accueil</a></li>
-                        {% if current_user.is_authenticated %}
-                            {% if current_user.role in ['admin', 'super_admin'] %}
-                            <li class="mb-2"><a href="{{ url_for('main.dashboard') }}">Tableau de bord</a></li>
-                            {% elif current_user.role == 'professeur' %}
-                            <li class="mb-2"><a href="{{ url_for('main.enseignant_dashboard') }}">Mon Espace</a></li>
-                            {% elif current_user.role == 'parent' %}
-                            <li class="mb-2"><a href="{{ url_for('main.parent_dashboard') }}">Mon Espace</a></li>
-                            {% endif %}
+
+                <nav class="footer-links" aria-label="Liens du pied de page">
+                    <a href="{{ url_for('main.index') }}">Accueil</a>
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.role in ['admin', 'super_admin'] %}
+                        <a href="{{ url_for('main.dashboard') }}">Espace</a>
+                        {% elif current_user.role == 'professeur' %}
+                        <a href="{{ url_for('main.enseignant_dashboard') }}">Espace</a>
+                        {% elif current_user.role == 'parent' %}
+                        <a href="{{ url_for('main.parent_dashboard') }}">Espace</a>
                         {% endif %}
-                    </ul>
-                </div>
-                <div class="col-lg-3 col-md-4 mb-4 mb-md-0">
-                    <h5 class="mb-3">Support</h5>
-                    <ul class="list-unstyled">
-                        <li class="mb-2"><a href="{{ url_for('main.aide') }}">Centre d'Aide</a></li>
-                    </ul>
-                </div>
-                <div class="col-lg-3 col-md-4">
-                    <h5 class="mb-3">Contact</h5>
-                    <ul class="list-unstyled">
-                        <li class="mb-2"><i class="fas fa-envelope me-2 opacity-80"></i> moctargoumarattama@gmail.com</li>
-                        <li class="mb-2"><i class="fas fa-phone me-2 opacity-80"></i> +212 770010264</li>
-                        <li class="mb-2"><i class="fas fa-map-marker-alt me-2 opacity-80"></i> Maroc, Niger</li>
-                        <li class="mb-2"><i class="fas fa-clock me-2 opacity-80"></i> Lun-Ven: 10h-18h</li>
-                    </ul>
+                    {% endif %}
+                    <a href="{{ url_for('main.aide') }}">Aide</a>
+                </nav>
+
+                <div class="footer-contact">
+                    <span><i class="fas fa-envelope" aria-hidden="true"></i> moctargoumarattama@gmail.com</span>
+                    <span><i class="fas fa-phone" aria-hidden="true"></i> +212 770010264</span>
                 </div>
             </div>
-            <hr class="my-4 bg-light opacity-25">
-            <div class="text-center">
-                <p class="mb-0 opacity-80">&copy; {{ moment().year }} EduManage. Tous droits réservés. | Version {{ config.get('VERSION', 'N/A') }}</p>
-            </div>
-            <meta name="csrf-token" content="{{ csrf_token() }}">
+            <div class="footer-bottom">&copy; {{ moment().year }} EduManage. Tous droits réservés. Version {{ config.get('VERSION', 'N/A') }}</div>
         </div>
     </footer>
+    {% endif %}
 
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -920,8 +862,8 @@
         fetch = (originalFetch => {
             return (...args) => {
                 if (args[1] && args[1].headers) {
-                    if (!args[1].headers['X-CSRF-TOKEN']) {
-                        args[1].headers['X-CSRF-TOKEN'] = getCSRFToken();
+                    if (!args[1].headers['X-CSRFToken'] && !args[1].headers['X-CSRF-Token']) {
+                        args[1].headers['X-CSRFToken'] = getCSRFToken();
                     }
                 }
                 return originalFetch(...args);
@@ -952,34 +894,7 @@
                     navbar.style.backdropFilter = 'blur(10px)';
                 }
             });
-            
-            // Gestion du thème
-            const themeToggle = document.getElementById('themeToggle');
-            const themeIcon = themeToggle.querySelector('i');
-            
-            // Vérifier le thème sauvegardé ou respecter la préférence OS
-            const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            document.documentElement.setAttribute('data-bs-theme', savedTheme);
-            updateThemeIcon(savedTheme);
-            
-            themeToggle.addEventListener('click', () => {
-                const currentTheme = document.documentElement.getAttribute('data-bs-theme');
-                const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-                
-                document.documentElement.setAttribute('data-bs-theme', newTheme);
-                localStorage.setItem('theme', newTheme);
-                updateThemeIcon(newTheme);
-            });
-            
-            function updateThemeIcon(theme) {
-                if (theme === 'dark') {
-                    themeIcon.classList.remove('fa-moon');
-                    themeIcon.classList.add('fa-sun');
-                } else {
-                    themeIcon.classList.remove('fa-sun');
-                    themeIcon.classList.add('fa-moon');
-                }
-            }
+}
             
             // Auto-hide alerts après 5 secondes
             const alerts = document.querySelectorAll('.alert');

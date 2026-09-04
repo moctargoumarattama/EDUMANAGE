@@ -6,7 +6,7 @@
     <!-- Header avec titre élégant -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="bg-animated p-4 rounded-3 shadow-sm" style="background: var(--gradient-primary);">
+            <div class="bg-animated p-4 rounded-3 shadow-sm surface-gradient-primary">
                 <h2 class="text-white mb-0">
                     <i class="fas fa-users me-2"></i>Tableau de Bord Parent
                 </h2>
@@ -15,26 +15,13 @@
         </div>
     </div>
 
-    <!-- Badge notifications flottant -->
-    <div class="position-fixed top-0 end-0 p-3" style="z-index: 1060;">
-        <button id="notif-badge" class="btn btn-primary position-relative shadow-lg" 
-                style="border-radius: 50%; width: 60px; height: 60px; border: none;">
-            <i class="fas fa-bell fa-lg"></i>
-            <span id="notif-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                0
-            </span>
-        </button>
-    </div>
-
     <!-- Contenu principal -->
     {% if enfants %}
     <div class="row g-4">
         {% for enfant in enfants %}
         <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
-            <div class="card border-0 shadow-lg h-100 student-card" 
-                 style="border-radius: 1.5rem; overflow: hidden; transition: transform 0.3s ease;">
-                <div class="card-header text-white text-center py-4 position-relative" 
-                     style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="card border-0 shadow-lg h-100 student-card rounded-card-lg">
+                <div class="card-header text-white text-center py-4 position-relative surface-gradient-primary">
                     <div class="position-absolute top-0 end-0 m-3">
                         <span class="badge bg-light text-dark">{{ enfant.classe }}</span>
                     </div>
@@ -51,10 +38,10 @@
                             </h6>
                             <span class="badge bg-primary rounded-pill fs-6 px-3 py-2">{{ enfant.moyenne|round(1) }}/20</span>
                         </div>
-                        <div class="progress mb-3" style="height: 10px; border-radius: 10px; background-color: #e9ecef;">
+                        <div class="progress progress-soft mb-3">
                             {% set moyenne_percent = ((enfant.moyenne / 20) * 100)|round %}
                             <div class="progress-bar bg-gradient-primary" role="progressbar" 
-                                 style="width: {{ moyenne_percent }}%; border-radius: 10px;" 
+                                 style="width: {{ moyenne_percent }}%;" 
                                  aria-valuenow="{{ enfant.moyenne }}" aria-valuemin="0" aria-valuemax="20">
                             </div>
                         </div>
@@ -68,11 +55,11 @@
                             </h6>
                             <span class="badge bg-danger rounded-pill fs-6 px-3 py-2">{{ enfant.total_absences }}</span>
                         </div>
-                        <div class="progress mb-3" style="height: 10px; border-radius: 10px; background-color: #e9ecef;">
+                        <div class="progress progress-soft mb-3">
                             {% set max_absences = 20 %}
                             {% set absence_percent = ((enfant.total_absences / max_absences) * 100)|round %}
                             <div class="progress-bar bg-gradient-danger" role="progressbar" 
-                                 style="width: {{ absence_percent }}%; border-radius: 10px;" 
+                                 style="width: {{ absence_percent }}%;" 
                                  aria-valuenow="{{ enfant.total_absences }}" aria-valuemin="0" aria-valuemax="{{ max_absences }}">
                             </div>
                         </div>
@@ -86,11 +73,11 @@
                             </h6>
                             <span class="badge bg-success rounded-pill fs-6 px-3 py-2">{{ enfant.total_paiements }}/12</span>
                         </div>
-                        <div class="progress mb-3" style="height: 10px; border-radius: 10px; background-color: #e9ecef;">
+                        <div class="progress progress-soft mb-3">
                             {% set max_paiements = 12 %}
                             {% set paiement_percent = ((enfant.total_paiements / max_paiements) * 100)|round %}
                             <div class="progress-bar bg-gradient-success" role="progressbar" 
-                                 style="width: {{ paiement_percent }}%; border-radius: 10px;" 
+                                 style="width: {{ paiement_percent }}%;" 
                                  aria-valuenow="{{ enfant.total_paiements }}" aria-valuemin="0" aria-valuemax="{{ max_paiements }}">
                             </div>
                         </div>
@@ -169,7 +156,7 @@
     <!-- État vide - Aucun enfant -->
     <div class="row">
         <div class="col-12">
-            <div class="card border-0 shadow-lg text-center py-5" style="border-radius: 1.5rem;">
+            <div class="card border-0 shadow-lg text-center py-5 rounded-card-lg">
                 <div class="card-body py-5">
                     <div class="empty-state-icon mb-4">
                         <i class="fas fa-user-slash fa-4x text-muted opacity-50"></i>
@@ -191,7 +178,7 @@
 </div>
 
 <!-- Container pour les notifications -->
-<div id="notifications-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050; max-width: 400px; margin-top: 80px;"></div>
+<div id="notifications-container" class="notifications-panel"></div>
 {% endblock %}
 
 {% block scripts %}
@@ -235,8 +222,7 @@ function displayNotifications(notifications) {
 
     notifications.forEach((notif, index) => {
         const toast = document.createElement('div');
-        toast.className = `toast mb-3 shadow-lg`;
-        toast.style.minWidth = '350px';
+        toast.className = `toast mb-3 shadow-lg notification-toast`;
         toast.setAttribute('role', 'alert');
         toast.setAttribute('data-bs-autohide', 'false');
         
@@ -335,101 +321,4 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-
-<style>
-/* Animations avec performances optimisées */
-.student-card {
-    animation: fadeInUp 0.6s ease-out;
-    will-change: transform;
-    backface-visibility: hidden;
-}
-
-@keyframes fadeInUp {
-    0% { 
-        opacity: 0; 
-        transform: translate3d(0, 20px, 0); 
-    }
-    100% { 
-        opacity: 1; 
-        transform: translate3d(0, 0, 0); 
-    }
-}
-
-.bg-gradient-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-}
-
-.bg-gradient-danger {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
-}
-
-.bg-gradient-success {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
-}
-
-/* Amélioration des badges */
-.badge.fs-6 {
-    font-size: 0.9rem !important;
-    font-weight: 600;
-    min-width: 50px;
-    text-align: center;
-}
-
-/* Amélioration des barres de progression */
-.progress {
-    background-color: rgba(0,0,0,.1) !important;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,.1);
-}
-
-.progress-bar {
-    transition: width 0.8s ease-in-out;
-}
-
-/* Amélioration des toasts */
-.toast {
-    backdrop-filter: blur(10px);
-    background-color: rgba(255, 255, 255, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.toast-header {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-/* État vide amélioré */
-.empty-state-icon {
-    opacity: 0.7;
-    transition: opacity 0.3s ease;
-}
-
-.empty-state-icon:hover {
-    opacity: 1;
-}
-
-/* Responsive improvements */
-@media (max-width: 768px) {
-    .student-card {
-        margin-bottom: 1rem;
-    }
-    
-    #notifications-container {
-        left: 1rem;
-        right: 1rem;
-        max-width: none;
-    }
-    
-    .toast {
-        min-width: 100% !important;
-    }
-}
-
-/* Performance optimizations */
-* {
-    box-sizing: border-box;
-}
-
-.card {
-    transform: translateZ(0); /* Force hardware acceleration */
-}
-</style>
 {% endblock %}

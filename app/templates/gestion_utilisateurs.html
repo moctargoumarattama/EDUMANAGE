@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Utilisateurs - EduManage{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="page-header mb-4">
+        <div>
+            <h1 class="page-title">Utilisateurs</h1>
+            <p class="text-muted mb-0">Gestion des comptes de votre école.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('main.rapports') }}" class="btn btn-outline-primary">
+                <i class="fas fa-chart-bar me-2"></i>Rapport global
+            </a>
+            <a href="{{ url_for('main.creer_utilisateur') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Ajouter
+            </a>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="responsive-form-grid">
+                <div>
+                    <label for="search" class="form-label">Recherche</label>
+                    <input id="search" name="search" type="search" class="form-control" value="{{ search }}" placeholder="Nom, email, téléphone">
+                </div>
+                <div>
+                    <label for="role" class="form-label">Rôle</label>
+                    <select id="role" name="role" class="form-select">
+                        <option value="">Tous les rôles</option>
+                        <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admin</option>
+                        <option value="parent" {% if role_filter == 'parent' %}selected{% endif %}>Parent</option>
+                        <option value="professeur" {% if role_filter == 'professeur' %}selected{% endif %}>Professeur</option>
+                        <option value="enseignant" {% if role_filter == 'enseignant' %}selected{% endif %}>Enseignant</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="statut" class="form-label">Statut</label>
+                    <select id="statut" name="statut" class="form-select">
+                        <option value="">Tous les statuts</option>
+                        <option value="actif" {% if statut_filter == 'actif' %}selected{% endif %}>Actif</option>
+                        <option value="bloque" {% if statut_filter == 'bloque' %}selected{% endif %}>Bloqué</option>
+                    </select>
+                </div>
+                <div class="d-flex align-items-end gap-2 flex-wrap">
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="fas fa-search me-2"></i>Filtrer
+                    </button>
+                    <a href="{{ url_for('main.gestion_utilisateurs') }}" class="btn btn-outline-secondary">
+                        Réinitialiser
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <span class="text-muted">Utilisateurs affichés : <span class="badge bg-primary">{{ utilisateurs.total }}</span></span>
+        {% if utilisateurs.pages > 1 %}
+        <span class="text-muted small">Page {{ utilisateurs.page }} / {{ utilisateurs.pages }}</span>
+        {% endif %}
+    </div>
+
+    {% if utilisateurs.items %}
+    <div class="table-responsive users-table-wrap">
+        <table class="table table-hover align-middle data-table mb-0">
+            <thead>
+                <tr>
+                    <th>Utilisateur</th>
+                    <th>Email</th>
+                    <th>Rôle</th>
+                    <th>Statut</th>
+                    <th>Date</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in utilisateurs.items %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center min-w-0">
+                            <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                {{ (user.prenom[0] if user.prenom else user.nom[0])|upper }}
+                            </div>
+                            <div class="min-w-0">
+                                <div class="fw-bold text-truncate">{{ user.prenom or '' }} {{ user.nom }}</div>
+                                <small class="text-muted">{{ user.telephone or 'Téléphone non renseigné' }}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ user.email }}</td>
+                    <td><span class="badge bg-info text-dark">{{ user.role|replace('_', ' ')|title }}</span></td>
+                    <td>
+                        <span class="badge bg-{{ 'success' if user.statut == 'actif' else 'secondary' }}">
+                            {{ user.statut or 'actif' }}
+                        </span>
+                    </td>
+                    <td>{{ user.date_creation.strftime('%d/%m/%Y') if user.date_creation else 'N/A' }}</td>
+                    <td>
+                        <div class="d-flex justify-content-end gap-2 flex-wrap">
+                            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.modifier_utilisateur', id=user.id) }}" title="Modifier">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% if user.id != current_user.id %}
+                            {% set statut_user = user.statut or 'actif' %}
+                            <button class="btn btn-sm btn-outline-warning js-user-status" type="button" data-user-id="{{ user.id }}" data-current-status="{{ statut_user }}" title="{{ 'Débloquer' if statut_user == 'bloque' else 'Bloquer' }}">
+                                <i class="fas fa-{{ 'check' if statut_user == 'bloque' else 'ban' }}"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger js-user-delete" type="button" data-user-id="{{ user.id }}" title="Supprimer">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="user-card-list">
+        {% for user in utilisateurs.items %}
+        <div class="user-card">
+            <div class="d-flex align-items-start justify-content-between gap-2">
+                <div class="d-flex align-items-center min-w-0">
+                    <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                        {{ (user.prenom[0] if user.prenom else user.nom[0])|upper }}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="fw-bold text-truncate">{{ user.prenom or '' }} {{ user.nom }}</div>
+                        <small class="text-muted">{{ user.email }}</small>
+                    </div>
+                </div>
+                <span class="badge bg-{{ 'success' if user.statut == 'actif' else 'secondary' }}">{{ user.statut or 'actif' }}</span>
+            </div>
+            <div class="user-card-meta">
+                <span>{{ user.role|replace('_', ' ')|title }}</span>
+                <span>{{ user.telephone or 'Téléphone non renseigné' }}</span>
+                <span>{{ user.date_creation.strftime('%d/%m/%Y') if user.date_creation else 'N/A' }}</span>
+            </div>
+            <div class="d-flex gap-2 flex-wrap mt-3">
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.modifier_utilisateur', id=user.id) }}">
+                    <i class="fas fa-edit me-1"></i>Modifier
+                </a>
+                {% if user.id != current_user.id %}
+                {% set statut_user = user.statut or 'actif' %}
+                <button class="btn btn-sm btn-outline-warning js-user-status" type="button" data-user-id="{{ user.id }}" data-current-status="{{ statut_user }}">
+                    {{ 'Débloquer' if statut_user == 'bloque' else 'Bloquer' }}
+                </button>
+                <button class="btn btn-sm btn-outline-danger js-user-delete" type="button" data-user-id="{{ user.id }}">
+                    Supprimer
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if utilisateurs.pages > 1 %}
+    <nav class="mt-4" aria-label="Pagination utilisateurs">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {% if not utilisateurs.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('main.gestion_utilisateurs', page=utilisateurs.prev_num, search=search, role=role_filter, statut=statut_filter) if utilisateurs.has_prev else '#' }}">Précédent</a>
+            </li>
+            {% for page_num in utilisateurs.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                {% if page_num %}
+                <li class="page-item {% if page_num == utilisateurs.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('main.gestion_utilisateurs', page=page_num, search=search, role=role_filter, statut=statut_filter) }}">{{ page_num }}</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+            <li class="page-item {% if not utilisateurs.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('main.gestion_utilisateurs', page=utilisateurs.next_num, search=search, role=role_filter, statut=statut_filter) if utilisateurs.has_next else '#' }}">Suivant</a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon"><i class="fas fa-users"></i></div>
+        <h2 class="empty-state-title">Aucun utilisateur trouvé</h2>
+        <p class="empty-state-text">Ajustez les filtres ou ajoutez un nouveau compte.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.js-user-status').forEach((button) => {
+    button.addEventListener('click', async () => {
+        const nextLabel = button.dataset.currentStatus === 'bloque' ? 'débloquer' : 'bloquer';
+        if (!confirm(`Voulez-vous vraiment ${nextLabel} cet utilisateur ?`)) return;
+
+        const response = await fetch(`/api/users/${button.dataset.userId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content,
+                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+            }
+        });
+        const data = await response.json();
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Action impossible.');
+        }
+    });
+});
+
+document.querySelectorAll('.js-user-delete').forEach((button) => {
+    button.addEventListener('click', async () => {
+        if (!confirm('Supprimer cet utilisateur ?')) return;
+
+        const response = await fetch(`/api/users/${button.dataset.userId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            }
+        });
+        const data = await response.json();
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Suppression impossible.');
+        }
+    });
+});
+</script>
+{% endblock %}

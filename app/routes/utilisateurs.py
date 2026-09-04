@@ -82,6 +82,9 @@ def gestion_utilisateurs():
         return redirect(url_for('main.gestion_ecoles'))
 
     page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '').strip()
+    role_filter = request.args.get('role', '').strip()
+    statut_filter = request.args.get('statut', '').strip()
     ecole = get_ecole_courante()
 
     try:
@@ -90,18 +93,36 @@ def gestion_utilisateurs():
             return redirect(url_for('main.index'))
 
         utilisateurs_query = filtre_par_ecole(Utilisateur.query, Utilisateur)
-        professeurs_query = filtre_par_ecole(Professeur.query, Professeur)
-        parents_query = filtre_par_ecole(Utilisateur.query.filter_by(role='parent'), Utilisateur)
 
-        utilisateurs = utilisateurs_query.paginate(page=page, per_page=10, error_out=False)
-        professeurs = professeurs_query.paginate(page=page, per_page=10, error_out=False)
-        parents = parents_query.paginate(page=page, per_page=10, error_out=False)
+        if search:
+            like = f"%{search}%"
+            utilisateurs_query = utilisateurs_query.filter(
+                db.or_(
+                    Utilisateur.nom.ilike(like),
+                    Utilisateur.prenom.ilike(like),
+                    Utilisateur.email.ilike(like),
+                    Utilisateur.telephone.ilike(like),
+                )
+            )
+
+        if role_filter:
+            utilisateurs_query = utilisateurs_query.filter(Utilisateur.role == role_filter)
+
+        if statut_filter:
+            utilisateurs_query = utilisateurs_query.filter(Utilisateur.statut == statut_filter)
+
+        utilisateurs = utilisateurs_query.order_by(Utilisateur.date_creation.desc(), Utilisateur.nom.asc()).paginate(
+            page=page,
+            per_page=25,
+            error_out=False
+        )
 
         return render_template(
-            'profile.html',
+            'gestion_utilisateurs.html',
             utilisateurs=utilisateurs,
-            professeurs=professeurs,
-            parents=parents
+            search=search,
+            role_filter=role_filter,
+            statut_filter=statut_filter,
         )
 
     except Exception as e:

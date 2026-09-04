@@ -86,8 +86,8 @@ def login():
     if current_user.is_authenticated:
         role = getattr(current_user, "role", None)
         endpoint_par_role = {
-            "admin": "main.admin_dashboard",
-            "super_admin": "main.admin_dashboard",
+            "admin": "main.index",
+            "super_admin": "main.index",
             "enseignant": "main.enseignant_dashboard",
             "professeur": "main.enseignant_dashboard",
             "parent": "main.parent_dashboard",
@@ -152,8 +152,8 @@ def login():
                 next_page = None
 
             endpoint_par_role = {
-                "admin": "main.admin_dashboard",
-                "super_admin": "main.admin_dashboard",
+                "admin": "main.index",
+                "super_admin": "main.index",
                 "enseignant": "main.enseignant_dashboard",
                 "parent": "main.parent_dashboard",
             }
@@ -243,59 +243,6 @@ def logout():
 def aide():
     """Page d'aide et support du site"""
     return render_template('aide.html')
-
-@main.route('/inscription_parent', methods=['GET', 'POST'])
-def inscription_parent():
-    # Récupérer toutes les classes disponibles pour le select
-    classes = get_ecole_filter_query(Classe).all()
-
-    if request.method == 'POST':
-        nom_enfant = request.form.get('nom_enfant')
-        prenom_enfant = request.form.get('prenom_enfant')
-        date_naissance_str = request.form.get('date_naissance')
-        classe_id = request.form.get('classe')  # on récupère l'id de la classe
-        nom_parent = request.form.get('nom_parent')
-        prenom_parent = request.form.get('prenom_parent')
-        email_parent = request.form.get('email')
-        telephone_parent = request.form.get('telephone_parent')
-
-        if not all([nom_enfant, prenom_enfant, date_naissance_str, classe_id, nom_parent, prenom_parent, email_parent]):
-            flash("Tous les champs sont obligatoires.", "warning")
-            return redirect(url_for('main.inscription_parent'))
-
-        # Conversion date de naissance
-        try:
-            date_naissance = datetime.strptime(date_naissance_str, "%Y-%m-%d").date()
-        except ValueError:
-            flash("Format de date invalide.", "danger")
-            return redirect(url_for('main.inscription_parent'))
-
-        # Récupérer l'objet Classe
-        classe_obj = Classe.query.get(classe_id)
-        if not classe_obj:
-            flash("Classe invalide.", "danger")
-            return redirect(url_for('main.inscription_parent'))
-
-        # Génération du code parent unique
-        code_parent = Eleve.generer_code_parent()
-
-        # Création de l'élève
-        nouvel_eleve = Eleve(
-            nom=nom_enfant,
-            prenom=prenom_enfant,
-            date_naissance=date_naissance,
-            classe=classe_obj,       # association avec l'objet Classe
-            code_parent=code_parent,
-            email_parent=email_parent,
-            telephone_parent=telephone_parent
-        )
-        db.session.add(nouvel_eleve)
-        db.session.commit()
-
-        flash("Inscription réussie !", "success")
-        return redirect(url_for('main.inscription_parent'))
-
-    return render_template('inscription_parent.html', classes=classes)
 
 @main.route('/request_reset_password', methods=['GET', 'POST'])
 def request_reset_password():

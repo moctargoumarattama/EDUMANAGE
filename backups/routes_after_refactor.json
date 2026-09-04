@@ -163,13 +163,6 @@
     ]
   },
   {
-    "rule": "/admin/dashboard",
-    "endpoint": "main.admin_dashboard",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
     "rule": "/admin/emplois",
     "endpoint": "main.admin_emplois",
     "methods": [
@@ -571,14 +564,6 @@
     "endpoint": "main.index",
     "methods": [
       "GET"
-    ]
-  },
-  {
-    "rule": "/inscription_parent",
-    "endpoint": "main.inscription_parent",
-    "methods": [
-      "GET",
-      "POST"
     ]
   },
   {
