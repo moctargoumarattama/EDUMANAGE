@@ -429,7 +429,7 @@
 
     
 </head>
-<body data-role="{{ current_user.role if current_user.is_authenticated else 'guest' }}">
+<body class="{{ 'auth-layout' if request.endpoint == 'main.login' else '' }}" data-role="{{ current_user.role if current_user.is_authenticated else 'guest' }}">
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('main.index') }}">

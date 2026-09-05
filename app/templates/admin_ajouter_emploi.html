@@ -1,89 +1,84 @@
 {% extends "base.html" %}
 
-{% block title %}Ajouter un Emploi du Temps - EduManage{% endblock %}
+{% block title %}Ajouter un emploi du temps - EduManage{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('main.admin_emplois') }}">Emplois du temps</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Nouveau cours planifié</li>
-        </ol>
-    </nav>
+    <div class="page-header">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon">
+                    <i class="fas fa-calendar-plus"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">Ajouter un créneau</h1>
+                    <p class="page-subtitle d-none d-md-block">Classe, enseignant, matière et horaire.</p>
+                </div>
+            </div>
+            <div class="page-actions">
+                <a href="{{ url_for('main.admin_emplois') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-calendar-alt me-2"></i>Emplois du temps
+                </a>
+            </div>
+        </div>
+    </div>
 
     <div class="row justify-content-center">
-        <div class="col-lg-9 col-xl-8">
-            <div class="form-card animate-pop-in">
-                <div class="form-header">
-                    <div class="form-header-content">
-                        <div class="form-header-icon">
-                            <i class="fas fa-calendar-plus"></i>
-                        </div>
-                        <div>
-                            <h2 class="form-header-title">Ajouter un créneau de cours</h2>
-                            <p class="form-header-subtitle">Planifiez les horaires des cours par classe et par enseignant</p>
-                        </div>
-                    </div>
-                </div>
-
+        <div class="col-lg-10 col-xl-9">
+            <div class="form-card">
                 <div class="form-card-body">
                     <form method="POST" class="needs-validation" novalidate>
                         {{ form.hidden_tag() }}
 
-                        <!-- Section Affectation -->
                         <div class="form-section">
-                            <h5 class="form-section-title">
-                                <i class="fas fa-chalkboard"></i> Classe, Enseignant & Matière
-                            </h5>
+                            <h2 class="form-section-title">
+                                <i class="fas fa-chalkboard-teacher"></i>Affectation
+                            </h2>
                             <div class="row g-3">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <label class="form-label">Classe <span class="text-danger">*</span></label>
                                     {{ form.classe_id(class="form-select") }}
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <label class="form-label">Professeur <span class="text-danger">*</span></label>
                                     {{ form.professeur_id(class="form-select") }}
                                 </div>
-                                <div class="col-12">
-                                    <label class="form-label">Matière / Cours <span class="text-danger">*</span></label>
+                                <div class="col-md-4">
+                                    <label class="form-label">Matière / cours <span class="text-danger">*</span></label>
                                     {{ form.cours_id(class="form-select") }}
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Section Horaires -->
                         <div class="form-section">
-                            <h5 class="form-section-title">
-                                <i class="fas fa-clock"></i> Horaires & Emplacement
-                            </h5>
+                            <h2 class="form-section-title">
+                                <i class="fas fa-clock"></i>Horaire
+                            </h2>
                             <div class="row g-3">
-                                <div class="col-md-4">
-                                    <label class="form-label">Jour de cours <span class="text-danger">*</span></label>
+                                <div class="col-md-3">
+                                    <label class="form-label">Jour <span class="text-danger">*</span></label>
                                     {{ form.jour(class="form-select") }}
                                 </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Heure de début <span class="text-danger">*</span></label>
+                                <div class="col-md-3">
+                                    <label class="form-label">Début <span class="text-danger">*</span></label>
                                     {{ form.heure_debut(class="form-control") }}
                                 </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Heure de fin <span class="text-danger">*</span></label>
+                                <div class="col-md-3">
+                                    <label class="form-label">Fin <span class="text-danger">*</span></label>
                                     {{ form.heure_fin(class="form-control") }}
                                 </div>
-                                <div class="col-12">
-                                    <label class="form-label">Salle de cours</label>
-                                    {{ form.salle(class="form-control", placeholder="Ex: Salle B12, Laboratoire 2...") }}
+                                <div class="col-md-3">
+                                    <label class="form-label">Salle</label>
+                                    {{ form.salle(class="form-control", placeholder="Ex: B12") }}
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Actions -->
                         <div class="form-actions">
                             <a href="{{ url_for('main.admin_emplois') }}" class="btn btn-outline-secondary">
-                                <i class="fas fa-times me-1"></i>Annuler
+                                <i class="fas fa-times me-2"></i>Annuler
                             </a>
-                            {{ form.submit(class="btn btn-primary px-4") }}
+                            {{ form.submit(class="btn btn-primary") }}
                         </div>
                     </form>
                 </div>

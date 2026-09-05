@@ -33,6 +33,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }, false);
     });
 
+    document.querySelectorAll('[data-progress]').forEach(function(bar) {
+        const value = Math.max(0, Math.min(100, parseInt(bar.dataset.progress || '0', 10)));
+        bar.style.width = value + '%';
+    });
+
     // 4. Calcul de moyenne (aide réutilisable)
     window.calculerMoyenne = function(notes, coefficients) {
         let total = 0;

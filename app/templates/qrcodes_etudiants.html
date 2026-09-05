@@ -1,91 +1,73 @@
 {% extends "base.html" %}
 
-{% block title %}QR Codes des Élèves - EduManage{% endblock %}
+{% block title %}QR Codes élèves - EduManage{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <!-- Breadcrumb & Header -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('main.eleves') }}">Élèves</a></li>
-            <li class="breadcrumb-item active" aria-current="page">QR Codes</li>
-        </ol>
-    </nav>
-
-    <div class="page-header">
+<div class="container py-4 qr-page">
+    <div class="page-header d-print-none">
         <div class="page-header-body">
             <div class="page-title-group">
                 <div class="page-icon">
                     <i class="fas fa-qrcode"></i>
                 </div>
                 <div>
-                    <h1 class="page-title">QR Codes d'Identification</h1>
-                    <p class="page-subtitle">Badges et codes d'accès rapide des élèves répartis par classe</p>
+                    <h1 class="page-title">QR Codes élèves</h1>
+                    <p class="page-subtitle d-none d-md-block">Badges regroupés par classe.</p>
                 </div>
             </div>
             <div class="page-actions">
-                <a href="{{ url_for('main.eleves') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left me-1"></i>Retour
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Retour
                 </a>
-                <button class="btn btn-primary" onclick="window.print()">
-                    <i class="fas fa-print me-1"></i>Imprimer les badges
+                <button type="button" class="btn btn-primary js-print-page">
+                    <i class="fas fa-print me-2"></i>Imprimer
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Navigation rapide par classe -->
     {% if qrcodes_par_classe %}
-    <div class="d-flex flex-wrap gap-2 mb-4 d-print-none">
-        {% for classe in qrcodes_par_classe.keys() %}
-        <a href="#classe-{{ loop.index }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-            <i class="fas fa-chalkboard me-1"></i>{{ classe }}
-        </a>
-        {% endfor %}
-    </div>
-
-    <!-- Sections des QR Codes par classe -->
-    {% for classe, qrcodes in qrcodes_par_classe.items() %}
-    <div class="card shadow-sm border-0 mb-4" id="classe-{{ loop.index }}">
-        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fw-bold text-primary">
-                <i class="fas fa-graduation-cap me-2"></i>{{ classe }}
-            </h5>
-            <span class="badge bg-primary rounded-pill">{{ qrcodes|length }} élève(s)</span>
+        <div class="qr-class-nav d-print-none">
+            {% for classe in qrcodes_par_classe.keys() %}
+                <a href="#classe-{{ loop.index }}" class="btn btn-sm btn-light">
+                    {{ classe }}
+                </a>
+            {% endfor %}
         </div>
-        <div class="card-body p-4">
-            <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-6 g-3">
-                {% for item in qrcodes %}
-                <div class="col">
-                    <div class="card h-100 text-center border p-2 rounded-3 hover-shadow transition-all bg-light bg-opacity-25">
-                        <div class="p-2 bg-white rounded-2 shadow-sm d-inline-block mx-auto mb-2">
-                            <img src="data:image/png;base64,{{ item.qr }}" 
-                                 alt="QR Code de {{ item.eleve.prenom }} {{ item.eleve.nom }}"
-                                 class="img-fluid" style="width: 110px; height: 110px; object-fit: contain;">
-                        </div>
-                        <h6 class="fw-bold text-dark mb-1 small text-truncate" title="{{ item.eleve.prenom }} {{ item.eleve.nom }}">
-                            {{ item.eleve.prenom }} {{ item.eleve.nom }}
-                        </h6>
-                        {% if item.eleve.id %}
-                        <span class="badge bg-secondary bg-opacity-10 text-secondary mx-auto small">ID #{{ item.eleve.id }}</span>
-                        {% endif %}
-                    </div>
+
+        {% for classe, qrcodes in qrcodes_par_classe.items() %}
+            <section class="qr-section" id="classe-{{ loop.index }}">
+                <div class="qr-section-header">
+                    <h2>{{ classe }}</h2>
+                    <span class="badge bg-primary">{{ qrcodes|length }} élève(s)</span>
                 </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-    {% endfor %}
 
+                <div class="qr-grid">
+                    {% for item in qrcodes %}
+                        <article class="qr-card">
+                            <img src="data:image/png;base64,{{ item.qr }}"
+                                 alt="QR Code de {{ item.eleve.prenom }} {{ item.eleve.nom }}">
+                            <strong title="{{ item.eleve.prenom }} {{ item.eleve.nom }}">
+                                {{ item.eleve.prenom }} {{ item.eleve.nom }}
+                            </strong>
+                            <span>ID #{{ item.eleve.id }}</span>
+                        </article>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endfor %}
     {% else %}
-    <div class="empty-state">
-        <div class="empty-state-icon">
-            <i class="fas fa-qrcode"></i>
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-qrcode"></i>
+            </div>
+            <h2 class="empty-state-title">Aucun QR Code disponible</h2>
+            <p class="empty-state-text">Aucun élève n'est disponible pour votre périmètre.</p>
         </div>
-        <h4 class="empty-state-title">Aucun QR Code disponible</h4>
-        <p class="empty-state-text">Aucun élève ou classe n'est actuellement configuré dans l'établissement.</p>
-    </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/qrcodes.js') }}"></script>
 {% endblock %}

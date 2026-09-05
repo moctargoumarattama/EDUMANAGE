@@ -1,201 +1,186 @@
 {% extends "base.html" %}
-{% block title %}Gestion des Emplois du Temps - EduManage{% endblock %}
+{% block title %}Emplois du temps - EduManage{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4 fade-in">
-
-    <!-- En-tête -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
-        <div class="mb-3 mb-md-0">
-            <h2 class="fw-bold text-primary mb-1">
-                <i class="fas fa-calendar-week me-2"></i>Gestion des Emplois du Temps
-            </h2>
-            <p class="text-muted mb-0">Planifiez, modifiez et visualisez les emplois du temps par classe</p>
-        </div>
-        <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-gradient px-4 py-2 shadow-sm d-flex align-items-center">
-            <i class="fas fa-plus me-2"></i>Ajouter un emploi
-        </a>
-    </div>
-
-    <!-- Barre d'outils -->
-    <div class="card glass-card border-0 shadow-sm mb-4">
-        <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-            <div class="input-group w-100 w-md-50">
-                <span class="input-group-text bg-transparent border-end-0"><i class="fas fa-search text-primary"></i></span>
-                <input type="text" id="searchInput" class="form-control border-start-0" placeholder="Rechercher par classe, professeur, matière...">
+<div class="container py-4 schedule-page">
+    <div class="page-header">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon">
+                    <i class="fas fa-calendar-week"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">Emplois du temps</h1>
+                    <p class="page-subtitle d-none d-md-block">Créneaux planifiés par classe, professeur et matière.</p>
+                </div>
             </div>
-            <div class="d-flex gap-2">
-                <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="filterTable('')">Tout</button>
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="filterTable('Lundi')">Lundi</button>
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="filterTable('Mardi')">Mardi</button>
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="filterTable('Mercredi')">Mercredi</button>
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="filterTable('Jeudi')">Jeudi</button>
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" onclick="filterTable('Vendredi')">Vendredi</button>
+            <div class="page-actions">
+                <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Ajouter
+                </a>
             </div>
         </div>
     </div>
 
-    <!-- Tableau -->
-    <div class="card glass-card border-0 shadow-lg rounded-4 overflow-hidden">
-        <div class="card-header bg-gradient-primary text-white py-3">
-            <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Liste des Emplois du Temps</h5>
+    <div class="stat-grid mb-3">
+        <div class="stat-card">
+            <div class="stat-icon primary"><i class="fas fa-calendar-check"></i></div>
+            <div><p class="stat-number">{{ pagination.total }}</p><p class="stat-label">Créneaux</p></div>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
-                <table class="table table-hover align-middle mb-0" id="emploiTable">
-                    <thead class="bg-light text-secondary sticky-top" style="z-index: 1;">
-                        <tr>
-                            <th class="ps-4">Classe</th>
-                            <th>Professeur</th>
-                            <th>Matière</th>
-                            <th>Jour</th>
-                            <th>Horaire</th>
-                            <th>Salle</th>
-                            <th class="text-end pe-4">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for e in emplois %}
-                        <tr class="table-row-hover">
-                            <td class="ps-4 fw-semibold text-dark">
-                                <div class="d-flex align-items-center">
-                                    <div class="icon-circle bg-primary-subtle me-3">
-                                        <i class="fas fa-users text-primary"></i>
-                                    </div>
-                                    <div>
-                                        {{ e.classe.nom if e.classe else 'N/A' }}<br>
-                                        <small class="text-muted">{{ e.classe.niveau if e.classe else '' }}</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="icon-circle bg-info-subtle me-2">
-                                        <i class="fas fa-chalkboard-teacher text-info"></i>
-                                    </div>
-                                    <span>{{ e.professeur.prenom if e.professeur else 'N/A' }} {{ e.professeur.nom if e.professeur else '' }}</span>
-                                </div>
-                            </td>
-                            <td><span class="badge bg-light text-dark border">{{ e.cours.nom if e.cours else 'N/A' }}</span></td>
-                            <td><span class="badge bg-primary-subtle text-primary">{{ e.jour }}</span></td>
-                            <td><small class="text-muted">{{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }} - {{ e.heure_fin.strftime('%H:%M') if e.heure_fin else '' }}</small></td>
-                            <td>{% if e.salle %}<span class="badge bg-info-subtle text-info">{{ e.salle }}</span>{% else %}<span class="text-muted">-</span>{% endif %}</td>
-                            <td class="text-end pe-4">
-                                <div class="btn-group">
-                                    <a href="{{ url_for('main.modifier_emploi', id=e.id) }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="d-inline">
-                                        {{ delete_form.hidden_tag() }}
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Voulez-vous vraiment supprimer cet emploi du temps ?')">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="7" class="text-center py-5">
-                                <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-                                <h5 class="text-muted">Aucun emploi du temps enregistré</h5>
-                                <p class="text-muted">Ajoutez un emploi pour commencer la planification.</p>
-                                <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-gradient mt-2 px-4 py-2">
-                                    <i class="fas fa-plus me-2"></i>Ajouter un emploi
+        <div class="stat-card">
+            <div class="stat-icon info"><i class="fas fa-school"></i></div>
+            <div><p class="stat-number">{{ classes_count }}</p><p class="stat-label">Classes</p></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon success"><i class="fas fa-chalkboard-teacher"></i></div>
+            <div><p class="stat-number">{{ professeurs_count }}</p><p class="stat-label">Professeurs</p></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon warning"><i class="fas fa-door-open"></i></div>
+            <div><p class="stat-number">{{ salles_count }}</p><p class="stat-label">Salles</p></div>
+        </div>
+    </div>
+
+    <div class="filter-card schedule-filter mb-3">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-7">
+                <label for="scheduleSearch" class="form-label">Recherche</label>
+                <input type="search" id="scheduleSearch" class="form-control" placeholder="Classe, professeur, matière...">
+            </div>
+            <div class="col-md-5">
+                <label for="scheduleDay" class="form-label">Jour</label>
+                <select id="scheduleDay" class="form-select">
+                    <option value="">Tous les jours</option>
+                    <option value="Lundi">Lundi</option>
+                    <option value="Mardi">Mardi</option>
+                    <option value="Mercredi">Mercredi</option>
+                    <option value="Jeudi">Jeudi</option>
+                    <option value="Vendredi">Vendredi</option>
+                    <option value="Samedi">Samedi</option>
+                    <option value="Dimanche">Dimanche</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    {% if emplois %}
+        <div class="schedule-table-wrap">
+            <table class="table data-table align-middle mb-0" id="scheduleTable">
+                <thead>
+                    <tr>
+                        <th>Classe</th>
+                        <th>Professeur</th>
+                        <th>Matière</th>
+                        <th>Jour</th>
+                        <th>Horaire</th>
+                        <th>Salle</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in emplois %}
+                    <tr data-search="{{ (e.classe.nom if e.classe else '') }} {{ (e.professeur.prenom if e.professeur else '') }} {{ (e.professeur.nom if e.professeur else '') }} {{ (e.cours.nom if e.cours else '') }} {{ e.jour }} {{ e.salle or '' }}" data-day="{{ e.jour }}">
+                        <td>
+                            <strong>{{ e.classe.nom if e.classe else 'N/A' }}</strong>
+                            <small class="d-block text-muted">{{ e.classe.niveau if e.classe else '' }}</small>
+                        </td>
+                        <td>{{ e.professeur.prenom if e.professeur else 'N/A' }} {{ e.professeur.nom if e.professeur else '' }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ e.cours.nom if e.cours else 'N/A' }}</span></td>
+                        <td><span class="badge bg-primary-subtle text-primary">{{ e.jour }}</span></td>
+                        <td>{{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }} - {{ e.heure_fin.strftime('%H:%M') if e.heure_fin else '' }}</td>
+                        <td>{{ e.salle or '-' }}</td>
+                        <td class="text-end">
+                            <div class="action-buttons justify-content-end">
+                                <a href="{{ url_for('main.modifier_emploi', id=e.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier" aria-label="Modifier">
+                                    <i class="fas fa-edit"></i>
                                 </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                                <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="js-confirm-form" data-confirm="Voulez-vous vraiment supprimer ce créneau ?">
+                                    {{ delete_form.hidden_tag() }}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer" aria-label="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-    </div>
+
+        <div class="schedule-card-list" id="scheduleCards">
+            {% for e in emplois %}
+            <article class="schedule-card" data-search="{{ (e.classe.nom if e.classe else '') }} {{ (e.professeur.prenom if e.professeur else '') }} {{ (e.professeur.nom if e.professeur else '') }} {{ (e.cours.nom if e.cours else '') }} {{ e.jour }} {{ e.salle or '' }}" data-day="{{ e.jour }}">
+                <div class="schedule-card-head">
+                    <div>
+                        <h2>{{ e.classe.nom if e.classe else 'N/A' }}</h2>
+                        <span>{{ e.jour }} · {{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }} - {{ e.heure_fin.strftime('%H:%M') if e.heure_fin else '' }}</span>
+                    </div>
+                    <span class="badge bg-primary-subtle text-primary">{{ e.salle or 'Salle non renseignée' }}</span>
+                </div>
+                <div class="schedule-card-meta">
+                    <span><strong>Matière</strong>{{ e.cours.nom if e.cours else 'N/A' }}</span>
+                    <span><strong>Professeur</strong>{{ e.professeur.prenom if e.professeur else 'N/A' }} {{ e.professeur.nom if e.professeur else '' }}</span>
+                </div>
+                <div class="schedule-card-actions">
+                    <a href="{{ url_for('main.modifier_emploi', id=e.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-edit me-1"></i>Modifier
+                    </a>
+                    <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="js-confirm-form" data-confirm="Voulez-vous vraiment supprimer ce créneau ?">
+                        {{ delete_form.hidden_tag() }}
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-trash me-1"></i>Supprimer
+                        </button>
+                    </form>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+
+        {% if pagination.pages > 1 %}
+        <nav class="pagination-wrapper mt-3" aria-label="Pagination emplois du temps">
+            <ul class="pagination justify-content-center flex-wrap">
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    {% if pagination.has_prev %}
+                    <a class="page-link" href="{{ url_for('main.admin_emplois', page=pagination.prev_num) }}">Précédent</a>
+                    {% else %}
+                    <span class="page-link">Précédent</span>
+                    {% endif %}
+                </li>
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
+                    {% if page_num %}
+                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('main.admin_emplois', page=page_num) }}">{{ page_num }}</a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    {% if pagination.has_next %}
+                    <a class="page-link" href="{{ url_for('main.admin_emplois', page=pagination.next_num) }}">Suivant</a>
+                    {% else %}
+                    <span class="page-link">Suivant</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-calendar-times"></i>
+            </div>
+            <h2 class="empty-state-title">Aucun créneau</h2>
+            <p class="empty-state-text">Ajoutez un créneau pour commencer la planification.</p>
+            <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Ajouter
+            </a>
+        </div>
+    {% endif %}
 </div>
+{% endblock %}
 
-<!-- Styles ultra sophistiqués -->
-<style>
-    .btn-gradient {
-        background: linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%);
-        color: white;
-        border: none;
-        border-radius: 0.8rem;
-        transition: 0.3s ease;
-    }
-    .btn-gradient:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.4);
-    }
-
-    .glass-card {
-        background: rgba(255, 255, 255, 0.85);
-        backdrop-filter: blur(10px);
-        border-radius: 1rem;
-    }
-
-    .bg-gradient-primary {
-        background: linear-gradient(135deg, #2563eb 0%, #1e3a8a 100%) !important;
-    }
-
-    .table thead th {
-        position: sticky;
-        top: 0;
-        background-color: #f8f9fa;
-    }
-
-    .table-row-hover:hover {
-        background-color: rgba(59, 130, 246, 0.06) !important;
-        transition: 0.25s ease-in-out;
-    }
-
-    .icon-circle {
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        background-color: rgba(37, 99, 235, 0.08);
-    }
-
-    .fade-in {
-        animation: fadeIn 0.6s ease-in-out;
-    }
-
-    @keyframes fadeIn {
-        from {opacity: 0; transform: translateY(10px);}
-        to {opacity: 1; transform: translateY(0);}
-    }
-
-    /* Scroll personnalisé */
-    .table-responsive::-webkit-scrollbar {
-        width: 8px;
-    }
-    .table-responsive::-webkit-scrollbar-thumb {
-        background: rgba(37, 99, 235, 0.3);
-        border-radius: 10px;
-    }
-    .table-responsive::-webkit-scrollbar-thumb:hover {
-        background: rgba(37, 99, 235, 0.5);
-    }
-</style>
-
-<!-- JS - Recherche et filtre -->
-<script>
-function filterTable(jour) {
-    const rows = document.querySelectorAll('#emploiTable tbody tr');
-    rows.forEach(row => {
-        const jourCell = row.cells[3]?.innerText.trim();
-        row.style.display = (!jour || jourCell === jour) ? '' : 'none';
-    });
-}
-
-document.getElementById('searchInput').addEventListener('keyup', function() {
-    const query = this.value.toLowerCase();
-    document.querySelectorAll('#emploiTable tbody tr').forEach(row => {
-        const text = row.innerText.toLowerCase();
-        row.style.display = text.includes(query) ? '' : 'none';
-    });
-});
-</script>
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin-emplois.js') }}"></script>
 {% endblock %}

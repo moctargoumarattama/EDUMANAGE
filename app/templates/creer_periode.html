@@ -1,75 +1,63 @@
 {% extends "base.html" %}
 
-{% block title %}Créer une Période - EduManage{% endblock %}
+{% block title %}Créer une période - EduManage{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('main.bulletins') }}">Bulletins</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('main.gestion_periodes') }}">Périodes</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Nouvelle période</li>
-        </ol>
-    </nav>
+    <div class="page-header">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon">
+                    <i class="fas fa-calendar-plus"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">Nouvelle période</h1>
+                    <p class="page-subtitle d-none d-md-block">Définissez la période utilisée pour les bulletins.</p>
+                </div>
+            </div>
+            <div class="page-actions">
+                <a href="{{ url_for('main.gestion_periodes') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Périodes
+                </a>
+            </div>
+        </div>
+    </div>
 
     <div class="row justify-content-center">
         <div class="col-lg-8 col-xl-7">
-            <div class="form-card animate-pop-in">
-                <div class="form-header">
-                    <div class="form-header-content">
-                        <div class="form-header-icon">
-                            <i class="fas fa-calendar-plus"></i>
-                        </div>
-                        <div>
-                            <h2 class="form-header-title">Nouvelle période d'évaluation</h2>
-                            <p class="form-header-subtitle">Définissez une division temporelle pour les bulletins (trimestre, semestre)</p>
-                        </div>
-                    </div>
-                </div>
-
+            <div class="form-card">
                 <div class="form-card-body">
                     <form method="POST" class="needs-validation" novalidate>
                         {{ form.hidden_tag() }}
 
                         <div class="form-section">
-                            <h5 class="form-section-title">
-                                <i class="fas fa-clock"></i> Identification de la période
-                            </h5>
+                            <h2 class="form-section-title">
+                                <i class="fas fa-clock"></i>Informations
+                            </h2>
                             <div class="row g-3">
-                                <div class="col-12">
-                                    <label class="form-label">Nom de la période <span class="text-danger">*</span></label>
-                                    {{ form.nom(class="form-control", placeholder="Ex: 1er Trimestre, Semestre 1") }}
-                                    {% if form.nom.errors %}
-                                        <div class="text-danger small mt-1">
-                                            {% for error in form.nom.errors %}
-                                                <div>{{ error }}</div>
-                                            {% endfor %}
-                                        </div>
-                                    {% endif %}
+                                <div class="col-md-6">
+                                    <label class="form-label">Nom <span class="text-danger">*</span></label>
+                                    {{ form.nom(class="form-control", placeholder="Ex: 1er trimestre") }}
+                                    {% for error in form.nom.errors %}
+                                        <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
                                 </div>
 
-                                <div class="col-12">
-                                    <label class="form-label">Année scolaire associée <span class="text-danger">*</span></label>
+                                <div class="col-md-6">
+                                    <label class="form-label">Année scolaire <span class="text-danger">*</span></label>
                                     {{ form.annee_id(class="form-select") }}
-                                    {% if form.annee_id.errors %}
-                                        <div class="text-danger small mt-1">
-                                            {% for error in form.annee_id.errors %}
-                                                <div>{{ error }}</div>
-                                            {% endfor %}
-                                        </div>
-                                    {% endif %}
+                                    {% for error in form.annee_id.errors %}
+                                        <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Actions -->
                         <div class="form-actions">
                             <a href="{{ url_for('main.gestion_periodes') }}" class="btn btn-outline-secondary">
-                                <i class="fas fa-times me-1"></i>Annuler
+                                <i class="fas fa-times me-2"></i>Annuler
                             </a>
-                            {{ form.submit(class="btn btn-primary px-4") }}
+                            {{ form.submit(class="btn btn-primary") }}
                         </div>
                     </form>
                 </div>

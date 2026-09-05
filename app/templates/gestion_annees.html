@@ -1,10 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Gestion des Années Scolaires - EduManage{% endblock %}
+{% block title %}Années scolaires - EduManage{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <!-- En-tête standard -->
+<div class="container py-4 academic-page">
     <div class="page-header">
         <div class="page-header-body">
             <div class="page-title-group">
@@ -12,41 +11,37 @@
                     <i class="fas fa-calendar-alt"></i>
                 </div>
                 <div>
-                    <h1 class="page-title">Gestion des Années Scolaires</h1>
-                    <p class="page-subtitle">Configurez et activez les années scolaires de l'établissement</p>
+                    <h1 class="page-title">Années scolaires</h1>
+                    <p class="page-subtitle d-none d-md-block">Créer et activer l'année utilisée par l'établissement.</p>
                 </div>
             </div>
             <div class="page-actions">
-                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left me-1"></i>Retour
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Retour
                 </a>
             </div>
         </div>
     </div>
 
-    <!-- Formulaire d'ajout d'une année -->
-    <div class="card mb-4">
-        <div class="card-header bg-white border-0 py-3">
-            <h5 class="mb-0 text-primary fw-bold">
-                <i class="fas fa-plus-circle me-2"></i>Ajouter une nouvelle année scolaire
-            </h5>
-        </div>
-        <div class="card-body pt-0">
+    <section class="form-card mb-4">
+        <div class="form-card-body">
+            <h2 class="form-section-title">
+                <i class="fas fa-plus-circle"></i>Nouvelle année
+            </h2>
             <form method="POST" action="{{ url_for('main.gestion_annees') }}" class="row g-3 needs-validation" novalidate>
                 {{ csrf_form.hidden_tag() }}
 
-                <!-- Sélection École -->
                 {% if ecoles|length == 1 %}
                     <input type="hidden" name="ecole_id" value="{{ ecoles[0].id }}">
-                    <div class="col-12">
+                    <div class="col-md-3">
                         <label class="form-label">Établissement</label>
                         <input type="text" class="form-control bg-light" value="{{ ecoles[0].nom }}" disabled>
                     </div>
                 {% else %}
-                    <div class="col-12">
+                    <div class="col-md-3">
                         <label class="form-label">Établissement <span class="text-danger">*</span></label>
                         <select name="ecole_id" class="form-select" required>
-                            <option value="">-- Sélectionner une école --</option>
+                            <option value="">Sélectionner</option>
                             {% for ecole in ecoles %}
                                 <option value="{{ ecole.id }}">{{ ecole.nom }}</option>
                             {% endfor %}
@@ -55,91 +50,73 @@
                 {% endif %}
 
                 <div class="col-md-3">
-                    <label class="form-label">Nom de l'année <span class="text-danger">*</span></label>
-                    <input type="text" name="nom" class="form-control" placeholder="ex: 2025-2026" required>
+                    <label class="form-label">Nom <span class="text-danger">*</span></label>
+                    <input type="text" name="nom" class="form-control" placeholder="2026-2027" required>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Date de début <span class="text-danger">*</span></label>
+                <div class="col-md-2">
+                    <label class="form-label">Début <span class="text-danger">*</span></label>
                     <input type="date" name="date_debut" class="form-control" required>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Date de fin <span class="text-danger">*</span></label>
+                <div class="col-md-2">
+                    <label class="form-label">Fin <span class="text-danger">*</span></label>
                     <input type="date" name="date_fin" class="form-control" required>
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
+                <div class="col-md-2 d-flex align-items-end">
                     <input type="hidden" name="action" value="ajouter">
-                    <button type="submit" class="btn btn-primary w-100 py-2">
-                        <i class="fas fa-plus me-1"></i>Créer l'année
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-plus me-2"></i>Créer
                     </button>
                 </div>
             </form>
         </div>
-    </div>
+    </section>
 
-    <!-- Liste des Années -->
-    <div class="table-card">
+    {% if annees %}
+    <div class="table-card academic-table-wrap">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fw-bold">
-                <i class="fas fa-history me-2 text-primary"></i>Historique des années scolaires
-            </h5>
-            <span class="badge bg-primary">{{ annees|length }} enregistrée(s)</span>
+            <h2 class="h5 mb-0">Historique</h2>
+            <span class="badge bg-primary">{{ annees|length }}</span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table data-table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th class="ps-4">Établissement</th>
-                            <th>Année scolaire</th>
-                            <th>Date Début</th>
-                            <th>Date Fin</th>
+                            <th>Établissement</th>
+                            <th>Année</th>
+                            <th>Début</th>
+                            <th>Fin</th>
                             <th>Statut</th>
-                            <th class="text-end pe-4">Action</th>
+                            <th class="text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for annee in annees %}
                         <tr>
-                            <td class="ps-4 fw-semibold">{{ annee.ecole.nom }}</td>
-                            <td>
-                                <span class="fw-bold text-dark">{{ annee.nom }}</span>
-                            </td>
+                            <td>{{ annee.ecole.nom }}</td>
+                            <td><strong>{{ annee.nom }}</strong></td>
                             <td>{{ annee.date_debut.strftime('%d/%m/%Y') }}</td>
                             <td>{{ annee.date_fin.strftime('%d/%m/%Y') }}</td>
                             <td>
                                 {% if annee.statut == 'active' %}
-                                    <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Active</span>
+                                    <span class="badge bg-success">Active</span>
                                 {% elif annee.statut == 'planifiee' %}
-                                    <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Planifiée</span>
+                                    <span class="badge bg-warning text-dark">Planifiée</span>
                                 {% else %}
-                                    <span class="badge bg-secondary"><i class="fas fa-archive me-1"></i>Archivée</span>
+                                    <span class="badge bg-secondary">Archivée</span>
                                 {% endif %}
                             </td>
-                            <td class="text-end pe-4">
+                            <td class="text-end">
                                 {% if annee.statut != 'active' %}
-                                <form method="POST" action="{{ url_for('main.gestion_annees') }}" class="d-inline">
+                                <form method="POST" action="{{ url_for('main.gestion_annees') }}" class="d-inline js-confirm-form" data-confirm="Définir cette année comme active ?">
                                     {{ csrf_form.hidden_tag() }}
                                     <input type="hidden" name="action" value="activer">
                                     <input type="hidden" name="annee_id" value="{{ annee.id }}">
-                                    <button type="submit" class="btn btn-outline-primary btn-sm">
-                                        <i class="fas fa-check me-1"></i>Définir comme active
-                                    </button>
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">Activer</button>
                                 </form>
                                 {% else %}
-                                    <span class="text-success small fw-semibold"><i class="fas fa-dot-circle me-1"></i>Année en cours</span>
+                                    <span class="text-success small fw-semibold">Année en cours</span>
                                 {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="6" class="text-center py-5">
-                                <div class="empty-state py-3">
-                                    <div class="empty-state-icon">
-                                        <i class="fas fa-calendar-times"></i>
-                                    </div>
-                                    <h5 class="empty-state-title">Aucune année scolaire trouvée</h5>
-                                    <p class="empty-state-text">Renseignez le formulaire ci-dessus pour initialiser la première année scolaire.</p>
-                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -148,5 +125,48 @@
             </div>
         </div>
     </div>
+
+    <div class="academic-card-list">
+        {% for annee in annees %}
+        <article class="academic-card">
+            <div>
+                <h2>{{ annee.nom }}</h2>
+                <p>{{ annee.ecole.nom }}</p>
+            </div>
+            <div class="academic-card-meta">
+                <span><strong>Début</strong>{{ annee.date_debut.strftime('%d/%m/%Y') }}</span>
+                <span><strong>Fin</strong>{{ annee.date_fin.strftime('%d/%m/%Y') }}</span>
+            </div>
+            <div class="academic-card-actions">
+                {% if annee.statut == 'active' %}
+                    <span class="badge bg-success">Active</span>
+                {% elif annee.statut == 'planifiee' %}
+                    <span class="badge bg-warning text-dark">Planifiée</span>
+                {% else %}
+                    <span class="badge bg-secondary">Archivée</span>
+                {% endif %}
+                {% if annee.statut != 'active' %}
+                <form method="POST" action="{{ url_for('main.gestion_annees') }}" class="js-confirm-form" data-confirm="Définir cette année comme active ?">
+                    {{ csrf_form.hidden_tag() }}
+                    <input type="hidden" name="action" value="activer">
+                    <input type="hidden" name="annee_id" value="{{ annee.id }}">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Activer</button>
+                </form>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon"><i class="fas fa-calendar-times"></i></div>
+        <h2 class="empty-state-title">Aucune année</h2>
+        <p class="empty-state-text">Créez la première année scolaire.</p>
+    </div>
+    {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/academic-settings.js') }}"></script>
 {% endblock %}

@@ -216,11 +216,13 @@ class OfflineManager {
             });
 
             // Envoyer au serveur
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
             const response = await fetch('/api/sync', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
                 },
                 body: JSON.stringify(dataToSync)
             });
