@@ -1,3 +1,26 @@
 {
-    "git.ignoreLimitWarning": true
+    "git.ignoreLimitWarning": true,
+    "git.autorefresh": true,
+    "git.autofetch": false,
+    "git.untrackedChanges": "separate",
+    "files.watcherExclude": {
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/.git/**": true,
+        "**/.venv/**": true,
+        "**/venv/**": true,
+        "**/instance/**": true,
+        "**/logs/**": true,
+        "**/backups/**": true,
+        "**/app/static/qrcache/**": true,
+        "**/__pycache__/**": true
+    },
+    "search.exclude": {
+        "**/.venv": true,
+        "**/venv": true,
+        "**/backups": true,
+        "**/instance": true,
+        "**/logs": true,
+        "**/app/static/qrcache": true
+    }
 }

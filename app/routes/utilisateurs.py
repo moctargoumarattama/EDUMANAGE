@@ -186,7 +186,7 @@ def modifier_utilisateur(id):
         return redirect(url_for('main.gestion_ecoles'))
 
     user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=id).first_or_404()
-    roles_autorises = ['admin', 'parent', 'professeur', 'enseignant']
+    roles_autorises = ['admin', 'parent', 'professeur']
 
     if request.method == 'POST':
         role = request.form.get('role', '').strip()
@@ -302,7 +302,7 @@ def envoyer_credentials_parent(parent_id):
         buffer.seek(0)
         qr_base64 = base64.b64encode(buffer.getvalue()).decode()
 
-        sujet = "Vos identifiants de connexion - EduManage"
+        sujet = "Vos identifiants de connexion - KLASORA"
         message = f"""
         <h3>Bonjour {parent.prenom or ''} {parent.nom},</h3>
         <p>Voici vos identifiants pour accÃ©der au portail parent :</p>

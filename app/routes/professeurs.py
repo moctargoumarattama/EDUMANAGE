@@ -370,7 +370,7 @@ def assigner_classes_professeur(id):
 
 @main.route("/mes_classes")
 @login_required
-@role_required('enseignant', 'professeur')  # seulement pour consultation
+@role_required('professeur')  # seulement pour consultation
 def mes_classes():
     # RÃ©cupÃ©ration de l'objet Professeur liÃ© Ã  l'utilisateur
     prof = current_user.professeur_rel

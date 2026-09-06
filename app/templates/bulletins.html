@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Bulletins Scolaires - EduManage{% endblock %}
+{% block title %}Bulletins Scolaires - KLASORA{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
-    
+
     {% if current_user.role == 'parent' and not bulletins_accessibles %}
-    <!-- Message d'information pour les parents -->
+    <!-- Alerte d'information pour les parents -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="alert alert-info border-0 shadow-sm animate-pop-in" style="border-radius: 1.2rem;">
@@ -14,9 +14,9 @@
                         <i class="fas fa-info-circle fa-2x text-info"></i>
                     </div>
                     <div class="flex-grow-1">
-                        <h4 class="alert-heading mb-2">Bulletins non disponibles</h4>
-                        <p class="mb-2">Les bulletins ne sont pas encore accessibles. L'administration les publiera prochainement.</p>
-                        <small class="text-muted">Vous serez notifié dès que les bulletins seront disponibles.</small>
+                        <h4 class="alert-heading mb-1 fw-bold">Bulletins non disponibles</h4>
+                        <p class="mb-1">Les bulletins scolaires ne sont pas encore accessibles. L'administration les publiera prochainement.</p>
+                        <small class="text-muted">Vous serez notifié dès que les bulletins de votre enfant seront validés.</small>
                     </div>
                 </div>
             </div>
@@ -24,662 +24,813 @@
     </div>
     {% else %}
 
-    <!-- Header Section -->
+    <!-- En-tête de la page -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="bg-animated p-4 rounded-3 position-relative overflow-hidden" style="background: var(--gradient-success);">
-                <div class="position-absolute top-0 end-0 w-50 h-100 opacity-25">
-                    <i class="fas fa-file-pdf fa-10x text-white"></i>
+            <div class="bg-animated p-4 rounded-3 position-relative overflow-hidden shadow-sm" style="background: var(--gradient-success);">
+                <div class="position-absolute top-0 end-0 w-50 h-100 opacity-25 d-none d-md-block" style="pointer-events: none;">
+                    <i class="fas fa-award fa-10x text-white" style="position: absolute; right: -20px; top: -30px;"></i>
                 </div>
-                <div class="d-flex justify-content-between align-items-center position-relative">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center position-relative gap-3">
                     <div class="text-white">
-                        <h2 class="mb-2"><i class="fas fa-file-pdf me-2"></i>Bulletins Scolaires</h2>
-                        <p class="mb-0 opacity-75">Consultez les résultats académiques de tous les élèves</p>
+                        <h2 class="mb-1 fw-bold"><i class="fas fa-file-pdf me-2"></i>Bulletins Scolaires</h2>
+                        <p class="mb-0 opacity-75">Résultats académiques et bulletins officiels organisés par classe</p>
                     </div>
-                    <div class="bg-white bg-opacity-20 rounded-circle p-4">
-                        <i class="fas fa-chart-bar fa-2x text-white"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Stats Cards -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card border-0 shadow-sm text-white animate-pop-in h-100" style="background: var(--gradient-primary); border-radius: 1rem;">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="bg-white bg-opacity-20 rounded-circle p-3 me-3">
-                            <i class="fas fa-users fa-2x"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h5 class="card-title mb-0">Élèves</h5>
-                            <h2 class="card-text mb-0">{{ total_eleves }}</h2>
-                            <small>Total inscrits</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card border-0 shadow-sm text-white animate-pop-in h-100" style="background: var(--gradient-info); border-radius: 1rem;">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="bg-white bg-opacity-20 rounded-circle p-3 me-3">
-                            <i class="fas fa-chart-line fa-2x"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h5 class="card-title mb-0">Moyenne</h5>
-                            <h2 class="card-text mb-0">{{ moyenne_generale }}</h2>
-                            <small>Générale de l'école</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card border-0 shadow-sm text-white animate-pop-in h-100" style="background: var(--gradient-warning); border-radius: 1rem;">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="bg-white bg-opacity-20 rounded-circle p-3 me-3">
-                            <i class="fas fa-trophy fa-2x"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h5 class="card-title mb-0">Meilleur</h5>
-                            <h2 class="card-text mb-0">{{ meilleure_moyenne }}</h2>
-                            <small>Score obtenu</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card stat-card border-0 shadow-sm text-white animate-pop-in h-100" style="background: var(--gradient-success); border-radius: 1rem;">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="bg-white bg-opacity-20 rounded-circle p-3 me-3">
-                            <i class="fas fa-graduation-cap fa-2x"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h5 class="card-title mb-0">Réussite</h5>
-                            <h2 class="card-text mb-0">{{ taux_reussite }}%</h2>
-                            <small>Taux de réussite</small>
-                        </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <button type="button" class="btn btn-light btn-sm fw-bold shadow-sm" id="btnToggleAllClasses">
+                            <i class="fas fa-expand-alt me-1" id="btnToggleAllIcon"></i>
+                            <span id="btnToggleAllText">Tout déplier</span>
+                        </button>
+                        {% if current_user.role == 'admin' %}
+                        <a href="{{ url_for('main.gestion_periodes') }}" class="btn btn-outline-light btn-sm fw-bold shadow-sm">
+                            <i class="fas fa-calendar-alt me-1"></i>
+                            <span>Périodes{% if periode_active %} : {{ periode_active.nom }}{% endif %}</span>
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Filtres et Recherche -->
-    <div class="card border-0 shadow-lg mb-4 animate-pop-in" style="border-radius: 1.2rem; overflow: hidden;">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center" style="background: #f8f9fa;">
-            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtres et Recherche</h5>
-            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filtresCollapse" aria-expanded="true">
-                <i class="fas fa-chevron-down"></i>
-            </button>
-        </div>
-        <div class="card-body p-3 collapse show" id="filtresCollapse">
-            <div class="row g-3">
-                <!-- Barre de recherche globale -->
-                <div class="col-md-4">
-                    <label for="rechercheGlobale" class="form-label fw-semibold">Recherche</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
-                        <input type="text" class="form-control" id="rechercheGlobale" placeholder="Nom, prénom, classe...">
-                        <button class="btn btn-outline-secondary" type="button" id="btnEffacerRechercheGlobale">
+    <!-- Barre d'outils et de filtres temps réel -->
+    <div class="card course-toolbar-card border-0 shadow-sm mb-4">
+        <div class="card-body p-3">
+            <div class="row g-3 align-items-center">
+                <!-- Recherche instantanée -->
+                <div class="col-12 col-md-4">
+                    <label for="bulletinSearchInput" class="form-label small text-muted fw-semibold mb-1">Recherche</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0 ps-0" id="bulletinSearchInput" placeholder="Élève, matricule, classe, mention...">
+                        <button type="button" class="btn btn-outline-secondary border-start-0 d-none" id="btnClearSearch" title="Effacer la recherche">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>
-                
+
                 <!-- Filtre par classe -->
-                <div class="col-md-3">
-                    <label for="filtreClasse" class="form-label fw-semibold">Classe</label>
-                    <select class="form-select" id="filtreClasse">
+                <div class="col-6 col-md-2">
+                    <label for="filterClasseSelect" class="form-label small text-muted fw-semibold mb-1">Classe</label>
+                    <select class="form-select form-select-sm" id="filterClasseSelect">
                         <option value="">Toutes les classes</option>
-                        {% set classes_uniques = [] %}
-                        {% for eleve_data in eleves %}
-                            {% if eleve_data.eleve.classe and eleve_data.eleve.classe not in classes_uniques %}
-                                {% set _ = classes_uniques.append(eleve_data.eleve.classe) %}
-                                <option value="{{ eleve_data.eleve.classe }}">{{ eleve_data.eleve.classe }}</option>
-                            {% endif %}
+                        {% for c in classes %}
+                        <option value="{{ c.id }}">{{ c.nom }}</option>
                         {% endfor %}
+                        {% if eleves_sans_classe %}
+                        <option value="orphan">Sans classe</option>
+                        {% endif %}
                     </select>
                 </div>
-                
-                <!-- Filtre par appréciation -->
-                <div class="col-md-3">
-                    <label for="filtreAppreciation" class="form-label fw-semibold">Appréciation</label>
-                    <select class="form-select" id="filtreAppreciation">
-                        <option value="">Toutes les appréciations</option>
-                        <option value="excellent">Excellent</option>
-                        <option value="tres-bien">Très bien</option>
-                        <option value="bien">Bien</option>
-                        <option value="assez-bien">Assez bien</option>
-                        <option value="insuffisant">Insuffisant</option>
+
+                <!-- Filtre par appréciation/mention -->
+                <div class="col-6 col-md-2">
+                    <label for="filterMentionSelect" class="form-label small text-muted fw-semibold mb-1">Mention</label>
+                    <select class="form-select form-select-sm" id="filterMentionSelect">
+                        <option value="">Toutes les mentions</option>
+                        <option value="excellent">Excellent (≥ 16)</option>
+                        <option value="tres-bien">Très bien (14 - 15.9)</option>
+                        <option value="bien">Bien (12 - 13.9)</option>
+                        <option value="assez-bien">Assez bien (10 - 11.9)</option>
+                        <option value="insuffisant">Insuffisant (&lt; 10)</option>
+                        <option value="non-evalue">Non évalué</option>
                     </select>
                 </div>
-                
-                <div class="col-md-2 d-flex align-items-end">
-                    <button id="btnReinitialiser" class="btn btn-outline-secondary w-100">
-                        <i class="fas fa-redo me-1"></i> Rétablir
+
+                <!-- Tri dynamique -->
+                <div class="col-6 col-md-2">
+                    <label for="sortClasseSelect" class="form-label small text-muted fw-semibold mb-1">Trier par</label>
+                    <select class="form-select form-select-sm" id="sortClasseSelect">
+                        <option value="name_asc">Nom classe (A-Z)</option>
+                        <option value="name_desc">Nom classe (Z-A)</option>
+                        <option value="moyenne_desc">Moyenne (↓)</option>
+                        <option value="effectif_desc">Effectif (↓)</option>
+                        <option value="taux_desc">Taux réussite (↓)</option>
+                    </select>
+                </div>
+
+                <!-- Pagination & Réinitialisation -->
+                <div class="col-6 col-md-2 d-flex align-items-end gap-2">
+                    <div class="flex-grow-1">
+                        <label for="classePageSizeSelect" class="form-label small text-muted fw-semibold mb-1">Par page</label>
+                        <select class="form-select form-select-sm" id="classePageSizeSelect">
+                            <option value="5">5</option>
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="all">Toutes</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnResetFilters" title="Réinitialiser les filtres">
+                        <i class="fas fa-undo"></i>
                     </button>
                 </div>
             </div>
+
+            <!-- Compteur dynamique -->
+            <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                <span class="small text-muted" id="classeCountBadge">
+                    Chargement des classes...
+                </span>
+            </div>
         </div>
     </div>
 
-    <!-- Tableau des Bulletins -->
-    <div class="card border-0 shadow-lg animate-pop-in" style="border-radius: 1.2rem; overflow: hidden;">
-        <div class="card-header py-4 text-white d-flex justify-content-between align-items-center" style="background: var(--gradient-dark);">
-            <h4 class="mb-0"><i class="fas fa-list me-2"></i>Liste des Élèves</h4>
-            <div class="d-flex align-items-center gap-3">
-                <span class="badge bg-light text-dark fs-6">{{ eleves|length }} élève(s)</span>
-                <div class="d-flex align-items-center">
-                    <span class="text-white-50 me-2">Afficher</span>
-                    <select class="form-select form-select-sm w-auto" id="selectNbLignes">
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                    </select>
+    <!-- Liste des classes (Accordéons) -->
+    <div class="class-bulletin-list" id="bulletinsContainer">
+        {% for classe in classes %}
+        {% set c_items = eleves_par_classe.get(classe.id, []) %}
+        {% set c_stats = classe_stats.get(classe.id, {}) %}
+        {% set effectif = c_stats.effectif|default(c_items|length) %}
+        {% set evalues_count = c_stats.evalues_count|default(0) %}
+        {% set moyenne_classe = c_stats.moyenne_classe|default(0) %}
+        {% set meilleure_moyenne = c_stats.meilleure_moyenne|default(0) %}
+        {% set taux_reussite = c_stats.taux_reussite|default(0) %}
+
+        <div class="class-bulletin-card card border shadow-sm mb-3" 
+             id="cardClasse{{ classe.id }}"
+             data-classe-id="{{ classe.id }}"
+             data-classe-nom="{{ classe.nom|lower }}"
+             data-effectif="{{ effectif }}"
+             data-moyenne="{{ moyenne_classe }}"
+             data-taux="{{ taux_reussite }}"
+             data-evalues="{{ evalues_count }}">
+
+            <!-- En-tête accordéon de la classe -->
+            <div class="class-bulletin-header card-header bg-white d-flex align-items-center justify-content-between p-3" 
+                 data-bs-toggle="collapse" 
+                 data-bs-target="#collapseClasse{{ classe.id }}" 
+                 aria-expanded="false" 
+                 aria-controls="collapseClasse{{ classe.id }}"
+                 style="cursor: pointer; user-select: none;">
+                <div class="class-bulletin-profile d-flex align-items-center gap-3">
+                    <div class="class-bulletin-avatar {% if evalues_count > 0 and moyenne_classe >= 10 %}excellent{% elif evalues_count > 0 %}warning{% endif %}"
+                         style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; color: #fff; background: {% if evalues_count > 0 and moyenne_classe >= 10 %}linear-gradient(135deg, #10b981 0%, #059669 100%){% elif evalues_count > 0 %}linear-gradient(135deg, #f59e0b 0%, #d97706 100%){% else %}linear-gradient(135deg, #94a3b8 0%, #64748b 100%){% endif %};">
+                        <i class="fas fa-graduation-cap fa-lg"></i>
+                    </div>
+                    <div class="class-bulletin-info">
+                        <h5 class="class-bulletin-name mb-1 fw-bold text-dark">
+                            {{ classe.nom }}
+                            {% if classe.niveau %}
+                            <span class="text-muted fw-normal fs-6">({{ classe.niveau }})</span>
+                            {% endif %}
+                        </h5>
+                        <div class="class-bulletin-meta d-flex align-items-center gap-2 flex-wrap">
+                            <span class="badge bg-light text-dark border">
+                                <i class="fas fa-users me-1 text-primary"></i>{{ effectif }} élève{{ 's' if effectif > 1 else '' }}
+                            </span>
+                            <span class="badge bg-light text-dark border">
+                                <i class="fas fa-clipboard-check me-1 text-info"></i>{{ evalues_count }} évalué(s)
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="class-bulletin-stats d-flex align-items-center gap-2">
+                    <div class="d-none d-sm-flex align-items-center gap-2">
+                        <span class="badge {% if moyenne_classe >= 10 %}bg-success{% else %}bg-danger{% endif %} py-2 px-3 shadow-sm">
+                            <i class="fas fa-chart-line me-1"></i>Moyenne : {{ moyenne_classe }}/20
+                        </span>
+                        <span class="badge bg-primary py-2 px-3 shadow-sm">
+                            <i class="fas fa-trophy me-1"></i>Top : {{ meilleure_moyenne }}/20
+                        </span>
+                        <span class="badge bg-info text-dark py-2 px-3 shadow-sm">
+                            <i class="fas fa-percentage me-1"></i>Réussite : {{ taux_reussite }}%
+                        </span>
+                    </div>
+                    <div class="class-bulletin-chevron rounded-circle d-flex align-items-center justify-content-center bg-light ms-2 shadow-sm" style="width: 34px; height: 34px; transition: transform 0.2s ease;">
+                        <i class="fas fa-chevron-down text-muted"></i>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
-                <table class="table table-hover align-middle mb-0" id="tableauBulletins">
-                    <thead class="table-light sticky-top">
-                        <tr>
-                            <th class="ps-4 sortable" data-sort="eleve">Élève <i class="fas fa-sort"></i></th>
-                            <th class="sortable" data-sort="classe">Classe <i class="fas fa-sort"></i></th>
-                            <th class="sortable" data-sort="moyenne">Moyenne <i class="fas fa-sort"></i></th>
-                            <th class="text-center sortable" data-sort="rang">Rang <i class="fas fa-sort"></i></th>
-                            <th class="text-center sortable" data-sort="appreciation">Appréciation <i class="fas fa-sort"></i></th>
-                            <th class="text-center">Notes</th>
-                            <th class="text-end pe-4">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for eleve_data in eleves %}
-                        {% set eleve = eleve_data.eleve %}
-                        {% set moyenne = eleve_data.moyenne %}
-                        <tr class="ligne-eleve" 
-                            data-eleve="{{ eleve.prenom }} {{ eleve.nom }}"
-                            data-classe="{{ eleve.classe }}"
-                            data-moyenne="{{ moyenne }}"
-                            data-rang="{{ loop.index }}"
-                            data-appreciation="{% if eleve_data.notes_count > 0 %}{% if moyenne >= 16 %}excellent{% elif moyenne >= 14 %}tres-bien{% elif moyenne >= 12 %}bien{% elif moyenne >= 10 %}assez-bien{% else %}insuffisant{% endif %}{% else %}non-evalue{% endif %}"
-                            data-notes="{{ eleve_data.notes_count }}">
-                            <td class="ps-4">
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar-sm me-3 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm">
-                                        {{ eleve.prenom[0] }}{{ eleve.nom[0] }}
+
+            <!-- Contenu dépliable de la classe -->
+            <div class="collapse" id="collapseClasse{{ classe.id }}">
+                <div class="class-bulletin-content p-3">
+
+                    {% if c_items|length == 0 %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-user-graduate fa-2x mb-2 opacity-50"></i>
+                        <p class="mb-0">Aucun élève inscrit dans cette classe.</p>
+                    </div>
+                    {% else %}
+
+                    <!-- Vue Ordinateur (Tableau élégant - UNIQUEMENT SUR DESKTOP) -->
+                    <div class="class-bulletin-table-wrap d-none d-md-block border rounded overflow-hidden">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3 text-center" style="width: 70px;">Rang</th>
+                                    <th>Élève</th>
+                                    <th style="min-width: 170px;">Moyenne générale</th>
+                                    <th class="text-center" style="min-width: 130px;">Appréciation</th>
+                                    <th class="text-center" style="min-width: 110px;">Notes</th>
+                                    <th class="text-end pe-3" style="width: 160px;">Bulletin</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in c_items %}
+                                {% set eleve = item.eleve %}
+                                {% set moyenne = item.moyenne %}
+                                <tr class="bulletin-student-row"
+                                    data-student-name="{{ eleve.prenom|lower }} {{ eleve.nom|lower }}"
+                                    data-student-matricule="{{ eleve.id }}"
+                                    data-student-mention="{{ item.appreciation_code }}"
+                                    data-student-notes="{{ item.notes_count }}">
+                                    <td class="ps-3 text-center">
+                                        {% if item.rang_classe %}
+                                        <span class="badge {% if item.rang_classe == 1 %}bg-warning text-dark{% elif item.rang_classe <= 3 %}bg-primary{% else %}bg-secondary{% endif %} rounded-pill px-2 py-1 shadow-sm">
+                                            #{{ item.rang_classe }}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted fst-italic">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm me-2 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width: 36px; height: 36px; font-size: 0.85rem; flex-shrink: 0;">
+                                                {{ eleve.prenom[0] if eleve.prenom else '' }}{{ eleve.nom[0] if eleve.nom else '' }}
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold text-dark">{{ eleve.prenom }} {{ eleve.nom }}</div>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-id-card me-1"></i>Matricule : #{{ eleve.id }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if item.notes_count > 0 %}
+                                        <div class="d-flex align-items-center">
+                                            <div class="fw-bold fs-6 {% if moyenne >= 10 %}text-success{% else %}text-danger{% endif %} me-2" style="min-width: 65px;">
+                                                {{ moyenne }}/20
+                                            </div>
+                                            <div class="progress flex-grow-1" style="height: 7px; border-radius: 4px; max-width: 90px;">
+                                                <div class="progress-bar {% if moyenne >= 10 %}bg-success{% else %}bg-danger{% endif %}" 
+                                                     role="progressbar" 
+                                                     style="width: {{ (moyenne / 20 * 100)|round }}%">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted fst-italic small">Non évalué</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {{ item.badge_class }} py-2 px-3 shadow-sm">
+                                            {{ item.appreciation }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-light text-dark border py-2 px-2">
+                                            <i class="fas fa-sticky-note me-1 text-primary"></i>{{ item.notes_count }} note(s)
+                                        </span>
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" 
+                                           class="btn btn-sm btn-primary fw-bold" 
+                                           target="_blank" 
+                                           rel="noopener"
+                                           title="Consulter et télécharger le bulletin officiel de {{ eleve.prenom }} {{ eleve.nom }}">
+                                            <i class="fas fa-file-pdf me-1"></i>Bulletin PDF
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Vue Mobile (< 768px, mini-cartes empilées - UNIQUEMENT SUR MOBILE) -->
+                    <div class="class-bulletin-cards d-md-none">
+                        {% for item in c_items %}
+                        {% set eleve = item.eleve %}
+                        {% set moyenne = item.moyenne %}
+                        <div class="bulletin-student-mini-card p-3 mb-2 rounded border bg-light"
+                             data-student-name="{{ eleve.prenom|lower }} {{ eleve.nom|lower }}"
+                             data-student-matricule="{{ eleve.id }}"
+                             data-student-mention="{{ item.appreciation_code }}"
+                             data-student-notes="{{ item.notes_count }}">
+                            <div class="bulletin-student-mini-top d-flex justify-content-between align-items-center mb-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.8rem; flex-shrink: 0;">
+                                        {{ eleve.prenom[0] if eleve.prenom else '' }}{{ eleve.nom[0] if eleve.nom else '' }}
                                     </div>
                                     <div>
-                                        <div class="fw-bold text-dark">{{ eleve.prenom }} {{ eleve.nom }}</div>
-                                        <small class="text-muted">
-                                            <i class="fas fa-calendar-alt me-1"></i>
-                                            Inscrit le {{ eleve.date_inscription.strftime('%d/%m/%Y') }}
-                                        </small>
+                                        <div class="fw-bold text-dark fs-6">{{ eleve.prenom }} {{ eleve.nom }}</div>
+                                        <small class="text-muted">Matricule : #{{ eleve.id }}</small>
                                     </div>
                                 </div>
-                            </td>
-                            <td>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 py-2 px-3">
-                                    <i class="fas fa-door-open me-1"></i>
-                                    {{ eleve.classe }}
-                                </span>
-                            </td>
-                            <td>
-                                {% if eleve_data.notes_count > 0 %}
-                                <div class="d-flex align-items-center">
-                                    <div class="fw-bold fs-5 {% if moyenne >= 10 %}text-success{% else %}text-danger{% endif %} me-3" style="min-width: 60px;">
-                                        {{ moyenne }}/20
-                                    </div>
-                                    <div class="progress flex-grow-1" style="height: 8px; border-radius: 4px; max-width: 120px;">
-                                        <div class="progress-bar {% if moyenne >= 10 %}bg-success{% else %}bg-danger{% endif %}" 
-                                             role="progressbar" 
-                                             style="width: {{ (moyenne / 20 * 100)|round }}%"
-                                             data-bs-toggle="tooltip" 
-                                             title="{{ (moyenne / 20 * 100)|round }}%">
-                                        </div>
-                                    </div>
-                                </div>
-                                {% else %}
-                                <span class="text-muted fst-italic">Non évalué</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                {% if eleve_data.notes_count > 0 %}
-                                <span class="badge bg-primary rounded-pill py-2 px-3 shadow-sm">#{{ loop.index }}</span>
-                                {% else %}
-                                <span class="text-muted fst-italic">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-center">
-                                {% if eleve_data.notes_count > 0 %}
-                                    {% if moyenne >= 16 %}
-                                        <span class="badge bg-success py-2 px-3 shadow-sm">
-                                            <i class="fas fa-star me-1"></i>Excellent
-                                        </span>
-                                    {% elif moyenne >= 14 %}
-                                        <span class="badge bg-info py-2 px-3 shadow-sm">
-                                            <i class="fas fa-thumbs-up me-1"></i>Très bien
-                                        </span>
-                                    {% elif moyenne >= 12 %}
-                                        <span class="badge bg-primary py-2 px-3 shadow-sm">
-                                            <i class="fas fa-check me-1"></i>Bien
-                                        </span>
-                                    {% elif moyenne >= 10 %}
-                                        <span class="badge bg-warning py-2 px-3 shadow-sm">
-                                            <i class="fas fa-minus me-1"></i>Assez bien
-                                        </span>
-                                    {% else %}
-                                        <span class="badge bg-danger py-2 px-3 shadow-sm">
-                                            <i class="fas fa-exclamation me-1"></i>Insuffisant
-                                        </span>
+                                <div>
+                                    {% if item.rang_classe %}
+                                    <span class="badge {% if item.rang_classe == 1 %}bg-warning text-dark{% elif item.rang_classe <= 3 %}bg-primary{% else %}bg-secondary{% endif %} rounded-pill px-2 py-1">
+                                        Rang #{{ item.rang_classe }}
+                                    </span>
                                     {% endif %}
-                                {% else %}
-                                    <span class="text-muted fst-italic">Non évalué</span>
+                                </div>
+                            </div>
+
+                            <div class="bulletin-student-mini-body mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small text-muted">Moyenne générale :</span>
+                                    {% if item.notes_count > 0 %}
+                                    <span class="fw-bold {% if moyenne >= 10 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ moyenne }}/20
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted fst-italic small">Non évalué</span>
+                                    {% endif %}
+                                </div>
+
+                                {% if item.notes_count > 0 %}
+                                <div class="progress mb-2" style="height: 6px; border-radius: 4px;">
+                                    <div class="progress-bar {% if moyenne >= 10 %}bg-success{% else %}bg-danger{% endif %}" 
+                                         role="progressbar" 
+                                         style="width: {{ (moyenne / 20 * 100)|round }}%">
+                                    </div>
+                                </div>
                                 {% endif %}
-                            </td>
-                            <td class="text-center">
-                                <span class="badge bg-light text-dark border py-2 px-3">
-                                    <i class="fas fa-sticky-note me-1"></i>
-                                    {{ eleve_data.notes_count }}
-                                </span>
-                            </td>
-                            <td class="text-end pe-4">
-                                <div class="btn-group" role="group">
-                                    <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" 
-                                       class="btn btn-primary btn-sm fw-bold rounded-start" 
-                                       data-bs-toggle="tooltip" 
-                                       title="Consulter le bulletin">
-                                        <i class="fas fa-eye me-1"></i>Voir
-                                    </a>
-                                    <button class="btn btn-outline-primary btn-sm rounded-end" 
-                                            data-bs-toggle="tooltip" 
-                                            title="Télécharger le PDF">
-                                        <i class="fas fa-download"></i>
-                                    </button>
+
+                                <div class="d-flex justify-content-between align-items-center mt-1">
+                                    <span class="badge {{ item.badge_class }} py-1 px-2">
+                                        {{ item.appreciation }}
+                                    </span>
+                                    <span class="badge bg-white text-dark border py-1 px-2 small">
+                                        <i class="fas fa-sticky-note me-1 text-primary"></i>{{ item.notes_count }} note(s)
+                                    </span>
                                 </div>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="7" class="text-center py-5">
-                                <div class="py-4">
-                                    <i class="fas fa-file-invoice fa-4x text-muted mb-3"></i>
-                                    <h4 class="text-muted">Aucun élève enregistré</h4>
-                                    <p class="text-muted">Les bulletins apparaîtront ici une fois les élèves ajoutés</p>
-                                </div>
-                            </td>
-                        </tr>
+                            </div>
+
+                            <div class="bulletin-student-mini-actions pt-2 border-top">
+                                <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" 
+                                   class="btn btn-primary btn-sm fw-bold w-100" 
+                                   target="_blank" 
+                                   rel="noopener"
+                                   style="min-height: 38px; display: inline-flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-file-pdf me-1"></i>Bulletin PDF
+                                </a>
+                            </div>
+                        </div>
                         {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- Pagination et informations -->
-            <div class="d-flex justify-content-between align-items-center p-3 border-top bg-light">
-                <div class="text-muted" id="infoPagination">
-                    Affichage de <span id="debutLignes">1</span> à <span id="finLignes">{{ eleves|length }}</span> sur <span id="totalLignes">{{ eleves|length }}</span> élèves
+                    </div>
+                    {% endif %}
+
                 </div>
-                <nav>
-                    <ul class="pagination mb-0" id="pagination">
-                        <!-- La pagination sera générée par JavaScript -->
-                    </ul>
-                </nav>
             </div>
         </div>
+        {% endfor %}
+
+        <!-- Section de secours : Élèves sans classe -->
+        {% if eleves_sans_classe %}
+        <div class="class-bulletin-card card border-warning shadow-sm mb-3" 
+             id="cardClasseOrphan"
+             data-classe-id="orphan"
+             data-classe-nom="sans classe orphelins"
+             data-effectif="{{ eleves_sans_classe|length }}"
+             data-moyenne="0"
+             data-taux="0"
+             data-evalues="{{ eleves_sans_classe|length }}">
+            <div class="class-bulletin-header card-header bg-white d-flex align-items-center justify-content-between p-3" 
+                 data-bs-toggle="collapse" 
+                 data-bs-target="#collapseClasseOrphan" 
+                 aria-expanded="false" 
+                 aria-controls="collapseClasseOrphan"
+                 style="cursor: pointer; user-select: none;">
+                <div class="class-bulletin-profile d-flex align-items-center gap-3">
+                    <div class="class-bulletin-avatar orphan"
+                         style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; color: #fff; background: linear-gradient(135deg, #64748b 0%, #475569 100%);">
+                        <i class="fas fa-question fa-lg"></i>
+                    </div>
+                    <div class="class-bulletin-info">
+                        <h5 class="class-bulletin-name mb-1 fw-bold text-warning">
+                            Élèves sans classe assignée
+                        </h5>
+                        <div class="class-bulletin-meta mt-1">
+                            <span class="badge bg-warning bg-opacity-25 text-dark border border-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>{{ eleves_sans_classe|length }} élève(s) à réaffecter
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="class-bulletin-stats">
+                    <div class="class-bulletin-chevron rounded-circle d-flex align-items-center justify-content-center bg-light ms-2 shadow-sm" style="width: 34px; height: 34px; transition: transform 0.2s ease;">
+                        <i class="fas fa-chevron-down text-muted"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="collapse" id="collapseClasseOrphan">
+                <div class="class-bulletin-content p-3">
+                    <div class="class-bulletin-table-wrap border rounded overflow-hidden">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Élève</th>
+                                    <th>Moyenne</th>
+                                    <th class="text-center">Appréciation</th>
+                                    <th class="text-center">Notes</th>
+                                    <th class="text-end pe-3">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in eleves_sans_classe %}
+                                {% set eleve = item.eleve %}
+                                <tr class="bulletin-student-row"
+                                    data-student-name="{{ eleve.prenom|lower }} {{ eleve.nom|lower }}"
+                                    data-student-matricule="{{ eleve.id }}"
+                                    data-student-mention="{{ item.appreciation_code }}"
+                                    data-student-notes="{{ item.notes_count }}">
+                                    <td class="ps-3">
+                                        <div class="fw-bold text-dark">{{ eleve.prenom }} {{ eleve.nom }}</div>
+                                        <small class="text-muted">Matricule : #{{ eleve.id }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold">{{ item.moyenne }}/20</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {{ item.badge_class }} py-2 px-3 shadow-sm">{{ item.appreciation }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-light text-dark border">{{ item.notes_count }} note(s)</span>
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" class="btn btn-sm btn-outline-primary fw-bold" target="_blank" rel="noopener">
+                                            <i class="fas fa-file-pdf me-1"></i>Bulletin
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- État vide si aucune classe -->
+        <div id="noClasseFoundMessage" class="d-none text-center py-5">
+            <i class="fas fa-search fa-3x text-muted mb-3 opacity-50"></i>
+            <h5 class="text-muted">Aucune classe ou élève correspondant</h5>
+            <p class="text-muted small">Essayez d'ajuster vos critères de recherche ou de filtre.</p>
+        </div>
     </div>
+
+    <!-- Pagination réactive des classes -->
+    <div class="d-flex justify-content-between align-items-center mt-3 pt-2" id="classePaginationWrapper">
+        <div class="small text-muted" id="classePaginationInfo">
+            Page 1 sur 1
+        </div>
+        <nav aria-label="Pagination des classes">
+            <ul class="pagination pagination-sm mb-0" id="classePaginationList">
+                <!-- Généré par JavaScript -->
+            </ul>
+        </nav>
+    </div>
+
     {% endif %}
 </div>
 
-<style>
-.avatar-sm {
-    width: 40px;
-    height: 40px;
-    font-size: 0.9rem;
-}
-
-.sortable {
-    cursor: pointer;
-    user-select: none;
-    transition: background-color 0.2s;
-}
-
-.sortable:hover {
-    background-color: rgba(0,0,0,0.03);
-}
-
-.ligne-eleve {
-    transition: all 0.3s ease;
-}
-
-.ligne-eleve:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.table-responsive::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-.table-responsive::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-.table-responsive::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-}
-
-.table-responsive::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-}
-
-.sticky-top {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
-
-.stat-card {
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
-}
-
-@media (max-width: 768px) {
-    .avatar-sm {
-        width: 32px;
-        height: 32px;
-        font-size: 0.8rem;
-    }
-    
-    .card-header h4 {
-        font-size: 1.1rem;
-    }
-    
-    .btn-group .btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.8rem;
-    }
-    
-    .table-responsive {
-        font-size: 0.875rem;
-    }
-    
-    .stat-card .card-body {
-        padding: 1rem;
-    }
-}
-
-/* Animation pour les lignes */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.ligne-eleve {
-    animation: fadeInUp 0.5s ease-out;
-}
-</style>
-
+<!-- Contrôleur JavaScript interactif sans aucun faux bouton -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialisation des tooltips Bootstrap
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl)
-    });
-    
-    // Variables globales
-    const filtreClasse = document.getElementById('filtreClasse');
-    const filtreAppreciation = document.getElementById('filtreAppreciation');
-    const btnReinitialiser = document.getElementById('btnReinitialiser');
-    const rechercheGlobale = document.getElementById('rechercheGlobale');
-    const btnEffacerRechercheGlobale = document.getElementById('btnEffacerRechercheGlobale');
-    const selectNbLignes = document.getElementById('selectNbLignes');
-    
-    let lignesEleves = Array.from(document.querySelectorAll('#tableauBulletins tbody tr.ligne-eleve'));
-    let lignesFiltrees = [...lignesEleves];
-    let colonneTri = 'moyenne';
-    let ordreTri = 'desc';
-    let pageCourante = 1;
-    let lignesParPage = 25;
+    const searchInput = document.getElementById('bulletinSearchInput');
+    const btnClearSearch = document.getElementById('btnClearSearch');
+    const filterClasse = document.getElementById('filterClasseSelect');
+    const filterMention = document.getElementById('filterMentionSelect');
+    const sortSelect = document.getElementById('sortClasseSelect');
+    const pageSizeSelect = document.getElementById('classePageSizeSelect');
+    const btnReset = document.getElementById('btnResetFilters');
+    const countBadge = document.getElementById('classeCountBadge');
+    const noResults = document.getElementById('noClasseFoundMessage');
+    const container = document.getElementById('bulletinsContainer');
+    const paginationWrapper = document.getElementById('classePaginationWrapper');
+    const paginationList = document.getElementById('classePaginationList');
+    const paginationInfo = document.getElementById('classePaginationInfo');
 
-    // Recherche globale dans le tableau
-    if (rechercheGlobale) {
-        rechercheGlobale.addEventListener('input', function() {
-            appliquerFiltres();
-        });
-        
-        btnEffacerRechercheGlobale.addEventListener('click', function() {
-            rechercheGlobale.value = '';
-            appliquerFiltres();
+    const btnToggleAll = document.getElementById('btnToggleAllClasses');
+    const btnToggleIcon = document.getElementById('btnToggleAllIcon');
+    const btnToggleText = document.getElementById('btnToggleAllText');
+
+    if (!container) return;
+
+    let classCards = Array.from(container.querySelectorAll('.class-bulletin-card'));
+    let currentPage = 1;
+    let areAllExpanded = false;
+
+    // Synchronisation de la rotation du chevron sur ouverture / fermeture
+    classCards.forEach(card => {
+        const collapseEl = card.querySelector('.collapse');
+        const chevron = card.querySelector('.class-bulletin-chevron i');
+        if (collapseEl && chevron) {
+            collapseEl.addEventListener('show.bs.collapse', function() {
+                chevron.style.transform = 'rotate(180deg)';
+            });
+            collapseEl.addEventListener('hide.bs.collapse', function() {
+                chevron.style.transform = 'rotate(0deg)';
+            });
+        }
+    });
+
+    // Normalisation de texte (sans accents)
+    function normalize(str) {
+        return (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    }
+
+    // Toggle Tout Déplier / Tout Replier
+    if (btnToggleAll) {
+        btnToggleAll.addEventListener('click', function() {
+            areAllExpanded = !areAllExpanded;
+            classCards.forEach(card => {
+                const collapseEl = card.querySelector('.collapse');
+                if (collapseEl && window.bootstrap) {
+                    const bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl, { toggle: false });
+                    if (areAllExpanded) {
+                        bsCollapse.show();
+                    } else {
+                        bsCollapse.hide();
+                    }
+                }
+            });
+
+            if (btnToggleText && btnToggleIcon) {
+                if (areAllExpanded) {
+                    btnToggleText.textContent = 'Tout replier';
+                    btnToggleIcon.className = 'fas fa-compress-alt me-1';
+                } else {
+                    btnToggleText.textContent = 'Tout déplier';
+                    btnToggleIcon.className = 'fas fa-expand-alt me-1';
+                }
+            }
         });
     }
 
-    // Filtrage des élèves
-    function appliquerFiltres() {
-        const classeValue = filtreClasse ? filtreClasse.value : '';
-        const appreciationValue = filtreAppreciation ? filtreAppreciation.value : '';
-        const rechercheValue = rechercheGlobale ? rechercheGlobale.value.toLowerCase() : '';
+    // Filtrage et recherche
+    function applyFilters() {
+        const query = normalize(searchInput ? searchInput.value : '');
+        const selectedClasse = filterClasse ? filterClasse.value : '';
+        const selectedMention = filterMention ? filterMention.value : '';
 
-        lignesFiltrees = lignesEleves.filter(ligne => {
+        if (btnClearSearch) {
+            btnClearSearch.classList.toggle('d-none', query.length === 0);
+        }
+
+        let visibleClasses = 0;
+        let totalVisibleStudents = 0;
+
+        classCards.forEach(card => {
+            const cardClasseId = card.dataset.classeId;
+            const cardClasseNom = normalize(card.dataset.classeNom);
+
             // Filtre par classe
-            const showClasse = !classeValue || ligne.dataset.classe === classeValue;
-            
-            // Filtre par appréciation
-            const showAppreciation = !appreciationValue || ligne.dataset.appreciation === appreciationValue;
-            
-            // Filtre par recherche globale
-            let showRecherche = true;
-            if (rechercheValue) {
-                const texteLigne = ligne.textContent.toLowerCase();
-                showRecherche = texteLigne.includes(rechercheValue);
+            let matchClasse = true;
+            if (selectedClasse) {
+                matchClasse = (selectedClasse === cardClasseId);
             }
-            
-            return showClasse && showAppreciation && showRecherche;
-        });
-        
-        pageCourante = 1;
-        trierEtAfficher();
-    }
 
-    // Événements de filtrage
-    if (filtreClasse) filtreClasse.addEventListener('change', appliquerFiltres);
-    if (filtreAppreciation) filtreAppreciation.addEventListener('change', appliquerFiltres);
+            if (!matchClasse) {
+                card.style.display = 'none';
+                return;
+            }
 
-    // Réinitialisation des filtres
-    if (btnReinitialiser) {
-        btnReinitialiser.addEventListener('click', () => {
-            if (filtreClasse) filtreClasse.value = '';
-            if (filtreAppreciation) filtreAppreciation.value = '';
-            if (rechercheGlobale) rechercheGlobale.value = '';
-            appliquerFiltres();
-        });
-    }
+            // Filtrer les élèves au sein de la classe
+            const studentRows = Array.from(card.querySelectorAll('.bulletin-student-row'));
+            const studentMiniCards = Array.from(card.querySelectorAll('.bulletin-student-mini-card'));
+            let matchingStudentsInClass = 0;
 
-    // Gestion du nombre de lignes par page
-    if (selectNbLignes) {
-        selectNbLignes.addEventListener('change', function() {
-            lignesParPage = parseInt(this.value);
-            pageCourante = 1;
-            trierEtAfficher();
-        });
-    }
+            studentRows.forEach((row, index) => {
+                const miniCard = studentMiniCards[index];
+                const studentName = normalize(row.dataset.studentName);
+                const studentMatricule = normalize(row.dataset.studentMatricule);
+                const studentMention = row.dataset.studentMention || '';
 
-    // Tri du tableau
-    const entetesTriables = document.querySelectorAll('.sortable');
-    entetesTriables.forEach(entete => {
-        entete.addEventListener('click', function() {
-            const nouvelleColonne = this.dataset.sort;
-            if (colonneTri === nouvelleColonne) {
-                ordreTri = ordreTri === 'asc' ? 'desc' : 'asc';
+                let matchQuery = true;
+                if (query) {
+                    matchQuery = studentName.includes(query) || 
+                                 studentMatricule.includes(query) || 
+                                 cardClasseNom.includes(query) ||
+                                 studentMention.includes(query);
+                }
+
+                let matchMention = true;
+                if (selectedMention) {
+                    matchMention = (studentMention === selectedMention);
+                }
+
+                const shouldShow = matchQuery && matchMention;
+                row.style.display = shouldShow ? '' : 'none';
+                if (miniCard) {
+                    miniCard.style.display = shouldShow ? '' : 'none';
+                }
+
+                if (shouldShow) {
+                    matchingStudentsInClass++;
+                }
+            });
+
+            // Si la classe contient des élèves correspondants ou si la requête cible la classe elle-même
+            const classMatchesQuery = query && cardClasseNom.includes(query);
+            const shouldShowClass = (matchingStudentsInClass > 0) || (studentRows.length === 0 && classMatchesQuery);
+
+            if (shouldShowClass) {
+                card.dataset.visible = 'true';
+                visibleClasses++;
+                totalVisibleStudents += matchingStudentsInClass;
             } else {
-                colonneTri = nouvelleColonne;
-                ordreTri = 'asc';
+                card.dataset.visible = 'false';
             }
-            trierEtAfficher();
-            mettreAJourIconesTri();
         });
-    });
 
-    function trierTableau(colonne, ordre) {
-        lignesFiltrees.sort((a, b) => {
-            let valeurA, valeurB;
-            switch(colonne) {
-                case 'eleve': 
-                    valeurA = a.dataset.eleve.toLowerCase();
-                    valeurB = b.dataset.eleve.toLowerCase(); 
-                    break;
-                case 'classe': 
-                    valeurA = a.dataset.classe.toLowerCase();
-                    valeurB = b.dataset.classe.toLowerCase(); 
-                    break;
-                case 'moyenne': 
-                    valeurA = parseFloat(a.dataset.moyenne);
-                    valeurB = parseFloat(b.dataset.moyenne); 
-                    break;
-                case 'rang': 
-                    valeurA = parseInt(a.dataset.rang);
-                    valeurB = parseInt(b.dataset.rang); 
-                    break;
-                case 'appreciation': 
-                    valeurA = a.dataset.appreciation;
-                    valeurB = b.dataset.appreciation; 
-                    break;
-            }
-            if (valeurA === valeurB) return 0;
-            return (ordre === 'asc') ? (valeurA > valeurB ? 1 : -1) : (valeurA < valeurB ? 1 : -1);
-        });
+        // Tri des cartes visibles
+        sortCards();
+
+        // Pagination des classes visibles
+        paginateClasses();
+
+        // Mise à jour des compteurs et état vide
+        if (countBadge) {
+            countBadge.innerHTML = `Affichage de <strong>${visibleClasses}</strong> classe(s) et <strong>${totalVisibleStudents}</strong> élève(s)`;
+        }
+
+        if (noResults) {
+            noResults.classList.toggle('d-none', visibleClasses > 0);
+        }
     }
 
-    function mettreAJourIconesTri() {
-        entetesTriables.forEach(entete => {
-            const icone = entete.querySelector('i');
-            if (entete.dataset.sort === colonneTri) {
-                icone.className = ordreTri === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
-            } else icone.className = 'fas fa-sort';
+    // Tri des classes
+    function sortCards() {
+        const sortVal = sortSelect ? sortSelect.value : 'name_asc';
+        const sorted = classCards.slice().sort((a, b) => {
+            const nomA = (a.dataset.classeNom || '').toLowerCase();
+            const nomB = (b.dataset.classeNom || '').toLowerCase();
+            const moyA = parseFloat(a.dataset.moyenne) || 0;
+            const moyB = parseFloat(b.dataset.moyenne) || 0;
+            const effA = parseInt(a.dataset.effectif) || 0;
+            const effB = parseInt(b.dataset.effectif) || 0;
+            const tauxA = parseFloat(a.dataset.taux) || 0;
+            const tauxB = parseFloat(b.dataset.taux) || 0;
+
+            switch (sortVal) {
+                case 'name_asc': return nomA.localeCompare(nomB);
+                case 'name_desc': return nomB.localeCompare(nomA);
+                case 'moyenne_desc': return moyB - moyA;
+                case 'effectif_desc': return effB - effA;
+                case 'taux_desc': return tauxB - tauxA;
+                default: return 0;
+            }
         });
+
+        sorted.forEach(card => container.appendChild(card));
     }
 
     // Pagination
-    function mettreAJourPagination() {
-        const totalPages = Math.ceil(lignesFiltrees.length / lignesParPage);
-        const pagination = document.getElementById('pagination');
-        pagination.innerHTML = '';
+    function paginateClasses() {
+        const pageSizeVal = pageSizeSelect ? pageSizeSelect.value : '10';
+        const visibleCards = classCards.filter(c => c.dataset.visible !== 'false');
         
+        if (pageSizeVal === 'all') {
+            visibleCards.forEach(c => c.style.display = '');
+            if (paginationWrapper) paginationWrapper.classList.add('d-none');
+            return;
+        }
+
+        const pageSize = parseInt(pageSizeVal, 10) || 10;
+        const totalPages = Math.max(1, Math.ceil(visibleCards.length / pageSize));
+
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        visibleCards.forEach((card, index) => {
+            const pageIndex = Math.floor(index / pageSize) + 1;
+            card.style.display = (pageIndex === currentPage) ? '' : 'none';
+        });
+
+        if (paginationWrapper) {
+            paginationWrapper.classList.toggle('d-none', visibleCards.length <= pageSize);
+        }
+
+        if (paginationInfo) {
+            paginationInfo.textContent = `Page ${currentPage} sur ${totalPages} (${visibleCards.length} classes)`;
+        }
+
+        renderPaginationButtons(totalPages);
+    }
+
+    function renderPaginationButtons(totalPages) {
+        if (!paginationList) return;
+        paginationList.innerHTML = '';
+
+        if (totalPages <= 1) return;
+
         // Bouton précédent
         const prevLi = document.createElement('li');
-        prevLi.className = `page-item ${pageCourante === 1 ? 'disabled' : ''}`;
-        prevLi.innerHTML = `<a class="page-link" href="#" aria-label="Précédent"><span aria-hidden="true">&laquo;</span></a>`;
-        prevLi.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (pageCourante > 1) {
-                pageCourante--;
-                trierEtAfficher();
+        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        const prevBtn = document.createElement('button');
+        prevBtn.type = 'button';
+        prevBtn.className = 'page-link';
+        prevBtn.innerHTML = '&laquo;';
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                paginateClasses();
             }
         });
-        pagination.appendChild(prevLi);
-        
-        // Pages
-        const debutPage = Math.max(1, pageCourante - 2);
-        const finPage = Math.min(totalPages, debutPage + 4);
-        
-        for (let i = debutPage; i <= finPage; i++) {
+        prevLi.appendChild(prevBtn);
+        paginationList.appendChild(prevLi);
+
+        // Boutons pages
+        for (let p = 1; p <= totalPages; p++) {
             const pageLi = document.createElement('li');
-            pageLi.className = `page-item ${i === pageCourante ? 'active' : ''}`;
-            pageLi.innerHTML = `<a class="page-link" href="#">${i}</a>`;
-            pageLi.addEventListener('click', (e) => {
-                e.preventDefault();
-                pageCourante = i;
-                trierEtAfficher();
+            pageLi.className = `page-item ${p === currentPage ? 'active' : ''}`;
+            const pageBtn = document.createElement('button');
+            pageBtn.type = 'button';
+            pageBtn.className = 'page-link';
+            pageBtn.textContent = p;
+            pageBtn.addEventListener('click', () => {
+                currentPage = p;
+                paginateClasses();
             });
-            pagination.appendChild(pageLi);
+            pageLi.appendChild(pageBtn);
+            paginationList.appendChild(pageLi);
         }
-        
+
         // Bouton suivant
         const nextLi = document.createElement('li');
-        nextLi.className = `page-item ${pageCourante === totalPages ? 'disabled' : ''}`;
-        nextLi.innerHTML = `<a class="page-link" href="#" aria-label="Suivant"><span aria-hidden="true">&raquo;</span></a>`;
-        nextLi.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (pageCourante < totalPages) {
-                pageCourante++;
-                trierEtAfficher();
+        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        const nextBtn = document.createElement('button');
+        nextBtn.type = 'button';
+        nextBtn.className = 'page-link';
+        nextBtn.innerHTML = '&raquo;';
+        nextBtn.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                paginateClasses();
             }
         });
-        pagination.appendChild(nextLi);
-        
-        // Mise à jour des informations de pagination
-        const debutLignes = document.getElementById('debutLignes');
-        const finLignes = document.getElementById('finLignes');
-        const totalLignes = document.getElementById('totalLignes');
-        
-        const debut = (pageCourante - 1) * lignesParPage + 1;
-        const fin = Math.min(pageCourante * lignesParPage, lignesFiltrees.length);
-        
-        debutLignes.textContent = lignesFiltrees.length === 0 ? '0' : debut;
-        finLignes.textContent = fin;
-        totalLignes.textContent = lignesFiltrees.length;
+        nextLi.appendChild(nextBtn);
+        paginationList.appendChild(nextLi);
     }
 
-    function afficherLignesPage() {
-        const tbody = document.querySelector('#tableauBulletins tbody');
-        tbody.innerHTML = '';
-        
-        const debut = (pageCourante - 1) * lignesParPage;
-        const fin = debut + lignesParPage;
-        const lignesPage = lignesFiltrees.slice(debut, fin);
-        
-        if (lignesPage.length === 0) {
-            const tr = document.createElement('tr');
-            const td = document.createElement('td');
-            td.colSpan = document.querySelector('#tableauBulletins thead th').length;
-            td.className = 'text-center py-5';
-            td.innerHTML = `
-                <i class="fas fa-search fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">Aucun élève trouvé</h5>
-                <p class="text-muted">Aucun élève ne correspond à vos critères de recherche</p>
-            `;
-            tr.appendChild(td);
-            tbody.appendChild(tr);
-        } else {
-            lignesPage.forEach(ligne => tbody.appendChild(ligne.cloneNode(true)));
-        }
-        
-        // Réinitialiser les tooltips
-        tooltipTriggerList.forEach(tooltipTriggerEl => {
-            new bootstrap.Tooltip(tooltipTriggerEl);
+    // Événements
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            currentPage = 1;
+            applyFilters();
         });
     }
 
-    function trierEtAfficher() {
-        trierTableau(colonneTri, ordreTri);
-        afficherLignesPage();
-        mettreAJourPagination();
+    if (btnClearSearch) {
+        btnClearSearch.addEventListener('click', () => {
+            searchInput.value = '';
+            currentPage = 1;
+            applyFilters();
+            searchInput.focus();
+        });
+    }
+
+    if (filterClasse) {
+        filterClasse.addEventListener('change', () => {
+            currentPage = 1;
+            applyFilters();
+        });
+    }
+
+    if (filterMention) {
+        filterMention.addEventListener('change', () => {
+            currentPage = 1;
+            applyFilters();
+        });
+    }
+
+    if (sortSelect) {
+        sortSelect.addEventListener('change', () => {
+            applyFilters();
+        });
+    }
+
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', () => {
+            currentPage = 1;
+            applyFilters();
+        });
+    }
+
+    if (btnReset) {
+        btnReset.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            if (filterClasse) filterClasse.value = '';
+            if (filterMention) filterMention.value = '';
+            if (sortSelect) sortSelect.value = 'name_asc';
+            if (pageSizeSelect) pageSizeSelect.value = '10';
+            currentPage = 1;
+            applyFilters();
+        });
     }
 
     // Initialisation
-    trierEtAfficher();
-    mettreAJourIconesTri();
+    applyFilters();
 });
 </script>
 {% endblock %}

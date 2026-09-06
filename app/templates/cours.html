@@ -1,193 +1,1001 @@
 {% extends "base.html" %}
-{% block title %}Gestion des Cours - EduManage{% endblock %}
+{% block title %}Gestion des Cours - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid px-3 px-lg-4 py-4">
 
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="p-4 rounded-3 text-white shadow" style="background: linear-gradient(90deg,#6a11cb,#2575fc)">
-                <div class="d-flex justify-content-between align-items-center flex-wrap">
-                    <div>
-                        <h2 class="fw-bold">
-                            <i class="fas fa-book me-2"></i>
-                            {% if current_user.role == 'admin' %}Gestion des Cours{% else %}Mes Cours{% endif %}
-                        </h2>
-                        <p class="opacity-75 mb-0">
-                            {% if current_user.role == 'admin' %}
-                                Créez et gérez les matières de l'établissement
-                            {% else %}
-                                Liste des cours qui vous sont assignés
-                            {% endif %}
-                        </p>
-                    </div>
-                    <div class="fs-1"><i class="fas fa-graduation-cap"></i></div>
+    <!-- En-tête de page standardisé KLASORA -->
+    <section class="page-header mb-4">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon">
+                    <i class="fas fa-book-open" aria-hidden="true"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">
+                        {% if current_user.role == 'admin' %}
+                            Gestion des Cours par Classe
+                        {% else %}
+                            Mes Cours par Classe
+                        {% endif %}
+                    </h1>
+                    <p class="page-subtitle d-none d-md-block">
+                        {% if current_user.role == 'admin' %}
+                            Consultez, recherchez et organisez les matières enseignées par classe dans l'établissement.
+                        {% else %}
+                            Liste des cours et matières qui vous sont assignés, regroupés par classe.
+                        {% endif %}
+                    </p>
                 </div>
             </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllClassAccordions" title="Déplier ou replier toutes les classes">
+                    <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
+                </button>
+                {% if form and current_user.role == 'admin' %}
+                <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours" aria-expanded="false" aria-controls="collapseAjouterCours" id="btnToggleAddCourse">
+                    <i class="fas fa-plus-circle me-2"></i>Nouveau cours
+                </button>
+                {% endif %}
+            </div>
         </div>
-    </div>
+    </section>
 
-    <!-- Formulaire d'ajout -->
-    {% if form %}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm rounded-3 border-0">
-                <div class="card-header bg-success text-white d-flex align-items-center">
-                    <i class="fas fa-plus-circle me-2"></i>
-                    <h5 class="mb-0">Ajouter un nouveau cours</h5>
+    <!-- Formulaire d'ajout (admin, rétractable pour préserver le confort mobile) -->
+    {% if form and current_user.role == 'admin' %}
+    <div class="collapse mb-4" id="collapseAjouterCours">
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+            <div class="card-header bg-primary text-white py-3 px-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-plus-circle fa-lg"></i>
+                    <h5 class="mb-0 fw-bold">Ajouter un nouveau cours</h5>
                 </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('main.ajouter_cours') }}" novalidate>
-                        {{ form.hidden_tag() }}
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                {{ form.nom(class="form-control", placeholder="Nom du cours") }}
-                                {{ form.nom.label(class="form-label mt-1") }}
-                            </div>
-                            <div class="col-md-3">
-                                {{ form.professeur_id(class="form-select") }}
-                                {{ form.professeur_id.label(class="form-label mt-1") }}
-                            </div>
-                            <div class="col-md-2">
-                                {{ form.coefficient(class="form-control") }}
-                                {{ form.coefficient.label(class="form-label mt-1") }}
-                            </div>
-                            <div class="col-md-3">
-                                {{ form.classe_id(class="form-select") }}
-                                {{ form.classe_id.label(class="form-label mt-1") }}
-                            </div>
-                            <div class="col-12">
-                                {{ form.description(class="form-control", style="height:80px") }}
-                                {{ form.description.label(class="form-label mt-1") }}
-                            </div>
-                            <div class="col-md-2 mt-2">
-                                <button type="submit" class="btn btn-success w-100">
-                                    <i class="fas fa-plus-circle me-1"></i>Ajouter
-                                </button>
-                            </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours" aria-label="Fermer"></button>
+            </div>
+            <div class="card-body p-4 bg-light bg-opacity-50">
+                <form method="POST" action="{{ url_for('main.ajouter_cours') }}" class="needs-validation" novalidate>
+                    {{ form.hidden_tag() }}
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold" for="nom">Nom de la matière / cours <span class="text-danger">*</span></label>
+                            {{ form.nom(class="form-control", id="nom", placeholder="Ex: Mathématiques, Français, SVT...") }}
                         </div>
-                    </form>
-                </div>
+                        <div class="col-12 col-sm-6 col-md-2">
+                            <label class="form-label fw-semibold" for="coefficient">Coefficient <span class="text-danger">*</span></label>
+                            {{ form.coefficient(class="form-control", id="coefficient", placeholder="1.0", step="0.5") }}
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label fw-semibold" for="classe_id">Classe cible <span class="text-danger">*</span></label>
+                            {{ form.classe_id(class="form-select", id="classe_id") }}
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label class="form-label fw-semibold" for="professeur_id">Professeur assigné <span class="text-danger">*</span></label>
+                            {{ form.professeur_id(class="form-select", id="professeur_id") }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" for="description">Description ou objectifs (optionnel)</label>
+                            {{ form.description(class="form-control", id="description", rows="2", placeholder="Brève présentation du cours ou remarques pédagogiques...") }}
+                        </div>
+                        <div class="col-12 d-flex justify-content-end gap-2 pt-2">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours">Annuler</button>
+                            <button type="submit" class="btn btn-success px-4">
+                                <i class="fas fa-check me-2"></i>Enregistrer le cours
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
     {% endif %}
 
-    <!-- Tableau des cours -->
-    <div class="card shadow-sm rounded-3 border-0">
-        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-                <i class="fas fa-list me-2"></i>
-                {% if current_user.role == 'admin' %}Liste des Cours{% else %}Mes Cours{% endif %}
-            </h5>
-            <span class="badge bg-white text-dark">{{ cours_count }} cours</span>
+    <!-- Barre d'outils : recherche, filtres et tri -->
+    <div class="course-toolbar-card">
+        <div class="row g-2 align-items-center">
+            <!-- Recherche rapide -->
+            <div class="col-12 col-md-4 col-lg-3">
+                <div class="course-search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="classCourseSearchInput" class="form-control" placeholder="Rechercher classe, niveau, matière..." autocomplete="off">
+                    <button type="button" id="classCourseSearchClear" class="clear-btn" title="Effacer la recherche">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtre par classe / niveau -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select id="filterClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Toutes les classes</option>
+                    {% set classes_list = [] %}
+                    {% for c in cours %}
+                        {% if c.classe and c.classe.nom not in classes_list %}
+                            {% set _ = classes_list.append(c.classe.nom) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for cl in classes_list|sort %}
+                        <option value="{{ cl }}">{{ cl }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtre par niveau -->
+            <div class="col-6 col-md-2 col-lg-2">
+                <select id="filterNiveauSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Tous niveaux</option>
+                    {% set niveaux_list = [] %}
+                    {% for c in cours %}
+                        {% if c.classe and c.classe.niveau and c.classe.niveau not in niveaux_list %}
+                            {% set _ = niveaux_list.append(c.classe.niveau) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for nv in niveaux_list|sort %}
+                        <option value="{{ nv }}">{{ nv }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtre par professeur (admin) -->
+            {% if current_user.role == 'admin' %}
+            <div class="col-6 col-md-3 col-lg-2">
+                <select id="filterProfSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Tous les professeurs</option>
+                    {% set profs_list = [] %}
+                    {% for c in cours %}
+                        {% if c.professeur %}
+                            {% set prof_nom = c.professeur.prenom ~ ' ' ~ c.professeur.nom %}
+                            {% if prof_nom not in profs_list %}
+                                {% set _ = profs_list.append(prof_nom) %}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for pr in profs_list|sort %}
+                        <option value="{{ pr }}">{{ pr }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <!-- Tri des classes -->
+            <div class="col-6 col-md-2 col-lg-{% if current_user.role == 'admin' %}1{% else %}3{% endif %}">
+                <select id="sortClassesSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="nom-asc">Classe (A &rarr; Z)</option>
+                    <option value="nom-desc">Classe (Z &rarr; A)</option>
+                    <option value="cours-desc">Matières &darr;</option>
+                    <option value="cours-asc">Matières &uarr;</option>
+                </select>
+            </div>
+
+            <!-- Nombre de classes par page -->
+            <div class="col-12 col-lg-auto ms-auto d-flex align-items-center justify-content-end gap-2">
+                <span class="small text-muted d-none d-sm-inline">Classes / page :</span>
+                <select id="pageSizeSelect" class="form-select form-select-sm" style="width: auto; min-height: 42px;" title="Nombre de classes par page">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                    <option value="99999">Toutes</option>
+                </select>
+            </div>
         </div>
 
-        <div class="card-body p-0">
-            <div class="table-responsive" style="max-height:600px; overflow:auto;">
-                <table id="tableCours" class="table table-striped table-hover align-middle mb-0">
-                    <thead class="table-light sticky-top">
-                        <tr>
-                            <th>ID</th>
-                            <th>Matière</th>
-                            <th>Coeff.</th>
-                            {% if current_user.role == 'admin' %}<th>Professeur</th>{% endif %}
-                            <th>Classe</th>
-                            <th>Description</th>
-                            <th class="text-center">Notes</th>
-                            <th class="text-end">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for c in cours %}
-                        <tr class="align-middle">
-                            <td><span class="badge bg-secondary">{{ c.id }}</span></td>
-                            <td class="fw-bold">{{ c.nom }}</td>
-                            <td><span class="badge bg-primary">x{{ c.coefficient }}</span></td>
+        <!-- Info-bar sous les filtres -->
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 pt-2 border-top">
+            <div class="text-muted small">
+                <i class="fas fa-layer-group me-1 text-primary"></i>
+                <span id="classFilterStats">Chargement des cours par classe...</span>
+            </div>
+            <button type="button" id="btnResetFilter" class="btn btn-link btn-sm text-decoration-none text-muted p-0" style="display: none;">
+                <i class="fas fa-undo me-1"></i>Réinitialiser les filtres
+            </button>
+        </div>
+    </div>
 
-                            {% if current_user.role == 'admin' %}
-                            <td>
-                                {% if c.professeur %}
-                                    <span class="badge bg-warning text-dark">{{ c.professeur.id }}</span>
-                                    {{ c.professeur.prenom }} {{ c.professeur.nom }}
-                                {% else %}
-                                    Non assigné
+    <!-- LISTE DES CLASSES ET LEURS COURS (ACCORDÉON) -->
+    <div id="classAccordionList" class="class-course-list">
+        {% for group in cours|selectattr('classe')|groupby('classe.id') %}
+            {% set classe = group.list[0].classe %}
+            {% set classe_cours = group.list %}
+            {% set classe_cours_count = classe_cours|length %}
+
+            <!-- Calculs agrégés pour la classe -->
+            {% set ns = namespace(coeffs=0, profs=[], matieres=[], notes_total=0) %}
+            {% for c in classe_cours %}
+                {% set ns.coeffs = ns.coeffs + (c.coefficient or 1) %}
+                {% set ns.notes_total = ns.notes_total + (c.notes_count or 0) %}
+                {% if c.professeur %}
+                    {% set prof_nom = c.professeur.prenom ~ ' ' ~ c.professeur.nom %}
+                    {% if prof_nom not in ns.profs %}
+                        {% set _ = ns.profs.append(prof_nom) %}
+                    {% endif %}
+                {% endif %}
+                {% if c.nom not in ns.matieres %}
+                    {% set _ = ns.matieres.append(c.nom) %}
+                {% endif %}
+            {% endfor %}
+            {% set matieres_str = ns.matieres|join(' ') %}
+            {% set profs_str = ns.profs|join(' ') %}
+
+            <article class="class-course-card"
+                     data-id="{{ classe.id }}"
+                     data-nom="{{ classe.nom }}"
+                     data-niveau="{{ classe.niveau or '' }}"
+                     data-cours-count="{{ classe_cours_count }}"
+                     data-matieres="{{ matieres_str }}"
+                     data-profs="{{ profs_str }}"
+                     data-coeff-total="{{ ns.coeffs }}">
+
+                <!-- En-tête cliquable pour déplier/replier les cours de la classe -->
+                <div class="class-course-header"
+                     data-bs-toggle="collapse"
+                     data-bs-target="#collapseClasse{{ classe.id }}"
+                     aria-expanded="false"
+                     aria-controls="collapseClasse{{ classe.id }}">
+
+                    <div class="class-course-profile">
+                        <div class="class-course-avatar">
+                            <i class="fas fa-chalkboard"></i>
+                        </div>
+                        <div class="class-course-info">
+                            <h2 class="class-course-name">{{ classe.nom }}</h2>
+                            <div class="class-course-meta">
+                                {% if classe.niveau %}
+                                    {% set niveau_color = {
+                                        '6ème': 'bg-info bg-opacity-10 text-info border border-info-subtle',
+                                        '5ème': 'bg-success bg-opacity-10 text-success border border-success-subtle',
+                                        '4ème': 'bg-warning bg-opacity-10 text-dark border border-warning-subtle',
+                                        '3ème': 'bg-danger bg-opacity-10 text-danger border border-danger-subtle'
+                                    } %}
+                                    <span class="badge {{ niveau_color.get(classe.niveau, 'bg-secondary bg-opacity-10 text-secondary border') }}">
+                                        <i class="fas fa-graduation-cap me-1"></i>{{ classe.niveau }}
+                                    </span>
                                 {% endif %}
-                            </td>
+                                <span class="badge bg-light text-muted border">
+                                    ID #{{ classe.id }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="class-course-stats">
+                        <!-- Badge nombre de cours -->
+                        <span class="badge bg-light text-dark border" style="font-size: 0.82rem;">
+                            <i class="fas fa-book-open text-primary me-1"></i>{{ classe_cours_count }} matière{{ 's' if classe_cours_count > 1 else '' }}
+                        </span>
+
+                        <!-- Badge total coefficient -->
+                        <span class="badge bg-light text-secondary border d-none d-sm-inline-flex" style="font-size: 0.82rem;">
+                            <i class="fas fa-weight-hanging text-secondary me-1"></i>Total coeff. x{{ ns.coeffs }}
+                        </span>
+
+                        <!-- Chevron de dépliement -->
+                        <span class="class-course-chevron">
+                            <i class="fas fa-chevron-down"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Contenu dépliable : liste des cours de cette classe -->
+                <div class="collapse class-course-content" id="collapseClasse{{ classe.id }}">
+
+                    <!-- Tableau sur Desktop -->
+                    <div class="class-course-table-wrap">
+                        <table class="table class-course-table align-middle">
+                            <thead>
+                                <tr>
+                                    <th style="width: 70px;">ID</th>
+                                    <th>Matière / Cours</th>
+                                    <th>Coeff.</th>
+                                    {% if current_user.role == 'admin' %}<th>Professeur</th>{% endif %}
+                                    <th>Description</th>
+                                    <th class="text-center">Notes</th>
+                                    <th class="text-end pe-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for c in classe_cours %}
+                                <tr>
+                                    <td><span class="badge bg-secondary bg-opacity-10 text-secondary border">#{{ c.id }}</span></td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="fas fa-book text-primary opacity-75"></i>
+                                            <a href="{{ url_for('main.cours_details', id=c.id) }}" class="fw-bold text-dark text-decoration-none">
+                                                {{ c.nom }}
+                                            </a>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">x{{ c.coefficient }}</span>
+                                    </td>
+                                    {% if current_user.role == 'admin' %}
+                                    <td>
+                                        {% if c.professeur %}
+                                            <span class="text-dark"><i class="fas fa-user-tie text-muted me-1"></i>{{ c.professeur.prenom }} {{ c.professeur.nom }}</span>
+                                        {% else %}
+                                            <span class="text-muted fst-italic">Non assigné</span>
+                                        {% endif %}
+                                    </td>
+                                    {% endif %}
+                                    <td>
+                                        <span class="text-muted small text-truncate d-inline-block" style="max-width: 250px;" title="{{ c.description or '' }}">
+                                            {{ c.description or "—" }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if c.notes_count > 0 %}
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">{{ c.notes_count }} note(s)</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted border">0 note</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="d-inline-flex gap-1">
+                                            <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-sm btn-outline-primary" title="Détails du cours">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if current_user.role == 'admin' %}
+                                            <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-sm btn-outline-warning" title="Modifier le cours">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer le cours {{ c.nom }} ?');">
+                                                {{ delete_form.hidden_tag() }}
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer ce cours">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Cartes sur Mobile (Zéro défilement horizontal) -->
+                    <div class="class-course-cards">
+                        {% for c in classe_cours %}
+                        {% set prof_full = (c.professeur.prenom ~ ' ' ~ c.professeur.nom) if c.professeur else 'Non assigné' %}
+                        <div class="class-course-mini-card">
+                            <div class="class-course-mini-top">
+                                <div class="d-flex align-items-center gap-2 min-w-0">
+                                    <i class="fas fa-book text-primary"></i>
+                                    <a href="{{ url_for('main.cours_details', id=c.id) }}" class="fw-bold text-dark text-truncate text-decoration-none">
+                                        {{ c.nom }}
+                                    </a>
+                                </div>
+                                <span class="badge bg-primary">x{{ c.coefficient }}</span>
+                            </div>
+
+                            <div class="d-flex align-items-center gap-2 flex-wrap text-muted small">
+                                {% if current_user.role == 'admin' %}
+                                <span>
+                                    <i class="fas fa-user-tie me-1"></i>{{ prof_full }}
+                                </span>
+                                {% endif %}
+                                <span class="badge bg-light text-muted border">
+                                    <i class="fas fa-file-signature me-1"></i>{{ c.notes_count }} note{{ 's' if c.notes_count > 1 else '' }}
+                                </span>
+                            </div>
+
+                            {% if c.description %}
+                            <div class="text-muted small text-truncate" style="font-size: 0.8rem;">
+                                {{ c.description }}
+                            </div>
                             {% endif %}
 
-                            <td>
-                                {% if c.classe %}
-                                    {% set niveau_color = {
-                                        '6ème': 'bg-info',
-                                        '5ème': 'bg-success',
-                                        '4ème': 'bg-warning text-dark',
-                                        '3ème': 'bg-danger text-white'
-                                    } %}
-                                    <span class="badge {{ niveau_color.get(c.classe.niveau, 'bg-secondary') }}">{{ c.classe.id }}</span>
-                                    {{ c.classe.nom }} ({{ c.classe.niveau }})
-                                {% else %}
-                                    <span class="badge bg-secondary">?</span> Non assignée
-                                {% endif %}
-                            </td>
-
-                            <td>{{ c.description or "Aucune description" }}</td>
-                            <td class="text-center">
-                                <span class="badge bg-success text-dark">{{ c.notes_count }}</span>
-                            </td>
-                            <td class="text-end">
-                                <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-outline-primary btn-sm me-1" title="Voir détails">
-                                    <i class="fas fa-eye"></i>
+                            <div class="class-course-mini-actions">
+                                <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-outline-primary btn-sm" title="Détails">
+                                    <i class="fas fa-eye me-1"></i>Détails
                                 </a>
                                 {% if current_user.role == 'admin' %}
-                                <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-outline-warning btn-sm me-1" title="Modifier">
-                                    <i class="fas fa-edit"></i>
+                                <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-outline-warning btn-sm" title="Modifier">
+                                    <i class="fas fa-edit me-1"></i>Modifier
                                 </a>
-                                <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" onsubmit="return confirm('Supprimer le cours {{ c.nom }} ?');">
+                                <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" onsubmit="return confirm('Supprimer ce cours ?');">
                                     {{ delete_form.hidden_tag() }}
                                     <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
-                                        <i class="fas fa-trash"></i>
+                                        <i class="fas fa-trash me-1"></i>Supprimer
                                     </button>
                                 </form>
                                 {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="8" class="text-center py-5 text-muted">
-                                <i class="fas fa-book-open fa-2x mb-2"></i><br>Aucun cours enregistré
-                            </td>
-                        </tr>
+                            </div>
+                        </div>
                         {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                    </div>
+
+                </div>
+            </article>
+        {% endfor %}
+
+        <!-- Accordéon distinct pour les cours sans classe assignée (si existants) -->
+        {% set cours_sans_classe = cours|rejectattr('classe')|list %}
+        {% if cours_sans_classe %}
+            {% set sans_classe_count = cours_sans_classe|length %}
+            {% set ns_sc = namespace(coeffs=0, profs=[], matieres=[], notes_total=0) %}
+            {% for c in cours_sans_classe %}
+                {% set ns_sc.coeffs = ns_sc.coeffs + (c.coefficient or 1) %}
+                {% set ns_sc.notes_total = ns_sc.notes_total + (c.notes_count or 0) %}
+                {% if c.professeur %}
+                    {% set prof_nom = c.professeur.prenom ~ ' ' ~ c.professeur.nom %}
+                    {% if prof_nom not in ns_sc.profs %}
+                        {% set _ = ns_sc.profs.append(prof_nom) %}
+                    {% endif %}
+                {% endif %}
+                {% if c.nom not in ns_sc.matieres %}
+                    {% set _ = ns_sc.matieres.append(c.nom) %}
+                {% endif %}
+            {% endfor %}
+            {% set matieres_sc_str = ns_sc.matieres|join(' ') %}
+            {% set profs_sc_str = ns_sc.profs|join(' ') %}
+
+            <article class="class-course-card"
+                     data-id="sans-classe"
+                     data-nom="Cours non assignés"
+                     data-niveau=""
+                     data-cours-count="{{ sans_classe_count }}"
+                     data-matieres="{{ matieres_sc_str }}"
+                     data-profs="{{ profs_sc_str }}"
+                     data-coeff-total="{{ ns_sc.coeffs }}">
+
+                <div class="class-course-header"
+                     data-bs-toggle="collapse"
+                     data-bs-target="#collapseClasseSansClasse"
+                     aria-expanded="false"
+                     aria-controls="collapseClasseSansClasse">
+
+                    <div class="class-course-profile">
+                        <div class="class-course-avatar unassigned">
+                            <i class="fas fa-folder-open"></i>
+                        </div>
+                        <div class="class-course-info">
+                            <h2 class="class-course-name text-secondary">Cours non assignés</h2>
+                            <div class="class-course-meta">
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary border">
+                                    Sans classe cible
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="class-course-stats">
+                        <span class="badge bg-light text-dark border" style="font-size: 0.82rem;">
+                            <i class="fas fa-book-open text-primary me-1"></i>{{ sans_classe_count }} cours
+                        </span>
+                        <span class="class-course-chevron">
+                            <i class="fas fa-chevron-down"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="collapse class-course-content" id="collapseClasseSansClasse">
+                    <div class="class-course-table-wrap">
+                        <table class="table class-course-table align-middle">
+                            <thead>
+                                <tr>
+                                    <th style="width: 70px;">ID</th>
+                                    <th>Matière / Cours</th>
+                                    <th>Coeff.</th>
+                                    {% if current_user.role == 'admin' %}<th>Professeur</th>{% endif %}
+                                    <th>Description</th>
+                                    <th class="text-center">Notes</th>
+                                    <th class="text-end pe-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for c in cours_sans_classe %}
+                                <tr>
+                                    <td><span class="badge bg-secondary bg-opacity-10 text-secondary border">#{{ c.id }}</span></td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="fas fa-book text-muted"></i>
+                                            <a href="{{ url_for('main.cours_details', id=c.id) }}" class="fw-bold text-dark text-decoration-none">
+                                                {{ c.nom }}
+                                            </a>
+                                        </div>
+                                    </td>
+                                    <td><span class="badge bg-primary">x{{ c.coefficient }}</span></td>
+                                    {% if current_user.role == 'admin' %}
+                                    <td>
+                                        {% if c.professeur %}
+                                            <span class="text-dark"><i class="fas fa-user-tie text-muted me-1"></i>{{ c.professeur.prenom }} {{ c.professeur.nom }}</span>
+                                        {% else %}
+                                            <span class="text-muted fst-italic">Non assigné</span>
+                                        {% endif %}
+                                    </td>
+                                    {% endif %}
+                                    <td>
+                                        <span class="text-muted small text-truncate d-inline-block" style="max-width: 250px;">
+                                            {{ c.description or "—" }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-light text-muted border">{{ c.notes_count }} note(s)</span>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="d-inline-flex gap-1">
+                                            <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-sm btn-outline-primary" title="Détails du cours">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if current_user.role == 'admin' %}
+                                            <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-sm btn-outline-warning" title="Modifier le cours">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" onsubmit="return confirm('Supprimer ce cours ?');">
+                                                {{ delete_form.hidden_tag() }}
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="class-course-cards">
+                        {% for c in cours_sans_classe %}
+                        {% set prof_full = (c.professeur.prenom ~ ' ' ~ c.professeur.nom) if c.professeur else 'Non assigné' %}
+                        <div class="class-course-mini-card">
+                            <div class="class-course-mini-top">
+                                <div class="d-flex align-items-center gap-2 min-w-0">
+                                    <i class="fas fa-book text-muted"></i>
+                                    <a href="{{ url_for('main.cours_details', id=c.id) }}" class="fw-bold text-dark text-truncate text-decoration-none">
+                                        {{ c.nom }}
+                                    </a>
+                                </div>
+                                <span class="badge bg-primary">x{{ c.coefficient }}</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 flex-wrap text-muted small">
+                                {% if current_user.role == 'admin' %}
+                                <span><i class="fas fa-user-tie me-1"></i>{{ prof_full }}</span>
+                                {% endif %}
+                                <span class="badge bg-light text-muted border">{{ c.notes_count }} note(s)</span>
+                            </div>
+                            {% if c.description %}
+                            <div class="text-muted small text-truncate" style="font-size: 0.8rem;">
+                                {{ c.description }}
+                            </div>
+                            {% endif %}
+                            <div class="class-course-mini-actions">
+                                <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-outline-primary btn-sm" title="Détails">
+                                    <i class="fas fa-eye me-1"></i>Détails
+                                </a>
+                                {% if current_user.role == 'admin' %}
+                                <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-outline-warning btn-sm" title="Modifier">
+                                    <i class="fas fa-edit me-1"></i>Modifier
+                                </a>
+                                <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" onsubmit="return confirm('Supprimer ce cours ?');">
+                                    {{ delete_form.hidden_tag() }}
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
+                                        <i class="fas fa-trash me-1"></i>Supprimer
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </article>
+        {% endif %}
     </div>
+
+    <!-- État vide (si aucun résultat trouvé après filtrage) -->
+    <div id="noClassesFoundState" class="empty-state py-5 my-4" style="display: none;">
+        <div class="empty-state-icon text-muted mb-3" style="font-size: 3rem;">
+            <i class="fas fa-search"></i>
+        </div>
+        <h3 class="h5 fw-bold text-dark">Aucune classe ni cours trouvé</h3>
+        <p class="text-muted mb-3">Aucune classe ne correspond à vos critères de recherche ou de filtre.</p>
+        <button type="button" class="btn btn-outline-primary" id="btnResetFiltersEmpty">
+            <i class="fas fa-undo me-2"></i>Réinitialiser les filtres
+        </button>
+    </div>
+
+    <!-- État vide global (si aucun cours n'est créé dans l'école) -->
+    {% if not cours %}
+    <div class="empty-state py-5 my-4">
+        <div class="empty-state-icon text-muted mb-3" style="font-size: 3.5rem;">
+            <i class="fas fa-book-open"></i>
+        </div>
+        <h2 class="h4 fw-bold text-dark">Aucun cours enregistré</h2>
+        <p class="text-muted mb-3">Votre établissement n'a pas encore de cours ou de matières enregistrées.</p>
+        {% if form and current_user.role == 'admin' %}
+        <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours">
+            <i class="fas fa-plus-circle me-2"></i>Créer le premier cours
+        </button>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Barre de pagination dynamique par classe -->
+    <div id="classPaginationBar" class="course-pagination-bar" style="display: none;">
+        <div class="text-muted small">
+            <span id="pageInfoText">Page 1 sur 1</span>
+        </div>
+        <nav aria-label="Pagination des classes">
+            <ul class="pagination pagination-sm mb-0" id="paginationList">
+                <!-- Dynamiquement généré par JavaScript -->
+            </ul>
+        </nav>
+    </div>
+
 </div>
 
-<!-- DataTables CSS/JS -->
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
-
+<!-- Contrôleur JavaScript réactif pour la gestion des cours par classe -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const table = $('#tableCours');
-    setTimeout(() => {
-        table.DataTable({
-            pageLength: 15,
-            lengthMenu: [10, 15, 25, 50, 100],
-            order: [[1, 'asc']],
-            responsive: true,
-            scrollY: '500px',
-            scrollCollapse: true,
-            language: {
-                url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/fr-FR.json'
+    // Éléments du DOM
+    const searchInput = document.getElementById('classCourseSearchInput');
+    const searchClear = document.getElementById('classCourseSearchClear');
+    const filterClasse = document.getElementById('filterClasseSelect');
+    const filterNiveau = document.getElementById('filterNiveauSelect');
+    const filterProf = document.getElementById('filterProfSelect');
+    const sortSelect = document.getElementById('sortClassesSelect');
+    const pageSizeSelect = document.getElementById('pageSizeSelect');
+    const filterStats = document.getElementById('classFilterStats');
+    const btnReset = document.getElementById('btnResetFilter');
+    const btnResetEmpty = document.getElementById('btnResetFiltersEmpty');
+    const noResults = document.getElementById('noClassesFoundState');
+    const classList = document.getElementById('classAccordionList');
+    const paginationBar = document.getElementById('classPaginationBar');
+    const paginationList = document.getElementById('paginationList');
+    const pageInfoText = document.getElementById('pageInfoText');
+
+    // Bouton Tout déplier / Tout replier
+    const btnToggleAll = document.getElementById('btnToggleAllClassAccordions');
+    const iconToggleAll = document.getElementById('iconToggleAll');
+    const textToggleAll = document.getElementById('textToggleAll');
+    let allExpanded = false;
+
+    // Récupération de tous les éléments accordéons de classes
+    const classCards = Array.from(document.querySelectorAll('.class-course-card'));
+    const totalClasses = classCards.length;
+
+    // Calcul du nombre total de cours
+    let totalCourses = 0;
+    classCards.forEach(c => {
+        totalCourses += parseInt(c.dataset.coursCount || 0, 10);
+    });
+
+    if (totalClasses === 0) {
+        if (paginationBar) paginationBar.style.display = 'none';
+        if (filterStats) filterStats.innerHTML = 'Aucun cours enregistré';
+        return;
+    }
+
+    // État courant
+    let currentPage = 1;
+    let pageSize = parseInt(pageSizeSelect.value, 10) || 20;
+
+    // Normalisation de chaîne (insensible à la casse et aux accents)
+    function normalizeStr(str) {
+        if (!str) return '';
+        return str.toString().toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+    }
+
+    // Filtrage et Tri
+    function getFilteredAndSortedItems() {
+        const query = normalizeStr(searchInput.value.trim());
+        const selectedClasse = filterClasse ? filterClasse.value.trim() : '';
+        const selectedNiveau = filterNiveau ? filterNiveau.value.trim() : '';
+        const selectedProf = filterProf ? normalizeStr(filterProf.value.trim()) : '';
+        const sortMode = sortSelect ? sortSelect.value : 'nom-asc';
+
+        // Filtrer
+        let matched = classCards.filter(function(card) {
+            const nom = normalizeStr(card.dataset.nom);
+            const niveau = normalizeStr(card.dataset.niveau);
+            const matieres = normalizeStr(card.dataset.matieres);
+            const profs = normalizeStr(card.dataset.profs);
+
+            // Filtre textuel global
+            if (query) {
+                const textMatch = nom.includes(query) ||
+                                  niveau.includes(query) ||
+                                  matieres.includes(query) ||
+                                  profs.includes(query);
+                if (!textMatch) return false;
+            }
+
+            // Filtre par classe exacte
+            if (selectedClasse && card.dataset.nom !== selectedClasse) {
+                return false;
+            }
+
+            // Filtre par niveau
+            if (selectedNiveau && card.dataset.niveau !== selectedNiveau) {
+                return false;
+            }
+
+            // Filtre par professeur
+            if (selectedProf && !profs.includes(selectedProf)) {
+                return false;
+            }
+
+            return true;
+        });
+
+        // Trier
+        matched.sort(function(a, b) {
+            if (sortMode === 'nom-asc') {
+                return a.dataset.nom.localeCompare(b.dataset.nom, 'fr', { sensitivity: 'base' });
+            } else if (sortMode === 'nom-desc') {
+                return b.dataset.nom.localeCompare(a.dataset.nom, 'fr', { sensitivity: 'base' });
+            } else if (sortMode === 'cours-desc') {
+                return parseInt(b.dataset.coursCount || 0, 10) - parseInt(a.dataset.coursCount || 0, 10);
+            } else if (sortMode === 'cours-asc') {
+                return parseInt(a.dataset.coursCount || 0, 10) - parseInt(b.dataset.coursCount || 0, 10);
+            }
+            return 0;
+        });
+
+        return matched;
+    }
+
+    // Rendu avec pagination
+    function render() {
+        const matched = getFilteredAndSortedItems();
+        const count = matched.length;
+
+        // Mise à jour de l'icône d'effacement
+        if (searchClear) {
+            searchClear.style.display = searchInput.value.trim().length > 0 ? 'inline-block' : 'none';
+        }
+
+        // Bouton réinitialiser
+        const isFiltered = searchInput.value.trim().length > 0 ||
+                           (filterClasse && filterClasse.value !== '') ||
+                           (filterNiveau && filterNiveau.value !== '') ||
+                           (filterProf && filterProf.value !== '') ||
+                           (sortSelect && sortSelect.value !== 'nom-asc');
+
+        if (btnReset) {
+            btnReset.style.display = isFiltered ? 'inline-block' : 'none';
+        }
+
+        // Compteur de cours affichés
+        let visibleCourses = 0;
+        matched.forEach(c => {
+            visibleCourses += parseInt(c.dataset.coursCount || 0, 10);
+        });
+
+        if (filterStats) {
+            if (count === totalClasses) {
+                filterStats.innerHTML = `Affichage de <strong>${count}</strong> classe${count > 1 ? 's' : ''} (<strong>${totalCourses}</strong> cours)`;
+            } else {
+                filterStats.innerHTML = `<strong>${count}</strong> classe${count > 1 ? 's' : ''} trouvée${count > 1 ? 's' : ''} (<strong>${visibleCourses}</strong> cours) sur ${totalClasses}`;
+            }
+        }
+
+        // Gestion état vide
+        if (count === 0) {
+            if (classList) classList.style.display = 'none';
+            if (noResults) noResults.style.display = 'block';
+            if (paginationBar) paginationBar.style.display = 'none';
+            return;
+        } else {
+            if (noResults) noResults.style.display = 'none';
+            if (classList) classList.style.display = 'grid';
+        }
+
+        // Pagination
+        const totalPages = Math.ceil(count / pageSize) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const pageItems = matched.slice(startIndex, endIndex);
+        const visibleIds = new Set(pageItems.map(item => item.dataset.id));
+
+        // Afficher / masquer les accordéons
+        classCards.forEach(card => {
+            card.style.display = visibleIds.has(card.dataset.id) ? 'block' : 'none';
+        });
+
+        // Réordonner les éléments dans le DOM selon le tri
+        if (classList) {
+            pageItems.forEach(item => classList.appendChild(item));
+        }
+
+        // Rendu de la pagination
+        renderPagination(count, totalPages, startIndex, endIndex);
+    }
+
+    function renderPagination(count, totalPages, startIndex, endIndex) {
+        if (!paginationBar || !paginationList) return;
+
+        if (totalPages <= 1) {
+            paginationBar.style.display = 'none';
+            return;
+        }
+
+        paginationBar.style.display = 'flex';
+        const actualEnd = Math.min(endIndex, count);
+        if (pageInfoText) {
+            pageInfoText.textContent = `Affichage ${startIndex + 1} - ${actualEnd} sur ${count} classes (Page ${currentPage} / ${totalPages})`;
+        }
+
+        let html = '';
+
+        // Bouton Précédent
+        html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <button type="button" class="page-link" data-page="${currentPage - 1}" aria-label="Précédent" ${currentPage === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </li>`;
+
+        // Calcul des pages visibles
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (startPage > 1) {
+            html += `<li class="page-item"><button type="button" class="page-link" data-page="1">1</button></li>`;
+            if (startPage > 2) {
+                html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
+            }
+        }
+
+        for (let p = startPage; p <= endPage; p++) {
+            html += `<li class="page-item ${p === currentPage ? 'active' : ''}">
+                <button type="button" class="page-link" data-page="${p}">${p}</button>
+            </li>`;
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
+            }
+            html += `<li class="page-item"><button type="button" class="page-link" data-page="${totalPages}">${totalPages}</button></li>`;
+        }
+
+        // Bouton Suivant
+        html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <button type="button" class="page-link" data-page="${currentPage + 1}" aria-label="Suivant" ${currentPage === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </li>`;
+
+        paginationList.innerHTML = html;
+
+        // Attachement des clics de pagination
+        paginationList.querySelectorAll('button.page-link').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const targetPage = parseInt(this.dataset.page, 10);
+                if (targetPage && targetPage !== currentPage && targetPage >= 1 && targetPage <= totalPages) {
+                    currentPage = targetPage;
+                    render();
+                    const targetEl = document.querySelector('.course-toolbar-card');
+                    if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    }
+
+    // Gestion du bouton "Tout déplier / Tout replier"
+    if (btnToggleAll) {
+        btnToggleAll.addEventListener('click', function() {
+            allExpanded = !allExpanded;
+            const visibleCards = classCards.filter(card => card.style.display !== 'none');
+
+            visibleCards.forEach(card => {
+                const collapseEl = card.querySelector('.collapse');
+                const headerEl = card.querySelector('.class-course-header');
+                if (collapseEl) {
+                    const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+                    if (allExpanded) {
+                        bsCollapse.show();
+                        if (headerEl) headerEl.setAttribute('aria-expanded', 'true');
+                    } else {
+                        bsCollapse.hide();
+                        if (headerEl) headerEl.setAttribute('aria-expanded', 'false');
+                    }
+                }
+            });
+
+            if (allExpanded) {
+                if (iconToggleAll) iconToggleAll.className = 'fas fa-chevron-up me-1';
+                if (textToggleAll) textToggleAll.textContent = 'Tout replier';
+            } else {
+                if (iconToggleAll) iconToggleAll.className = 'fas fa-chevron-down me-1';
+                if (textToggleAll) textToggleAll.textContent = 'Tout déplier';
             }
         });
-    }, 150);
+    }
+
+    // Synchronisation de l'icône chevron avec l'état Bootstrap Collapse
+    document.querySelectorAll('.class-course-content').forEach(collapseEl => {
+        collapseEl.addEventListener('show.bs.collapse', function() {
+            const card = this.closest('.class-course-card');
+            if (card) {
+                const header = card.querySelector('.class-course-header');
+                if (header) header.setAttribute('aria-expanded', 'true');
+            }
+        });
+        collapseEl.addEventListener('hide.bs.collapse', function() {
+            const card = this.closest('.class-course-card');
+            if (card) {
+                const header = card.querySelector('.class-course-header');
+                if (header) header.setAttribute('aria-expanded', 'false');
+            }
+        });
+    });
+
+    // Réinitialisation des filtres
+    function resetFilters() {
+        if (searchInput) searchInput.value = '';
+        if (filterClasse) filterClasse.value = '';
+        if (filterNiveau) filterNiveau.value = '';
+        if (filterProf) filterProf.value = '';
+        if (sortSelect) sortSelect.value = 'nom-asc';
+        currentPage = 1;
+        render();
+    }
+
+    // Écouteurs d'événements
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (searchClear) {
+        searchClear.addEventListener('click', function() {
+            if (searchInput) searchInput.value = '';
+            currentPage = 1;
+            render();
+            if (searchInput) searchInput.focus();
+        });
+    }
+
+    if (filterClasse) {
+        filterClasse.addEventListener('change', function() {
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (filterNiveau) {
+        filterNiveau.addEventListener('change', function() {
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (filterProf) {
+        filterProf.addEventListener('change', function() {
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function() {
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function() {
+            pageSize = parseInt(this.value, 10) || 20;
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (btnReset) btnReset.addEventListener('click', resetFilters);
+    if (btnResetEmpty) btnResetEmpty.addEventListener('click', resetFilters);
+
+    // Rendu initial
+    render();
 });
 </script>
 {% endblock %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Aide - EduManage{% endblock %}
+{% block title %}Aide - KLASORA{% endblock %}
 
 {% block content %}
 {% set role = current_user.role %}
@@ -9,7 +9,7 @@
     <div class="page-header mb-4">
         <div>
             <h1 class="page-title">Centre d'aide</h1>
-            <p class="text-muted mb-0">Quelques repères simples pour utiliser votre espace EduManage.</p>
+            <p class="text-muted mb-0">Quelques repères simples pour utiliser votre espace KLASORA.</p>
         </div>
         <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left me-2"></i>Retour
@@ -63,7 +63,7 @@
         </div>
     </div>
 
-    {% elif role in ['professeur', 'enseignant'] %}
+    {% elif role == 'professeur' %}
     <div class="responsive-card-grid">
         <div class="card h-100">
             <div class="card-body">

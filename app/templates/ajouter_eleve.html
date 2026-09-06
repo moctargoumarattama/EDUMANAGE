@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Ajouter un élève - EduManage{% endblock %}
+{% block title %}Ajouter un élève - KLASORA{% endblock %}
 
 {% block content %}
 <section class="page-header">
@@ -28,6 +28,19 @@
     </div>
 
     <div class="form-card-body">
+        {% if not classes %}
+        <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center mb-4 p-3 rounded-3" role="alert">
+            <i class="fas fa-exclamation-triangle fs-3 text-warning me-3"></i>
+            <div class="flex-grow-1">
+                <div class="fw-bold mb-1">Aucune classe disponible dans votre établissement</div>
+                <div class="small text-muted">Un élève doit obligatoirement être inscrit dans une classe pour pouvoir être créé.</div>
+            </div>
+            <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-warning btn-sm fw-semibold ms-3 text-nowrap">
+                <i class="fas fa-plus-circle me-1"></i>Créer une classe
+            </a>
+        </div>
+        {% endif %}
+
         <form method="POST" action="{{ url_for('main.ajouter_eleve') }}" class="needs-validation" novalidate>
             {{ form.hidden_tag() }}
 
@@ -41,6 +54,10 @@
                     <div class="form-floating">
                         {{ form.prenom(class="form-control", placeholder="Prénom de l'élève") }}
                         <label for="{{ form.prenom.id }}">Prénom de l'élève</label>
+                    </div>
+                    <div class="form-floating">
+                        {{ form.genre(class="form-select") }}
+                        <label for="{{ form.genre.id }}">Genre (Garçon ou Fille)</label>
                     </div>
                     <div class="form-floating">
                         {{ form.date_naissance(class="form-control", type="date") }}
@@ -65,16 +82,18 @@
                         <label>Année scolaire</label>
                     </div>
                     <div class="form-floating">
-                        <select class="form-select" name="classe_id" required>
+                        <select class="form-select" name="classe_id" id="classe_id" required>
                             {% if form.classe_id.choices %}
+                                <option value="" disabled {% if not form.classe_id.data %}selected{% endif %}>-- Choisir obligatoirement une classe --</option>
                                 {% for id, nom in form.classe_id.choices %}
-                                <option value="{{ id }}">{{ nom }}</option>
+                                <option value="{{ id }}" {% if form.classe_id.data == id %}selected{% endif %}>{{ nom }}</option>
                                 {% endfor %}
                             {% else %}
-                                <option value="">Sélectionnez une classe</option>
+                                <option value="" disabled selected>Aucune classe disponible</option>
                             {% endif %}
                         </select>
-                        <label>Classe</label>
+                        <label for="classe_id">Classe <span class="text-danger">*</span></label>
+                        <div class="invalid-feedback">Veuillez obligatoirement sélectionner une classe pour cet élève.</div>
                     </div>
                     <div class="form-floating">
                         {{ form.frais_annuels(class="form-control", placeholder="Frais annuels") }}
@@ -123,7 +142,7 @@
                     <i class="fas fa-arrow-left"></i>
                     Annuler
                 </a>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" {% if not classes %}disabled title="Veuillez d'abord créer une classe"{% endif %}>
                     <i class="fas fa-plus-circle"></i>
                     Ajouter l’élève
                 </button>

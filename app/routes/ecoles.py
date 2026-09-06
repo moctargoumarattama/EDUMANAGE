@@ -1,4 +1,4 @@
-﻿from . import main
+from . import main
 from .common import (
     Ecole,
     Eleve,
@@ -68,44 +68,41 @@ def gestion_ecoles():
 @login_required
 @role_required('super_admin')
 def ajouter_ecole():
-    """Ajouter une nouvelle Ã©cole et son administrateur associÃ©"""
+    """Ajouter une nouvelle ecole et son administrateur"""
     if request.method == 'POST':
         try:
-            # RÃ©cupÃ©rer et valider les champs
-            nom_ecole = request.form.get('nom_ecole', '').strip()
-            adresse = request.form.get('adresse', '').strip()
-            telephone = request.form.get('telephone', '').strip()
-            email_ecole = request.form.get('email', '').strip()
-            directeur = request.form.get('directeur', '').strip()
-            nom_admin = request.form.get('nom_admin', '').strip()
-            prenom_admin = request.form.get('prenom_admin', '').strip()
-            email_admin = request.form.get('email_admin', '').strip()
-            telephone_admin = request.form.get('telephone_admin', '').strip()
-            mot_de_passe = request.form.get('mot_de_passe') or secrets.token_urlsafe(12)  # + sÃ©curisÃ©
+            nom_ecole    = request.form.get('nom_ecole', '').strip()
+            adresse      = request.form.get('adresse', '').strip()
+            telephone    = request.form.get('telephone', '').strip()
+            email_admin  = request.form.get('email_admin', '').strip()
+            mot_de_passe = request.form.get('mot_de_passe', '').strip() or secrets.token_urlsafe(12)
 
-            # VÃ©rifier doublon email admin
-            if Utilisateur.query.filter_by(email=email_admin).first():
-                flash("Cet email est dÃ©jÃ  utilisÃ© pour un autre utilisateur.", "danger")
+            if not nom_ecole:
+                flash("Le nom de l'école est obligatoire.", "danger")
                 return redirect(url_for('main.ajouter_ecole'))
 
-            # --- CrÃ©ation de l'Ã©cole ---
+            if not email_admin:
+                flash("L'email de l'administrateur est obligatoire.", "danger")
+                return redirect(url_for('main.ajouter_ecole'))
+
+            if Utilisateur.query.filter_by(email=email_admin).first():
+                flash("Cet email est déjà utilisé par un autre utilisateur.", "danger")
+                return redirect(url_for('main.ajouter_ecole'))
+
+            # Création école
             ecole = Ecole(
                 nom=nom_ecole,
                 adresse=adresse,
                 telephone=telephone,
-                email=email_ecole,
-                directeur=directeur,
                 statut='active'
             )
             db.session.add(ecole)
-            db.session.flush()  # pour obtenir ecole.id avant commit
+            db.session.flush()
 
-            # --- CrÃ©ation de l'admin associÃ© ---
+            # Création admin
             admin = Utilisateur(
-                nom=nom_admin,
-                prenom=prenom_admin,
+                nom=email_admin.split('@')[0],
                 email=email_admin,
-                telephone=telephone_admin,
                 role='admin',
                 mot_de_passe=generate_password_hash(mot_de_passe),
                 ecole_id=ecole.id,
@@ -114,31 +111,25 @@ def ajouter_ecole():
             db.session.add(admin)
             db.session.commit()
 
-            # --- Notifications ---
-            sujet = f"Bienvenue sur EduManage - {ecole.nom}"
-            message = f"""
-Bonjour {admin.prenom} {admin.nom},
-
-Votre Ã©cole "{ecole.nom}" a Ã©tÃ© crÃ©Ã©e avec succÃ¨s sur EduManage ðŸŽ‰
-
-Identifiants de connexion :
-ðŸ“§ Email : {admin.email}
-ðŸ”‘ Mot de passe : {mot_de_passe}
-
-Merci d'utiliser notre plateforme !
-"""
+            # Email de bienvenue (optionnel)
             try:
-                envoyer_email(admin.email, sujet, message)
-            except Exception as e:
-                current_app.logger.warning(f"Ã‰chec envoi email : {e}")
+                sujet = f"Bienvenue sur KLASORA - {ecole.nom}"
+                corps = (
+                    f"Votre école \"{ecole.nom}\" a été créée sur KLASORA.\n\n"
+                    f"Email : {admin.email}\n"
+                    f"Mot de passe : {mot_de_passe}\n"
+                )
+                envoyer_email(admin.email, sujet, corps)
+            except Exception as mail_err:
+                current_app.logger.warning(f"Email non envoyé : {mail_err}")
 
-            flash("Ã‰cole et administrateur crÃ©Ã©s avec succÃ¨s âœ…", "success")
+            flash(f"École « {ecole.nom} » créée avec succès ✅", "success")
             return redirect(url_for('main.gestion_ecoles'))
 
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Erreur crÃ©ation Ã©cole+admin : {e}")
-            flash("Erreur lors de la crÃ©ation de l'Ã©cole et de son admin.", "danger")
+            current_app.logger.error(f"Erreur création école : {e}")
+            flash("Erreur lors de la création de l'école.", "danger")
 
     return render_template('admin/ajouter_ecole.html')
 
@@ -246,7 +237,7 @@ def gerer_ecoles_utilisateur(user_id):
     nb_ecoles = Ecole.query.count()
     nb_eleves = Eleve.query.count()
     nb_parents = Utilisateur.query.filter_by(role='parent').count()
-    nb_enseignants = Utilisateur.query.filter_by(role='enseignant').count()
+    nb_enseignants = Utilisateur.query.filter_by(role='professeur').count()
     nb_admins = Utilisateur.query.filter_by(role='admin').count()
 
     stats_ecoles = []

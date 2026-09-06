@@ -217,7 +217,7 @@ class Utilisateur(db.Model, UserMixin):
         return self.role == 'admin'
 
     def get_professeur(self):
-        return self.professeur_rel if self.role in ('enseignant', 'professeur') else None
+        return self.professeur_rel if self.role == 'professeur' else None
 
     def get_enfants(self):
         return self.enfants.all() if self.role == 'parent' else []
@@ -400,7 +400,7 @@ class Eleve(db.Model):
     ecole = db.relationship('Ecole', back_populates='eleves')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    classe_id = db.Column(db.Integer, db.ForeignKey('classe.id', ondelete='SET NULL'), nullable=True)
+    classe_id = db.Column(db.Integer, db.ForeignKey('classe.id', ondelete='RESTRICT'), nullable=False)
     classe = db.relationship('Classe', back_populates='eleves')
 
     # parent_id : ondelete SET NULL pour ne pas supprimer un élève si le parent est supprimé

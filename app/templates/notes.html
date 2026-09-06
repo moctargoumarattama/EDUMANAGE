@@ -1,679 +1,836 @@
 {% extends "base.html" %}
-{% block title %}Gestion des Notes - EduManage{% endblock %}
+{% block title %}Gestion des Notes - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid px-3 px-lg-4 py-4">
 
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="bg-animated p-4 rounded-3" style="background: var(--gradient-info);">
-                <h2 class="text-white mb-3"><i class="fas fa-edit me-2"></i>Gestion des Notes</h2>
-                <p class="text-white opacity-75">
-                    {% if current_user.role in ['admin', 'enseignant'] %}
-                    Ajoutez et consultez les évaluations des élèves
-                    {% else %}
-                    Consultez les évaluations de votre enfant
-                    {% endif %}
-                </p>
+    <!-- En-tête de page standardisé KLASORA -->
+    <section class="page-header mb-4">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon">
+                    <i class="fas fa-user-graduate" aria-hidden="true"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">
+                        {% if current_user.role in ['admin', 'professeur'] %}
+                            Évaluations par Élève
+                        {% else %}
+                            Notes de mon enfant
+                        {% endif %}
+                    </h1>
+                    <p class="page-subtitle d-none d-md-block">
+                        {% if current_user.role in ['admin', 'professeur'] %}
+                            Consultez et gérez le dossier d'évaluations complet de chaque élève en un clic.
+                        {% else %}
+                            Consultez le relevé détaillé des évaluations et notes de votre enfant.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllAccordions" title="Déplier ou replier tous les élèves">
+                    <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
+                </button>
+                {% if current_user.role in ['admin', 'professeur'] and form %}
+                <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseFormNote" aria-expanded="false" aria-controls="collapseFormNote" id="btnToggleAddNote">
+                    <i class="fas fa-plus-circle me-2"></i>Nouvelle note
+                </button>
+                {% endif %}
+                {% if current_user.role == 'admin' %}
+                <a href="{{ url_for('main.export_notes_excel') }}" class="btn btn-outline-success shadow-sm" title="Exporter toutes les notes vers Excel">
+                    <i class="fas fa-file-excel me-2"></i>Exporter Excel
+                </a>
+                {% endif %}
             </div>
         </div>
-    </div>
+    </section>
 
-    <!-- Formulaire d'ajout et Statistiques -->
-    {% if current_user.role in ['admin', 'enseignant'] %}
-    <div class="row g-4">
-        <!-- Formulaire d'ajout -->
-        <div class="col-xl-6 col-lg-12 mb-4">
-            <div class="card border-0 shadow-lg h-100 animate-pop-in" style="border-radius: 1.2rem;">
-                <div class="card-header py-4 text-white d-flex justify-content-between align-items-center" style="background: var(--gradient-info);">
-                    <h4 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Ajouter une Note</h4>
-                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#formNoteCollapse" aria-expanded="true" aria-controls="formNoteCollapse">
-                        <i class="fas fa-chevron-down"></i>
-                    </button>
+    <!-- Formulaire d'ajout (admin/professeur, rétractable) -->
+    {% if current_user.role in ['admin', 'professeur'] and form %}
+    <div class="collapse mb-4" id="collapseFormNote">
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+            <div class="card-header bg-primary text-white py-3 px-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-plus-circle fa-lg"></i>
+                    <h5 class="mb-0 fw-bold">Ajouter une nouvelle note</h5>
                 </div>
-                <div class="card-body p-4 collapse show" id="formNoteCollapse">
-                    <form method="POST" action="{{ url_for('main.notes') }}" class="needs-validation" novalidate>
-                        {{ form.hidden_tag() }}
+                <button type="button" class="btn-close btn-close-white" data-bs-toggle="collapse" data-bs-target="#collapseFormNote" aria-label="Fermer"></button>
+            </div>
+            <div class="card-body p-4 bg-light bg-opacity-50">
+                <form method="POST" action="{{ url_for('main.notes') }}" class="needs-validation" novalidate>
+                    {{ form.hidden_tag() }}
 
-                        <!-- Année Scolaire -->
-                        {% if form.annee_id %}
-                        <div class="mb-4">
-                            <div class="form-floating">
-                                {{ form.annee_id(class="form-select", style="border-radius: 0.8rem;") }}
-                                {{ form.annee_id.label(class="form-label") }}
-                                <div class="invalid-feedback">Veuillez sélectionner une année scolaire.</div>
-                            </div>
-                        </div>
-                        {% elif annee_active %}
+                    {% if form.annee_id %}
+                        <input type="hidden" name="annee_id" value="{{ form.annee_id.data or (annee_active.id if annee_active else '') }}">
+                    {% elif annee_active %}
                         <input type="hidden" name="annee_id" value="{{ annee_active.id }}">
-                        {% endif %}
+                    {% endif %}
 
-                        <!-- Recherche et sélection d'élève -->
-                        <div class="mb-4">
-                            <label class="form-label">Rechercher un élève</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="fas fa-search"></i></span>
-                                <input type="text" class="form-control" id="rechercheEleve" placeholder="Nom, prénom ou classe..." style="border-radius: 0.8rem 0 0 0.8rem;">
-                                <button class="btn btn-outline-secondary" type="button" id="btnEffacerRecherche" style="border-radius: 0 0.8rem 0.8rem 0;">
+                    <div class="row g-3">
+                        <!-- Sélection Élève -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="eleve_id">Élève <span class="text-danger">*</span></label>
+                            <div class="input-group mb-1">
+                                <span class="input-group-text"><i class="fas fa-search text-muted"></i></span>
+                                <input type="text" class="form-control" id="rechercheEleveForm" placeholder="Filtrer la liste des élèves..." autocomplete="off">
+                                <button class="btn btn-outline-secondary" type="button" id="btnEffacerRechercheForm" title="Effacer">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
-                            <div class="form-floating mt-2">
-                                {{ form.eleve_id(class="form-select", style="border-radius: 0.8rem; height: auto; max-height: 150px; overflow-y: auto;") }}
-                                {{ form.eleve_id.label(class="form-label") }}
-                                <div class="invalid-feedback">Veuillez sélectionner un élève.</div>
-                            </div>
+                            {{ form.eleve_id(class="form-select", id="eleve_id", required=true) }}
+                            <div class="invalid-feedback">Veuillez sélectionner un élève.</div>
                         </div>
 
-                        <!-- Cours -->
-                        <div class="mb-4">
-                            <div class="form-floating">
-                                {{ form.cours_id(class="form-select", style="border-radius: 0.8rem;") }}
-                                {{ form.cours_id.label(class="form-label") }}
-                                <div class="invalid-feedback">Veuillez sélectionner un cours.</div>
-                            </div>
+                        <!-- Sélection Cours -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="cours_id">Matière / Cours <span class="text-danger">*</span></label>
+                            {{ form.cours_id(class="form-select", id="cours_id", required=true) }}
+                            <div class="invalid-feedback">Veuillez sélectionner un cours.</div>
                         </div>
 
-                        <!-- Valeur + coefficient -->
-                        <div class="row">
-                            <div class="col-md-6 mb-4">
-                                <div class="form-floating">
-                                    {{ form.valeur(class="form-control", placeholder="Ex: 15", min=0, max=20, style="border-radius: 0.8rem;") }}
-                                    {{ form.valeur.label(class="form-label") }}
-                                    <div class="invalid-feedback">Note entre 0 et 20.</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6 mb-4">
-                                <div class="form-floating">
-                                    {{ form.coefficient(class="form-control", placeholder="Ex: 2", min=1, style="border-radius: 0.8rem;") }}
-                                    {{ form.coefficient.label(class="form-label") }}
-                                    <div class="invalid-feedback">Coefficient valide requis.</div>
-                                </div>
-                            </div>
+                        <!-- Note (/20) -->
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold" for="valeur">Note sur 20 <span class="text-danger">*</span></label>
+                            {{ form.valeur(class="form-control", id="valeur", placeholder="Ex: 15.5", min=0, max=20, step="0.25", required=true) }}
+                            <div class="invalid-feedback">Note comprise entre 0 et 20.</div>
                         </div>
 
-                        <!-- Type -->
-                        <div class="mb-4">
-                            <div class="form-floating">
-                                {{ form.type_evaluation(class="form-select", style="border-radius: 0.8rem;") }}
-                                {{ form.type_evaluation.label(class="form-label") }}
-                                <div class="invalid-feedback">Veuillez sélectionner un type.</div>
-                            </div>
+                        <!-- Coefficient -->
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold" for="coefficient">Coefficient <span class="text-danger">*</span></label>
+                            {{ form.coefficient(class="form-control", id="coefficient", placeholder="1.0", min=1, step="0.5", required=true) }}
+                            <div class="invalid-feedback">Coefficient valide requis.</div>
+                        </div>
+
+                        <!-- Type d'évaluation -->
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold" for="type_evaluation">Type d'évaluation <span class="text-danger">*</span></label>
+                            {{ form.type_evaluation(class="form-select", id="type_evaluation", required=true) }}
+                            <div class="invalid-feedback">Veuillez sélectionner un type.</div>
                         </div>
 
                         <!-- Période -->
-                        {% if form.periode %}
-                        <div class="mb-4">
-                            <div class="form-floating">
-                                {{ form.periode(class="form-select", style="border-radius: 0.8rem;") }}
-                                {{ form.periode.label(class="form-label") }}
-                                <div class="invalid-feedback">Veuillez sélectionner une période.</div>
-                            </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label fw-semibold" for="periode">Période <span class="text-danger">*</span></label>
+                            {% if form.periode %}
+                                {{ form.periode(class="form-select", id="periode", required=true) }}
+                            {% else %}
+                                <select name="periode" id="periode" class="form-select" required>
+                                    <option value="Trimestre 1">Trimestre 1</option>
+                                    <option value="Trimestre 2">Trimestre 2</option>
+                                    <option value="Trimestre 3">Trimestre 3</option>
+                                    <option value="Semestre 1">Semestre 1</option>
+                                    <option value="Semestre 2">Semestre 2</option>
+                                    <option value="Annuelle">Annuelle</option>
+                                </select>
+                            {% endif %}
                         </div>
-                        {% endif %}
 
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary btn-lg py-3" style="border-radius: 0.8rem;">
-                                <i class="fas fa-check-circle me-2"></i>Ajouter la note
+                        <!-- Boutons formulaire -->
+                        <div class="col-12 d-flex justify-content-end gap-2 pt-2">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#collapseFormNote">Annuler</button>
+                            <button type="submit" class="btn btn-success px-4">
+                                <i class="fas fa-check me-2"></i>Enregistrer la note
                             </button>
                         </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Statistiques -->
-        <div class="col-xl-6 col-lg-12 mb-4">
-            <div class="card border-0 shadow-lg h-100 animate-pop-in" style="border-radius: 1.2rem;">
-                <div class="card-header py-4 text-white d-flex justify-content-between align-items-center" style="background: var(--gradient-success);">
-                    <h4 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Statistiques</h4>
-                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#statsCollapse" aria-expanded="true" aria-controls="statsCollapse">
-                        <i class="fas fa-chevron-down"></i>
-                    </button>
-                </div>
-                <div class="card-body p-4 collapse show" id="statsCollapse">
-                    <div class="row text-center">
-                        <div class="col-6 col-md-6 mb-4">
-                            <div class="p-3 border rounded-3 bg-light h-100 d-flex flex-column justify-content-center">
-                                <div class="fs-2 fw-bold text-primary mb-1">{{ notes|length }}</div>
-                                <small class="text-muted">Notes enregistrées</small>
-                            </div>
-                        </div>
-                        <div class="col-6 col-md-6 mb-4">
-                            <div class="p-3 border rounded-3 bg-light h-100 d-flex flex-column justify-content-center">
-                                <div class="fs-2 fw-bold text-success mb-1">
-                                    {{ moyenne_generale or '0' }}
-                                </div>
-                                <small class="text-muted">Moyenne générale</small>
-                            </div>
-                        </div>
-                        <div class="col-6 col-md-6">
-                            <div class="p-3 border rounded-3 bg-light h-100 d-flex flex-column justify-content-center">
-                                <div class="fs-2 fw-bold text-info mb-1">{{ taux_reussite or '0%' }}</div>
-                                <small class="text-muted">Taux de réussite</small>
-                            </div>
-                        </div>
-                        <div class="col-6 col-md-6">
-                            <div class="p-3 border rounded-3 bg-light h-100 d-flex flex-column justify-content-center">
-                                <div class="fs-2 fw-bold text-warning mb-1">{{ matieres_evaluees or 0 }}</div>
-                                <small class="text-muted">Matières évaluées</small>
-                            </div>
-                        </div>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
     </div>
     {% endif %}
 
-    <!-- Filtres et Recherche -->
-    <div class="card border-0 shadow-lg mb-4 animate-pop-in" style="border-radius: 1.2rem;">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center" style="background: #f8f9fa;">
-            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtres et Recherche</h5>
-            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filtresCollapse" aria-expanded="true" aria-controls="filtresCollapse">
-                <i class="fas fa-chevron-down"></i>
-            </button>
-        </div>
-        <div class="card-body p-3 collapse show" id="filtresCollapse">
-            <div class="row g-3">
-                <!-- Barre de recherche globale -->
-                <div class="col-md-4">
-                    <label for="rechercheGlobale" class="form-label">Recherche globale</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="fas fa-search"></i></span>
-                        <input type="text" class="form-control" id="rechercheGlobale" placeholder="Rechercher dans toutes les colonnes...">
-                        <button class="btn btn-outline-secondary" type="button" id="btnEffacerRechercheGlobale">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                {% if current_user.role in ['admin', 'enseignant'] %}
-                <div class="col-md-2">
-                    <label for="filtreEleve" class="form-label">Élève</label>
-                    <select class="form-select" id="filtreEleve">
-                        <option value="">Tous les élèves</option>
-                        {% for eleve in eleves %}
-                        <option value="{{ eleve.id }}">{{ eleve.prenom }} {{ eleve.nom }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label for="filtreCours" class="form-label">Cours</label>
-                    <select class="form-select" id="filtreCours">
-                        <option value="">Tous les cours</option>
-                        {% for cours in tous_les_cours %}
-                        <option value="{{ cours.id }}">{{ cours.nom }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label for="filtrePeriode" class="form-label">Période</label>
-                    <select class="form-select" id="filtrePeriode">
-                        <option value="">Toutes les périodes</option>
-                        <option value="Trimestre 1">Trimestre 1</option>
-                        <option value="Trimestre 2">Trimestre 2</option>
-                        <option value="Trimestre 3">Trimestre 3</option>
-                        <option value="Semestre 1">Semestre 1</option>
-                        <option value="Semestre 2">Semestre 2</option>
-                        <option value="Annuelle">Annuelle</option>
-                    </select>
-                </div>
-                {% endif %}
-                
-                <div class="col-md-2 d-flex align-items-end">
-                    <button id="btnReinitialiser" class="btn btn-outline-secondary w-100">
-                        <i class="fas fa-redo me-1"></i> Rétablir
+    <!-- Barre d'outils : recherche, filtres et tri -->
+    <div class="course-toolbar-card">
+        <div class="row g-2 align-items-center">
+            <!-- Recherche rapide -->
+            <div class="col-12 col-md-4 col-lg-3">
+                <div class="course-search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="studentSearchInput" class="form-control" placeholder="Rechercher élève, classe, matière..." autocomplete="off">
+                    <button type="button" id="studentSearchClear" class="clear-btn" title="Effacer la recherche">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
+
+            <!-- Filtre par classe -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select id="filterClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Toutes les classes</option>
+                    {% set classes_list = [] %}
+                    {% for note in notes %}
+                        {% if note.eleve and note.eleve.classe and note.eleve.classe.nom not in classes_list %}
+                            {% set _ = classes_list.append(note.eleve.classe.nom) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for cl in classes_list|sort %}
+                        <option value="{{ cl }}">{{ cl }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtre par matière -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select id="filterCoursSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Toutes les matières</option>
+                    {% for c in tous_les_cours %}
+                    <option value="{{ c.nom }}">{{ c.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtre par période -->
+            <div class="col-6 col-md-2 col-lg-2">
+                <select id="filterPeriodeSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Toutes périodes</option>
+                    <option value="Trimestre 1">Trimestre 1</option>
+                    <option value="Trimestre 2">Trimestre 2</option>
+                    <option value="Trimestre 3">Trimestre 3</option>
+                    <option value="Semestre 1">Semestre 1</option>
+                    <option value="Semestre 2">Semestre 2</option>
+                    <option value="Annuelle">Annuelle</option>
+                </select>
+            </div>
+
+            <!-- Tri des élèves -->
+            <div class="col-6 col-md-2 col-lg-2">
+                <select id="sortStudentsSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="nom-asc">Élève (A &rarr; Z)</option>
+                    <option value="nom-desc">Élève (Z &rarr; A)</option>
+                    <option value="moyenne-desc">Moyenne &darr;</option>
+                    <option value="moyenne-asc">Moyenne &uarr;</option>
+                    <option value="notes-desc">Nombre de notes &darr;</option>
+                </select>
+            </div>
+
+            <!-- Nombre par page -->
+            <div class="col-12 col-lg-auto ms-auto d-flex align-items-center justify-content-end gap-2">
+                <span class="small text-muted d-none d-sm-inline">Élèves / page :</span>
+                <select id="pageSizeSelect" class="form-select form-select-sm" style="width: auto; min-height: 42px;" title="Nombre d'élèves par page">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="99999">Tous</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Info-bar sous les filtres -->
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 pt-2 border-top">
+            <div class="text-muted small">
+                <i class="fas fa-users me-1 text-primary"></i>
+                <span id="studentFilterStats">Chargement des dossiers élèves...</span>
+            </div>
+            <button type="button" id="btnResetFilter" class="btn btn-link btn-sm text-decoration-none text-muted p-0" style="display: none;">
+                <i class="fas fa-undo me-1"></i>Réinitialiser les filtres
+            </button>
         </div>
     </div>
 
-    <!-- Tableau -->
-    <div class="card border-0 shadow-lg animate-pop-in" style="border-radius: 1.2rem;">
-        <div class="card-header py-4 text-white d-flex justify-content-between align-items-center" style="background: var(--gradient-dark);">
-            <h4 class="mb-0"><i class="fas fa-history me-2"></i>
-                {% if current_user.role in ['admin', 'enseignant'] %}
-                Dernières Notes Ajoutées
-                {% else %}
-                Notes de mon enfant
+    <!-- LISTE DES DOSSIERS ÉLÈVES (ACCORDÉON) -->
+    <div id="studentAccordionList" class="student-note-list">
+        {% for group in notes|selectattr('eleve')|groupby('eleve.id') %}
+            {% set eleve = group.list[0].eleve %}
+            {% set eleve_full = (eleve.prenom ~ ' ' ~ eleve.nom) %}
+            {% set classe_nom = (eleve.classe.nom if eleve.classe else 'Sans classe') %}
+            {% set student_notes_count = group.list|length %}
+
+            <!-- Calcul moyenne de l'élève -->
+            {% set ns = namespace(val=0, coeff=0, matieres=[]) %}
+            {% for n in group.list %}
+                {% set ns.val = ns.val + (n.valeur * (n.coefficient or 1)) %}
+                {% set ns.coeff = ns.coeff + (n.coefficient or 1) %}
+                {% if n.cours and n.cours.nom not in ns.matieres %}
+                    {% set _ = ns.matieres.append(n.cours.nom) %}
                 {% endif %}
-            </h4>
-            <div class="d-flex align-items-center">
-                <span class="me-2">Afficher</span>
-                <select class="form-select form-select-sm w-auto" id="selectNbLignes">
-                    <option value="10">10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                </select>
-                <span class="ms-2">lignes</span>
-            </div>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0" id="tableauNotes">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-4 sortable" data-sort="eleve">Élève <i class="fas fa-sort"></i></th>
-                            <th class="sortable" data-sort="cours">Cours <i class="fas fa-sort"></i></th>
-                            <th class="sortable" data-sort="note">Note <i class="fas fa-sort"></i></th>
-                            <th class="sortable" data-sort="coefficient">Coefficient <i class="fas fa-sort"></i></th>
-                            <th class="sortable" data-sort="type">Type <i class="fas fa-sort"></i></th>
-                            <th class="text-center sortable" data-sort="date">Date <i class="fas fa-sort"></i></th>
-                            {% if current_user.role in ['admin', 'enseignant'] %}
-                            <th class="text-center pe-4">Actions</th>
-                            {% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for note in notes %}
-                        <tr data-eleve="{{ note.eleve.id }}" data-cours="{{ note.cours.id }}" data-periode="{{ note.periode }}">
-                            <td class="ps-4">
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar-sm me-2 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-                                        {{ note.eleve.prenom[0] }}{{ note.eleve.nom[0] }}
-                                    </div>
-                                    <div>
-                                        <div>{{ note.eleve.prenom }} {{ note.eleve.nom }}</div>
-                                        <small class="text-muted">{{ note.eleve.classe.nom if note.eleve.classe else 'Sans classe' }}</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <i class="fas fa-book text-primary me-2"></i>
-                                    {{ note.cours.nom }}
-                                </div>
-                            </td>
-                            <td>
-                                <span class="badge {% if note.valeur >= 16 %}bg-success
-                                                    {% elif note.valeur >= 14 %}bg-info
-                                                    {% elif note.valeur >= 12 %}bg-primary
-                                                    {% elif note.valeur >= 10 %}bg-warning
-                                                    {% else %}bg-danger{% endif %} fs-6">
-                                    {{ note.valeur }}/20
+            {% endfor %}
+            {% set student_avg = (ns.val / ns.coeff)|round(2) if ns.coeff > 0 else 0 %}
+            {% set matieres_str = ns.matieres|join(' ') %}
+
+            <article class="student-note-card"
+                     data-id="{{ eleve.id }}"
+                     data-nom="{{ eleve_full }}"
+                     data-classe="{{ classe_nom }}"
+                     data-matieres="{{ matieres_str }}"
+                     data-notes-count="{{ student_notes_count }}"
+                     data-moyenne="{{ student_avg }}">
+
+                <!-- En-tête cliquable pour déplier/replier les notes de l'élève -->
+                <div class="student-note-header"
+                     data-bs-toggle="collapse"
+                     data-bs-target="#collapseEleve{{ eleve.id }}"
+                     aria-expanded="false"
+                     aria-controls="collapseEleve{{ eleve.id }}">
+
+                    <div class="student-note-profile">
+                        <div class="student-note-avatar">
+                            {{ eleve.prenom[0] if eleve.prenom else '' }}{{ eleve.nom[0] if eleve.nom else '' }}
+                        </div>
+                        <div class="student-note-info">
+                            <h2 class="student-note-name">{{ eleve_full }}</h2>
+                            <div class="student-note-meta">
+                                <span class="badge bg-light text-dark border">
+                                    <i class="fas fa-chalkboard me-1 text-muted"></i>{{ classe_nom }}
                                 </span>
-                            </td>
-                            <td>
-                                <span class="badge bg-secondary fs-6">x{{ note.coefficient }}</span>
-                            </td>
-                            <td>
-                                <span class="badge bg-light text-dark fs-6">{{ note.type_evaluation }}</span>
-                            </td>
-                            <td class="text-center">{{ note.date_evaluation.strftime('%d/%m/%Y') }}</td>
-                            {% if current_user.role in ['admin', 'enseignant'] %}
-                            <td class="text-center pe-4">
-                                <div class="btn-group" role="group">
-                                    <a href="{{ url_for('main.modifier_note', note_id=note.id) }}" class="btn btn-sm btn-outline-primary rounded-start" data-bs-toggle="tooltip" title="Modifier">
-                                        <i class="fas fa-edit"></i>
+                                <span class="badge bg-light text-muted border">
+                                    ID #{{ eleve.id }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="student-note-stats">
+                        <!-- Badge nombre de notes -->
+                        <span class="badge bg-light text-dark border" style="font-size: 0.82rem;">
+                            <i class="fas fa-clipboard-list text-primary me-1"></i>{{ student_notes_count }} note{{ 's' if student_notes_count > 1 else '' }}
+                        </span>
+
+                        <!-- Badge moyenne générale -->
+                        {% if student_avg >= 16 %}
+                            <span class="badge bg-success shadow-sm" style="font-size: 0.84rem;">Moyenne : {{ student_avg }}/20</span>
+                        {% elif student_avg >= 14 %}
+                            <span class="badge bg-info text-dark shadow-sm" style="font-size: 0.84rem;">Moyenne : {{ student_avg }}/20</span>
+                        {% elif student_avg >= 12 %}
+                            <span class="badge bg-primary shadow-sm" style="font-size: 0.84rem;">Moyenne : {{ student_avg }}/20</span>
+                        {% elif student_avg >= 10 %}
+                            <span class="badge bg-warning text-dark shadow-sm" style="font-size: 0.84rem;">Moyenne : {{ student_avg }}/20</span>
+                        {% else %}
+                            <span class="badge bg-danger shadow-sm" style="font-size: 0.84rem;">Moyenne : {{ student_avg }}/20</span>
+                        {% endif %}
+
+                        <!-- Chevron de dépliement -->
+                        <span class="student-note-chevron">
+                            <i class="fas fa-chevron-down"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Contenu dépliable : liste de toutes les notes de cet élève -->
+                <div class="collapse student-note-content" id="collapseEleve{{ eleve.id }}">
+
+                    <!-- Tableau sur Desktop -->
+                    <div class="student-eval-table-wrap">
+                        <table class="table student-eval-table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Matière</th>
+                                    <th>Note</th>
+                                    <th>Coefficient</th>
+                                    <th>Évaluation</th>
+                                    <th>Période</th>
+                                    <th>Date</th>
+                                    {% if current_user.role in ['admin', 'professeur'] %}
+                                    <th class="text-end pe-4">Actions</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for note in group.list %}
+                                {% set cours_nom = note.cours.nom if note.cours else 'Cours inconnu' %}
+                                {% set date_str = note.date_evaluation.strftime('%d/%m/%Y') if note.date_evaluation else '' %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="fas fa-book text-primary opacity-75"></i>
+                                            <span class="fw-semibold text-dark">{{ cours_nom }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if note.valeur >= 16 %}
+                                            <span class="badge bg-success fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
+                                        {% elif note.valeur >= 14 %}
+                                            <span class="badge bg-info text-dark fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
+                                        {% elif note.valeur >= 12 %}
+                                            <span class="badge bg-primary fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
+                                        {% elif note.valeur >= 10 %}
+                                            <span class="badge bg-warning text-dark fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
+                                        {% else %}
+                                            <span class="badge bg-danger fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-muted border">x{{ note.coefficient }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">{{ note.type_evaluation }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted small">{{ note.periode or '—' }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted small">{{ date_str }}</span>
+                                    </td>
+                                    {% if current_user.role in ['admin', 'professeur'] %}
+                                    <td class="text-end pe-4">
+                                        <div class="d-inline-flex gap-1">
+                                            <a href="{{ url_for('main.modifier_note', note_id=note.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier la note">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette note pour {{ eleve_full }} ?');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer la note">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Cartes sur Mobile (Zéro défilement horizontal) -->
+                    <div class="student-eval-cards">
+                        {% for note in group.list %}
+                        {% set cours_nom = note.cours.nom if note.cours else 'Cours inconnu' %}
+                        {% set date_str = note.date_evaluation.strftime('%d/%m/%Y') if note.date_evaluation else '' %}
+                        <div class="student-eval-card">
+                            <div class="student-eval-card-top">
+                                <div class="d-flex align-items-center gap-2 min-w-0">
+                                    <i class="fas fa-book text-primary"></i>
+                                    <span class="fw-bold text-dark text-truncate">{{ cours_nom }}</span>
+                                </div>
+                                <div>
+                                    {% if note.valeur >= 16 %}
+                                        <span class="badge bg-success fs-6 fw-bold">{{ note.valeur }}/20</span>
+                                    {% elif note.valeur >= 14 %}
+                                        <span class="badge bg-info text-dark fs-6 fw-bold">{{ note.valeur }}/20</span>
+                                    {% elif note.valeur >= 12 %}
+                                        <span class="badge bg-primary fs-6 fw-bold">{{ note.valeur }}/20</span>
+                                    {% elif note.valeur >= 10 %}
+                                        <span class="badge bg-warning text-dark fs-6 fw-bold">{{ note.valeur }}/20</span>
+                                    {% else %}
+                                        <span class="badge bg-danger fs-6 fw-bold">{{ note.valeur }}/20</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="badge bg-light text-muted border">Coeff. x{{ note.coefficient }}</span>
+                                <span class="badge bg-light text-dark border">{{ note.type_evaluation }}</span>
+                                {% if note.periode %}
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ note.periode }}</span>
+                                {% endif %}
+                                <span class="text-muted ms-auto" style="font-size: 0.76rem;">{{ date_str }}</span>
+                            </div>
+
+                            {% if current_user.role in ['admin', 'professeur'] %}
+                            <div class="student-eval-card-bottom">
+                                <div class="student-eval-card-actions">
+                                    <a href="{{ url_for('main.modifier_note', note_id=note.id) }}" class="btn btn-outline-primary btn-sm" title="Modifier">
+                                        <i class="fas fa-edit me-1"></i>Modifier
                                     </a>
-                                    <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline">
+                                    <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette note ?');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-end" onclick="return confirm('Confirmer la suppression ?')" data-bs-toggle="tooltip" title="Supprimer">
-                                            <i class="fas fa-trash"></i>
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
+                                            <i class="fas fa-trash me-1"></i>Supprimer
                                         </button>
                                     </form>
                                 </div>
-                            </td>
+                            </div>
                             {% endif %}
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="{% if current_user.role in ['admin', 'enseignant'] %}7{% else %}6{% endif %}" class="text-center py-5">
-                                <i class="fas fa-edit fa-3x text-muted mb-3"></i>
-                                <h5 class="text-muted">Aucune note enregistrée</h5>
-                            </td>
-                        </tr>
+                        </div>
                         {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- Pagination -->
-            <div class="d-flex justify-content-between align-items-center p-3 border-top">
-                <div class="text-muted" id="infoPagination">
-                    Affichage de <span id="debutLignes">1</span> à <span id="finLignes">{{ notes|length }}</span> sur <span id="totalLignes">{{ notes|length }}</span> entrées
+                    </div>
+
                 </div>
-                <nav>
-                    <ul class="pagination mb-0" id="pagination">
-                        <!-- La pagination sera générée par JavaScript -->
-                    </ul>
-                </nav>
-            </div>
-        </div>
+            </article>
+        {% endfor %}
     </div>
+
+    <!-- État vide après filtrage -->
+    <div id="noStudentsFoundState" class="empty-state py-5 my-4" style="display: none;">
+        <div class="empty-state-icon text-muted mb-3" style="font-size: 3rem;">
+            <i class="fas fa-search"></i>
+        </div>
+        <h3 class="h5 fw-bold text-dark">Aucun élève trouvé</h3>
+        <p class="text-muted mb-3">Aucun dossier élève ne correspond à vos critères de recherche ou de filtre.</p>
+        <button type="button" class="btn btn-outline-primary" id="btnResetFiltersEmpty">
+            <i class="fas fa-undo me-2"></i>Réinitialiser les filtres
+        </button>
+    </div>
+
+    <!-- État vide global (si 0 notes dans l'établissement) -->
+    {% if not notes %}
+    <div class="empty-state py-5 my-4">
+        <div class="empty-state-icon text-muted mb-3" style="font-size: 3.5rem;">
+            <i class="fas fa-clipboard-list"></i>
+        </div>
+        <h2 class="h4 fw-bold text-dark">Aucune note enregistrée</h2>
+        <p class="text-muted mb-3">Aucune évaluation n'a encore été enregistrée pour cette année scolaire.</p>
+        {% if current_user.role in ['admin', 'professeur'] and form %}
+        <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#collapseFormNote">
+            <i class="fas fa-plus-circle me-2"></i>Ajouter la première note
+        </button>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Barre de pagination par élève -->
+    <div id="studentPaginationBar" class="course-pagination-bar" style="display: none;">
+        <div class="text-muted small">
+            <span id="pageInfoText">Page 1 sur 1</span>
+        </div>
+        <nav aria-label="Pagination des élèves">
+            <ul class="pagination pagination-sm mb-0" id="paginationList">
+                <!-- Dynamiquement généré par JavaScript -->
+            </ul>
+        </nav>
+    </div>
+
 </div>
 
-<!-- JS -->
+<!-- Contrôleur JavaScript réactif pour la gestion des notes par élève -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialisation des tooltips Bootstrap
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl)
-    });
-    
-    // Variables globales
-    const filtreEleve = document.getElementById('filtreEleve');
-    const filtreCours = document.getElementById('filtreCours');
-    const filtrePeriode = document.getElementById('filtrePeriode');
-    const btnReinitialiser = document.getElementById('btnReinitialiser');
-    const rechercheGlobale = document.getElementById('rechercheGlobale');
-    const btnEffacerRechercheGlobale = document.getElementById('btnEffacerRechercheGlobale');
-    const rechercheEleve = document.getElementById('rechercheEleve');
-    const btnEffacerRecherche = document.getElementById('btnEffacerRecherche');
-    const selectEleve = document.querySelector('select[name="eleve_id"]');
-    const selectNbLignes = document.getElementById('selectNbLignes');
-    
-    let lignesNotes = Array.from(document.querySelectorAll('#tableauNotes tbody tr'));
-    let lignesFiltrees = [...lignesNotes];
-    let colonneTri = 'date';
-    let ordreTri = 'desc';
-    let pageCourante = 1;
-    let lignesParPage = 10;
+    // Éléments DOM
+    const searchInput = document.getElementById('studentSearchInput');
+    const searchClear = document.getElementById('studentSearchClear');
+    const filterClasse = document.getElementById('filterClasseSelect');
+    const filterCours = document.getElementById('filterCoursSelect');
+    const filterPeriode = document.getElementById('filterPeriodeSelect');
+    const sortSelect = document.getElementById('sortStudentsSelect');
+    const pageSizeSelect = document.getElementById('pageSizeSelect');
+    const filterStats = document.getElementById('studentFilterStats');
+    const btnReset = document.getElementById('btnResetFilter');
+    const btnResetEmpty = document.getElementById('btnResetFiltersEmpty');
+    const noResults = document.getElementById('noStudentsFoundState');
+    const studentContainer = document.getElementById('studentAccordionList');
+    const paginationBar = document.getElementById('studentPaginationBar');
+    const paginationList = document.getElementById('paginationList');
+    const pageInfoText = document.getElementById('pageInfoText');
+
+    // Bouton tout déplier / tout replier
+    const btnToggleAll = document.getElementById('btnToggleAllAccordions');
+    const iconToggleAll = document.getElementById('iconToggleAll');
+    const textToggleAll = document.getElementById('textToggleAll');
+    let allExpanded = false;
+
+    // Formulaire d'ajout
+    const rechercheEleveForm = document.getElementById('rechercheEleveForm');
+    const btnEffacerRechercheForm = document.getElementById('btnEffacerRechercheForm');
+    const selectEleveForm = document.getElementById('eleve_id');
+
+    // Cartes des élèves
+    const studentCards = Array.from(document.querySelectorAll('.student-note-card'));
+    const totalStudents = studentCards.length;
+
+    if (totalStudents === 0) {
+        if (paginationBar) paginationBar.style.display = 'none';
+        return;
+    }
+
+    // État courant
+    let currentPage = 1;
+    let pageSize = parseInt(pageSizeSelect.value, 10) || 20;
 
     // Recherche d'élève dans le formulaire
-    if (rechercheEleve && selectEleve) {
-        rechercheEleve.addEventListener('input', function() {
-            const terme = this.value.toLowerCase();
-            const options = selectEleve.options;
-            
+    if (rechercheEleveForm && selectEleveForm) {
+        rechercheEleveForm.addEventListener('input', function() {
+            const terme = normalizeStr(this.value.trim());
+            const options = selectEleveForm.options;
             for (let i = 0; i < options.length; i++) {
-                const texte = options[i].text.toLowerCase();
-                options[i].style.display = texte.includes(terme) ? '' : 'none';
+                const optText = normalizeStr(options[i].text);
+                options[i].style.display = optText.includes(terme) ? '' : 'none';
             }
         });
-        
-        btnEffacerRecherche.addEventListener('click', function() {
-            rechercheEleve.value = '';
-            const options = selectEleve.options;
-            for (let i = 0; i < options.length; i++) {
-                options[i].style.display = '';
-            }
-        });
-    }
 
-    // Recherche globale dans le tableau
-    if (rechercheGlobale) {
-        rechercheGlobale.addEventListener('input', function() {
-            appliquerFiltres();
-        });
-        
-        btnEffacerRechercheGlobale.addEventListener('click', function() {
-            rechercheGlobale.value = '';
-            appliquerFiltres();
-        });
-    }
-
-    // Filtrage
-    function appliquerFiltres() {
-        const eleveValue = filtreEleve ? filtreEleve.value : '';
-        const coursValue = filtreCours ? filtreCours.value : '';
-        const periodeValue = filtrePeriode ? filtrePeriode.value : '';
-        const rechercheValue = rechercheGlobale ? rechercheGlobale.value.toLowerCase() : '';
-
-        lignesFiltrees = lignesNotes.filter(ligne => {
-            const showEleve = !eleveValue || ligne.dataset.eleve === eleveValue;
-            const showCours = !coursValue || ligne.dataset.cours === coursValue;
-            const showPeriode = !periodeValue || ligne.dataset.periode === periodeValue;
-            
-            let showRecherche = true;
-            if (rechercheValue) {
-                const texteLigne = ligne.textContent.toLowerCase();
-                showRecherche = texteLigne.includes(rechercheValue);
-            }
-            
-            return showEleve && showCours && showPeriode && showRecherche;
-        });
-        
-        pageCourante = 1;
-        trierEtAfficher();
-    }
-
-    // Réinitialisation des filtres
-    if (btnReinitialiser) {
-        btnReinitialiser.addEventListener('click', () => {
-            if (filtreEleve) filtreEleve.value = '';
-            if (filtreCours) filtreCours.value = '';
-            if (filtrePeriode) filtrePeriode.value = '';
-            if (rechercheGlobale) rechercheGlobale.value = '';
-            if (rechercheEleve) rechercheEleve.value = '';
-            
-            if (selectEleve) {
-                const options = selectEleve.options;
+        if (btnEffacerRechercheForm) {
+            btnEffacerRechercheForm.addEventListener('click', function() {
+                rechercheEleveForm.value = '';
+                const options = selectEleveForm.options;
                 for (let i = 0; i < options.length; i++) {
                     options[i].style.display = '';
                 }
-            }
-            
-            appliquerFiltres();
-        });
-    }
-
-    // Événements de filtrage
-    if (filtreEleve) filtreEleve.addEventListener('change', appliquerFiltres);
-    if (filtreCours) filtreCours.addEventListener('change', appliquerFiltres);
-    if (filtrePeriode) filtrePeriode.addEventListener('change', appliquerFiltres);
-
-    // Gestion du nombre de lignes par page
-    if (selectNbLignes) {
-        selectNbLignes.addEventListener('change', function() {
-            lignesParPage = parseInt(this.value);
-            pageCourante = 1;
-            trierEtAfficher();
-        });
-    }
-
-    // Tri
-    const entetesTriables = document.querySelectorAll('.sortable');
-    entetesTriables.forEach(entete => {
-        entete.addEventListener('click', function() {
-            const nouvelleColonne = this.dataset.sort;
-            if (colonneTri === nouvelleColonne) {
-                ordreTri = ordreTri === 'asc' ? 'desc' : 'asc';
-            } else {
-                colonneTri = nouvelleColonne;
-                ordreTri = 'asc';
-            }
-            trierEtAfficher();
-            mettreAJourIconesTri();
-        });
-    });
-
-    function trierTableau(colonne, ordre) {
-        lignesFiltrees.sort((a, b) => {
-            let valeurA, valeurB;
-            switch(colonne) {
-                case 'eleve': 
-                    valeurA = a.querySelector('td:first-child').textContent.toLowerCase();
-                    valeurB = b.querySelector('td:first-child').textContent.toLowerCase(); 
-                    break;
-                case 'cours': 
-                    valeurA = a.querySelector('td:nth-child(2)').textContent.toLowerCase();
-                    valeurB = b.querySelector('td:nth-child(2)').textContent.toLowerCase(); 
-                    break;
-                case 'note': 
-                    valeurA = parseFloat(a.querySelector('td:nth-child(3)').textContent);
-                    valeurB = parseFloat(b.querySelector('td:nth-child(3)').textContent); 
-                    break;
-                case 'coefficient': 
-                    valeurA = parseFloat(a.querySelector('td:nth-child(4)').textContent.replace('x', ''));
-                    valeurB = parseFloat(b.querySelector('td:nth-child(4)').textContent.replace('x', '')); 
-                    break;
-                case 'type': 
-                    valeurA = a.querySelector('td:nth-child(5)').textContent.toLowerCase();
-                    valeurB = b.querySelector('td:nth-child(5)').textContent.toLowerCase(); 
-                    break;
-                case 'date': 
-                    const dA = a.querySelector('td:nth-child(6)').textContent.split('/');
-                    const dB = b.querySelector('td:nth-child(6)').textContent.split('/');
-                    valeurA = new Date(dA[2], dA[1]-1, dA[0]).getTime();
-                    valeurB = new Date(dB[2], dB[1]-1, dB[0]).getTime(); 
-                    break;
-            }
-            if (valeurA === valeurB) return 0;
-            return (ordre === 'asc') ? (valeurA > valeurB ? 1 : -1) : (valeurA < valeurB ? 1 : -1);
-        });
-    }
-
-    function mettreAJourIconesTri() {
-        entetesTriables.forEach(entete => {
-            const icone = entete.querySelector('i');
-            if (entete.dataset.sort === colonneTri) {
-                icone.className = ordreTri === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
-            } else icone.className = 'fas fa-sort';
-        });
-    }
-
-    // Pagination
-    function mettreAJourPagination() {
-        const totalPages = Math.ceil(lignesFiltrees.length / lignesParPage);
-        const pagination = document.getElementById('pagination');
-        pagination.innerHTML = '';
-        
-        // Bouton précédent
-        const prevLi = document.createElement('li');
-        prevLi.className = `page-item ${pageCourante === 1 ? 'disabled' : ''}`;
-        prevLi.innerHTML = `<a class="page-link" href="#" aria-label="Précédent"><span aria-hidden="true">&laquo;</span></a>`;
-        prevLi.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (pageCourante > 1) {
-                pageCourante--;
-                trierEtAfficher();
-            }
-        });
-        pagination.appendChild(prevLi);
-        
-        // Pages
-        const debutPage = Math.max(1, pageCourante - 2);
-        const finPage = Math.min(totalPages, debutPage + 4);
-        
-        for (let i = debutPage; i <= finPage; i++) {
-            const pageLi = document.createElement('li');
-            pageLi.className = `page-item ${i === pageCourante ? 'active' : ''}`;
-            pageLi.innerHTML = `<a class="page-link" href="#">${i}</a>`;
-            pageLi.addEventListener('click', (e) => {
-                e.preventDefault();
-                pageCourante = i;
-                trierEtAfficher();
+                rechercheEleveForm.focus();
             });
-            pagination.appendChild(pageLi);
         }
-        
-        // Bouton suivant
-        const nextLi = document.createElement('li');
-        nextLi.className = `page-item ${pageCourante === totalPages ? 'disabled' : ''}`;
-        nextLi.innerHTML = `<a class="page-link" href="#" aria-label="Suivant"><span aria-hidden="true">&raquo;</span></a>`;
-        nextLi.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (pageCourante < totalPages) {
-                pageCourante++;
-                trierEtAfficher();
+    }
+
+    // Normalisation de texte (insensible casse et accents)
+    function normalizeStr(str) {
+        if (!str) return '';
+        return str.toString().toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+    }
+
+    // Filtrage et Tri des élèves
+    function getFilteredAndSortedStudents() {
+        const query = normalizeStr(searchInput ? searchInput.value.trim() : '');
+        const selectedClasse = filterClasse ? filterClasse.value.trim() : '';
+        const selectedCours = filterCours ? normalizeStr(filterCours.value.trim()) : '';
+        const sortMode = sortSelect ? sortSelect.value : 'nom-asc';
+
+        let matched = studentCards.filter(function(card) {
+            const nom = normalizeStr(card.dataset.nom);
+            const classe = normalizeStr(card.dataset.classe);
+            const matieres = normalizeStr(card.dataset.matieres);
+
+            // Recherche texte
+            if (query) {
+                const textMatch = nom.includes(query) ||
+                                  classe.includes(query) ||
+                                  matieres.includes(query);
+                if (!textMatch) return false;
+            }
+
+            // Filtre classe
+            if (selectedClasse && card.dataset.classe !== selectedClasse) {
+                return false;
+            }
+
+            // Filtre matière
+            if (selectedCours && !matieres.includes(selectedCours)) {
+                return false;
+            }
+
+            return true;
+        });
+
+        // Tri
+        matched.sort(function(a, b) {
+            if (sortMode === 'nom-asc') {
+                return a.dataset.nom.localeCompare(b.dataset.nom, 'fr', { sensitivity: 'base' });
+            } else if (sortMode === 'nom-desc') {
+                return b.dataset.nom.localeCompare(a.dataset.nom, 'fr', { sensitivity: 'base' });
+            } else if (sortMode === 'moyenne-desc') {
+                return parseFloat(b.dataset.moyenne || 0) - parseFloat(a.dataset.moyenne || 0);
+            } else if (sortMode === 'moyenne-asc') {
+                return parseFloat(a.dataset.moyenne || 0) - parseFloat(b.dataset.moyenne || 0);
+            } else if (sortMode === 'notes-desc') {
+                return parseInt(b.dataset.notesCount || 0, 10) - parseInt(a.dataset.notesCount || 0, 10);
+            }
+            return 0;
+        });
+
+        return matched;
+    }
+
+    // Rendu global
+    function render() {
+        const matched = getFilteredAndSortedStudents();
+        const count = matched.length;
+
+        // Bouton effacer recherche
+        if (searchClear && searchInput) {
+            searchClear.style.display = searchInput.value.trim().length > 0 ? 'inline-block' : 'none';
+        }
+
+        // Bouton réinitialiser
+        const isFiltered = (searchInput && searchInput.value.trim().length > 0) ||
+                           (filterClasse && filterClasse.value !== '') ||
+                           (filterCours && filterCours.value !== '') ||
+                           (sortSelect && sortSelect.value !== 'nom-asc');
+
+        if (btnReset) {
+            btnReset.style.display = isFiltered ? 'inline-block' : 'none';
+        }
+
+        // Compteur
+        if (filterStats) {
+            if (count === totalStudents) {
+                filterStats.innerHTML = `Affichage de <strong>${count}</strong> dossiers élèves`;
+            } else {
+                filterStats.innerHTML = `<strong>${count}</strong> élève${count > 1 ? 's' : ''} trouvé${count > 1 ? 's' : ''} sur ${totalStudents}`;
+            }
+        }
+
+        // État vide
+        if (count === 0) {
+            if (studentContainer) studentContainer.style.display = 'none';
+            if (noResults) noResults.style.display = 'block';
+            if (paginationBar) paginationBar.style.display = 'none';
+            return;
+        } else {
+            if (studentContainer) studentContainer.style.display = 'grid';
+            if (noResults) noResults.style.display = 'none';
+        }
+
+        // Pagination
+        const totalPages = Math.ceil(count / pageSize) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const pageItems = matched.slice(startIndex, endIndex);
+        const visibleIds = new Set(pageItems.map(item => item.dataset.id));
+
+        // Afficher / masquer les cartes élèves
+        studentCards.forEach(card => {
+            card.style.display = visibleIds.has(card.dataset.id) ? 'block' : 'none';
+        });
+
+        // Réordonner les cartes dans le DOM selon le tri
+        if (studentContainer) {
+            pageItems.forEach(card => studentContainer.appendChild(card));
+        }
+
+        // Rendu de la pagination
+        renderPagination(count, totalPages, startIndex, endIndex);
+    }
+
+    function renderPagination(count, totalPages, startIndex, endIndex) {
+        if (!paginationBar || !paginationList) return;
+
+        if (totalPages <= 1) {
+            paginationBar.style.display = 'none';
+            return;
+        }
+
+        paginationBar.style.display = 'flex';
+        const actualEnd = Math.min(endIndex, count);
+        if (pageInfoText) {
+            pageInfoText.textContent = `Affichage ${startIndex + 1} - ${actualEnd} sur ${count} élèves (Page ${currentPage} / ${totalPages})`;
+        }
+
+        let html = '';
+
+        // Bouton Précédent
+        html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <button type="button" class="page-link" data-page="${currentPage - 1}" aria-label="Précédent" ${currentPage === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </li>`;
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (startPage > 1) {
+            html += `<li class="page-item"><button type="button" class="page-link" data-page="1">1</button></li>`;
+            if (startPage > 2) {
+                html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
+            }
+        }
+
+        for (let p = startPage; p <= endPage; p++) {
+            html += `<li class="page-item ${p === currentPage ? 'active' : ''}">
+                <button type="button" class="page-link" data-page="${p}">${p}</button>
+            </li>`;
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
+            }
+            html += `<li class="page-item"><button type="button" class="page-link" data-page="${totalPages}">${totalPages}</button></li>`;
+        }
+
+        // Bouton Suivant
+        html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <button type="button" class="page-link" data-page="${currentPage + 1}" aria-label="Suivant" ${currentPage === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </li>`;
+
+        paginationList.innerHTML = html;
+
+        // Clics de pagination
+        paginationList.querySelectorAll('button.page-link').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const targetPage = parseInt(this.dataset.page, 10);
+                if (targetPage && targetPage !== currentPage && targetPage >= 1 && targetPage <= totalPages) {
+                    currentPage = targetPage;
+                    render();
+                    const targetEl = document.querySelector('.course-toolbar-card');
+                    if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    }
+
+    // Gestion du bouton Tout Déplier / Tout Replier
+    if (btnToggleAll) {
+        btnToggleAll.addEventListener('click', function() {
+            allExpanded = !allExpanded;
+            const collapses = document.querySelectorAll('.student-note-content');
+            const headers = document.querySelectorAll('.student-note-header');
+
+            collapses.forEach(el => {
+                const bsCollapse = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
+                if (allExpanded) {
+                    bsCollapse.show();
+                } else {
+                    bsCollapse.hide();
+                }
+            });
+
+            headers.forEach(h => {
+                h.setAttribute('aria-expanded', allExpanded ? 'true' : 'false');
+            });
+
+            if (textToggleAll) textToggleAll.textContent = allExpanded ? 'Tout replier' : 'Tout déplier';
+            if (iconToggleAll) iconToggleAll.className = allExpanded ? 'fas fa-chevron-up me-1' : 'fas fa-chevron-down me-1';
+        });
+    }
+
+    // Synchronisation de l'aria-expanded sur les headers lors de collapse individuel
+    document.querySelectorAll('.student-note-content').forEach(collapseEl => {
+        collapseEl.addEventListener('show.bs.collapse', function() {
+            const card = this.closest('.student-note-card');
+            if (card) {
+                const header = card.querySelector('.student-note-header');
+                if (header) header.setAttribute('aria-expanded', 'true');
             }
         });
-        pagination.appendChild(nextLi);
-        
-        // Mise à jour des informations de pagination
-        const debutLignes = document.getElementById('debutLignes');
-        const finLignes = document.getElementById('finLignes');
-        const totalLignes = document.getElementById('totalLignes');
-        
-        const debut = (pageCourante - 1) * lignesParPage + 1;
-        const fin = Math.min(pageCourante * lignesParPage, lignesFiltrees.length);
-        
-        debutLignes.textContent = lignesFiltrees.length === 0 ? '0' : debut;
-        finLignes.textContent = fin;
-        totalLignes.textContent = lignesFiltrees.length;
-    }
-
-    function afficherLignesPage() {
-        const tbody = document.querySelector('#tableauNotes tbody');
-        tbody.innerHTML = '';
-        
-        const debut = (pageCourante - 1) * lignesParPage;
-        const fin = debut + lignesParPage;
-        const lignesPage = lignesFiltrees.slice(debut, fin);
-        
-        lignesPage.forEach(ligne => tbody.appendChild(ligne));
-    }
-
-    function trierEtAfficher() {
-        trierTableau(colonneTri, ordreTri);
-        afficherLignesPage();
-        mettreAJourPagination();
-    }
-
-    // Initialisation
-    trierEtAfficher();
-    mettreAJourIconesTri();
-
-    // Validation Bootstrap
-    var forms = document.querySelectorAll('.needs-validation');
-    Array.prototype.slice.call(forms).forEach(form => {
-        form.addEventListener('submit', function(event) {
-            if (!form.checkValidity()) {
-                event.preventDefault();
-                event.stopPropagation();
+        collapseEl.addEventListener('hide.bs.collapse', function() {
+            const card = this.closest('.student-note-card');
+            if (card) {
+                const header = card.querySelector('.student-note-header');
+                if (header) header.setAttribute('aria-expanded', 'false');
             }
-            form.classList.add('was-validated');
-        }, false);
+        });
     });
+
+    // Réinitialisation des filtres
+    function resetFilters() {
+        if (searchInput) searchInput.value = '';
+        if (filterClasse) filterClasse.value = '';
+        if (filterCours) filterCours.value = '';
+        if (sortSelect) sortSelect.value = 'nom-asc';
+        currentPage = 1;
+        render();
+    }
+
+    // Événements de recherche et filtres
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (searchClear) {
+        searchClear.addEventListener('click', function() {
+            if (searchInput) searchInput.value = '';
+            currentPage = 1;
+            render();
+            if (searchInput) searchInput.focus();
+        });
+    }
+
+    if (filterClasse) filterClasse.addEventListener('change', () => { currentPage = 1; render(); });
+    if (filterCours) filterCours.addEventListener('change', () => { currentPage = 1; render(); });
+    if (sortSelect) sortSelect.addEventListener('change', () => { currentPage = 1; render(); });
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function() {
+            pageSize = parseInt(this.value, 10) || 20;
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (btnReset) btnReset.addEventListener('click', resetFilters);
+    if (btnResetEmpty) btnResetEmpty.addEventListener('click', resetFilters);
+
+    // Rendu initial
+    render();
 });
 </script>
-
-<style>
-.avatar-sm {
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-.badge {
-    padding: 0.5em 0.75em;
-}
-
-.sortable {
-    cursor: pointer;
-    user-select: none;
-}
-
-.sortable:hover {
-    background-color: rgba(0,0,0,0.03);
-}
-
-.table-responsive {
-    max-height: 600px;
-    overflow-y: auto;
-}
-
-@media (max-width: 768px) {
-    .card-header h4, .card-header h5 {
-        font-size: 1.1rem;
-    }
-    
-    .btn-group .btn {
-        padding: 0.25rem 0.5rem;
-    }
-    
-    .table-responsive {
-        font-size: 0.875rem;
-    }
-    
-    .badge {
-        font-size: 0.75rem !important;
-    }
-}
-
-/* Animation pour les lignes du tableau */
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-#tableauNotes tbody tr {
-    animation: fadeIn 0.3s ease-out;
-}
-</style>
 {% endblock %}

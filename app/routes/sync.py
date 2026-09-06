@@ -1,4 +1,4 @@
-﻿from . import main
+from . import main
 from .common import (
     Absence,
     AnneeScolaire,
@@ -41,7 +41,7 @@ def _can_sync_school_item(eleve, cours):
         return False
     if current_user.role == 'admin':
         return True
-    if current_user.role in ('enseignant', 'professeur'):
+    if current_user.role == 'professeur':
         professeur = getattr(current_user, 'professeur_rel', None)
         if not professeur:
             return False
@@ -51,13 +51,13 @@ def _can_sync_school_item(eleve, cours):
 
 @main.route("/sync-hors-ligne")
 @login_required
-@role_required('admin', 'enseignant', 'professeur')
+@role_required('admin', 'professeur')
 def sync_hors_ligne():
     return render_template("sync_hors_ligne.html")
 
 @main.route('/api/sync', methods=['POST'])
 @login_required
-@role_required('admin', 'enseignant', 'professeur')
+@role_required('admin', 'professeur')
 def api_sync():
     """API pour synchroniser les donnÃ©es hors ligne"""
     try:
@@ -332,89 +332,14 @@ def offline_page():
             });
         </script>
     </body>
+
     </html>
+
     """
+
     return render_template_string(offline_html)
 
-@main.route("/inscriptions")
-@login_required
-@role_required('admin')
-def voir_inscriptions():
-    classe_filtre = request.args.get("classe")
-    annee_filtre = request.args.get("annee")
 
-    inscriptions_query = Inscription.query.options(
-        joinedload(Inscription.eleve).joinedload(Eleve.parent),
-        joinedload(Inscription.classe),
-        joinedload(Inscription.eleve).joinedload(Eleve.notes).joinedload(Note.cours),
-        joinedload(Inscription.annee_scolaire)
-    ).join(Eleve).filter(Eleve.ecole_id == current_user.ecole_id)
-
-    if classe_filtre:
-        inscriptions_query = inscriptions_query.join(Classe).filter(Classe.nom == classe_filtre)
-
-    if annee_filtre:
-        inscriptions_query = inscriptions_query.join(AnneeScolaire).filter(AnneeScolaire.nom == annee_filtre)
-
-    inscriptions_raw = inscriptions_query.all()
-
-    classes_dict = {}
-    classes_set = set()
-    annees_set = set()
-
-    for ins in inscriptions_raw:
-        eleve = ins.eleve
-        classe = ins.classe
-
-        if not eleve or not classe:
-            continue
-
-        classes_set.add(classe.nom)
-
-        if ins.annee_scolaire:
-            annees_set.add(ins.annee_scolaire)
-
-        # Calcul de la premiÃ¨re annÃ©e de l'Ã©lÃ¨ve dans l'Ã©cole
-        if eleve.inscriptions:
-            premiere_inscription = min(
-                [i for i in eleve.inscriptions if i.annee_scolaire],
-                key=lambda i: i.annee_scolaire.date_debut,
-                default=None
-            )
-            annee_premiere_ecole = premiere_inscription.annee_scolaire.nom if premiere_inscription else "N/A"
-        else:
-            annee_premiere_ecole = "N/A"
-
-        ins_data = {
-            "id": ins.id,
-            "eleve_prenom": eleve.prenom,
-            "eleve_nom": eleve.nom,
-            "classe_nom": classe.nom,
-            "annee_scolaire": ins.annee_scolaire.nom if ins.annee_scolaire else "N/A",
-            "parent_nom": eleve.parent.nom if eleve.parent else "N/A",
-            "annee_premiere_ecole": annee_premiere_ecole,
-            "notes": [
-                {
-                    "cours_nom": note.cours.nom if note.cours else "N/A",
-                    "valeur": note.valeur,
-                    "periode": note.periode
-                } for note in eleve.notes
-            ] if eleve.notes else []
-        }
-
-        classes_dict.setdefault(classe.nom, []).append(ins_data)
-
-    classes = sorted(classes_set)
-    annees = sorted(annees_set, key=lambda a: a.date_debut)
-
-    return render_template(
-        "inscriptions.html",
-        classes_dict=classes_dict,
-        classes=classes,
-        annees=annees,
-        classe_filtre=classe_filtre,
-        annee_filtre=annee_filtre
-    )
 
 @main.route("/recherche_json")
 @login_required

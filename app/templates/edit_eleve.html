@@ -55,18 +55,26 @@
                                 </div>
 
                                 <div class="col-md-6">
+                                    <label for="genre" class="form-label">Genre / Sexe <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="genre" name="genre" required>
+                                        <option value="M" {% if eleve.genre == 'M' or not eleve.genre %}selected{% endif %}>Garçon (Masculin)</option>
+                                        <option value="F" {% if eleve.genre == 'F' %}selected{% endif %}>Fille (Féminin)</option>
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6">
                                     <label for="date_naissance" class="form-label">Date de naissance</label>
                                     <input type="date" class="form-control" id="date_naissance" name="date_naissance" value="{{ eleve.date_naissance }}">
                                 </div>
 
                                 <div class="col-md-6">
-                                    <label for="classe_id" class="form-label">Classe d'affectation</label>
-                                    <select class="form-select" id="classe_id" name="classe_id">
-                                        <option value="">-- Choisir une classe --</option>
+                                    <label for="classe_id" class="form-label">Classe d'affectation <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="classe_id" name="classe_id" required>
                                         {% for classe in classes %}
                                             <option value="{{ classe.id }}" {% if eleve.classe_id == classe.id %}selected{% endif %}>{{ classe.nom }}</option>
                                         {% endfor %}
                                     </select>
+                                    <div class="invalid-feedback">La classe est obligatoire. Un élève doit toujours être inscrit dans une classe.</div>
                                 </div>
                             </div>
                         </div>

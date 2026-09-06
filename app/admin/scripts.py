@@ -109,7 +109,7 @@ def create_missing_tables():
 # --- Script de déploiement ---
 def create_deploy_script():
     script_content = """#!/bin/bash
-# Script de déploiement pour EduManage
+# Script de déploiement pour KLASORA
 echo "Début du déploiement à $(date)"
 
 # Mise à jour du code

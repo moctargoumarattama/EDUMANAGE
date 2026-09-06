@@ -1,14 +1,22 @@
 {% extends "base.html" %}
 
-{% block title %}Tableau de bord - EduManage{% endblock %}
+{% block title %}Tableau de bord - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container py-4 home-page">
+<div class="home-page">
     <section class="home-hero">
-        <div>
-            <span class="section-kicker"><i class="fas fa-graduation-cap me-2"></i>EduManage</span>
-            <h1>Bienvenue sur EduManage</h1>
-            <p>Votre espace de gestion scolaire.</p>
+        <div class="home-hero-content">
+            <span class="home-hero-kicker"><i class="fas fa-graduation-cap me-1"></i>KLASORA Workspace</span>
+            <h1>Bienvenue sur KLASORA</h1>
+            <p>Votre espace de gestion scolaire centralisé et intelligent.</p>
+        </div>
+        <div class="home-hero-meta d-none d-lg-flex">
+            <span class="hero-chip">
+                <i class="fas fa-school text-info me-1"></i>{% if ecole_courante %}{{ ecole_courante.nom }}{% elif current_user.is_authenticated and current_user.ecole %}{{ current_user.ecole.nom }}{% elif session.get('ecole_courante') %}{{ session.ecole_courante.nom }}{% elif session.get('ecole_nom') %}{{ session.ecole_nom }}{% elif current_user.is_authenticated and current_user.ecoles_gerees and current_user.ecoles_gerees.first() %}{{ current_user.ecoles_gerees.first().nom }}{% else %}KLASORA{% endif %}
+            </span>
+            <span class="hero-chip live">
+                <span class="live-dot"></span>En ligne
+            </span>
         </div>
     </section>
 
@@ -17,27 +25,35 @@
         <div class="home-stat-grid">
             <a href="{{ url_for('main.eleves') }}" class="home-stat-card">
                 <span class="home-stat-icon students"><i class="fas fa-users"></i></span>
-                <strong>{{ stats.total_eleves }}</strong>
-                <small>Élèves inscrits</small>
-                <i class="fas fa-arrow-right"></i>
+                <div class="home-stat-info">
+                    <strong>{{ stats.total_eleves }}</strong>
+                    <small>Élèves inscrits</small>
+                </div>
+                <i class="fas fa-arrow-right home-card-arrow"></i>
             </a>
             <a href="{{ url_for('main.professeurs') }}" class="home-stat-card">
                 <span class="home-stat-icon teachers"><i class="fas fa-chalkboard-teacher"></i></span>
-                <strong>{{ stats.total_professeurs }}</strong>
-                <small>Professeurs actifs</small>
-                <i class="fas fa-arrow-right"></i>
+                <div class="home-stat-info">
+                    <strong>{{ stats.total_professeurs }}</strong>
+                    <small>Professeurs actifs</small>
+                </div>
+                <i class="fas fa-arrow-right home-card-arrow"></i>
             </a>
             <a href="{{ url_for('main.cours') }}" class="home-stat-card">
                 <span class="home-stat-icon courses"><i class="fas fa-book"></i></span>
-                <strong>{{ stats.total_cours }}</strong>
-                <small>Cours enseignés</small>
-                <i class="fas fa-arrow-right"></i>
+                <div class="home-stat-info">
+                    <strong>{{ stats.total_cours }}</strong>
+                    <small>Cours enseignés</small>
+                </div>
+                <i class="fas fa-arrow-right home-card-arrow"></i>
             </a>
             <a href="{{ url_for('main.paiements') }}" class="home-stat-card">
                 <span class="home-stat-icon payments"><i class="fas fa-money-bill-wave"></i></span>
-                <strong>{{ stats.paiements_attente }}</strong>
-                <small>Paiements en attente</small>
-                <i class="fas fa-arrow-right"></i>
+                <div class="home-stat-info">
+                    <strong>{{ stats.paiements_attente }}</strong>
+                    <small>Paiements en attente</small>
+                </div>
+                <i class="fas fa-arrow-right home-card-arrow"></i>
             </a>
         </div>
     </section>
@@ -45,61 +61,92 @@
 
     {% if current_user.role == 'admin' %}
     <section class="home-section">
-        <div class="section-header">
-            <h2 class="section-title">Administration</h2>
+        <div class="home-section-header">
+            <div class="d-flex align-items-center gap-2">
+                <span class="section-title-icon"><i class="fas fa-th-large"></i></span>
+                <h2 class="home-section-title">Administration</h2>
+            </div>
+            <span class="section-badge d-none d-lg-inline-flex"><i class="fas fa-layer-group me-1"></i>8 modules</span>
         </div>
         <div class="home-action-grid">
             <a href="{{ url_for('main.gestion_periodes') }}" class="home-action-card">
-                <span class="home-action-icon"><i class="fas fa-calendar-alt"></i></span>
-                <strong>Périodes</strong>
-                <small>Publier les bulletins</small>
+                <span class="home-action-icon periods"><i class="fas fa-calendar-alt"></i></span>
+                <div class="home-action-info">
+                    <strong>Périodes</strong>
+                    <small>Publier les bulletins</small>
+                </div>
+                <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
             <a href="{{ url_for('main.gestion_annees') }}" class="home-action-card">
                 <span class="home-action-icon success"><i class="fas fa-calendar-check"></i></span>
-                <strong>Années scolaires</strong>
-                <small>Gérer l'année active</small>
+                <div class="home-action-info">
+                    <strong>Années scolaires</strong>
+                    <small>Gérer l'année active</small>
+                </div>
+                <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
             <a href="{{ url_for('main.ajouter_emploi') }}" class="home-action-card">
-                <span class="home-action-icon"><i class="fas fa-calendar-plus"></i></span>
-                <strong>Emploi du temps</strong>
-                <small>Ajouter un créneau</small>
+                <span class="home-action-icon schedule"><i class="fas fa-calendar-plus"></i></span>
+                <div class="home-action-info">
+                    <strong>Emploi du temps</strong>
+                    <small>Ajouter un créneau</small>
+                </div>
+                <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
-            <a href="{{ url_for('main.statistiques_avancees') }}" class="home-action-card">
-                <span class="home-action-icon info"><i class="fas fa-chart-pie"></i></span>
-                <strong>Statistiques</strong>
-                <small>Voir les indicateurs</small>
+            <a href="{{ url_for('main.rapports') }}" class="home-action-card">
+                <span class="home-action-icon reports"><i class="fas fa-chart-pie"></i></span>
+                <div class="home-action-info">
+                    <strong>Rapports & Stats</strong>
+                    <small>Voir les indicateurs</small>
+                </div>
+                <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
             <a href="{{ url_for('main.qrcodes_etudiants') }}" class="home-action-card">
                 <span class="home-action-icon dark"><i class="fas fa-qrcode"></i></span>
-                <strong>QR Codes</strong>
-                <small>Badges élèves</small>
+                <div class="home-action-info">
+                    <strong>QR Codes</strong>
+                    <small>Badges élèves</small>
+                </div>
+                <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
             <a href="{{ url_for('main.liste_classes') }}" class="home-action-card">
-                <span class="home-action-icon"><i class="fas fa-list-alt"></i></span>
-                <strong>Classes</strong>
-                <small>Liste des classes</small>
+                <span class="home-action-icon classes"><i class="fas fa-list-alt"></i></span>
+                <div class="home-action-info">
+                    <strong>Classes</strong>
+                    <small>Liste des classes</small>
+                </div>
+                <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
             <a href="{{ url_for('main.ajouter_classe') }}" class="home-action-card">
-                <span class="home-action-icon success"><i class="fas fa-plus-circle"></i></span>
-                <strong>Nouvelle classe</strong>
-                <small>Créer une classe</small>
+                <span class="home-action-icon new-class"><i class="fas fa-plus-circle"></i></span>
+                <div class="home-action-info">
+                    <strong>Nouvelle classe</strong>
+                    <small>Créer une classe</small>
+                </div>
+                <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
             <a href="{{ url_for('main.sync_hors_ligne') }}" class="home-action-card">
                 <span class="home-action-icon warning"><i class="fas fa-sync-alt"></i></span>
-                <strong>Synchronisation</strong>
-                <small>Données hors-ligne</small>
+                <div class="home-action-info">
+                    <strong>Synchronisation</strong>
+                    <small>Données hors-ligne</small>
+                </div>
+                <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
         </div>
     </section>
     {% endif %}
 
-    {% if current_user.role == 'enseignant' %}
+    {% if current_user.role == 'professeur' %}
     <section class="home-section">
         <div class="home-action-grid">
             <a href="{{ url_for('main.liste_classes') }}" class="home-action-card">
-                <span class="home-action-icon"><i class="fas fa-list-alt"></i></span>
-                <strong>Classes</strong>
-                <small>Liste des classes</small>
+                <span class="home-action-icon classes"><i class="fas fa-list-alt"></i></span>
+                <div class="home-action-info">
+                    <strong>Classes</strong>
+                    <small>Liste des classes</small>
+                </div>
+                <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
         </div>
     </section>

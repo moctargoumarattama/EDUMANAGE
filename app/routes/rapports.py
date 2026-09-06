@@ -38,7 +38,7 @@ CACHE_DURATION = 60
 
 @main.route('/api/stats/notes_moyennes')
 @login_required
-@role_required('admin', 'enseignant')
+@role_required('admin', 'professeur')
 def api_stats_notes_moyennes():
     """Retourne les moyennes de notes par matière avec cache sécurisé."""
     user_id = current_user.id
@@ -49,7 +49,7 @@ def api_stats_notes_moyennes():
         return jsonify(cached)
 
     # Filtrage par école
-    if current_user.role == 'enseignant':
+    if current_user.role == 'professeur':
         professeur_id = getattr(getattr(current_user, 'professeur_rel', None), 'id', None)
         cours_ids = [c.id for c in filtre_par_ecole(
             Cours.query.filter_by(professeur_id=professeur_id), Cours
@@ -206,7 +206,7 @@ def profile():
     if current_user.role == 'admin':
         professeurs = Utilisateur.query.filter(
             Utilisateur.ecole_id == current_user.ecole_id,
-            Utilisateur.role == 'enseignant'
+            Utilisateur.role == 'professeur'
         ).limit(100).all()
 
         parents = Utilisateur.query.filter(
@@ -227,7 +227,7 @@ def profile():
     if current_user.role == 'super_admin':
         statistiques = {
             "total_eleves": Eleve.query.count(),
-            "total_professeurs": Utilisateur.query.filter_by(role='enseignant').count(),
+            "total_professeurs": Utilisateur.query.filter_by(role='professeur').count(),
             "total_classes": Classe.query.count(),
             "total_ecoles": Ecole.query.count(),
             "taux_occupation": 75
@@ -329,26 +329,174 @@ def rapport_absences_par_classe():
 @login_required
 @role_required('admin')
 def rapports():
-    # Classes filtrées selon rôle
-    classes_query = Classe.query.filter(Classe.ecole_id == current_user.ecole_id)
-    classes = classes_query.all()
+    ecole_id = current_user.ecole_id
 
-    # Statistiques globales
-    total_eleves = Eleve.query.filter(Eleve.ecole_id == current_user.ecole_id).count()
-    total_professeurs = Utilisateur.query.filter_by(role='enseignant', ecole_id=current_user.ecole_id).count()
-    total_classes = len(classes)
-    capacite_totale = sum(c.capacite_max for c in classes) if classes else 1
+    # 1. Classes filtrées selon école avec chargement optimisé
+    classes = (
+        Classe.query.filter_by(ecole_id=ecole_id)
+        .options(
+            db.joinedload(Classe.eleves).joinedload(Eleve.absences),
+            db.joinedload(Classe.eleves).joinedload(Eleve.notes)
+        )
+        .order_by(Classe.nom.asc())
+        .all()
+    )
 
-    taux_occupation = round((total_eleves / capacite_totale) * 100, 2) if capacite_totale > 0 else 0
+    classes_data = []
+    total_absences_ecole = 0
+    total_absences_justifiees_ecole = 0
+    total_absences_non_justifiees_ecole = 0
+    all_notes_ecole = []
+    total_eleves_ecole = 0
+
+    for c in classes:
+        eleves = c.eleves or []
+        effectif = len(eleves)
+        total_eleves_ecole += effectif
+
+        garcons = sum(1 for e in eleves if (e.genre or '').upper() != 'F')
+        filles = sum(1 for e in eleves if (e.genre or '').upper() == 'F')
+
+        # Absences de la classe
+        total_absences_classe = 0
+        justifiees_classe = 0
+        non_justifiees_classe = 0
+        eleves_stats = []
+
+        for e in eleves:
+            nb_abs = len(e.absences)
+            nb_just = sum(1 for a in e.absences if a.justifiee)
+            nb_non_just = nb_abs - nb_just
+            total_absences_classe += nb_abs
+            justifiees_classe += nb_just
+            non_justifiees_classe += nb_non_just
+
+            moy_eleve = e.moyenne_generale()
+            if e.notes:
+                all_notes_ecole.extend(e.notes)
+
+            eleves_stats.append({
+                'eleve': e,
+                'id': e.id,
+                'nom': e.nom,
+                'prenom': e.prenom,
+                'genre': e.genre or 'M',
+                'nb_absences': nb_abs,
+                'nb_justifiees': nb_just,
+                'nb_non_justifiees': nb_non_just,
+                'moyenne': moy_eleve
+            })
+
+        total_absences_ecole += total_absences_classe
+        total_absences_justifiees_ecole += justifiees_classe
+        total_absences_non_justifiees_ecole += non_justifiees_classe
+
+        # Notes et moyenne de la classe
+        notes_classe = [n for e in eleves for n in e.notes]
+        if notes_classe:
+            total_pondere = sum(n.valeur * (n.coefficient or 1.0) for n in notes_classe)
+            total_coeffs = sum(n.coefficient or 1.0 for n in notes_classe)
+            moyenne_classe = round(total_pondere / total_coeffs, 2) if total_coeffs > 0 else 0.0
+        else:
+            moyenne_classe = None
+
+        # Taux d'absentéisme moyen par élève
+        taux_absenteisme = round(total_absences_classe / effectif, 1) if effectif > 0 else 0.0
+
+        # Top absents de la classe (triés par nb_absences décroissant)
+        eleves_avec_absences = [s for s in eleves_stats if s['nb_absences'] > 0]
+        top_absents = sorted(eleves_avec_absences, key=lambda x: x['nb_absences'], reverse=True)[:5]
+
+        # Meilleur élève de la classe
+        eleves_avec_notes = [s for s in eleves_stats if s['moyenne'] is not None]
+        meilleur_eleve = max(eleves_avec_notes, key=lambda x: x['moyenne']) if eleves_avec_notes else None
+
+        classes_data.append({
+            'id': c.id,
+            'classe': c,
+            'nom': c.nom,
+            'niveau': getattr(c, 'niveau', '') or '',
+            'salle': getattr(c, 'salle', '') or '',
+            'effectif': effectif,
+            'capacite': getattr(c, 'capacite_max', 30) or 30,
+            'garcons': garcons,
+            'filles': filles,
+            'total_absences': total_absences_classe,
+            'justifiees': justifiees_classe,
+            'non_justifiees': non_justifiees_classe,
+            'taux_absenteisme': taux_absenteisme,
+            'moyenne': moyenne_classe,
+            'top_absents': top_absents,
+            'meilleur_eleve': meilleur_eleve,
+            'is_most_absent': False
+        })
+
+    # Détection de la classe la plus touchée par les absences
+    classes_avec_absences = [cd for cd in classes_data if cd['total_absences'] > 0]
+    if classes_avec_absences:
+        classe_plus_absente = max(classes_avec_absences, key=lambda x: (x['total_absences'], x['taux_absenteisme']))
+        classe_plus_absente['is_most_absent'] = True
+    else:
+        classe_plus_absente = None
+
+    # Classe la plus assidue (le moins d'absences parmi les classes avec élèves)
+    classes_avec_eleves = [cd for cd in classes_data if cd['effectif'] > 0]
+    if classes_avec_eleves:
+        classe_plus_assidue = min(classes_avec_eleves, key=lambda x: (x['total_absences'], x['taux_absenteisme']))
+    elif classes_data:
+        classe_plus_assidue = min(classes_data, key=lambda x: x['total_absences'])
+    else:
+        classe_plus_assidue = None
+
+    # Classe avec la meilleure moyenne
+    classes_avec_moyenne = [cd for cd in classes_data if cd['moyenne'] is not None]
+    if classes_avec_moyenne:
+        classe_meilleure_moyenne = max(classes_avec_moyenne, key=lambda x: x['moyenne'])
+    else:
+        classe_meilleure_moyenne = None
+
+    # Moyenne globale de l'école
+    if all_notes_ecole:
+        total_pond_ecole = sum(n.valeur * (n.coefficient or 1.0) for n in all_notes_ecole)
+        total_coeff_ecole = sum(n.coefficient or 1.0 for n in all_notes_ecole)
+        moyenne_generale_ecole = round(total_pond_ecole / total_coeff_ecole, 2) if total_coeff_ecole > 0 else 0.0
+    else:
+        moyenne_generale_ecole = None
+
+    total_professeurs = Utilisateur.query.filter_by(role='professeur', ecole_id=ecole_id).count()
 
     statistiques = {
-        'total_eleves': total_eleves,
+        'total_eleves': total_eleves_ecole,
         'total_professeurs': total_professeurs,
-        'total_classes': total_classes,
-        'taux_occupation': taux_occupation
+        'total_classes': len(classes),
+        'total_absences': total_absences_ecole,
+        'absences_justifiees': total_absences_justifiees_ecole,
+        'absences_non_justifiees': total_absences_non_justifiees_ecole,
+        'moyenne_generale': moyenne_generale_ecole,
+        'taux_justification': round((total_absences_justifiees_ecole / total_absences_ecole) * 100, 1) if total_absences_ecole > 0 else 100.0
     }
 
-    return render_template('rapports.html', classes=classes, role=current_user.role, statistiques=statistiques)
+    # Données structurées pour Chart.js
+    chart_data = {
+        'labels': [cd['nom'] for cd in classes_data],
+        'absences': [cd['total_absences'] for cd in classes_data],
+        'justifiees': [cd['justifiees'] for cd in classes_data],
+        'non_justifiees': [cd['non_justifiees'] for cd in classes_data],
+        'moyennes': [cd['moyenne'] if cd['moyenne'] is not None else 0 for cd in classes_data],
+        'is_max_absence': [cd['is_most_absent'] for cd in classes_data]
+    }
+
+    return render_template(
+        'rapports.html',
+        classes=classes,
+        classes_data=classes_data,
+        classe_plus_absente=classe_plus_absente,
+        classe_plus_assidue=classe_plus_assidue,
+        classe_meilleure_moyenne=classe_meilleure_moyenne,
+        statistiques=statistiques,
+        chart_data=chart_data,
+        role=current_user.role
+    )
 
 @main.route('/notifications')
 @login_required
@@ -443,7 +591,7 @@ def recherche():
         return render_template('recherche.html', results=None)
 
     ecole_id = None
-    if current_user.role in ['admin', 'enseignant', 'professeur', 'parent']:
+    if current_user.role in ['admin', 'professeur', 'parent']:
         ecole_id = current_user.ecole_id
 
     queries = []
@@ -465,7 +613,7 @@ def recherche():
         if ecole_id:
             eleve_query = eleve_query.filter(Classe.ecole_id == ecole_id)
 
-        if current_user.role in ('enseignant', 'professeur'):
+        if current_user.role == 'professeur':
             professeur = Professeur.query.filter_by(utilisateur_id=current_user.id).first()
             if professeur:
                 classe_ids = [c.id for c in professeur.classes_assignees.all()]
@@ -497,7 +645,7 @@ def recherche():
         queries.append(prof_query)
 
     # ---------- COURS ----------
-    if type_recherche in ['all', 'cours'] and current_user.role in ('admin', 'enseignant', 'professeur'):
+    if type_recherche in ['all', 'cours'] and current_user.role in ('admin', 'professeur'):
         cours_query = db.session.query(
             Cours.id.label('id'),
             Cours.nom.label('nom'),
@@ -509,7 +657,7 @@ def recherche():
         if ecole_id:
             cours_query = cours_query.filter(Cours.ecole_id == ecole_id)
 
-        if current_user.role in ('enseignant', 'professeur'):
+        if current_user.role == 'professeur':
             professeur = Professeur.query.filter_by(utilisateur_id=current_user.id).first()
             if professeur:
                 cours_query = cours_query.filter(Cours.professeur_id == professeur.id)

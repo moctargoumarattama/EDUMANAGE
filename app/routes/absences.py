@@ -1,6 +1,9 @@
 from . import main
 from .common import (
+    abort,
     Absence,
+    can_manage_absence,
+    can_manage_cours,
     AbsenceForm,
     can_access_absence,
     can_access_cours,
@@ -33,7 +36,7 @@ import pandas as pd
 
 @main.route('/absences', methods=['GET', 'POST'])
 @login_required
-@role_required('admin', 'enseignant', 'parent')
+@role_required('admin', 'professeur', 'parent')
 def absences():
     form = AbsenceForm()
     page = request.args.get('page', 1, type=int)
@@ -53,7 +56,7 @@ def absences():
             for e in enfants
         ]
         form.eleve_id.render_kw = {'disabled': True} if len(enfants) == 1 else {}
-    elif current_user.role in ('enseignant', 'professeur'):
+    elif current_user.role == 'professeur':
         professeur = getattr(current_user, 'professeur_rel', None)
         classe_ids = [c.id for c in professeur.classes_assignees.all()] if professeur else []
         enfants = (
@@ -80,7 +83,7 @@ def absences():
 
     # --- Choix des cours ---
     cours_query = filtre_par_ecole(Cours.query.order_by(Cours.nom), Cours)
-    if current_user.role in ('enseignant', 'professeur'):
+    if current_user.role == 'professeur':
         professeur = getattr(current_user, 'professeur_rel', None)
         cours_query = cours_query.filter(Cours.professeur_id == professeur.id) if professeur else cours_query.filter(False)
     cours_list = to_list(cours_query)
@@ -95,7 +98,7 @@ def absences():
         try:
             eleve = filtre_par_ecole(Eleve.query.filter_by(id=form.eleve_id.data), Eleve).first()
             cours = filtre_par_ecole(Cours.query.filter_by(id=form.cours_id.data), Cours).first()
-            if not can_access_eleve(eleve) or (cours and not can_access_cours(cours)):
+            if not can_access_eleve(eleve) or (cours and not can_manage_cours(cours)):
                 flash("AccÃ¨s non autorisÃ© pour cet Ã©lÃ¨ve ou ce cours.", "danger")
                 return redirect(url_for('main.absences'))
 
@@ -141,7 +144,7 @@ L'équipe pédagogique"""
             Absence.query.filter(Absence.eleve_id.in_(enfants_ids))
                          .options(selectinload(Absence.eleve).selectinload(Eleve.classe)), Absence
         )
-    elif current_user.role in ('enseignant', 'professeur'):
+    elif current_user.role == 'professeur':
         eleve_ids = [e.id for e in enfants]
         absences_query = filtre_par_ecole(
             Absence.query.filter(Absence.eleve_id.in_(eleve_ids))
@@ -165,7 +168,7 @@ L'équipe pédagogique"""
     # --- Statistiques ---
     absences_justifiees = sum(1 for a in absences_list if a.justifiee)
     absences_non_justifiees = total - absences_justifiees
-    show_form = current_user.role in ['admin', 'enseignant', 'professeur']
+    show_form = current_user.role in ['admin', 'professeur']
 
     return render_template(
         'absences.html',
@@ -210,11 +213,11 @@ def export_absences_excel():
 
 @main.route('/absences/edit/<int:absence_id>', methods=['GET', 'POST'])
 @login_required
+@role_required('admin', 'professeur')
 def edit_absence(absence_id):
     absence = Absence.query.get_or_404(absence_id)
-    if not can_access_absence(absence) or current_user.role == 'parent':
-        flash("AccÃ¨s non autorisÃ© Ã  cette absence.", "danger")
-        return redirect(url_for('main.absences'))
+    if not can_manage_absence(absence) or current_user.role == 'parent':
+        abort(403)
     form = AbsenceForm(obj=absence)
     
     # Remplir les choix des élèves
@@ -225,7 +228,7 @@ def edit_absence(absence_id):
             for e in enfants
         ]
         form.eleve_id.render_kw = {'disabled': True} if len(enfants) == 1 else {}
-    elif current_user.role in ('enseignant', 'professeur'):
+    elif current_user.role == 'professeur':
         professeur = getattr(current_user, 'professeur_rel', None)
         classe_ids = [c.id for c in professeur.classes_assignees.all()] if professeur else []
         eleves = filtre_par_ecole(Eleve.query.join(Classe, isouter=True), Eleve).filter(Eleve.classe_id.in_(classe_ids)).order_by(Classe.nom, Eleve.nom).all() if classe_ids else []
@@ -242,7 +245,7 @@ def edit_absence(absence_id):
     
     # Remplir les choix des cours
     cours_query = filtre_par_ecole(Cours.query.order_by(Cours.nom), Cours)
-    if current_user.role in ('enseignant', 'professeur'):
+    if current_user.role == 'professeur':
         professeur = getattr(current_user, 'professeur_rel', None)
         cours_query = cours_query.filter(Cours.professeur_id == professeur.id) if professeur else cours_query.filter(False)
     form.cours_id.choices = [(c.id, c.nom) for c in cours_query.all()]
@@ -254,9 +257,8 @@ def edit_absence(absence_id):
     if form.validate_on_submit():
         eleve = filtre_par_ecole(Eleve.query.filter_by(id=form.eleve_id.data), Eleve).first()
         cours = filtre_par_ecole(Cours.query.filter_by(id=form.cours_id.data), Cours).first()
-        if not can_access_eleve(eleve) or (cours and not can_access_cours(cours)):
-            flash("AccÃ¨s non autorisÃ© pour cet Ã©lÃ¨ve ou ce cours.", "danger")
-            return redirect(url_for('main.absences'))
+        if not can_access_eleve(eleve) or (cours and not can_manage_cours(cours)):
+            abort(403)
         absence.eleve_id = form.eleve_id.data
         absence.cours_id = form.cours_id.data
         absence.date_absence = form.date_absence.data
@@ -271,12 +273,12 @@ def edit_absence(absence_id):
 
 @main.route('/absences/delete/<int:absence_id>', methods=['POST'])
 @login_required
+@role_required('admin', 'professeur')
 def delete_absence(absence_id):
+    absence = Absence.query.get_or_404(absence_id)
+    if not can_manage_absence(absence) or current_user.role == 'parent':
+        abort(403)
     try:
-        absence = Absence.query.get_or_404(absence_id)
-        if not can_access_absence(absence) or current_user.role == 'parent':
-            flash("AccÃ¨s non autorisÃ© Ã  cette absence.", "danger")
-            return redirect(url_for('main.absences'))
         db.session.delete(absence)
         db.session.commit()
         flash("Absence supprimée avec succès.", "success")
@@ -288,7 +290,7 @@ def delete_absence(absence_id):
 
 @main.route("/presence", methods=["GET", "POST"])
 @login_required
-@role_required("enseignant")
+@role_required("professeur")
 def presence():
 
     prof = current_user.professeur_rel

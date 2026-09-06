@@ -1,4 +1,4 @@
-﻿from . import main
+from . import main
 from .common import (
     Absence,
     AnneeScolaire,
@@ -45,27 +45,27 @@ from app.services import check_ecole_access
 
 @main.route('/eleves')
 @login_required
-@role_required('admin', 'enseignant')
+@role_required('admin', 'professeur')
 def eleves():
-    """Liste des Ã©lÃ¨ves, filtrÃ©e par Ã©cole et rÃ´le avec sÃ©curitÃ© multi-Ã©coles"""
+    """Gestion et liste des élèves organisée par classe avec recherche et filtres"""
     page = request.args.get('page', 1, type=int)
-    per_page = 50  # peut rester Ã  50 pour la pagination
+    per_page = 50
     classe_id = request.args.get('classe_id', type=int)
     search = (request.args.get('search') or '').strip()
 
-    # ---------------- Base query avec relations pour Ã©viter N+1 ----------------
+    # ---------------- Base query avec relations pour éviter N+1 ----------------
     base_query = Eleve.query.options(
-        db.selectinload(Eleve.classe),
-        db.selectinload(Eleve.parent)
+        db.joinedload(Eleve.classe),
+        db.joinedload(Eleve.parent)
     )
 
-    # ---------------- Filtrage multi-Ã©coles selon rÃ´le ----------------
+    # ---------------- Filtrage multi-écoles selon rôle ----------------
     if current_user.role == 'admin':
-        eleves_query = filtre_par_ecole(base_query, Eleve).order_by(Eleve.nom, Eleve.prenom)
+        all_eleves_query = filtre_par_ecole(base_query, Eleve).order_by(Eleve.nom.asc(), Eleve.prenom.asc())
 
-    elif current_user.role in ('enseignant', 'professeur'):
+    elif current_user.role == 'professeur':
         professeur_id = getattr(current_user.professeur_rel, 'id', None)
-        eleves_query = (
+        all_eleves_query = (
             base_query.join(Classe)
             .filter(
                 Classe.ecole_id == current_user.ecole_id,
@@ -78,26 +78,27 @@ def eleves():
                 ),
                 Eleve.ecole_id == current_user.ecole_id
             )
-            .order_by(Eleve.nom, Eleve.prenom)
+            .order_by(Eleve.nom.asc(), Eleve.prenom.asc())
         )
 
     else:
-        abort(403)  # SÃ©curitÃ© supplÃ©mentaire
+        abort(403)
 
+    # Récupération de tous les élèves accessibles
+    all_eleves = all_eleves_query.all()
+
+    # Query pour la pagination rétrocompatible
+    eleves_query = all_eleves_query
     if classe_id:
-        if not can_access_class(Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first()):
-            abort(403)
         eleves_query = eleves_query.filter(Eleve.classe_id == classe_id)
-
     if search:
         like = f"%{search}%"
         eleves_query = eleves_query.filter(db.or_(Eleve.nom.ilike(like), Eleve.prenom.ilike(like)))
-
-    # ---------------- Pagination ----------------
     eleves_pagination = eleves_query.paginate(page=page, per_page=per_page, error_out=False)
 
+    # Classes autorisées
     classes_query = Classe.query.filter_by(ecole_id=current_user.ecole_id)
-    if current_user.role in ('enseignant', 'professeur'):
+    if current_user.role == 'professeur':
         professeur_id = getattr(current_user.professeur_rel, 'id', None)
         classes_query = classes_query.filter(
             db.or_(
@@ -108,9 +109,79 @@ def eleves():
                 )
             )
         )
-    classes = classes_query.order_by(Classe.nom).all()
+    classes = classes_query.order_by(Classe.nom.asc()).all()
 
-    return render_template('eleves.html', eleves=eleves_pagination, classes=classes, classe_id=classe_id, search=search)
+    # Organisation des élèves par classe
+    classes_dict = {}
+    for c in classes:
+        classes_dict[c.id] = {
+            'classe': c,
+            'id': c.id,
+            'nom': c.nom,
+            'niveau': getattr(c, 'niveau', '') or '',
+            'salle': getattr(c, 'salle', '') or '',
+            'capacite': getattr(c, 'capacite', 30) or 30,
+            'eleves': [],
+            'garcons_count': 0,
+            'filles_count': 0
+        }
+
+    sans_classe_group = {
+        'classe': None,
+        'id': 'sans-classe',
+        'nom': 'Élèves non assignés / Sans classe',
+        'niveau': '',
+        'salle': '',
+        'capacite': 0,
+        'eleves': [],
+        'garcons_count': 0,
+        'filles_count': 0
+    }
+
+    for e in all_eleves:
+        cid = e.classe_id
+        grp = classes_dict.get(cid, sans_classe_group)
+        grp['eleves'].append(e)
+        if (e.genre or '').upper() == 'F':
+            grp['filles_count'] += 1
+        else:
+            grp['garcons_count'] += 1
+
+    classes_eleves = list(classes_dict.values())
+    if sans_classe_group['eleves']:
+        classes_eleves.append(sans_classe_group)
+
+    total_eleves = len(all_eleves)
+    total_classes = len(classes)
+    total_garcons = sum(1 for e in all_eleves if (e.genre or '').upper() != 'F')
+    total_filles = sum(1 for e in all_eleves if (e.genre or '').upper() == 'F')
+    total_sans_classe = len(sans_classe_group['eleves'])
+    total_assignes = total_eleves - total_sans_classe
+
+    stats = {
+        'total_eleves': total_eleves,
+        'total_classes': total_classes,
+        'total_garcons': total_garcons,
+        'total_filles': total_filles,
+        'total_assignes': total_assignes,
+        'total_sans_classe': total_sans_classe
+    }
+
+    return render_template(
+        'eleves.html',
+        classes=classes,
+        classes_eleves=classes_eleves,
+        sans_classe=sans_classe_group['eleves'],
+        stats=stats,
+        total_eleves=total_eleves,
+        total_classes=total_classes,
+        total_assignes=total_assignes,
+        total_sans_classe=total_sans_classe,
+        classe_id=classe_id,
+        search=search,
+        eleves=eleves_pagination,
+        all_eleves=all_eleves
+    )
 
 @main.route('/ajouter_eleve', methods=['GET', 'POST'])
 @login_required
@@ -138,7 +209,7 @@ def ajouter_eleve():
     classes = Classe.query.filter_by(ecole_id=ecole_id).order_by(Classe.nom).all()
     form.classe_id.choices = [(c.id, c.nom_complet) for c in classes]
     if not classes:
-        flash("âš ï¸ Aucune classe disponible. CrÃ©ez une classe avant dâ€™ajouter un Ã©lÃ¨ve.", "warning")
+        flash("⚠️ Aucune classe disponible dans votre établissement. Un élève doit obligatoirement être inscrit dans une classe. Veuillez d'abord créer une classe.", "warning")
 
     # ---------------- Parents ----------------
     form.parent_id.choices = [(0, "--- Aucun parent ---")]
@@ -148,11 +219,17 @@ def ajouter_eleve():
     # ---------------- Soumission du formulaire ----------------
     if form.validate_on_submit():
         try:
-            # ðŸ”¸ VÃ©rif classe valide avec filtre multi-Ã©coles
+            # 🔹 Vérif classe obligatoire et valide avec filtre multi-écoles
+            if not form.classe_id.data:
+                flash("❌ La sélection d'une classe est obligatoire. Un élève doit obligatoirement être inscrit dans une classe.", "danger")
+                return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
+                                       annee_active=annee_active, classes=classes)
+
             classe_selectionnee = filtre_par_ecole(Classe.query, Classe).filter_by(id=form.classe_id.data).first()
             if not classe_selectionnee or classe_selectionnee.ecole_id != ecole_id:
-                flash("âŒ Classe invalide ou non autorisÃ©e.", "danger")
-                return redirect(url_for('main.ajouter_eleve'))
+                flash("❌ Classe invalide ou non autorisée pour cette école.", "danger")
+                return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
+                                       annee_active=annee_active, classes=classes)
 
             # ---------------- Gestion parent ----------------
             parent_id_final = None
@@ -206,6 +283,7 @@ def ajouter_eleve():
             nouvel_eleve = Eleve(
                 nom=form.nom.data.strip(),
                 prenom=form.prenom.data.strip(),
+                genre=form.genre.data or 'M',
                 date_naissance=form.date_naissance.data,
                 lieu_naissance=form.lieu_naissance.data.strip() if form.lieu_naissance.data else None,
                 adresse=form.adresse.data.strip() if form.adresse.data else None,
@@ -298,10 +376,10 @@ def ajouter_eleve():
 
 @main.route('/api/eleves/classe/<int:classe_id>')
 @login_required
-@role_required('admin', 'enseignant')
+@role_required('admin', 'professeur')
 @ecole_required
 def api_eleves_par_classe(classe_id):
-    """Retourne la liste des Ã©lÃ¨ves d'une classe filtrÃ©e par Ã©cole et annÃ©e active (JSON)"""
+    """Retourne la liste des élèves d'une classe filtrée par école et année active (JSON)"""
 
     ecole_id = current_user.ecole_id
     if not ecole_id:
@@ -312,7 +390,7 @@ def api_eleves_par_classe(classe_id):
     classe = Classe.query.filter_by(id=classe_id, ecole_id=ecole_id).first()
     if not classe:
         return jsonify({'eleves': []}), 404
-    if current_user.role in ('enseignant', 'professeur'):
+    if current_user.role == 'professeur':
         professeur = getattr(current_user, 'professeur_rel', None)
         professeur_id = getattr(professeur, 'id', None)
         is_assigned = bool(
@@ -331,18 +409,18 @@ def api_eleves_par_classe(classe_id):
     if annee_active:
         query = query.join(Classe).filter(Classe.annee_scolaire_id == annee_active.id)
 
-    # --- RÃ©cupÃ©ration des Ã©lÃ¨ves ---
+    # --- Récupération des élèves ---
     eleves = query.order_by(Eleve.nom, Eleve.prenom).all()
 
-    # --- Construction du JSON CORRIGÃ‰ ---
+    # --- Construction du JSON CORRIGÉ ---
     eleves_list = [
         {
             'id': e.id,
             'nom': e.nom,
             'prenom': e.prenom,
-            'telephone': e.contact_parent or '-',  # â† CORRECTION ICI : utiliser contact_parent au lieu de telephone
+            'telephone': e.contact_parent or '-',  # ← CORRECTION ICI : utiliser contact_parent au lieu de telephone
             'classe': e.classe.nom if e.classe else "Sans classe",
-            'parent': f"{e.parent.prenom} {e.parent.nom}" if e.parent else "Non assignÃ©"
+            'parent': f"{e.parent.prenom} {e.parent.nom}" if e.parent else "Non assigné"
         } for e in eleves
     ]
 
@@ -350,7 +428,7 @@ def api_eleves_par_classe(classe_id):
 
 @main.route('/eleve/<int:id>/export_notes_pdf') 
 @login_required
-@role_required('admin', 'enseignant', 'parent')
+@role_required('admin', 'professeur', 'parent')
 def export_notes_eleve_pdf(id):
     """GÃ©nÃ¨re et retourne le relevÃ© de notes PDF d'un Ã©lÃ¨ve avec contrÃ´le multi-Ã©coles"""
     eleve = Eleve.query.get_or_404(id)
@@ -363,11 +441,11 @@ def export_notes_eleve_pdf(id):
         flash("AccÃ¨s non autorisÃ© Ã  cet Ã©lÃ¨ve.", "danger")
         return redirect(url_for('main.parent_dashboard'))
 
-    if current_user.role in ['admin', 'enseignant', 'professeur'] and eleve.ecole_id != current_user.ecole_id:
+    if current_user.role in ['admin', 'professeur'] and eleve.ecole_id != current_user.ecole_id:
         flash("AccÃ¨s non autorisÃ© Ã  cet Ã©lÃ¨ve.", "danger")
         return redirect(url_for('main.eleves'))
 
-    if current_user.role in ['enseignant', 'professeur']:
+    if current_user.role == 'professeur':
         professeur = getattr(current_user, 'professeur_rel', None)
         professeur_id = getattr(professeur, 'id', None)
         classe_autorisee = (
@@ -527,10 +605,12 @@ def export_eleves_excel():
         for cell in ws[1]:
             cell.font = cell.font.copy(bold=True)
 
+
+
     output.seek(0)
 
     # Log de l'export
-    current_app.logger.info(f"Export Excel Ã©lÃ¨ves par {current_user.id} ({current_user.role})")
+    current_app.logger.info(f"Export Excel élèves par {current_user.id} ({current_user.role})")
 
     return send_file(
         output,
@@ -541,43 +621,119 @@ def export_eleves_excel():
 
 @main.route('/voir_eleve/<int:eleve_id>')  # Au lieu de '/eleve/<int:eleve_id>'
 @login_required
-@role_required('admin', 'enseignant', 'parent')
+@role_required('admin', 'professeur', 'parent')
 @parent_access_required
 def voir_eleve(eleve_id):
     eleve = Eleve.query.options(
         joinedload(Eleve.notes).joinedload(Note.cours),
-        joinedload(Eleve.absences),
-        joinedload(Eleve.paiements)
+        joinedload(Eleve.absences).joinedload(Absence.cours),
+        joinedload(Eleve.paiements),
+        joinedload(Eleve.classe),
+        joinedload(Eleve.parent)
     ).get_or_404(eleve_id)
 
-    if not check_ecole_access(eleve, "Ã©lÃ¨ve"):
-        return redirect(url_for('main.profile'))
+    if not can_access_eleve(eleve):
+        abort(403)
 
-    notes = sorted(eleve.notes, key=lambda n: n.date_evaluation, reverse=True)
-    absences = sorted(eleve.absences, key=lambda a: a.date_absence, reverse=True)
-    paiements = sorted(eleve.paiements, key=lambda p: p.date_paiement, reverse=True)
-
-    total_pondere = sum(n.valeur * n.coefficient for n in notes)
-    total_coefficients = sum(n.coefficient for n in notes)
+    # 1. Notes & Performances académiques de l'année
+    notes = sorted(eleve.notes, key=lambda n: n.date_evaluation or datetime.min, reverse=True)
+    total_pondere = sum((n.valeur or 0) * (n.coefficient or 1) for n in notes)
+    total_coefficients = sum((n.coefficient or 1) for n in notes)
     moyenne_generale = round(total_pondere / total_coefficients, 2) if total_coefficients else 0
 
-    moyennes_par_matiere = {}
+    matieres_stats = {}
     for n in notes:
-        mat = n.cours.nom
-        if mat not in moyennes_par_matiere:
-            moyennes_par_matiere[mat] = {'total': 0, 'coef': 0}
-        moyennes_par_matiere[mat]['total'] += n.valeur * n.coefficient
-        moyennes_par_matiere[mat]['coef'] += n.coefficient
-    for mat, data in moyennes_par_matiere.items():
-        moyennes_par_matiere[mat] = round(data['total']/data['coef'], 2) if data['coef'] else 0
+        mat = n.cours.nom if n.cours else "Matière générale"
+        if mat not in matieres_stats:
+            matieres_stats[mat] = {
+                'nom': mat,
+                'total': 0,
+                'coef': 0,
+                'count': 0,
+                'notes': [],
+                'min': 20.0,
+                'max': 0.0
+            }
+        val = float(n.valeur or 0)
+        coef = float(n.coefficient or 1)
+        matieres_stats[mat]['total'] += val * coef
+        matieres_stats[mat]['coef'] += coef
+        matieres_stats[mat]['count'] += 1
+        matieres_stats[mat]['notes'].append(n)
+        if val < matieres_stats[mat]['min']:
+            matieres_stats[mat]['min'] = val
+        if val > matieres_stats[mat]['max']:
+            matieres_stats[mat]['max'] = val
+
+    moyennes_par_matiere = {}
+    for mat, data in matieres_stats.items():
+        moy = round(data['total'] / data['coef'], 2) if data['coef'] else (round(data['total'] / data['count'], 2) if data['count'] else 0)
+        data['moyenne'] = moy
+        moyennes_par_matiere[mat] = moy
+        if data['min'] > data['max']:
+            data['min'] = moy
+            data['max'] = moy
+
+    if moyenne_generale >= 16:
+        mention = 'Très Bien'
+        mention_badge = 'success'
+    elif moyenne_generale >= 14:
+        mention = 'Bien'
+        mention_badge = 'primary'
+    elif moyenne_generale >= 12:
+        mention = 'Assez Bien'
+        mention_badge = 'info'
+    elif moyenne_generale >= 10:
+        mention = 'Passable'
+        mention_badge = 'warning'
+    else:
+        mention = 'Insuffisant'
+        mention_badge = 'danger'
+
+    # 2. Absences & Assiduité de l'année
+    absences = sorted(eleve.absences, key=lambda a: a.date_absence or datetime.min.date(), reverse=True)
+    total_absences = len(absences)
+    absences_injustifiees = sum(1 for a in absences if not a.justifiee)
+    absences_justifiees = total_absences - absences_injustifiees
+
+    # 3. Paiements & Scolarité de l'année
+    paiements = sorted(eleve.paiements, key=lambda p: p.date_paiement or datetime.min, reverse=True)
+    total_frais = float(eleve.frais_annuels or 150000.0)
+    total_paye = float(sum(p.montant or 0 for p in paiements))
+    reste_a_payer = max(0.0, total_frais - total_paye)
+    pourcentage_paye = round((total_paye / total_frais) * 100, 1) if total_frais > 0 else 0.0
+
+    mois_scolaires = ['Octobre', 'Novembre', 'Décembre', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin']
+    mois_payes_set = set(p.mois for p in paiements if p.mois)
+    echeancier = [{'mois': m, 'paye': (m in mois_payes_set)} for m in mois_scolaires]
+    mois_impayes_list = [m for m in mois_scolaires if m not in mois_payes_set]
+
+    # 4. Âge calculé
+    age = None
+    if eleve.date_naissance:
+        today = datetime.now().date()
+        age = today.year - eleve.date_naissance.year - ((today.month, today.day) < (eleve.date_naissance.month, eleve.date_naissance.day))
 
     return render_template('voir_eleve.html',
                            eleve=eleve,
+                           age=age,
                            notes=notes,
-                           absences=absences,
-                           paiements=paiements,
+                           matieres_stats=matieres_stats,
+                           moyennes_par_matiere=moyennes_par_matiere,
                            moyenne_generale=moyenne_generale,
-                           moyennes_par_matiere=moyennes_par_matiere)
+                           mention=mention,
+                           mention_badge=mention_badge,
+                           absences=absences,
+                           total_absences=total_absences,
+                           absences_injustifiees=absences_injustifiees,
+                           absences_justifiees=absences_justifiees,
+                           paiements=paiements,
+                           total_frais=total_frais,
+                           total_paye=total_paye,
+                           reste_a_payer=reste_a_payer,
+                           pourcentage_paye=pourcentage_paye,
+                           echeancier=echeancier,
+                           mois_impayes_list=mois_impayes_list)
 
 @main.route('/eleve/<int:eleve_id>/modifier', methods=['GET', 'POST'])
 @login_required
@@ -590,22 +746,29 @@ def modifier_eleve(eleve_id):
     if request.method == 'POST':
         classe_id = request.form.get('classe_id', type=int)
         parent_id = request.form.get('parent_id', type=int)
-        classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first() if classe_id else None
-        parent = Utilisateur.query.filter_by(id=parent_id, ecole_id=current_user.ecole_id, role='parent').first() if parent_id else None
 
-        if classe_id and not classe:
-            flash("Classe invalide pour cette Ã©cole.", "danger")
+        if not classe_id:
+            flash("❌ La classe est obligatoire. Un élève doit toujours être inscrit dans une classe.", "danger")
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id))
+
+        classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first()
+        if not classe:
+            flash("❌ Classe invalide pour cette école.", "danger")
+            return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id))
+
+        parent = Utilisateur.query.filter_by(id=parent_id, ecole_id=current_user.ecole_id, role='parent').first() if parent_id else None
         if parent_id and not parent:
-            flash("Parent invalide pour cette Ã©cole.", "danger")
+            flash("❌ Parent invalide pour cette école.", "danger")
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id))
 
         eleve.nom = request.form.get('nom', eleve.nom).strip()
         eleve.prenom = request.form.get('prenom', eleve.prenom).strip()
+        if request.form.get('genre'):
+            eleve.genre = request.form.get('genre')
         date_naissance = request.form.get('date_naissance')
         if date_naissance:
             eleve.date_naissance = datetime.strptime(date_naissance, '%Y-%m-%d').date()
-        eleve.classe_id = classe.id if classe else None
+        eleve.classe_id = classe.id
         eleve.parent_id = parent.id if parent else None
         eleve.email_parent = parent.email if parent else request.form.get('email_parent') or eleve.email_parent
         eleve.contact_parent = parent.telephone if parent else request.form.get('telephone_parent') or eleve.contact_parent

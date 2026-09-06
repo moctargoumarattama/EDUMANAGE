@@ -59,17 +59,16 @@ def index():
         return render_template('index.html', stats=stats)
 
     # -----------------------------
-    # ENSEIGNANT / PROFESSEUR
+    # PROFESSEUR
     # -----------------------------
-    elif current_user.role in ['enseignant', 'professeur']:
-        emploi_temps = EmploiTemps.query.filter_by(professeur_id=current_user.id).all()
-        return render_template('enseignant_home.html', emploi_temps=emploi_temps)
+    elif current_user.role == 'professeur':
+        return redirect(url_for('main.professeur_dashboard'))
 
     # -----------------------------
     # PARENT
     # -----------------------------
     elif current_user.role == 'parent':
-        return render_template('parent_home.html')
+        return redirect(url_for('main.parent_dashboard'))
 
     # -----------------------------
     # ROLE INCONNU
@@ -88,8 +87,7 @@ def login():
         endpoint_par_role = {
             "admin": "main.index",
             "super_admin": "main.index",
-            "enseignant": "main.enseignant_dashboard",
-            "professeur": "main.enseignant_dashboard",
+                        "professeur": "main.professeur_dashboard",
             "parent": "main.parent_dashboard",
         }
         return redirect(url_for(endpoint_par_role.get(role, "main.index")))
@@ -126,11 +124,8 @@ def login():
             for k in session_keys:
                 session.pop(k, None)
 
-            # Mapping rôles
-            role_login = "enseignant" if utilisateur.role == "professeur" else utilisateur.role
-
-            login_user(utilisateur)  # tu peux ajouter remember=form.remember.data si tu veux
-            session["role"] = role_login
+            login_user(utilisateur)
+            session["role"] = utilisateur.role
 
             # ASSIGNATION ÉCOLE
             if utilisateur.role == "admin" and utilisateur.ecole_id:
@@ -144,7 +139,7 @@ def login():
                     current_app.logger.info(f"École par défaut assignée à super_admin {utilisateur.email} depuis {ip}")
 
             # Logging succinct (éviter d'écrire info sensibles)
-            current_app.logger.info(f"Connexion réussie pour utilisateur id={utilisateur.id} depuis {ip} rôle={role_login}")
+            current_app.logger.info(f"Connexion réussie pour utilisateur id={utilisateur.id} depuis {ip} rôle={utilisateur.role}")
 
             # traitement safe du next param (ne pas rediriger vers un domaine externe)
             next_page = request.args.get('next')
@@ -154,10 +149,10 @@ def login():
             endpoint_par_role = {
                 "admin": "main.index",
                 "super_admin": "main.index",
-                "enseignant": "main.enseignant_dashboard",
+                "professeur": "main.professeur_dashboard",
                 "parent": "main.parent_dashboard",
             }
-            return redirect(next_page) if next_page else redirect(url_for(endpoint_par_role.get(role_login, "main.index")))
+            return redirect(next_page) if next_page else redirect(url_for(endpoint_par_role.get(utilisateur.role, "main.index")))
         else:
             # échec de connexion
             current_app.logger.warning(f"Tentative de connexion échouée pour identifiant={identifiant} depuis {ip}")
@@ -274,7 +269,7 @@ def request_reset_password():
                     <p><a href="{reset_link}" style="display:inline-block; padding:10px 20px; background:#4CAF50; color:#fff; text-decoration:none; border-radius:5px;">Réinitialiser mon mot de passe</a></p>
                     <p>Ce lien est valable 1 heure.</p>
                     <p>Si vous n'avez pas demandé cette réinitialisation, ignorez ce message.</p>
-                    <p style="font-size:12px; color:#555;">Cordialement,<br>L'équipe EduManage</p>
+                    <p style="font-size:12px; color:#555;">Cordialement,<br>L'équipe KLASORA</p>
                 </div>
             </body>
             </html>

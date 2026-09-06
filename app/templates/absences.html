@@ -1,806 +1,1012 @@
 {% extends "base.html" %}
-{% block title %}Gestion des Absences - EduManage{% endblock %}
+{% block title %}Gestion des Absences - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <!-- Header Section -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="bg-animated p-4 rounded-3 position-relative overflow-hidden" style="background: var(--gradient-warning);">
-                <div class="position-absolute top-0 end-0 w-50 h-100 opacity-25">
-                    <i class="fas fa-calendar-times fa-10x text-white"></i>
+<div class="container-fluid px-3 px-lg-4 py-4">
+
+    <!-- En-tête de page standardisé KLASORA -->
+    <section class="page-header mb-4">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon">
+                    <i class="fas fa-calendar-times" aria-hidden="true"></i>
                 </div>
-                <h2 class="text-white mb-3 position-relative"><i class="fas fa-calendar-times me-2"></i>Gestion des Absences</h2>
-                <p class="text-white opacity-75 position-relative mb-0">
-                    {% if current_user.role == 'parent' %}
-                    Consultez les absences de votre enfant
-                    {% else %}
-                    Enregistrez et consultez les absences des élèves
-                    {% endif %}
-                </p>
+                <div>
+                    <h1 class="page-title">
+                        {% if current_user.role == 'parent' %}
+                            Absences de mon enfant
+                        {% else %}
+                            Gestion des Absences par Classe
+                        {% endif %}
+                    </h1>
+                    <p class="page-subtitle d-none d-md-block">
+                        {% if current_user.role == 'parent' %}
+                            Consultez le relevé d'assiduité et les justifications des absences de votre enfant.
+                        {% else %}
+                            Consultez les absences des élèves regroupées par classe (dépliez une classe pour voir les élèves absents).
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllClassAbsences" title="Déplier ou replier toutes les classes">
+                    <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
+                </button>
+                {% if show_form %}
+                <button type="button" class="btn btn-warning text-white shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseFormAbsence" aria-expanded="false" aria-controls="collapseFormAbsence" id="btnToggleAddAbsence">
+                    <i class="fas fa-plus-circle me-2"></i>Nouvelle absence
+                </button>
+                {% endif %}
+                {% if current_user.role in ['admin', 'professeur'] %}
+                <a href="{{ url_for('main.export_absences_excel') }}" class="btn btn-outline-success shadow-sm" title="Exporter les absences vers Excel">
+                    <i class="fas fa-file-excel me-2"></i>Exporter Excel
+                </a>
+                {% endif %}
             </div>
         </div>
-    </div>
+    </section>
 
-    <div class="row g-4">
-        <!-- Formulaire d'ajout (seulement pour admin et enseignant) -->
-        {% if show_form %}
-        <div class="col-xl-4 col-lg-6">
-            <div class="card border-0 shadow-lg h-100 animate-pop-in" style="border-radius: 1.2rem; overflow: hidden;">
-                <div class="card-header py-4 text-white d-flex justify-content-between align-items-center" style="background: var(--gradient-warning);">
-                    <h4 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Nouvelle Absence</h4>
-                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#formAbsenceCollapse" aria-expanded="true">
-                        <i class="fas fa-chevron-down"></i>
-                    </button>
+    <!-- Formulaire d'ajout (admin/professeur, rétractable) -->
+    {% if show_form %}
+    <div class="collapse mb-4" id="collapseFormAbsence">
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+            <div class="card-header bg-warning text-white py-3 px-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-plus-circle fa-lg"></i>
+                    <h5 class="mb-0 fw-bold">Déclarer une absence</h5>
                 </div>
-                <div class="card-body p-4 collapse show" id="formAbsenceCollapse">
-                    <form method="POST" action="{{ url_for('main.absences') }}" class="needs-validation" novalidate>
-                        {{ form.hidden_tag() }}
-                        
-                        <!-- Recherche et sélection d'élève -->
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold">Rechercher un élève</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
-                                <input type="text" class="form-control" id="rechercheEleve" placeholder="Nom, prénom ou classe..." style="border-radius: 0.8rem 0 0 0.8rem;">
-                                <button class="btn btn-outline-secondary" type="button" id="btnEffacerRecherche" style="border-radius: 0 0.8rem 0.8rem 0;">
+                <button type="button" class="btn-close btn-close-white" data-bs-toggle="collapse" data-bs-target="#collapseFormAbsence" aria-label="Fermer"></button>
+            </div>
+            <div class="card-body p-4 bg-light bg-opacity-50">
+                <form method="POST" action="{{ url_for('main.absences') }}" class="needs-validation" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="row g-3">
+                        <!-- Sélection Élève -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="eleve_id">Élève concerné <span class="text-danger">*</span></label>
+                            <div class="input-group mb-1">
+                                <span class="input-group-text"><i class="fas fa-search text-muted"></i></span>
+                                <input type="text" class="form-control" id="rechercheEleve" placeholder="Filtrer la liste des élèves..." autocomplete="off">
+                                <button class="btn btn-outline-secondary" type="button" id="btnEffacerRecherche" title="Effacer">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
-                            <div class="form-floating mt-2">
-                                {{ form.eleve_id(class="form-select", style="border-radius: 0.8rem; height: auto; max-height: 150px; overflow-y: auto;") }}
-                                {{ form.eleve_id.label(class="form-label") }}
-                                <div class="invalid-feedback">Veuillez sélectionner un élève.</div>
-                            </div>
+                            {{ form.eleve_id(class="form-select", id="eleve_id", required=true) }}
+                            <div class="invalid-feedback">Veuillez sélectionner un élève.</div>
                         </div>
-                        
-                        <div class="mb-4">
-                            <div class="form-floating">
-                                {{ form.cours_id(class="form-select", style="border-radius: 0.8rem;") }}
-                                {{ form.cours_id.label(class="form-label") }}
-                                <div class="invalid-feedback">Veuillez sélectionner un cours.</div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="form-floating">
-                                {{ form.date_absence(class="form-control", style="border-radius: 0.8rem;") }}
-                                {{ form.date_absence.label(class="form-label") }}
-                                <div class="invalid-feedback">Veuillez sélectionner une date.</div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="form-floating">
-                                {{ form.motif(class="form-control", placeholder="Motif de l'absence", style="border-radius: 0.8rem; min-height: 100px; resize: vertical;") }}
-                                {{ form.motif.label(class="form-label") }}
-                                <div class="invalid-feedback">Veuillez saisir un motif.</div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <div class="form-check form-switch ps-0">
-                                <div class="d-flex align-items-center">
-                                    <div class="form-check form-switch me-3">
-                                        {{ form.justifiee(class="form-check-input", style="width: 3rem; height: 1.5rem;") }}
-                                    </div>
-                                    <div>
-                                        {{ form.justifiee.label(class="form-check-label fw-bold text-dark") }}
-                                        <small class="d-block text-muted">Cochez si l'absence est justifiée</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-warning btn-lg py-3 text-white fw-bold shadow-sm" style="border-radius: 0.8rem;">
-                                <i class="fas fa-check-circle me-2"></i>Enregistrer l'absence
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-        {% endif %}
 
-        <!-- Statistiques et Vue d'ensemble -->
-        <div class="col-xl-{% if show_form %}8{% else %}12{% endif %} col-lg-6">
-            <div class="row g-4 h-100">
-                <!-- Statistiques principales -->
-                <div class="col-12">
-                    <div class="card border-0 shadow-lg h-100 animate-pop-in" style="border-radius: 1.2rem; overflow: hidden;">
-                        <div class="card-header py-4 text-white d-flex justify-content-between align-items-center" style="background: var(--gradient-info);">
-                            <h4 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Statistiques des Absences</h4>
-                            <button class="btn btn-sm btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#statsCollapse" aria-expanded="true">
-                                <i class="fas fa-chevron-down"></i>
-                            </button>
+                        <!-- Sélection Cours -->
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="cours_id">Cours / Matière <span class="text-danger">*</span></label>
+                            {{ form.cours_id(class="form-select", id="cours_id", required=true) }}
+                            <div class="invalid-feedback">Veuillez sélectionner un cours.</div>
                         </div>
-                        <div class="card-body p-4 collapse show" id="statsCollapse">
-                            <div class="row text-center g-3">
-                                <div class="col-6 col-md-3">
-                                    <div class="p-3 border-0 rounded-3 bg-primary bg-opacity-10 h-100 d-flex flex-column justify-content-center">
-                                        <div class="fs-2 fw-bold text-primary mb-1">{{ total }}</div>
-                                        <small class="text-muted">Total absences</small>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-md-3">
-                                    <div class="p-3 border-0 rounded-3 bg-success bg-opacity-10 h-100 d-flex flex-column justify-content-center">
-                                        <div class="fs-2 fw-bold text-success mb-1">{{ absences_justifiees }}</div>
-                                        <small class="text-muted">Justifiées</small>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-md-3">
-                                    <div class="p-3 border-0 rounded-3 bg-danger bg-opacity-10 h-100 d-flex flex-column justify-content-center">
-                                        <div class="fs-2 fw-bold text-danger mb-1">{{ absences_non_justifiees }}</div>
-                                        <small class="text-muted">Non justifiées</small>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-md-3">
-                                    <div class="p-3 border-0 rounded-3 bg-warning bg-opacity-10 h-100 d-flex flex-column justify-content-center">
-                                        {% set taux_presence = 100 - ((total / (eleves_total * 30)) * 100)|round(1) if eleves_total and total > 0 else 100 %}
-                                        <div class="fs-2 fw-bold text-warning mb-1">{{ taux_presence|default(100) }}%</div>
-                                        <small class="text-muted">Taux de présence</small>
-                                    </div>
+
+                        <!-- Date de l'absence -->
+                        <div class="col-12 col-sm-6 col-md-4">
+                            <label class="form-label fw-semibold" for="date_absence">Date de l'absence <span class="text-danger">*</span></label>
+                            {{ form.date_absence(class="form-control", id="date_absence", required=true) }}
+                            <div class="invalid-feedback">Veuillez sélectionner une date.</div>
+                        </div>
+
+                        <!-- Motif -->
+                        <div class="col-12 col-sm-6 col-md-5">
+                            <label class="form-label fw-semibold" for="motif">Motif ou justification</label>
+                            {{ form.motif(class="form-control", id="motif", placeholder="Ex: Maladie, rendez-vous médical, transport...") }}
+                        </div>
+
+                        <!-- Statut justifiée -->
+                        <div class="col-12 col-md-3 d-flex align-items-center pt-md-4">
+                            <div class="form-check form-switch ps-0">
+                                <div class="d-flex align-items-center gap-2">
+                                    {{ form.justifiee(class="form-check-input ms-0", id="justifiee", style="width: 2.75rem; height: 1.4rem;") }}
+                                    <label class="form-check-label fw-semibold text-dark" for="justifiee">Absence justifiée</label>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Boutons formulaire -->
+                        <div class="col-12 d-flex justify-content-end gap-2 pt-2">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#collapseFormAbsence">Annuler</button>
+                            <button type="submit" class="btn btn-warning text-white px-4">
+                                <i class="fas fa-check me-2"></i>Enregistrer l'absence
+                            </button>
                         </div>
                     </div>
-                </div>
-
+                </form>
             </div>
         </div>
     </div>
+    {% endif %}
 
-    <!-- Filtres et Recherche -->
-    <div class="card border-0 shadow-lg my-4 animate-pop-in" style="border-radius: 1.2rem; overflow: hidden;">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center" style="background: #f8f9fa;">
-            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtres et Recherche</h5>
-            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filtresCollapse" aria-expanded="true">
-                <i class="fas fa-chevron-down"></i>
+    <!-- Pré-classement des absences pour éviter toute erreur None -->
+    {% set absences_avec_classe = [] %}
+    {% set absences_sans_classe = [] %}
+    {% for a in absences %}
+        {% if a.eleve and a.eleve.classe %}
+            {% set _ = absences_avec_classe.append(a) %}
+        {% else %}
+            {% set _ = absences_sans_classe.append(a) %}
+        {% endif %}
+    {% endfor %}
+
+    <!-- Barre d'outils : recherche, filtres et tri -->
+    <div class="course-toolbar-card">
+        <div class="row g-2 align-items-center">
+            <!-- Recherche rapide -->
+            <div class="col-12 col-md-4 col-lg-3">
+                <div class="course-search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="absenceSearchInput" class="form-control" placeholder="Rechercher classe, élève, cours, motif..." autocomplete="off">
+                    <button type="button" id="absenceSearchClear" class="clear-btn" title="Effacer la recherche">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtre par classe -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select id="filterClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Toutes les classes</option>
+                    {% set classes_list = [] %}
+                    {% for a in absences_avec_classe %}
+                        {% if a.eleve.classe.nom not in classes_list %}
+                            {% set _ = classes_list.append(a.eleve.classe.nom) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for cl in classes_list|sort %}
+                        <option value="{{ cl }}">{{ cl }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtre par statut -->
+            <div class="col-6 col-md-2 col-lg-2">
+                <select id="filterStatutSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Tous les statuts</option>
+                    <option value="non-justifiee">Avec non justifiées</option>
+                    <option value="justifiee">Toutes justifiées</option>
+                </select>
+            </div>
+
+            <!-- Tri des classes -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select id="sortClassesSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="nom-asc">Classe (A &rarr; Z)</option>
+                    <option value="nom-desc">Classe (Z &rarr; A)</option>
+                    <option value="abs-desc">Plus d'absences &darr;</option>
+                    <option value="eleves-desc">Plus d'élèves absents &darr;</option>
+                    <option value="nonjust-desc">Non justifiées &darr;</option>
+                </select>
+            </div>
+
+            <!-- Nombre de classes par page -->
+            <div class="col-12 col-lg-auto ms-auto d-flex align-items-center justify-content-end gap-2">
+                <span class="small text-muted d-none d-sm-inline">Classes / page :</span>
+                <select id="pageSizeSelect" class="form-select form-select-sm" style="width: auto; min-height: 42px;" title="Nombre de classes par page">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                    <option value="99999">Toutes</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Info-bar sous les filtres -->
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 pt-2 border-top">
+            <div class="text-muted small">
+                <i class="fas fa-layer-group me-1 text-primary"></i>
+                <span id="absenceFilterStats">Chargement des absences par classe...</span>
+            </div>
+            <button type="button" id="btnResetFilter" class="btn btn-link btn-sm text-decoration-none text-muted p-0" style="display: none;">
+                <i class="fas fa-undo me-1"></i>Réinitialiser les filtres
             </button>
         </div>
-        <div class="card-body p-3 collapse show" id="filtresCollapse">
-            <div class="row g-3">
-                <!-- Barre de recherche globale -->
-                <div class="col-md-3">
-                    <label for="rechercheGlobale" class="form-label fw-semibold">Recherche globale</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
-                        <input type="text" class="form-control" id="rechercheGlobale" placeholder="Élève, cours, motif...">
-                        <button class="btn btn-outline-secondary" type="button" id="btnEffacerRechercheGlobale">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Filtre par statut -->
-                <div class="col-md-2">
-                    <label for="filtreStatut" class="form-label fw-semibold">Statut</label>
-                    <select class="form-select" id="filtreStatut">
-                        <option value="">Tous les statuts</option>
-                        <option value="justifiee">Justifiées</option>
-                        <option value="non-justifiee">Non justifiées</option>
-                    </select>
-                </div>
-                
-                <!-- Filtre par période -->
-                <div class="col-md-2">
-                    <label for="filtrePeriode" class="form-label fw-semibold">Période</label>
-                    <select class="form-select" id="filtrePeriode">
-                        <option value="">Toute période</option>
-                        <option value="7">7 derniers jours</option>
-                        <option value="30">30 derniers jours</option>
-                        <option value="90">3 derniers mois</option>
-                    </select>
-                </div>
-                
-                <!-- Filtre par classe -->
-                <div class="col-md-2">
-                    <label for="filtreClasse" class="form-label fw-semibold">Classe</label>
-                    <select class="form-select" id="filtreClasse">
-                        <option value="">Toutes les classes</option>
-                        {% set classes_uniques = [] %}
-                        {% for a in absences %}
-                            {% if a.eleve.classe and a.eleve.classe.nom not in classes_uniques %}
-                                {% set _ = classes_uniques.append(a.eleve.classe.nom) %}
-                                <option value="{{ a.eleve.classe.nom }}">{{ a.eleve.classe.nom }}</option>
-                            {% endif %}
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="col-md-3 d-flex align-items-end">
-                    <div class="d-flex gap-2 w-100">
-                        <button id="btnReinitialiser" class="btn btn-outline-secondary flex-fill">
-                            <i class="fas fa-redo me-1"></i> Rétablir
-                        </button>
-                        {% if current_user.role in ['admin', 'enseignant'] %}
-                        <a href="{{ url_for('main.export_absences_excel') }}" class="btn btn-success flex-fill">
-                            <i class="fas fa-download me-1"></i> Exporter
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
-    <!-- Liste des Absences -->
-    <div class="card border-0 shadow-lg animate-pop-in" style="border-radius: 1.2rem; overflow: hidden;">
-        <div class="card-header py-4 text-white d-flex justify-content-between align-items-center" style="background: var(--gradient-dark);">
-            <h4 class="mb-0"><i class="fas fa-list me-2"></i>
-                {% if current_user.role == 'parent' %}
-                Absences de mon enfant
-                {% else %}
-                Historique des Absences
+    <!-- LISTE DES CLASSES ET LEURS ÉLÈVES ABSENTS (ACCORDÉON) -->
+    <div id="classAbsenceList" class="class-absence-list">
+        {% for class_group in absences_avec_classe|groupby('eleve.classe.id') %}
+            {% set classe = class_group.list[0].eleve.classe %}
+            {% set classe_absences = class_group.list %}
+            {% set total_classe_abs = classe_absences|length %}
+            {% set just_classe_count = classe_absences|selectattr('justifiee')|list|length %}
+            {% set non_just_classe_count = total_classe_abs - just_classe_count %}
+
+            <!-- Agrégation des données pour la recherche en direct -->
+            {% set ns_cl = namespace(eleves=[], eleves_ids=[], motifs=[], cours=[]) %}
+            {% for a in classe_absences %}
+                {% set eleve_full = a.eleve.prenom ~ ' ' ~ a.eleve.nom %}
+                {% if eleve_full not in ns_cl.eleves %}
+                    {% set _ = ns_cl.eleves.append(eleve_full) %}
                 {% endif %}
-            </h4>
-            <div class="d-flex align-items-center gap-3">
-                <div class="d-flex align-items-center">
-                    <span class="text-white-50 me-2">Afficher</span>
-                    <select class="form-select form-select-sm w-auto" id="selectNbLignes">
-                        <option value="20">20</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                        <option value="200">200</option>
-                    </select>
-                    <span class="text-white-50 ms-2">lignes</span>
+                {% if a.eleve.id not in ns_cl.eleves_ids %}
+                    {% set _ = ns_cl.eleves_ids.append(a.eleve.id) %}
+                {% endif %}
+                {% if a.cours and a.cours.nom not in ns_cl.cours %}
+                    {% set _ = ns_cl.cours.append(a.cours.nom) %}
+                {% endif %}
+                {% if a.motif and a.motif not in ns_cl.motifs %}
+                    {% set _ = ns_cl.motifs.append(a.motif) %}
+                {% endif %}
+            {% endfor %}
+            {% set eleves_absents_count = ns_cl.eleves_ids|length %}
+            {% set eleves_str = ns_cl.eleves|join(' ') %}
+            {% set cours_str = ns_cl.cours|join(' ') %}
+            {% set motifs_str = ns_cl.motifs|join(' ') %}
+
+            <article class="class-absence-card"
+                     data-id="{{ classe.id }}"
+                     data-nom="{{ classe.nom }}"
+                     data-niveau="{{ classe.niveau or '' }}"
+                     data-total-absences="{{ total_classe_abs }}"
+                     data-eleves-count="{{ eleves_absents_count }}"
+                     data-justifiees="{{ just_classe_count }}"
+                     data-non-justifiees="{{ non_just_classe_count }}"
+                     data-eleves="{{ eleves_str }}"
+                     data-cours="{{ cours_str }}"
+                     data-motifs="{{ motifs_str }}">
+
+                <!-- En-tête de la classe (cliquable pour déplier/replier les élèves) -->
+                <div class="class-absence-header"
+                     data-bs-toggle="collapse"
+                     data-bs-target="#collapseClasseAbsence{{ classe.id }}"
+                     aria-expanded="false"
+                     aria-controls="collapseClasseAbsence{{ classe.id }}">
+
+                    <div class="class-absence-profile">
+                        <div class="class-absence-avatar {% if non_just_classe_count == 0 %}clean{% endif %}">
+                            <i class="fas fa-chalkboard"></i>
+                        </div>
+                        <div class="class-absence-info">
+                            <h2 class="class-absence-name">{{ classe.nom }}</h2>
+                            <div class="class-absence-meta">
+                                {% if classe.niveau %}
+                                    {% set niveau_color = {
+                                        '6ème': 'bg-info bg-opacity-10 text-info border border-info-subtle',
+                                        '5ème': 'bg-success bg-opacity-10 text-success border border-success-subtle',
+                                        '4ème': 'bg-warning bg-opacity-10 text-dark border border-warning-subtle',
+                                        '3ème': 'bg-danger bg-opacity-10 text-danger border border-danger-subtle'
+                                    } %}
+                                    <span class="badge {{ niveau_color.get(classe.niveau, 'bg-secondary bg-opacity-10 text-secondary border') }}">
+                                        <i class="fas fa-graduation-cap me-1"></i>{{ classe.niveau }}
+                                    </span>
+                                {% endif %}
+                                <span class="badge bg-light text-muted border">ID #{{ classe.id }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="class-absence-stats">
+                        <!-- Nombre d'élèves absents -->
+                        <span class="badge bg-light text-dark border" style="font-size: 0.82rem;">
+                            <i class="fas fa-user-slash text-primary me-1"></i>{{ eleves_absents_count }} élève{{ 's' if eleves_absents_count > 1 else '' }} absent{{ 's' if eleves_absents_count > 1 else '' }}
+                        </span>
+
+                        <!-- Total absences -->
+                        <span class="badge bg-light text-dark border d-none d-sm-inline-flex" style="font-size: 0.82rem;">
+                            <i class="fas fa-calendar-times text-warning me-1"></i>{{ total_classe_abs }} absence{{ 's' if total_classe_abs > 1 else '' }}
+                        </span>
+
+                        <!-- Alerte non justifiées -->
+                        {% if non_just_classe_count > 0 %}
+                            <span class="badge bg-danger shadow-sm" style="font-size: 0.82rem;">
+                                <i class="fas fa-exclamation-triangle me-1"></i>{{ non_just_classe_count }} non justifiée{{ 's' if non_just_classe_count > 1 else '' }}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle d-none d-md-inline-flex" style="font-size: 0.82rem;">
+                                <i class="fas fa-check-circle me-1"></i>Justifiées
+                            </span>
+                        {% endif %}
+
+                        <!-- Chevron rotatif -->
+                        <span class="class-absence-chevron">
+                            <i class="fas fa-chevron-down"></i>
+                        </span>
+                    </div>
                 </div>
-            </div>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
-                <table class="table table-hover align-middle mb-0" id="tableauAbsences">
-                    <thead class="table-light sticky-top">
-                        <tr>
-                            <th class="ps-4 sortable" data-sort="eleve">Élève <i class="fas fa-sort"></i></th>
-                            <th class="sortable" data-sort="classe">Classe <i class="fas fa-sort"></i></th>
-                            <th class="sortable" data-sort="cours">Cours <i class="fas fa-sort"></i></th>
-                            <th class="sortable" data-sort="date">Date <i class="fas fa-sort"></i></th>
-                            <th>Motif</th>
-                            <th class="text-center sortable" data-sort="statut">Statut <i class="fas fa-sort"></i></th>
-                            {% if current_user.role in ['admin', 'enseignant'] %}
-                            <th class="text-center pe-4">Actions</th>
-                            {% endif %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for a in absences %}
-                        <tr class="absence-ligne" 
-                            data-eleve="{{ a.eleve.prenom }} {{ a.eleve.nom }}"
-                            data-classe="{{ a.eleve.classe.nom if a.eleve.classe else '' }}"
-                            data-cours="{{ a.cours.nom if a.cours else '' }}"
-                            data-date="{{ a.date_absence.strftime('%Y-%m-%d') }}"
-                            data-statut="{{ 'justifiee' if a.justifiee else 'non-justifiee' }}"
-                            data-periode="{{ a.date_absence }}">
-                            <td class="ps-4">
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar-sm me-3 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm">
-                                        {{ a.eleve.prenom[0] }}{{ a.eleve.nom[0] }}
+
+                <!-- Contenu dépliable : Liste des élèves absents dans cette classe -->
+                <div class="collapse class-absence-content" id="collapseClasseAbsence{{ classe.id }}">
+                    {% for student_group in classe_absences|groupby('eleve.id') %}
+                        {% set student = student_group.list[0].eleve %}
+                        {% set student_abs = student_group.list %}
+                        {% set student_total = student_abs|length %}
+                        {% set student_just = student_abs|selectattr('justifiee')|list|length %}
+                        {% set student_non_just = student_total - student_just %}
+
+                        <div class="class-student-block">
+                            <!-- En-tête de l'élève -->
+                            <div class="class-student-header">
+                                <div class="class-student-profile">
+                                    <div class="class-student-avatar {% if student_non_just == 0 %}clean{% endif %}">
+                                        {{ student.prenom[0] if student.prenom else '' }}{{ student.nom[0] if student.nom else '' }}
                                     </div>
                                     <div>
-                                        <div class="fw-bold text-dark">{{ a.eleve.prenom }} {{ a.eleve.nom }}</div>
-                                        <small class="text-muted">ID: {{ a.eleve.id }}</small>
+                                        <h3 class="class-student-name">{{ student.prenom }} {{ student.nom }}</h3>
+                                        <small class="text-muted">ID élève : #{{ student.id }}</small>
                                     </div>
                                 </div>
-                            </td>
-                            <td>
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25">
-                                    {{ a.eleve.classe.nom if a.eleve.classe else 'Sans classe' }}
-                                </span>
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <i class="fas fa-book text-primary me-2"></i>
-                                    <span class="fw-semibold">{{ a.cours.nom if a.cours else "N/A" }}</span>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-bold text-dark">{{ a.date_absence.strftime('%d/%m/%Y') }}</span>
-                                    <small class="text-muted">{{ a.date_absence.strftime('%A') }}</small>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="text-muted motif-absence" data-bs-toggle="tooltip" title="{{ a.motif }}">
-                                    {{ a.motif|truncate(40) }}
-                                </span>
-                            </td>
-                            <td class="text-center">
-                                <span class="badge {% if a.justifiee %}bg-success{% else %}bg-danger{% endif %} rounded-pill py-2 px-3 shadow-sm">
-                                    <i class="fas {% if a.justifiee %}fa-check-circle{% else %}fa-times-circle{% endif %} me-1"></i>
-                                    {{ "Justifiée" if a.justifiee else "Non justifiée" }}
-                                </span>
-                            </td>
-                            {% if current_user.role in ['admin', 'enseignant'] %}
-                            <td class="text-center pe-4">
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{{ url_for('main.edit_absence', absence_id=a.id) }}" 
-                                       class="btn btn-outline-primary rounded-start" 
-                                       data-bs-toggle="tooltip" 
-                                       title="Modifier l'absence">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <form method="POST" 
-                                          action="{{ url_for('main.delete_absence', absence_id=a.id) }}" 
-                                          class="d-inline" 
-                                          onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette absence?');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                        <button type="submit" 
-                                                class="btn btn-outline-danger rounded-end" 
-                                                data-bs-toggle="tooltip" 
-                                                title="Supprimer l'absence">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                            {% endif %}
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="{% if current_user.role in ['admin', 'enseignant'] %}7{% else %}6{% endif %}" class="text-center py-5">
-                                <div class="py-4">
-                                    <i class="fas fa-calendar-check fa-4x text-muted mb-3"></i>
-                                    <h4 class="text-muted">Aucune absence enregistrée</h4>
-                                    <p class="text-muted">Les absences apparaîtront ici une fois ajoutées</p>
-                                    {% if show_form %}
-                                    <a href="#formAbsenceCollapse" class="btn btn-primary mt-2" data-bs-toggle="collapse">
-                                        <i class="fas fa-plus me-1"></i>Ajouter une absence
-                                    </a>
+                                <div class="class-student-badges">
+                                    <span class="badge bg-light text-dark border">
+                                        {{ student_total }} absence{{ 's' if student_total > 1 else '' }}
+                                    </span>
+                                    {% if student_non_just > 0 %}
+                                        <span class="badge bg-danger shadow-sm">
+                                            {{ student_non_just }} non justifiée{{ 's' if student_non_just > 1 else '' }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
+                                            Toutes justifiées
+                                        </span>
                                     {% endif %}
                                 </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- Pagination et informations -->
-            <div class="d-flex justify-content-between align-items-center p-3 border-top bg-light">
-                <div class="text-muted" id="infoPagination">
-                    Affichage de <span id="debutLignes">1</span> à <span id="finLignes">{{ absences|length }}</span> sur <span id="totalLignes">{{ total }}</span> absences
+                            </div>
+
+                            <!-- Tableau Desktop pour cet élève -->
+                            <div class="class-student-table-wrap">
+                                <table class="table class-student-table align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 140px;">Date</th>
+                                            <th>Cours / Matière</th>
+                                            <th style="width: 150px;">Statut</th>
+                                            <th>Motif / Justification</th>
+                                            {% if current_user.role in ['admin', 'professeur'] %}
+                                            <th class="text-end pe-4" style="width: 120px;">Actions</th>
+                                            {% endif %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for a in student_abs %}
+                                        {% set cours_nom = a.cours.nom if a.cours else 'Général / Non spécifié' %}
+                                        {% set date_str = a.date_absence.strftime('%d/%m/%Y') if a.date_absence else '' %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <i class="fas fa-calendar-alt text-primary opacity-75"></i>
+                                                    <span class="fw-semibold text-dark">{{ date_str }}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <i class="fas fa-book text-muted"></i>
+                                                    <span>{{ cours_nom }}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% if a.justifiee %}
+                                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
+                                                        <i class="fas fa-check-circle me-1"></i>Justifiée
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">
+                                                        <i class="fas fa-times-circle me-1"></i>Non justifiée
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="text-muted small text-truncate d-inline-block" style="max-width: 320px;" title="{{ a.motif or '' }}">
+                                                    {{ a.motif or "Aucun motif renseigné" }}
+                                                </span>
+                                            </td>
+                                            {% if current_user.role in ['admin', 'professeur'] %}
+                                            <td class="text-end pe-4">
+                                                <div class="d-inline-flex gap-1">
+                                                    <a href="{{ url_for('main.edit_absence', absence_id=a.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier l'absence">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <form action="{{ url_for('main.delete_absence', absence_id=a.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette absence ?');">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer l'absence">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                            {% endif %}
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Cartes Mobile pour cet élève (Zéro défilement horizontal) -->
+                            <div class="class-student-cards">
+                                {% for a in student_abs %}
+                                {% set cours_nom = a.cours.nom if a.cours else 'Général / Non spécifié' %}
+                                {% set date_str = a.date_absence.strftime('%d/%m/%Y') if a.date_absence else '' %}
+                                <div class="class-student-mini-card">
+                                    <div class="class-student-mini-top">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="fas fa-calendar-alt text-primary"></i>
+                                            <span class="fw-bold text-dark">{{ date_str }}</span>
+                                        </div>
+                                        {% if a.justifiee %}
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
+                                                <i class="fas fa-check-circle me-1"></i>Justifiée
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">
+                                                <i class="fas fa-times-circle me-1"></i>Non justifiée
+                                            </span>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="text-muted small">
+                                        <i class="fas fa-book me-1 text-muted"></i>{{ cours_nom }}
+                                    </div>
+
+                                    {% if a.motif %}
+                                    <div class="p-2 bg-light rounded border small text-muted">
+                                        <i class="fas fa-comment-alt me-1 text-muted"></i>{{ a.motif }}
+                                    </div>
+                                    {% endif %}
+
+                                    {% if current_user.role in ['admin', 'professeur'] %}
+                                    <div class="class-student-mini-actions">
+                                        <a href="{{ url_for('main.edit_absence', absence_id=a.id) }}" class="btn btn-outline-primary btn-sm" title="Modifier">
+                                            <i class="fas fa-edit me-1"></i>Modifier
+                                        </a>
+                                        <form action="{{ url_for('main.delete_absence', absence_id=a.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette absence ?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
+                                                <i class="fas fa-trash me-1"></i>Supprimer
+                                            </button>
+                                        </form>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                        </div>
+                    {% endfor %}
                 </div>
-                <nav>
-                    <ul class="pagination mb-0" id="pagination">
-                        <!-- La pagination sera générée par JavaScript -->
-                    </ul>
-                </nav>
-            </div>
-        </div>
+            </article>
+        {% endfor %}
+
+        <!-- Fallback pour absences orphelines sans classe -->
+        {% if absences_sans_classe %}
+            {% set sans_classe_count = absences_sans_classe|length %}
+            <article class="class-absence-card"
+                     data-id="sans-classe"
+                     data-nom="Élèves sans classe assignée"
+                     data-niveau=""
+                     data-total-absences="{{ sans_classe_count }}"
+                     data-eleves-count="1"
+                     data-justifiees="0"
+                     data-non-justifiees="{{ sans_classe_count }}"
+                     data-eleves=""
+                     data-cours=""
+                     data-motifs="">
+
+                <div class="class-absence-header"
+                     data-bs-toggle="collapse"
+                     data-bs-target="#collapseAbsencesSansClasse"
+                     aria-expanded="false"
+                     aria-controls="collapseAbsencesSansClasse">
+
+                    <div class="class-absence-profile">
+                        <div class="class-absence-avatar unassigned">
+                            <i class="fas fa-folder-open"></i>
+                        </div>
+                        <div class="class-absence-info">
+                            <h2 class="class-absence-name text-secondary">Élèves sans classe assignée</h2>
+                            <div class="class-absence-meta">
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary border">Sans classe</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="class-absence-stats">
+                        <span class="badge bg-light text-dark border">
+                            {{ sans_classe_count }} absence{{ 's' if sans_classe_count > 1 else '' }}
+                        </span>
+                        <span class="class-absence-chevron">
+                            <i class="fas fa-chevron-down"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="collapse class-absence-content" id="collapseAbsencesSansClasse">
+                    <div class="class-student-table-wrap">
+                        <table class="table class-student-table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Élève</th>
+                                    <th>Cours</th>
+                                    <th>Statut</th>
+                                    <th>Motif</th>
+                                    {% if current_user.role in ['admin', 'professeur'] %}
+                                    <th class="text-end pe-4">Actions</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for a in absences_sans_classe %}
+                                <tr>
+                                    <td>{{ a.date_absence.strftime('%d/%m/%Y') if a.date_absence else '' }}</td>
+                                    <td>{{ a.eleve.prenom ~ ' ' ~ a.eleve.nom if a.eleve else 'Inconnu' }}</td>
+                                    <td>{{ a.cours.nom if a.cours else 'N/A' }}</td>
+                                    <td>
+                                        <span class="badge {% if a.justifiee %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ "Justifiée" if a.justifiee else "Non justifiée" }}
+                                        </span>
+                                    </td>
+                                    <td>{{ a.motif or "—" }}</td>
+                                    {% if current_user.role in ['admin', 'professeur'] %}
+                                    <td class="text-end pe-4">
+                                        <form action="{{ url_for('main.delete_absence', absence_id=a.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer ?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </article>
+        {% endif %}
     </div>
+
+    <!-- État vide (si aucun résultat trouvé après filtrage) -->
+    <div id="noAbsencesFoundState" class="empty-state py-5 my-4" style="display: none;">
+        <div class="empty-state-icon text-muted mb-3" style="font-size: 3rem;">
+            <i class="fas fa-search"></i>
+        </div>
+        <h3 class="h5 fw-bold text-dark">Aucune absence trouvée</h3>
+        <p class="text-muted mb-3">Aucune classe ni élève ne correspond à vos critères de recherche ou de filtre.</p>
+        <button type="button" class="btn btn-outline-primary" id="btnResetFiltersEmpty">
+            <i class="fas fa-undo me-2"></i>Réinitialiser les filtres
+        </button>
+    </div>
+
+    <!-- État vide global (si aucune absence dans l'établissement) -->
+    {% if not absences %}
+    <div class="empty-state py-5 my-4">
+        <div class="empty-state-icon text-muted mb-3" style="font-size: 3.5rem;">
+            <i class="fas fa-calendar-check text-success"></i>
+        </div>
+        <h2 class="h4 fw-bold text-dark">Aucune absence enregistrée</h2>
+        <p class="text-muted mb-3">Toutes les présences sont au complet ! Aucune absence n'a été signalée.</p>
+        {% if show_form %}
+        <button type="button" class="btn btn-warning text-white" data-bs-toggle="collapse" data-bs-target="#collapseFormAbsence">
+            <i class="fas fa-plus-circle me-2"></i>Déclarer une absence
+        </button>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Barre de pagination dynamique par classe -->
+    <div id="absencePaginationBar" class="course-pagination-bar" style="display: none;">
+        <div class="text-muted small">
+            <span id="pageInfoText">Page 1 sur 1</span>
+        </div>
+        <nav aria-label="Pagination des classes">
+            <ul class="pagination pagination-sm mb-0" id="paginationList">
+                <!-- Dynamiquement généré par JavaScript -->
+            </ul>
+        </nav>
+    </div>
+
 </div>
 
-<!-- Modal pour voir le motif complet -->
-<div class="modal fade" id="modalMotif" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Motif de l'absence</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p id="motifComplet" class="mb-0"></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
-.avatar-sm {
-    width: 40px;
-    height: 40px;
-    font-size: 0.9rem;
-}
-
-.sortable {
-    cursor: pointer;
-    user-select: none;
-    transition: background-color 0.2s;
-}
-
-.sortable:hover {
-    background-color: rgba(0,0,0,0.03);
-}
-
-.absence-ligne {
-    transition: all 0.3s ease;
-}
-
-.absence-ligne:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.motif-absence {
-    cursor: pointer;
-    transition: color 0.2s;
-}
-
-.motif-absence:hover {
-    color: var(--bs-primary) !important;
-}
-
-.table-responsive::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-.table-responsive::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-.table-responsive::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-}
-
-.table-responsive::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
-}
-
-.sticky-top {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
-
-@media (max-width: 768px) {
-    .avatar-sm {
-        width: 32px;
-        height: 32px;
-        font-size: 0.8rem;
-    }
-    
-    .card-header h4 {
-        font-size: 1.1rem;
-    }
-    
-    .btn-group .btn {
-        padding: 0.25rem 0.5rem;
-    }
-    
-    .table-responsive {
-        font-size: 0.875rem;
-    }
-}
-
-/* Animation pour les nouvelles lignes */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.absence-ligne {
-    animation: fadeInUp 0.5s ease-out;
-}
-</style>
-
+<!-- Contrôleur JavaScript réactif pour la gestion des absences par classe -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialisation des tooltips Bootstrap
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl)
-    });
-    
-    // Variables globales
-    const filtreStatut = document.getElementById('filtreStatut');
-    const filtrePeriode = document.getElementById('filtrePeriode');
-    const filtreClasse = document.getElementById('filtreClasse');
-    const btnReinitialiser = document.getElementById('btnReinitialiser');
-    const rechercheGlobale = document.getElementById('rechercheGlobale');
-    const btnEffacerRechercheGlobale = document.getElementById('btnEffacerRechercheGlobale');
+    // Éléments du formulaire d'ajout
     const rechercheEleve = document.getElementById('rechercheEleve');
-    const btnEffacerRecherche = document.getElementById('btnEffacerRecherche');
-    const selectEleve = document.querySelector('select[name="eleve_id"]');
-    const selectNbLignes = document.getElementById('selectNbLignes');
-    const modalMotif = new bootstrap.Modal(document.getElementById('modalMotif'));
-    
-    let lignesAbsences = Array.from(document.querySelectorAll('#tableauAbsences tbody tr.absence-ligne'));
-    let lignesFiltrees = [...lignesAbsences];
-    let colonneTri = 'date';
-    let ordreTri = 'desc';
-    let pageCourante = 1;
-    let lignesParPage = 20;
+    const selectEleve = document.getElementById('eleve_id');
+    const btnEffacer = document.getElementById('btnEffacerRecherche');
 
-    // Recherche d'élève dans le formulaire
     if (rechercheEleve && selectEleve) {
+        const optionsInitiales = Array.from(selectEleve.options);
+
         rechercheEleve.addEventListener('input', function() {
-            const terme = this.value.toLowerCase();
-            const options = selectEleve.options;
-            
-            for (let i = 0; i < options.length; i++) {
-                const texte = options[i].text.toLowerCase();
-                options[i].style.display = texte.includes(terme) ? '' : 'none';
+            const texte = this.value.toLowerCase().trim();
+            selectEleve.innerHTML = '';
+
+            let hasMatches = false;
+            optionsInitiales.forEach(function(opt) {
+                if (!opt.value || opt.text.toLowerCase().includes(texte)) {
+                    selectEleve.appendChild(opt.cloneNode(true));
+                    if (opt.value) hasMatches = true;
+                }
+            });
+
+            if (!hasMatches && selectEleve.options.length === 1 && !selectEleve.options[0].value) {
+                const optVide = document.createElement('option');
+                optVide.text = 'Aucun élève trouvé';
+                optVide.disabled = true;
+                selectEleve.appendChild(optVide);
             }
         });
-        
-        btnEffacerRecherche.addEventListener('click', function() {
-            rechercheEleve.value = '';
-            const options = selectEleve.options;
-            for (let i = 0; i < options.length; i++) {
-                options[i].style.display = '';
+
+        if (btnEffacer) {
+            btnEffacer.addEventListener('click', function() {
+                rechercheEleve.value = '';
+                selectEleve.innerHTML = '';
+                optionsInitiales.forEach(function(opt) {
+                    selectEleve.appendChild(opt.cloneNode(true));
+                });
+                rechercheEleve.focus();
+            });
+        }
+    }
+
+    // Éléments du DOM pour les filtres et accordéons
+    const searchInput = document.getElementById('absenceSearchInput');
+    const searchClear = document.getElementById('absenceSearchClear');
+    const filterClasse = document.getElementById('filterClasseSelect');
+    const filterStatut = document.getElementById('filterStatutSelect');
+    const sortSelect = document.getElementById('sortClassesSelect');
+    const pageSizeSelect = document.getElementById('pageSizeSelect');
+    const filterStats = document.getElementById('absenceFilterStats');
+    const btnReset = document.getElementById('btnResetFilter');
+    const btnResetEmpty = document.getElementById('btnResetFiltersEmpty');
+    const noResults = document.getElementById('noAbsencesFoundState');
+    const classList = document.getElementById('classAbsenceList');
+    const paginationBar = document.getElementById('absencePaginationBar');
+    const paginationList = document.getElementById('paginationList');
+    const pageInfoText = document.getElementById('pageInfoText');
+
+    // Bouton Tout déplier / Tout replier
+    const btnToggleAll = document.getElementById('btnToggleAllClassAbsences');
+    const iconToggleAll = document.getElementById('iconToggleAll');
+    const textToggleAll = document.getElementById('textToggleAll');
+    let allExpanded = false;
+
+    // Récupération de tous les éléments accordéons de classes
+    const classCards = Array.from(document.querySelectorAll('.class-absence-card'));
+    const totalClasses = classCards.length;
+
+    // Calcul du total des absences et des élèves
+    let totalAbsences = 0;
+    let totalEleves = 0;
+    classCards.forEach(c => {
+        totalAbsences += parseInt(c.dataset.totalAbsences || 0, 10);
+        totalEleves += parseInt(c.dataset.elevesCount || 0, 10);
+    });
+
+    if (totalClasses === 0) {
+        if (paginationBar) paginationBar.style.display = 'none';
+        if (filterStats) filterStats.innerHTML = 'Aucune absence enregistrée';
+        return;
+    }
+
+    // État courant
+    let currentPage = 1;
+    let pageSize = parseInt(pageSizeSelect.value, 10) || 20;
+
+    // Normalisation de chaîne (insensible à la casse et aux accents)
+    function normalizeStr(str) {
+        if (!str) return '';
+        return str.toString().toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+    }
+
+    // Filtrage et Tri
+    function getFilteredAndSortedItems() {
+        const query = normalizeStr(searchInput.value.trim());
+        const selectedClasse = filterClasse ? filterClasse.value.trim() : '';
+        const selectedStatut = filterStatut ? filterStatut.value.trim() : '';
+        const sortMode = sortSelect ? sortSelect.value : 'nom-asc';
+
+        // Filtrer
+        let matched = classCards.filter(function(card) {
+            const nom = normalizeStr(card.dataset.nom);
+            const niveau = normalizeStr(card.dataset.niveau);
+            const eleves = normalizeStr(card.dataset.eleves);
+            const cours = normalizeStr(card.dataset.cours);
+            const motifs = normalizeStr(card.dataset.motifs);
+            const justifiees = parseInt(card.dataset.justifiees || 0, 10);
+            const nonJustifiees = parseInt(card.dataset.nonJustifiees || 0, 10);
+
+            // Filtre textuel global
+            if (query) {
+                const textMatch = nom.includes(query) ||
+                                  niveau.includes(query) ||
+                                  eleves.includes(query) ||
+                                  cours.includes(query) ||
+                                  motifs.includes(query);
+                if (!textMatch) return false;
             }
-        });
-    }
 
-    // Recherche globale dans le tableau
-    if (rechercheGlobale) {
-        rechercheGlobale.addEventListener('input', function() {
-            appliquerFiltres();
-        });
-        
-        btnEffacerRechercheGlobale.addEventListener('click', function() {
-            rechercheGlobale.value = '';
-            appliquerFiltres();
-        });
-    }
+            // Filtre par classe exacte
+            if (selectedClasse && card.dataset.nom !== selectedClasse) {
+                return false;
+            }
 
-    // Filtrage des absences
-    function appliquerFiltres() {
-        const statutValue = filtreStatut ? filtreStatut.value : '';
-        const periodeValue = filtrePeriode ? filtrePeriode.value : '';
-        const classeValue = filtreClasse ? filtreClasse.value : '';
-        const rechercheValue = rechercheGlobale ? rechercheGlobale.value.toLowerCase() : '';
-        const aujourdhui = new Date();
-
-        lignesFiltrees = lignesAbsences.filter(ligne => {
             // Filtre par statut
-            const showStatut = !statutValue || ligne.dataset.statut === statutValue;
-            
-            // Filtre par période
-            let showPeriode = true;
-            if (periodeValue) {
-                const dateAbsence = new Date(ligne.dataset.date);
-                const diffTemps = aujourdhui - dateAbsence;
-                const diffJours = Math.floor(diffTemps / (1000 * 60 * 60 * 24));
-                showPeriode = diffJours <= parseInt(periodeValue);
+            if (selectedStatut === 'non-justifiee' && nonJustifiees === 0) {
+                return false;
             }
-            
-            // Filtre par classe
-            const showClasse = !classeValue || ligne.dataset.classe === classeValue;
-            
-            // Filtre par recherche globale
-            let showRecherche = true;
-            if (rechercheValue) {
-                const texteLigne = ligne.textContent.toLowerCase();
-                showRecherche = texteLigne.includes(rechercheValue);
+            if (selectedStatut === 'justifiee' && nonJustifiees > 0) {
+                return false;
             }
-            
-            return showStatut && showPeriode && showClasse && showRecherche;
+
+            return true;
         });
-        
-        pageCourante = 1;
-        trierEtAfficher();
+
+        // Trier
+        matched.sort(function(a, b) {
+            if (sortMode === 'nom-asc') {
+                return a.dataset.nom.localeCompare(b.dataset.nom, 'fr', { sensitivity: 'base' });
+            } else if (sortMode === 'nom-desc') {
+                return b.dataset.nom.localeCompare(a.dataset.nom, 'fr', { sensitivity: 'base' });
+            } else if (sortMode === 'abs-desc') {
+                return parseInt(b.dataset.totalAbsences || 0, 10) - parseInt(a.dataset.totalAbsences || 0, 10);
+            } else if (sortMode === 'eleves-desc') {
+                return parseInt(b.dataset.elevesCount || 0, 10) - parseInt(a.dataset.elevesCount || 0, 10);
+            } else if (sortMode === 'nonjust-desc') {
+                return parseInt(b.dataset.nonJustifiees || 0, 10) - parseInt(a.dataset.nonJustifiees || 0, 10);
+            }
+            return 0;
+        });
+
+        return matched;
     }
 
-    // Événements de filtrage
-    if (filtreStatut) filtreStatut.addEventListener('change', appliquerFiltres);
-    if (filtrePeriode) filtrePeriode.addEventListener('change', appliquerFiltres);
-    if (filtreClasse) filtreClasse.addEventListener('change', appliquerFiltres);
+    // Rendu avec pagination
+    function render() {
+        const matched = getFilteredAndSortedItems();
+        const count = matched.length;
+
+        // Mise à jour de l'icône d'effacement
+        if (searchClear) {
+            searchClear.style.display = searchInput.value.trim().length > 0 ? 'inline-block' : 'none';
+        }
+
+        // Bouton réinitialiser
+        const isFiltered = searchInput.value.trim().length > 0 ||
+                           (filterClasse && filterClasse.value !== '') ||
+                           (filterStatut && filterStatut.value !== '') ||
+                           (sortSelect && sortSelect.value !== 'nom-asc');
+
+        if (btnReset) {
+            btnReset.style.display = isFiltered ? 'inline-block' : 'none';
+        }
+
+        // Compteur d'absences affichées
+        let visibleAbsences = 0;
+        let visibleEleves = 0;
+        matched.forEach(c => {
+            visibleAbsences += parseInt(c.dataset.totalAbsences || 0, 10);
+            visibleEleves += parseInt(c.dataset.elevesCount || 0, 10);
+        });
+
+        if (filterStats) {
+            if (count === totalClasses) {
+                filterStats.innerHTML = `Affichage de <strong>${count}</strong> classe${count > 1 ? 's' : ''} (<strong>${totalEleves}</strong> élève${totalEleves > 1 ? 's' : ''}, <strong>${totalAbsences}</strong> absence${totalAbsences > 1 ? 's' : ''})`;
+            } else {
+                filterStats.innerHTML = `<strong>${count}</strong> classe${count > 1 ? 's' : ''} trouvée${count > 1 ? 's' : ''} (<strong>${visibleEleves}</strong> élève${visibleEleves > 1 ? 's' : ''}, <strong>${visibleAbsences}</strong> absence${visibleAbsences > 1 ? 's' : ''}) sur ${totalClasses}`;
+            }
+        }
+
+        // Gestion état vide
+        if (count === 0) {
+            if (classList) classList.style.display = 'none';
+            if (noResults) noResults.style.display = 'block';
+            if (paginationBar) paginationBar.style.display = 'none';
+            return;
+        } else {
+            if (noResults) noResults.style.display = 'none';
+            if (classList) classList.style.display = 'grid';
+        }
+
+        // Pagination
+        const totalPages = Math.ceil(count / pageSize) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const pageItems = matched.slice(startIndex, endIndex);
+        const visibleIds = new Set(pageItems.map(item => item.dataset.id));
+
+        // Afficher / masquer les accordéons de classe
+        classCards.forEach(card => {
+            card.style.display = visibleIds.has(card.dataset.id) ? 'block' : 'none';
+        });
+
+        // Réordonner les éléments dans le DOM selon le tri
+        if (classList) {
+            pageItems.forEach(item => classList.appendChild(item));
+        }
+
+        // Rendu de la pagination
+        renderPagination(count, totalPages, startIndex, endIndex);
+    }
+
+    function renderPagination(count, totalPages, startIndex, endIndex) {
+        if (!paginationBar || !paginationList) return;
+
+        if (totalPages <= 1) {
+            paginationBar.style.display = 'none';
+            return;
+        }
+
+        paginationBar.style.display = 'flex';
+        const actualEnd = Math.min(endIndex, count);
+        if (pageInfoText) {
+            pageInfoText.textContent = `Affichage ${startIndex + 1} - ${actualEnd} sur ${count} classes (Page ${currentPage} / ${totalPages})`;
+        }
+
+        let html = '';
+
+        // Bouton Précédent
+        html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <button type="button" class="page-link" data-page="${currentPage - 1}" aria-label="Précédent" ${currentPage === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </li>`;
+
+        // Calcul des pages visibles
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (startPage > 1) {
+            html += `<li class="page-item"><button type="button" class="page-link" data-page="1">1</button></li>`;
+            if (startPage > 2) {
+                html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
+            }
+        }
+
+        for (let p = startPage; p <= endPage; p++) {
+            html += `<li class="page-item ${p === currentPage ? 'active' : ''}">
+                <button type="button" class="page-link" data-page="${p}">${p}</button>
+            </li>`;
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
+            }
+            html += `<li class="page-item"><button type="button" class="page-link" data-page="${totalPages}">${totalPages}</button></li>`;
+        }
+
+        // Bouton Suivant
+        html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <button type="button" class="page-link" data-page="${currentPage + 1}" aria-label="Suivant" ${currentPage === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </li>`;
+
+        paginationList.innerHTML = html;
+
+        // Attachement des clics de pagination
+        paginationList.querySelectorAll('button.page-link').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const targetPage = parseInt(this.dataset.page, 10);
+                if (targetPage && targetPage !== currentPage && targetPage >= 1 && targetPage <= totalPages) {
+                    currentPage = targetPage;
+                    render();
+                    const targetEl = document.querySelector('.course-toolbar-card');
+                    if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    }
+
+    // Gestion du bouton "Tout déplier / Tout replier"
+    if (btnToggleAll) {
+        btnToggleAll.addEventListener('click', function() {
+            allExpanded = !allExpanded;
+            const visibleCards = classCards.filter(card => card.style.display !== 'none');
+
+            visibleCards.forEach(card => {
+                const collapseEl = card.querySelector('.collapse');
+                const headerEl = card.querySelector('.class-absence-header');
+                if (collapseEl) {
+                    const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+                    if (allExpanded) {
+                        bsCollapse.show();
+                        if (headerEl) headerEl.setAttribute('aria-expanded', 'true');
+                    } else {
+                        bsCollapse.hide();
+                        if (headerEl) headerEl.setAttribute('aria-expanded', 'false');
+                    }
+                }
+            });
+
+            if (allExpanded) {
+                if (iconToggleAll) iconToggleAll.className = 'fas fa-chevron-up me-1';
+                if (textToggleAll) textToggleAll.textContent = 'Tout replier';
+            } else {
+                if (iconToggleAll) iconToggleAll.className = 'fas fa-chevron-down me-1';
+                if (textToggleAll) textToggleAll.textContent = 'Tout déplier';
+            }
+        });
+    }
+
+    // Synchronisation de l'icône chevron avec l'état Bootstrap Collapse
+    document.querySelectorAll('.class-absence-content').forEach(collapseEl => {
+        collapseEl.addEventListener('show.bs.collapse', function() {
+            const card = this.closest('.class-absence-card');
+            if (card) {
+                const header = card.querySelector('.class-absence-header');
+                if (header) header.setAttribute('aria-expanded', 'true');
+            }
+        });
+        collapseEl.addEventListener('hide.bs.collapse', function() {
+            const card = this.closest('.class-absence-card');
+            if (card) {
+                const header = card.querySelector('.class-absence-header');
+                if (header) header.setAttribute('aria-expanded', 'false');
+            }
+        });
+    });
 
     // Réinitialisation des filtres
-    if (btnReinitialiser) {
-        btnReinitialiser.addEventListener('click', () => {
-            if (filtreStatut) filtreStatut.value = '';
-            if (filtrePeriode) filtrePeriode.value = '';
-            if (filtreClasse) filtreClasse.value = '';
-            if (rechercheGlobale) rechercheGlobale.value = '';
-            if (rechercheEleve) rechercheEleve.value = '';
-            
-            if (selectEleve) {
-                const options = selectEleve.options;
-                for (let i = 0; i < options.length; i++) {
-                    options[i].style.display = '';
-                }
-            }
-            
-            appliquerFiltres();
+    function resetFilters() {
+        if (searchInput) searchInput.value = '';
+        if (filterClasse) filterClasse.value = '';
+        if (filterStatut) filterStatut.value = '';
+        if (sortSelect) sortSelect.value = 'nom-asc';
+        currentPage = 1;
+        render();
+    }
+
+    // Écouteurs d'événements
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            currentPage = 1;
+            render();
         });
     }
 
-    // Gestion du nombre de lignes par page
-    if (selectNbLignes) {
-        selectNbLignes.addEventListener('change', function() {
-            lignesParPage = parseInt(this.value);
-            pageCourante = 1;
-            trierEtAfficher();
+    if (searchClear) {
+        searchClear.addEventListener('click', function() {
+            if (searchInput) searchInput.value = '';
+            currentPage = 1;
+            render();
+            if (searchInput) searchInput.focus();
         });
     }
 
-    // Tri du tableau
-    const entetesTriables = document.querySelectorAll('.sortable');
-    entetesTriables.forEach(entete => {
-        entete.addEventListener('click', function() {
-            const nouvelleColonne = this.dataset.sort;
-            if (colonneTri === nouvelleColonne) {
-                ordreTri = ordreTri === 'asc' ? 'desc' : 'asc';
-            } else {
-                colonneTri = nouvelleColonne;
-                ordreTri = 'asc';
-            }
-            trierEtAfficher();
-            mettreAJourIconesTri();
-        });
-    });
-
-    function trierTableau(colonne, ordre) {
-        lignesFiltrees.sort((a, b) => {
-            let valeurA, valeurB;
-            switch(colonne) {
-                case 'eleve': 
-                    valeurA = a.dataset.eleve.toLowerCase();
-                    valeurB = b.dataset.eleve.toLowerCase(); 
-                    break;
-                case 'classe': 
-                    valeurA = a.dataset.classe.toLowerCase();
-                    valeurB = b.dataset.classe.toLowerCase(); 
-                    break;
-                case 'cours': 
-                    valeurA = a.dataset.cours.toLowerCase();
-                    valeurB = b.dataset.cours.toLowerCase(); 
-                    break;
-                case 'date': 
-                    valeurA = new Date(a.dataset.date).getTime();
-                    valeurB = new Date(b.dataset.date).getTime(); 
-                    break;
-                case 'statut': 
-                    valeurA = a.dataset.statut;
-                    valeurB = b.dataset.statut; 
-                    break;
-            }
-            if (valeurA === valeurB) return 0;
-            return (ordre === 'asc') ? (valeurA > valeurB ? 1 : -1) : (valeurA < valeurB ? 1 : -1);
+    if (filterClasse) {
+        filterClasse.addEventListener('change', function() {
+            currentPage = 1;
+            render();
         });
     }
 
-    function mettreAJourIconesTri() {
-        entetesTriables.forEach(entete => {
-            const icone = entete.querySelector('i');
-            if (entete.dataset.sort === colonneTri) {
-                icone.className = ordreTri === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
-            } else icone.className = 'fas fa-sort';
+    if (filterStatut) {
+        filterStatut.addEventListener('change', function() {
+            currentPage = 1;
+            render();
         });
     }
 
-    // Pagination
-    function mettreAJourPagination() {
-        const totalPages = Math.ceil(lignesFiltrees.length / lignesParPage);
-        const pagination = document.getElementById('pagination');
-        pagination.innerHTML = '';
-        
-        // Bouton précédent
-        const prevLi = document.createElement('li');
-        prevLi.className = `page-item ${pageCourante === 1 ? 'disabled' : ''}`;
-        prevLi.innerHTML = `<a class="page-link" href="#" aria-label="Précédent"><span aria-hidden="true">&laquo;</span></a>`;
-        prevLi.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (pageCourante > 1) {
-                pageCourante--;
-                trierEtAfficher();
-            }
-        });
-        pagination.appendChild(prevLi);
-        
-        // Pages
-        const debutPage = Math.max(1, pageCourante - 2);
-        const finPage = Math.min(totalPages, debutPage + 4);
-        
-        for (let i = debutPage; i <= finPage; i++) {
-            const pageLi = document.createElement('li');
-            pageLi.className = `page-item ${i === pageCourante ? 'active' : ''}`;
-            pageLi.innerHTML = `<a class="page-link" href="#">${i}</a>`;
-            pageLi.addEventListener('click', (e) => {
-                e.preventDefault();
-                pageCourante = i;
-                trierEtAfficher();
-            });
-            pagination.appendChild(pageLi);
-        }
-        
-        // Bouton suivant
-        const nextLi = document.createElement('li');
-        nextLi.className = `page-item ${pageCourante === totalPages ? 'disabled' : ''}`;
-        nextLi.innerHTML = `<a class="page-link" href="#" aria-label="Suivant"><span aria-hidden="true">&raquo;</span></a>`;
-        nextLi.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (pageCourante < totalPages) {
-                pageCourante++;
-                trierEtAfficher();
-            }
-        });
-        pagination.appendChild(nextLi);
-        
-        // Mise à jour des informations de pagination
-        const debutLignes = document.getElementById('debutLignes');
-        const finLignes = document.getElementById('finLignes');
-        const totalLignes = document.getElementById('totalLignes');
-        
-        const debut = (pageCourante - 1) * lignesParPage + 1;
-        const fin = Math.min(pageCourante * lignesParPage, lignesFiltrees.length);
-        
-        debutLignes.textContent = lignesFiltrees.length === 0 ? '0' : debut;
-        finLignes.textContent = fin;
-        totalLignes.textContent = lignesFiltrees.length;
-    }
-
-    function afficherLignesPage() {
-        const tbody = document.querySelector('#tableauAbsences tbody');
-        tbody.innerHTML = '';
-        
-        const debut = (pageCourante - 1) * lignesParPage;
-        const fin = debut + lignesParPage;
-        const lignesPage = lignesFiltrees.slice(debut, fin);
-        
-        if (lignesPage.length === 0) {
-            const tr = document.createElement('tr');
-            const td = document.createElement('td');
-            td.colSpan = document.querySelector('#tableauAbsences thead th').length;
-            td.className = 'text-center py-5';
-            td.innerHTML = `
-                <i class="fas fa-search fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">Aucune absence trouvée</h5>
-                <p class="text-muted">Aucune absence ne correspond à vos critères de recherche</p>
-            `;
-            tr.appendChild(td);
-            tbody.appendChild(tr);
-        } else {
-            lignesPage.forEach(ligne => tbody.appendChild(ligne.cloneNode(true)));
-        }
-        
-        // Réattacher les événements aux nouveaux éléments
-        reattacherEvenements();
-    }
-
-    function trierEtAfficher() {
-        trierTableau(colonneTri, ordreTri);
-        afficherLignesPage();
-        mettreAJourPagination();
-    }
-
-    function reattacherEvenements() {
-        // Réattacher les événements de clic sur les motifs
-        document.querySelectorAll('.motif-absence').forEach(motif => {
-            motif.addEventListener('click', function() {
-                const motifComplet = this.getAttribute('title');
-                document.getElementById('motifComplet').textContent = motifComplet;
-                modalMotif.show();
-            });
-        });
-        
-        // Réinitialiser les tooltips
-        tooltipTriggerList.forEach(tooltipTriggerEl => {
-            new bootstrap.Tooltip(tooltipTriggerEl);
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function() {
+            currentPage = 1;
+            render();
         });
     }
 
-    // Initialisation
-    trierEtAfficher();
-    mettreAJourIconesTri();
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function() {
+            pageSize = parseInt(this.value, 10) || 20;
+            currentPage = 1;
+            render();
+        });
+    }
 
-    // Validation des formulaires Bootstrap
-    var forms = document.querySelectorAll('.needs-validation');
-    Array.prototype.slice.call(forms).forEach(form => {
-        form.addEventListener('submit', function(event) {
-            if (!form.checkValidity()) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-            form.classList.add('was-validated');
-        }, false);
-    });
+    if (btnReset) btnReset.addEventListener('click', resetFilters);
+    if (btnResetEmpty) btnResetEmpty.addEventListener('click', resetFilters);
+
+    // Rendu initial
+    render();
 });
 </script>
 {% endblock %}

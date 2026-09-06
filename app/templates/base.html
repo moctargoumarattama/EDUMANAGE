@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}EduManage - Excellence Éducative{% endblock %}</title>
+    <title>{% block title %}KLASORA - Excellence Éducative{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -429,11 +429,14 @@
 
     
 </head>
-<body class="{{ 'auth-layout' if request.endpoint == 'main.login' else '' }}" data-role="{{ current_user.role if current_user.is_authenticated else 'guest' }}">
+<body class="{{ 'auth-layout' if request.endpoint == 'main.login' else '' }}{{ ' home-layout' if request.endpoint == 'main.index' else '' }}" data-role="{{ current_user.role if current_user.is_authenticated else 'guest' }}">
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('main.index') }}">
-                <i class="fas fa-graduation-cap"></i>EduManage
+            <a class="navbar-brand klasora-brand" href="{% if current_user.is_authenticated and current_user.role == 'professeur' %}{{ url_for('main.professeur_dashboard') }}{% elif current_user.is_authenticated and current_user.role == 'parent' %}{{ url_for('main.parent_dashboard') }}{% else %}{{ url_for('main.index') }}{% endif %}">
+                <img src="{{ url_for('static', filename='img/logo-klasora.png') }}" alt="KLASORA" class="klasora-logo-img">
+                {% if current_user.is_authenticated and current_user.role in ['parent', 'professeur'] %}
+                    <span class="klasora-school-name">{% if ecole_courante %}{{ ecole_courante.nom }}{% elif current_user.ecole %}{{ current_user.ecole.nom }}{% elif session.get('ecole_nom') %}{{ session.ecole_nom }}{% endif %}</span>
+                {% endif %}
             </a>
 
             <div class="navbar-mobile-actions">
@@ -505,13 +508,13 @@
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" href="{{ url_for('main.eleves') }}"><i class="fas fa-list me-2"></i>Liste des élèves</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.ajouter_eleve') }}"><i class="fas fa-plus me-2"></i>Ajouter un élève</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('main.voir_inscriptions') }}"><i class="fas fa-user-check me-2"></i>Inscriptions</a></li>
+
                                 </ul>
                             </li>
                             
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                    <i class="fas fa-chalkboard-teacher me-1"></i>Enseignants
+                                    <i class="fas fa-chalkboard-teacher me-1"></i>Professeurs
                                 </a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" href="{{ url_for('main.professeurs') }}"><i class="fas fa-list me-2"></i>Liste des professeurs</a></li>
@@ -548,9 +551,9 @@
                             </li>
 
                         <!-- 🔹 PROFESSEUR/ENSEIGNANT : Accès à ses classes et cours -->
-                        {% elif current_user.role in ['professeur', 'enseignant'] %}
+                        {% elif current_user.role == 'professeur' %}
                             <li class="nav-item">
-                                <a class="nav-link {{ 'active' if request.endpoint == 'main.enseignant_dashboard' }}" href="{{ url_for('main.enseignant_dashboard') }}">
+                                <a class="nav-link {{ 'active' if request.endpoint == 'main.professeur_dashboard' }}" href="{{ url_for('main.professeur_dashboard') }}">
                                     <i class="fas fa-home me-1"></i>Accueil
                                 </a>
                             </li>
@@ -575,7 +578,7 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('main.enseignant_home') }}">
+                                <a class="nav-link" href="{{ url_for('main.professeur_home') }}">
                                     <i class="fas fa-calendar-alt me-1"></i>Mon Emploi du temps
                                 </a>
                             </li>
@@ -630,7 +633,7 @@
                 <!-- Menu utilisateur à droite -->
                 <ul class="navbar-nav ms-auto">
                     <!-- Bouton de recherche - Visible pour admin, enseignant, professeur -->
-                    {% if current_user.is_authenticated and current_user.role in ['admin', 'super_admin', 'enseignant', 'professeur'] %}
+                    {% if current_user.is_authenticated and current_user.role in ['admin', 'super_admin', 'professeur'] %}
                     <li class="nav-item me-2 d-flex align-items-center">
                         <a href="{{ url_for('main.recherche') }}" class="btn btn-outline-light btn-sm rounded-circle" title="Recherche">
                             <i class="fas fa-search"></i>
@@ -669,6 +672,15 @@
                             </span>
                         </a>
 
+                        {% if current_user.role == 'admin' %}
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 py-1 rounded-3" aria-labelledby="userDropdown" style="min-width: 160px;">
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center text-danger py-2" href="{{ url_for('main.logout') }}">
+                                    <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
+                                </a>
+                            </li>
+                        </ul>
+                        {% else %}
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="userDropdown" style="min-width: 250px;">
                             
                             <!-- Profil utilisateur -->
@@ -699,7 +711,11 @@
                                             {% endif %}
                                         </div>
                                         <small class="text-muted">{{ current_user.role | capitalize }}</small>
-                                        {% if session.get('ecole_courante') %}
+                                        {% if ecole_courante %}
+                                        <div><small class="text-primary">{{ ecole_courante.nom }}</small></div>
+                                        {% elif current_user.is_authenticated and current_user.ecole %}
+                                        <div><small class="text-primary">{{ current_user.ecole.nom }}</small></div>
+                                        {% elif session.get('ecole_courante') %}
                                         <div><small class="text-primary">{{ session.ecole_courante.nom }}</small></div>
                                         {% endif %}
                                     </div>
@@ -765,6 +781,7 @@
                                 </a>
                             </li>
                         </ul>
+                        {% endif %}
                     </li>
 
                     {% else %}
@@ -813,35 +830,43 @@
     </main>
 
     {% if request.endpoint == 'main.index' %}
-    <!-- Footer -->
+    <!-- Footer Premium -->
     <footer class="app-footer">
         <div class="container">
             <div class="footer-compact">
                 <div class="footer-brand">
-                    <h5>EduManage</h5>
-                    <p>Gestion scolaire simple et centralisée.</p>
+                    <div class="footer-brand-title">
+                        <img src="{{ url_for('static', filename='img/logo-klasora.png') }}" alt="KLASORA" class="footer-logo-img">
+                        <h5>KLASORA</h5>
+                    </div>
+                    <p class="footer-desc">Gestion scolaire simple, moderne & centralisée.</p>
+                    <div class="footer-address">
+                        <i class="fas fa-map-marker-alt text-danger me-1"></i>RABAT RTE KENITRA MAROC
+                    </div>
                 </div>
 
                 <nav class="footer-links" aria-label="Liens du pied de page">
-                    <a href="{{ url_for('main.index') }}">Accueil</a>
-                    {% if current_user.is_authenticated %}
-                        {% if current_user.role in ['admin', 'super_admin'] %}
-                        <a href="{{ url_for('main.dashboard') }}">Espace</a>
-                        {% elif current_user.role == 'professeur' %}
-                        <a href="{{ url_for('main.enseignant_dashboard') }}">Espace</a>
-                        {% elif current_user.role == 'parent' %}
-                        <a href="{{ url_for('main.parent_dashboard') }}">Espace</a>
-                        {% endif %}
-                    {% endif %}
-                    <a href="{{ url_for('main.aide') }}">Aide</a>
+                    <a href="{{ url_for('main.aide') }}"><i class="fas fa-question-circle me-1"></i>Aide</a>
                 </nav>
 
                 <div class="footer-contact">
-                    <span><i class="fas fa-envelope" aria-hidden="true"></i> moctargoumarattama@gmail.com</span>
-                    <span><i class="fas fa-phone" aria-hidden="true"></i> +212 770010264</span>
+                    <a href="mailto:moctargoumarattama@gmail.com" class="footer-mail-link" title="Envoyer un e-mail">
+                        <i class="fas fa-envelope"></i>
+                        <span>moctargoumarattama@gmail.com</span>
+                    </a>
+                    <a href="https://wa.me/212770010264" target="_blank" rel="noopener noreferrer" class="btn-footer-whatsapp" title="Discuter sur WhatsApp">
+                        <i class="fab fa-whatsapp"></i>
+                        <div class="whatsapp-text">
+                            <small>Contactez-nous</small>
+                            <strong>+212 770010264</strong>
+                        </div>
+                    </a>
                 </div>
             </div>
-            <div class="footer-bottom">&copy; {{ moment().year }} EduManage. Tous droits réservés. Version {{ config.get('VERSION', 'N/A') }}</div>
+            <div class="footer-bottom">
+                <span>&copy; {{ moment().year }} KLASORA. Tous droits réservés.</span>
+                <span class="footer-version-pill"><i class="fas fa-code-branch me-1"></i>Version {{ config.get('VERSION', '2.2.0') }}</span>
+            </div>
         </div>
     </footer>
     {% endif %}
@@ -894,7 +919,6 @@
                     navbar.style.backdropFilter = 'blur(10px)';
                 }
             });
-}
             
             // Auto-hide alerts après 5 secondes
             const alerts = document.querySelectorAll('.alert');

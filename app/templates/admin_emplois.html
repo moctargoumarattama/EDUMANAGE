@@ -1,55 +1,104 @@
 {% extends "base.html" %}
-{% block title %}Emplois du temps - EduManage{% endblock %}
+{% block title %}Emplois du temps par classe - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container py-4 schedule-page">
-    <div class="page-header">
+<div class="container-fluid px-3 px-lg-4 py-4" style="max-width: 1400px; overflow-x: hidden;">
+
+    <!-- En-tête de page standardisé KLASORA -->
+    <section class="page-header mb-4">
         <div class="page-header-body">
             <div class="page-title-group">
                 <div class="page-icon">
-                    <i class="fas fa-calendar-week"></i>
+                    <i class="fas fa-calendar-alt" aria-hidden="true"></i>
                 </div>
                 <div>
-                    <h1 class="page-title">Emplois du temps</h1>
-                    <p class="page-subtitle d-none d-md-block">Créneaux planifiés par classe, professeur et matière.</p>
+                    <h1 class="page-title">Emplois du Temps par Classe</h1>
+                    <p class="page-subtitle d-none d-md-block">
+                        Consultez, organisez et planifiez les créneaux horaires de chaque classe.
+                    </p>
                 </div>
             </div>
-            <div class="page-actions">
-                <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i>Ajouter
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllSchedule" title="Déplier ou replier toutes les classes">
+                    <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
+                </button>
+                <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary shadow-sm" id="btnAddEmploi">
+                    <i class="fas fa-plus-circle me-2"></i>Nouveau créneau
                 </a>
             </div>
         </div>
-    </div>
+    </section>
 
-    <div class="stat-grid mb-3">
+    <!-- Cartes statistiques récapitulatives -->
+    <div class="stat-grid mb-4">
         <div class="stat-card">
             <div class="stat-icon primary"><i class="fas fa-calendar-check"></i></div>
-            <div><p class="stat-number">{{ pagination.total }}</p><p class="stat-label">Créneaux</p></div>
+            <div>
+                <p class="stat-number">{{ emplois|length }}</p>
+                <p class="stat-label">Créneaux planifiés</p>
+            </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon info"><i class="fas fa-school"></i></div>
-            <div><p class="stat-number">{{ classes_count }}</p><p class="stat-label">Classes</p></div>
+            <div>
+                <p class="stat-number">{{ classes_count }}</p>
+                <p class="stat-label">Classes</p>
+            </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon success"><i class="fas fa-chalkboard-teacher"></i></div>
-            <div><p class="stat-number">{{ professeurs_count }}</p><p class="stat-label">Professeurs</p></div>
+            <div>
+                <p class="stat-number">{{ professeurs_count }}</p>
+                <p class="stat-label">Professeurs</p>
+            </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon warning"><i class="fas fa-door-open"></i></div>
-            <div><p class="stat-number">{{ salles_count }}</p><p class="stat-label">Salles</p></div>
+            <div>
+                <p class="stat-number">{{ salles_count }}</p>
+                <p class="stat-label">Salles utilisées</p>
+            </div>
         </div>
     </div>
 
-    <div class="filter-card schedule-filter mb-3">
-        <div class="row g-2 align-items-end">
-            <div class="col-md-7">
-                <label for="scheduleSearch" class="form-label">Recherche</label>
-                <input type="search" id="scheduleSearch" class="form-control" placeholder="Classe, professeur, matière...">
+    <!-- Pré-classement défensif des emplois -->
+    {% if not emplois_par_classe %}
+        {% set emplois_par_classe = {} %}
+        {% set emplois_sans_classe = [] %}
+        {% for e in emplois %}
+            {% if e.classe_id %}
+                {% if e.classe_id not in emplois_par_classe %}
+                    {% set _ = emplois_par_classe.update({e.classe_id: []}) %}
+                {% endif %}
+                {% set _ = emplois_par_classe[e.classe_id].append(e) %}
+            {% elif e.classe %}
+                {% if e.classe.id not in emplois_par_classe %}
+                    {% set _ = emplois_par_classe.update({e.classe.id: []}) %}
+                {% endif %}
+                {% set _ = emplois_par_classe[e.classe.id].append(e) %}
+            {% else %}
+                {% set _ = emplois_sans_classe.append(e) %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    <!-- Barre d'outils : recherche, filtres et tri -->
+    <div class="course-toolbar-card mb-4">
+        <div class="row g-2 align-items-center">
+            <!-- Recherche rapide -->
+            <div class="col-12 col-md-4 col-lg-3">
+                <div class="course-search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="scheduleSearchInput" class="form-control" placeholder="Rechercher classe, matière, prof, salle..." autocomplete="off">
+                    <button type="button" id="scheduleSearchClear" class="clear-btn" title="Effacer la recherche">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
             </div>
-            <div class="col-md-5">
-                <label for="scheduleDay" class="form-label">Jour</label>
-                <select id="scheduleDay" class="form-select">
+
+            <!-- Filtre par jour -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select id="filterScheduleDaySelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="">Tous les jours</option>
                     <option value="Lundi">Lundi</option>
                     <option value="Mardi">Mardi</option>
@@ -60,127 +109,827 @@
                     <option value="Dimanche">Dimanche</option>
                 </select>
             </div>
+
+            <!-- Filtre par classe -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select id="filterScheduleClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Toutes les classes</option>
+                    {% if classes %}
+                        {% for cl in classes %}
+                            <option value="{{ cl.nom }}">{{ cl.nom }}</option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </div>
+
+            <!-- Tri des classes -->
+            <div class="col-6 col-md-2 col-lg-2">
+                <select id="sortScheduleSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="nom-asc">Classe (A &rarr; Z)</option>
+                    <option value="nom-desc">Classe (Z &rarr; A)</option>
+                    <option value="slots-desc">Plus de créneaux &darr;</option>
+                    <option value="slots-asc">Moins de créneaux &uarr;</option>
+                </select>
+            </div>
+
+            <!-- Pagination par page -->
+            <div class="col-6 col-md-2 col-lg-3 d-flex justify-content-md-end">
+                <select id="schedulePageSizeSelect" class="form-select form-select-sm" style="min-height: 42px; max-width: 170px;">
+                    <option value="5">5 classes / page</option>
+                    <option value="10">10 classes / page</option>
+                    <option value="20" selected>20 classes / page</option>
+                    <option value="all">Toutes les classes</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Ligne résumé des résultats -->
+        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top text-muted small flex-wrap gap-2">
+            <div>
+                <i class="fas fa-info-circle me-1 text-primary"></i>
+                <span id="scheduleFilterStats">Chargement des emplois du temps...</span>
+            </div>
+            <button type="button" id="btnResetFilter" class="btn btn-link btn-sm text-decoration-none text-muted p-0" style="display: none;">
+                <i class="fas fa-undo me-1"></i>Réinitialiser les filtres
+            </button>
         </div>
     </div>
 
-    {% if emplois %}
-        <div class="schedule-table-wrap">
-            <table class="table data-table align-middle mb-0" id="scheduleTable">
-                <thead>
-                    <tr>
-                        <th>Classe</th>
-                        <th>Professeur</th>
-                        <th>Matière</th>
-                        <th>Jour</th>
-                        <th>Horaire</th>
-                        <th>Salle</th>
-                        <th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for e in emplois %}
-                    <tr data-search="{{ (e.classe.nom if e.classe else '') }} {{ (e.professeur.prenom if e.professeur else '') }} {{ (e.professeur.nom if e.professeur else '') }} {{ (e.cours.nom if e.cours else '') }} {{ e.jour }} {{ e.salle or '' }}" data-day="{{ e.jour }}">
-                        <td>
-                            <strong>{{ e.classe.nom if e.classe else 'N/A' }}</strong>
-                            <small class="d-block text-muted">{{ e.classe.niveau if e.classe else '' }}</small>
-                        </td>
-                        <td>{{ e.professeur.prenom if e.professeur else 'N/A' }} {{ e.professeur.nom if e.professeur else '' }}</td>
-                        <td><span class="badge bg-light text-dark border">{{ e.cours.nom if e.cours else 'N/A' }}</span></td>
-                        <td><span class="badge bg-primary-subtle text-primary">{{ e.jour }}</span></td>
-                        <td>{{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }} - {{ e.heure_fin.strftime('%H:%M') if e.heure_fin else '' }}</td>
-                        <td>{{ e.salle or '-' }}</td>
-                        <td class="text-end">
-                            <div class="action-buttons justify-content-end">
-                                <a href="{{ url_for('main.modifier_emploi', id=e.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier" aria-label="Modifier">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="js-confirm-form" data-confirm="Voulez-vous vraiment supprimer ce créneau ?">
-                                    {{ delete_form.hidden_tag() }}
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer" aria-label="Supprimer">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <!-- LISTE DES CLASSES ET LEURS CRÉNEAUX HORAIRES (ACCORDÉON) -->
+    <div id="classScheduleList" class="class-schedule-list">
+        {% if classes %}
+            {% for c in classes %}
+                {% set class_emplois = emplois_par_classe.get(c.id, []) %}
+                {% set total_creneaux = class_emplois|length %}
 
-        <div class="schedule-card-list" id="scheduleCards">
-            {% for e in emplois %}
-            <article class="schedule-card" data-search="{{ (e.classe.nom if e.classe else '') }} {{ (e.professeur.prenom if e.professeur else '') }} {{ (e.professeur.nom if e.professeur else '') }} {{ (e.cours.nom if e.cours else '') }} {{ e.jour }} {{ e.salle or '' }}" data-day="{{ e.jour }}">
-                <div class="schedule-card-head">
-                    <div>
-                        <h2>{{ e.classe.nom if e.classe else 'N/A' }}</h2>
-                        <span>{{ e.jour }} · {{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }} - {{ e.heure_fin.strftime('%H:%M') if e.heure_fin else '' }}</span>
-                    </div>
-                    <span class="badge bg-primary-subtle text-primary">{{ e.salle or 'Salle non renseignée' }}</span>
-                </div>
-                <div class="schedule-card-meta">
-                    <span><strong>Matière</strong>{{ e.cours.nom if e.cours else 'N/A' }}</span>
-                    <span><strong>Professeur</strong>{{ e.professeur.prenom if e.professeur else 'N/A' }} {{ e.professeur.nom if e.professeur else '' }}</span>
-                </div>
-                <div class="schedule-card-actions">
-                    <a href="{{ url_for('main.modifier_emploi', id=e.id) }}" class="btn btn-sm btn-outline-primary">
-                        <i class="fas fa-edit me-1"></i>Modifier
-                    </a>
-                    <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="js-confirm-form" data-confirm="Voulez-vous vraiment supprimer ce créneau ?">
-                        {{ delete_form.hidden_tag() }}
-                        <button type="submit" class="btn btn-sm btn-outline-danger">
-                            <i class="fas fa-trash me-1"></i>Supprimer
-                        </button>
-                    </form>
-                </div>
-            </article>
-            {% endfor %}
-        </div>
-
-        {% if pagination.pages > 1 %}
-        <nav class="pagination-wrapper mt-3" aria-label="Pagination emplois du temps">
-            <ul class="pagination justify-content-center flex-wrap">
-                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                    {% if pagination.has_prev %}
-                    <a class="page-link" href="{{ url_for('main.admin_emplois', page=pagination.prev_num) }}">Précédent</a>
-                    {% else %}
-                    <span class="page-link">Précédent</span>
+                <!-- Agrégation des données pour la recherche en direct -->
+                {% set ns = namespace(cours=[], profs=[], jours=[], search_terms=[]) %}
+                {% for e in class_emplois %}
+                    {% if e.cours and e.cours.nom not in ns.cours %}
+                        {% set _ = ns.cours.append(e.cours.nom) %}
                     {% endif %}
-                </li>
-                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
-                    {% if page_num %}
-                    <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                        <a class="page-link" href="{{ url_for('main.admin_emplois', page=page_num) }}">{{ page_num }}</a>
-                    </li>
-                    {% else %}
-                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% if e.professeur %}
+                        {% set p_name = e.professeur.prenom ~ ' ' ~ e.professeur.nom %}
+                        {% if p_name not in ns.profs %}
+                            {% set _ = ns.profs.append(p_name) %}
+                        {% endif %}
+                    {% endif %}
+                    {% if e.jour not in ns.jours %}
+                        {% set _ = ns.jours.append(e.jour) %}
+                    {% endif %}
+                    {% if e.salle and e.salle not in ns.search_terms %}
+                        {% set _ = ns.search_terms.append(e.salle) %}
                     {% endif %}
                 {% endfor %}
-                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-                    {% if pagination.has_next %}
-                    <a class="page-link" href="{{ url_for('main.admin_emplois', page=pagination.next_num) }}">Suivant</a>
-                    {% else %}
-                    <span class="page-link">Suivant</span>
-                    {% endif %}
-                </li>
-            </ul>
-        </nav>
+
+                {% set cours_str = ns.cours|join(' ') %}
+                {% set profs_str = ns.profs|join(' ') %}
+                {% set jours_str = ns.jours|join(' ') %}
+                {% set salles_str = ns.search_terms|join(' ') %}
+
+                <article class="class-schedule-card"
+                         data-id="{{ c.id }}"
+                         data-nom="{{ c.nom }}"
+                         data-niveau="{{ c.niveau or '' }}"
+                         data-total-creneaux="{{ total_creneaux }}"
+                         data-cours="{{ cours_str }}"
+                         data-profs="{{ profs_str }}"
+                         data-jours="{{ jours_str }}"
+                         data-search="{{ c.nom }} {{ c.niveau or '' }} {{ cours_str }} {{ profs_str }} {{ jours_str }} {{ salles_str }}">
+
+                    <!-- En-tête cliquable de la classe -->
+                    <div class="class-schedule-header"
+                         data-bs-toggle="collapse"
+                         data-bs-target="#collapseScheduleClasse{{ c.id }}"
+                         aria-expanded="false"
+                         aria-controls="collapseScheduleClasse{{ c.id }}">
+
+                        <div class="class-schedule-profile">
+                            <div class="class-schedule-avatar {% if total_creneaux == 0 %}empty{% endif %}">
+                                <i class="fas fa-graduation-cap"></i>
+                            </div>
+                            <div class="class-schedule-info">
+                                <h2 class="class-schedule-name">{{ c.nom }}</h2>
+                                <div class="class-schedule-meta">
+                                    {% if c.niveau %}
+                                        {% set niveau_color = {
+                                            '6ème': 'bg-info bg-opacity-10 text-info border border-info-subtle',
+                                            '5ème': 'bg-success bg-opacity-10 text-success border border-success-subtle',
+                                            '4ème': 'bg-warning bg-opacity-10 text-dark border border-warning-subtle',
+                                            '3ème': 'bg-danger bg-opacity-10 text-danger border border-danger-subtle'
+                                        } %}
+                                        <span class="badge {{ niveau_color.get(c.niveau, 'bg-secondary bg-opacity-10 text-secondary border') }}">
+                                            <i class="fas fa-layer-group me-1"></i>{{ c.niveau }}
+                                        </span>
+                                    {% endif %}
+                                    <span class="badge bg-light text-muted border">ID #{{ c.id }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="class-schedule-stats">
+                            <!-- Nombre de créneaux -->
+                            <span class="badge {% if total_creneaux > 0 %}bg-primary-subtle text-primary border border-primary-subtle{% else %}bg-light text-muted border{% endif %}" style="font-size: 0.82rem;">
+                                <i class="fas fa-calendar-day me-1"></i>{{ total_creneaux }} créneau{{ 'x' if total_creneaux > 1 else '' }}
+                            </span>
+
+                            <!-- Matières -->
+                            {% if ns.cours|length > 0 %}
+                                <span class="badge bg-light text-dark border d-none d-sm-inline-flex" style="font-size: 0.82rem;">
+                                    <i class="fas fa-book me-1 text-info"></i>{{ ns.cours|length }} matière{{ 's' if ns.cours|length > 1 else '' }}
+                                </span>
+                            {% endif %}
+
+                            <!-- Professeurs -->
+                            {% if ns.profs|length > 0 %}
+                                <span class="badge bg-light text-dark border d-none d-md-inline-flex" style="font-size: 0.82rem;">
+                                    <i class="fas fa-chalkboard-teacher me-1 text-success"></i>{{ ns.profs|length }} prof{{ 's' if ns.profs|length > 1 else '' }}
+                                </span>
+                            {% endif %}
+
+                            <!-- Bouton d'ajout rapide pour cette classe -->
+                            <a href="{{ url_for('main.ajouter_emploi', classe_id=c.id) }}"
+                               class="btn btn-sm btn-outline-primary d-none d-lg-inline-flex"
+                               onclick="event.stopPropagation();"
+                               title="Ajouter un créneau pour {{ c.nom }}">
+                                <i class="fas fa-plus me-1"></i>Créneau
+                            </a>
+
+                            <!-- Chevron rotatif -->
+                            <div class="class-schedule-chevron">
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contenu dépliable des créneaux de la classe -->
+                    <div class="collapse class-schedule-content" id="collapseScheduleClasse{{ c.id }}">
+                        {% if total_creneaux == 0 %}
+                            <div class="text-center py-4">
+                                <div class="mb-2">
+                                    <i class="fas fa-calendar-times text-muted fa-2x"></i>
+                                </div>
+                                <h6 class="text-muted fw-bold mb-1">Aucun créneau planifié</h6>
+                                <p class="text-muted small mb-3">Cette classe n'a pas encore d'emploi du temps enregistré.</p>
+                                <a href="{{ url_for('main.ajouter_emploi', classe_id=c.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-plus-circle me-1"></i>Planifier un premier créneau
+                                </a>
+                            </div>
+                        {% else %}
+                            <!-- TABLEAU DES CRÉNEAUX (DESKTOP >= 768px) -->
+                            <div class="class-schedule-table-wrap">
+                                <table class="table data-table align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 120px;">Jour</th>
+                                            <th style="width: 140px;">Horaire</th>
+                                            <th>Matière</th>
+                                            <th>Professeur</th>
+                                            <th style="width: 130px;">Salle</th>
+                                            <th class="text-end" style="width: 120px;">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for e in class_emplois %}
+                                            {% set day_cls = {
+                                                'Lundi': 'badge-day-lundi',
+                                                'Mardi': 'badge-day-mardi',
+                                                'Mercredi': 'badge-day-mercredi',
+                                                'Jeudi': 'badge-day-jeudi',
+                                                'Vendredi': 'badge-day-vendredi',
+                                                'Samedi': 'badge-day-samedi',
+                                                'Dimanche': 'badge-day-dimanche'
+                                            } %}
+                                            <tr class="schedule-slot-item"
+                                                data-day="{{ e.jour }}"
+                                                data-search="{{ e.jour }} {{ e.cours.nom if e.cours else '' }} {{ e.professeur.prenom if e.professeur else '' }} {{ e.professeur.nom if e.professeur else '' }} {{ e.salle or '' }}">
+                                                <td>
+                                                    <span class="badge {{ day_cls.get(e.jour, 'bg-light text-dark border') }} px-2 py-1">
+                                                        {{ e.jour }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="fw-semibold text-dark">
+                                                        <i class="far fa-clock me-1 text-muted"></i>{{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }} - {{ e.heure_fin.strftime('%H:%M') if e.heure_fin else '' }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <strong class="text-dark">{{ e.cours.nom if e.cours else 'N/A' }}</strong>
+                                                </td>
+                                                <td>
+                                                    {% if e.professeur %}
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <div class="prof-avatar-sm">
+                                                                {{ (e.professeur.prenom[0] ~ e.professeur.nom[0]) if (e.professeur.prenom and e.professeur.nom) else 'P' }}
+                                                            </div>
+                                                            <span>{{ e.professeur.prenom }} {{ e.professeur.nom }}</span>
+                                                        </div>
+                                                    {% else %}
+                                                        <span class="text-muted fst-italic">Non assigné</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if e.salle %}
+                                                        <span class="badge bg-light text-secondary border">
+                                                            <i class="fas fa-door-open me-1"></i>{{ e.salle }}
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="text-muted small">-</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-end">
+                                                    <div class="d-inline-flex align-items-center gap-1">
+                                                        <a href="{{ url_for('main.modifier_emploi', id=e.id) }}"
+                                                           class="btn btn-sm btn-outline-primary"
+                                                           title="Modifier ce créneau"
+                                                           aria-label="Modifier">
+                                                            <i class="fas fa-edit"></i>
+                                                        </a>
+                                                        <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="d-inline js-confirm-form" data-confirm="Voulez-vous vraiment supprimer ce créneau ({{ e.cours.nom if e.cours else 'Matière' }} - {{ e.jour }} {{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }}) ?">
+                                                            {{ delete_form.hidden_tag() }}
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer ce créneau" aria-label="Supprimer">
+                                                                <i class="fas fa-trash-alt"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- MINI-CARTES VERTICALES (MOBILE < 768px, ZÉRO DÉFILEMENT HORIZONTAL) -->
+                            <div class="class-schedule-cards">
+                                {% for e in class_emplois %}
+                                    {% set day_cls = {
+                                        'Lundi': 'badge-day-lundi',
+                                        'Mardi': 'badge-day-mardi',
+                                        'Mercredi': 'badge-day-mercredi',
+                                        'Jeudi': 'badge-day-jeudi',
+                                        'Vendredi': 'badge-day-vendredi',
+                                        'Samedi': 'badge-day-samedi',
+                                        'Dimanche': 'badge-day-dimanche'
+                                    } %}
+                                    <div class="class-schedule-mini-card schedule-slot-item"
+                                         data-day="{{ e.jour }}"
+                                         data-search="{{ e.jour }} {{ e.cours.nom if e.cours else '' }} {{ e.professeur.prenom if e.professeur else '' }} {{ e.professeur.nom if e.professeur else '' }} {{ e.salle or '' }}">
+                                        <div class="class-schedule-mini-top">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="badge {{ day_cls.get(e.jour, 'badge-day-lundi') }}">
+                                                    {{ e.jour }}
+                                                </span>
+                                                <span class="fw-semibold text-dark small">
+                                                    <i class="far fa-clock me-1 text-muted"></i>{{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }} - {{ e.heure_fin.strftime('%H:%M') if e.heure_fin else '' }}
+                                                </span>
+                                            </div>
+                                            {% if e.salle %}
+                                                <span class="badge bg-light text-secondary border small">
+                                                    <i class="fas fa-door-open me-1"></i>{{ e.salle }}
+                                                </span>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="class-schedule-mini-body">
+                                            <span class="class-schedule-mini-course">{{ e.cours.nom if e.cours else 'N/A' }}</span>
+                                            <div class="class-schedule-mini-meta">
+                                                <i class="fas fa-chalkboard-teacher text-muted"></i>
+                                                <span>{{ (e.professeur.prenom ~ ' ' ~ e.professeur.nom) if e.professeur else 'Professeur non assigné' }}</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="class-schedule-mini-actions">
+                                            <a href="{{ url_for('main.modifier_emploi', id=e.id) }}"
+                                               class="btn btn-outline-primary"
+                                               title="Modifier ce créneau">
+                                                <i class="fas fa-edit me-1"></i>Modifier
+                                            </a>
+                                            <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="js-confirm-form" data-confirm="Voulez-vous vraiment supprimer ce créneau ({{ e.cours.nom if e.cours else 'Matière' }} - {{ e.jour }}) ?">
+                                                {{ delete_form.hidden_tag() }}
+                                                <button type="submit" class="btn btn-outline-danger" title="Supprimer ce créneau">
+                                                    <i class="fas fa-trash-alt me-1"></i>Supprimer
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
         {% endif %}
-    {% else %}
-        <div class="empty-state">
-            <div class="empty-state-icon">
-                <i class="fas fa-calendar-times"></i>
-            </div>
-            <h2 class="empty-state-title">Aucun créneau</h2>
-            <p class="empty-state-text">Ajoutez un créneau pour commencer la planification.</p>
-            <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary">
-                <i class="fas fa-plus me-2"></i>Ajouter
-            </a>
+
+        <!-- SECTION DE SECOURS : CRÉNEAUX SANS CLASSE ASSIGNÉE -->
+        {% if emplois_sans_classe and emplois_sans_classe|length > 0 %}
+            <article class="class-schedule-card"
+                     data-id="sans-classe"
+                     data-nom="Créneaux sans classe"
+                     data-niveau=""
+                     data-total-creneaux="{{ emplois_sans_classe|length }}"
+                     data-cours=""
+                     data-profs=""
+                     data-jours=""
+                     data-search="sans classe orphelin non assigné">
+
+                <div class="class-schedule-header"
+                     data-bs-toggle="collapse"
+                     data-bs-target="#collapseScheduleSansClasse"
+                     aria-expanded="false"
+                     aria-controls="collapseScheduleSansClasse">
+
+                    <div class="class-schedule-profile">
+                        <div class="class-schedule-avatar orphan">
+                            <i class="fas fa-question-circle"></i>
+                        </div>
+                        <div class="class-schedule-info">
+                            <h2 class="class-schedule-name">Créneaux sans classe assignée</h2>
+                            <div class="class-schedule-meta">
+                                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>À régulariser
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="class-schedule-stats">
+                        <span class="badge bg-warning text-dark border" style="font-size: 0.82rem;">
+                            {{ emplois_sans_classe|length }} créneau{{ 'x' if emplois_sans_classe|length > 1 else '' }}
+                        </span>
+                        <div class="class-schedule-chevron">
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="collapse class-schedule-content" id="collapseScheduleSansClasse">
+                    <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
+                        <i class="fas fa-exclamation-triangle fa-lg"></i>
+                        <span>Ces créneaux horaires n'ont pas de classe associée. Vous pouvez les modifier pour leur affecter une classe valide.</span>
+                    </div>
+
+                    <!-- Table desktop -->
+                    <div class="class-schedule-table-wrap">
+                        <table class="table data-table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Jour</th>
+                                    <th>Horaire</th>
+                                    <th>Matière</th>
+                                    <th>Professeur</th>
+                                    <th>Salle</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for e in emplois_sans_classe %}
+                                    <tr class="schedule-slot-item" data-day="{{ e.jour }}" data-search="{{ e.jour }} {{ e.cours.nom if e.cours else '' }} {{ e.professeur.prenom if e.professeur else '' }} {{ e.professeur.nom if e.professeur else '' }} {{ e.salle or '' }}">
+                                        <td><span class="badge bg-primary-subtle text-primary">{{ e.jour }}</span></td>
+                                        <td>{{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }} - {{ e.heure_fin.strftime('%H:%M') if e.heure_fin else '' }}</td>
+                                        <td><strong>{{ e.cours.nom if e.cours else 'N/A' }}</strong></td>
+                                        <td>{{ e.professeur.prenom if e.professeur else 'N/A' }} {{ e.professeur.nom if e.professeur else '' }}</td>
+                                        <td>{{ e.salle or '-' }}</td>
+                                        <td class="text-end">
+                                            <div class="d-inline-flex gap-1">
+                                                <a href="{{ url_for('main.modifier_emploi', id=e.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="d-inline js-confirm-form" data-confirm="Supprimer ce créneau orphelin ?">
+                                                    {{ delete_form.hidden_tag() }}
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Cartes mobile -->
+                    <div class="class-schedule-cards">
+                        {% for e in emplois_sans_classe %}
+                            <div class="class-schedule-mini-card schedule-slot-item" data-day="{{ e.jour }}" data-search="{{ e.jour }} {{ e.cours.nom if e.cours else '' }} {{ e.professeur.prenom if e.professeur else '' }} {{ e.professeur.nom if e.professeur else '' }} {{ e.salle or '' }}">
+                                <div class="class-schedule-mini-top">
+                                    <span class="badge bg-primary-subtle text-primary">{{ e.jour }}</span>
+                                    <span class="small fw-semibold">{{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }} - {{ e.heure_fin.strftime('%H:%M') if e.heure_fin else '' }}</span>
+                                </div>
+                                <div class="class-schedule-mini-body">
+                                    <span class="class-schedule-mini-course">{{ e.cours.nom if e.cours else 'N/A' }}</span>
+                                    <span class="class-schedule-mini-meta">{{ (e.professeur.prenom ~ ' ' ~ e.professeur.nom) if e.professeur else 'Non assigné' }} · Salle: {{ e.salle or '-' }}</span>
+                                </div>
+                                <div class="class-schedule-mini-actions">
+                                    <a href="{{ url_for('main.modifier_emploi', id=e.id) }}" class="btn btn-outline-primary">
+                                        <i class="fas fa-edit me-1"></i>Modifier
+                                    </a>
+                                    <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="js-confirm-form" data-confirm="Supprimer ce créneau ?">
+                                        {{ delete_form.hidden_tag() }}
+                                        <button type="submit" class="btn btn-outline-danger">
+                                            <i class="fas fa-trash-alt me-1"></i>Supprimer
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </article>
+        {% endif %}
+    </div>
+
+    <!-- Message aucun résultat -->
+    <div id="noScheduleResults" class="empty-state py-5" style="display: none;">
+        <div class="empty-state-icon text-muted mb-3">
+            <i class="fas fa-calendar-times fa-3x"></i>
         </div>
-    {% endif %}
+        <h3 class="empty-state-title fs-5 fw-bold">Aucune classe ou créneau trouvé</h3>
+        <p class="empty-state-text text-muted mb-3">Aucun créneau ne correspond à vos critères de recherche ou de filtre.</p>
+        <button type="button" class="btn btn-outline-primary" id="btnResetEmpty">
+            <i class="fas fa-undo me-2"></i>Réinitialiser les filtres
+        </button>
+    </div>
+
+    <!-- Barre de pagination dynamique -->
+    <nav id="schedulePaginationBar" class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-4" aria-label="Pagination des classes" style="display: none;">
+        <div class="text-muted small" id="schedulePageInfoText">
+            Affichage des classes...
+        </div>
+        <ul class="pagination mb-0" id="schedulePaginationList">
+            <!-- Liens de pagination générés par JS -->
+        </ul>
+    </nav>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/admin-emplois.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    'use strict';
+
+    // Normalisation pour recherche insensible à la casse et aux accents
+    function normalize(str) {
+        return (str || '')
+            .toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim();
+    }
+
+    // Éléments du DOM
+    const searchInput = document.getElementById('scheduleSearchInput');
+    const searchClear = document.getElementById('scheduleSearchClear');
+    const filterDay = document.getElementById('filterScheduleDaySelect');
+    const filterClasse = document.getElementById('filterScheduleClasseSelect');
+    const sortSelect = document.getElementById('sortScheduleSelect');
+    const pageSizeSelect = document.getElementById('schedulePageSizeSelect');
+    const filterStats = document.getElementById('scheduleFilterStats');
+    const btnReset = document.getElementById('btnResetFilter');
+    const btnResetEmpty = document.getElementById('btnResetEmpty');
+    const noResults = document.getElementById('noScheduleResults');
+    const classList = document.getElementById('classScheduleList');
+    const btnToggleAll = document.getElementById('btnToggleAllSchedule');
+    const iconToggleAll = document.getElementById('iconToggleAll');
+    const textToggleAll = document.getElementById('textToggleAll');
+    const paginationBar = document.getElementById('schedulePaginationBar');
+    const paginationList = document.getElementById('schedulePaginationList');
+    const pageInfoText = document.getElementById('schedulePageInfoText');
+
+    // Cartes des classes
+    const classCards = Array.from(document.querySelectorAll('.class-schedule-card'));
+    let allExpanded = false;
+    let currentPage = 1;
+    let pageSize = 20;
+
+    // Fonction de filtrage et rendu principal
+    function render() {
+        const query = normalize(searchInput ? searchInput.value : '');
+        const selectedDay = filterDay ? filterDay.value : '';
+        const selectedClasse = filterClasse ? filterClasse.value : '';
+        const sortMode = sortSelect ? sortSelect.value : 'nom-asc';
+
+        if (searchClear) {
+            searchClear.style.display = query ? 'block' : 'none';
+        }
+
+        const isFiltered = !!(query || selectedDay || selectedClasse || sortMode !== 'nom-asc');
+        if (btnReset) btnReset.style.display = isFiltered ? 'inline-flex' : 'none';
+
+        let matched = [];
+        let totalVisibleSlots = 0;
+
+        classCards.forEach(card => {
+            const cardNom = card.dataset.nom || '';
+            const cardSearch = normalize(card.dataset.search || '');
+            const cardId = card.dataset.id || '';
+
+            // Filtrage par classe sélectionnée
+            if (selectedClasse && cardNom !== selectedClasse && cardId !== selectedClasse) {
+                card.style.display = 'none';
+                return;
+            }
+
+            // Gestion des créneaux horaires à l'intérieur de la classe
+            const slotItems = Array.from(card.querySelectorAll('.schedule-slot-item'));
+            let classMatchingSlots = 0;
+
+            if (slotItems.length > 0) {
+                slotItems.forEach(slot => {
+                    const slotDay = slot.dataset.day || '';
+                    const slotSearch = normalize(slot.dataset.search || '');
+
+                    const matchDay = !selectedDay || slotDay === selectedDay;
+                    const matchQuery = !query || slotSearch.includes(query) || cardSearch.includes(query);
+
+                    if (matchDay && matchQuery) {
+                        slot.classList.remove('d-none');
+                        classMatchingSlots++;
+                        totalVisibleSlots++;
+                    } else {
+                        slot.classList.add('d-none');
+                    }
+                });
+            }
+
+            // La classe est-elle éligible ?
+            let isClassMatch = false;
+            if (slotItems.length === 0) {
+                // Classe sans créneau
+                if (!selectedDay) {
+                    if (!query || cardSearch.includes(query)) {
+                        isClassMatch = true;
+                    }
+                }
+            } else {
+                if (classMatchingSlots > 0) {
+                    isClassMatch = true;
+                }
+            }
+
+            if (isClassMatch) {
+                matched.push({
+                    card: card,
+                    nom: cardNom,
+                    totalCreneaux: parseInt(card.dataset.totalCreneaux, 10) || 0,
+                    matchingSlots: classMatchingSlots
+                });
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        // Tri des classes
+        matched.sort((a, b) => {
+            if (sortMode === 'nom-asc') {
+                return a.nom.localeCompare(b.nom, 'fr', { numeric: true });
+            } else if (sortMode === 'nom-desc') {
+                return b.nom.localeCompare(a.nom, 'fr', { numeric: true });
+            } else if (sortMode === 'slots-desc') {
+                return b.totalCreneaux - a.totalCreneaux || a.nom.localeCompare(b.nom, 'fr');
+            } else if (sortMode === 'slots-asc') {
+                return a.totalCreneaux - b.totalCreneaux || a.nom.localeCompare(b.nom, 'fr');
+            }
+            return 0;
+        });
+
+        const count = matched.length;
+
+        // Mise à jour du compteur
+        if (filterStats) {
+            let slotText = totalVisibleSlots + ' créneau' + (totalVisibleSlots > 1 ? 'x' : '') + ' planifié' + (totalVisibleSlots > 1 ? 's' : '');
+            if (selectedDay) {
+                slotText += ' (' + selectedDay + ')';
+            }
+            filterStats.textContent = `Affichage de ${count} classe${count > 1 ? 's' : ''} (${slotText})`;
+        }
+
+        // État vide
+        if (count === 0) {
+            if (noResults) noResults.style.display = 'block';
+            if (classList) classList.style.display = 'none';
+            if (paginationBar) paginationBar.style.display = 'none';
+            return;
+        } else {
+            if (noResults) noResults.style.display = 'none';
+            if (classList) classList.style.display = 'grid';
+        }
+
+        // Pagination
+        const totalPages = Math.ceil(count / pageSize) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const pageItems = matched.slice(startIndex, endIndex);
+        const visibleIds = new Set(pageItems.map(item => item.card.dataset.id));
+
+        // Afficher / masquer les accordéons
+        classCards.forEach(card => {
+            card.style.display = visibleIds.has(card.dataset.id) ? 'block' : 'none';
+        });
+
+        // Réordonner les éléments dans le DOM selon le tri
+        if (classList) {
+            pageItems.forEach(item => classList.appendChild(item.card));
+        }
+
+        // Rendu de la barre de pagination
+        renderPagination(count, totalPages, startIndex, endIndex);
+    }
+
+    function renderPagination(count, totalPages, startIndex, endIndex) {
+        if (!paginationBar || !paginationList) return;
+
+        if (totalPages <= 1) {
+            paginationBar.style.display = 'none';
+            return;
+        }
+
+        paginationBar.style.display = 'flex';
+        const actualEnd = Math.min(endIndex, count);
+        if (pageInfoText) {
+            pageInfoText.textContent = `Affichage ${startIndex + 1} - ${actualEnd} sur ${count} classes (Page ${currentPage} / ${totalPages})`;
+        }
+
+        let html = '';
+
+        // Bouton Précédent
+        html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <button type="button" class="page-link" data-page="${currentPage - 1}" aria-label="Précédent" ${currentPage === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </li>`;
+
+        // Pages visibles
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (startPage > 1) {
+            html += `<li class="page-item"><button type="button" class="page-link" data-page="1">1</button></li>`;
+            if (startPage > 2) {
+                html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
+            }
+        }
+
+        for (let p = startPage; p <= endPage; p++) {
+            html += `<li class="page-item ${p === currentPage ? 'active' : ''}">
+                <button type="button" class="page-link" data-page="${p}">${p}</button>
+            </li>`;
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
+            }
+            html += `<li class="page-item"><button type="button" class="page-link" data-page="${totalPages}">${totalPages}</button></li>`;
+        }
+
+        // Bouton Suivant
+        html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <button type="button" class="page-link" data-page="${currentPage + 1}" aria-label="Suivant" ${currentPage === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </li>`;
+
+        paginationList.innerHTML = html;
+
+        // Attachement des clics de pagination
+        paginationList.querySelectorAll('button.page-link').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const targetPage = parseInt(this.dataset.page, 10);
+                if (targetPage && targetPage !== currentPage && targetPage >= 1 && targetPage <= totalPages) {
+                    currentPage = targetPage;
+                    render();
+                    const targetEl = document.querySelector('.course-toolbar-card');
+                    if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    }
+
+    // Gestion du bouton "Tout déplier / Tout replier"
+    if (btnToggleAll) {
+        btnToggleAll.addEventListener('click', function() {
+            allExpanded = !allExpanded;
+            const visibleCards = classCards.filter(card => card.style.display !== 'none');
+
+            visibleCards.forEach(card => {
+                const collapseEl = card.querySelector('.collapse');
+                const headerEl = card.querySelector('.class-schedule-header');
+                if (collapseEl) {
+                    const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+                    if (allExpanded) {
+                        bsCollapse.show();
+                        if (headerEl) headerEl.setAttribute('aria-expanded', 'true');
+                    } else {
+                        bsCollapse.hide();
+                        if (headerEl) headerEl.setAttribute('aria-expanded', 'false');
+                    }
+                }
+            });
+
+            if (allExpanded) {
+                if (iconToggleAll) iconToggleAll.className = 'fas fa-chevron-up me-1';
+                if (textToggleAll) textToggleAll.textContent = 'Tout replier';
+            } else {
+                if (iconToggleAll) iconToggleAll.className = 'fas fa-chevron-down me-1';
+                if (textToggleAll) textToggleAll.textContent = 'Tout déplier';
+            }
+        });
+    }
+
+    // Synchronisation du chevron avec l'état Bootstrap Collapse
+    document.querySelectorAll('.class-schedule-content').forEach(collapseEl => {
+        collapseEl.addEventListener('show.bs.collapse', function() {
+            const card = this.closest('.class-schedule-card');
+            if (card) {
+                const header = card.querySelector('.class-schedule-header');
+                if (header) header.setAttribute('aria-expanded', 'true');
+            }
+        });
+        collapseEl.addEventListener('hide.bs.collapse', function() {
+            const card = this.closest('.class-schedule-card');
+            if (card) {
+                const header = card.querySelector('.class-schedule-header');
+                if (header) header.setAttribute('aria-expanded', 'false');
+            }
+        });
+    });
+
+    // Confirmation de suppression
+    document.querySelectorAll('.js-confirm-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const confirmMsg = this.dataset.confirm || 'Voulez-vous vraiment supprimer ce créneau ?';
+            if (!window.confirm(confirmMsg)) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    // Réinitialisation des filtres
+    function resetFilters() {
+        if (searchInput) searchInput.value = '';
+        if (filterDay) filterDay.value = '';
+        if (filterClasse) filterClasse.value = '';
+        if (sortSelect) sortSelect.value = 'nom-asc';
+        currentPage = 1;
+        render();
+    }
+
+    // Écouteurs d'événements
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (searchClear) {
+        searchClear.addEventListener('click', function() {
+            if (searchInput) searchInput.value = '';
+            currentPage = 1;
+            render();
+            if (searchInput) searchInput.focus();
+        });
+    }
+
+    if (filterDay) {
+        filterDay.addEventListener('change', function() {
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (filterClasse) {
+        filterClasse.addEventListener('change', function() {
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function() {
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function() {
+            pageSize = (this.value === 'all') ? 9999 : (parseInt(this.value, 10) || 20);
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (btnReset) btnReset.addEventListener('click', resetFilters);
+    if (btnResetEmpty) btnResetEmpty.addEventListener('click', resetFilters);
+
+    // Rendu initial
+    render();
+});
+</script>
 {% endblock %}

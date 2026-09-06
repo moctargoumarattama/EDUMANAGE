@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Utilisateurs - EduManage{% endblock %}
+{% block title %}Utilisateurs - KLASORA{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
@@ -33,7 +33,7 @@
                         <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admin</option>
                         <option value="parent" {% if role_filter == 'parent' %}selected{% endif %}>Parent</option>
                         <option value="professeur" {% if role_filter == 'professeur' %}selected{% endif %}>Professeur</option>
-                        <option value="enseignant" {% if role_filter == 'enseignant' %}selected{% endif %}>Enseignant</option>
+                        <option value="professeur" {% if role_filter == 'professeur' %}selected{% endif %}>Professeur</option>
                     </select>
                 </div>
                 <div>

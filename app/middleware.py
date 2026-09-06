@@ -56,6 +56,8 @@ def get_ecole_courante():
             if ecole_id:
                 ecole = Ecole.query.get(ecole_id)
                 if ecole:
+                    session['ecole_courante'] = {'id': ecole.id, 'nom': ecole.nom}
+                    session['ecole_nom'] = ecole.nom
                     g.ecole_courante = ecole
                     return ecole
 
@@ -78,6 +80,8 @@ def get_ecole_courante():
                     session['ecole_id'] = int(ecole.id)
                 except (TypeError, ValueError):
                     session['ecole_id'] = ecole.id
+                session['ecole_courante'] = {'id': ecole.id, 'nom': ecole.nom}
+                session['ecole_nom'] = ecole.nom
                 g.ecole_courante = ecole
                 return ecole
     except Exception as e:
@@ -130,6 +134,8 @@ def set_ecole_courante(ecole_id):
             session['ecole_id'] = int(ecole_id)
         except (TypeError, ValueError):
             session['ecole_id'] = ecole_id
+        session['ecole_courante'] = {'id': ecole.id, 'nom': ecole.nom}
+        session['ecole_nom'] = ecole.nom
         g.ecole_courante = ecole
         current_app.logger.info(f"Super-admin {getattr(current_user, 'email', '?')} a sélectionné l'école {ecole.nom}")
         return True
@@ -139,6 +145,8 @@ def set_ecole_courante(ecole_id):
 def clear_ecole_courante():
     """Efface l'école courante de la session"""
     session.pop('ecole_id', None)
+    session.pop('ecole_courante', None)
+    session.pop('ecole_nom', None)
     if hasattr(g, 'ecole_courante'):
         del g.ecole_courante
     if hasattr(g, 'annee_courante'):

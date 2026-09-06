@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Modifier l'Enseignant - {{ professeur.prenom }} {{ professeur.nom }}{% endblock %}
+{% block title %}Modifier le Professeur - {{ professeur.prenom }} {{ professeur.nom }}{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -24,7 +24,7 @@
                             <i class="fas fa-chalkboard-teacher"></i>
                         </div>
                         <div>
-                            <h2 class="form-header-title">Modifier l'enseignant</h2>
+                            <h2 class="form-header-title">Modifier le professeur</h2>
                             <p class="form-header-subtitle">{{ professeur.prenom }} {{ professeur.nom }} &bull; Spécialité : {{ professeur.specialite or "Générale" }}</p>
                         </div>
                     </div>

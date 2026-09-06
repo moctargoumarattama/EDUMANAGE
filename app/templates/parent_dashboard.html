@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Dashboard Parent - EduManage{% endblock %}
+{% block title %}Dashboard Parent - KLASORA{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -36,13 +36,13 @@
                             <h6 class="mb-0 text-muted">
                                 <i class="fas fa-chart-line me-2"></i>Moyenne Générale
                             </h6>
-                            <span class="badge bg-primary rounded-pill fs-6 px-3 py-2">{{ enfant.moyenne|round(1) }}/20</span>
+                            <span class="badge bg-primary rounded-pill fs-6 px-3 py-2">{{ (enfant.moyenne|default(0))|round(1) }}/20</span>
                         </div>
                         <div class="progress progress-soft mb-3">
-                            {% set moyenne_percent = ((enfant.moyenne / 20) * 100)|round %}
+                            {% set moyenne_percent = (((enfant.moyenne|default(0)) / 20) * 100)|round %}
                             <div class="progress-bar bg-gradient-primary" role="progressbar" 
                                  style="width: {{ moyenne_percent }}%;" 
-                                 aria-valuenow="{{ enfant.moyenne }}" aria-valuemin="0" aria-valuemax="20">
+                                 aria-valuenow="{{ enfant.moyenne|default(0) }}" aria-valuemin="0" aria-valuemax="20">
                             </div>
                         </div>
                     </div>
@@ -53,14 +53,14 @@
                             <h6 class="mb-0 text-muted">
                                 <i class="fas fa-calendar-times me-2"></i>Absences
                             </h6>
-                            <span class="badge bg-danger rounded-pill fs-6 px-3 py-2">{{ enfant.total_absences }}</span>
+                            <span class="badge bg-danger rounded-pill fs-6 px-3 py-2">{{ enfant.total_absences|default(0) }}</span>
                         </div>
                         <div class="progress progress-soft mb-3">
                             {% set max_absences = 20 %}
-                            {% set absence_percent = ((enfant.total_absences / max_absences) * 100)|round %}
+                            {% set absence_percent = (((enfant.total_absences|default(0)) / max_absences) * 100)|round %}
                             <div class="progress-bar bg-gradient-danger" role="progressbar" 
                                  style="width: {{ absence_percent }}%;" 
-                                 aria-valuenow="{{ enfant.total_absences }}" aria-valuemin="0" aria-valuemax="{{ max_absences }}">
+                                 aria-valuenow="{{ enfant.total_absences|default(0) }}" aria-valuemin="0" aria-valuemax="{{ max_absences }}">
                             </div>
                         </div>
                     </div>

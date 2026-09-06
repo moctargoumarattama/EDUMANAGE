@@ -31,7 +31,7 @@ def check_parent_access(eleve_id):
 
 
 def get_current_professeur():
-    if getattr(current_user, "role", None) not in ("professeur", "enseignant"):
+    if getattr(current_user, "role", None) != "professeur":
         return None
     return getattr(current_user, "professeur_rel", None)
 
@@ -42,7 +42,7 @@ def can_access_class(classe):
     role = getattr(current_user, "role", None)
     if role == "admin":
         return classe.ecole_id == current_user.ecole_id
-    if role in ("professeur", "enseignant"):
+    if role == "professeur":
         professeur = get_current_professeur()
         if not professeur or classe.ecole_id != current_user.ecole_id:
             return False
@@ -65,7 +65,7 @@ def can_access_eleve(eleve):
         return eleve.ecole_id == current_user.ecole_id
     if role == "parent":
         return check_parent_access(eleve.id)
-    if role in ("professeur", "enseignant"):
+    if role == "professeur":
         return eleve.ecole_id == current_user.ecole_id and can_access_class(eleve.classe)
     return False
 
@@ -74,9 +74,12 @@ def can_access_cours(cours):
     if not cours or not getattr(current_user, "is_authenticated", False):
         return False
     role = getattr(current_user, "role", None)
+    ecole_id = getattr(current_user, "ecole_id", None)
+    if not ecole_id or cours.ecole_id != ecole_id:
+        return False
     if role == "admin":
-        return cours.ecole_id == current_user.ecole_id
-    if role in ("professeur", "enseignant"):
+        return True
+    if role == "professeur":
         professeur = get_current_professeur()
         if not professeur or cours.ecole_id != current_user.ecole_id:
             return False
@@ -84,26 +87,103 @@ def can_access_cours(cours):
     return False
 
 
+def can_manage_cours(cours):
+    """
+    Vérifie si l'utilisateur a le droit de gérer ou consulter le détail pédagogique d'un cours.
+    Admin : cours de son école.
+    Professeur : STRICTEMENT son propre cours (cours.professeur_id == professeur.id).
+    Super_admin : pas d'accès implicite sans école.
+    """
+    if not cours or not getattr(current_user, "is_authenticated", False):
+        return False
+    role = getattr(current_user, "role", None)
+    ecole_id = getattr(current_user, "ecole_id", None)
+    if not ecole_id or cours.ecole_id != ecole_id:
+        return False
+    if role == "admin":
+        return True
+    if role == "professeur":
+        professeur = get_current_professeur()
+        if not professeur:
+            return False
+        return cours.professeur_id == professeur.id
+    return False
+
+
+def can_manage_note(note):
+    """
+    Vérifie si l'utilisateur a le droit de modifier ou supprimer une note.
+    Admin : note de son école.
+    Professeur : STRICTEMENT une note sur son propre cours.
+    """
+    if not note or not getattr(current_user, "is_authenticated", False):
+        return False
+    role = getattr(current_user, "role", None)
+    ecole_id = getattr(current_user, "ecole_id", None)
+    if not ecole_id or getattr(note, "ecole_id", None) != ecole_id:
+        return False
+    if role == "admin":
+        return True
+    if role == "professeur":
+        professeur = get_current_professeur()
+        if not professeur or not note.cours:
+            return False
+        return note.cours.professeur_id == professeur.id
+    return False
+
+
 def can_access_note(note):
-    if not note:
+    if not note or not getattr(current_user, "is_authenticated", False):
         return False
     role = getattr(current_user, "role", None)
     if role == "parent":
         return note.eleve is not None and can_access_eleve(note.eleve)
-    if getattr(note, "ecole_id", None) and role == "admin":
-        return note.ecole_id == current_user.ecole_id
-    return can_access_eleve(note.eleve) and can_access_cours(note.cours)
+    if role == "admin":
+        return getattr(current_user, "ecole_id", None) and getattr(note, "ecole_id", None) == current_user.ecole_id
+    if role == "professeur":
+        return can_manage_note(note)
+    return False
+
+
+def can_manage_absence(absence):
+    """
+    Vérifie si l'utilisateur a le droit d'enregistrer, modifier ou supprimer une absence.
+    Admin : absence de son école.
+    Professeur :
+      - L'élève doit appartenir à une classe assignée au professeur (can_access_eleve(absence.eleve))
+      - ET si l'absence est liée à un cours spécifique : le cours doit être le sien (absence.cours.professeur_id == prof.id).
+    """
+    if not absence or not getattr(current_user, "is_authenticated", False):
+        return False
+    role = getattr(current_user, "role", None)
+    ecole_id = getattr(current_user, "ecole_id", None)
+    if not ecole_id or getattr(absence, "ecole_id", None) != ecole_id:
+        return False
+    if role == "admin":
+        return True
+    if role == "professeur":
+        professeur = get_current_professeur()
+        if not professeur:
+            return False
+        if not can_access_eleve(absence.eleve):
+            return False
+        if absence.cours is not None:
+            return absence.cours.professeur_id == professeur.id
+        return True
+    return False
 
 
 def can_access_absence(absence):
-    if not absence:
+    if not absence or not getattr(current_user, "is_authenticated", False):
         return False
     role = getattr(current_user, "role", None)
     if role == "parent":
         return absence.eleve is not None and can_access_eleve(absence.eleve)
-    if getattr(absence, "ecole_id", None) and role == "admin":
-        return absence.ecole_id == current_user.ecole_id
-    return can_access_eleve(absence.eleve) and (absence.cours is None or can_access_cours(absence.cours))
+    if role == "admin":
+        return getattr(current_user, "ecole_id", None) and getattr(absence, "ecole_id", None) == current_user.ecole_id
+    if role == "professeur":
+        return can_manage_absence(absence)
+    return False
 
 
 def can_access_paiement(paiement):
@@ -130,7 +210,7 @@ def parent_access_required(f):
 # Décorateur rôle avec compatibilité anciens rôles
 # -----------------------
 ROLE_ALIAS = {
-    "enseignant": ["enseignant", "professeur"],
+    "professeur": ["professeur"],
     "admin": ["admin", "administrateur"],
     "super_admin": ["super_admin", "super-admin", "superadmin"],
     "parent": ["parent"]

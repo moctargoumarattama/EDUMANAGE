@@ -1,4 +1,4 @@
-﻿from . import main
+from . import main
 from .common import (
     BytesIO,
     Classe,
@@ -11,6 +11,8 @@ from .common import (
     Note,
     Professeur,
     Utilisateur,
+    abort,
+    can_manage_cours,
     current_app,
     current_user,
     datetime,
@@ -38,7 +40,7 @@ from app.utils import get_annee_active
 
 @main.route('/cours')
 @login_required
-@role_required('admin', 'enseignant', 'professeur')
+@role_required('admin', 'professeur')
 def cours():
     """
     Page de gestion des cours filtrÃ©e par Ã©cole
@@ -120,7 +122,7 @@ def cours():
         cours_json = [cours_to_dict(c) for c in tous_cours]
         
     else:
-        # === ENSEIGNANT / PROFESSEUR ===
+        # === PROFESSEUR ===
         form = None
         
         # VÃ©rification du profil enseignant
@@ -148,7 +150,7 @@ def cours():
             if hasattr(c, 'notes')
         ])
         cours_total = len(mes_cours)
-        professeurs_actifs = 1  # L'enseignant courant
+        professeurs_actifs = 1  # Le professeur courant
         
         # SÃ©rialisation JSON
         cours_json = [cours_to_dict(c) for c in mes_cours]
@@ -229,7 +231,7 @@ def ajouter_cours():
                 niveau="info"
             )
 
-            flash('Cours ajoutÃ© avec succÃ¨s', 'success')
+            flash('Cours ajouté avec succès', 'success')
 
         except IntegrityError as e:
             db.session.rollback()
@@ -238,7 +240,7 @@ def ajouter_cours():
 
         except Exception as e:
             db.session.rollback()
-            flash("Erreur inattendue lors de lâ€™ajout du cours.", "danger")
+            flash("Erreur inattendue lors de l'ajout du cours.", "danger")
             current_app.logger.error(f"Erreur ajout cours: {e}")
 
     else:
@@ -248,17 +250,15 @@ def ajouter_cours():
 
 @main.route('/cours/<int:id>')
 @login_required
-@role_required('admin', 'enseignant')
+@role_required('admin', 'professeur')
 def cours_details(id):
     cours = Cours.query.options(
         joinedload(Cours.professeur),
         joinedload(Cours.notes).joinedload(Note.eleve)
     ).get_or_404(id)
 
-    if not check_ecole_access(cours, "cours"):
-        if current_user.role == 'enseignant':
-            return redirect(url_for('main.enseignant_dashboard'))
-        return redirect(url_for('main.profile'))
+    if not can_manage_cours(cours):
+        abort(403)
 
     notes = sorted(cours.notes, key=lambda n: n.date_evaluation, reverse=True)
     total_pondere = sum(n.valeur * n.coefficient for n in notes)
@@ -308,31 +308,28 @@ def modifier_cours(id):
 
 @main.route('/cours/<int:id>/export_notes')
 @login_required
-@role_required('admin', 'enseignant')
+@role_required('admin', 'professeur')
 def export_notes(id):
-    """Export des notes d'un cours spÃ©cifique en Excel"""
+    """Export des notes d'un cours spécifique en Excel"""
     cours = Cours.query.options(joinedload(Cours.notes).joinedload(Note.eleve)).filter_by(
         id=id,
         ecole_id=current_user.ecole_id
     ).first_or_404()
 
-    # VÃ©rification d'accÃ¨s pour les enseignants
-    professeur_id = getattr(getattr(current_user, 'professeur_rel', None), 'id', None)
-    if current_user.role in ('enseignant', 'professeur') and cours.professeur_id != professeur_id:
-        flash("AccÃ¨s non autorisÃ© Ã  ce cours.", "danger")
-        return redirect(url_for('main.enseignant_dashboard'))
+    if not can_manage_cours(cours):
+        abort(403)
 
-    # PrÃ©paration des donnÃ©es
+    # Préparation des données
     data = [{
-        "Ã‰lÃ¨ve ID": note.eleve.id,
+        "Élève ID": note.eleve.id,
         "Nom": note.eleve.nom,
-        "PrÃ©nom": note.eleve.prenom,
+        "Prénom": note.eleve.prenom,
         "Note": note.valeur,
         "Coefficient": note.coefficient,
         "Date": note.date_evaluation.strftime("%d/%m/%Y") if note.date_evaluation else ""
     } for note in cours.notes]
 
-    # CrÃ©ation du fichier Excel
+    # Création du fichier Excel
     df = pd.DataFrame(data)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
@@ -348,21 +345,18 @@ def export_notes(id):
 
 @main.route('/cours/<int:id>/import_notes_excel', methods=['POST'])
 @login_required
-@role_required('admin', 'enseignant')
+@role_required('admin', 'professeur')
 def import_notes_excel(id):
     """Import de notes depuis Excel/CSV avec historique minimal."""
     cours = Cours.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
 
-    # VÃ©rification d'accÃ¨s pour les enseignants
-    professeur_id = getattr(getattr(current_user, 'professeur_rel', None), 'id', None)
-    if current_user.role in ('enseignant', 'professeur') and cours.professeur_id != professeur_id:
-        flash("AccÃ¨s non autorisÃ© Ã  ce cours.", "danger")
-        return redirect(url_for('main.enseignant_dashboard'))
+    if not can_manage_cours(cours):
+        abort(403)
 
     if cours.classe_id:
         annee = cours.classe.annee_scolaire if cours.classe else None
         if not annee or annee.ecole_id != cours.ecole_id:
-            flash("La classe de ce cours n'est associÃ©e Ã  aucune annÃ©e scolaire valide.", "danger")
+            flash("La classe de ce cours n'est associée à aucune année scolaire valide.", "danger")
             return redirect(url_for('main.cours_details', id=id))
     else:
         annee = get_annee_active(cours.ecole_id)
@@ -535,18 +529,15 @@ def telecharger_import(filename):
 
 @main.route('/cours/<int:id>/modele_import_notes')
 @login_required
-@role_required('admin', 'enseignant')
+@role_required('admin', 'professeur')
 def modele_import_notes(id):
-    """TÃ©lÃ©chargement d'un modÃ¨le d'importation de notes (Excel ou CSV)"""
+    """Téléchargement d'un modèle d'importation de notes (Excel ou CSV)"""
 
     format_fichier = request.args.get('format', 'excel').lower()
     cours = Cours.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
 
-    # VÃ©rification d'accÃ¨s pour les enseignants
-    professeur_id = getattr(getattr(current_user, 'professeur_rel', None), 'id', None)
-    if current_user.role in ('enseignant', 'professeur') and cours.professeur_id != professeur_id:
-        flash("AccÃ¨s non autorisÃ© Ã  ce cours.", "danger")
-        return redirect(url_for('main.enseignant_dashboard'))
+    if not can_manage_cours(cours):
+        abort(403)
 
     colonnes = ['Nom', 'PrÃ©nom', 'Classe', 'Note', 'Coefficient', 'Type Ã©valuation']
     df = pd.DataFrame(columns=colonnes)
@@ -596,7 +587,7 @@ def modele_import_notes(id):
 
 @main.route('/imports/historique')
 @login_required
-@role_required('admin', 'enseignant')
+@role_required('admin', 'professeur')
 def imports_historique():
     """Affichage de l'historique des imports filtrÃ© par Ã©cole"""
     historiques = (

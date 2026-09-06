@@ -1,5 +1,6 @@
-﻿from . import main
+from . import main
 from .common import (
+    abort,
     AnneeScolaire,
     can_access_class,
     Classe,
@@ -31,7 +32,7 @@ from app.services import get_statistics
 
 @main.route('/api/classes')
 @login_required
-@role_required('admin', 'enseignant')
+@role_required('admin', 'professeur')
 @ecole_required
 def api_classes():
     """Retourne la liste des classes filtrÃ©e par Ã©cole et annÃ©e active (JSON)"""
@@ -45,7 +46,7 @@ def api_classes():
 
     # Filtrage des classes
     classes_query = Classe.query.filter_by(ecole_id=ecole_id)
-    if current_user.role in ('enseignant', 'professeur'):
+    if current_user.role == 'professeur':
         professeur = current_user.get_professeur()
         if not professeur:
             return jsonify([]), 403
@@ -78,10 +79,18 @@ def liste_classes():
     # Base query pour l'Ã©cole de l'utilisateur
     base_query = Classe.query.filter_by(ecole_id=current_user.ecole_id)
     
-    if current_user.role in ('professeur', 'enseignant'):
+    if current_user.role == 'professeur':
         professeur = current_user.get_professeur()
         if professeur:
-            base_query = base_query.join(Classe.professeurs_assignes).filter(Professeur.id == professeur.id)
+            base_query = base_query.filter(
+                db.or_(
+                    Classe.professeur_id == professeur.id,
+                    Classe.id.in_(
+                        db.session.query(professeur_classes.c.classe_id)
+                        .filter(professeur_classes.c.professeur_id == professeur.id)
+                    )
+                )
+            )
         else:
             return render_template("classes.html", classes=[], **get_statistics([]))
     
@@ -181,9 +190,9 @@ def ajouter_classe():
 
 @main.route("/classes/<int:classe_id>")
 @login_required
-@role_required('admin', 'enseignant', 'professeur')
+@role_required('admin', 'professeur')
 def detail_classe(classe_id):
-    if current_user.role in ('professeur', 'enseignant'):
+    if current_user.role == 'professeur':
         professeur = current_user.get_professeur()
         if not professeur:
             flash("Acces non autorise a cette classe.", "danger")
@@ -197,8 +206,7 @@ def detail_classe(classe_id):
             ).first()
         )
         if not is_assigned:
-            flash("Acces non autorise a cette classe.", "danger")
-            return redirect(url_for('main.liste_classes'))
+            abort(403)
     else:
         classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first_or_404()
     # RÃ©cupÃ©rer inscriptions et notes avec optimisation N+1
@@ -209,8 +217,10 @@ def detail_classe(classe_id):
     eleves_data = []
     for ins in inscriptions:
         eleve = ins.eleve
+        if not eleve:
+            continue
         notes_par_annee = {}
-        for n in eleve.notes:
+        for n in (eleve.notes or []):
             annee = ins.annee_scolaire
             if annee not in notes_par_annee:
                 notes_par_annee[annee] = []
@@ -220,11 +230,12 @@ def detail_classe(classe_id):
                 "periode": n.periode
             })
 
+        parent_nom = f"{eleve.parent.nom} {eleve.parent.prenom}" if getattr(eleve, 'parent', None) else "N/A"
         eleves_data.append({
             "nom": eleve.nom,
             "prenom": eleve.prenom,
             "classe": classe.nom,
-            "parent": f"{eleve.parent.nom} {eleve.parent.prenom}" if eleve.parent else "N/A",
+            "parent": parent_nom,
             "annee_premiere_ecole": getattr(eleve, 'annee_premiere_ecole', "N/A"),
             "notes_par_annee": notes_par_annee
         })
@@ -304,7 +315,7 @@ def supprimer_classe(classe_id):
 
 @main.route('/get_classes/<int:annee_id>')
 @login_required
-@role_required('admin', 'enseignant')
+@role_required('admin', 'professeur')
 def get_classes(annee_id):
     from app.models import Classe
 
@@ -312,7 +323,7 @@ def get_classes(annee_id):
         Classe.ecole_id == current_user.ecole_id,
         Classe.annee_scolaire_id == annee_id
     )
-    if current_user.role in ('enseignant', 'professeur'):
+    if current_user.role == 'professeur':
         professeur = current_user.get_professeur()
         if not professeur:
             return jsonify({'classes': []}), 403

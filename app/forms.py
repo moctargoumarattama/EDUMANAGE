@@ -63,12 +63,13 @@ class EleveForm(FlaskForm):
     # ---------------- Informations personnelles de l'élève ----------------
     nom = StringField('Nom', validators=[DataRequired(), Length(max=100)])
     prenom = StringField('Prénom', validators=[DataRequired(), Length(max=100)])
+    genre = SelectField('Genre / Sexe', choices=[('M', 'Garçon'), ('F', 'Fille')], default='M', validators=[DataRequired()])
     date_naissance = DateField('Date de naissance', format='%Y-%m-%d', validators=[DataRequired()])
     lieu_naissance = StringField('Lieu de naissance', validators=[Optional(), Length(max=100)])
     adresse = StringField('Adresse résidentielle', validators=[Optional(), Length(max=200)])
     
     # ---------------- Informations scolaires ----------------
-    classe_id = SelectField('Classe', coerce=int, validators=[DataRequired()])
+    classe_id = SelectField('Classe', coerce=int, validators=[DataRequired(message="La classe est obligatoire. Un élève doit obligatoirement être inscrit dans une classe.")])
     frais_annuels = FloatField('Frais annuels (FCFA)', validators=[DataRequired(), NumberRange(min=0)], default=150000)
     
     # ---------------- Parent ----------------

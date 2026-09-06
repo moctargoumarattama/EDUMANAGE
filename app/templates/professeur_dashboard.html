@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Espace enseignant - EduManage{% endblock %}
+{% block title %}Espace Professeur - KLASORA{% endblock %}
 
 {% block content %}
 <section class="page-header">
@@ -10,7 +10,7 @@
             </div>
             <div>
                 <h1 class="page-title">Bonjour {{ current_user.prenom or current_user.nom }}</h1>
-                <p class="page-subtitle">Votre espace enseignant</p>
+                <p class="page-subtitle">Votre espace professeur</p>
             </div>
         </div>
         <span class="badge bg-primary-subtle text-primary">{{ now.strftime('%d/%m/%Y') }}</span>
@@ -42,7 +42,7 @@
         <span class="quick-access-text">Gérer les absences autorisées</span>
     </a>
 
-    <a class="quick-access-card" href="{{ url_for('main.enseignant_home') }}">
+    <a class="quick-access-card" href="{{ url_for('main.professeur_home') }}">
         <span class="quick-access-icon bg-secondary text-white"><i class="fas fa-calendar-alt"></i></span>
         <span class="quick-access-title">Emploi du temps</span>
         <span class="quick-access-text">Consulter la semaine</span>

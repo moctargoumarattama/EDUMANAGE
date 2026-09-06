@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Recherche - EduManage{% endblock %}
+{% block title %}Recherche - KLASORA{% endblock %}
 
 {% block content %}
 
@@ -120,7 +120,7 @@
                                     </div>
                                     <div class="flex-grow-1">
                                         <h6 class="mb-0">{{ cours.nom }}</h6>
-                                        <small class="text-muted">Enseignant: {{ cours.professeur }}</small>
+                                        <small class="text-muted">Professeur: {{ cours.professeur }}</small>
                                     </div>
                                     <a href="{{ url_for('main.cours_details', id=cours.id) }}" class="btn btn-sm btn-outline-info">Voir</a>
                                 </div>

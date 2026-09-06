@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Gestion des Utilisateurs - EduManage{% endblock %}
+{% block title %}Gestion des Utilisateurs - KLASORA{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
@@ -302,7 +302,7 @@
                                     <div class="col-md-4">
                                         <select class="form-select" id="roleFilter" onchange="applyFilters()">
                                             <option value="">Tous les rôles</option>
-                                            <option value="enseignant" {% if role_filter == 'enseignant' %}selected{% endif %}>Enseignant</option>
+                                            <option value="professeur" {% if role_filter == 'professeur' %}selected{% endif %}>Professeur</option>
                                             <option value="parent" {% if role_filter == 'parent' %}selected{% endif %}>Parent</option>
                                         </select>
                                     </div>
@@ -346,7 +346,7 @@
                                                 </td>
                                                 <td>{{ user.email }}</td>
                                                 <td>
-                                                    <span class="badge bg-{{ 'success' if user.role == 'enseignant' else 'info' if user.role == 'parent' else 'primary' }}">
+                                                    <span class="badge bg-{{ 'success' if user.role == 'professeur' else 'info' if user.role == 'parent' else 'primary' }}">
                                                         {{ user.role|title }}
                                                     </span>
                                                 </td>
@@ -447,7 +447,7 @@
                     <div class="card bg-success text-white">
                         <div class="card-body text-center">
                             <h3>{{ statistiques.total_professeurs }}</h3>
-                            <p class="mb-0">Enseignants</p>
+                            <p class="mb-0">Professeurs</p>
                         </div>
                     </div>
                 </div>
@@ -493,7 +493,7 @@
                                             {{ current_user.prenom[0] }}{{ current_user.nom[0] }}
                                         </div>
                                         <h4>{{ current_user.prenom }} {{ current_user.nom }}</h4>
-                                        <span class="badge bg-{{ 'primary' if current_user.role == 'admin' else 'success' if current_user.role == 'enseignant' else 'info' if current_user.role == 'parent' else 'warning' }}">
+                                        <span class="badge bg-{{ 'primary' if current_user.role == 'admin' else 'success' if current_user.role == 'professeur' else 'info' if current_user.role == 'parent' else 'warning' }}">
                                             {{ current_user.role|title }}
                                         </span>
                                     </div>

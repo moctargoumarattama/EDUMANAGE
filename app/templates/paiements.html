@@ -1,199 +1,1013 @@
 {% extends "base.html" %}
-
-{% block title %}Paiements - EduManage{% endblock %}
+{% block title %}Gestion des Paiements par Classe - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container py-4 payments-page">
-    <div class="page-header">
+<div class="container-fluid px-3 px-lg-4 py-4" style="max-width: 1400px; overflow-x: hidden;">
+
+    <!-- En-tête de page standardisé KLASORA -->
+    <section class="page-header mb-4">
         <div class="page-header-body">
             <div class="page-title-group">
-                <div class="page-icon"><i class="fas fa-money-bill-wave"></i></div>
+                <div class="page-icon">
+                    <i class="fas fa-money-bill-wave" aria-hidden="true"></i>
+                </div>
                 <div>
-                    <h1 class="page-title">Paiements</h1>
-                    <p class="page-subtitle d-none d-md-block">Enregistrer et suivre les frais scolaires.</p>
+                    <h1 class="page-title">Gestion des Paiements par Classe</h1>
+                    <p class="page-subtitle d-none d-md-block">
+                        Suivez les frais scolaires, les versements et le recouvrement pour chaque classe.
+                    </p>
                 </div>
             </div>
-            <div class="page-actions">
-                <a href="{{ url_for('main.export_paiements_excel') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-file-excel me-2"></i>Exporter
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllPayments" title="Déplier ou replier toutes les classes">
+                    <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
+                </button>
+                <button type="button" class="btn btn-success shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseNouveauPaiement" aria-expanded="false" aria-controls="collapseNouveauPaiement" id="btnToggleAddPayment">
+                    <i class="fas fa-plus-circle me-2"></i>Nouveau paiement
+                </button>
+                <a href="{{ url_for('main.export_paiements_excel') }}" class="btn btn-outline-primary shadow-sm" title="Exporter les paiements au format Excel">
+                    <i class="fas fa-file-excel me-2"></i>Exporter Excel
                 </a>
             </div>
         </div>
+    </section>
+
+    <!-- Cartes statistiques récapitulatives -->
+    <div class="stat-grid mb-4">
+        <div class="stat-card">
+            <div class="stat-icon primary"><i class="fas fa-users"></i></div>
+            <div>
+                <p class="stat-number">{{ stats.total_eleves }}</p>
+                <p class="stat-label">Élèves inscrits</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon info"><i class="fas fa-file-invoice-dollar"></i></div>
+            <div>
+                <p class="stat-number">{{ "{:,.0f}".format(stats.total_frais) }} <small class="fs-6 text-muted">FCFA</small></p>
+                <p class="stat-label">Total attendu</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon success"><i class="fas fa-check-circle"></i></div>
+            <div>
+                <p class="stat-number text-success">{{ "{:,.0f}".format(stats.total_recouvre) }} <small class="fs-6 text-muted">FCFA</small></p>
+                <p class="stat-label">Recouvré ({{ stats.taux_recouvrement }}%)</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon warning"><i class="fas fa-hourglass-half"></i></div>
+            <div>
+                <p class="stat-number text-danger">{{ "{:,.0f}".format(stats.total_reste) }} <small class="fs-6 text-muted">FCFA</small></p>
+                <p class="stat-label">Reste à percevoir</p>
+            </div>
+        </div>
     </div>
 
-    <div class="stat-grid mb-3">
-        <div class="stat-card"><div class="stat-icon primary"><i class="fas fa-users"></i></div><div><p class="stat-number">{{ stats.total_eleves }}</p><p class="stat-label">Élèves</p></div></div>
-        <div class="stat-card"><div class="stat-icon success"><i class="fas fa-check-circle"></i></div><div><p class="stat-number">{{ stats.complet }}</p><p class="stat-label">Complets</p></div></div>
-        <div class="stat-card"><div class="stat-icon warning"><i class="fas fa-exclamation-circle"></i></div><div><p class="stat-number">{{ stats.partiel }}</p><p class="stat-label">Partiels</p></div></div>
-        <div class="stat-card"><div class="stat-icon danger"><i class="fas fa-times-circle"></i></div><div><p class="stat-number">{{ stats.aucun }}</p><p class="stat-label">Aucun</p></div></div>
+    <!-- Formulaire d'ajout de paiement rétractable -->
+    <div class="collapse mb-4" id="collapseNouveauPaiement">
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+            <div class="card-header bg-success text-white py-3 px-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-cash-register fa-lg"></i>
+                    <h5 class="mb-0 fw-bold">Enregistrer un nouveau versement</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-toggle="collapse" data-bs-target="#collapseNouveauPaiement" aria-label="Fermer"></button>
+            </div>
+            <div class="card-body p-4 bg-light bg-opacity-50">
+                <form method="POST" action="{{ url_for('main.paiements') }}" class="needs-validation" novalidate>
+                    {{ form.hidden_tag() }}
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="eleve_id">Élève concerné <span class="text-danger">*</span></label>
+                            {{ form.eleve_id(class="form-select", id="form_eleve_id", required=true) }}
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label fw-semibold" for="montant">Montant (FCFA) <span class="text-danger">*</span></label>
+                            {{ form.montant(class="form-control", id="form_montant", placeholder="Ex: 50000", required=true) }}
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label fw-semibold" for="mode_paiement">Mode de règlement <span class="text-danger">*</span></label>
+                            {{ form.mode_paiement(class="form-select", id="form_mode_paiement") }}
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label fw-semibold" for="mois">Période / Mois <span class="text-danger">*</span></label>
+                            {{ form.mois(class="form-select", id="form_mois") }}
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label fw-semibold" for="annee">Année <span class="text-danger">*</span></label>
+                            {{ form.annee(class="form-control", id="form_annee", required=true) }}
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="reference">Référence / Numéro de reçu</label>
+                            {{ form.reference(class="form-control", id="form_reference", placeholder="Ex: VIR-2026-004 ou Reçu N° 128") }}
+                        </div>
+                        <div class="col-12 d-flex justify-content-end gap-2 pt-2">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#collapseNouveauPaiement">Annuler</button>
+                            <button type="submit" class="btn btn-success px-4">
+                                <i class="fas fa-check me-2"></i>Valider le paiement
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
-    <section class="filter-card mb-3">
-        <form method="GET" class="row g-2 align-items-end">
-            <div class="col-md-4">
-                <label for="classe" class="form-label">Classe</label>
-                <select name="classe" id="classe" class="form-select">
+    <!-- Barre d'outils : recherche, filtres et tri -->
+    <div class="course-toolbar-card mb-4">
+        <div class="row g-2 align-items-center">
+            <!-- Recherche rapide -->
+            <div class="col-12 col-md-4 col-lg-3">
+                <div class="course-search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="paymentSearchInput" class="form-control" placeholder="Rechercher classe, élève, reçu..." autocomplete="off">
+                    <button type="button" id="paymentSearchClear" class="clear-btn" title="Effacer la recherche">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtre par classe -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select id="filterPaymentClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="">Toutes les classes</option>
-                    {% for c in classes %}
-                        <option value="{{ c.id }}" {% if classe_id == c.id %}selected{% endif %}>{{ c.nom }}</option>
-                    {% endfor %}
+                    {% if classes %}
+                        {% for cl in classes %}
+                            <option value="{{ cl.nom }}">{{ cl.nom }}</option>
+                        {% endfor %}
+                    {% endif %}
                 </select>
             </div>
-            <div class="col-md-5">
-                <label for="recherche" class="form-label">Recherche</label>
-                <input type="search" name="recherche" id="recherche" class="form-control" placeholder="Nom ou prénom" value="{{ recherche }}">
-            </div>
-            <div class="col-md-3 filter-actions">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-search me-2"></i>Filtrer</button>
-                <a href="{{ url_for('main.paiements') }}" class="btn btn-outline-secondary">Réinitialiser</a>
-            </div>
-        </form>
-    </section>
 
-    <section class="form-card mb-4">
-        <div class="form-card-body">
-            <h2 class="form-section-title"><i class="fas fa-credit-card"></i>Nouveau paiement</h2>
-            <form method="POST" action="{{ url_for('main.paiements') }}" class="row g-3 needs-validation" novalidate>
-                {{ form.hidden_tag() }}
-                <div class="col-md-6">{{ form.eleve_id.label(class="form-label") }}{{ form.eleve_id(class="form-select") }}</div>
-                <div class="col-md-3">{{ form.montant.label(class="form-label") }}{{ form.montant(class="form-control", placeholder="Montant") }}</div>
-                <div class="col-md-3">{{ form.mode_paiement.label(class="form-label") }}{{ form.mode_paiement(class="form-select") }}</div>
-                <div class="col-md-3">{{ form.mois.label(class="form-label") }}{{ form.mois(class="form-select") }}</div>
-                <div class="col-md-3">{{ form.annee.label(class="form-label") }}{{ form.annee(class="form-control") }}</div>
-                <div class="col-md-4">{{ form.reference.label(class="form-label") }}{{ form.reference(class="form-control", placeholder="Référence") }}</div>
-                <div class="col-md-2 d-flex align-items-end">{{ form.submit(class="btn btn-success w-100") }}</div>
-            </form>
-        </div>
-    </section>
+            <!-- Filtre par statut financier -->
+            <div class="col-6 col-md-2 col-lg-2">
+                <select id="filterPaymentStatutSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Tous les statuts</option>
+                    <option value="partiel">Partiellement payé</option>
+                    <option value="aucun">Aucun versement</option>
+                    <option value="complet">Totalement soldé</option>
+                </select>
+            </div>
 
-    <section class="payments-section mb-4">
-        <div class="section-header d-flex justify-content-between align-items-center gap-2 flex-wrap">
-            <h2 class="section-title mb-0">Situation par élève</h2>
-            <span class="badge bg-primary">{{ eleves_pagination.total }} élève(s)</span>
+            <!-- Tri des classes -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select id="sortPaymentSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="nom-asc">Classe (A &rarr; Z)</option>
+                    <option value="nom-desc">Classe (Z &rarr; A)</option>
+                    <option value="reste-desc">Reste le plus élevé &darr;</option>
+                    <option value="eleves-desc">Plus d'élèves &darr;</option>
+                    <option value="taux-desc">Meilleur recouvrement &darr;</option>
+                    <option value="taux-asc">Moins bon recouvrement &uarr;</option>
+                </select>
+            </div>
+
+            <!-- Pagination par page -->
+            <div class="col-6 col-md-12 col-lg-3 d-flex justify-content-lg-end">
+                <select id="paymentPageSizeSelect" class="form-select form-select-sm" style="min-height: 42px; max-width: 170px;">
+                    <option value="5">5 classes / page</option>
+                    <option value="10">10 classes / page</option>
+                    <option value="20" selected>20 classes / page</option>
+                    <option value="all">Toutes les classes</option>
+                </select>
+            </div>
         </div>
-        <div class="payment-student-grid">
-            {% for eleve in eleves_pagination.items %}
-            {% set data = paiements_par_eleve[eleve.id] %}
-            <article class="payment-student-card">
-                <div class="payment-card-head">
-                    <div>
-                        <h3>{{ eleve.prenom }} {{ eleve.nom }}</h3>
-                        <p>{{ eleve.classe.nom if eleve.classe else 'Sans classe' }}</p>
-                    </div>
-                    {% if data.reste_a_payer <= 0 %}
-                        <span class="badge bg-success">Complet</span>
-                    {% elif data.total_paye > 0 %}
-                        <span class="badge bg-warning text-dark">Partiel</span>
-                    {% else %}
-                        <span class="badge bg-danger">Aucun</span>
+
+        <!-- Ligne résumé des résultats -->
+        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top text-muted small flex-wrap gap-2">
+            <div>
+                <i class="fas fa-info-circle me-1 text-primary"></i>
+                <span id="paymentFilterStats">Chargement de la situation financière...</span>
+            </div>
+            <button type="button" id="btnResetFilter" class="btn btn-link btn-sm text-decoration-none text-muted p-0" style="display: none;">
+                <i class="fas fa-undo me-1"></i>Réinitialiser les filtres
+            </button>
+        </div>
+    </div>
+
+    <!-- LISTE DES CLASSES ET LEURS PAIEMENTS (ACCORDÉON) -->
+    <div id="classPaymentList" class="class-payment-list">
+        {% if classes %}
+            {% for c in classes %}
+                {% set class_eleves = eleves_par_classe.get(c.id, []) if eleves_par_classe else [] %}
+                {% set c_fin = classe_finances.get(c.id, {}) if classe_finances else {} %}
+                {% set total_eleves_classe = class_eleves|length %}
+                {% set c_frais = c_fin.get('total_frais', 0) %}
+                {% set c_paye = c_fin.get('total_paye', 0) %}
+                {% set c_reste = c_fin.get('reste_a_payer', 0) %}
+                {% set c_taux = c_fin.get('taux_recouvrement', 0) %}
+
+                <!-- Agrégation des données pour la recherche -->
+                {% set ns = namespace(eleves_names=[], refs=[], modes=[], mois_list=[]) %}
+                {% for el in class_eleves %}
+                    {% set full_name = el.prenom ~ ' ' ~ el.nom %}
+                    {% if full_name not in ns.eleves_names %}
+                        {% set _ = ns.eleves_names.append(full_name) %}
                     {% endif %}
-                </div>
-                <div class="payment-card-meta">
-                    <span><strong>Frais</strong>{{ "{:,.0f}".format(data.frais_annuels) }} FCFA</span>
-                    <span><strong>Payé</strong>{{ "{:,.0f}".format(data.total_paye) }} FCFA</span>
-                    <span><strong>Reste</strong>{{ "{:,.0f}".format(data.reste_a_payer) }} FCFA</span>
-                </div>
-                <div class="class-progress"><span data-progress="{{ data.pourcentage_paye }}"></span></div>
-            </article>
-            {% else %}
-            <div class="empty-state"><h2 class="empty-state-title">Aucun élève</h2></div>
-            {% endfor %}
-        </div>
-
-        {% if eleves_pagination.pages > 1 %}
-        <nav class="pagination-wrapper mt-3" aria-label="Pagination élèves paiements">
-            <ul class="pagination justify-content-center flex-wrap">
-                {% if eleves_pagination.has_prev %}
-                <li class="page-item"><a class="page-link" href="{{ url_for('main.paiements', page=eleves_pagination.prev_num, page_paiements=paiements_pagination.page, classe=classe_id, recherche=recherche) }}">Précédent</a></li>
-                {% endif %}
-                <li class="page-item active"><span class="page-link">{{ eleves_pagination.page }} / {{ eleves_pagination.pages }}</span></li>
-                {% if eleves_pagination.has_next %}
-                <li class="page-item"><a class="page-link" href="{{ url_for('main.paiements', page=eleves_pagination.next_num, page_paiements=paiements_pagination.page, classe=classe_id, recherche=recherche) }}">Suivant</a></li>
-                {% endif %}
-            </ul>
-        </nav>
-        {% endif %}
-    </section>
-
-    <section class="payments-section">
-        <div class="section-header d-flex justify-content-between align-items-center gap-2 flex-wrap">
-            <h2 class="section-title mb-0">Historique</h2>
-            <span class="badge bg-primary">{{ paiements_pagination.total }} paiement(s)</span>
-        </div>
-
-        <div class="payments-table-wrap">
-            <table class="table data-table align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>Élève</th><th>Période</th><th>Montant</th><th>Date</th><th>Mode</th><th class="text-end">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p in paiements_pagination.items %}
-                    <tr>
-                        <td><strong>{{ p.eleve.prenom }} {{ p.eleve.nom }}</strong><small class="d-block text-muted">{{ p.eleve.classe.nom if p.eleve.classe else 'Sans classe' }}</small></td>
-                        <td>{{ p.mois }} / {{ p.annee }}</td>
-                        <td><strong>{{ "{:,.0f}".format(p.montant) }} FCFA</strong></td>
-                        <td>{{ p.date_paiement.strftime('%d/%m/%Y') }}</td>
-                        <td>{{ p.mode_paiement }}</td>
-                        <td class="text-end">
-                            <div class="action-buttons justify-content-end">
-                                <a href="{{ url_for('main.recu_paiement', id=p.id) }}" class="btn btn-sm btn-outline-info" title="Voir"><i class="fas fa-eye"></i></a>
-                                <a href="{{ url_for('main.generer_recu_pdf', id=p.id) }}" class="btn btn-sm btn-outline-primary" title="PDF"><i class="fas fa-file-pdf"></i></a>
-                                <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}" method="POST" class="js-confirm-form" data-confirm="Supprimer ce paiement ?">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer"><i class="fas fa-trash"></i></button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
+                    {% for p in el.paiements %}
+                        {% if p.reference and p.reference not in ns.refs %}
+                            {% set _ = ns.refs.append(p.reference) %}
+                        {% endif %}
+                        {% if p.mode_paiement and p.mode_paiement not in ns.modes %}
+                            {% set _ = ns.modes.append(p.mode_paiement) %}
+                        {% endif %}
+                        {% if p.mois and p.mois not in ns.mois_list %}
+                            {% set _ = ns.mois_list.append(p.mois) %}
+                        {% endif %}
                     {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                {% endfor %}
 
-        <div class="payment-history-list">
-            {% for p in paiements_pagination.items %}
-            <article class="payment-history-card">
-                <div class="payment-card-head">
-                    <div><h3>{{ p.eleve.prenom }} {{ p.eleve.nom }}</h3><p>{{ p.mois }} / {{ p.annee }} · {{ p.date_paiement.strftime('%d/%m/%Y') }}</p></div>
-                    <strong>{{ "{:,.0f}".format(p.montant) }} FCFA</strong>
+                {% set eleves_str = ns.eleves_names|join(' ') %}
+                {% set refs_str = ns.refs|join(' ') %}
+                {% set modes_str = ns.modes|join(' ') %}
+                {% set mois_str = ns.mois_list|join(' ') %}
+
+                <article class="class-payment-card"
+                         data-id="{{ c.id }}"
+                         data-nom="{{ c.nom }}"
+                         data-niveau="{{ c.niveau or '' }}"
+                         data-eleves-count="{{ total_eleves_classe }}"
+                         data-total-frais="{{ c_frais }}"
+                         data-total-paye="{{ c_paye }}"
+                         data-total-reste="{{ c_reste }}"
+                         data-taux="{{ c_taux }}"
+                         data-search="{{ c.nom }} {{ c.niveau or '' }} {{ eleves_str }} {{ refs_str }} {{ modes_str }} {{ mois_str }}">
+
+                    <!-- En-tête de classe cliquable -->
+                    <div class="class-payment-header"
+                         data-bs-toggle="collapse"
+                         data-bs-target="#collapsePaymentClasse{{ c.id }}"
+                         aria-expanded="false"
+                         aria-controls="collapsePaymentClasse{{ c.id }}">
+
+                        <div class="class-payment-profile">
+                            <div class="class-payment-avatar {% if total_eleves_classe == 0 %}empty{% elif c_reste <= 0 and total_eleves_classe > 0 %}complete{% elif c_paye > 0 %}partial{% endif %}">
+                                <i class="fas fa-coins"></i>
+                            </div>
+                            <div class="class-payment-info">
+                                <h2 class="class-payment-name">{{ c.nom }}</h2>
+                                <div class="class-payment-meta">
+                                    {% if c.niveau %}
+                                        {% set niveau_color = {
+                                            '6ème': 'bg-info bg-opacity-10 text-info border border-info-subtle',
+                                            '5ème': 'bg-success bg-opacity-10 text-success border border-success-subtle',
+                                            '4ème': 'bg-warning bg-opacity-10 text-dark border border-warning-subtle',
+                                            '3ème': 'bg-danger bg-opacity-10 text-danger border border-danger-subtle'
+                                        } %}
+                                        <span class="badge {{ niveau_color.get(c.niveau, 'bg-secondary bg-opacity-10 text-secondary border') }}">
+                                            <i class="fas fa-layer-group me-1"></i>{{ c.niveau }}
+                                        </span>
+                                    {% endif %}
+                                    <span class="badge bg-light text-muted border">ID #{{ c.id }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="class-payment-stats">
+                            <!-- Nombre d'élèves -->
+                            <span class="badge bg-light text-dark border" style="font-size: 0.82rem;">
+                                <i class="fas fa-user-graduate me-1 text-primary"></i>{{ total_eleves_classe }} élève{{ 's' if total_eleves_classe > 1 else '' }}
+                            </span>
+
+                            <!-- Total recouvré -->
+                            {% if total_eleves_classe > 0 %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle d-none d-sm-inline-flex" style="font-size: 0.82rem;">
+                                    <i class="fas fa-check-circle me-1"></i>{{ "{:,.0f}".format(c_paye) }} FCFA
+                                </span>
+
+                                <!-- Reste à recouvrer -->
+                                {% if c_reste > 0 %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.82rem;">
+                                        <i class="fas fa-exclamation-circle me-1"></i>Reste: {{ "{:,.0f}".format(c_reste) }} FCFA
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-success text-white shadow-sm" style="font-size: 0.82rem;">
+                                        <i class="fas fa-check-double me-1"></i>Soldé 100%
+                                    </span>
+                                {% endif %}
+
+                                <!-- Taux de recouvrement -->
+                                <span class="badge bg-light text-secondary border d-none d-md-inline-flex" style="font-size: 0.82rem;">
+                                    {{ c_taux }}%
+                                </span>
+                            {% endif %}
+
+                            <!-- Chevron rotatif -->
+                            <div class="class-payment-chevron">
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contenu dépliable de la classe -->
+                    <div class="collapse class-payment-content" id="collapsePaymentClasse{{ c.id }}">
+                        {% if total_eleves_classe == 0 %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-user-slash text-muted fa-2x mb-2"></i>
+                                <h6 class="text-muted fw-bold mb-1">Aucun élève dans cette classe</h6>
+                                <p class="text-muted small mb-0">Aucun élève n'est encore inscrit dans cette classe.</p>
+                            </div>
+                        {% else %}
+                            <!-- LISTE DES ÉLÈVES DE LA CLASSE -->
+                            {% for el in class_eleves %}
+                                {% set p_data = paiements_par_eleve.get(el.id, {}) if paiements_par_eleve else {} %}
+                                {% set el_paye = p_data.get('total_paye', 0) %}
+                                {% set el_reste = p_data.get('reste_a_payer', 0) %}
+                                {% set el_frais = p_data.get('frais_annuels', el.frais_annuels or 0) %}
+                                {% set el_pct = p_data.get('pourcentage_paye', 0) %}
+                                {% set el_paiements = el.paiements %}
+
+                                {% set el_statut = 'complet' if el_reste <= 0 else ('partiel' if el_paye > 0 else 'aucun') %}
+                                {% set el_search = el.prenom ~ ' ' ~ el.nom ~ ' ' ~ (el.classe.nom if el.classe else '') %}
+
+                                <div class="class-student-payment-block"
+                                     data-student-id="{{ el.id }}"
+                                     data-student-name="{{ el.prenom }} {{ el.nom }}"
+                                     data-statut="{{ el_statut }}"
+                                     data-search="{{ el_search }}">
+
+                                    <!-- En-tête de l'élève -->
+                                    <div class="class-student-payment-header">
+                                        <div class="class-student-payment-profile">
+                                            <div class="class-student-payment-avatar {% if el_statut == 'complet' %}complete{% elif el_statut == 'aucun' %}none{% endif %}">
+                                                {{ (el.prenom[0] ~ el.nom[0]) if (el.prenom and el.nom) else 'E' }}
+                                            </div>
+                                            <div>
+                                                <strong class="text-dark d-block">{{ el.prenom }} {{ el.nom }}</strong>
+                                                <small class="text-muted">ID #{{ el.id }}</small>
+                                            </div>
+                                        </div>
+
+                                        <div class="class-student-payment-stats">
+                                            <!-- Frais annuels -->
+                                            <span class="badge bg-light text-dark border">
+                                                Frais: <strong>{{ "{:,.0f}".format(el_frais) }} FCFA</strong>
+                                            </span>
+
+                                            <!-- Payé -->
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                Payé: <strong>{{ "{:,.0f}".format(el_paye) }} FCFA</strong>
+                                            </span>
+
+                                            <!-- Reste -->
+                                            {% if el_reste > 0 %}
+                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                                    Reste: <strong>{{ "{:,.0f}".format(el_reste) }} FCFA</strong>
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-success text-white">Soldé</span>
+                                            {% endif %}
+
+                                            <!-- Statut badge -->
+                                            {% if el_statut == 'complet' %}
+                                                <span class="badge bg-success">Complet</span>
+                                            {% elif el_statut == 'partiel' %}
+                                                <span class="badge bg-warning text-dark">Partiel ({{ el_pct }}%)</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Aucun versement</span>
+                                            {% endif %}
+
+                                            <!-- Barre de progression -->
+                                            <div class="class-student-payment-progress d-none d-sm-block" title="{{ el_pct }}% réglé">
+                                                <div class="class-student-payment-progress-bar {% if el_statut == 'complet' %}bg-success{% elif el_statut == 'partiel' %}bg-warning{% else %}bg-danger{% endif %}"
+                                                     style="width: {{ [el_pct, 100]|min }}%;"></div>
+                                            </div>
+
+                                            <!-- Bouton ajout versement pré-rempli -->
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-success btn-quick-pay"
+                                                    data-eleve-id="{{ el.id }}"
+                                                    data-eleve-nom="{{ el.prenom }} {{ el.nom }}"
+                                                    title="Enregistrer un versement pour {{ el.prenom }} {{ el.nom }}">
+                                                <i class="fas fa-plus me-1"></i>Payer
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- DETAIL DES VERSEMENTS DE L'ÉLÈVE -->
+                                    {% if el_paiements|length == 0 %}
+                                        <div class="p-3 text-center text-muted small bg-light bg-opacity-50">
+                                            <i class="fas fa-receipt me-1 text-muted"></i>Aucun paiement enregistré pour cet élève.
+                                        </div>
+                                    {% else %}
+                                        <!-- TABLEAU DES VERSEMENTS (DESKTOP) -->
+                                        <div class="payment-student-table-wrap">
+                                            <table class="table data-table align-middle mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 120px;">Date</th>
+                                                        <th style="width: 130px;">Période</th>
+                                                        <th>Montant</th>
+                                                        <th>Mode</th>
+                                                        <th>Référence</th>
+                                                        <th class="text-end" style="width: 150px;">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for p in el_paiements %}
+                                                        <tr>
+                                                            <td>
+                                                                <small class="text-muted"><i class="far fa-calendar-alt me-1"></i>{{ p.date_paiement.strftime('%d/%m/%Y') if p.date_paiement else '-' }}</small>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-light text-dark border">{{ p.mois }} / {{ p.annee }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <strong class="text-success">{{ "{:,.0f}".format(p.montant) }} FCFA</strong>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-info-subtle text-info border border-info-subtle">{{ p.mode_paiement }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <small class="text-muted">{{ p.reference or '-' }}</small>
+                                                            </td>
+                                                            <td class="text-end">
+                                                                <div class="d-inline-flex align-items-center gap-1">
+                                                                    <a href="{{ url_for('main.recu_paiement', id=p.id) }}"
+                                                                       class="btn btn-sm btn-outline-info"
+                                                                       title="Consulter le reçu"
+                                                                       aria-label="Reçu">
+                                                                        <i class="fas fa-eye"></i>
+                                                                    </a>
+                                                                    <a href="{{ url_for('main.generer_recu_pdf', id=p.id) }}"
+                                                                       class="btn btn-sm btn-outline-primary"
+                                                                       title="Télécharger le reçu PDF"
+                                                                       aria-label="PDF">
+                                                                        <i class="fas fa-file-pdf"></i>
+                                                                    </a>
+                                                                    <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}"
+                                                                          method="POST"
+                                                                          class="d-inline js-confirm-form"
+                                                                          data-confirm="Supprimer ce paiement de {{ '{:,.0f}'.format(p.montant) }} FCFA ?">
+                                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                                        <button type="submit"
+                                                                                class="btn btn-sm btn-outline-danger"
+                                                                                title="Supprimer ce paiement"
+                                                                                aria-label="Supprimer">
+                                                                            <i class="fas fa-trash-alt"></i>
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <!-- CARTES MOBILES (< 768px, ZÉRO DÉFILEMENT HORIZONTAL) -->
+                                        <div class="payment-student-cards">
+                                            {% for p in el_paiements %}
+                                                <div class="payment-student-mini-card">
+                                                    <div class="payment-student-mini-top">
+                                                        <span class="badge bg-light text-dark border">{{ p.mois }} / {{ p.annee }}</span>
+                                                        <strong class="text-success fs-6">{{ "{:,.0f}".format(p.montant) }} FCFA</strong>
+                                                    </div>
+                                                    <div class="d-flex justify-content-between text-muted small">
+                                                        <span><i class="far fa-calendar me-1"></i>{{ p.date_paiement.strftime('%d/%m/%Y') if p.date_paiement else '-' }}</span>
+                                                        <span><i class="fas fa-wallet me-1"></i>{{ p.mode_paiement }}</span>
+                                                    </div>
+                                                    {% if p.reference %}
+                                                        <div class="text-muted small">
+                                                            <i class="fas fa-hashtag me-1"></i>{{ p.reference }}
+                                                        </div>
+                                                    {% endif %}
+                                                    <div class="payment-student-mini-actions">
+                                                        <a href="{{ url_for('main.recu_paiement', id=p.id) }}" class="btn btn-sm btn-outline-info">
+                                                            <i class="fas fa-eye me-1"></i>Reçu
+                                                        </a>
+                                                        <a href="{{ url_for('main.generer_recu_pdf', id=p.id) }}" class="btn btn-sm btn-outline-primary">
+                                                            <i class="fas fa-file-pdf me-1"></i>PDF
+                                                        </a>
+                                                        <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}" method="POST" class="js-confirm-form" data-confirm="Supprimer ce versement ?">
+                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                                <i class="fas fa-trash-alt me-1"></i>Supprimer
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        {% endif %}
+
+        <!-- SECTION DE SECOURS : ÉLÈVES SANS CLASSE ASSIGNÉE -->
+        {% if eleves_sans_classe and eleves_sans_classe|length > 0 %}
+            {% set total_sans_classe = eleves_sans_classe|length %}
+            <article class="class-payment-card"
+                     data-id="sans-classe"
+                     data-nom="Élèves sans classe"
+                     data-niveau=""
+                     data-eleves-count="{{ total_sans_classe }}"
+                     data-total-frais="0"
+                     data-total-paye="0"
+                     data-total-reste="0"
+                     data-taux="0"
+                     data-search="sans classe orphelin non assigné">
+
+                <div class="class-payment-header"
+                     data-bs-toggle="collapse"
+                     data-bs-target="#collapsePaymentSansClasse"
+                     aria-expanded="false"
+                     aria-controls="collapsePaymentSansClasse">
+
+                    <div class="class-payment-profile">
+                        <div class="class-payment-avatar orphan">
+                            <i class="fas fa-question-circle"></i>
+                        </div>
+                        <div class="class-payment-info">
+                            <h2 class="class-payment-name">Élèves sans classe assignée</h2>
+                            <div class="class-payment-meta">
+                                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>À régulariser
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="class-payment-stats">
+                        <span class="badge bg-warning text-dark border" style="font-size: 0.82rem;">
+                            {{ total_sans_classe }} élève{{ 's' if total_sans_classe > 1 else '' }}
+                        </span>
+                        <div class="class-payment-chevron">
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                    </div>
                 </div>
-                <div class="payment-card-meta">
-                    <span><strong>Classe</strong>{{ p.eleve.classe.nom if p.eleve.classe else 'Sans classe' }}</span>
-                    <span><strong>Mode</strong>{{ p.mode_paiement }}</span>
-                </div>
-                <div class="payment-card-actions">
-                    <a href="{{ url_for('main.recu_paiement', id=p.id) }}" class="btn btn-sm btn-outline-info">Reçu</a>
-                    <a href="{{ url_for('main.generer_recu_pdf', id=p.id) }}" class="btn btn-sm btn-outline-primary">PDF</a>
-                    <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}" method="POST" class="js-confirm-form" data-confirm="Supprimer ce paiement ?">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-sm btn-outline-danger">Supprimer</button>
-                    </form>
+
+                <div class="collapse class-payment-content" id="collapsePaymentSansClasse">
+                    <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
+                        <i class="fas fa-exclamation-triangle fa-lg"></i>
+                        <span>Ces élèves n'ont pas encore de classe assignée. Vous pouvez les éditer dans la gestion des élèves pour leur affecter une classe valide.</span>
+                    </div>
+
+                    {% for el in eleves_sans_classe %}
+                        {% set p_data = paiements_par_eleve.get(el.id, {}) if paiements_par_eleve else {} %}
+                        {% set el_paye = p_data.get('total_paye', 0) %}
+                        {% set el_reste = p_data.get('reste_a_payer', 0) %}
+                        {% set el_frais = p_data.get('frais_annuels', el.frais_annuels or 0) %}
+                        {% set el_pct = p_data.get('pourcentage_paye', 0) %}
+                        {% set el_statut = 'complet' if el_reste <= 0 else ('partiel' if el_paye > 0 else 'aucun') %}
+
+                        <div class="class-student-payment-block"
+                             data-student-id="{{ el.id }}"
+                             data-student-name="{{ el.prenom }} {{ el.nom }}"
+                             data-statut="{{ el_statut }}"
+                             data-search="{{ el.prenom }} {{ el.nom }} sans classe">
+
+                            <div class="class-student-payment-header">
+                                <div class="class-student-payment-profile">
+                                    <div class="class-student-payment-avatar">
+                                        {{ (el.prenom[0] ~ el.nom[0]) if (el.prenom and el.nom) else 'E' }}
+                                    </div>
+                                    <div>
+                                        <strong class="text-dark d-block">{{ el.prenom }} {{ el.nom }}</strong>
+                                        <small class="text-muted">ID #{{ el.id }}</small>
+                                    </div>
+                                </div>
+                                <div class="class-student-payment-stats">
+                                    <span class="badge bg-light text-dark border">Frais: {{ "{:,.0f}".format(el_frais) }} FCFA</span>
+                                    <span class="badge bg-success-subtle text-success border">Payé: {{ "{:,.0f}".format(el_paye) }} FCFA</span>
+                                    {% if el_reste > 0 %}
+                                        <span class="badge bg-danger-subtle text-danger border">Reste: {{ "{:,.0f}".format(el_reste) }} FCFA</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
                 </div>
             </article>
-            {% else %}
-            <div class="empty-state"><h2 class="empty-state-title">Aucun paiement</h2></div>
-            {% endfor %}
-        </div>
-
-        {% if paiements_pagination.pages > 1 %}
-        <nav class="pagination-wrapper mt-3" aria-label="Pagination paiements">
-            <ul class="pagination justify-content-center flex-wrap">
-                {% if paiements_pagination.has_prev %}
-                <li class="page-item"><a class="page-link" href="{{ url_for('main.paiements', page_paiements=paiements_pagination.prev_num, page=eleves_pagination.page, classe=classe_id, recherche=recherche) }}">Précédent</a></li>
-                {% endif %}
-                <li class="page-item active"><span class="page-link">{{ paiements_pagination.page }} / {{ paiements_pagination.pages }}</span></li>
-                {% if paiements_pagination.has_next %}
-                <li class="page-item"><a class="page-link" href="{{ url_for('main.paiements', page_paiements=paiements_pagination.next_num, page=eleves_pagination.page, classe=classe_id, recherche=recherche) }}">Suivant</a></li>
-                {% endif %}
-            </ul>
-        </nav>
         {% endif %}
-    </section>
+    </div>
+
+    <!-- Message aucun résultat -->
+    <div id="noPaymentResults" class="empty-state py-5" style="display: none;">
+        <div class="empty-state-icon text-muted mb-3">
+            <i class="fas fa-search-dollar fa-3x"></i>
+        </div>
+        <h3 class="empty-state-title fs-5 fw-bold">Aucune classe ou élève trouvé</h3>
+        <p class="empty-state-text text-muted mb-3">Aucun résultat ne correspond à vos critères actuels de recherche ou de filtre.</p>
+        <button type="button" class="btn btn-outline-primary" id="btnResetEmpty">
+            <i class="fas fa-undo me-2"></i>Réinitialiser les filtres
+        </button>
+    </div>
+
+    <!-- Barre de pagination dynamique -->
+    <nav id="paymentPaginationBar" class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-4" aria-label="Pagination des classes" style="display: none;">
+        <div class="text-muted small" id="paymentPageInfoText">
+            Affichage des classes...
+        </div>
+        <ul class="pagination mb-0" id="paymentPaginationList">
+            <!-- Liens de pagination générés dynamiquement par JS -->
+        </ul>
+    </nav>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/academic-settings.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    'use strict';
+
+    // Normalisation pour recherche insensible à la casse et aux accents
+    function normalize(str) {
+        return (str || '')
+            .toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim();
+    }
+
+    // Éléments du DOM
+    const searchInput = document.getElementById('paymentSearchInput');
+    const searchClear = document.getElementById('paymentSearchClear');
+    const filterClasse = document.getElementById('filterPaymentClasseSelect');
+    const filterStatut = document.getElementById('filterPaymentStatutSelect');
+    const sortSelect = document.getElementById('sortPaymentSelect');
+    const pageSizeSelect = document.getElementById('paymentPageSizeSelect');
+    const filterStats = document.getElementById('paymentFilterStats');
+    const btnReset = document.getElementById('btnResetFilter');
+    const btnResetEmpty = document.getElementById('btnResetEmpty');
+    const noResults = document.getElementById('noPaymentResults');
+    const classList = document.getElementById('classPaymentList');
+    const btnToggleAll = document.getElementById('btnToggleAllPayments');
+    const iconToggleAll = document.getElementById('iconToggleAll');
+    const textToggleAll = document.getElementById('textToggleAll');
+    const paginationBar = document.getElementById('paymentPaginationBar');
+    const paginationList = document.getElementById('paymentPaginationList');
+    const pageInfoText = document.getElementById('paymentPageInfoText');
+
+    // Cartes des classes
+    const classCards = Array.from(document.querySelectorAll('.class-payment-card'));
+    let allExpanded = false;
+    let currentPage = 1;
+    let pageSize = 20;
+
+    // Rendu et filtrage dynamique
+    function render() {
+        const query = normalize(searchInput ? searchInput.value : '');
+        const selectedClasse = filterClasse ? filterClasse.value : '';
+        const selectedStatut = filterStatut ? filterStatut.value : '';
+        const sortMode = sortSelect ? sortSelect.value : 'nom-asc';
+
+        if (searchClear) {
+            searchClear.style.display = query ? 'block' : 'none';
+        }
+
+        const isFiltered = !!(query || selectedClasse || selectedStatut || sortMode !== 'nom-asc');
+        if (btnReset) btnReset.style.display = isFiltered ? 'inline-flex' : 'none';
+
+        let matched = [];
+        let totalVisibleStudents = 0;
+        let totalVisibleRecouvre = 0;
+
+        classCards.forEach(card => {
+            const cardNom = card.dataset.nom || '';
+            const cardSearch = normalize(card.dataset.search || '');
+            const cardId = card.dataset.id || '';
+
+            // Filtrage par classe sélectionnée
+            if (selectedClasse && cardNom !== selectedClasse && cardId !== selectedClasse) {
+                card.style.display = 'none';
+                return;
+            }
+
+            // Filtrage des élèves à l'intérieur de la classe
+            const studentBlocks = Array.from(card.querySelectorAll('.class-student-payment-block'));
+            let classMatchingStudents = 0;
+
+            if (studentBlocks.length > 0) {
+                studentBlocks.forEach(student => {
+                    const studentStatut = student.dataset.statut || '';
+                    const studentSearch = normalize(student.dataset.search || '');
+                    const studentName = normalize(student.dataset.studentName || '');
+
+                    const matchStatut = !selectedStatut || studentStatut === selectedStatut;
+                    const matchQuery = !query || studentSearch.includes(query) || studentName.includes(query) || cardSearch.includes(query);
+
+                    if (matchStatut && matchQuery) {
+                        student.classList.remove('d-none');
+                        classMatchingStudents++;
+                        totalVisibleStudents++;
+                    } else {
+                        student.classList.add('d-none');
+                    }
+                });
+            }
+
+            // Éligibilité de la carte de classe
+            let isClassMatch = false;
+            if (studentBlocks.length === 0) {
+                if (!selectedStatut) {
+                    if (!query || cardSearch.includes(query)) {
+                        isClassMatch = true;
+                    }
+                }
+            } else {
+                if (classMatchingStudents > 0) {
+                    isClassMatch = true;
+                }
+            }
+
+            if (isClassMatch) {
+                const totalPaye = parseFloat(card.dataset.totalPaye) || 0;
+                const totalReste = parseFloat(card.dataset.totalReste) || 0;
+                totalVisibleRecouvre += totalPaye;
+
+                matched.push({
+                    card: card,
+                    nom: cardNom,
+                    elevesCount: parseInt(card.dataset.elevesCount, 10) || 0,
+                    totalReste: totalReste,
+                    taux: parseFloat(card.dataset.taux) || 0,
+                    matchingStudents: classMatchingStudents
+                });
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        // Tri des classes
+        matched.sort((a, b) => {
+            if (sortMode === 'nom-asc') {
+                return a.nom.localeCompare(b.nom, 'fr', { numeric: true });
+            } else if (sortMode === 'nom-desc') {
+                return b.nom.localeCompare(a.nom, 'fr', { numeric: true });
+            } else if (sortMode === 'reste-desc') {
+                return b.totalReste - a.totalReste || a.nom.localeCompare(b.nom, 'fr');
+            } else if (sortMode === 'eleves-desc') {
+                return b.elevesCount - a.elevesCount || a.nom.localeCompare(b.nom, 'fr');
+            } else if (sortMode === 'taux-desc') {
+                return b.taux - a.taux || a.nom.localeCompare(b.nom, 'fr');
+            } else if (sortMode === 'taux-asc') {
+                return a.taux - b.taux || a.nom.localeCompare(b.nom, 'fr');
+            }
+            return 0;
+        });
+
+        const count = matched.length;
+
+        // Mise à jour du compteur réactif
+        if (filterStats) {
+            const formattedRecouvre = new Intl.NumberFormat('fr-FR').format(Math.round(totalVisibleRecouvre));
+            filterStats.textContent = `Affichage de ${count} classe${count > 1 ? 's' : ''} (${totalVisibleStudents} élève${totalVisibleStudents > 1 ? 's' : ''}, ${formattedRecouvre} FCFA recouvrés)`;
+        }
+
+        // État vide
+        if (count === 0) {
+            if (noResults) noResults.style.display = 'block';
+            if (classList) classList.style.display = 'none';
+            if (paginationBar) paginationBar.style.display = 'none';
+            return;
+        } else {
+            if (noResults) noResults.style.display = 'none';
+            if (classList) classList.style.display = 'grid';
+        }
+
+        // Pagination
+        const totalPages = Math.ceil(count / pageSize) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const pageItems = matched.slice(startIndex, endIndex);
+        const visibleIds = new Set(pageItems.map(item => item.card.dataset.id));
+
+        // Afficher / masquer les cartes
+        classCards.forEach(card => {
+            card.style.display = visibleIds.has(card.dataset.id) ? 'block' : 'none';
+        });
+
+        // Réordonner les éléments dans le DOM
+        if (classList) {
+            pageItems.forEach(item => classList.appendChild(item.card));
+        }
+
+        // Rendu de la pagination
+        renderPagination(count, totalPages, startIndex, endIndex);
+    }
+
+    function renderPagination(count, totalPages, startIndex, endIndex) {
+        if (!paginationBar || !paginationList) return;
+
+        if (totalPages <= 1) {
+            paginationBar.style.display = 'none';
+            return;
+        }
+
+        paginationBar.style.display = 'flex';
+        const actualEnd = Math.min(endIndex, count);
+        if (pageInfoText) {
+            pageInfoText.textContent = `Affichage ${startIndex + 1} - ${actualEnd} sur ${count} classes (Page ${currentPage} / ${totalPages})`;
+        }
+
+        let html = '';
+
+        // Bouton Précédent
+        html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <button type="button" class="page-link" data-page="${currentPage - 1}" aria-label="Précédent" ${currentPage === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </li>`;
+
+        // Pages visibles
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (startPage > 1) {
+            html += `<li class="page-item"><button type="button" class="page-link" data-page="1">1</button></li>`;
+            if (startPage > 2) {
+                html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
+            }
+        }
+
+        for (let p = startPage; p <= endPage; p++) {
+            html += `<li class="page-item ${p === currentPage ? 'active' : ''}">
+                <button type="button" class="page-link" data-page="${p}">${p}</button>
+            </li>`;
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
+            }
+            html += `<li class="page-item"><button type="button" class="page-link" data-page="${totalPages}">${totalPages}</button></li>`;
+        }
+
+        // Bouton Suivant
+        html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <button type="button" class="page-link" data-page="${currentPage + 1}" aria-label="Suivant" ${currentPage === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </li>`;
+
+        paginationList.innerHTML = html;
+
+        // Événements de pagination
+        paginationList.querySelectorAll('button.page-link').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const targetPage = parseInt(this.dataset.page, 10);
+                if (targetPage && targetPage !== currentPage && targetPage >= 1 && targetPage <= totalPages) {
+                    currentPage = targetPage;
+                    render();
+                    const targetEl = document.querySelector('.course-toolbar-card');
+                    if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    }
+
+    // Gestion du bouton "Tout déplier / Tout replier"
+    if (btnToggleAll) {
+        btnToggleAll.addEventListener('click', function() {
+            allExpanded = !allExpanded;
+            const visibleCards = classCards.filter(card => card.style.display !== 'none');
+
+            visibleCards.forEach(card => {
+                const collapseEl = card.querySelector('.collapse');
+                const headerEl = card.querySelector('.class-payment-header');
+                if (collapseEl) {
+                    const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+                    if (allExpanded) {
+                        bsCollapse.show();
+                        if (headerEl) headerEl.setAttribute('aria-expanded', 'true');
+                    } else {
+                        bsCollapse.hide();
+                        if (headerEl) headerEl.setAttribute('aria-expanded', 'false');
+                    }
+                }
+            });
+
+            if (allExpanded) {
+                if (iconToggleAll) iconToggleAll.className = 'fas fa-chevron-up me-1';
+                if (textToggleAll) textToggleAll.textContent = 'Tout replier';
+            } else {
+                if (iconToggleAll) iconToggleAll.className = 'fas fa-chevron-down me-1';
+                if (textToggleAll) textToggleAll.textContent = 'Tout déplier';
+            }
+        });
+    }
+
+    // Synchronisation du chevron avec l'état Bootstrap Collapse
+    document.querySelectorAll('.class-payment-content').forEach(collapseEl => {
+        collapseEl.addEventListener('show.bs.collapse', function() {
+            const card = this.closest('.class-payment-card');
+            if (card) {
+                const header = card.querySelector('.class-payment-header');
+                if (header) header.setAttribute('aria-expanded', 'true');
+            }
+        });
+        collapseEl.addEventListener('hide.bs.collapse', function() {
+            const card = this.closest('.class-payment-card');
+            if (card) {
+                const header = card.querySelector('.class-payment-header');
+                if (header) header.setAttribute('aria-expanded', 'false');
+            }
+        });
+    });
+
+    // Pré-remplissage du formulaire lors du clic sur "Payer" pour un élève spécifique
+    document.querySelectorAll('.btn-quick-pay').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const eleveId = this.dataset.eleveId;
+            const eleveSelect = document.getElementById('form_eleve_id');
+            const collapseForm = document.getElementById('collapseNouveauPaiement');
+
+            if (eleveSelect && eleveId) {
+                eleveSelect.value = eleveId;
+            }
+
+            if (collapseForm) {
+                const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseForm, { toggle: false });
+                bsCollapse.show();
+                collapseForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const montantInput = document.getElementById('form_montant');
+                if (montantInput) montantInput.focus();
+            }
+        });
+    });
+
+    // Confirmation de suppression
+    document.querySelectorAll('.js-confirm-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const confirmMsg = this.dataset.confirm || 'Voulez-vous vraiment supprimer ce paiement ?';
+            if (!window.confirm(confirmMsg)) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    // Réinitialisation des filtres
+    function resetFilters() {
+        if (searchInput) searchInput.value = '';
+        if (filterClasse) filterClasse.value = '';
+        if (filterStatut) filterStatut.value = '';
+        if (sortSelect) sortSelect.value = 'nom-asc';
+        currentPage = 1;
+        render();
+    }
+
+    // Écouteurs d'événements
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (searchClear) {
+        searchClear.addEventListener('click', function() {
+            if (searchInput) searchInput.value = '';
+            currentPage = 1;
+            render();
+            if (searchInput) searchInput.focus();
+        });
+    }
+
+    if (filterClasse) {
+        filterClasse.addEventListener('change', function() {
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (filterStatut) {
+        filterStatut.addEventListener('change', function() {
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function() {
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function() {
+            pageSize = (this.value === 'all') ? 9999 : (parseInt(this.value, 10) || 20);
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (btnReset) btnReset.addEventListener('click', resetFilters);
+    if (btnResetEmpty) btnResetEmpty.addEventListener('click', resetFilters);
+
+    // Rendu initial
+    render();
+});
+</script>
 {% endblock %}

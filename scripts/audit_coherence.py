@@ -246,8 +246,8 @@ def smoke_tests(app, db, models):
         "main.eleves", "main.professeurs", "main.cours", "main.notes", "main.absences",
         "main.paiements", "main.bulletins", "main.rapports", "main.alertes",
         "main.liste_classes", "main.gestion_annees", "main.admin_emplois",
-        "main.parent_dashboard", "main.portal_parent", "main.enseignant_dashboard",
-        "main.enseignant_home", "main.notifications", "main.recherche",
+        "main.parent_dashboard", "main.portal_parent", "main.professeur_dashboard",
+        "main.professeur_home", "main.notifications", "main.recherche",
         "main.voir_inscriptions", "main.imports_historique", "main.profile",
     ]
     rules = {r.endpoint: r for r in app.url_map.iter_rules()}

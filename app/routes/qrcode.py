@@ -56,13 +56,13 @@ def generer_qrcode_eleve(id):
 
 @main.route('/qrcodes_etudiants')
 @login_required
-@role_required('admin', 'enseignant')
+@role_required('admin', 'professeur')
 def qrcodes_etudiants():
     from collections import defaultdict
     import base64
 
     etudiants_query = Eleve.query.filter_by(ecole_id=current_user.ecole_id)
-    if current_user.role in ('enseignant', 'professeur'):
+    if current_user.role == 'professeur':
         professeur = getattr(current_user, 'professeur_rel', None)
         if not professeur:
             abort(403)

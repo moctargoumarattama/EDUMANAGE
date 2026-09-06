@@ -73,25 +73,41 @@ def paiements():
             (Eleve.nom.ilike(f"%{recherche}%")) | (Eleve.prenom.ilike(f"%{recherche}%"))
         )
 
-    # --- PAGINATION DES ÉLÈVES POUR L'AFFICHAGE ---
+    # --- TOUS LES ÉLÈVES POUR L'ORGANISATION PAR CLASSE ---
     ClasseAlias = aliased(Classe)
+    all_eleves = query_base.outerjoin(ClasseAlias, Eleve.classe_id == ClasseAlias.id)\
+                           .order_by(ClasseAlias.nom, Eleve.nom).all()
+
     eleves_pagination = query_base.outerjoin(ClasseAlias, Eleve.classe_id == ClasseAlias.id)\
                                   .order_by(ClasseAlias.nom, Eleve.nom)\
                                   .paginate(page=page_eleves, per_page=per_page_eleves, error_out=False)
     eleves = eleves_pagination.items
 
-    # --- STATISTIQUES RÉELLES (OPTIMISÉES) ---
-    eleve_ids = [e.id for e in query_base.with_entities(Eleve.id)]
+    # --- STATISTIQUES RÉELLES (SUR TOUS LES ÉLÈVES DE L'ÉCOLE) ---
+    eleve_ids = [e.id for e in all_eleves]
     paiements_totaux = db.session.query(
         Paiement.eleve_id,
         func.sum(Paiement.montant).label('total_paye')
-    ).filter(Paiement.eleve_id.in_(eleve_ids)).group_by(Paiement.eleve_id).all()
+    ).filter(Paiement.eleve_id.in_(eleve_ids)).group_by(Paiement.eleve_id).all() if eleve_ids else []
     paiements_dict = {p.eleve_id: p.total_paye for p in paiements_totaux}
 
-    stats = {'total_eleves': len(eleve_ids), 'complet': 0, 'partiel': 0, 'aucun': 0}
-    for e in eleves:
+    total_frais = sum((e.frais_annuels or 0) for e in all_eleves)
+    total_recouvre = sum(paiements_dict.values())
+    total_reste = max(0, total_frais - total_recouvre)
+
+    stats = {
+        'total_eleves': len(all_eleves),
+        'complet': 0,
+        'partiel': 0,
+        'aucun': 0,
+        'total_frais': total_frais,
+        'total_recouvre': total_recouvre,
+        'total_reste': total_reste,
+        'taux_recouvrement': round((total_recouvre / total_frais) * 100, 1) if total_frais > 0 else 0
+    }
+    for e in all_eleves:
         total_paye = paiements_dict.get(e.id, 0)
-        reste = max(e.frais_annuels - total_paye, 0)
+        reste = max((e.frais_annuels or 0) - total_paye, 0)
         if reste <= 0:
             stats['complet'] += 1
         elif total_paye == 0:
@@ -99,17 +115,46 @@ def paiements():
         else:
             stats['partiel'] += 1
 
-    # --- Données pour affichage paginé ---
+    # --- Données enrichies pour chaque élève ---
     paiements_par_eleve = {}
-    for e in eleves:
+    for e in all_eleves:
         total_paye = paiements_dict.get(e.id, 0)
-        reste = max(e.frais_annuels - total_paye, 0)
+        frais = e.frais_annuels or 0
+        reste = max(frais - total_paye, 0)
         paiements_par_eleve[e.id] = {
             'total_paye': total_paye,
             'reste_a_payer': reste,
-            'frais_annuels': e.frais_annuels,
+            'frais_annuels': frais,
             'eleve': e,
-            'pourcentage_paye': round((total_paye / e.frais_annuels) * 100, 2) if e.frais_annuels else 0
+            'pourcentage_paye': round((total_paye / frais) * 100, 1) if frais > 0 else 0
+        }
+
+    # --- CLASSES ET REGROUPEMENT DES ÉLÈVES ---
+    classes = filtre_par_ecole(Classe.query.order_by(Classe.nom), Classe).all()
+    eleves_par_classe = {c.id: [] for c in classes}
+    eleves_sans_classe = []
+    for e in all_eleves:
+        if e.classe_id and e.classe_id in eleves_par_classe:
+            eleves_par_classe[e.classe_id].append(e)
+        elif e.classe:
+            eleves_par_classe.setdefault(e.classe.id, []).append(e)
+        else:
+            eleves_sans_classe.append(e)
+
+    # --- STATISTIQUES FINANCIÈRES PAR CLASSE ---
+    classe_finances = {}
+    for c in classes:
+        c_eleves = eleves_par_classe.get(c.id, [])
+        c_frais = sum((e.frais_annuels or 0) for e in c_eleves)
+        c_paye = sum(paiements_dict.get(e.id, 0) for e in c_eleves)
+        c_reste = max(0, c_frais - c_paye)
+        c_taux = round((c_paye / c_frais) * 100, 1) if c_frais > 0 else 0
+        classe_finances[c.id] = {
+            'eleves_count': len(c_eleves),
+            'total_frais': c_frais,
+            'total_paye': c_paye,
+            'reste_a_payer': c_reste,
+            'taux_recouvrement': c_taux
         }
 
     # --- PAGINATION DES PAIEMENTS ---
@@ -121,15 +166,17 @@ def paiements():
         page=page_paiements, per_page=per_page_paiements, error_out=False
     )
 
-    # --- CLASSES ---
-    classes = filtre_par_ecole(Classe.query.order_by(Classe.nom), Classe).all()
-
     return render_template(
         "paiements.html",
         form=form,
         paiements_pagination=paiements_pagination,
         paiements_par_eleve=paiements_par_eleve,
         eleves_pagination=eleves_pagination,
+        all_eleves=all_eleves,
+        eleves=all_eleves,
+        eleves_par_classe=eleves_par_classe,
+        eleves_sans_classe=eleves_sans_classe,
+        classe_finances=classe_finances,
         stats=stats,
         classes=classes,
         classe_id=classe_id,

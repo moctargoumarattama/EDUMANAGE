@@ -1,127 +1,382 @@
 {% extends "base.html" %}
-{% block title %}Liste des élèves{% endblock %}
+
+{% block title %}Gestion des Élèves par Classe - KLASORA{% endblock %}
 
 {% block content %}
-<section class="page-header">
-    <div class="page-header-body">
-        <div class="page-title-group">
-            <div class="page-icon">
-                <i class="fas fa-user-graduate"></i>
+<div class="container-fluid py-3 px-md-4">
+    <!-- En-tête Principal -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h1 class="h4 mb-0 fw-bold text-gray-800">
+                    <i class="fas fa-user-graduate text-primary me-2"></i>Gestion des Élèves par Classe
+                </h1>
+                <span class="badge bg-primary rounded-pill px-2 py-1 small">
+                    {{ total_eleves }} élève{{ 's' if total_eleves > 1 else '' }}
+                </span>
             </div>
-            <div>
-                <h1 class="page-title">Liste des élèves</h1>
-                <p class="page-subtitle">Gestion multi-écoles</p>
-            </div>
+            <p class="text-muted mb-0 small">
+                Consultez l'effectif, gérez les inscriptions et accédez aux dossiers annuels complets par classe.
+            </p>
         </div>
-        {% if current_user.role == 'admin' %}
-        <div class="page-actions">
-            <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-success">
-                <i class="fas fa-plus"></i>
-                Ajouter un élève
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            {% if current_user.role == 'admin' %}
+            <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-sm btn-success fw-semibold">
+                <i class="fas fa-plus me-1"></i>Ajouter un élève
+            </a>
+            <a href="{{ url_for('main.export_eleves_excel') }}" class="btn btn-sm btn-outline-success">
+                <i class="fas fa-file-excel me-1"></i>Exporter Excel
+            </a>
+            {% endif %}
+            <a href="{{ url_for('main.index') }}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-home me-1"></i>Accueil
             </a>
         </div>
+    </div>
+
+    <!-- 3 Cartes d'Indicateurs Clés (KPIs) -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm h-100 p-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-3 p-3 bg-primary-subtle text-primary fs-4">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div>
+                        <h3 class="h4 fw-bold mb-0 text-gray-800">{{ stats.total_eleves }}</h3>
+                        <div class="text-muted small">Total Élèves</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm h-100 p-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-3 p-3 bg-info-subtle text-info fs-4">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                    <div>
+                        <h3 class="h4 fw-bold mb-0 text-gray-800">{{ stats.total_classes }}</h3>
+                        <div class="text-muted small">Classes Actives</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm h-100 p-3 bg-white">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-3 p-3 bg-success-subtle text-success fs-4">
+                        <i class="fas fa-venus-mars"></i>
+                    </div>
+                    <div>
+                        <h3 class="h4 fw-bold mb-0 text-gray-800">{{ stats.total_garcons }} G • {{ stats.total_filles }} F</h3>
+                        <div class="text-muted small">Répartition Garçons / Filles</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barre d'outils et de recherche réactive -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3">
+            <div class="row g-3 align-items-center">
+                <!-- Champ de recherche live -->
+                <div class="col-12 col-md-5">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light border-end-0 text-muted">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0 ps-0" id="searchStudentInput"
+                               placeholder="Rechercher par nom, prénom, matricule...">
+                        <button class="btn btn-outline-secondary border-start-0 d-none" type="button" id="btnClearStudentSearch">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sélecteur de classe pour isoler une classe -->
+                <div class="col-12 col-md-4">
+                    <select class="form-select form-select-sm" id="selectClassFilter">
+                        <option value="all">Toutes les classes (Vue d'ensemble)</option>
+                        {% for c in classes %}
+                        <option value="{{ c.id }}" {% if classe_id == c.id %}selected{% endif %}>{{ c.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Boutons Tout Déplier / Tout Replier -->
+                <div class="col-12 col-md-3 text-md-end">
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary" id="btnExpandAllStudents" title="Déplier toutes les classes">
+                            <i class="fas fa-chevron-down me-1"></i>Déplier tout
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="btnCollapseAllStudents" title="Replier toutes les classes">
+                            <i class="fas fa-chevron-up me-1"></i>Replier tout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conteneur des Classes (Notre système signature par classe) -->
+    <div id="classesStudentContainer">
+        {% if classes_eleves %}
+            {% for grp in classes_eleves %}
+            <div class="class-student-card" id="class-card-{{ grp.id }}" 
+                 data-class-id="{{ grp.id }}" 
+                 data-class-nom="{{ grp.nom | lower }}">
+                
+                <!-- En-tête de la classe cliquable pour ouvrir/fermer -->
+                <div class="class-student-header" data-bs-toggle="collapse" 
+                     data-bs-target="#collapse-class-{{ grp.id }}" 
+                     aria-expanded="true">
+                    <div class="d-flex align-items-center gap-3 min-w-0 flex-grow-1">
+                        <div class="class-student-avatar {% if grp.id == 'sans-classe' %}orphan{% elif not grp.eleves %}empty{% endif %}">
+                            {% if grp.classe and grp.classe.nom %}
+                                {{ grp.classe.nom[:2] | upper }}
+                            {% elif grp.id == 'sans-classe' %}
+                                <i class="fas fa-user-clock"></i>
+                            {% else %}
+                                <i class="fas fa-chalkboard"></i>
+                            {% endif %}
+                        </div>
+                        <div class="min-w-0 flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <h2 class="class-student-title mb-0">{{ grp.nom }}</h2>
+                                {% if grp.niveau %}
+                                <span class="badge bg-light text-secondary border small">{{ grp.niveau }}</span>
+                                {% endif %}
+                                {% if grp.salle %}
+                                <span class="badge bg-light text-muted border small"><i class="fas fa-door-open me-1"></i>Salle {{ grp.salle }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="d-flex align-items-center gap-2 flex-wrap mt-1">
+                                <span class="badge bg-primary rounded-pill">
+                                    <i class="fas fa-users me-1"></i><span class="class-count-span">{{ grp.eleves | length }}</span> élève{{ 's' if grp.eleves|length > 1 else '' }}
+                                </span>
+                                {% if grp.eleves %}
+                                <span class="badge bg-light text-muted border small">
+                                    {{ grp.garcons_count }} Garçon{{ 's' if grp.garcons_count > 1 else '' }} • {{ grp.filles_count }} Fille{{ 's' if grp.filles_count > 1 else '' }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="class-student-chevron">
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                </div>
+
+                <!-- Corps de la classe avec ses élèves -->
+                <div class="collapse show" id="collapse-class-{{ grp.id }}">
+                    <div class="class-student-body">
+                        {% if grp.eleves %}
+                        <div class="student-list-group">
+                            {% for eleve in grp.eleves %}
+                            <div class="student-entry-card" 
+                                 data-student-id="{{ eleve.id }}"
+                                 data-class-id="{{ grp.id }}"
+                                 data-search="{{ (eleve.nom ~ ' ' ~ eleve.prenom ~ ' ' ~ (eleve.code_parent or '') ~ ' ' ~ (eleve.contact_parent or '') ~ ' ' ~ grp.nom) | lower }}">
+                                
+                                <div class="d-flex align-items-center gap-3 min-w-0">
+                                    <div class="student-entry-avatar">
+                                        {{ eleve.prenom[:1] | upper }}{{ eleve.nom[:1] | upper }}
+                                    </div>
+                                    <div class="student-entry-info">
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <h3 class="student-entry-name">{{ eleve.prenom }} {{ eleve.nom }}</h3>
+                                            <span class="badge {% if eleve.genre == 'F' %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} small">
+                                                {{ 'Fille' if eleve.genre == 'F' else 'Garçon' }}
+                                            </span>
+                                            {% if eleve.statut == 'actif' %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle small">Actif</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="student-entry-meta mt-1">
+                                            <span>
+                                                <i class="fas fa-id-badge text-muted me-1"></i>
+                                                {{ eleve.code_parent or ('ELV-' ~ eleve.id) }}
+                                            </span>
+                                            <span>
+                                                <i class="fas fa-user-friends text-muted me-1"></i>
+                                                Parent : {{ eleve.parent.nom ~ ' ' ~ eleve.parent.prenom if eleve.parent else (eleve.contact_parent or 'Non assigné') }}
+                                            </span>
+                                            {% if eleve.contact_parent or (eleve.parent and eleve.parent.telephone) %}
+                                            <span>
+                                                <i class="fas fa-phone text-muted me-1"></i>
+                                                {{ eleve.contact_parent or eleve.parent.telephone }}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Barre d'actions rapides pour cet élève -->
+                                <div class="student-entry-actions">
+                                    <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" 
+                                       class="student-action-btn btn btn-sm btn-primary" 
+                                       title="Consulter le dossier annuel complet">
+                                        <i class="fas fa-folder-open me-1"></i>Dossier annuel
+                                    </a>
+                                    <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" 
+                                       class="student-action-btn btn btn-sm btn-outline-secondary" 
+                                       title="Consulter le bulletin scolaire">
+                                        <i class="fas fa-file-alt me-1"></i>Bulletin
+                                    </a>
+                                    {% if current_user.role == 'admin' %}
+                                    <a href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id) }}" 
+                                       class="student-action-btn btn btn-sm btn-outline-warning" 
+                                       title="Modifier les données de l'élève">
+                                        <i class="fas fa-edit me-1"></i>Modifier
+                                    </a>
+                                    <form method="post" action="{{ url_for('main.supprimer_eleve', id=eleve.id) }}" class="d-inline"
+                                          onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer l\'élève {{ eleve.prenom }} {{ eleve.nom }} ? Cette action est irréversible.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="student-action-btn btn btn-sm btn-outline-danger" title="Supprimer l'élève">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-user-plus fa-2x mb-2 opacity-50"></i>
+                            <p class="mb-2 small">Aucun élève inscrit dans cette classe pour le moment.</p>
+                            {% if current_user.role == 'admin' %}
+                            <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-plus me-1"></i>Inscrire un élève dans cette classe
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <!-- État vide global -->
+            <div class="card border-0 shadow-sm text-center py-5">
+                <div class="card-body">
+                    <i class="fas fa-user-graduate text-muted fa-4x mb-3 opacity-50"></i>
+                    <h4 class="fw-bold text-gray-800 mb-2">Aucun élève enregistré</h4>
+                    <p class="text-muted mx-auto mb-3" style="max-width: 460px;">
+                        Votre établissement ne compte encore aucun élève inscrit. Commencez par inscrire un nouvel élève.
+                    </p>
+                    {% if current_user.role == 'admin' %}
+                    <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-primary btn-sm px-3">
+                        <i class="fas fa-plus me-1"></i>Ajouter le premier élève
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
         {% endif %}
     </div>
-</section>
 
-<form method="get" class="filter-card">
-    <div class="row g-3 align-items-end">
-        <div class="col-12 col-md-4">
-            <label for="classe_id" class="form-label">Classe</label>
-            <select id="classe_id" name="classe_id" class="form-select">
-                <option value="">Toutes les classes</option>
-                {% for classe in classes %}
-                <option value="{{ classe.id }}" {% if classe_id == classe.id %}selected{% endif %}>{{ classe.nom }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-12 col-md-5">
-            <label for="search" class="form-label">Recherche</label>
-            <input id="search" name="search" type="search" class="form-control" value="{{ search or '' }}" placeholder="Nom ou prénom">
-        </div>
-        <div class="col-12 col-md-3 d-flex gap-2">
-            <button type="submit" class="btn btn-primary flex-fill">
-                <i class="fas fa-search"></i>
-                Filtrer
+    <!-- Message aucun résultat de recherche -->
+    <div id="noStudentMatch" class="card border-0 shadow-sm text-center py-5 d-none">
+        <div class="card-body">
+            <i class="fas fa-search text-muted fa-3x mb-3 opacity-50"></i>
+            <h5 class="fw-bold text-gray-800 mb-1">Aucun élève trouvé</h5>
+            <p class="text-muted small mb-3">Aucun élève ne correspond à votre terme de recherche.</p>
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="resetStudentSearch()">
+                <i class="fas fa-sync-alt me-1"></i>Réinitialiser la recherche
             </button>
-            <a href="{{ url_for('main.eleves') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-sync-alt"></i>
-            </a>
         </div>
     </div>
-</form>
-
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-    <span class="text-muted">Élèves affichés : <span class="badge bg-primary">{{ eleves.total }}</span></span>
-    {% if eleves.pages > 1 %}
-    <span class="text-muted small">Page {{ eleves.page }} / {{ eleves.pages }}</span>
-    {% endif %}
 </div>
 
-{% if eleves.items %}
-<div class="responsive-card-grid">
-    {% for eleve in eleves.items %}
-    <article class="card h-100 student-card">
-        <div class="card-body">
-            <div class="d-flex justify-content-between gap-2 mb-3">
-                <div class="min-w-0">
-                    <h2 class="h5 mb-1">{{ eleve.prenom }} {{ eleve.nom }}</h2>
-                    <p class="text-muted mb-0 small">{{ eleve.classe.nom if eleve.classe else 'Sans classe' }}</p>
-                </div>
-                <span class="badge bg-primary-subtle text-primary align-self-start">Élève</span>
-            </div>
-            <p class="mb-1 small"><strong>Parent :</strong> {{ eleve.parent.prenom ~ ' ' ~ eleve.parent.nom if eleve.parent else 'Non assigné' }}</p>
-            <p class="mb-3 small"><strong>Téléphone :</strong> {{ eleve.contact_parent or '-' }}</p>
-            <div class="table-actions">
-                <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-sm btn-info" title="Voir" aria-label="Voir">
-                    <i class="fas fa-eye"></i>
-                </a>
-                <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" class="btn btn-sm btn-primary" title="Bulletin" aria-label="Bulletin">
-                    <i class="fas fa-file-alt"></i>
-                </a>
-                {% if current_user.role == 'admin' %}
-                <a href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id) }}" class="btn btn-sm btn-warning" title="Modifier" aria-label="Modifier">
-                    <i class="fas fa-edit"></i>
-                </a>
-                <form method="post" action="{{ url_for('main.supprimer_eleve', id=eleve.id) }}" class="d-inline" onsubmit="return confirm('Confirmer la suppression de cet élève ?');">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-sm btn-danger" title="Supprimer" aria-label="Supprimer">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </form>
-                {% endif %}
-            </div>
-        </div>
-    </article>
-    {% endfor %}
-</div>
-{% else %}
-<div class="empty-state card">
-    <div class="empty-state-icon"><i class="fas fa-user-slash"></i></div>
-    <h2 class="empty-state-title">Aucun élève</h2>
-    <p class="empty-state-text">Aucun élève ne correspond aux filtres actuels.</p>
-</div>
-{% endif %}
+<script>
+// Recherche live et filtre classe
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('searchStudentInput');
+    const btnClear = document.getElementById('btnClearStudentSearch');
+    const classSelect = document.getElementById('selectClassFilter');
+    const btnExpandAll = document.getElementById('btnExpandAllStudents');
+    const btnCollapseAll = document.getElementById('btnCollapseAllStudents');
 
-{% if eleves.pages > 1 %}
-<nav class="mt-4" aria-label="Pagination élèves">
-    <ul class="pagination justify-content-center">
-        <li class="page-item {% if not eleves.has_prev %}disabled{% endif %}">
-            <a class="page-link" href="{{ url_for('main.eleves', page=eleves.prev_num, classe_id=classe_id, search=search) if eleves.has_prev else '#' }}">Précédent</a>
-        </li>
-        {% for page in eleves.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-            {% if page %}
-            <li class="page-item {% if page == eleves.page %}active{% endif %}">
-                <a class="page-link" href="{{ url_for('main.eleves', page=page, classe_id=classe_id, search=search) }}">{{ page }}</a>
-            </li>
-            {% else %}
-            <li class="page-item disabled"><span class="page-link">…</span></li>
-            {% endif %}
-        {% endfor %}
-        <li class="page-item {% if not eleves.has_next %}disabled{% endif %}">
-            <a class="page-link" href="{{ url_for('main.eleves', page=eleves.next_num, classe_id=classe_id, search=search) if eleves.has_next else '#' }}">Suivant</a>
-        </li>
-    </ul>
-</nav>
-{% endif %}
+    function applyStudentFilters() {
+        const query = (searchInput.value || '').trim().toLowerCase();
+        const selectedClass = classSelect.value;
+        btnClear.classList.toggle('d-none', !query);
+
+        let totalVisibleStudents = 0;
+        let totalVisibleClasses = 0;
+
+        document.querySelectorAll('.class-student-card').forEach(card => {
+            const cid = card.dataset.classId;
+            const matchesClass = (selectedClass === 'all' || selectedClass === cid);
+
+            let classHasVisible = false;
+            card.querySelectorAll('.student-entry-card').forEach(entry => {
+                const text = entry.dataset.search || '';
+                const matchesSearch = !query || text.includes(query);
+
+                if (matchesClass && matchesSearch) {
+                    entry.classList.remove('d-none');
+                    classHasVisible = true;
+                    totalVisibleStudents++;
+                } else {
+                    entry.classList.add('d-none');
+                }
+            });
+
+            if (matchesClass && (classHasVisible || !query)) {
+                card.classList.remove('d-none');
+                totalVisibleClasses++;
+                if (query) {
+                    const collapse = card.querySelector('.collapse');
+                    if (collapse && !collapse.classList.contains('show')) {
+                        const bsC = bootstrap.Collapse.getOrCreateInstance(collapse, { toggle: false });
+                        bsC.show();
+                    }
+                }
+            } else {
+                card.classList.add('d-none');
+            }
+        });
+
+        const noMatch = document.getElementById('noStudentMatch');
+        if (totalVisibleStudents === 0 && (query || selectedClass !== 'all')) {
+            noMatch.classList.remove('d-none');
+        } else {
+            noMatch.classList.add('d-none');
+        }
+    }
+
+    searchInput.addEventListener('input', applyStudentFilters);
+    classSelect.addEventListener('change', applyStudentFilters);
+
+    btnClear.addEventListener('click', () => {
+        searchInput.value = '';
+        applyStudentFilters();
+    });
+
+    btnExpandAll.addEventListener('click', () => {
+        document.querySelectorAll('#classesStudentContainer .collapse').forEach(el => {
+            const bsC = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
+            bsC.show();
+        });
+    });
+
+    btnCollapseAll.addEventListener('click', () => {
+        document.querySelectorAll('#classesStudentContainer .collapse').forEach(el => {
+            const bsC = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
+            bsC.hide();
+        });
+    });
+
+    window.resetStudentSearch = function() {
+        searchInput.value = '';
+        classSelect.value = 'all';
+        applyStudentFilters();
+    };
+});
+</script>
 {% endblock %}
