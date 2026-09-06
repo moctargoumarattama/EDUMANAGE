@@ -193,15 +193,6 @@ class Utilisateur(db.Model, UserMixin):
         passive_deletes=True
     )
 
-    # relation pour cours si nécessaire (vérifier foreign_keys selon ta table Cours)
-    cours_enseignes = db.relationship(
-        'Cours',
-        back_populates='enseignant_utilisateur',
-        lazy=True,
-        # assume Cours.enseignant_id existe et réfère à Utilisateur.id
-        foreign_keys='Cours.enseignant_id'
-    )
-
     # system
     alertes = db.relationship('Alerte', back_populates='utilisateur', lazy=True)
     logs = db.relationship('Log', back_populates='utilisateur', lazy=True)
@@ -583,7 +574,6 @@ class Cours(db.Model):
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'), nullable=False)
     classe_id = db.Column(db.Integer, db.ForeignKey('classe.id'))
     professeur_id = db.Column(db.Integer, db.ForeignKey('professeur.id'))
-    enseignant_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'))
     
     # Relations existantes
     classe = db.relationship('Classe', back_populates='cours')
@@ -591,13 +581,6 @@ class Cours(db.Model):
     notes = db.relationship('Note', backref='cours', lazy=True, cascade="all, delete-orphan")
     absences = db.relationship('Absence', backref='cours', lazy=True, cascade="all, delete-orphan")
     emplois_du_temps = db.relationship('EmploiTemps', back_populates='cours', lazy=True, cascade="all, delete-orphan")
-
-    # --- Nouvelle relation avec Utilisateur ---
-    enseignant_utilisateur = db.relationship(
-        'Utilisateur',
-        back_populates='cours_enseignes',
-        foreign_keys=[enseignant_id]
-    )
 
     def __repr__(self):
         return f'<Cours {self.nom}>'
@@ -610,8 +593,7 @@ class Cours(db.Model):
             "coefficient": self.coefficient,
             "ecole_id": self.ecole_id,
             "classe_id": self.classe_id,
-            "professeur_id": self.professeur_id,
-            "enseignant_id": self.enseignant_id
+            "professeur_id": self.professeur_id
         }
 
 # -----------------------

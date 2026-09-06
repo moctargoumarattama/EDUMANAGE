@@ -113,13 +113,7 @@ def create_app():
 
             return dict(annee_active=annee_active)
 
-        # -------------------
-        # Création tables et utilisateurs par défaut
-        # -------------------
-        db.create_all()
 
-        # Initialisation du schéma (sans création de données de test au démarrage)
-        # Les utilisateurs et écoles sont créés explicitement par l'administrateur ou via seed.
 
     # -------------------
     # Fonction utilitaire pour journaliser les actions

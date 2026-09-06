@@ -1,4 +1,4 @@
-﻿from . import main
+from . import main
 from .common import (
     CreateUserForm,
     Ecole,
@@ -440,18 +440,18 @@ def delete_user(user_id):
             for inscription in enfant.inscriptions:
                 db.session.delete(inscription)
 
-        # 2ï¸âƒ£ Supprimer les enfants
+        # 2ï¸ âƒ£ Supprimer les enfants
         for enfant in user.get_enfants():
             db.session.delete(enfant)
 
-        # 3ï¸âƒ£ Supprimer les relations professeur si existantes
+        # 3️⃣ Supprimer les relations professeur si existantes
         if user.professeur_rel:
-            # Supprimer les cours enseignÃ©s par ce professeur si nÃ©cessaire
-            for cours in user.cours_enseignes:
-                cours.enseignant_id = None  # ou supprimer si tu veux
+            # Supprimer les cours enseignés par ce professeur si nécessaire
+            for cours in user.professeur_rel.cours:
+                cours.professeur_id = None
             db.session.delete(user.professeur_rel)
 
-        # 4ï¸âƒ£ Supprimer alertes et logs
+        # 4ï¸ âƒ£ Supprimer alertes et logs
         for alerte in user.alertes:
             db.session.delete(alerte)
         for log in user.logs:

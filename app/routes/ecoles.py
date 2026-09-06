@@ -295,8 +295,8 @@ def supprimer_ecole(ecole_id):
             
             # Supprimer les cours si c'est un professeur
             if user.professeur_rel:
-                for cours in user.cours_enseignes:
-                    cours.enseignant_id = None
+                for cours in user.professeur_rel.cours:
+                    cours.professeur_id = None
                 db.session.delete(user.professeur_rel)
             
             # Supprimer alertes et logs

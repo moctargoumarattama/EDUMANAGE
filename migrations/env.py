@@ -97,6 +97,19 @@ def run_migrations_online():
     connectable = get_engine()
 
     with connectable.connect() as connection:
+        import sqlalchemy as sa
+        inspector = sa.inspect(connection)
+        # Si la base est vierge (nouvelle installation SQLite ou MySQL), initialiser les tables canoniques et enregistrer HEAD
+        if not inspector.has_table('utilisateur') and not inspector.has_table('alembic_version'):
+            metadata = get_metadata()
+            metadata.create_all(bind=connection)
+            from alembic.migration import MigrationContext
+            m_ctx = MigrationContext.configure(connection)
+            head_rev = context.script.get_current_head()
+            if head_rev:
+                m_ctx.stamp(context.script, head_rev)
+            connection.commit()
+
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),
