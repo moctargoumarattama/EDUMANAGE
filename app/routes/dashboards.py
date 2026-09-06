@@ -35,7 +35,7 @@ def dashboard():
     """Redirection vers le tableau de bord approprié selon le rôle"""
     role = getattr(current_user, "role", None)
     endpoint_par_role = {
-        "super_admin": "main.gestion_ecoles",
+        "super_admin": "main.index",
         "admin": "main.index",
         "professeur": "main.professeur_dashboard",
         "parent": "main.parent_dashboard",

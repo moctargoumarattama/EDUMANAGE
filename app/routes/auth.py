@@ -42,9 +42,20 @@ def index():
     db.session.commit()
 
     # -----------------------------
-    # ADMIN / SUPER_ADMIN
+    # SUPER_ADMIN / ADMIN
     # -----------------------------
-    if current_user.role in ['admin', 'super_admin']:
+    if current_user.role == 'super_admin':
+        stats = {
+            'total_ecoles': Ecole.query.count(),
+            'total_eleves': Eleve.query.count(),
+            'total_professeurs': Professeur.query.count(),
+            'total_utilisateurs': Utilisateur.query.count(),
+            'total_cours': Cours.query.count(),
+            'paiements_attente': Paiement.query.filter_by(statut='en attente').count()
+        }
+        return render_template('index.html', stats=stats)
+
+    elif current_user.role == 'admin':
         ecole_id = current_user.ecole_id  # ✅ Filtrage multi-écoles
         stats = {
             'total_eleves': Eleve.query.filter_by(ecole_id=ecole_id).count(),
