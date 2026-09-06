@@ -21,13 +21,11 @@ from .scripts import (
     create_backup,
     restore_backup,
     clean_data,
-    migrate_db,
     get_system_stats,
     delete_backup_file,
     download_backup_file,
     integrity_check,
     deploy_app,
-    optimize_database,
     create_missing_tables,
     create_complete_backup,
     create_school_backup,
@@ -83,16 +81,6 @@ def clean():
         flash(f"Nettoyage terminé: {result}", "success")
     except Exception as e:
         flash(f"Erreur lors du nettoyage: {str(e)}", "error")
-    return redirect(url_for('admin.maintenance_page'))
-
-# --- Migration ---
-@admin_bp.route('/admin/migrate')
-def migrate():
-    try:
-        result = migrate_db()
-        flash(f"Migration terminée: {result}", "success")
-    except Exception as e:
-        flash(f"Erreur lors de la migration: {str(e)}", "error")
     return redirect(url_for('admin.maintenance_page'))
 
 # --- Pages ---
@@ -168,18 +156,6 @@ def deploy():
         flash(f"Déploiement réussi: {result}", "success")
     
     return redirect(url_for('main.index'))
-
-# --- Optimisation ---
-@admin_bp.route('/admin/optimize')
-def optimize():
-    """Optimise la base de données"""
-    result = optimize_database()
-    if result:
-        flash("Base de données optimisée avec succès", "success")
-    else:
-        flash("Erreur lors de l'optimisation", "error")
-    
-    return redirect(url_for('admin.maintenance_page'))
 
 # --- Version ---
 @admin_bp.route('/admin/version')

@@ -198,33 +198,6 @@ def clean_data():
 
     return result
 
-# --- Migration / Mise à jour ---
-def migrate_db():
-    log_action("MIGRATION", "Début de la migration de la base de données")
-    
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute("VACUUM")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_notes_eleve ON note(eleve_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_notes_cours ON note(cours_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_absences_eleve ON absence(eleve_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_paiements_eleve ON paiement(eleve_id)")
-        
-        conn.commit()
-        
-        result = "Migration réussie: base optimisée et index créés"
-        log_action("MIGRATION", result)
-        
-    except sqlite3.OperationalError as e:
-        result = f"Erreur lors de la migration: {str(e)}"
-        log_action("ERREUR", result, level="ERROR")
-    finally:
-        conn.close()
-
-    return result
-
 # --- Optimisation de la base de données ---
 def optimize_database():
     """Optimise la base de données SQLite"""

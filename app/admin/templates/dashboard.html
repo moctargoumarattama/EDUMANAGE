@@ -1,4 +1,4 @@
-﻿{% extends "base_admin.html" %}
+{% extends "base_admin.html" %}
 
 {% block title %}Tableau de bord Admin{% endblock %}
 
@@ -49,16 +49,6 @@
         <p>Gestion des sauvegardes et restaurations du système.</p>
         <a href="{{ url_for('admin.backup_page') }}" class="btn btn-success btn-sm">
             <i class="fas fa-save me-1"></i> Gérer les sauvegardes
-        </a>
-    </div>
-
-    <div class="action-card">
-        <h3><span class="status-dot online"></span><i class="fas fa-sync-alt text-primary"></i> Migration</h3>
-        <p>Migrations de base de données et mises à jour système.</p>
-        <a href="{{ url_for('admin.migrate') }}"
-           class="btn btn-primary btn-sm"
-           onclick="return confirm('Êtes-vous sûr de vouloir lancer la migration ?')">
-            <i class="fas fa-sync-alt me-1"></i> Migrer la base
         </a>
     </div>
 

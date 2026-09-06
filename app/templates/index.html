@@ -114,22 +114,6 @@
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
-            <a href="{{ url_for('admin.migrate') }}" class="home-action-card" onclick="return confirm('Êtes-vous sûr de vouloir lancer la migration de la base de données ?');">
-                <span class="home-action-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);"><i class="fas fa-sync-alt"></i></span>
-                <div class="home-action-info">
-                    <strong>Migrer la Base</strong>
-                    <small>Mise à jour du schéma</small>
-                </div>
-                <i class="fas fa-chevron-right action-card-arrow"></i>
-            </a>
-            <a href="{{ url_for('admin.optimize') }}" class="home-action-card" onclick="return confirm('Lancer l\'optimisation de la base de données ?');">
-                <span class="home-action-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);"><i class="fas fa-bolt"></i></span>
-                <div class="home-action-info">
-                    <strong>Optimiser DB</strong>
-                    <small>Performance base de données</small>
-                </div>
-                <i class="fas fa-chevron-right action-card-arrow"></i>
-            </a>
             <a href="{{ url_for('admin.view_logs') }}" class="home-action-card">
                 <span class="home-action-icon" style="background: linear-gradient(135deg, #0284c7, #0369a1);"><i class="fas fa-file-alt"></i></span>
                 <div class="home-action-info">
