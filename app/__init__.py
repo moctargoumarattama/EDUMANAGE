@@ -92,6 +92,10 @@ def create_app():
         from .admin import admin_bp
         app.register_blueprint(admin_bp)
 
+        # Middleware global (maintenance, auto-backup, etc.)
+        from .middleware import before_request_handler
+        app.before_request(before_request_handler)
+
         # -------------------
         # Context Processor pour année active
         # -------------------
@@ -108,7 +112,7 @@ def create_app():
                 pass
             elif ecole:
                 annee_active = get_annee_active(ecole.id)
-            elif current_user.is_authenticated and getattr(current_user, 'ecole', None):
+            elif getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'ecole', None):
                 annee_active = get_annee_active(current_user.ecole.id)
 
             return dict(annee_active=annee_active)

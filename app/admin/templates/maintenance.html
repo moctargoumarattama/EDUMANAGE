@@ -1,62 +1,300 @@
 {% extends "base_admin.html" %}
 
-{% block title %}Maintenance{% endblock %}
+{% block title %}Centre de Maintenance & Sauvegardes - KLASORA{% endblock %}
 
 {% block breadcrumb %}
-<span class="separator">›</span> Maintenance
+<span class="separator">›</span> Maintenance & Opérations
 {% endblock %}
 
 {% block content %}
 <div class="admin-page-header">
-    <h1><i class="fas fa-tools"></i> Maintenance du système</h1>
+    <div>
+        <h1><i class="fas fa-sliders-h text-primary"></i> Centre de Maintenance & Opérations</h1>
+        <p class="text-muted mb-0" style="font-size: 0.9rem;">Pilotage global de la disponibilité, des sauvegardes, de la base de données et des performances du système.</p>
+    </div>
     <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-sm">
         <i class="fas fa-arrow-left me-1"></i> Tour de Contrôle
     </a>
 </div>
 
-<!-- Nettoyage -->
-<div class="admin-card">
-    <h2><i class="fas fa-broom"></i> Nettoyage des anciennes données</h2>
-    <p class="text-muted" style="font-size:.9rem;">Supprime les données obsolètes pour optimiser les performances du système.</p>
-    <a href="{{ url_for('admin.clean') }}"
-       class="btn btn-warning"
-       onclick="return confirm('Êtes-vous sûr de vouloir lancer le nettoyage ? Cette action est irréversible.')">
-        <i class="fas fa-broom me-1"></i> Lancer le nettoyage
-    </a>
+<!-- ======================================================== -->
+<!-- 1️⃣ BLOC MODE MAINTENANCE (ACTIVER / DÉSACTIVER)        -->
+<!-- ======================================================== -->
+<div class="admin-card {% if maint_status.active %}border-danger shadow-sm{% endif %}">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <h2 class="mb-0 border-0 pb-0">
+            <i class="fas fa-power-off {% if maint_status.active %}text-danger{% else %}text-success{% endif %}"></i>
+            Disponibilité & Mode Maintenance
+        </h2>
+        <div>
+            {% if maint_status.active %}
+                <span class="badge bg-danger fs-6 px-3 py-2"><i class="fas fa-exclamation-triangle me-1"></i> MODE MAINTENANCE ACTIF</span>
+            {% else %}
+                <span class="badge bg-success fs-6 px-3 py-2"><i class="fas fa-check-circle me-1"></i> PLATEFORME EN LIGNE (NORMAL)</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <p class="text-muted" style="font-size: 0.9rem;">
+        Lorsque le mode maintenance est <strong>activé</strong>, tous les visiteurs, élèves, enseignants et administrateurs d'école sont redirigés vers une page d'attente (HTTP 503). 
+        Le compte <strong>Super Administrateur</strong> conserve un accès total et continu pour effectuer les opérations en toute sécurité.
+    </p>
+
+    <form action="{{ url_for('admin.maintenance_toggle') }}" method="POST" class="p-3 bg-light rounded-3 border">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-7">
+                <label for="maintenanceMessage" class="form-label fw-semibold small text-secondary">
+                    Message public affiché aux utilisateurs pendant la maintenance :
+                </label>
+                <input type="text" 
+                       id="maintenanceMessage" 
+                       name="message" 
+                       class="form-control" 
+                       value="{{ maint_status.message }}" 
+                       placeholder="Ex : Maintenance programmée en cours. Nos services seront rétablis sous peu.">
+            </div>
+            <div class="col-md-5 d-flex gap-2">
+                {% if maint_status.active %}
+                    <input type="hidden" name="active" value="0">
+                    <button type="submit" class="btn btn-success w-100 fw-semibold" onclick="return confirm('Désactiver le mode maintenance et réouvrir l\'accès à tous les utilisateurs ?');">
+                        <i class="fas fa-globe me-1"></i> Désactiver & Rétablir l'accès public
+                    </button>
+                {% else %}
+                    <input type="hidden" name="active" value="1">
+                    <button type="submit" class="btn btn-danger w-100 fw-semibold" onclick="return confirm('Activer le mode maintenance ? Tous les utilisateurs seront redirigés vers la page d\'attente.');">
+                        <i class="fas fa-ban me-1"></i> Activer le Mode Maintenance
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+        {% if maint_status.updated_at %}
+        <div class="mt-2 text-muted small">
+            <i class="fas fa-clock me-1"></i> Dernier changement de statut : {{ maint_status.updated_at }}
+        </div>
+        {% endif %}
+    </form>
 </div>
 
-<!-- Vérification d'intégrité -->
+<!-- ======================================================== -->
+<!-- 2️⃣ BLOC SAUVEGARDES QUOTIDIENNES AUTOMATIQUES & FICHIERS -->
+<!-- ======================================================== -->
 <div class="admin-card">
-    <h2><i class="fas fa-shield-alt"></i> Vérification d'intégrité de la base</h2>
-
-    <div class="mb-3">
-        <a href="{{ url_for('admin.integrity_check_route') }}" class="btn btn-primary">
-            <i class="fas fa-sync-alt me-1"></i> Lancer la vérification
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <h2 class="mb-0 border-0 pb-0"><i class="fas fa-database text-primary"></i> Sauvegardes de la Base de Données</h2>
+        <a href="{{ url_for('admin.backup') }}" class="btn btn-primary btn-sm fw-semibold">
+            <i class="fas fa-save me-1"></i> Créer une sauvegarde manuelle immédiate
         </a>
     </div>
 
-    {% if integrity_summary %}
-        <div class="d-flex gap-3 mb-3 flex-wrap" style="font-size:.9rem;">
-            <span class="badge bg-secondary fs-6">Total vérifié : {{ integrity_summary.total | default(0) }}</span>
-            <span class="badge bg-success fs-6">Succès : {{ integrity_summary.success | default(0) }} ✅</span>
-            <span class="badge bg-danger fs-6">Erreurs : {{ integrity_summary.errors | default(0) }} ❌</span>
+    <!-- Configuration Sauvegarde Automatique Quotidienne -->
+    <div class="p-3 mb-4 rounded-3 border" style="background: #f8fafc;">
+        <form action="{{ url_for('admin.auto_backup_config') }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-4">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="autoBackupSwitch" name="enabled" value="1" {% if auto_backup.enabled %}checked{% endif %}>
+                            <label class="form-check-label fw-bold" for="autoBackupSwitch">
+                                Sauvegarde automatique quotidienne
+                            </label>
+                        </div>
+                    </div>
+                    <small class="text-muted d-block">Exécution planifiée chaque jour</small>
+                </div>
+                <div class="col-md-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="fas fa-clock me-1"></i> Heure</span>
+                        <input type="time" name="time" class="form-control" value="{{ auto_backup.time }}">
+                    </div>
+                    <small class="text-muted d-block">Dernier backup auto : <strong>{{ auto_backup.last_date }}</strong></small>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-check me-1"></i> Enregistrer les paramètres auto
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tableau des sauvegardes existantes -->
+    <h3 class="h6 fw-bold text-secondary mb-3"><i class="fas fa-archive me-1"></i> Fichiers de sauvegarde disponibles ({{ backups | length }})</h3>
+    {% if backups %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle table-sm border rounded">
+                <thead class="table-light">
+                    <tr>
+                        <th>Nom du fichier</th>
+                        <th>Type</th>
+                        <th>Taille</th>
+                        <th>Date de création</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in backups %}
+                    <tr>
+                        <td>
+                            <i class="fas fa-file-database text-muted me-2"></i>
+                            <span class="fw-semibold">{{ b.filename }}</span>
+                        </td>
+                        <td>
+                            <span class="badge {{ b.badge_class }}">{{ b.type }}</span>
+                        </td>
+                        <td>{{ b.size_kb }} Ko ({{ b.size_mb }} Mo)</td>
+                        <td>{{ b.date_formatted }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('admin.download_backup', filename=b.filename) }}" class="btn btn-outline-primary btn-sm me-1" title="Télécharger">
+                                <i class="fas fa-download"></i> Télécharger
+                            </a>
+                            <a href="{{ url_for('admin.restore', filename=b.filename) }}" class="btn btn-outline-warning btn-sm me-1" title="Restaurer" onclick="return confirm('Attention : restaurer ce fichier écrasera la base actuelle. Êtes-vous sûr ?');">
+                                <i class="fas fa-undo"></i> Restaurer
+                            </a>
+                            <a href="{{ url_for('admin.delete_backup', filename=b.filename) }}" class="btn btn-outline-danger btn-sm" title="Supprimer" onclick="return confirm('Confirmer la suppression définitive de cette sauvegarde ?');">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="p-4 text-center text-muted bg-light rounded border">
+            <i class="fas fa-box-open fa-2x mb-2 text-secondary"></i>
+            <p class="mb-0">Aucune sauvegarde archivée pour l'instant. Cliquez sur <strong>Créer une sauvegarde manuelle</strong> pour en générer une.</p>
         </div>
     {% endif %}
+</div>
 
-    {% if integrity_results %}
-        <ul class="list-group list-group-flush">
-            {% for msg in integrity_results %}
-                <li class="list-group-item d-flex justify-content-between align-items-center
-                           {% if 'Erreur' in msg or 'manquante' in msg %}list-group-item-danger{% else %}list-group-item-success{% endif %}">
-                    <span>{{ msg }}</span>
-                    {% if 'Erreur' in msg or 'manquante' in msg %}
-                        <i class="fas fa-times-circle text-danger"></i>
-                    {% else %}
-                        <i class="fas fa-check-circle text-success"></i>
-                    {% endif %}
-                </li>
-            {% endfor %}
-        </ul>
+<!-- ======================================================== -->
+<!-- 3️⃣ BLOC DIAGNOSTIC BDD & PURGE DU CACHE                  -->
+<!-- ======================================================== -->
+<div class="row g-3">
+    <!-- Diagnostic BDD -->
+    <div class="col-lg-7">
+        <div class="admin-card h-100 mb-0">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="mb-0 border-0 pb-0"><i class="fas fa-heartbeat text-success"></i> Santé de la Base de Données</h2>
+                <a href="{{ url_for('admin.integrity_check_route') }}" class="btn btn-outline-success btn-sm">
+                    <i class="fas fa-shield-alt me-1"></i> Contrôle PRAGMA
+                </a>
+            </div>
+
+            <div class="row g-2 mb-3">
+                <div class="col-sm-6">
+                    <div class="p-3 bg-light rounded border">
+                        <small class="text-muted d-block">Taille du fichier SQLite</small>
+                        <strong class="fs-5 text-dark">{{ db_health.size_mb }} Mo</strong>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="p-3 bg-light rounded border">
+                        <small class="text-muted d-block">Contrôle d'intégrité</small>
+                        <strong class="fs-5 {% if 'OK' in db_health.integrity or 'Valide' in db_health.integrity %}text-success{% else %}text-danger{% endif %}">
+                            {{ db_health.integrity }}
+                        </strong>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="p-3 bg-light rounded border">
+                        <small class="text-muted d-block">Moteur BDD & Tables</small>
+                        <strong class="fs-6 text-dark">{{ db_health.db_version }} ({{ db_health.table_count }} tables)</strong>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="p-3 bg-light rounded border">
+                        <small class="text-muted d-block">Données enregistrées</small>
+                        <span class="small fw-semibold text-secondary">
+                            {{ db_health.stats.ecoles | default(0) }} écoles • {{ db_health.stats.eleves | default(0) }} élèves • {{ db_health.stats.professeurs | default(0) }} profs
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center">
+                <small class="text-muted">Nettoyage des enregistrements orphelins :</small>
+                <a href="{{ url_for('admin.clean') }}" class="btn btn-outline-warning btn-sm" onclick="return confirm('Lancer le nettoyage des données orphelines ?');">
+                    <i class="fas fa-broom me-1"></i> Nettoyer orphelins
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Purge du Cache -->
+    <div class="col-lg-5">
+        <div class="admin-card h-100 mb-0">
+            <h2 class="border-0 pb-0 mb-3"><i class="fas fa-bolt text-warning"></i> Cache Système</h2>
+            <p class="text-muted small mb-3">
+                Le cache stocke les QR codes générés et certains fichiers temporaires pour accélérer l'affichage. Vous pouvez purger ce cache à tout moment sans danger pour les données permanentes.
+            </p>
+
+            <div class="p-3 bg-light rounded border mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="small text-muted">Fichiers en cache (QR/Temp) :</span>
+                    <strong class="text-dark">{{ cache_info.count }} fichier{{ 's' if cache_info.count > 1 else '' }}</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="small text-muted">Espace disque occupé :</span>
+                    <strong class="text-dark">{{ cache_info.size_kb }} Ko ({{ cache_info.size_mb }} Mo)</strong>
+                </div>
+            </div>
+
+            <form action="{{ url_for('admin.purge_cache_route') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-warning w-100 fw-semibold" onclick="return confirm('Confirmer la purge du cache système ? Les QR codes seront régénérés à la demande.');">
+                    <i class="fas fa-trash-alt me-1"></i> Purger le Cache Système
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- 4️⃣ JOURNAL DES DERNIÈRES ACTIONS DE MAINTENANCE         -->
+<!-- ======================================================== -->
+<div class="admin-card mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="mb-0 border-0 pb-0"><i class="fas fa-history text-secondary"></i> Dernières actions d'audit système</h2>
+        <a href="{{ url_for('admin.view_logs') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-external-link-alt me-1"></i> Voir tous les logs
+        </a>
+    </div>
+    {% if recent_logs %}
+        <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0" style="font-size: 0.85rem;">
+                <thead>
+                    <tr class="text-muted">
+                        <th>Date & Heure</th>
+                        <th>Action</th>
+                        <th>Détails</th>
+                        <th>Niveau</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in recent_logs %}
+                    <tr>
+                        <td>{{ l.timestamp.strftime('%d/%m/%Y %H:%M:%S') if l.timestamp else '-' }}</td>
+                        <td><span class="badge bg-secondary">{{ l.action }}</span></td>
+                        <td>{{ l.details or '-' }}</td>
+                        <td>
+                            {% if l.level == 'ERROR' %}
+                                <span class="badge bg-danger">ERREUR</span>
+                            {% elif l.level == 'WARNING' %}
+                                <span class="badge bg-warning text-dark">AVERTISSEMENT</span>
+                            {% else %}
+                                <span class="badge bg-success">INFO</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-muted small mb-0">Aucun log récent disponible.</p>
     {% endif %}
 </div>
 {% endblock %}

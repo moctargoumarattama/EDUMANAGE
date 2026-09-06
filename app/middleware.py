@@ -451,7 +451,33 @@ def setup_template_context():
 # ====================================================================
 
 def before_request_handler():
-    """Exécuté avant chaque requête pour initialiser le contexte école"""
+    """Exécuté avant chaque requête pour initialiser le contexte école et vérifier la maintenance"""
+    # 0️⃣ Autoriser sans restriction les fichiers statiques
+    if request.endpoint and (request.endpoint.startswith('static') or request.endpoint == 'admin.static') or request.path.startswith('/static/'):
+        return None
+
+    # 1️⃣ Vérification de la sauvegarde automatique quotidienne
+    try:
+        from app.admin.scripts import check_and_run_daily_backup, get_maintenance_status
+        check_and_run_daily_backup()
+    except Exception as e:
+        current_app.logger.debug(f"Erreur vérification sauvegarde quotidienne: {e}")
+
+    # 2️⃣ Vérification du Mode Maintenance
+    try:
+        maint = get_maintenance_status()
+        if maint.get('active'):
+            # Le super_admin conserve un accès absolu à l'ensemble de la plateforme
+            is_super_admin_user = getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'role', '') == 'super_admin'
+            # Les routes d'authentification restent accessibles pour permettre la connexion
+            is_auth_route = request.endpoint in ('main.login', 'main.logout') or request.path in ('/login', '/logout')
+
+            if not is_super_admin_user and not is_auth_route:
+                return render_template('maintenance_client.html', maintenance_message=maint.get('message')), 503
+    except Exception as e:
+        current_app.logger.error(f"Erreur vérification mode maintenance: {e}")
+
+    # 3️⃣ Contexte utilisateur authentifié
     if getattr(current_user, 'is_authenticated', False):
         # Précharger l'école courante dans g
         get_ecole_courante()

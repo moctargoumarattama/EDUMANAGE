@@ -31,7 +31,15 @@ from .scripts import (
     create_school_backup,
     restore_school_backup,
     get_school_backups,
-    init_annees_scolaires
+    init_annees_scolaires,
+    get_maintenance_status,
+    set_maintenance_status,
+    get_auto_backup_config,
+    set_auto_backup_config,
+    get_cache_info,
+    purge_cache,
+    get_database_health,
+    get_all_backups_list
 )
 
 BACKUP_DIR = 'backups'
@@ -58,20 +66,20 @@ def dashboard():
 def backup():
     try:
         create_backup()
-        flash("Sauvegarde effectuée avec succès!", "success")
+        flash("Sauvegarde effectuée avec succès !", "success")
     except Exception as e:
         flash(f"Erreur lors de la sauvegarde: {str(e)}", "error")
-    return redirect(url_for('admin.backup_page'))
+    return redirect(url_for('admin.maintenance_page'))
 
 # --- Restauration simple ---
 @admin_bp.route('/admin/restore/<filename>')
 def restore(filename):
     try:
         restore_backup(filename)
-        flash(f"Restauration depuis {filename} réussie!", "success")
+        flash(f"Restauration depuis {filename} réussie !", "success")
     except Exception as e:
         flash(f"Erreur lors de la restauration: {str(e)}", "error")
-    return redirect(url_for('admin.backup_page'))
+    return redirect(url_for('admin.maintenance_page'))
 
 # --- Nettoyage ---
 @admin_bp.route('/admin/clean')
@@ -83,24 +91,79 @@ def clean():
         flash(f"Erreur lors du nettoyage: {str(e)}", "error")
     return redirect(url_for('admin.maintenance_page'))
 
-# --- Pages ---
+# --- Redirection de l'ancienne page backup vers le Hub unique ---
 @admin_bp.route('/admin/backup_page')
 def backup_page():
-    return render_template('backup.html', os=os, backup_dir=BACKUP_DIR)
+    return redirect(url_for('admin.maintenance_page'))
 
+# --- Hub Unique de Maintenance & Opérations ---
+@admin_bp.route('/admin/maintenance')
 @admin_bp.route('/admin/maintenance_page')
 def maintenance_page():
-    return render_template('maintenance.html')
+    """Page unique et centralisée pour la maintenance, les sauvegardes, la BDD et le cache"""
+    maint_status = get_maintenance_status()
+    auto_backup = get_auto_backup_config()
+    backups = get_all_backups_list()
+    db_health = get_database_health()
+    cache_info = get_cache_info()
+    recent_logs = Log.query.order_by(Log.timestamp.desc()).limit(10).all()
+
+    return render_template(
+        'maintenance.html',
+        maint_status=maint_status,
+        auto_backup=auto_backup,
+        backups=backups,
+        db_health=db_health,
+        cache_info=cache_info,
+        recent_logs=recent_logs
+    )
+
+# --- Bascule du Mode Maintenance ---
+@admin_bp.route('/admin/maintenance/toggle', methods=['POST'])
+def maintenance_toggle():
+    """Active ou désactive le mode maintenance global avec message personnalisable"""
+    try:
+        active = request.form.get('active') == '1'
+        message = request.form.get('message', '').strip()
+        set_maintenance_status(active, message if message else None)
+        flash(f"Mode maintenance {'activé' if active else 'désactivé'} avec succès !", "success")
+    except Exception as e:
+        flash(f"Erreur lors du changement de mode maintenance: {str(e)}", "error")
+    return redirect(url_for('admin.maintenance_page'))
+
+# --- Configuration de la Sauvegarde Automatique Quotidienne ---
+@admin_bp.route('/admin/backup/auto-config', methods=['POST'])
+def auto_backup_config():
+    """Configure la sauvegarde quotidienne automatique"""
+    try:
+        enabled = request.form.get('enabled') == '1'
+        time_val = request.form.get('time', '02:00').strip()
+        set_auto_backup_config(enabled, time_val)
+        flash("Configuration de la sauvegarde automatique quotidienne enregistrée !", "success")
+    except Exception as e:
+        flash(f"Erreur configuration sauvegarde: {str(e)}", "error")
+    return redirect(url_for('admin.maintenance_page'))
+
+# --- Purge du Cache Système ---
+@admin_bp.route('/admin/cache/purge', methods=['POST'])
+def purge_cache_route():
+    """Purge le cache système (QR codes et temporaires)"""
+    try:
+        res = purge_cache()
+        flash(f"Cache purgé avec succès : {res['deleted']} fichiers supprimés ({res['freed_kb']} Ko libérés)", "success")
+    except Exception as e:
+        flash(f"Erreur lors de la purge du cache: {str(e)}", "error")
+    return redirect(url_for('admin.maintenance_page'))
 
 # --- Gestion des sauvegardes ---
 @admin_bp.route('/admin/delete_backup/<filename>')
 def delete_backup(filename):
     try:
         delete_backup_file(filename)
-        flash(f"Sauvegarde {filename} supprimée avec succès!", "success")
+        flash(f"Sauvegarde {filename} supprimée avec succès !", "success")
     except Exception as e:
         flash(f"Erreur lors de la suppression: {str(e)}", "error")
-    return redirect(url_for('admin.backup_page'))
+    return redirect(url_for('admin.maintenance_page'))
 
 @admin_bp.route('/admin/download_backup/<filename>')
 def download_backup(filename):
@@ -108,7 +171,7 @@ def download_backup(filename):
         return download_backup_file(filename)
     except Exception as e:
         flash(f"Erreur lors du téléchargement: {str(e)}", "error")
-        return redirect(url_for('admin.backup_page'))
+        return redirect(url_for('admin.maintenance_page'))
 
 # --- Vérification d'intégrité ---
 @admin_bp.route('/admin/integrity_check')
@@ -116,17 +179,10 @@ def integrity_check_route():
     """Route pour la vérification d'intégrité"""
     try:
         results, summary = integrity_check()
-        flash("Vérification et correction d'intégrité terminées !", "success")
-        
-        return render_template(
-            'maintenance.html',
-            integrity_results=results,
-            integrity_summary=summary
-        )
-
+        flash("Vérification d'intégrité terminée !", "success")
     except Exception as e:
-        flash(f"Erreur lors de la vérification/correction : {str(e)}", "error")
-        return redirect(url_for('admin.maintenance_page'))
+        flash(f"Erreur lors de la vérification : {str(e)}", "error")
+    return redirect(url_for('admin.maintenance_page'))
 
 
 # --- Logs ---

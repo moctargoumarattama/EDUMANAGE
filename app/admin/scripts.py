@@ -555,3 +555,193 @@ def get_school_backups(ecole_id):
     return backups
 
 
+# ====================================================================
+# 🛠️ GESTION DU MODE MAINTENANCE, SAUVEGARDE AUTO & CACHE
+# ====================================================================
+
+CACHE_DIR = os.path.join(BASE_DIR, "app", "static", "qrcache")
+
+def get_param(cle, default=None):
+    try:
+        p = ParametreSysteme.query.filter_by(cle=cle).first()
+        return p.valeur if p else default
+    except Exception:
+        return default
+
+def set_param(cle, valeur, description=None):
+    try:
+        p = ParametreSysteme.query.filter_by(cle=cle).first()
+        if p:
+            p.valeur = str(valeur)
+            if description:
+                p.description = description
+        else:
+            p = ParametreSysteme(cle=cle, valeur=str(valeur), description=description)
+            db.session.add(p)
+        db.session.commit()
+        return True
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur set_param({cle}): {e}")
+        return False
+
+def get_maintenance_status():
+    active = get_param('maintenance_mode', 'false') == 'true'
+    message = get_param('maintenance_message', 'Mise à jour programmée en cours. Nos services seront rétablis sous peu.')
+    updated_at = get_param('maintenance_updated_at', '')
+    return {
+        'active': active,
+        'message': message,
+        'updated_at': updated_at
+    }
+
+def set_maintenance_status(active: bool, message: str = None):
+    set_param('maintenance_mode', 'true' if active else 'false', 'Mode maintenance actif')
+    if message:
+        set_param('maintenance_message', message, 'Message affiché en mode maintenance')
+    set_param('maintenance_updated_at', datetime.now().strftime('%d/%m/%Y à %H:%M'), 'Dernière mise à jour maintenance')
+    action = "ACTIVATION" if active else "DÉSACTIVATION"
+    log_action(f"MAINTENANCE_{action}", f"Mode maintenance {'activé' if active else 'désactivé'}")
+
+def get_auto_backup_config():
+    enabled = get_param('auto_backup_enabled', 'true') == 'true'
+    time_val = get_param('auto_backup_time', '02:00')
+    last_date = get_param('auto_backup_last_date', 'Aucune')
+    return {
+        'enabled': enabled,
+        'time': time_val,
+        'last_date': last_date
+    }
+
+def set_auto_backup_config(enabled: bool, time_val: str = "02:00"):
+    set_param('auto_backup_enabled', 'true' if enabled else 'false', 'Sauvegarde auto quotidienne')
+    if time_val:
+        set_param('auto_backup_time', time_val, 'Heure sauvegarde auto')
+    log_action("CONFIG_BACKUP", f"Sauvegarde auto {'activée' if enabled else 'désactivée'} à {time_val}")
+
+def check_and_run_daily_backup():
+    """Vérifie si une sauvegarde quotidienne automatique doit être exécutée"""
+    try:
+        enabled = get_param('auto_backup_enabled', 'true') == 'true'
+        if not enabled:
+            return False
+
+        target_time = get_param('auto_backup_time', '02:00')
+        now = datetime.now()
+        today_str = now.strftime('%Y-%m-%d')
+        last_date = get_param('auto_backup_last_date', '')
+
+        if last_date == today_str:
+            return False
+
+        parts = target_time.split(':')
+        target_h = int(parts[0]) if len(parts) > 0 else 2
+        target_m = int(parts[1]) if len(parts) > 1 else 0
+
+        if (now.hour > target_h) or (now.hour == target_h and now.minute >= target_m):
+            create_backup()
+            set_param('auto_backup_last_date', today_str, 'Dernière exécution sauvegarde auto')
+            log_action("AUTO_BACKUP", f"Sauvegarde automatique quotidienne exécutée pour le {today_str}")
+            return True
+    except Exception as e:
+        current_app.logger.error(f"Erreur check_and_run_daily_backup: {e}")
+    return False
+
+def get_cache_info():
+    if not os.path.exists(CACHE_DIR):
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        return {'count': 0, 'size_kb': 0, 'size_mb': 0}
+    
+    files = [f for f in os.listdir(CACHE_DIR) if os.path.isfile(os.path.join(CACHE_DIR, f))]
+    total_size = sum(os.path.getsize(os.path.join(CACHE_DIR, f)) for f in files)
+    return {
+        'count': len(files),
+        'size_kb': round(total_size / 1024, 1),
+        'size_mb': round(total_size / (1024 * 1024), 2)
+    }
+
+def purge_cache():
+    if not os.path.exists(CACHE_DIR):
+        return {'deleted': 0, 'freed_kb': 0, 'freed_mb': 0}
+    
+    count = 0
+    freed = 0
+    for f in os.listdir(CACHE_DIR):
+        p = os.path.join(CACHE_DIR, f)
+        if os.path.isfile(p):
+            try:
+                freed += os.path.getsize(p)
+                os.remove(p)
+                count += 1
+            except Exception as e:
+                current_app.logger.warning(f"Impossible de supprimer {p}: {e}")
+                
+    log_action("CACHE_PURGE", f"Cache purgé: {count} fichiers supprimés ({round(freed / 1024, 1)} Ko libérés)")
+    return {
+        'deleted': count,
+        'freed_kb': round(freed / 1024, 1),
+        'freed_mb': round(freed / (1024 * 1024), 2)
+    }
+
+def get_database_health():
+    health = {
+        'size_mb': 0,
+        'integrity': 'Inconnu',
+        'table_count': 0,
+        'db_version': 'SQLite',
+        'stats': {}
+    }
+    try:
+        if os.path.exists(DB_PATH):
+            health['size_mb'] = round(os.path.getsize(DB_PATH) / (1024 * 1024), 2)
+        
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("PRAGMA integrity_check")
+        row = cur.fetchone()
+        health['integrity'] = 'Valide (OK)' if row and row[0] == 'ok' else (row[0] if row else 'Erreur')
+        
+        cur.execute("SELECT sqlite_version()")
+        v = cur.fetchone()
+        health['db_version'] = f"SQLite {v[0]}" if v else "SQLite"
+        
+        cur.execute("SELECT count(*) FROM sqlite_master WHERE type='table'")
+        health['table_count'] = cur.fetchone()[0]
+        conn.close()
+        
+        health['stats'] = {
+            'ecoles': Ecole.query.count(),
+            'utilisateurs': Utilisateur.query.count(),
+            'eleves': Eleve.query.count(),
+            'professeurs': Professeur.query.count(),
+        }
+    except Exception as e:
+        health['integrity'] = f"Erreur: {e}"
+    return health
+
+def get_all_backups_list():
+    backups = []
+    if not os.path.exists(BACKUP_DIR):
+        os.makedirs(BACKUP_DIR, exist_ok=True)
+        return backups
+        
+    for fname in os.listdir(BACKUP_DIR):
+        fpath = os.path.join(BACKUP_DIR, fname)
+        if os.path.isfile(fpath) and (fname.endswith('.db') or fname.endswith('.json')):
+            stat = os.stat(fpath)
+            dt = datetime.fromtimestamp(stat.st_mtime)
+            is_school = fname.startswith('school_')
+            backups.append({
+                'filename': fname,
+                'size_kb': round(stat.st_size / 1024, 1),
+                'size_mb': round(stat.st_size / (1024 * 1024), 2),
+                'date_formatted': dt.strftime('%d/%m/%Y à %H:%M:%S'),
+                'mtime': stat.st_mtime,
+                'type': 'École' if is_school else 'Complète',
+                'badge_class': 'bg-info' if is_school else 'bg-primary'
+            })
+    backups.sort(key=lambda x: x['mtime'], reverse=True)
+    return backups
+
+
+
