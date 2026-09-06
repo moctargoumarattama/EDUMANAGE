@@ -2,6 +2,9 @@
     "git.ignoreLimitWarning": true,
     "git.autorefresh": false,
     "git.autofetch": false,
+    "git.autoRepositoryDetection": false,
+    "git.decorations.enabled": false,
+    "git.showProgress": false,
     "git.untrackedChanges": "separate",
     "files.watcherExclude": {
         "**/.git/objects/**": true,

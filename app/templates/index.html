@@ -32,43 +32,6 @@
     <!-- 👑 TOUR DE CONTRÔLE SUPER ADMIN (ACCÈS EXCLUSIF)       -->
     <!-- ======================================================= -->
     <section class="home-section">
-        <div class="home-stat-grid">
-            <a href="{{ url_for('main.gestion_ecoles') }}" class="home-stat-card">
-                <span class="home-stat-icon" style="background: linear-gradient(135deg, #4f46e5, #3730a3);"><i class="fas fa-school"></i></span>
-                <div class="home-stat-info">
-                    <strong>{{ stats.total_ecoles }}</strong>
-                    <small>Écoles gérées</small>
-                </div>
-                <i class="fas fa-arrow-right home-card-arrow"></i>
-            </a>
-            <a href="{{ url_for('main.ajouter_ecole') }}" class="home-stat-card">
-                <span class="home-stat-icon" style="background: linear-gradient(135deg, #10b981, #059669);"><i class="fas fa-plus-circle"></i></span>
-                <div class="home-stat-info">
-                    <strong>Nouvelle École</strong>
-                    <small>Ajouter un établissement</small>
-                </div>
-                <i class="fas fa-arrow-right home-card-arrow"></i>
-            </a>
-            <a href="{{ url_for('admin.dashboard') }}" class="home-stat-card">
-                <span class="home-stat-icon" style="background: linear-gradient(135deg, #6366f1, #4338ca);"><i class="fas fa-server"></i></span>
-                <div class="home-stat-info">
-                    <strong>Serveur</strong>
-                    <small>Dashboard & ressources</small>
-                </div>
-                <i class="fas fa-arrow-right home-card-arrow"></i>
-            </a>
-            <a href="{{ url_for('admin.backup_page') }}" class="home-stat-card">
-                <span class="home-stat-icon" style="background: linear-gradient(135deg, #0ea5e9, #0284c7);"><i class="fas fa-database"></i></span>
-                <div class="home-stat-info">
-                    <strong>Sauvegardes</strong>
-                    <small>Sécurité des données</small>
-                </div>
-                <i class="fas fa-arrow-right home-card-arrow"></i>
-            </a>
-        </div>
-    </section>
-
-    <section class="home-section">
         <div class="home-section-header">
             <div class="d-flex align-items-center gap-2">
                 <span class="section-title-icon" style="background: linear-gradient(135deg, #ef4444, #b91c1c); color: white;"><i class="fas fa-shield-alt"></i></span>
@@ -82,8 +45,8 @@
             <a href="{{ url_for('main.gestion_ecoles') }}" class="home-action-card">
                 <span class="home-action-icon" style="background: linear-gradient(135deg, #4361ee, #3a0ca3);"><i class="fas fa-school"></i></span>
                 <div class="home-action-info">
-                    <strong>Gérer les Écoles</strong>
-                    <small>Liste & configuration</small>
+                    <strong>Gérer les Écoles <span class="badge bg-primary rounded-pill ms-1">{{ stats.total_ecoles }}</span></strong>
+                    <small>{{ stats.total_ecoles }} école{{ 's' if stats.total_ecoles > 1 else '' }} enregistrée{{ 's' if stats.total_ecoles > 1 else '' }}</small>
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
