@@ -3,88 +3,124 @@
 {% block title %}Nouvelle École - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-
-    <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('main.gestion_ecoles') }}">Écoles</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Nouvelle école</li>
-        </ol>
-    </nav>
-
+<div class="my-3">
     <div class="row justify-content-center">
-        <div class="col-lg-7 col-xl-6">
-            <div class="card shadow-sm border-0 rounded-4">
+        <div class="col-12 col-xl-11">
+            <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
 
-                <div class="card-header bg-primary text-white rounded-top-4 py-4 px-4">
+                <!-- En-tête large de la carte -->
+                <div class="card-header bg-primary text-white py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="bg-white bg-opacity-25 rounded-3 p-2">
+                        <div class="bg-white bg-opacity-25 rounded-3 p-2 d-flex align-items-center justify-content-center" style="width: 46px; height: 46px;">
                             <i class="fas fa-school fa-lg"></i>
                         </div>
                         <div>
-                            <h5 class="mb-0 fw-bold">Créer une école</h5>
-                            <small class="opacity-75">L'administrateur pourra se connecter immédiatement</small>
+                            <h4 class="mb-0 fw-bold">Créer une nouvelle école</h4>
+                            <small class="opacity-75">Renseignez les coordonnées de l'établissement et générez le compte de son directeur / administrateur</small>
                         </div>
                     </div>
+                    <a href="{{ url_for('main.gestion_ecoles') }}" class="btn btn-outline-light btn-sm px-3 fw-semibold">
+                        <i class="fas fa-arrow-left me-1"></i> Retour à la liste
+                    </a>
                 </div>
 
-                <div class="card-body p-4">
+                <!-- Formulaire étalé horizontalement -->
+                <div class="card-body p-4 p-lg-5">
                     <form method="post" action="{{ url_for('main.ajouter_ecole') }}" class="needs-validation" novalidate>
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-                        <!-- Établissement -->
-                        <h6 class="text-uppercase text-muted fw-semibold mb-3">
-                            <i class="fas fa-building me-1"></i> Établissement
-                        </h6>
+                        <div class="row g-4">
+                            <!-- Colonne Gauche : Informations Établissement -->
+                            <div class="col-lg-6">
+                                <div class="p-3 p-md-4 rounded-3 border bg-light h-100">
+                                    <h5 class="fw-bold text-dark mb-1 d-flex align-items-center">
+                                        <i class="fas fa-building text-primary me-2"></i> Informations de l'Établissement
+                                    </h5>
+                                    <p class="text-muted small mb-4">Coordonnées et identification générale de l'école</p>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Nom de l'école <span class="text-danger">*</span></label>
-                            <input type="text" name="nom_ecole" class="form-control form-control-lg"
-                                   placeholder="Ex : Collège Al Farabi" required autofocus>
-                            <div class="invalid-feedback">Le nom est obligatoire.</div>
-                        </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold text-secondary">
+                                            Nom de l'école <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white text-muted"><i class="fas fa-school"></i></span>
+                                            <input type="text" name="nom_ecole" class="form-control form-control-lg"
+                                                   placeholder="Ex : Collège Al Farabi" required autofocus>
+                                        </div>
+                                        <div class="invalid-feedback">Le nom de l'école est obligatoire.</div>
+                                    </div>
 
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Adresse</label>
-                            <input type="text" name="adresse" class="form-control" placeholder="Rue, ville, pays">
-                        </div>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold text-secondary">Adresse physique</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white text-muted"><i class="fas fa-map-marker-alt"></i></span>
+                                            <input type="text" name="adresse" class="form-control" placeholder="Rue, quartier, ville, pays">
+                                        </div>
+                                    </div>
 
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold">Téléphone</label>
-                            <input type="text" name="telephone" class="form-control" placeholder="+212 600 000 000">
-                        </div>
-
-                        <hr class="my-4">
-
-                        <!-- Compte Administrateur -->
-                        <h6 class="text-uppercase text-muted fw-semibold mb-3">
-                            <i class="fas fa-user-shield me-1"></i> Compte Administrateur
-                        </h6>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Email de connexion <span class="text-danger">*</span></label>
-                            <input type="email" name="email_admin" class="form-control" placeholder="admin@ecole.com" required>
-                            <div class="invalid-feedback">Un email valide est requis.</div>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold">Mot de passe <span class="text-danger">*</span></label>
-                            <input type="password" name="mot_de_passe" class="form-control"
-                                   placeholder="Minimum 8 caractères" required minlength="8">
-                            <div class="form-text">
-                                <i class="fas fa-info-circle me-1 text-primary"></i>
-                                Au moins 8 caractères.
+                                    <div class="mb-2">
+                                        <label class="form-label fw-semibold text-secondary">Numéro de téléphone</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white text-muted"><i class="fas fa-phone"></i></span>
+                                            <input type="text" name="telephone" class="form-control" placeholder="+212 600 000 000">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="invalid-feedback">Mot de passe obligatoire (min. 8 caractères).</div>
+
+                            <!-- Colonne Droite : Compte Administrateur -->
+                            <div class="col-lg-6">
+                                <div class="p-3 p-md-4 rounded-3 border bg-light h-100">
+                                    <h5 class="fw-bold text-dark mb-1 d-flex align-items-center">
+                                        <i class="fas fa-user-shield text-primary me-2"></i> Compte Administrateur
+                                    </h5>
+                                    <p class="text-muted small mb-4">Identifiants d'accès du directeur ou gestionnaire de l'école</p>
+
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold text-secondary">
+                                            Email de connexion <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white text-muted"><i class="fas fa-envelope"></i></span>
+                                            <input type="email" name="email_admin" class="form-control" placeholder="admin@ecole.com" required>
+                                        </div>
+                                        <div class="invalid-feedback">Un email valide est requis.</div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold text-secondary">
+                                            Mot de passe initial <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white text-muted"><i class="fas fa-lock"></i></span>
+                                            <input type="password" name="mot_de_passe" class="form-control"
+                                                   placeholder="Minimum 8 caractères" required minlength="8">
+                                        </div>
+                                        <div class="form-text">
+                                            <i class="fas fa-shield-alt me-1 text-primary"></i> Au moins 8 caractères recommandés.
+                                        </div>
+                                        <div class="invalid-feedback">Mot de passe obligatoire (min. 8 caractères).</div>
+                                    </div>
+
+                                    <div class="p-3 rounded-3 border bg-white mt-3">
+                                        <div class="d-flex align-items-start gap-2">
+                                            <i class="fas fa-info-circle text-primary mt-1"></i>
+                                            <small class="text-muted">
+                                                L'administrateur recevra les droits pour paramétrer les classes, les enseignants, les élèves et les finances de son établissement.
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="d-flex gap-2 justify-content-end">
-                            <a href="{{ url_for('main.gestion_ecoles') }}" class="btn btn-outline-secondary px-4">
-                                <i class="fas fa-times me-1"></i>Annuler
+                        <!-- Barre d'actions -->
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-4 mt-4 border-top">
+                            <a href="{{ url_for('main.gestion_ecoles') }}" class="btn btn-outline-secondary px-4 fw-semibold">
+                                <i class="fas fa-times me-1"></i> Annuler
                             </a>
-                            <button type="submit" class="btn btn-primary px-4">
-                                <i class="fas fa-plus-circle me-1"></i>Créer l'école
+                            <button type="submit" class="btn btn-primary px-5 py-2 fw-semibold fs-6">
+                                <i class="fas fa-plus-circle me-1"></i> Créer l'école
                             </button>
                         </div>
 
