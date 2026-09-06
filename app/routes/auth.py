@@ -47,11 +47,6 @@ def index():
     if current_user.role == 'super_admin':
         stats = {
             'total_ecoles': Ecole.query.count(),
-            'total_eleves': Eleve.query.count(),
-            'total_professeurs': Professeur.query.count(),
-            'total_utilisateurs': Utilisateur.query.count(),
-            'total_cours': Cours.query.count(),
-            'paiements_attente': Paiement.query.filter_by(statut='en attente').count()
         }
         return render_template('index.html', stats=stats)
 
