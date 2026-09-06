@@ -188,12 +188,57 @@ def integrity_check_route():
 # --- Logs ---
 @admin_bp.route('/admin/logs')
 def view_logs():
-    """Affiche les logs système"""
+    """Affiche les logs système avec filtres, recherche et statistiques"""
     page = request.args.get('page', 1, type=int)
-    per_page = 50
-    logs = Log.query.order_by(Log.timestamp.desc()).paginate(page=page, per_page=per_page, error_out=False)
-    
-    return render_template('logs.html', logs=logs)
+    level = request.args.get('level', '').strip()
+    search = request.args.get('search', '').strip()
+    module = request.args.get('module', '').strip()
+    per_page = 40
+
+    query = Log.query
+
+    if level:
+        query = query.filter(Log.level == level)
+    if module:
+        query = query.filter(Log.module == module)
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            db.or_(
+                Log.action.ilike(search_pattern),
+                Log.details.ilike(search_pattern),
+                Log.module.ilike(search_pattern),
+                Log.ip_address.ilike(search_pattern)
+            )
+        )
+
+    logs = query.order_by(Log.timestamp.desc()).paginate(page=page, per_page=per_page, error_out=False)
+
+    # Statistiques globales
+    total_logs = Log.query.count()
+    total_info = Log.query.filter_by(level='INFO').count()
+    total_warning = Log.query.filter_by(level='WARNING').count()
+    total_error = Log.query.filter_by(level='ERROR').count()
+
+    # Liste des modules existants pour la liste déroulante
+    try:
+        raw_modules = db.session.query(Log.module).distinct().filter(Log.module.isnot(None)).all()
+        modules = sorted([m[0] for m in raw_modules if m[0]])
+    except Exception:
+        modules = []
+
+    return render_template(
+        'logs.html',
+        logs=logs,
+        total_logs=total_logs,
+        total_info=total_info,
+        total_warning=total_warning,
+        total_error=total_error,
+        modules=modules,
+        current_level=level,
+        current_search=search,
+        current_module=module
+    )
 
 # --- Déploiement ---
 @admin_bp.route('/admin/deploy', methods=['POST'])

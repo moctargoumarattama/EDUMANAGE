@@ -1,213 +1,324 @@
 {% extends "base.html" %}
 
-{% block title %}Logs Système - KLASORA{% endblock %}
+{% block title %}Logs Système & Audit - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <!-- Breadcrumb & Header -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Tour de Contrôle</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Logs système</li>
-        </ol>
-    </nav>
-
-    <div class="page-header">
-        <div class="page-header-body">
-            <div class="page-title-group">
-                <div class="page-icon">
-                    <i class="fas fa-clipboard-list"></i>
+<div class="py-3">
+    <!-- En-tête de la page -->
+    <div class="card shadow-sm border-0 rounded-4 mb-4 overflow-hidden">
+        <div class="card-body p-4 bg-white d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px;">
+                    <i class="fas fa-file-alt fa-2x"></i>
                 </div>
                 <div>
-                    <h1 class="page-title">Journal des Événements Système</h1>
-                    <p class="page-subtitle">Suivi technique et audit des actions exécutées sur la plateforme</p>
+                    <h3 class="fw-bold text-dark mb-1">Journal des Événements & Audit Système</h3>
+                    <p class="text-muted small mb-0">Traçabilité complète des opérations, des connexions et de la sécurité de la plateforme.</p>
                 </div>
             </div>
-            <div class="page-actions">
-                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left me-1"></i>Tour de Contrôle
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <a href="{{ url_for('admin.maintenance_page') }}" class="btn btn-outline-secondary btn-sm px-3 fw-semibold">
+                    <i class="fas fa-sliders-h me-1"></i> Maintenance & Sauvegardes
                 </a>
-                <button class="btn btn-primary" onclick="window.location.reload()">
-                    <i class="fas fa-sync-alt me-1"></i>Actualiser
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-sm px-3 fw-semibold">
+                    <i class="fas fa-home me-1"></i> Tour de Contrôle
+                </a>
+                <button class="btn btn-primary btn-sm px-3 fw-semibold" onclick="window.location.reload()">
+                    <i class="fas fa-sync-alt me-1"></i> Actualiser
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Stat Cards -->
+    <!-- Cartes statistiques -->
     <div class="row g-3 mb-4">
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-info bg-opacity-10 border-0 h-100">
-                <div class="card-body d-flex align-items-center justify-content-between p-3">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                <div class="card-body p-3 p-md-4 d-flex align-items-center justify-content-between">
                     <div>
-                        <h6 class="text-muted small text-uppercase fw-bold mb-1">Événements INFO</h6>
-                        <h3 class="fw-bold mb-0 text-info">{{ total_info or 0 }}</h3>
+                        <span class="text-muted small text-uppercase fw-bold d-block mb-1">Total Logs</span>
+                        <h2 class="fw-bold mb-0 text-dark">{{ total_logs | default(0) }}</h2>
                     </div>
-                    <i class="fas fa-info-circle fa-2x text-info opacity-50"></i>
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                        <i class="fas fa-database fa-lg"></i>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-warning bg-opacity-10 border-0 h-100">
-                <div class="card-body d-flex align-items-center justify-content-between p-3">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                <div class="card-body p-3 p-md-4 d-flex align-items-center justify-content-between">
                     <div>
-                        <h6 class="text-muted small text-uppercase fw-bold mb-1">Avertissements</h6>
-                        <h3 class="fw-bold mb-0 text-warning">{{ total_warning or 0 }}</h3>
+                        <span class="text-muted small text-uppercase fw-bold d-block mb-1">Événements INFO</span>
+                        <h2 class="fw-bold mb-0 text-success">{{ total_info | default(0) }}</h2>
                     </div>
-                    <i class="fas fa-exclamation-triangle fa-2x text-warning opacity-50"></i>
+                    <div class="bg-success bg-opacity-10 text-success rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                        <i class="fas fa-info-circle fa-lg"></i>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-danger bg-opacity-10 border-0 h-100">
-                <div class="card-body d-flex align-items-center justify-content-between p-3">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                <div class="card-body p-3 p-md-4 d-flex align-items-center justify-content-between">
                     <div>
-                        <h6 class="text-muted small text-uppercase fw-bold mb-1">Erreurs</h6>
-                        <h3 class="fw-bold mb-0 text-danger">{{ total_error or 0 }}</h3>
+                        <span class="text-muted small text-uppercase fw-bold d-block mb-1">Avertissements</span>
+                        <h2 class="fw-bold mb-0 text-warning">{{ total_warning | default(0) }}</h2>
                     </div>
-                    <i class="fas fa-exclamation-circle fa-2x text-danger opacity-50"></i>
+                    <div class="bg-warning bg-opacity-10 text-warning rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                        <i class="fas fa-exclamation-triangle fa-lg"></i>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-primary bg-opacity-10 border-0 h-100">
-                <div class="card-body d-flex align-items-center justify-content-between p-3">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                <div class="card-body p-3 p-md-4 d-flex align-items-center justify-content-between">
                     <div>
-                        <h6 class="text-muted small text-uppercase fw-bold mb-1">Total Logs</h6>
-                        <h3 class="fw-bold mb-0 text-primary">{{ total_logs or 0 }}</h3>
+                        <span class="text-muted small text-uppercase fw-bold d-block mb-1">Erreurs</span>
+                        <h2 class="fw-bold mb-0 text-danger">{{ total_error | default(0) }}</h2>
                     </div>
-                    <i class="fas fa-database fa-2x text-primary opacity-50"></i>
+                    <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                        <i class="fas fa-exclamation-circle fa-lg"></i>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Filtres -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body p-3">
-            <form method="GET" class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label for="level" class="form-label small fw-semibold">Niveau de log</label>
+    <!-- Barre de filtrage & Recherche -->
+    <div class="card shadow-sm border-0 rounded-4 mb-4 bg-white">
+        <div class="card-body p-3 p-md-4">
+            <form method="GET" action="{{ url_for('admin.view_logs') }}" class="row g-3 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label for="level" class="form-label small fw-semibold text-secondary">Niveau de sévérité</label>
                     <select name="level" id="level" class="form-select">
                         <option value="">Tous les niveaux</option>
-                        <option value="INFO" {% if request.args.get('level') == 'INFO' %}selected{% endif %}>INFO</option>
-                        <option value="WARNING" {% if request.args.get('level') == 'WARNING' %}selected{% endif %}>WARNING</option>
-                        <option value="ERROR" {% if request.args.get('level') == 'ERROR' %}selected{% endif %}>ERROR</option>
+                        <option value="INFO" {% if current_level == 'INFO' %}selected{% endif %}>INFO (Normal)</option>
+                        <option value="WARNING" {% if current_level == 'WARNING' %}selected{% endif %}>WARNING (Avertissement)</option>
+                        <option value="ERROR" {% if current_level == 'ERROR' %}selected{% endif %}>ERROR (Erreur)</option>
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <label for="search" class="form-label small fw-semibold">Recherche texte</label>
-                    <input type="text" name="search" id="search" class="form-control" placeholder="Rechercher dans l'action ou les détails..." value="{{ request.args.get('search', '') }}">
-                </div>
-                <div class="col-md-3">
-                    <label for="module" class="form-label small fw-semibold">Module concerné</label>
+                <div class="col-12 col-md-3">
+                    <label for="module" class="form-label small fw-semibold text-secondary">Module / Composant</label>
                     <select name="module" id="module" class="form-select">
                         <option value="">Tous les modules</option>
-                        {% for module in modules or [] %}
-                            <option value="{{ module }}" {% if request.args.get('module') == module %}selected{% endif %}>{{ module }}</option>
+                        {% for mod in modules or [] %}
+                            <option value="{{ mod }}" {% if current_module == mod %}selected{% endif %}>{{ mod }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-filter me-1"></i>Filtrer
+                <div class="col-12 col-md-4">
+                    <label for="search" class="form-label small fw-semibold text-secondary">Recherche par mot-clé</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light text-muted"><i class="fas fa-search"></i></span>
+                        <input type="text" name="search" id="search" class="form-control" placeholder="Action, détail technique, IP..." value="{{ current_search }}">
+                    </div>
+                </div>
+                <div class="col-12 col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100 fw-semibold">
+                        <i class="fas fa-filter me-1"></i> Filtrer
                     </button>
+                    {% if current_level or current_module or current_search %}
+                    <a href="{{ url_for('admin.view_logs') }}" class="btn btn-outline-secondary" title="Réinitialiser les filtres">
+                        <i class="fas fa-undo"></i>
+                    </a>
+                    {% endif %}
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Tableau des logs -->
-    <div class="table-card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fw-bold">
-                <i class="fas fa-list me-2 text-primary"></i>Entrées du journal
+    <!-- Conteneur des logs -->
+    <div class="card shadow-sm border-0 rounded-4 overflow-hidden bg-white">
+        <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2 border-bottom">
+            <h5 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                <i class="fas fa-stream text-primary me-2"></i> Flux d'activités récentes
+                {% if logs and logs.total %}
+                    <span class="badge bg-light text-secondary ms-2 fs-6 fw-normal border">{{ logs.total }} événement{{ 's' if logs.total > 1 else '' }}</span>
+                {% endif %}
             </h5>
-            <small class="text-muted">Cliquez sur une ligne pour afficher les détails</small>
+            <small class="text-muted d-none d-md-block">
+                <i class="fas fa-info-circle me-1 text-primary"></i> Cliquez sur une ligne pour inspecter les détails techniques
+            </small>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th class="ps-4">Date / Heure</th>
-                            <th>Niveau</th>
-                            <th>Module</th>
-                            <th>Action</th>
-                            <th>Utilisateur</th>
-                            <th class="text-end pe-4">Adresse IP</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if logs and logs.items %}
+
+        {% if logs and logs.items %}
+            <!-- 🖥️ VUE ORDINATEUR (Tableau large) -->
+            <div class="d-none d-md-block">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4" style="width: 170px;">Date & Heure</th>
+                                <th style="width: 110px;">Niveau</th>
+                                <th style="width: 140px;">Module</th>
+                                <th>Action réalisée</th>
+                                <th style="width: 160px;">Utilisateur</th>
+                                <th style="width: 130px;" class="text-center">Adresse IP</th>
+                                <th style="width: 90px;" class="text-center pe-4">Détails</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                             {% for log in logs.items %}
-                            <tr class="log-row cursor-pointer" onclick="toggleDetails(this)" style="cursor: pointer;">
-                                <td class="ps-4 text-nowrap small text-muted">
-                                    <i class="fas fa-clock me-1"></i>{{ log.timestamp.strftime('%d/%m/%Y %H:%M') }}
+                            <tr class="log-row" style="cursor: pointer;" onclick="toggleRowDetails('details-desktop-{{ log.id }}')">
+                                <td class="ps-4 text-nowrap text-muted small">
+                                    <i class="fas fa-clock text-secondary me-1"></i>
+                                    {{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') if log.timestamp else 'N/A' }}
                                 </td>
                                 <td>
                                     {% if log.level == 'ERROR' %}
-                                        <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>ERROR</span>
+                                        <span class="badge bg-danger px-2 py-1"><i class="fas fa-times-circle me-1"></i>ERROR</span>
                                     {% elif log.level == 'WARNING' %}
-                                        <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i>WARN</span>
+                                        <span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i>WARN</span>
                                     {% else %}
-                                        <span class="badge bg-info bg-opacity-10 text-info"><i class="fas fa-info-circle me-1"></i>INFO</span>
+                                        <span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-2 py-1"><i class="fas fa-check-circle me-1"></i>INFO</span>
                                     {% endif %}
                                 </td>
-                                <td class="fw-semibold">{{ log.module }}</td>
-                                <td>{{ log.action }}</td>
+                                <td>
+                                    <span class="badge bg-light text-dark border px-2 py-1 font-monospace small">
+                                        {{ log.module or 'Système' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-dark">{{ log.action }}</div>
+                                    {% if log.details %}
+                                        <div class="text-muted small text-truncate" style="max-width: 480px;">
+                                            {{ log.details }}
+                                        </div>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if log.utilisateur %}
-                                        <span class="badge bg-light text-dark"><i class="fas fa-user me-1"></i>{{ log.utilisateur.nom }}</span>
+                                        <span class="d-inline-flex align-items-center gap-1 small fw-semibold text-dark">
+                                            <i class="fas fa-user-circle text-primary"></i>
+                                            {{ log.utilisateur.nom }}
+                                        </span>
                                     {% else %}
-                                        <span class="badge bg-light text-muted">Système</span>
+                                        <span class="badge bg-light text-muted border">Automatique</span>
                                     {% endif %}
                                 </td>
-                                <td class="text-end pe-4 font-monospace small">{{ log.ip_address or "Local" }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-secondary border font-monospace small">
+                                        {{ log.ip_address or "127.0.0.1" }}
+                                    </span>
+                                </td>
+                                <td class="text-center pe-4">
+                                    {% if log.details %}
+                                        <button type="button" class="btn btn-sm btn-outline-primary rounded-circle" style="width: 32px; height: 32px; padding: 0;" title="Afficher les détails">
+                                            <i class="fas fa-chevron-down"></i>
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted small">—</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% if log.details %}
-                            <tr class="log-details d-none bg-light">
-                                <td colspan="6" class="p-3 ps-4">
-                                    <div class="alert alert-secondary mb-0 py-2 font-monospace small">
-                                        <strong>Détails techniques :</strong> {{ log.details }}
+                            <tr id="details-desktop-{{ log.id }}" class="d-none" style="background-color: #f8fafc;">
+                                <td colspan="7" class="p-3 ps-4 pe-4">
+                                    <div class="p-3 rounded-3 border bg-white shadow-sm">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <strong class="small text-secondary"><i class="fas fa-terminal me-1 text-primary"></i> Métadonnées techniques & trace :</strong>
+                                            <small class="text-muted font-monospace">Log ID #{{ log.id }}</small>
+                                        </div>
+                                        <pre class="mb-0 text-dark font-monospace small p-2 bg-light rounded border" style="white-space: pre-wrap; word-break: break-all;">{{ log.details }}</pre>
                                     </div>
                                 </td>
                             </tr>
                             {% endif %}
                             {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="6" class="text-center py-5">
-                                    <div class="empty-state py-2">
-                                        <div class="empty-state-icon">
-                                            <i class="fas fa-search"></i>
-                                        </div>
-                                        <h5 class="empty-state-title">Aucun log trouvé</h5>
-                                        <p class="empty-state-text">Aucun événement ne correspond à vos critères de recherche actuels.</p>
-                                    </div>
-                                </td>
-                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 📱 VUE MOBILE (Cartes fluides et ergonomiques) -->
+            <div class="d-md-none p-3">
+                <div class="d-flex flex-column gap-3">
+                    {% for log in logs.items %}
+                    <div class="card border rounded-3 p-3 shadow-sm bg-white">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            {% if log.level == 'ERROR' %}
+                                <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>ERROR</span>
+                            {% elif log.level == 'WARNING' %}
+                                <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i>WARN</span>
+                            {% else %}
+                                <span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25"><i class="fas fa-check-circle me-1"></i>INFO</span>
+                            {% endif %}
+                            <small class="text-muted font-monospace">
+                                <i class="fas fa-clock me-1"></i>{{ log.timestamp.strftime('%d/%m %H:%M') if log.timestamp else '' }}
+                            </small>
+                        </div>
+
+                        <div class="fw-bold text-dark mb-1 fs-6">{{ log.action }}</div>
+
+                        <div class="d-flex align-items-center gap-2 flex-wrap text-muted small mb-2">
+                            <span class="badge bg-light text-dark border font-monospace">{{ log.module or 'Système' }}</span>
+                            <span>•</span>
+                            {% if log.utilisateur %}
+                                <span><i class="fas fa-user text-primary me-1"></i>{{ log.utilisateur.nom }}</span>
+                            {% else %}
+                                <span><i class="fas fa-robot text-secondary me-1"></i>Système</span>
+                            {% endif %}
+                            <span>•</span>
+                            <span class="font-monospace">{{ log.ip_address or '127.0.0.1' }}</span>
+                        </div>
+
+                        {% if log.details %}
+                        <div class="pt-2 border-top mt-1">
+                            <button type="button" class="btn btn-sm btn-outline-secondary w-100 py-1 small" onclick="toggleMobileDetails('details-mob-{{ log.id }}')">
+                                <i class="fas fa-info-circle me-1"></i> Afficher / Masquer détails
+                            </button>
+                            <div id="details-mob-{{ log.id }}" class="d-none mt-2">
+                                <pre class="p-2 bg-light rounded border small font-monospace mb-0" style="white-space: pre-wrap; word-break: break-all;">{{ log.details }}</pre>
+                            </div>
+                        </div>
                         {% endif %}
-                    </tbody>
-                </table>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
-        </div>
-        {% if logs and logs.pages > 1 %}
-        <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
-            <small class="text-muted">Page {{ logs.page }} sur {{ logs.pages }}</small>
-            <div class="btn-group btn-group-sm">
-                {% if logs.has_prev %}
-                    <a href="{{ url_for('admin.view_logs', page=logs.prev_num, level=request.args.get('level'), search=request.args.get('search'), module=request.args.get('module')) }}" class="btn btn-outline-primary">
-                        <i class="fas fa-chevron-left me-1"></i>Précédent
+
+            <!-- Pagination -->
+            {% if logs and logs.pages > 1 %}
+            <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3 px-4 border-top flex-wrap gap-2">
+                <small class="text-muted fw-semibold">
+                    Affichage page {{ logs.page }} sur {{ logs.pages }} ({{ logs.total }} résultats)
+                </small>
+                <div class="btn-group">
+                    {% if logs.has_prev %}
+                        <a href="{{ url_for('admin.view_logs', page=logs.prev_num, level=current_level, search=current_search, module=current_module) }}" class="btn btn-outline-primary btn-sm px-3">
+                            <i class="fas fa-chevron-left me-1"></i> Précédent
+                        </a>
+                    {% else %}
+                        <button class="btn btn-outline-secondary btn-sm px-3" disabled><i class="fas fa-chevron-left me-1"></i> Précédent</button>
+                    {% endif %}
+
+                    {% if logs.has_next %}
+                        <a href="{{ url_for('admin.view_logs', page=logs.next_num, level=current_level, search=current_search, module=current_module) }}" class="btn btn-outline-primary btn-sm px-3">
+                            Suivant <i class="fas fa-chevron-right ms-1"></i>
+                        </a>
+                    {% else %}
+                        <button class="btn btn-outline-secondary btn-sm px-3" disabled>Suivant <i class="fas fa-chevron-right ms-1"></i></button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+        {% else %}
+            <!-- État vide -->
+            <div class="text-center py-5 px-3">
+                <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center p-4 mb-3" style="width: 80px; height: 80px;">
+                    <i class="fas fa-search fa-2x text-muted"></i>
+                </div>
+                <h5 class="fw-bold text-dark">Aucun événement trouvé</h5>
+                <p class="text-muted small mb-3">Aucun log ne correspond à vos filtres actuels.</p>
+                {% if current_level or current_module or current_search %}
+                    <a href="{{ url_for('admin.view_logs') }}" class="btn btn-outline-primary btn-sm px-4">
+                        <i class="fas fa-undo me-1"></i> Réinitialiser les filtres
                     </a>
                 {% endif %}
-                {% if logs.has_next %}
-                    <a href="{{ url_for('admin.view_logs', page=logs.next_num, level=request.args.get('level'), search=request.args.get('search'), module=request.args.get('module')) }}" class="btn btn-outline-primary">
-                        Suivant<i class="fas fa-chevron-right ms-1"></i>
-                    </a>
-                {% endif %}
             </div>
-        </div>
         {% endif %}
     </div>
 </div>
@@ -215,10 +326,17 @@
 
 {% block scripts %}
 <script>
-function toggleDetails(row) {
-    const nextRow = row.nextElementSibling;
-    if (nextRow && nextRow.classList.contains('log-details')) {
-        nextRow.classList.toggle('d-none');
+function toggleRowDetails(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.classList.toggle('d-none');
+    }
+}
+
+function toggleMobileDetails(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.classList.toggle('d-none');
     }
 }
 </script>
