@@ -27,7 +27,6 @@
                     <li class="nav-item"><a href="{{ url_for('main.index') }}" class="nav-link"><i class="fas fa-home me-1"></i>Tour de Contrôle</a></li>
                     <li class="nav-item"><a href="{{ url_for('admin.backup_page') }}" class="nav-link {% if request.endpoint in ('admin.backup_page','admin.backup_school') %}active{% endif %}"><i class="fas fa-database me-1"></i>Sauvegardes</a></li>
                     <li class="nav-item"><a href="{{ url_for('admin.maintenance_page') }}" class="nav-link {% if request.endpoint == 'admin.maintenance_page' %}active{% endif %}"><i class="fas fa-tools me-1"></i>Maintenance</a></li>
-                    <li class="nav-item"><a href="{{ url_for('admin.stats') }}" class="nav-link {% if request.endpoint == 'admin.stats' %}active{% endif %}"><i class="fas fa-chart-bar me-1"></i>Statistiques</a></li>
                     <li class="nav-item"><a href="{{ url_for('main.gestion_ecoles') }}" class="nav-link"><i class="fas fa-school me-1"></i>Plateforme</a></li>
                 </ul>
             </div>

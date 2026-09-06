@@ -128,11 +128,6 @@ def integrity_check_route():
         flash(f"Erreur lors de la vérification/correction : {str(e)}", "error")
         return redirect(url_for('admin.maintenance_page'))
 
-# --- Statistiques ---
-@admin_bp.route('/admin/stats')
-def stats():
-    stats = get_system_stats()
-    return render_template('stats.html', stats=stats)
 
 # --- Logs ---
 @admin_bp.route('/admin/logs')
@@ -157,12 +152,6 @@ def deploy():
     
     return redirect(url_for('main.index'))
 
-# --- Version ---
-@admin_bp.route('/admin/version')
-def version_info():
-    """Affiche les informations de version"""
-    stats = get_system_stats()
-    return render_template('version.html', stats=stats)
 
 # --- Création des tables manquantes ---
 @admin_bp.route('/admin/create_tables')
