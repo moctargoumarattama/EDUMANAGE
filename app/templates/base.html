@@ -426,8 +426,7 @@
             }
         }
     </style>
-
-    
+    {% block extra_head %}{% endblock %}
 </head>
 <body class="{{ 'auth-layout' if request.endpoint == 'main.login' else '' }}{{ ' home-layout' if request.endpoint == 'main.index' else '' }}" data-role="{{ current_user.role if current_user.is_authenticated else 'guest' }}">
     <nav class="navbar navbar-expand-lg navbar-dark">
@@ -456,7 +455,7 @@
                 <ul class="navbar-nav me-auto">
                     {% if current_user.is_authenticated %}
                         
-                        <!-- 🔹 SUPER ADMIN : Gestion de la plateforme et des écoles -->
+                        <!-- 🔹 SUPER ADMIN : Gestion de la plateforme, des écoles et de la maintenance -->
                         {% if current_user.role == 'super_admin' %}
                             <li class="nav-item">
                                 <a class="nav-link {{ 'active' if request.endpoint == 'main.index' }}" href="{{ url_for('main.index') }}">
@@ -465,7 +464,7 @@
                             </li>
                             
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ('main.gestion_ecoles', 'main.ajouter_ecole') }}" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-school me-1"></i>Écoles
                                 </a>
                                 <ul class="dropdown-menu">
@@ -474,13 +473,18 @@
                                 </ul>
                             </li>
 
-                        <!-- 🔹 ADMIN : Accès limité à ses écoles -->
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint in ('admin.maintenance_page', 'admin.maintenance') }}" href="{{ url_for('admin.maintenance_page') }}">
+                                    <i class="fas fa-sliders-h me-1"></i>Maintenance & Sauvegardes
+                                </a>
+                            </li>
+
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ('admin.view_logs', 'main.journaux_corrections') }}" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-file-alt me-1"></i>Journalisation
                                 </a>
                                 <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{{ url_for('admin.view_logs') }}"><i class="fas fa-file-alt me-2"></i>Logs systeme</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('admin.view_logs') }}"><i class="fas fa-file-alt me-2"></i>Logs système</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.journaux_corrections') }}"><i class="fas fa-edit me-2"></i>Journal corrections</a></li>
                                 </ul>
                             </li>
@@ -733,8 +737,9 @@
                                 </a>
                                 <div class="collapse ps-3" id="superAdminMenuCollapse">
                                     <ul class="list-unstyled">
-                                        <li><a class="dropdown-item small" href="{{ url_for('main.index') }}">Tour de Contrôle</a></li>
-                                        <li><a class="dropdown-item small" href="{{ url_for('admin.view_logs') }}">Logs Système</a></li>
+                                        <li><a class="dropdown-item small" href="{{ url_for('main.index') }}"><i class="fas fa-home me-2 text-primary"></i>Tour de Contrôle</a></li>
+                                        <li><a class="dropdown-item small" href="{{ url_for('admin.maintenance_page') }}"><i class="fas fa-sliders-h me-2 text-primary"></i>Maintenance & Sauvegardes</a></li>
+                                        <li><a class="dropdown-item small" href="{{ url_for('admin.view_logs') }}"><i class="fas fa-file-alt me-2 text-primary"></i>Logs Système</a></li>
                                     </ul>
                                 </div>
                             </li>

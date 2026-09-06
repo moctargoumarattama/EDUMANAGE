@@ -7,9 +7,16 @@
 {% endblock %}
 
 {% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb bg-white p-2 px-3 rounded-3 border shadow-sm small">
+        <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}" class="text-decoration-none text-primary"><i class="fas fa-home me-1"></i>Tour de Contrôle</a></li>
+        <li class="breadcrumb-item active text-muted" aria-current="page">Maintenance & Sauvegardes</li>
+    </ol>
+</nav>
+
 <div class="admin-page-header">
     <div>
-        <h1><i class="fas fa-sliders-h text-primary"></i> Centre de Maintenance & Opérations</h1>
+        <h1 class="h3 fw-bold text-dark mb-1"><i class="fas fa-sliders-h text-primary me-2"></i>Centre de Maintenance & Opérations</h1>
         <p class="text-muted mb-0" style="font-size: 0.9rem;">Pilotage global de la disponibilité, des sauvegardes, de la base de données et des performances du système.</p>
     </div>
     <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-sm">
