@@ -50,16 +50,10 @@ def require_super_admin_for_admin_blueprint():
     return None
 
 
-# --- Dashboard ---
+# --- Dashboard (Redirige vers l'accueil Super Admin unifié) ---
 @admin_bp.route('/admin')
 def dashboard():
-    stats = get_system_stats()
-    return render_template('dashboard.html', 
-                           os=os, 
-                           backup_dir=BACKUP_DIR,
-                           last_backup=stats['last_backup'],
-                           disk_usage=stats['disk_usage'],
-                           db_version=stats['db_version'])
+    return redirect(url_for('main.index'))
 
 # --- Sauvegarde simple ---
 @admin_bp.route('/admin/backup')
@@ -173,7 +167,7 @@ def deploy():
     else:
         flash(f"Déploiement réussi: {result}", "success")
     
-    return redirect(url_for('admin.dashboard'))
+    return redirect(url_for('main.index'))
 
 # --- Optimisation ---
 @admin_bp.route('/admin/optimize')

@@ -7,8 +7,7 @@
     <!-- Breadcrumb & Header -->
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Administration</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Tour de Contrôle</a></li>
             <li class="breadcrumb-item active" aria-current="page">Version système</li>
         </ol>
     </nav>
@@ -25,8 +24,8 @@
                 </div>
             </div>
             <div class="page-actions">
-                <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left me-1"></i>Retour au tableau de bord
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Tour de Contrôle
                 </a>
             </div>
         </div>

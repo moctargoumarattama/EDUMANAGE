@@ -14,7 +14,7 @@
 <body class="admin-shell">
     <nav class="navbar navbar-expand-lg navbar-dark admin-navbar">
         <div class="container-fluid px-3 px-lg-4">
-            <a href="{{ url_for('admin.dashboard') }}" class="navbar-brand admin-brand">
+            <a href="{{ url_for('main.index') }}" class="navbar-brand admin-brand">
                 <i class="fas fa-shield-alt"></i>
                 <span>KLASORA</span>
                 <span class="admin-badge">Admin</span>
@@ -24,7 +24,7 @@
             </button>
             <div class="collapse navbar-collapse" id="adminNav">
                 <ul class="navbar-nav ms-auto align-items-lg-center">
-                    <li class="nav-item"><a href="{{ url_for('admin.dashboard') }}" class="nav-link {% if request.endpoint == 'admin.dashboard' %}active{% endif %}"><i class="fas fa-tachometer-alt me-1"></i>Tableau de bord</a></li>
+                    <li class="nav-item"><a href="{{ url_for('main.index') }}" class="nav-link"><i class="fas fa-home me-1"></i>Tour de Contrôle</a></li>
                     <li class="nav-item"><a href="{{ url_for('admin.backup_page') }}" class="nav-link {% if request.endpoint in ('admin.backup_page','admin.backup_school') %}active{% endif %}"><i class="fas fa-database me-1"></i>Sauvegardes</a></li>
                     <li class="nav-item"><a href="{{ url_for('admin.maintenance_page') }}" class="nav-link {% if request.endpoint == 'admin.maintenance_page' %}active{% endif %}"><i class="fas fa-tools me-1"></i>Maintenance</a></li>
                     <li class="nav-item"><a href="{{ url_for('admin.stats') }}" class="nav-link {% if request.endpoint == 'admin.stats' %}active{% endif %}"><i class="fas fa-chart-bar me-1"></i>Statistiques</a></li>
@@ -35,7 +35,7 @@
     </nav>
 
     <div class="admin-breadcrumb">
-        <a href="{{ url_for('admin.dashboard') }}"><i class="fas fa-home"></i> Tableau de bord</a>
+        <a href="{{ url_for('main.index') }}"><i class="fas fa-home"></i> Tour de Contrôle</a>
         {% block breadcrumb %}{% endblock %}
     </div>
 

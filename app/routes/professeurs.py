@@ -1,4 +1,4 @@
-﻿from . import main
+from . import main
 from .common import (
     AnneeScolaire,
     AssignerClassesForm,

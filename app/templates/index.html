@@ -31,22 +31,62 @@
     <!-- ======================================================= -->
     <!-- 👑 TOUR DE CONTRÔLE SUPER ADMIN (ACCÈS EXCLUSIF)       -->
     <!-- ======================================================= -->
+    <section class="home-section mb-4">
+        <div class="home-section-header">
+            <div class="d-flex align-items-center gap-2">
+                <span class="section-title-icon" style="background: linear-gradient(135deg, #ef4444, #b91c1c); color: white;"><i class="fas fa-server"></i></span>
+                <h2 class="home-section-title">État du Système & Télémétrie</h2>
+            </div>
+            <span class="section-badge d-none d-lg-inline-flex" style="background: rgba(239, 68, 68, 0.1); color: #dc2626; border-color: rgba(239, 68, 68, 0.2);">
+                <i class="fas fa-crown me-1"></i>Tour de Contrôle
+            </span>
+        </div>
+        <div class="home-stat-grid">
+            <div class="home-stat-card">
+                <span class="home-stat-icon" style="background: linear-gradient(135deg, #4361ee, #3a0ca3); color: white;"><i class="fas fa-school"></i></span>
+                <div class="home-stat-info">
+                    <strong>{{ stats.total_ecoles }}</strong>
+                    <small>Écoles enregistrées</small>
+                </div>
+            </div>
+            <div class="home-stat-card">
+                <span class="home-stat-icon" style="background: linear-gradient(135deg, #10b981, #059669); color: white;"><i class="fas fa-hdd"></i></span>
+                <div class="home-stat-info">
+                    <strong>{{ stats.disk_usage }}%</strong>
+                    <small>Espace disque utilisé</small>
+                </div>
+            </div>
+            <div class="home-stat-card">
+                <span class="home-stat-icon" style="background: linear-gradient(135deg, #6366f1, #4338ca); color: white;"><i class="fas fa-database"></i></span>
+                <div class="home-stat-info">
+                    <strong style="font-size: 1.05rem;">SQLite {{ stats.db_version }}</strong>
+                    <small>{{ stats.table_count }} tables actives</small>
+                </div>
+            </div>
+            <div class="home-stat-card">
+                <span class="home-stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;"><i class="fas fa-history"></i></span>
+                <div class="home-stat-info">
+                    <strong style="font-size: 0.95rem;">{{ stats.last_backup if stats.last_backup else 'Aucune' }}</strong>
+                    <small>Dernière sauvegarde</small>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section class="home-section">
         <div class="home-section-header">
             <div class="d-flex align-items-center gap-2">
-                <span class="section-title-icon" style="background: linear-gradient(135deg, #ef4444, #b91c1c); color: white;"><i class="fas fa-shield-alt"></i></span>
-                <h2 class="home-section-title">Tour de Contrôle Système</h2>
+                <span class="section-title-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;"><i class="fas fa-th-large"></i></span>
+                <h2 class="home-section-title">Actions & Pilotage Direct</h2>
             </div>
-            <span class="section-badge d-none d-lg-inline-flex" style="background: rgba(239, 68, 68, 0.1); color: #dc2626; border-color: rgba(239, 68, 68, 0.2);">
-                <i class="fas fa-crown me-1"></i>Accès Super Admin Exclusif
-            </span>
+            <span class="text-muted small">Accès direct aux modules d'administration</span>
         </div>
         <div class="home-action-grid">
             <a href="{{ url_for('main.gestion_ecoles') }}" class="home-action-card">
                 <span class="home-action-icon" style="background: linear-gradient(135deg, #4361ee, #3a0ca3);"><i class="fas fa-school"></i></span>
                 <div class="home-action-info">
                     <strong>Gérer les Écoles <span class="badge bg-primary rounded-pill ms-1">{{ stats.total_ecoles }}</span></strong>
-                    <small>{{ stats.total_ecoles }} école{{ 's' if stats.total_ecoles > 1 else '' }} enregistrée{{ 's' if stats.total_ecoles > 1 else '' }}</small>
+                    <small>Établissements & accès</small>
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
@@ -58,32 +98,8 @@
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
-            <a href="{{ url_for('admin.dashboard') }}" class="home-action-card">
-                <span class="home-action-icon" style="background: linear-gradient(135deg, #6366f1, #4338ca);"><i class="fas fa-tachometer-alt"></i></span>
-                <div class="home-action-info">
-                    <strong>Dashboard Global</strong>
-                    <small>Vue serveur & métriques</small>
-                </div>
-                <i class="fas fa-chevron-right action-card-arrow"></i>
-            </a>
-            <a href="{{ url_for('admin.view_logs') }}" class="home-action-card">
-                <span class="home-action-icon" style="background: linear-gradient(135deg, #0284c7, #0369a1);"><i class="fas fa-file-alt"></i></span>
-                <div class="home-action-info">
-                    <strong>Logs Système</strong>
-                    <small>Journaux & sécurité</small>
-                </div>
-                <i class="fas fa-chevron-right action-card-arrow"></i>
-            </a>
-            <a href="{{ url_for('admin.optimize') }}" class="home-action-card" onclick="return confirm('Lancer l\'optimisation de la base de données ?');">
-                <span class="home-action-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);"><i class="fas fa-bolt"></i></span>
-                <div class="home-action-info">
-                    <strong>Optimiser DB</strong>
-                    <small>Performance base de données</small>
-                </div>
-                <i class="fas fa-chevron-right action-card-arrow"></i>
-            </a>
             <a href="{{ url_for('admin.backup_page') }}" class="home-action-card">
-                <span class="home-action-icon" style="background: linear-gradient(135deg, #10b981, #047857);"><i class="fas fa-database"></i></span>
+                <span class="home-action-icon" style="background: linear-gradient(135deg, #059669, #047857);"><i class="fas fa-save"></i></span>
                 <div class="home-action-info">
                     <strong>Sauvegardes</strong>
                     <small>Backups globaux & écoles</small>
@@ -95,6 +111,30 @@
                 <div class="home-action-info">
                     <strong>Maintenance</strong>
                     <small>Nettoyage & intégrité</small>
+                </div>
+                <i class="fas fa-chevron-right action-card-arrow"></i>
+            </a>
+            <a href="{{ url_for('admin.migrate') }}" class="home-action-card" onclick="return confirm('Êtes-vous sûr de vouloir lancer la migration de la base de données ?');">
+                <span class="home-action-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);"><i class="fas fa-sync-alt"></i></span>
+                <div class="home-action-info">
+                    <strong>Migrer la Base</strong>
+                    <small>Mise à jour du schéma</small>
+                </div>
+                <i class="fas fa-chevron-right action-card-arrow"></i>
+            </a>
+            <a href="{{ url_for('admin.optimize') }}" class="home-action-card" onclick="return confirm('Lancer l\'optimisation de la base de données ?');">
+                <span class="home-action-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);"><i class="fas fa-bolt"></i></span>
+                <div class="home-action-info">
+                    <strong>Optimiser DB</strong>
+                    <small>Performance base de données</small>
+                </div>
+                <i class="fas fa-chevron-right action-card-arrow"></i>
+            </a>
+            <a href="{{ url_for('admin.view_logs') }}" class="home-action-card">
+                <span class="home-action-icon" style="background: linear-gradient(135deg, #0284c7, #0369a1);"><i class="fas fa-file-alt"></i></span>
+                <div class="home-action-info">
+                    <strong>Logs Système</strong>
+                    <small>Journaux & sécurité</small>
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>

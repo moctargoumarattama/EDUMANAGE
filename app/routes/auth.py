@@ -45,8 +45,18 @@ def index():
     # SUPER_ADMIN / ADMIN
     # -----------------------------
     if current_user.role == 'super_admin':
+        try:
+            from app.admin.scripts import get_system_stats
+            sys_stats = get_system_stats()
+        except Exception:
+            sys_stats = {}
+
         stats = {
             'total_ecoles': Ecole.query.count(),
+            'disk_usage': sys_stats.get('disk_usage', 'N/A'),
+            'db_version': sys_stats.get('db_version', 'N/A'),
+            'last_backup': sys_stats.get('last_backup'),
+            'table_count': sys_stats.get('table_count', 'N/A'),
         }
         return render_template('index.html', stats=stats)
 

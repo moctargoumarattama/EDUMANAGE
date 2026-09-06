@@ -733,7 +733,7 @@
                                 </a>
                                 <div class="collapse ps-3" id="superAdminMenuCollapse">
                                     <ul class="list-unstyled">
-                                        <li><a class="dropdown-item small" href="{{ url_for('admin.dashboard') }}">Dashboard Global</a></li>
+                                        <li><a class="dropdown-item small" href="{{ url_for('main.index') }}">Tour de Contrôle</a></li>
                                         <li><a class="dropdown-item small" href="{{ url_for('admin.view_logs') }}">Logs Système</a></li>
                                         <li><a class="dropdown-item small" href="{{ url_for('admin.optimize') }}">Optimiser DB</a></li>
                                         <li><a class="dropdown-item small" href="{{ url_for('admin.version_info') }}">Version</a></li>
@@ -748,11 +748,7 @@
                                 </a>
                                 <div class="collapse ps-3" id="adminMenuCollapse">
                                     <ul class="list-unstyled">
-                                        {% if current_user.role == 'super_admin' %}
-                                            <li><a class="dropdown-item small" href="{{ url_for('admin.dashboard') }}">Dashboard École</a></li>
-                                            <li><a class="dropdown-item small" href="{{ url_for('main.creer_utilisateur') }}">Créer Utilisateur</a></li>
-                                            <li><a class="dropdown-item small" href="{{ url_for('main.journaux_corrections') }}">Corrections</a></li>
-                                        {% elif current_user.role == 'admin' %}
+                                        {% if current_user.role == 'admin' %}
                                             <li><a class="dropdown-item small" href="{{ url_for('main.creer_utilisateur') }}">Créer Utilisateur</a></li>
                                         {% endif %}
                                     </ul>
