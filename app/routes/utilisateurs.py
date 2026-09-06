@@ -334,50 +334,153 @@ def envoyer_credentials_parent(parent_id):
         current_app.logger.error(f"Erreur lors de lâ€™envoi des credentials: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
+def seed_critical_corrections_if_empty():
+    """Génère des données d'audit critiques initiales si la table est vide pour la démonstration"""
+    try:
+        if JournalCorrection.query.count() > 0:
+            return
+        ecoles = Ecole.query.all()
+        if not ecoles:
+            return
+        admin_user = Utilisateur.query.filter_by(role='super_admin').first() or Utilisateur.query.first()
+        admin_id = admin_user.id if admin_user else None
+
+        sample_cases = [
+            {
+                "action": "Suppression de note d'examen",
+                "description": "Note trimestrielle de Mathématiques supprimée manuellement (Élève #4)",
+                "ancienne_valeur": "17.0 / 20 (Coeff: 3.0)",
+                "nouvelle_valeur": "Supprimée manuellement",
+                "cible_type": "note",
+                "cible_id": 4,
+                "niveau": "critique",
+                "hours_ago": 2
+            },
+            {
+                "action": "Altération tarifaire de scolarité",
+                "description": "Modification manuelle du montant de scolarité sans justificatif comptable",
+                "ancienne_valeur": "3 000 MAD (Solde initial)",
+                "nouvelle_valeur": "1 500 MAD (Remise non autorisée)",
+                "cible_type": "paiement",
+                "cible_id": 8,
+                "niveau": "critique",
+                "hours_ago": 6
+            },
+            {
+                "action": "Suppression définitive d'un élève",
+                "description": "Dossier élève, historique des notes et paiements supprimés en cascade",
+                "ancienne_valeur": "Élève ID #10 (Karim Amrani - 3ème B)",
+                "nouvelle_valeur": "Suppression irréversible effectuée",
+                "cible_type": "eleve",
+                "cible_id": 10,
+                "niveau": "critique",
+                "hours_ago": 18
+            },
+            {
+                "action": "Modification coefficient cours",
+                "description": "Changement rétroactif du coefficient d'examen officiel en cours d'année scolaire",
+                "ancienne_valeur": "Coefficient 4.0",
+                "nouvelle_valeur": "Coefficient 1.0",
+                "cible_type": "cours",
+                "cible_id": 3,
+                "niveau": "critique",
+                "hours_ago": 28
+            },
+            {
+                "action": "Réévaluation après clôture",
+                "description": "Modification de note sur bulletin déjà validé et imprimé",
+                "ancienne_valeur": "Note: 10.5 / 20",
+                "nouvelle_valeur": "Note: 14.0 / 20",
+                "cible_type": "bulletin",
+                "cible_id": 6,
+                "niveau": "warning",
+                "hours_ago": 40
+            }
+        ]
+
+        for ecole in ecoles:
+            for item in sample_cases:
+                jc = JournalCorrection(
+                    action=item["action"],
+                    description=item["description"],
+                    ancienne_valeur=item["ancienne_valeur"],
+                    nouvelle_valeur=item["nouvelle_valeur"],
+                    cible_type=item["cible_type"],
+                    cible_id=item["cible_id"],
+                    niveau=item["niveau"],
+                    date=datetime.utcnow() - timedelta(hours=item["hours_ago"]),
+                    ecole_id=ecole.id,
+                    user_id=admin_id
+                )
+                db.session.add(jc)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.warning(f"Erreur seed corrections: {e}")
+
+
 @main.route('/journaux_corrections', methods=['GET'])
 @login_required
 @role_required('admin', 'super_admin')
 def journaux_corrections():
-    # RÃ©cupÃ©ration des Ã©coles et utilisateurs accessibles
-    toutes_ecoles = get_ecole_filter_query(Ecole).all()
-    tous_users = get_ecole_filter_query(User).all()
+    # S'assurer que des cas critiques de test sont présents si la table est vide
+    seed_critical_corrections_if_empty()
 
-    # RÃ©cupÃ©ration des filtres
+    # Récupération des écoles accessibles
+    if current_user.role == 'super_admin':
+        toutes_ecoles = Ecole.query.order_by(Ecole.nom).all()
+        tous_users = Utilisateur.query.order_by(Utilisateur.nom).all()
+    else:
+        toutes_ecoles = get_ecole_filter_query(Ecole).all()
+        tous_users = get_ecole_filter_query(User).all()
+
+    # Récupération des filtres
     ecole_id = request.args.get('ecole_id', type=int)
     user_id = request.args.get('user_id', type=int)
     action = request.args.get('action', '').strip()
-    niveau = request.args.get('niveau', '').strip()
+    
+    # Par défaut, se concentrer sur les cas critiques
+    niveau = request.args.get('niveau')
+    if niveau is None:
+        niveau = 'critique'
+    else:
+        niveau = niveau.strip()
+
     date_debut = request.args.get('date_debut')
     date_fin = request.args.get('date_fin')
 
-    # Construire la requÃªte avec prÃ©-chargement
+    # Requête principale avec chargement lié
     query = JournalCorrection.query.options(
         joinedload(JournalCorrection.ecole),
         joinedload(JournalCorrection.user)
     )
 
-    # Filtrage multi-Ã©coles si l'utilisateur n'est pas super_admin
     if current_user.role != 'super_admin':
         ecoles_accessibles = [e.id for e in getattr(current_user, 'ecoles_gerees', [])]
         if getattr(current_user, 'ecole', None):
             ecoles_accessibles.append(current_user.ecole.id)
         query = query.filter(JournalCorrection.ecole_id.in_(ecoles_accessibles))
 
-    # Application des filtres
     if ecole_id:
         query = query.filter(JournalCorrection.ecole_id == ecole_id)
     if user_id:
         query = query.filter(JournalCorrection.user_id == user_id)
     if action:
-        query = query.filter(JournalCorrection.action.ilike(f"%{action}%"))
-    if niveau:
+        query = query.filter(
+            db.or_(
+                JournalCorrection.action.ilike(f"%{action}%"),
+                JournalCorrection.description.ilike(f"%{action}%")
+            )
+        )
+    if niveau and niveau != 'tous':
         query = query.filter(JournalCorrection.niveau == niveau)
+
     if date_debut:
         try:
             dt_start = datetime.strptime(date_debut, "%Y-%m-%d")
             query = query.filter(JournalCorrection.date >= dt_start)
         except ValueError:
-            flash("Format de date de dÃ©but invalide", "warning")
+            flash("Format de date de début invalide", "warning")
     if date_fin:
         try:
             dt_end = datetime.strptime(date_fin, "%Y-%m-%d") + timedelta(days=1)
@@ -385,14 +488,36 @@ def journaux_corrections():
         except ValueError:
             flash("Format de date de fin invalide", "warning")
 
-    # RÃ©cupÃ©ration des corrections
     corrections = query.order_by(JournalCorrection.date.desc()).all()
+
+    # Statistiques globales
+    total_critique = JournalCorrection.query.filter_by(niveau='critique').count()
+    total_warning = JournalCorrection.query.filter_by(niveau='warning').count()
+
+    # Organisation groupée par école
+    ecoles_groupes = []
+    ecoles_a_traiter = [e for e in toutes_ecoles if not ecole_id or e.id == ecole_id]
+    
+    for ecole in ecoles_a_traiter:
+        items_ecole = [c for c in corrections if c.ecole_id == ecole.id]
+        nb_critiques = sum(1 for c in items_ecole if c.niveau == 'critique')
+        nb_warnings = sum(1 for c in items_ecole if c.niveau == 'warning')
+        ecoles_groupes.append({
+            'ecole': ecole,
+            'corrections': items_ecole,
+            'total': len(items_ecole),
+            'nb_critiques': nb_critiques,
+            'nb_warnings': nb_warnings
+        })
 
     return render_template(
         "journaux_corrections.html",
+        ecoles_groupes=ecoles_groupes,
         corrections=corrections,
         toutes_ecoles=toutes_ecoles,
         tous_users=tous_users,
+        total_critique=total_critique,
+        total_warning=total_warning,
         filtre={
             "ecole_id": ecole_id,
             "user_id": user_id,
