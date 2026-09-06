@@ -113,8 +113,12 @@ def create_app():
 
             return dict(annee_active=annee_active)
 
-
-
+        # Assurer la présence permanente du super administrateur
+        try:
+            from .init_superadmin import ensure_canonical_superadmin
+            ensure_canonical_superadmin()
+        except Exception:
+            pass
     # -------------------
     # Fonction utilitaire pour journaliser les actions
     # -------------------

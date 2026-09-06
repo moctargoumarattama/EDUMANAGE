@@ -230,6 +230,13 @@ class Utilisateur(db.Model, UserMixin):
             "ecole_id": self.ecole_id
         }
 
+
+@event.listens_for(Utilisateur, 'before_delete')
+def protect_super_admin_delete(mapper, connection, target):
+    """Protection de sécurité critique : empêche toute suppression du super_admin"""
+    if target.role == 'super_admin':
+        raise ValueError("Protection critique : le compte Super Administrateur ne peut jamais être supprimé.")
+
 # -----------------------------------------------------------------------------
 # Professeur
 # -----------------------------------------------------------------------------

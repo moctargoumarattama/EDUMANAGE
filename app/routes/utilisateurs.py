@@ -186,6 +186,10 @@ def modifier_utilisateur(id):
         return redirect(url_for('main.gestion_ecoles'))
 
     user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=id).first_or_404()
+    if user.role == 'super_admin' and current_user.id != user.id:
+        flash("Le compte Super Administrateur est protégé et ne peut pas être modifié par un autre administrateur.", "danger")
+        return redirect(url_for('main.gestion_utilisateurs'))
+
     roles_autorises = ['admin', 'parent', 'professeur']
 
     if request.method == 'POST':
@@ -194,12 +198,12 @@ def modifier_utilisateur(id):
         email = request.form.get('email', '').strip().lower()
 
         if role not in roles_autorises:
-            flash("RÃ´le utilisateur invalide.", "danger")
+            flash("Rôle utilisateur invalide.", "danger")
             return redirect(url_for('main.modifier_utilisateur', id=user.id))
 
         doublon = Utilisateur.query.filter(Utilisateur.email == email, Utilisateur.id != user.id).first()
         if doublon:
-            flash("Cet email est dÃ©jÃ  utilisÃ©.", "danger")
+            flash("Cet email est déjà utilisé.", "danger")
             return redirect(url_for('main.modifier_utilisateur', id=user.id))
 
         user.nom = request.form.get('nom', user.nom).strip()
@@ -214,7 +218,7 @@ def modifier_utilisateur(id):
             user.mot_de_passe = bcrypt.generate_password_hash(password).decode('utf-8')
 
         db.session.commit()
-        flash("Utilisateur modifiÃ© avec succÃ¨s.", "success")
+        flash("Utilisateur modifié avec succès.", "success")
         return redirect(url_for('main.gestion_utilisateurs'))
 
     return render_template('edit_utilisateur.html', user=user, roles=roles_autorises)
@@ -225,9 +229,12 @@ def modifier_utilisateur(id):
 def changer_statut_utilisateur(user_id):
     try:
         user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
+        if user.role == 'super_admin':
+            return jsonify({'success': False, 'message': 'Le compte Super Administrateur est protégé et ne peut pas être désactivé.'}), 403
+
         data = request.get_json()
         if not data or 'statut' not in data:
-            return jsonify({'success': False, 'message': 'DonnÃ©es JSON requises'}), 400
+            return jsonify({'success': False, 'message': 'Données JSON requises'}), 400
 
         nouveau_statut = data.get('statut')
         if nouveau_statut not in ['actif', 'bloque']:
@@ -247,8 +254,11 @@ def changer_statut_utilisateur(user_id):
 def supprimer_utilisateur(user_id):
     user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
 
+    if user.role == 'super_admin':
+        return jsonify({'success': False, 'message': 'Le compte Super Administrateur est protégé et ne peut jamais être supprimé.'}), 403
+
     if user.id == current_user.id:
-        return jsonify({'success': False, 'message': 'Vous ne pouvez pas vous supprimer vous-mÃªme'}), 403
+        return jsonify({'success': False, 'message': 'Vous ne pouvez pas vous supprimer vous-même'}), 403
 
     try:
         db.session.delete(user)
