@@ -289,7 +289,7 @@ def safe_delete_ecole(ecole_id):
     """Supprime proprement et en cascade toutes les données liées à une école"""
     from app.models import (
         Absence, Alerte, AnneeScolaire, ArchiveAbsence, ArchiveNote,
-        Bulletin, Classe, Cours, Eleve, EmploiTemps, HistoriqueImport,
+        Bulletin, Classe, Cours, EcoleGoogleMailConfig, Eleve, EmploiTemps, HistoriqueImport,
         Inscription, JournalCorrection, Log, Note, Paiement,
         PeriodeBulletin, Presence, Professeur, Utilisateur
     )
@@ -354,7 +354,8 @@ def safe_delete_ecole(ecole_id):
     ).delete(synchronize_session=False)
 
     # 8. Nettoyer la session courante si nécessaire
-    if session.get('ecole_id') == ecole_id:
+    from flask import has_request_context
+    if has_request_context() and session.get('ecole_id') == ecole_id:
         autre_ecole = Ecole.query.filter(Ecole.id != ecole_id).first()
         session['ecole_id'] = autre_ecole.id if autre_ecole else None
 

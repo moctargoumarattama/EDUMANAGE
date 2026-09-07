@@ -418,7 +418,7 @@ def rapports():
             'niveau': getattr(c, 'niveau', '') or '',
             'salle': getattr(c, 'salle', '') or '',
             'effectif': effectif,
-            'capacite': getattr(c, 'capacite_max', 30) or 30,
+            'capacite': getattr(c, 'capacite', None) or getattr(c, 'capacite_max', None) or 35,
             'garcons': garcons,
             'filles': filles,
             'total_absences': total_absences_classe,

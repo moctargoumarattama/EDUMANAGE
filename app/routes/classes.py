@@ -70,15 +70,15 @@ def api_classes():
 def liste_classes():
     page = request.args.get('page', 1, type=int)
     per_page = 25  # Affichage confortable pour les longues listes
-    
+
     # Filtres
     search = request.args.get('search', '')
     niveau = request.args.get('niveau', '')
     sort_by = request.args.get('sort', 'nom')
-    
+
     # Base query pour l'Ã©cole de l'utilisateur
     base_query = Classe.query.filter_by(ecole_id=current_user.ecole_id)
-    
+
     if current_user.role == 'professeur':
         professeur = current_user.get_professeur()
         if professeur:
@@ -93,14 +93,14 @@ def liste_classes():
             )
         else:
             return render_template("classes.html", classes=[], **get_statistics([]))
-    
+
     # Appliquer les filtres
     if search:
         base_query = base_query.filter(Classe.nom.ilike(f'%{search}%'))
-    
+
     if niveau:
         base_query = base_query.filter(Classe.niveau == niveau)
-    
+
     # Appliquer le tri
     if sort_by == 'effectif':
         base_query = base_query.order_by(Classe.effectif.desc())
@@ -108,26 +108,26 @@ def liste_classes():
         base_query = base_query.order_by(Classe.niveau)
     else:  # tri par nom par dÃ©faut
         base_query = base_query.order_by(Classe.nom)
-    
+
     # Pagination
     classes_paginated = base_query.paginate(
         page=page, per_page=per_page, error_out=False
     )
-    
+
     # RÃ©cupÃ©rer toutes les classes pour les statistiques (sans pagination)
     all_classes = base_query.all()
-    
+
     # Calculer les valeurs pour la pagination
     start_item = ((page - 1) * per_page) + 1
     end_item = min(page * per_page, classes_paginated.total)
-    
+
     return render_template(
         "classes.html",
         classes=classes_paginated.items,
         pagination=classes_paginated,
-        total_eleves=sum(c.effectif for c in all_classes),
-        moyenne_effectif=int(sum(c.effectif for c in all_classes) / len(all_classes)) if all_classes else 0,
-        classes_pleines=sum(1 for c in all_classes if c.effectif >= (c.capacite or 30)),
+        total_eleves=sum(c.effectif_reel for c in all_classes),
+        moyenne_effectif=int(sum(c.effectif_reel for c in all_classes) / len(all_classes)) if all_classes else 0,
+        classes_pleines=sum(1 for c in all_classes if c.effectif_reel >= (c.capacite or c.capacite_max or 35)),
         current_filters={
             'search': search,
             'niveau': niveau,
@@ -141,44 +141,54 @@ def liste_classes():
 @login_required
 @role_required('admin')
 def ajouter_classe():
-    form = ClasseForm()
-    # Professeurs filtrÃ©s par Ã©cole
-    professeurs = get_ecole_filter_query(Professeur).filter_by(ecole_id=current_user.ecole_id).all()
+    from app.models import AnneeScolaire, Professeur, Classe
 
-    # Charger les annÃ©es scolaires pour le form
-    from app.models import AnneeScolaire
-    annees_ecole = AnneeScolaire.query.filter_by(ecole_id=current_user.ecole_id).order_by(AnneeScolaire.id.desc()).all()
-    form.annee_scolaire_id.choices = [(a.id, a.nom) for a in annees_ecole]
-
-    # PrÃ©-selection annÃ©e active
+    # Récupération obligatoire de l'année scolaire active pour l'école
     annee_active = AnneeScolaire.query.filter_by(ecole_id=current_user.ecole_id, statut='active').first()
-    if annee_active:
-        form.annee_scolaire_id.data = annee_active.id
+    if not annee_active:
+        flash("Veuillez d'abord activer une année scolaire pour votre établissement avant d'ajouter une classe.", "warning")
+        return redirect(url_for("main.gestion_annees"))
+
+    form = ClasseForm()
+    # Professeurs filtrés par école
+    professeurs = get_ecole_filter_query(Professeur).filter_by(ecole_id=current_user.ecole_id).order_by(Professeur.nom).all()
+    form.professeur_principal_id.choices = [(0, "--- Aucun professeur principal ---")] + [
+        (p.id, f"{p.prenom} {p.nom}") for p in professeurs
+    ]
+    form.annee_scolaire_id.choices = [(annee_active.id, annee_active.nom)]
+    form.annee_scolaire_id.data = annee_active.id
 
     if form.validate_on_submit():
         try:
-            # VÃ©rifier doublon : mÃªme nom + annÃ©e + Ã©cole
+            nom_classe = form.nom.data.strip() if form.nom.data else ""
+
+            # Vérifier doublon : même nom + année active + école
             existing = Classe.query.filter_by(
-                nom=form.nom.data,
-                annee_scolaire_id=form.annee_scolaire_id.data,
+                nom=nom_classe,
+                annee_scolaire_id=annee_active.id,
                 ecole_id=current_user.ecole_id
             ).first()
             if existing:
-                flash("Une classe avec ce nom existe dÃ©jÃ  pour cette annÃ©e scolaire.", "warning")
+                flash(f"Une classe nommée '{nom_classe}' existe déjà pour l'année scolaire active ({annee_active.nom}).", "warning")
                 return redirect(url_for("main.ajouter_classe"))
 
+            prof_id = form.professeur_principal_id.data if (form.professeur_principal_id.data and form.professeur_principal_id.data > 0) else None
+            capacite_val = form.capacite.data or form.effectif.data or 35
+
             classe = Classe(
-                nom=form.nom.data,
+                nom=nom_classe,
                 niveau=form.niveau.data,
-                effectif=form.effectif.data,
-                salle=form.salle.data,
-                professeur_id=form.professeur_principal_id.data,
-                annee_scolaire_id=form.annee_scolaire_id.data,
+                capacite=capacite_val,
+                capacite_max=capacite_val,
+                effectif=0,
+                salle=None,
+                professeur_id=prof_id,
+                annee_scolaire_id=annee_active.id,
                 ecole_id=current_user.ecole_id
             )
             db.session.add(classe)
             db.session.commit()
-            flash("Classe ajoutÃ©e avec succÃ¨s Ã¢Å“â€¦", "success")
+            flash(f"Classe '{nom_classe}' (Capacité : {capacite_val} élèves) ajoutée avec succès pour l'année {annee_active.nom} ✅", "success")
             return redirect(url_for("main.liste_classes"))
         except Exception as e:
             db.session.rollback()
@@ -186,7 +196,12 @@ def ajouter_classe():
             flash("Erreur lors de l'ajout de la classe.", "danger")
             return redirect(url_for("main.ajouter_classe"))
 
-    return render_template("add_class.html", form=form, professeurs=professeurs, annees_ecole=annees_ecole, annee_active=annee_active)
+    return render_template(
+        "add_class.html",
+        form=form,
+        professeurs=professeurs,
+        annee_active=annee_active
+    )
 
 @main.route("/classes/<int:classe_id>")
 @login_required
@@ -209,41 +224,113 @@ def detail_classe(classe_id):
             abort(403)
     else:
         classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first_or_404()
-    # RÃ©cupÃ©rer inscriptions et notes avec optimisation N+1
-    inscriptions = Inscription.query.options(
-        joinedload(Inscription.eleve).joinedload(Eleve.notes).joinedload(Note.cours)
-    ).filter_by(classe_id=classe.id).all()
+    from app.models import Absence, Note, Cours, Eleve, Professeur
 
-    eleves_data = []
-    for ins in inscriptions:
-        eleve = ins.eleve
-        if not eleve:
-            continue
-        notes_par_annee = {}
-        for n in (eleve.notes or []):
-            annee = ins.annee_scolaire
-            if annee not in notes_par_annee:
-                notes_par_annee[annee] = []
-            notes_par_annee[annee].append({
-                "matiere": n.cours.nom if n.cours else "N/A",
-                "valeur": n.valeur,
-                "periode": n.periode
-            })
+    # 1. Liste des élèves réels de la classe
+    eleves = Eleve.query.filter_by(classe_id=classe.id, ecole_id=classe.ecole_id).order_by(Eleve.nom.asc(), Eleve.prenom.asc()).all()
+    total_eleves = len(eleves)
+    capacite = classe.capacite or classe.capacite_max or 35
+    taux_remplissage = round((total_eleves / capacite) * 100) if capacite > 0 else 0
 
-        parent_nom = f"{eleve.parent.nom} {eleve.parent.prenom}" if getattr(eleve, 'parent', None) else "N/A"
-        eleves_data.append({
-            "nom": eleve.nom,
-            "prenom": eleve.prenom,
-            "classe": classe.nom,
-            "parent": parent_nom,
-            "annee_premiere_ecole": getattr(eleve, 'annee_premiere_ecole', "N/A"),
-            "notes_par_annee": notes_par_annee
+    # 2. Répartition réelle par genre
+    filles_count = sum(1 for e in eleves if (e.genre or '').upper() == 'F')
+    garcons_count = sum(1 for e in eleves if (e.genre or '').upper() in ['M', 'H', 'G'])
+
+    # 3. Statistiques réelles des absences
+    eleve_ids = [e.id for e in eleves]
+    total_absences = Absence.query.filter(Absence.eleve_id.in_(eleve_ids)).count() if eleve_ids else 0
+    absences_justifiees = Absence.query.filter(Absence.eleve_id.in_(eleve_ids), Absence.justifiee == True).count() if eleve_ids else 0
+    absences_non_justifiees = total_absences - absences_justifiees
+
+    # 4. Données détaillées par élève
+    eleves_details = []
+    for e in eleves:
+        nb_abs = Absence.query.filter_by(eleve_id=e.id).count()
+        notes_e = [n.valeur for n in (e.notes or []) if n.valeur is not None]
+        moyenne_e = round(sum(notes_e) / len(notes_e), 2) if notes_e else None
+
+        parent_nom = f"{e.parent.prenom or ''} {e.parent.nom}".strip() if e.parent else (e.contact_parent or "Non renseigné")
+        parent_tel = e.parent.telephone if (e.parent and e.parent.telephone) else (e.contact_parent or "Non renseigné")
+        parent_email = e.parent.email if (e.parent and e.parent.email) else (e.email_parent or "")
+
+        eleves_details.append({
+            'id': e.id,
+            'nom': e.nom,
+            'prenom': e.prenom,
+            'genre': e.genre or 'M',
+            'date_naissance': e.date_naissance,
+            'contact_parent': parent_tel,
+            'parent_nom': parent_nom,
+            'email_parent': parent_email,
+            'statut': e.statut or 'Actif',
+            'nb_absences': nb_abs,
+            'moyenne': moyenne_e
         })
+
+    # 5. Moyennes réelles par matière
+    cours_classe = Cours.query.filter_by(classe_id=classe.id).all()
+    matieres_stats = []
+    for c in cours_classe:
+        notes_cours = Note.query.filter(Note.cours_id == c.id, Note.eleve_id.in_(eleve_ids)).all() if eleve_ids else []
+        notes_vals = [n.valeur for n in notes_cours if n.valeur is not None]
+        avg = round(sum(notes_vals) / len(notes_vals), 2) if notes_vals else None
+        matieres_stats.append({
+            'id': c.id,
+            'nom': c.nom,
+            'coefficient': c.coefficient,
+            'professeur': f"{c.professeur.prenom} {c.professeur.nom}" if c.professeur else "Non assigné",
+            'moyenne': avg,
+            'nb_notes': len(notes_vals)
+        })
+
+    # Moyenne générale de la classe
+    all_notes = Note.query.filter(Note.eleve_id.in_(eleve_ids)).all() if eleve_ids else []
+    all_notes_vals = [n.valeur for n in all_notes if n.valeur is not None]
+    moyenne_generale_classe = round(sum(all_notes_vals) / len(all_notes_vals), 2) if all_notes_vals else None
+
+    # 6. Professeurs réels intervenants
+    profs_intervenants = {}
+    if classe.professeur:
+        profs_intervenants[classe.professeur.id] = {
+            'prof': classe.professeur,
+            'role': 'Professeur principal',
+            'matieres': classe.professeur.specialite or 'Principal'
+        }
+    for c in cours_classe:
+        if c.professeur:
+            if c.professeur.id not in profs_intervenants:
+                profs_intervenants[c.professeur.id] = {
+                    'prof': c.professeur,
+                    'role': 'Enseignant',
+                    'matieres': c.nom
+                }
+            else:
+                if c.nom not in profs_intervenants[c.professeur.id]['matieres']:
+                    profs_intervenants[c.professeur.id]['matieres'] += f", {c.nom}"
+
+    for p in classe.professeurs_assignes.all():
+        if p.id not in profs_intervenants:
+            profs_intervenants[p.id] = {
+                'prof': p,
+                'role': 'Enseignant assigné',
+                'matieres': p.specialite or 'Général'
+            }
 
     return render_template(
         "class_detail.html",
         classe=classe,
-        eleves_data=eleves_data
+        eleves_details=eleves_details,
+        total_eleves=total_eleves,
+        capacite=capacite,
+        taux_remplissage=taux_remplissage,
+        filles_count=filles_count,
+        garcons_count=garcons_count,
+        total_absences=total_absences,
+        absences_justifiees=absences_justifiees,
+        absences_non_justifiees=absences_non_justifiees,
+        matieres_stats=matieres_stats,
+        moyenne_generale_classe=moyenne_generale_classe,
+        profs_intervenants=list(profs_intervenants.values())
     )
 
 @main.route("/classes/<int:classe_id>/modifier", methods=["GET", "POST"])
@@ -252,39 +339,30 @@ def detail_classe(classe_id):
 def modifier_classe(classe_id):
     classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first_or_404()
     form = ClasseForm(obj=classe)
-    annees_ecole = AnneeScolaire.query.filter_by(ecole_id=current_user.ecole_id).order_by(AnneeScolaire.id.desc()).all()
     professeurs = Professeur.query.filter_by(ecole_id=current_user.ecole_id).order_by(Professeur.nom).all()
-    form.annee_scolaire_id.choices = [(a.id, a.nom) for a in annees_ecole]
-    form.professeur_principal_id.choices = [(p.id, f"{p.prenom} {p.nom}") for p in professeurs]
+    form.professeur_principal_id.choices = [(0, "--- Aucun professeur principal ---")] + [
+        (p.id, f"{p.prenom} {p.nom}") for p in professeurs
+    ]
 
     if request.method == "GET":
-        form.annee_scolaire_id.data = classe.annee_scolaire_id
-        form.professeur_principal_id.data = classe.professeur_id
+        form.capacite.data = classe.capacite or classe.capacite_max or 35
+        form.professeur_principal_id.data = classe.professeur_id or 0
 
     if form.validate_on_submit():
-        annee = AnneeScolaire.query.filter_by(id=form.annee_scolaire_id.data, ecole_id=current_user.ecole_id).first()
-        professeur = None
-        if form.professeur_principal_id.data:
-            professeur = Professeur.query.filter_by(id=form.professeur_principal_id.data, ecole_id=current_user.ecole_id).first()
+        prof_id = form.professeur_principal_id.data if (form.professeur_principal_id.data and form.professeur_principal_id.data > 0) else None
+        capacite_val = form.capacite.data or form.effectif.data or classe.capacite or 35
 
-        if not annee:
-            flash("AnnÃ©e scolaire invalide pour cette Ã©cole.", "danger")
-            return redirect(url_for("main.modifier_classe", classe_id=classe.id))
-        if form.professeur_principal_id.data and not professeur:
-            flash("Professeur invalide pour cette Ã©cole.", "danger")
-            return redirect(url_for("main.modifier_classe", classe_id=classe.id))
-
-        classe.nom = form.nom.data
+        classe.nom = form.nom.data.strip() if form.nom.data else classe.nom
         classe.niveau = form.niveau.data
-        classe.effectif = form.effectif.data
-        classe.salle = form.salle.data
-        classe.professeur_id = professeur.id if professeur else None
-        classe.annee_scolaire_id = annee.id
+        classe.capacite = capacite_val
+        classe.capacite_max = capacite_val
+        classe.effectif = classe.effectif_reel
+        classe.professeur_id = prof_id
         db.session.commit()
-        flash("Classe modifiÃ©e avec succÃ¨s.", "success")
+        flash(f"Classe '{classe.nom}' modifiée avec succès (Capacité : {classe.capacite} élèves) ✅", "success")
         return redirect(url_for("main.liste_classes"))
 
-    return render_template("modifier_classe.html", form=form, classe=classe, annees_ecole=annees_ecole)
+    return render_template("modifier_classe.html", form=form, classe=classe)
 
 
 @main.route("/classes/<int:classe_id>/supprimer", methods=["POST"])
@@ -353,13 +431,13 @@ def api_classes_par_annee(annee_id):
         Classe.ecole_id == current_user.ecole_id,
         Classe.annee_scolaire_id == annee_id
     ).order_by(Classe.nom).all()
-    
+
     classes_list = [{
-        'id': c.id, 
+        'id': c.id,
         'nom': c.nom_complet,
         'niveau': c.niveau,
         'effectif': c.effectif_reel
     } for c in classes]
-    
+
     return jsonify(classes_list)
 

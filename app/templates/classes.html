@@ -102,8 +102,9 @@
     {% if classes %}
     <div class="class-grid">
         {% for classe in classes %}
-        {% set capacite = classe.capacite or 30 %}
-        {% set capacity_percentage = ((classe.effectif or 0) / capacite * 100) if capacite else 0 %}
+        {% set capacite = classe.capacite or classe.capacite_max or 35 %}
+        {% set effectif_actuel = classe.effectif_reel %}
+        {% set capacity_percentage = ((effectif_actuel / capacite * 100)|round(0, 'floor')) if capacite else 0 %}
         <article class="class-card">
             <div class="class-card-header">
                 <div class="class-card-icon">
@@ -111,27 +112,27 @@
                 </div>
                 <div class="min-w-0">
                     <h2>{{ classe.nom }}</h2>
-                    <p>{{ classe.salle or 'Salle non renseignée' }}</p>
+                    <p>{{ classe.niveau or 'Niveau non renseigné' }}</p>
                 </div>
             </div>
 
             <div class="class-card-meta">
                 <span><strong>Niveau</strong>{{ classe.niveau or 'N/A' }}</span>
-                <span><strong>Effectif</strong>{{ classe.effectif or 0 }} élève(s)</span>
-                <span><strong>Capacité</strong>{{ capacite }}</span>
+                <span><strong>Inscrits</strong>{{ effectif_actuel }} élève(s)</span>
+                <span><strong>Capacité</strong>{{ capacite }} max</span>
             </div>
 
             <div>
                 <div class="class-progress">
-                    <span class="{% if capacity_percentage >= 90 %}bg-danger{% elif capacity_percentage >= 70 %}bg-warning{% else %}bg-success{% endif %}" data-progress="{{ capacity_percentage|round(0, 'floor') }}"></span>
+                    <span class="{% if capacity_percentage >= 100 %}bg-danger{% elif capacity_percentage >= 80 %}bg-warning{% else %}bg-success{% endif %}" data-progress="{{ [capacity_percentage, 100]|min }}"></span>
                 </div>
                 <div class="class-status">
-                    {% if capacity_percentage >= 90 %}
-                    <span class="badge bg-danger">Complet</span>
-                    {% elif capacity_percentage >= 70 %}
-                    <span class="badge bg-warning text-dark">Presque complet</span>
+                    {% if capacity_percentage >= 100 %}
+                    <span class="badge bg-danger">Complet ({{ effectif_actuel }}/{{ capacite }})</span>
+                    {% elif capacity_percentage >= 80 %}
+                    <span class="badge bg-warning text-dark">Presque complet ({{ effectif_actuel }}/{{ capacite }})</span>
                     {% else %}
-                    <span class="badge bg-success">Disponible</span>
+                    <span class="badge bg-success">Disponible ({{ effectif_actuel }}/{{ capacite }})</span>
                     {% endif %}
                 </div>
             </div>

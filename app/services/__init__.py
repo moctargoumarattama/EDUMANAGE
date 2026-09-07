@@ -93,13 +93,12 @@ def get_statistics(classes):
             'classes_pleines': 0
         }
 
-    total_eleves = sum(c.effectif for c in classes)
+    total_eleves = sum(c.effectif_reel for c in classes)
     moyenne_effectif = int(total_eleves / len(classes)) if classes else 0
 
     classes_pleines = 0
     for c in classes:
-        nb_inscriptions = db.session.query(func.count(Inscription.id)).filter_by(classe_id=c.id).scalar()
-        if nb_inscriptions >= (c.capacite or 30):
+        if c.est_pleine:
             classes_pleines += 1
 
     return {

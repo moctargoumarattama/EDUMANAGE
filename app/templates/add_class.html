@@ -36,12 +36,20 @@
                         {{ form.hidden_tag() }}
 
                         <div class="form-section">
-                            <h3 class="form-section-title">
-                                <i class="fas fa-chalkboard"></i> Informations de la classe
-                            </h3>
+                            <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                                <h3 class="form-section-title mb-0">
+                                    <i class="fas fa-chalkboard"></i> Informations de la classe
+                                </h3>
+                                {% if annee_active %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill small fw-semibold">
+                                    <i class="fas fa-calendar-check me-1"></i>Année active : {{ annee_active.nom }}
+                                </span>
+                                {% endif %}
+                            </div>
+
                             <div class="responsive-form-grid">
                                 <div>
-                                    {{ form.nom.label(class="form-label") }}
+                                    {{ form.nom.label(class="form-label fw-medium") }}
                                     {{ form.nom(class="form-control", placeholder="Ex: 6ème A") }}
                                     {% for error in form.nom.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
@@ -49,7 +57,7 @@
                                 </div>
 
                                 <div>
-                                    {{ form.niveau.label(class="form-label") }}
+                                    {{ form.niveau.label(class="form-label fw-medium") }}
                                     {{ form.niveau(class="form-select") }}
                                     {% for error in form.niveau.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
@@ -57,31 +65,16 @@
                                 </div>
 
                                 <div>
-                                    {{ form.effectif.label(class="form-label") }}
-                                    {{ form.effectif(class="form-control", type="number", min="1") }}
-                                    {% for error in form.effectif.errors %}
+                                    <label for="capacite" class="form-label fw-medium">Capacité maximale d'élèves</label>
+                                    {{ form.capacite(class="form-control", type="number", min="1", max="500", placeholder="Ex: 35") }}
+                                    <div class="form-text text-muted small">Limite d'élèves fixée par vous (modifiable).</div>
+                                    {% for error in form.capacite.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
                                     {% endfor %}
                                 </div>
 
                                 <div>
-                                    {{ form.salle.label(class="form-label") }}
-                                    {{ form.salle(class="form-control", placeholder="Ex: Salle 101") }}
-                                    {% for error in form.salle.errors %}
-                                    <div class="invalid-feedback d-block">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-
-                                <div>
-                                    {{ form.annee_scolaire_id.label(class="form-label") }}
-                                    {{ form.annee_scolaire_id(class="form-select") }}
-                                    {% for error in form.annee_scolaire_id.errors %}
-                                    <div class="invalid-feedback d-block">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-
-                                <div>
-                                    {{ form.professeur_principal_id.label(class="form-label") }}
+                                    {{ form.professeur_principal_id.label(class="form-label fw-medium") }}
                                     {{ form.professeur_principal_id(class="form-select") }}
                                     {% for error in form.professeur_principal_id.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>

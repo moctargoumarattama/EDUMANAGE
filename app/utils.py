@@ -607,14 +607,24 @@ def notify_parent(eleve_id: int, subject: str, message: str) -> bool:
         if not eleve or not eleve.email_parent:
             return False
         
-        # Vérifier que l'élève est dans la bonne école
-        if not ensure_ecole_consistency(eleve):
+        # Vérifier que l'élève a une école valide et cohérente avec le contexte s'il existe
+        if not eleve.ecole_id:
+            return False
+
+        from app.middleware import get_ecole_id
+        current_req_ecole = get_ecole_id()
+        if current_req_ecole and eleve.ecole_id != current_req_ecole:
             current_app.logger.error(
-                f"Tentative d'envoi de notification à un élève d'une autre école"
+                f"Tentative d'envoi de notification à un élève d'une autre école ({eleve.ecole_id} vs {current_req_ecole})"
             )
             return False
         
-        return envoyer_email(eleve.email_parent, subject, message)
+        from app.services.google_mail import send_school_email, SchoolMailNotConfiguredError
+        try:
+            return send_school_email(eleve.ecole_id, eleve.email_parent, subject, message)
+        except SchoolMailNotConfiguredError as e:
+            current_app.logger.warning(f"Gmail école {eleve.ecole_id} non connecté: {e}")
+            return False
         
     except Exception as e:
         current_app.logger.error(f"Erreur notification parent: {e}")

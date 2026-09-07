@@ -555,6 +555,25 @@
                                 </ul>
                             </li>
 
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ('main.config_email',) }}" href="#" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-cog me-1"></i>Paramètres
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ url_for('main.config_email') }}">
+                                            <span><i class="fas fa-envelope me-2 text-primary"></i>E-mail de l'établissement</span>
+                                            {% if current_user.ecole and current_user.ecole.google_mail_config and current_user.ecole.google_mail_config.is_connected %}
+                                                <span class="badge bg-success ms-2" style="font-size: 0.65rem;">Connecté</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark ms-2" style="font-size: 0.65rem;">À connecter</span>
+                                            {% endif %}
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+
+
                         <!-- 🔹 PROFESSEUR/ENSEIGNANT : Accès à ses classes et cours -->
                         {% elif current_user.role == 'professeur' %}
                             <li class="nav-item">
@@ -680,6 +699,11 @@
                         {% if current_user.role in ['admin', 'super_admin'] %}
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 py-1 rounded-3" aria-labelledby="userDropdown" style="min-width: 200px;">
                             {% if current_user.role == 'admin' %}
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center py-2" href="{{ url_for('main.config_email') }}">
+                                    <i class="fas fa-envelope text-primary me-2"></i>E-mail de l'établissement
+                                </a>
+                            </li>
                             <li>
                                 <a class="dropdown-item d-flex align-items-center py-2" href="{{ url_for('main.index', start_tour=1) }}" onclick="if(window.KlasoraTour){window.KlasoraTour.start(true);return false;}">
                                     <i class="fas fa-question-circle text-primary me-2"></i>Revoir la visite guidée

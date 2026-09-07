@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+
+{% block title %}E-mail de l'établissement - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container py-4 py-lg-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 col-xl-7">
+
+            <!-- En-tête avec fil d'Ariane -->
+            <div class="mb-4">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-1 small">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}" class="text-decoration-none text-muted"><i class="fas fa-home me-1"></i>Accueil</a></li>
+                        <li class="breadcrumb-item text-muted">Paramètres</li>
+                        <li class="breadcrumb-item active fw-semibold text-primary" aria-current="page">E-mail</li>
+                    </ol>
+                </nav>
+            </div>
+
+            <!-- Carte Principale Moderne -->
+            <div class="card email-config-card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+                
+                <!-- Ligne supérieure aux couleurs Google -->
+                <div class="google-accent-bar"></div>
+
+                <div class="card-body p-4 p-md-5">
+
+                    {% if mail_status.is_connected %}
+                    <!-- ==================================================== -->
+                    <!-- ÉTAT 1 : GMAIL CONNECTÉ & ACTIF ✅ -->
+                    <!-- ==================================================== -->
+                    <div class="text-center">
+
+                        <!-- Badge de Statut Actif -->
+                        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-success-subtle text-success border border-success-subtle mb-4">
+                            <span class="status-pulse-dot bg-success"></span>
+                            <span class="small fw-semibold">Gmail Actif & Opérationnel</span>
+                        </div>
+
+                        <!-- Boîte d'informations du compte connecté -->
+                        <div class="connected-account-box p-4 rounded-4 mb-4 text-start border">
+                            <div class="d-flex flex-column flex-sm-row align-items-center gap-3">
+                                <div class="google-avatar-wrapper flex-shrink-0">
+                                    <!-- Logo SVG Google -->
+                                    <svg width="36" height="36" viewBox="0 0 48 48">
+                                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                                    </svg>
+                                </div>
+                                <div class="flex-grow-1 text-center text-sm-start min-w-0">
+                                    <div class="text-muted small mb-1">Expéditeur officiel de l'école</div>
+                                    <div class="fw-bold text-dark fs-5 text-truncate" title="{{ mail_status.email }}">
+                                        {{ mail_status.email }}
+                                    </div>
+                                    <div class="text-muted small mt-1">
+                                        <i class="fas fa-school me-1 text-primary"></i>{{ ecole.nom }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Grille de services actifs -->
+                        <div class="row g-2 mb-4 text-start">
+                            <div class="col-6 col-sm-3">
+                                <div class="p-2 rounded-3 bg-light text-center">
+                                    <i class="fas fa-file-pdf text-danger mb-1 fs-5"></i>
+                                    <div class="small fw-semibold text-dark">Bulletins</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-sm-3">
+                                <div class="p-2 rounded-3 bg-light text-center">
+                                    <i class="fas fa-calendar-times text-warning mb-1 fs-5"></i>
+                                    <div class="small fw-semibold text-dark">Absences</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-sm-3">
+                                <div class="p-2 rounded-3 bg-light text-center">
+                                    <i class="fas fa-receipt text-success mb-1 fs-5"></i>
+                                    <div class="small fw-semibold text-dark">Paiements</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-sm-3">
+                                <div class="p-2 rounded-3 bg-light text-center">
+                                    <i class="fas fa-bell text-primary mb-1 fs-5"></i>
+                                    <div class="small fw-semibold text-dark">Alertes</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Actions Principales -->
+                        <div class="d-flex flex-column flex-sm-row justify-content-center align-items-center gap-2 pt-2">
+                            <!-- Bouton Test d'envoi -->
+                            <form action="{{ url_for('main.envoyer_email_test_ecole') }}" method="POST" class="w-100 w-sm-auto">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-primary w-100 px-4 py-2 rounded-pill fw-semibold shadow-sm d-inline-flex align-items-center justify-content-center gap-2">
+                                    <i class="fas fa-paper-plane"></i>
+                                    <span>Envoyer un e-mail de test</span>
+                                </button>
+                            </form>
+
+                            <!-- Bouton Changer de compte -->
+                            <a href="{{ url_for('main.google_mail_connect') }}" class="btn btn-light border w-100 w-sm-auto px-3 py-2 rounded-pill fw-medium text-secondary d-inline-flex align-items-center justify-content-center gap-2">
+                                <i class="fas fa-sync-alt"></i>
+                                <span>Changer de compte</span>
+                            </a>
+
+                            <!-- Bouton Déconnexion -->
+                            <button type="button" class="btn btn-outline-danger w-100 w-sm-auto px-3 py-2 rounded-pill fw-medium d-inline-flex align-items-center justify-content-center gap-2" data-bs-toggle="modal" data-bs-target="#deconnecterGmailModal">
+                                <i class="fas fa-power-off"></i>
+                                <span>Déconnecter</span>
+                            </button>
+                        </div>
+
+                    </div>
+
+                    {% else %}
+                    <!-- ==================================================== -->
+                    <!-- ÉTAT 2 : GMAIL NON CONNECTÉ (Design Commercial) -->
+                    <!-- ==================================================== -->
+                    <div class="text-center py-2">
+
+                        <!-- Icône Google avec halo lumineux -->
+                        <div class="google-icon-aura mb-3 mx-auto">
+                            <!-- SVG Officiel Google -->
+                            <svg width="48" height="48" viewBox="0 0 48 48">
+                                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                            </svg>
+                        </div>
+
+                        <!-- Titre Commercial & Accrocheur -->
+                        <h3 class="fw-bold text-dark mb-2">Connecter votre compte Gmail</h3>
+                        <p class="text-muted mx-auto mb-4" style="max-width: 440px; font-size: 0.95rem;">
+                            Envoyez automatiquement vos bulletins scolaires, reçus et alertes d'absences directement depuis l'adresse officielle de <strong>{{ ecole.nom }}</strong>.
+                        </p>
+
+                        <!-- 3 Avantages Clés Commerciaux -->
+                        <div class="row g-2 text-start mb-4 justify-content-center">
+                            <div class="col-12 col-sm-4">
+                                <div class="p-3 rounded-3 bg-light h-100 d-flex flex-sm-column align-items-center text-sm-center gap-2">
+                                    <div class="value-icon text-primary"><i class="fas fa-bolt fa-lg"></i></div>
+                                    <div>
+                                        <div class="fw-semibold text-dark small">1 Clic Immédiat</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Connexion instantanée sans réglage</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <div class="p-3 rounded-3 bg-light h-100 d-flex flex-sm-column align-items-center text-sm-center gap-2">
+                                    <div class="value-icon text-success"><i class="fas fa-shield-alt fa-lg"></i></div>
+                                    <div>
+                                        <div class="fw-semibold text-dark small">100% Sécurisé</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Protégé par l'accès officiel Google</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <div class="p-3 rounded-3 bg-light h-100 d-flex flex-sm-column align-items-center text-sm-center gap-2">
+                                    <div class="value-icon text-info"><i class="fas fa-inbox fa-lg"></i></div>
+                                    <div>
+                                        <div class="fw-semibold text-dark small">Délivrabilité Max</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Arrive direct chez les parents</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bouton Officiel Google Sign-In -->
+                        <div class="pt-2">
+                            <a href="{{ url_for('main.google_mail_connect') }}" class="google-auth-btn text-decoration-none">
+                                <svg width="22" height="22" viewBox="0 0 48 48">
+                                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                                </svg>
+                                <span>Se connecter avec Google</span>
+                            </a>
+                        </div>
+
+                        <!-- Note de confiance discrète -->
+                        <div class="text-muted mt-3 small" style="font-size: 0.78rem;">
+                            <i class="fas fa-lock me-1 text-muted"></i>Connexion certifiée Google Cloud • Vos identifiants restent confidentiels
+                        </div>
+
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+
+            <!-- Lien de retour discret -->
+            <div class="text-center mt-4">
+                <a href="{{ url_for('main.index') }}" class="text-muted text-decoration-none small">
+                    <i class="fas fa-arrow-left me-1"></i>Retour au tableau de bord
+                </a>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmation de déconnexion -->
+{% if mail_status.is_connected %}
+<div class="modal fade" id="deconnecterGmailModal" tabindex="-1" aria-labelledby="deconnecterGmailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-danger text-white border-0 py-3">
+                <h6 class="modal-title fw-bold" id="deconnecterGmailModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Déconnecter Gmail ?
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="mb-2 text-dark">
+                    Voulez-vous déconnecter <strong>{{ mail_status.email }}</strong> de l'établissement ?
+                </p>
+                <p class="small text-muted mb-0">
+                    L'envoi des bulletins et notifications sera suspendu jusqu'à la reconnexion d'un compte.
+                </p>
+            </div>
+            <div class="modal-footer bg-light border-0 p-3">
+                <button type="button" class="btn btn-light rounded-pill px-3" data-bs-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('main.deconnecter_gmail_ecole') }}" method="POST" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger rounded-pill px-3 fw-semibold">
+                        Déconnecter
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+/* Style moderne & commercial de la carte */
+.email-config-card {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+.google-accent-bar {
+    height: 4px;
+    background: linear-gradient(90deg, #4285F4 0%, #34A853 33%, #FBBC05 66%, #EA4335 100%);
+}
+
+.google-icon-aura {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: #f8faff;
+    border: 1px solid #eef2ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(66, 133, 244, 0.12);
+}
+
+.google-avatar-wrapper {
+    width: 54px;
+    height: 54px;
+    border-radius: 16px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.connected-account-box {
+    background: #f9fafb;
+    border-color: #e5e7eb !important;
+}
+
+/* Bouton Officiel Google */
+.google-auth-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: #ffffff;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    border-radius: 28px;
+    padding: 12px 28px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+.google-auth-btn:hover {
+    background: #f8f9fa;
+    color: #202124;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+}
+
+.google-auth-btn:active {
+    background: #f1f3f4;
+    transform: translateY(0);
+}
+
+/* Dot pulsant */
+.status-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 0 rgba(25, 135, 84, 0.4);
+    animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+    0% {
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.5);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(25, 135, 84, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0);
+    }
+}
+</style>
+{% endblock %}

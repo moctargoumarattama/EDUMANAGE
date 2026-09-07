@@ -52,13 +52,13 @@ def assigner_code_parent(self):
 # -----------------------
 class AnneeScolaire(db.Model):
     __tablename__ = 'annee_scolaire'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     nom = db.Column(db.String(20), nullable=False)
     date_debut = db.Column(db.Date, nullable=False)
     date_fin = db.Column(db.Date, nullable=False)
     statut = db.Column(db.String(20), default='planifiee')  # planifiee, active, archivee
-    
+
     # Lien avec l'école
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'), nullable=False)
     ecole = db.relationship('Ecole', backref='annees_scolaires')
@@ -67,16 +67,16 @@ class AnneeScolaire(db.Model):
     # Relations
     classes = db.relationship('Classe', back_populates='annee_scolaire', lazy=True)
     inscriptions = db.relationship('Inscription', back_populates='annee_scolaire', lazy=True)
-    
+
     # Contrainte unique nom + ecole
     __table_args__ = (
         db.UniqueConstraint('nom', 'ecole_id', name='_annee_ecole_uc'),
         db.Index('idx_ecole_id', 'ecole_id'),
     )
-    
+
     def __repr__(self):
         return f'<AnneeScolaire {self.nom} - {self.ecole.nom if self.ecole else "Sans école"}>'
-    
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -94,7 +94,7 @@ class AnneeScolaire(db.Model):
 # -----------------------
 class Ecole(db.Model):
     __tablename__ = 'ecole'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     nom = db.Column(db.String(200), nullable=False)
     adresse = db.Column(db.String(300))
@@ -106,7 +106,7 @@ class Ecole(db.Model):
     motif_blocage = db.Column(db.String(300))
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     logo_path = db.Column(db.String(200))  # <-- champ existant
-    
+
     # Relations
     utilisateurs = db.relationship(
         'Utilisateur',
@@ -123,7 +123,14 @@ class Ecole(db.Model):
     classes = db.relationship('Classe', back_populates='ecole', lazy=True)
     eleves = db.relationship('Eleve', back_populates='ecole', lazy=True)
     professeurs = db.relationship('Professeur', back_populates='ecole', lazy=True)
-    
+    google_mail_config = db.relationship(
+        'EcoleGoogleMailConfig',
+        back_populates='ecole',
+        uselist=False,
+        cascade='all, delete-orphan',
+        passive_deletes=True
+    )
+
     def __repr__(self):
         return f'<Ecole {self.nom}>'
 
@@ -331,32 +338,41 @@ class Classe(db.Model):
     ecole = db.relationship('Ecole', back_populates='classes')
     salle = db.Column(db.String(50))
     professeur_id = db.Column(db.Integer, db.ForeignKey("professeur.id"))
-    
+    professeur = db.relationship('Professeur', foreign_keys=[professeur_id], backref=db.backref('classes_dirigees', lazy=True))
+
     # Lien avec l'année scolaire
     annee_scolaire_id = db.Column(db.Integer, db.ForeignKey('annee_scolaire.id'), nullable=False, default=1)
     annee_scolaire = db.relationship('AnneeScolaire', back_populates='classes')
-    
+
     eleves = db.relationship('Eleve', back_populates='classe', lazy=True, cascade="all, delete-orphan")
     emplois = db.relationship('EmploiTemps', back_populates='classe', lazy=True, cascade="all, delete-orphan")
     cours = db.relationship('Cours', back_populates='classe', lazy=True, cascade="all, delete-orphan")
     capacite_max = db.Column(db.Integer, nullable=False, default=30)
-    
+
     # NOUVELLE RELATION - Professeurs assignés à cette classe
     professeurs_assignes = db.relationship(
-        'Professeur', 
+        'Professeur',
         secondary=professeur_classes,
         back_populates='classes_assignees',
         lazy='dynamic'
     )
-    
+
     @property
     def nom_complet(self):
         annee_nom = self.annee_scolaire.nom if self.annee_scolaire else "N/A"
         return f"{self.nom} - {annee_nom}"
-    
+
     @property
     def effectif_reel(self):
-        return len(self.eleves)
+        return len(self.eleves) if self.eleves is not None else 0
+
+    @property
+    def capacite_totale(self):
+        return self.capacite or self.capacite_max or 35
+
+    @property
+    def est_pleine(self):
+        return self.effectif_reel >= self.capacite_totale
 
     def __repr__(self):
         return f'<Classe {self.nom_complet}>'
@@ -367,12 +383,13 @@ class Classe(db.Model):
             "nom": self.nom,
             "nom_complet": self.nom_complet,
             "niveau": self.niveau,
-            "effectif": self.effectif,
+            "effectif": self.effectif_reel,
             "ecole_id": self.ecole_id,
             "salle": self.salle,
             "professeur_id": self.professeur_id,
             "annee_scolaire_id": self.annee_scolaire_id,
-            "capacite_max": self.capacite_max,
+            "capacite": self.capacite_totale,
+            "capacite_max": self.capacite_totale,
             "effectif_reel": self.effectif_reel,
             # Ajouter les professeurs assignés
             "professeurs_assignes": [prof.to_dict() for prof in self.professeurs_assignes]
@@ -587,7 +604,7 @@ class Cours(db.Model):
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'), nullable=False)
     classe_id = db.Column(db.Integer, db.ForeignKey('classe.id'))
     professeur_id = db.Column(db.Integer, db.ForeignKey('professeur.id'))
-    
+
     # Relations existantes
     classe = db.relationship('Classe', back_populates='cours')
     professeur = db.relationship('Professeur', back_populates='cours')
@@ -718,7 +735,7 @@ class Alerte(db.Model):
 # -----------------------
 class Log(db.Model):
     __tablename__ = 'log'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     level = db.Column(db.String(20), nullable=False)
@@ -728,9 +745,9 @@ class Log(db.Model):
     utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=True)
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'), nullable=True)  # 🔥 ajout important
     ip_address = db.Column(db.String(45))
-    
+
     utilisateur = db.relationship('Utilisateur', back_populates='logs')
-    
+
     def __repr__(self):
         return f'<Log {self.timestamp} {self.level} {self.action}>'
 
@@ -751,13 +768,13 @@ class Log(db.Model):
 # -----------------------
 class ParametreSysteme(db.Model):
     __tablename__ = 'parametre_systeme'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     cle = db.Column(db.String(100), unique=True, nullable=False)
     valeur = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text)
     modifiable = db.Column(db.Boolean, default=True)
-    
+
     def __repr__(self):
         return f'<ParametreSysteme {self.cle}={self.valeur}>'
 
@@ -775,7 +792,7 @@ class ParametreSysteme(db.Model):
 # -----------------------
 class ArchiveNote(db.Model):
     __tablename__ = 'archive_note'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     eleve_id = db.Column(db.Integer, nullable=False)
     cours_id = db.Column(db.Integer, nullable=False)
@@ -784,7 +801,7 @@ class ArchiveNote(db.Model):
     type_evaluation = db.Column(db.String(50))
     periode = db.Column(db.String(50))
     date_evaluation = db.Column(db.DateTime)
-    
+
     # NOUVEAU: Stocker aussi la classe et l'année scolaire
     classe_id = db.Column(db.Integer, nullable=False)
     annee_scolaire_id = db.Column(db.Integer, nullable=False)
@@ -792,7 +809,7 @@ class ArchiveNote(db.Model):
 
     annee_scolaire = db.Column(db.String(20), nullable=False)
     date_archivage = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<ArchiveNote {self.eleve_id} {self.cours_id} {self.valeur}>'
 
@@ -814,7 +831,7 @@ class ArchiveNote(db.Model):
 
 class ArchiveAbsence(db.Model):
     __tablename__ = 'archive_absence'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     eleve_id = db.Column(db.Integer, nullable=False)
     cours_id = db.Column(db.Integer, nullable=True)
@@ -826,10 +843,10 @@ class ArchiveAbsence(db.Model):
     # NOUVEAU: Stocker aussi la classe et l'année scolaire
     classe_id = db.Column(db.Integer, nullable=False)
     annee_scolaire_id = db.Column(db.Integer, nullable=False)
-    
+
     annee_scolaire = db.Column(db.String(20), nullable=False)
     date_archivage = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<ArchiveAbsence {self.eleve_id} {self.date_absence}>'
 
@@ -878,16 +895,16 @@ class SyncLog(db.Model):
 # -----------------------
 class Inscription(db.Model):
     __tablename__ = "inscriptions"
-    
+
     id = db.Column(db.Integer, primary_key=True)
     eleve_id = db.Column(db.Integer, db.ForeignKey("eleve.id"), nullable=False)
     classe_id = db.Column(db.Integer, db.ForeignKey("classe.id"), nullable=False)
     cours_id = db.Column(db.Integer, db.ForeignKey("cours.id"), nullable=True)
-    
+
     # REMPLACER annee_scolaire par annee_scolaire_id
     annee_scolaire_id = db.Column(db.Integer, db.ForeignKey('annee_scolaire.id'), nullable=False)
     annee_scolaire = db.relationship('AnneeScolaire', back_populates='inscriptions')
-    
+
     eleve = db.relationship("Eleve", backref="inscriptions", foreign_keys=[eleve_id])
     classe = db.relationship("Classe", backref="inscriptions", foreign_keys=[classe_id])
     cours = db.relationship("Cours", backref="inscriptions", foreign_keys=[cours_id])
@@ -920,7 +937,7 @@ def creer_inscription(mapper, connection, target):
         )
         db.session.add(annee_active)
         db.session.commit()
-    
+
     connection.execute(
         Inscription.__table__.insert().values(
             eleve_id=target.id,
@@ -935,11 +952,11 @@ def creer_inscription(mapper, connection, target):
 # -----------------------
 class JournalCorrection(db.Model):
     __tablename__ = 'journal_corrections'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     action = db.Column(db.String(50), nullable=False)       # ex: "modification", "suppression"
     description = db.Column(db.String(255), nullable=False) # texte lisible
-    
+
     ancienne_valeur = db.Column(db.Text, nullable=True)
     nouvelle_valeur = db.Column(db.Text, nullable=True)
 
@@ -974,15 +991,15 @@ class JournalCorrection(db.Model):
             "ecole_id": self.ecole_id,
             "user_id": self.user_id
         }
-        
+
 class HistoriqueImport(db.Model):
     __tablename__ = 'historique_import'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     fichier = db.Column(db.String(200), nullable=False)
     date_import = db.Column(db.DateTime, default=datetime.utcnow)
     utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=False)
-    
+
     # Relation vers l'utilisateur qui a fait l'import
     utilisateur = db.relationship('Utilisateur', backref='imports')
 
@@ -1006,8 +1023,8 @@ class HistoriqueImport(db.Model):
             "ecole_nom": self.ecole.nom if self.ecole else None
         }
 
-        
-        
+
+
 class Presence(db.Model):
     __tablename__ = "presence"  # nom explicite de la table
     id = db.Column(db.Integer, primary_key=True)
@@ -1017,8 +1034,8 @@ class Presence(db.Model):
     heure = db.Column(db.String(5))       # exemple : "08:30"
     matiere = db.Column(db.String(120))   # exemple : "Math"
 
-    eleve = db.relationship("Eleve", backref="presences")     
-    
+    eleve = db.relationship("Eleve", backref="presences")
+
 
 
 
@@ -1030,7 +1047,7 @@ class PeriodeBulletin(db.Model):
     publie = db.Column(db.Boolean, default=False)    # False = désactivé, True = activé
     date_publication = db.Column(db.DateTime)        # Quand admin clique sur "Publier"
     periode_active = db.Column(db.Boolean, default=False)  # Période actuellement active
-    
+
     # Relations
     annee = db.relationship('AnneeScolaire', backref='periodes_bulletin')
     ecole = db.relationship('Ecole', backref='periodes_bulletin')
@@ -1042,3 +1059,37 @@ class PeriodeBulletin(db.Model):
     # Méthode utilitaire
     def est_active(self):
         return self.publie and self.periode_active
+
+
+# -----------------------------------------------------------------------------
+# Configuration Gmail par École (Google OAuth 2.0 & Gmail API)
+# -----------------------------------------------------------------------------
+class EcoleGoogleMailConfig(db.Model):
+    __tablename__ = 'ecole_google_mail_config'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id', ondelete='CASCADE'), nullable=False, unique=True, index=True)
+    google_email = db.Column(db.String(120), nullable=True)
+    google_refresh_token_encrypted = db.Column(db.Text, nullable=True)
+    google_access_token_encrypted = db.Column(db.Text, nullable=True)
+    token_expiry = db.Column(db.DateTime, nullable=True)
+    is_connected = db.Column(db.Boolean, default=False, nullable=False)
+    connected_at = db.Column(db.DateTime, nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relations
+    ecole = db.relationship('Ecole', back_populates='google_mail_config')
+
+    def __repr__(self):
+        return f"<EcoleGoogleMailConfig ecole_id={self.ecole_id} email={self.google_email} connected={self.is_connected}>"
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "ecole_id": self.ecole_id,
+            "google_email": self.google_email,
+            "is_connected": self.is_connected,
+            "connected_at": self.connected_at.isoformat() if self.connected_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+

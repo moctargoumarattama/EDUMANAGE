@@ -39,6 +39,7 @@ et_xmlfile==2.0.0
 
 # HTTP et API
 requests==2.31.0
+cryptography>=42.0.0
 
 # Génération de données factices
 Faker==23.0.0

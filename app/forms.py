@@ -259,12 +259,14 @@ class ClasseForm(FlaskForm):
         ("1ere", "1ère"),
         ("terminale", "Terminale")
     ], validators=[DataRequired()])
-    effectif = IntegerField("Nombre d'élèves", validators=[DataRequired(), NumberRange(min=1)])
+    # Capacité maximale définie par l'administrateur
+    capacite = IntegerField("Capacité maximale d'élèves", default=35, validators=[DataRequired(message="Veuillez spécifier la capacité maximale."), NumberRange(min=1, max=500, message="La capacité doit être comprise entre 1 et 500 élèves.")])
+    effectif = IntegerField("Nombre d'élèves", validators=[Optional()])
     salle = StringField("Salle", validators=[Optional()])
     professeur_principal_id = SelectField("Professeur principal", coerce=int, validators=[Optional()])
 
-    # ✅ Nouveau champ : Année scolaire
-    annee_scolaire_id = SelectField("Année scolaire", coerce=int, validators=[DataRequired()])
+    # ✅ Champ Année scolaire (assignée automatiquement à l'année active lors de l'ajout)
+    annee_scolaire_id = SelectField("Année scolaire", coerce=int, validators=[Optional()])
 
     submit = SubmitField("Enregistrer")
 
@@ -274,12 +276,14 @@ class ClasseForm(FlaskForm):
         if ecole:
             # Professeurs
             profs_query = filtre_par_ecole(Professeur.query, Professeur)
-            self.professeur_principal_id.choices = [(p.id, f"{p.prenom} {p.nom}") for p in profs_query.order_by(Professeur.nom).all()]
+            self.professeur_principal_id.choices = [(0, "--- Aucun professeur principal ---")] + [
+                (p.id, f"{p.prenom} {p.nom}") for p in profs_query.order_by(Professeur.nom).all()
+            ]
 
             # Années scolaires
             from app.models import AnneeScolaire
             annees_query = AnneeScolaire.query.filter_by(ecole_id=ecole.id).order_by(AnneeScolaire.id.desc())
-            self.annee_scolaire_id.choices = [(a.id, a.nom) for a in annees_query.all()]
+            self.annee_scolaire_id.choices = [(0, "---")] + [(a.id, a.nom) for a in annees_query.all()]
 
             # Pré-sélection année active
             annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole.id, statut='active').first()
@@ -287,8 +291,8 @@ class ClasseForm(FlaskForm):
                 self.annee_scolaire_id.data = annee_active.id
 
         else:
-            self.professeur_principal_id.choices = []
-            self.annee_scolaire_id.choices = []
+            self.professeur_principal_id.choices = [(0, "--- Aucun ---")]
+            self.annee_scolaire_id.choices = [(0, "---")]
 # -----------------------
 # Formulaire Ecole
 # -----------------------

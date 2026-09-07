@@ -1,136 +1,238 @@
 {% extends "base.html" %}
 
-{% block title %}Classe {{ classe.nom }} | École{% endblock %}
+{% block title %}Détails de la classe {{ classe.nom }} - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <!-- En-tête avec informations de la classe -->
-    <div class="row mb-4">
-        <div class="col-lg-8">
-            <div class="d-flex align-items-center mb-3">
-                <div class="bg-primary p-3 rounded-circle me-3">
-                    <i class="fas fa-chalkboard-teacher text-white fa-2x"></i>
+<div class="container-fluid px-3 px-lg-4 py-4">
+
+    <!-- En-tête avec fil d'Ariane & Actions -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}" class="text-decoration-none text-muted"><i class="fas fa-home me-1"></i>Accueil</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.liste_classes') }}" class="text-decoration-none text-muted">Classes</a></li>
+                    <li class="breadcrumb-item active fw-semibold text-primary" aria-current="page">{{ classe.nom }}</li>
+                </ol>
+            </nav>
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div class="class-header-icon bg-primary text-white rounded-3 d-flex align-items-center justify-content-center shadow-sm" style="width: 48px; height: 48px;">
+                    <i class="fas fa-chalkboard fa-lg"></i>
                 </div>
                 <div>
-                    <h1 class="h2 mb-0">{{ classe.nom }}</h1>
-                    <p class="text-muted mb-0">Détails de la classe</p>
+                    <h1 class="h3 fw-bold mb-0 text-dark">{{ classe.nom }}</h1>
+                    <div class="text-muted small">
+                        <span><i class="fas fa-layer-group me-1"></i>Niveau : <strong>{{ classe.niveau or 'N/A' }}</strong></span>
+                        {% if classe.annee_scolaire %}
+                        <span class="mx-2">•</span>
+                        <span><i class="fas fa-calendar-alt me-1"></i>Année : <strong>{{ classe.annee_scolaire.nom }}</strong></span>
+                        {% endif %}
+                        {% if classe.professeur %}
+                        <span class="mx-2">•</span>
+                        <span><i class="fas fa-user-tie me-1"></i>Prof. Principal : <strong>{{ classe.professeur.prenom }} {{ classe.professeur.nom }}</strong></span>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-lg-4 text-lg-end">
-            <div class="btn-group">
-                <button class="btn btn-outline-primary">
-                    <i class="fas fa-print me-1"></i> Imprimer
-                </button>
-                <button class="btn btn-outline-secondary">
-                    <i class="fas fa-download me-1"></i> Exporter
-                </button>
+
+        <!-- Actions rapides d'en-tête -->
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <button type="button" onclick="window.print()" class="btn btn-outline-secondary btn-sm px-3 rounded-pill">
+                <i class="fas fa-print me-1"></i>Imprimer
+            </button>
+            {% if current_user.role == 'admin' %}
+            <a href="{{ url_for('main.modifier_classe', classe_id=classe.id) }}" class="btn btn-outline-warning btn-sm px-3 rounded-pill">
+                <i class="fas fa-edit me-1"></i>Modifier la classe
+            </a>
+            <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-primary btn-sm px-3 rounded-pill fw-semibold shadow-sm">
+                <i class="fas fa-user-plus me-1"></i>Ajouter un élève
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Grille des Cartes Statistiques Réelles -->
+    <div class="row g-3 mb-4">
+        <!-- Carte 1 : Niveau & Année -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="text-muted small fw-medium">Niveau scolaire</span>
+                    <div class="p-2 rounded-3 bg-primary-subtle text-primary">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                </div>
+                <div class="h4 fw-bold mb-1 text-dark">{{ classe.niveau or 'Non spécifié' }}</div>
+                <div class="small text-muted">
+                    Année : {{ classe.annee_scolaire.nom if classe.annee_scolaire else 'En cours' }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Carte 2 : Inscrits / Capacité -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="text-muted small fw-medium">Inscrits / Capacité</span>
+                    <div class="p-2 rounded-3 bg-info-subtle text-info">
+                        <i class="fas fa-users"></i>
+                    </div>
+                </div>
+                <div class="d-flex align-items-baseline gap-1">
+                    <span class="h4 fw-bold mb-1 text-dark">{{ total_eleves }}</span>
+                    <span class="text-muted small">/ {{ capacite }} max</span>
+                </div>
+                <div class="d-flex align-items-center gap-2 mt-1">
+                    <div class="progress flex-grow-1" style="height: 6px;">
+                        <div class="progress-bar {% if taux_remplissage >= 100 %}bg-danger{% elif taux_remplissage >= 80 %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ [taux_remplissage, 100]|min }}%;" aria-valuenow="{{ taux_remplissage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <span class="small fw-semibold text-muted">{{ taux_remplissage }}%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Carte 3 : Assiduité & Absences Réelles -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="text-muted small fw-medium">Absences enregistrées</span>
+                    <div class="p-2 rounded-3 bg-warning-subtle text-warning">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                </div>
+                <div class="h4 fw-bold mb-1 text-dark">{{ total_absences }}</div>
+                <div class="small text-muted">
+                    {% if total_absences == 0 %}
+                    <span class="text-success"><i class="fas fa-check-circle me-1"></i>100% de présence</span>
+                    {% else %}
+                    <span>{{ absences_justifiees }} justifiée(s) • {{ absences_non_justifiees }} non justifiée(s)</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Carte 4 : Moyenne Générale Réelle -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 p-3 bg-white">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="text-muted small fw-medium">Moyenne de la classe</span>
+                    <div class="p-2 rounded-3 bg-success-subtle text-success">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                </div>
+                <div class="h4 fw-bold mb-1 text-dark">
+                    {% if moyenne_generale_classe is not none %}
+                    {{ "%.2f"|format(moyenne_generale_classe) }}<small class="fs-6 text-muted"> / 20</small>
+                    {% else %}
+                    <span class="text-muted fs-6 fw-normal">Aucune note</span>
+                    {% endif %}
+                </div>
+                <div class="small text-muted">
+                    Basée sur les évaluations enregistrées
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Cartes d'informations -->
-    <div class="row mb-5">
-        <div class="col-md-4 mb-3">
-            <div class="card card-hover h-100">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="text-muted mb-1">Niveau</h6>
-                            <h3 class="fw-bold mb-0">{{ classe.niveau }}</h3>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-graduation-cap text-primary fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="card card-hover h-100">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="text-muted mb-1">Effectif</h6>
-                            <h3 class="fw-bold mb-0">{{ classe.effectif }}</h3>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-users text-primary fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-3">
-            <div class="card card-hover h-100">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="text-muted mb-1">Présence</h6>
-                            <h3 class="fw-bold mb-0">92%</h3>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-user-check text-primary fa-2x"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Liste des élèves -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Liste des élèves</h5>
+    <!-- Section Principale : Tableau des Élèves Réels -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
+        <div class="card-header bg-white border-0 py-3 px-4 d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-3">
             <div>
-                <input type="text" class="form-control form-control-sm" placeholder="Rechercher un élève..." id="searchInput">
+                <h5 class="fw-bold mb-0 text-dark">
+                    <i class="fas fa-user-graduate me-2 text-primary"></i>Élèves inscrits
+                </h5>
+                <small class="text-muted">{{ total_eleves }} élève(s) enregistré(s) dans cette classe</small>
             </div>
+            {% if total_eleves > 0 %}
+            <div class="w-100 w-sm-auto">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" class="form-control bg-light border-start-0" placeholder="Rechercher un élève..." id="searchInput">
+                </div>
+            </div>
+            {% endif %}
         </div>
-        <div class="card-body">
-            {% if classe.eleves %}
+
+        <div class="card-body p-0">
+            {% if total_eleves > 0 %}
             <div class="table-responsive">
-                <table class="table table-hover" id="studentsTable">
-                    <thead>
+                <table class="table table-hover align-middle mb-0" id="studentsTable">
+                    <thead class="bg-light text-muted small text-uppercase">
                         <tr>
-                            <th>#</th>
-                            <th>Nom complet</th>
+                            <th class="ps-4" style="width: 50px;">#</th>
+                            <th>Élève</th>
                             <th>Date de naissance</th>
-                            <th>Contact</th>
-                            <th>Statut</th>
-                            <th>Actions</th>
+                            <th>Genre</th>
+                            <th>Parent & Contact</th>
+                            <th>Absences</th>
+                            <th>Moyenne</th>
+                            <th class="text-end pe-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for eleve in classe.eleves %}
+                        {% for eleve in eleves_details %}
                         <tr>
-                            <td>{{ loop.index }}</td>
+                            <td class="ps-4 fw-semibold text-muted">{{ loop.index }}</td>
                             <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar-sm bg-light rounded-circle me-3 d-flex align-items-center justify-content-center">
-                                        <span class="text-dark fw-bold">{{ eleve.prenom[0] }}{{ eleve.nom[0] }}</span>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="avatar-circle rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width: 38px; height: 38px; font-size: 0.85rem;">
+                                        {{ eleve.prenom[0]|upper if eleve.prenom else '' }}{{ eleve.nom[0]|upper if eleve.nom else 'E' }}
                                     </div>
-                                    <div>
-                                        <h6 class="mb-0">{{ eleve.prenom }} {{ eleve.nom }}</h6>
+                                    <div class="min-w-0">
+                                        <div class="fw-semibold text-dark text-truncate">{{ eleve.prenom }} {{ eleve.nom }}</div>
                                         <small class="text-muted">ID: {{ "%04d"|format(eleve.id) }}</small>
                                     </div>
                                 </div>
                             </td>
-                            <td>01/01/2010</td>
                             <td>
-                                <div>{{ eleve.contact_parent if eleve.contact_parent else "Non renseigné" }}</div>
-                                <small class="text-muted">{{ eleve.email if eleve.email else "" }}</small>
+                                {% if eleve.date_naissance %}
+                                <div class="text-dark small">{{ eleve.date_naissance.strftime('%d/%m/%Y') }}</div>
+                                {% else %}
+                                <span class="text-muted small">Non renseignée</span>
+                                {% endif %}
                             </td>
                             <td>
-                                <span class="badge bg-success">Présent</span>
+                                {% if eleve.genre == 'F' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">Fille</span>
+                                {% else %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">Garçon</span>
+                                {% endif %}
                             </td>
                             <td>
+                                <div class="small fw-medium text-dark">{{ eleve.parent_nom }}</div>
+                                <div class="small text-muted">{{ eleve.contact_parent }}</div>
+                            </td>
+                            <td>
+                                {% if eleve.nb_absences > 0 %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">
+                                    {{ eleve.nb_absences }} abs.
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
+                                    0 abs.
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if eleve.moyenne is not none %}
+                                <span class="fw-semibold {% if eleve.moyenne >= 10 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ "%.2f"|format(eleve.moyenne) }}/20
+                                </span>
+                                {% else %}
+                                <span class="text-muted small">--/20</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
                                 <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-primary">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="btn btn-outline-secondary">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
+                                    <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-light border" title="Voir la fiche">
+                                        <i class="fas fa-eye text-primary"></i>
+                                    </a>
+                                    {% if current_user.role == 'admin' %}
+                                    <a href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id) }}" class="btn btn-light border" title="Modifier">
+                                        <i class="fas fa-edit text-secondary"></i>
+                                    </a>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -139,156 +241,192 @@
                 </table>
             </div>
             {% else %}
-            <div class="text-center py-5">
-                <div class="mb-4">
-                    <i class="fas fa-user-slash fa-3x text-muted"></i>
+            <!-- État vide si aucun élève -->
+            <div class="text-center py-5 px-3">
+                <div class="mb-3 mx-auto text-muted opacity-50" style="font-size: 3rem;">
+                    <i class="fas fa-user-slash"></i>
                 </div>
-                <h5 class="text-muted">Aucun élève inscrit</h5>
-                <p class="text-muted">Ajoutez des élèves à cette classe pour commencer.</p>
-                <button class="btn btn-primary mt-2">
-                    <i class="fas fa-plus me-1"></i> Ajouter un élève
-                </button>
+                <h5 class="fw-bold text-dark mb-1">Aucun élève inscrit</h5>
+                <p class="text-muted small mx-auto mb-3" style="max-width: 380px;">
+                    Cette classe est actuellement vide. Vous pouvez commencer à y inscrire des élèves.
+                </p>
+                {% if current_user.role == 'admin' %}
+                <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
+                    <i class="fas fa-user-plus me-1"></i>Inscrire un élève
+                </a>
+                {% endif %}
             </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Statistiques et professeurs assignés -->
-    <div class="row mt-4">
-        <!-- Répartition par genre -->
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header bg-white">
-                    <h6 class="mb-0">Répartition par genre</h6>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex justify-content-center">
-                        <div class="w-75">
-                            <canvas id="genderChart" height="200"></canvas>
-                        </div>
+    <!-- Section Graphiques & Répartition Réelle -->
+    <div class="row g-4 mb-4">
+        <!-- Répartition par Genre Réelle -->
+        <div class="col-12 col-lg-5">
+            <div class="card border-0 shadow-sm rounded-4 h-100 p-4 bg-white">
+                <h6 class="fw-bold text-dark mb-3">
+                    <i class="fas fa-venus-mars me-2 text-primary"></i>Répartition par genre
+                </h6>
+                {% if total_eleves > 0 %}
+                <div class="d-flex align-items-center justify-content-center my-auto" style="min-height: 220px;">
+                    <div style="max-width: 220px; width: 100%;">
+                        <canvas id="genderChart"></canvas>
                     </div>
                 </div>
+                <div class="d-flex justify-content-center gap-4 mt-3 small">
+                    <div><span class="d-inline-block rounded-circle me-1" style="width: 10px; height: 10px; background: #3b82f6;"></span>Garçons : <strong>{{ garcons_count }}</strong></div>
+                    <div><span class="d-inline-block rounded-circle me-1" style="width: 10px; height: 10px; background: #ec4899;"></span>Filles : <strong>{{ filles_count }}</strong></div>
+                </div>
+                {% else %}
+                <div class="text-center text-muted my-auto py-4 small">
+                    <i class="fas fa-chart-pie fa-2x mb-2 opacity-50"></i>
+                    <div>Aucune donnée d'élève pour afficher la répartition.</div>
+                </div>
+                {% endif %}
             </div>
         </div>
 
-        <!-- Notes moyennes -->
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header bg-white">
-                    <h6 class="mb-0">Notes moyennes</h6>
+        <!-- Moyennes par Matière Réelles -->
+        <div class="col-12 col-lg-7">
+            <div class="card border-0 shadow-sm rounded-4 h-100 p-4 bg-white">
+                <h6 class="fw-bold text-dark mb-3">
+                    <i class="fas fa-book-open me-2 text-primary"></i>Moyennes par matière
+                </h6>
+                {% if matieres_stats and (matieres_stats|selectattr('moyenne')|list|length > 0) %}
+                <div style="min-height: 220px;">
+                    <canvas id="gradesChart"></canvas>
                 </div>
-                <div class="card-body">
-                    <div class="d-flex justify-content-center">
-                        <div class="w-100">
-                            <canvas id="gradesChart" height="200"></canvas>
-                        </div>
-                    </div>
+                {% else %}
+                <div class="text-center text-muted my-auto py-4 small">
+                    <i class="fas fa-chart-bar fa-2x mb-2 opacity-50"></i>
+                    <div>Aucune note enregistrée par matière pour cette classe.</div>
                 </div>
+                {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Professeurs assignés -->
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="fas fa-user-tie me-2"></i>Professeurs assignés</h6>
+    <!-- Section Professeurs & Matières Assignées Réelles -->
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                <h6 class="fw-bold text-dark mb-3">
+                    <i class="fas fa-chalkboard-teacher me-2 text-primary"></i>Équipe pédagogique de la classe
+                </h6>
+                {% if profs_intervenants %}
+                <div class="row g-3">
+                    {% for item in profs_intervenants %}
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <div class="p-3 rounded-3 bg-light border h-100 d-flex align-items-center gap-3">
+                            <div class="avatar-circle rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px;">
+                                <i class="fas fa-user-tie"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="fw-semibold text-dark text-truncate">{{ item.prof.prenom }} {{ item.prof.nom }}</div>
+                                <div class="text-primary small fw-medium">{{ item.role }}</div>
+                                <div class="text-muted small text-truncate">{{ item.matieres }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
-                <div class="card-body">
-                    {% if classe.professeurs_assignes.count() > 0 %}
-                        <ul class="list-unstyled mb-0">
-                            {% for prof in classe.professeurs_assignes %}
-                                <li class="mb-2">
-                                    <i class="fas fa-user text-primary me-2"></i>
-                                    {{ prof.prenom }} {{ prof.nom }}
-                                    {% if prof.specialite %}
-                                        <small class="text-muted">({{ prof.specialite }})</small>
-                                    {% endif %}
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p class="text-muted mb-0">Aucun professeur assigné</p>
-                    {% endif %}
+                {% else %}
+                <div class="text-center text-muted py-3 small">
+                    Aucun professeur assigné pour le moment.
                 </div>
+                {% endif %}
             </div>
         </div>
     </div>
+
 </div>
 {% endblock %}
 
-{% block extra_css %}
-<style>
-    .card-hover:hover {
-        transform: translateY(-5px);
-        transition: all 0.3s ease;
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    }
-    
-    .avatar-sm {
-        width: 40px;
-        height: 40px;
-    }
-    
-    .bg-light-gradient {
-        background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
-    }
-</style>
-{% endblock %}
-
 {% block extra_js %}
+{% if total_eleves > 0 %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Filtre de recherche temps réel dans le tableau
     const searchInput = document.getElementById('searchInput');
     const table = document.getElementById('studentsTable');
-
     if (searchInput && table) {
         searchInput.addEventListener('keyup', function() {
             const filter = searchInput.value.toLowerCase();
             const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
             for (let i = 0; i < rows.length; i++) {
-                const nameColumn = rows[i].getElementsByTagName('td')[1];
-                if (nameColumn) {
-                    const txtValue = nameColumn.textContent || nameColumn.innerText;
-                    rows[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? '' : 'none';
+                const nameCol = rows[i].getElementsByTagName('td')[1];
+                if (nameCol) {
+                    const txt = nameCol.textContent || nameCol.innerText;
+                    rows[i].style.display = txt.toLowerCase().indexOf(filter) > -1 ? '' : 'none';
                 }
             }
         });
     }
 
-    // Graphique de répartition par genre
-    const genderCtx = document.getElementById('genderChart').getContext('2d');
-    new Chart(genderCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Filles', 'Garçons'],
-            datasets: [{
-                data: [12, 18],
-                backgroundColor: ['rgba(255, 99, 132, 0.7)','rgba(54, 162, 235, 0.7)'],
-                borderWidth: 1
-            }]
-        },
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-    });
+    // Graphique Répartition Genre Réelle
+    const genderCtx = document.getElementById('genderChart');
+    if (genderCtx) {
+        new Chart(genderCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Garçons', 'Filles'],
+                datasets: [{
+                    data: [{{ garcons_count }}, {{ filles_count }}],
+                    backgroundColor: ['#3b82f6', '#ec4899'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
 
-    // Graphique des notes moyennes
-    const gradesCtx = document.getElementById('gradesChart').getContext('2d');
-    new Chart(gradesCtx, {
-        type: 'bar',
-        data: {
-            labels: ['Maths','Français','Histoire','SVT','Anglais','Sport'],
-            datasets: [{
-                label: 'Moyenne de la classe',
-                data: [14, 12.5, 13.2, 15, 11.8, 16.5],
-                backgroundColor: 'rgba(75, 192, 192, 0.7)',
-                borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: { responsive: true, scales: { y: { beginAtZero: false, min: 0, max: 20 } } }
-    });
+    // Graphique Moyennes Réelles par Matière
+    const gradesCtx = document.getElementById('gradesChart');
+    {% if matieres_stats and (matieres_stats|selectattr('moyenne')|list|length > 0) %}
+    if (gradesCtx) {
+        const matieresData = {{ matieres_stats|tojson }};
+        const activeMatieres = matieresData.filter(m => m.moyenne !== null);
+        new Chart(gradesCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: activeMatieres.map(m => m.nom),
+                datasets: [{
+                    label: 'Moyenne / 20',
+                    data: activeMatieres.map(m => m.moyenne),
+                    backgroundColor: 'rgba(59, 130, 246, 0.75)',
+                    borderColor: '#3b82f6',
+                    borderWidth: 1,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 20,
+                        ticks: { stepSize: 5 }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+    {% endif %}
 });
 </script>
+{% endif %}
 {% endblock %}
+
