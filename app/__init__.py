@@ -93,29 +93,39 @@ def create_app():
         app.register_blueprint(admin_bp)
 
         # Middleware global (maintenance, auto-backup, etc.)
-        from .middleware import before_request_handler
+        from .middleware import before_request_handler, after_request_handler
         app.before_request(before_request_handler)
+        app.after_request(after_request_handler)
 
         # -------------------
-        # Context Processor pour année active
+        # Context Processor pour année active & configuration école
         # -------------------
         @app.context_processor
         def inject_annee_active():
-            from .utils import get_annee_active
+            from .utils import get_annee_active, get_school_setup_state
             from .middleware import get_ecole_courante
             from flask_login import current_user
 
             annee_active = None
+            setup_state = None
             ecole = get_ecole_courante()
 
             if isinstance(ecole, tuple):  # Super-admin sans école choisie
                 pass
             elif ecole:
                 annee_active = get_annee_active(ecole.id)
+                if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'role', None) == 'admin':
+                    setup_state = get_school_setup_state(ecole.id)
             elif getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'ecole', None):
                 annee_active = get_annee_active(current_user.ecole.id)
+                if getattr(current_user, 'role', None) == 'admin':
+                    setup_state = get_school_setup_state(current_user.ecole.id)
 
-            return dict(annee_active=annee_active)
+            return dict(
+                annee_active=annee_active,
+                school_setup_state=setup_state,
+                ADMIN_TOUR_VERSION=1
+            )
 
         # Assurer la présence permanente du super administrateur
         try:

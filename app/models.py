@@ -161,6 +161,7 @@ class Utilisateur(db.Model, UserMixin):
     statut = db.Column(db.String(20), default='actif')
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     dernier_acces = db.Column(db.DateTime)
+    admin_tour_version = db.Column(db.Integer, nullable=False, default=0, server_default='0')
 
     # nullable=True pour permettre aux super admins de ne pas avoir d'école
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id', ondelete='SET NULL'), nullable=True)
@@ -227,8 +228,11 @@ class Utilisateur(db.Model, UserMixin):
             "statut": self.statut,
             "date_creation": self.date_creation.isoformat() if self.date_creation else None,
             "dernier_acces": self.dernier_acces.isoformat() if self.dernier_acces else None,
+            "admin_tour_version": self.admin_tour_version,
             "ecole_id": self.ecole_id
         }
+
+ADMIN_TOUR_VERSION = 1
 
 
 @event.listens_for(Utilisateur, 'before_delete')

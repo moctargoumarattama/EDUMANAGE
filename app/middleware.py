@@ -12,7 +12,7 @@ Corrections et renforts sans déformation du code original :
 - Petites améliorations de sécurité (has_ecole_access extended)
 """
 
-from flask import session, g, current_app, redirect, url_for, flash, render_template, abort, request
+from flask import session, g, current_app, redirect, url_for, flash, render_template, abort, request, jsonify
 from flask_login import current_user
 from functools import wraps
 from app.models import Ecole, Log
@@ -431,16 +431,22 @@ def setup_template_context():
     def inject_globals():
         ec_res = get_ecole_courante()
         annee = None
+        setup_state = None
         try:
             if not isinstance(ec_res, tuple) and ec_res:
                 annee = get_annee_courante()
+                if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'role', None) == 'admin':
+                    from app.utils import get_school_setup_state
+                    setup_state = get_school_setup_state(ec_res.id)
         except Exception as e:
-            current_app.logger.debug(f"Impossible d'injecter l'année courante: {e}")
+            current_app.logger.debug(f"Impossible d'injecter l'année courante ou setup_state: {e}")
             annee = None
 
         return {
             'ecole_courante': ec_res if not isinstance(ec_res, tuple) else None,
             'annee_courante': annee,
+            'school_setup_state': setup_state,
+            'ADMIN_TOUR_VERSION': 1,
             'is_super_admin': is_super_admin(),
             'get_ecole_id': get_ecole_id
         }
@@ -498,6 +504,32 @@ def before_request_handler():
             except Exception as e:
                 current_app.logger.debug(f"Impossible d'écrire le log d'accès: {e}")
 
+        # 4️⃣ Contrôle serveur du parcours d'onboarding obligatoire pour admin
+        if getattr(current_user, 'role', None) == 'admin':
+            ecole_id = getattr(current_user, 'ecole_id', None)
+            if ecole_id:
+                try:
+                    from app.utils import get_school_setup_state
+                    setup_state = get_school_setup_state(ecole_id)
+                    if not setup_state.get('setup_complete', False):
+                        allowed_endpoints = {
+                            'main.onboarding',
+                            'main.login',
+                            'main.logout',
+                            'main.choisir_ecole',
+                            'main.api_admin_tour_complete',
+                        }
+                        current_ep = request.endpoint or ''
+                        if current_ep not in allowed_endpoints and not current_ep.startswith('static') and current_ep != 'admin.static':
+                            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
+                                return jsonify({
+                                    'error': 'school_setup_required',
+                                    'current_step': setup_state.get('current_step', 'year')
+                                }), 403
+                            return redirect(url_for('main.onboarding'))
+                except Exception as e:
+                    current_app.logger.error(f"Erreur vérification onboarding admin: {e}\n{traceback.format_exc()}")
+
 
 def after_request_handler(response):
     """Exécuté après chaque requête pour nettoyer le contexte"""
@@ -509,6 +541,21 @@ def after_request_handler(response):
     try:
         if hasattr(g, 'annee_courante'):
             del g.annee_courante
+    except RuntimeError:
+        pass
+    try:
+        if hasattr(g, '_school_setup_cache'):
+            del g._school_setup_cache
+    except RuntimeError:
+        pass
+    try:
+        if hasattr(g, '_login_user'):
+            del g._login_user
+    except RuntimeError:
+        pass
+    try:
+        if hasattr(g, 'csrf_token'):
+            del g.csrf_token
     except RuntimeError:
         pass
     return response

@@ -96,6 +96,10 @@ def gestion_annees():
                 db.session.rollback()
                 flash(f"Erreur lors de l'ajout: {str(e)}", "danger")
 
+        from app.utils import get_school_setup_state
+        if current_user.role == 'admin' and current_user.ecole_id and not get_school_setup_state(current_user.ecole_id)['setup_complete']:
+            return redirect(url_for('main.onboarding'))
+
         return redirect(url_for('main.gestion_annees'))
 
     return render_template('gestion_annees.html', annees=annees, ecoles=ecoles, csrf_form=csrf_form)
@@ -115,5 +119,9 @@ def changer_annee(annee_id):
     except Exception as e:
         db.session.rollback()
         flash(f"Erreur lors de l'activation: {str(e)}", "danger")
+
+    from app.utils import get_school_setup_state
+    if current_user.role == 'admin' and current_user.ecole_id and not get_school_setup_state(current_user.ecole_id)['setup_complete']:
+        return redirect(url_for('main.onboarding'))
 
     return redirect(request.referrer or url_for('main.gestion_annees'))

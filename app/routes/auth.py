@@ -61,6 +61,11 @@ def index():
         return render_template('index.html', stats=stats)
 
     elif current_user.role == 'admin':
+        from app.utils import get_school_setup_state
+        setup_state = get_school_setup_state(current_user.ecole_id)
+        if not setup_state.get('setup_complete', False):
+            return redirect(url_for('main.onboarding'))
+
         ecole_id = current_user.ecole_id  # ✅ Filtrage multi-écoles
         stats = {
             'total_eleves': Eleve.query.filter_by(ecole_id=ecole_id).count(),
@@ -72,7 +77,7 @@ def index():
                 Eleve.date_inscription >= datetime.utcnow().replace(day=1)
             ).count()
         }
-        return render_template('index.html', stats=stats)
+        return render_template('index.html', stats=stats, school_setup_state=setup_state)
 
     # -----------------------------
     # PROFESSEUR

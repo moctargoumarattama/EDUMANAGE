@@ -428,7 +428,8 @@
     </style>
     {% block extra_head %}{% endblock %}
 </head>
-<body class="{{ 'auth-layout' if request.endpoint == 'main.login' else '' }}{{ ' home-layout' if request.endpoint == 'main.index' else '' }}" data-role="{{ current_user.role if current_user.is_authenticated else 'guest' }}">
+<body class="{{ 'auth-layout' if request.endpoint == 'main.login' else '' }}{{ ' home-layout' if request.endpoint == 'main.index' else '' }}{{ ' onboarding-layout' if request.endpoint == 'main.onboarding' else '' }}" data-role="{{ current_user.role if current_user.is_authenticated else 'guest' }}">
+    {% if request.endpoint != 'main.onboarding' %}
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
             <a class="navbar-brand klasora-brand" href="{% if current_user.is_authenticated and current_user.role == 'professeur' %}{{ url_for('main.professeur_dashboard') }}{% elif current_user.is_authenticated and current_user.role == 'parent' %}{{ url_for('main.parent_dashboard') }}{% else %}{{ url_for('main.index') }}{% endif %}">
@@ -677,7 +678,15 @@
                         </a>
 
                         {% if current_user.role in ['admin', 'super_admin'] %}
-                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 py-1 rounded-3" aria-labelledby="userDropdown" style="min-width: 160px;">
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 py-1 rounded-3" aria-labelledby="userDropdown" style="min-width: 200px;">
+                            {% if current_user.role == 'admin' %}
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center py-2" href="{{ url_for('main.index', start_tour=1) }}" onclick="if(window.KlasoraTour){window.KlasoraTour.start(true);return false;}">
+                                    <i class="fas fa-question-circle text-primary me-2"></i>Revoir la visite guidée
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            {% endif %}
                             <li>
                                 <a class="dropdown-item d-flex align-items-center text-danger py-2" href="{{ url_for('main.logout') }}">
                                     <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
@@ -758,6 +767,7 @@
             </div>
         </div>
     </nav>
+    {% endif %}
 
     <main class="main-content">
         <div class="{{ 'container-fluid px-3 px-lg-4 px-xl-5' if request.endpoint in ('admin.view_logs', 'admin.maintenance_page', 'admin.maintenance', 'main.journaux_corrections') else 'container' }}">
@@ -923,6 +933,9 @@
     
     <!-- Scripts frontend communs -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+    <script src="{{ url_for('static', filename='js/onboarding.js') }}"></script>
+    {% endif %}
     
     <!-- Scripts spécifiques aux pages -->
     {% block scripts %}{% endblock %}

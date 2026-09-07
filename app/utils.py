@@ -4,7 +4,7 @@ Utilitaires pour la gestion sécurisée multi-écoles
 Fonctions helpers respectant l'isolation des données
 """
 
-from flask import current_app, jsonify, send_file, flash
+from flask import current_app, jsonify, send_file, flash, g
 from flask_login import current_user
 from datetime import datetime, date, timedelta
 from sqlalchemy import func, and_, or_
@@ -106,15 +106,105 @@ def get_annee_active(ecole_id=None) -> Optional['AnneeScolaire']:
         AnneeScolaire ou None
     """
     from app.models import AnneeScolaire
+    from app.middleware import get_ecole_id
     
     ecole_id = ecole_id or get_ecole_id()
     if not ecole_id:
         return None
     
-    return AnneeScolaire.query.filter_by(
-        ecole_id=ecole_id,
-        statut='active'
+    return AnneeScolaire.query.filter(
+        AnneeScolaire.ecole_id == ecole_id,
+        AnneeScolaire.statut.in_(['active', 'actif'])
     ).first()
+
+
+def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[str, Any]:
+    """
+    Détermine l'état de configuration d'une école (onboarding).
+    
+    Règles :
+    1. Présence d'une année scolaire active pour l'école
+    2. Présence d'au moins une classe liée à cette école et à cette année active
+    
+    Optimisation : mise en cache dans flask.g._school_setup_cache pour la requête en cours.
+    
+    Returns:
+        dict:
+            has_active_year: bool
+            active_year: AnneeScolaire ou None
+            has_class: bool
+            setup_complete: bool
+            current_step: 'year' | 'class' | 'complete'
+    """
+    from app.models import AnneeScolaire, Classe
+    from app.middleware import get_ecole_id
+
+    target_ecole_id = ecole_id or get_ecole_id()
+    if not target_ecole_id:
+        return {
+            'has_active_year': False,
+            'active_year': None,
+            'has_class': False,
+            'setup_complete': False,
+            'current_step': 'year'
+        }
+
+    use_cache = not force_refresh and not current_app.config.get('TESTING', False)
+
+    try:
+        if use_cache:
+            if not hasattr(g, '_school_setup_cache'):
+                g._school_setup_cache = {}
+            if target_ecole_id in g._school_setup_cache:
+                return g._school_setup_cache[target_ecole_id]
+    except RuntimeError:
+        pass
+
+    # 1. Vérification de l'année scolaire active pour cette école
+    active_year = AnneeScolaire.query.filter(
+        AnneeScolaire.ecole_id == target_ecole_id,
+        AnneeScolaire.statut.in_(['active', 'actif'])
+    ).first()
+
+    if not active_year:
+        result = {
+            'has_active_year': False,
+            'active_year': None,
+            'has_class': False,
+            'setup_complete': False,
+            'current_step': 'year'
+        }
+    else:
+        # 2. Vérification d'au moins une classe pour cette année active et cette école (requête O(1))
+        has_class = Classe.query.filter_by(
+            ecole_id=target_ecole_id,
+            annee_scolaire_id=active_year.id
+        ).with_entities(Classe.id).first() is not None
+
+        if not has_class:
+            result = {
+                'has_active_year': True,
+                'active_year': active_year,
+                'has_class': False,
+                'setup_complete': False,
+                'current_step': 'class'
+            }
+        else:
+            result = {
+                'has_active_year': True,
+                'active_year': active_year,
+                'has_class': True,
+                'setup_complete': True,
+                'current_step': 'complete'
+            }
+
+    try:
+        if use_cache and hasattr(g, '_school_setup_cache'):
+            g._school_setup_cache[target_ecole_id] = result
+    except RuntimeError:
+        pass
+
+    return result
 
 
 def get_or_create_annee_active(ecole_id=None) -> 'AnneeScolaire':

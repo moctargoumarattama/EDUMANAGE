@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration de votre établissement - KLASORA{% endblock %}
+
+{% block content %}
+<div class="onboarding-wrapper">
+    <div class="onboarding-card shadow-lg">
+        <!-- En-tête de l'onboarding -->
+        <div class="onboarding-header text-center">
+            <div class="onboarding-brand mb-3">
+                <img src="{{ url_for('static', filename='img/logo-klasora.png') }}" alt="KLASORA" class="onboarding-logo">
+            </div>
+            <div class="onboarding-school-badge d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill mb-2">
+                <i class="fas fa-school text-primary"></i>
+                <span class="fw-semibold text-dark">{{ ecole.nom if ecole else 'Votre Établissement' }}</span>
+            </div>
+            <h1 class="onboarding-title h3 fw-bold text-dark mt-2">
+                {% if step == 'year' %}
+                    Bienvenue sur KLASORA 👋
+                {% elif step == 'class' %}
+                    Configuration de vos classes 🏫
+                {% else %}
+                    Configuration terminée 🎉
+                {% endif %}
+            </h1>
+            <p class="text-muted small mb-0">
+                {% if step == 'year' %}
+                    Configurons votre établissement ensemble en 2 étapes rapides.
+                {% elif step == 'class' %}
+                    Votre année scolaire est prête, ajoutons votre première classe.
+                {% else %}
+                    Votre établissement est fin prêt pour la rentrée.
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Barre de progression -->
+        <div class="onboarding-stepper my-4">
+            <div class="stepper-track">
+                <div class="stepper-progress" style="width: {% if step == 'year' %}33%{% elif step == 'class' %}66%{% else %}100%{% endif %};"></div>
+            </div>
+            <div class="stepper-steps d-flex justify-content-between position-relative">
+                <div class="step-item text-center {% if step in ['year', 'class', 'complete'] %}active{% endif %} {% if step in ['class', 'complete'] %}completed{% endif %}">
+                    <div class="step-circle">
+                        {% if step in ['class', 'complete'] %}
+                            <i class="fas fa-check"></i>
+                        {% else %}
+                            <span>1</span>
+                        {% endif %}
+                    </div>
+                    <div class="step-label mt-1 small fw-semibold">Année scolaire</div>
+                </div>
+
+                <div class="step-item text-center {% if step in ['class', 'complete'] %}active{% endif %} {% if step == 'complete' %}completed{% endif %}">
+                    <div class="step-circle">
+                        {% if step == 'complete' %}
+                            <i class="fas fa-check"></i>
+                        {% else %}
+                            <span>2</span>
+                        {% endif %}
+                    </div>
+                    <div class="step-label mt-1 small fw-semibold">Première classe</div>
+                </div>
+
+                <div class="step-item text-center {% if step == 'complete' %}active completed{% endif %}">
+                    <div class="step-circle">
+                        <i class="fas fa-flag-checkered"></i>
+                    </div>
+                    <div class="step-label mt-1 small fw-semibold">Prêt</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contenu selon l'étape -->
+        <div class="onboarding-body">
+            {% if step == 'year' %}
+                <!-- ============================================== -->
+                <!-- ÉTAPE 1 : ANNÉE SCOLAIRE                       -->
+                <!-- ============================================== -->
+                <div class="onboarding-step-box p-3 p-md-4 rounded-3 border bg-light">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <span class="badge bg-primary px-3 py-2 text-uppercase fw-semibold">Étape 1 sur 2</span>
+                        <span class="text-muted small"><i class="fas fa-calendar-alt text-primary me-1"></i>Année scolaire</span>
+                    </div>
+                    <h2 class="h5 fw-bold text-dark mb-2">Créer l'année scolaire active</h2>
+                    <p class="text-muted small mb-4">
+                        Une année scolaire active est obligatoire pour organiser vos classes, cours, élèves, notes et paiements dans KLASORA.
+                    </p>
+
+                    <form method="POST" action="{{ url_for('main.onboarding') }}" class="onboarding-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="creer_annee">
+
+                        <div class="mb-3">
+                            <label for="nom" class="form-label small fw-bold text-dark">Intitulé de l'année scolaire <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0"><i class="fas fa-signature text-muted"></i></span>
+                                <input type="text" class="form-control border-start-0" id="nom" name="nom" placeholder="Ex: 2025-2026" required autofocus>
+                            </div>
+                            <div class="form-text">Généralement au format YYYY-YYYY (ex: 2025-2026).</div>
+                        </div>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-12 col-md-6">
+                                <label for="date_debut" class="form-label small fw-bold text-dark">Date de rentrée / début <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="date_debut" name="date_debut" required>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="date_fin" class="form-label small fw-bold text-dark">Date de clôture / fin <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="date_fin" name="date_fin" required>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg fw-semibold shadow-sm">
+                                <i class="fas fa-check-circle me-2"></i>Créer et activer l'année scolaire
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+            {% elif step == 'class' %}
+                <!-- ============================================== -->
+                <!-- ÉTAPE 2 : PREMIÈRE CLASSE                     -->
+                <!-- ============================================== -->
+                <div class="onboarding-step-box p-3 p-md-4 rounded-3 border bg-light">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <span class="badge bg-primary px-3 py-2 text-uppercase fw-semibold">Étape 2 sur 2</span>
+                        <span class="badge bg-success text-white px-2 py-1">
+                            <i class="fas fa-check me-1"></i>Année {{ active_year.nom if active_year else 'active' }}
+                        </span>
+                    </div>
+                    <h2 class="h5 fw-bold text-dark mb-2">Créer votre première classe</h2>
+                    <p class="text-muted small mb-4">
+                        Créez la première classe de votre établissement pour accueillir vos inscriptions et vos cours.
+                    </p>
+
+                    <form method="POST" action="{{ url_for('main.onboarding') }}" class="onboarding-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="creer_classe">
+
+                        <div class="mb-3">
+                            <label for="nom_classe" class="form-label small fw-bold text-dark">Nom de la classe <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0"><i class="fas fa-chalkboard text-muted"></i></span>
+                                <input type="text" class="form-control border-start-0" id="nom_classe" name="nom" placeholder="Ex: 6ème A, Seconde C, CM2..." required autofocus>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-12 col-md-6">
+                                <label for="niveau" class="form-label small fw-bold text-dark">Niveau / Cycle <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="niveau" name="niveau" placeholder="Ex: 6ème, Collège, Primaire" required>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="salle" class="form-label small fw-bold text-dark">Salle de classe (optionnel)</label>
+                                <input type="text" class="form-control" id="salle" name="salle" placeholder="Ex: Salle 102, Bâtiment B">
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="capacite" class="form-label small fw-bold text-dark">Capacité maximale d'élèves</label>
+                            <input type="number" class="form-control" id="capacite" name="capacite" value="35" min="1" max="200">
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg fw-semibold shadow-sm">
+                                <i class="fas fa-plus-circle me-2"></i>Créer ma première classe
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+            {% else %}
+                <!-- ============================================== -->
+                <!-- ÉTAPE 3 : CONFIGURATION TERMINÉE              -->
+                <!-- ============================================== -->
+                <div class="onboarding-success-box text-center p-4 p-md-5 rounded-4 bg-light border border-success border-opacity-25">
+                    <div class="success-badge-icon d-inline-flex align-items-center justify-content-center rounded-circle bg-success bg-opacity-15 text-success mb-3" style="width: 72px; height: 72px; font-size: 2rem;">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                    <h2 class="h4 fw-bold text-dark mb-2">Configuration terminée 🎉</h2>
+                    <p class="text-muted mb-4">
+                        Félicitations ! Votre établissement <strong>{{ ecole.nom if ecole else '' }}</strong> dispose désormais d'une année active (<strong>{{ active_year.nom if active_year else '' }}</strong>) et de sa première classe.
+                    </p>
+
+                    <div class="onboarding-summary d-flex flex-wrap justify-content-center gap-3 mb-4">
+                        <div class="summary-pill px-3 py-2 bg-white rounded-pill border shadow-sm small text-dark">
+                            <i class="fas fa-calendar-check text-success me-1"></i>Année : {{ active_year.nom if active_year else 'Active' }}
+                        </div>
+                        <div class="summary-pill px-3 py-2 bg-white rounded-pill border shadow-sm small text-dark">
+                            <i class="fas fa-school text-primary me-1"></i>Première classe créée
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 col-12 col-md-8 mx-auto">
+                        <a href="{{ url_for('main.index') }}" class="btn btn-success btn-lg fw-bold shadow-sm py-3">
+                            <i class="fas fa-arrow-right me-2"></i>Accéder à mon tableau de bord
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Pied de carte onboarding -->
+        <div class="onboarding-footer d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+            <div class="user-info-pill d-flex align-items-center gap-2 text-muted small">
+                <i class="fas fa-user-shield text-primary"></i>
+                <span>{{ current_user.prenom }} {{ current_user.nom }} (Admin)</span>
+            </div>
+            <div>
+                <a href="{{ url_for('main.logout') }}" class="btn btn-outline-danger btn-sm" title="Se déconnecter">
+                    <i class="fas fa-sign-out-alt me-1"></i>Déconnexion
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

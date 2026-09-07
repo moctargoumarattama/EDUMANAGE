@@ -145,3 +145,147 @@ def professeur_home():
     ).all()
 
     return render_template('professeur_home.html', emplois=emplois)
+
+
+@main.route('/onboarding', methods=['GET', 'POST'])
+@login_required
+@role_required('admin')
+def onboarding():
+    """Parcours d'onboarding dédié pour l'administrateur d'établissement avant tout accès au dashboard"""
+    from flask import g, jsonify
+    from app.utils import get_school_setup_state
+    from app.models import Ecole, AnneeScolaire, Classe
+
+    ecole = current_user.ecole
+    if not ecole:
+        flash("Votre compte administrateur n'est rattaché à aucun établissement.", "danger")
+        return redirect(url_for('main.logout'))
+
+    setup_state = get_school_setup_state(ecole.id)
+    step = setup_state['current_step']  # 'year', 'class', or 'complete'
+    active_year = setup_state.get('active_year')
+
+    # Traitement des formulaires au sein de l'expérience d'onboarding
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        # Étape 1 : Création / activation de l'année scolaire
+        if action == 'creer_annee':
+            nom = request.form.get('nom', '').strip()
+            date_debut_str = request.form.get('date_debut', '').strip()
+            date_fin_str = request.form.get('date_fin', '').strip()
+
+            if not nom or not date_debut_str or not date_fin_str:
+                flash("Veuillez renseigner tous les champs obligatoires de l'année scolaire.", "danger")
+                return redirect(url_for('main.onboarding'))
+
+            try:
+                dt_debut = datetime.strptime(date_debut_str, '%Y-%m-%d').date()
+                dt_fin = datetime.strptime(date_fin_str, '%Y-%m-%d').date()
+
+                if dt_fin <= dt_debut:
+                    flash("La date de fin doit être postérieure à la date de début.", "warning")
+                    return redirect(url_for('main.onboarding'))
+
+                # Vérifier si une année avec ce nom existe déjà pour cette école
+                existante = AnneeScolaire.query.filter_by(nom=nom, ecole_id=ecole.id).first()
+                if existante:
+                    AnneeScolaire.query.filter_by(ecole_id=ecole.id).update({'statut': 'archivee'})
+                    existante.statut = 'active'
+                    existante.date_debut = dt_debut
+                    existante.date_fin = dt_fin
+                else:
+                    AnneeScolaire.query.filter_by(ecole_id=ecole.id).update({'statut': 'archivee'})
+                    nouvelle_annee = AnneeScolaire(
+                        nom=nom,
+                        date_debut=dt_debut,
+                        date_fin=dt_fin,
+                        statut='active',
+                        ecole_id=ecole.id
+                    )
+                    db.session.add(nouvelle_annee)
+
+                db.session.commit()
+                if hasattr(g, '_school_setup_cache'):
+                    g._school_setup_cache.pop(ecole.id, None)
+
+                flash(f"Année scolaire « {nom} » configurée et activée avec succès 🎉", "success")
+                return redirect(url_for('main.onboarding'))
+            except Exception as e:
+                db.session.rollback()
+                flash(f"Erreur lors de la configuration de l'année : {str(e)}", "danger")
+                return redirect(url_for('main.onboarding'))
+
+        # Étape 2 : Création de la première classe
+        elif action == 'creer_classe':
+            if not active_year:
+                flash("Veuillez d'abord configurer une année scolaire active.", "warning")
+                return redirect(url_for('main.onboarding'))
+
+            nom_classe = request.form.get('nom', '').strip()
+            niveau = request.form.get('niveau', '').strip()
+            salle = request.form.get('salle', '').strip()
+            try:
+                capacite = int(request.form.get('capacite') or 35)
+            except (ValueError, TypeError):
+                capacite = 35
+
+            if not nom_classe or not niveau:
+                flash("Le nom et le niveau de la classe sont obligatoires.", "danger")
+                return redirect(url_for('main.onboarding'))
+
+            existing_classe = Classe.query.filter_by(
+                nom=nom_classe,
+                annee_scolaire_id=active_year.id,
+                ecole_id=ecole.id
+            ).first()
+            if existing_classe:
+                flash("Une classe avec ce nom existe déjà pour cette année scolaire.", "warning")
+                return redirect(url_for('main.onboarding'))
+
+            try:
+                nouvelle_classe = Classe(
+                    nom=nom_classe,
+                    niveau=niveau,
+                    salle=salle or None,
+                    capacite=capacite,
+                    effectif=0,
+                    annee_scolaire_id=active_year.id,
+                    ecole_id=ecole.id
+                )
+                db.session.add(nouvelle_classe)
+                db.session.commit()
+                if hasattr(g, '_school_setup_cache'):
+                    g._school_setup_cache.pop(ecole.id, None)
+
+                flash(f"Première classe « {nom_classe} » créée avec succès 🎉", "success")
+                return redirect(url_for('main.onboarding'))
+            except Exception as e:
+                db.session.rollback()
+                flash(f"Erreur lors de la création de la classe : {str(e)}", "danger")
+                return redirect(url_for('main.onboarding'))
+
+    return render_template(
+        'onboarding.html',
+        ecole=ecole,
+        setup_state=setup_state,
+        step=step,
+        active_year=active_year
+    )
+
+
+@main.route('/api/admin/tour/complete', methods=['POST'])
+@login_required
+@role_required('admin')
+def api_admin_tour_complete():
+    """Enregistre la complétion ou le passage explicite de la visite guidée pour l'administrateur courant"""
+    from flask import jsonify
+    from app.models import ADMIN_TOUR_VERSION
+    current_user.admin_tour_version = ADMIN_TOUR_VERSION
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'admin_tour_version': current_user.admin_tour_version,
+        'message': 'Visite guidée marquée comme complétée.'
+    })
+

@@ -121,7 +121,7 @@
     <!-- 🔹 Vue pour les autres rôles -->
     <section class="home-section">
         <div class="home-stat-grid">
-            <a href="{{ url_for('main.eleves') }}" class="home-stat-card">
+            <a href="{{ url_for('main.eleves') }}" class="home-stat-card" data-tour="eleves">
                 <span class="home-stat-icon students"><i class="fas fa-users"></i></span>
                 <div class="home-stat-info">
                     <strong>{{ stats.total_eleves }}</strong>
@@ -129,7 +129,7 @@
                 </div>
                 <i class="fas fa-arrow-right home-card-arrow"></i>
             </a>
-            <a href="{{ url_for('main.professeurs') }}" class="home-stat-card">
+            <a href="{{ url_for('main.professeurs') }}" class="home-stat-card" data-tour="professeurs">
                 <span class="home-stat-icon teachers"><i class="fas fa-chalkboard-teacher"></i></span>
                 <div class="home-stat-info">
                     <strong>{{ stats.total_professeurs }}</strong>
@@ -137,7 +137,7 @@
                 </div>
                 <i class="fas fa-arrow-right home-card-arrow"></i>
             </a>
-            <a href="{{ url_for('main.cours') }}" class="home-stat-card">
+            <a href="{{ url_for('main.cours') }}" class="home-stat-card" data-tour="cours">
                 <span class="home-stat-icon courses"><i class="fas fa-book"></i></span>
                 <div class="home-stat-info">
                     <strong>{{ stats.total_cours }}</strong>
@@ -145,7 +145,7 @@
                 </div>
                 <i class="fas fa-arrow-right home-card-arrow"></i>
             </a>
-            <a href="{{ url_for('main.paiements') }}" class="home-stat-card">
+            <a href="{{ url_for('main.paiements') }}" class="home-stat-card" data-tour="paiements">
                 <span class="home-stat-icon payments"><i class="fas fa-money-bill-wave"></i></span>
                 <div class="home-stat-info">
                     <strong>{{ stats.paiements_attente }}</strong>
@@ -175,7 +175,7 @@
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
-            <a href="{{ url_for('main.gestion_annees') }}" class="home-action-card">
+            <a href="{{ url_for('main.gestion_annees') }}" class="home-action-card" data-tour="annees">
                 <span class="home-action-icon success"><i class="fas fa-calendar-check"></i></span>
                 <div class="home-action-info">
                     <strong>Années scolaires</strong>
@@ -183,7 +183,7 @@
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
-            <a href="{{ url_for('main.ajouter_emploi') }}" class="home-action-card">
+            <a href="{{ url_for('main.ajouter_emploi') }}" class="home-action-card" data-tour="emplois">
                 <span class="home-action-icon schedule"><i class="fas fa-calendar-plus"></i></span>
                 <div class="home-action-info">
                     <strong>Emploi du temps</strong>
@@ -191,7 +191,7 @@
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
-            <a href="{{ url_for('main.rapports') }}" class="home-action-card">
+            <a href="{{ url_for('main.rapports') }}" class="home-action-card" data-tour="rapports">
                 <span class="home-action-icon reports"><i class="fas fa-chart-pie"></i></span>
                 <div class="home-action-info">
                     <strong>Rapports & Stats</strong>
@@ -207,7 +207,7 @@
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
-            <a href="{{ url_for('main.liste_classes') }}" class="home-action-card">
+            <a href="{{ url_for('main.liste_classes') }}" class="home-action-card" data-tour="classes">
                 <span class="home-action-icon classes"><i class="fas fa-list-alt"></i></span>
                 <div class="home-action-info">
                     <strong>Classes</strong>
@@ -233,6 +233,33 @@
             </a>
         </div>
     </section>
+
+    {% if school_setup_state and school_setup_state.setup_complete and current_user.admin_tour_version < 1 %}
+    <!-- Modal Invitation Visite Guidée (Facultative) -->
+    <div class="modal fade" id="tourPromptModal" tabindex="-1" aria-labelledby="tourPromptModalLabel" aria-hidden="true" data-bs-backdrop="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content tour-prompt-modal p-3">
+                <div class="modal-body text-center p-4">
+                    <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary bg-opacity-10 text-primary mb-3" style="width: 64px; height: 64px; font-size: 1.8rem;">
+                        <i class="fas fa-compass"></i>
+                    </div>
+                    <h3 class="h4 fw-bold text-dark mb-2" id="tourPromptModalLabel">Bienvenue sur votre tableau de bord 👋</h3>
+                    <p class="text-muted small mb-4">
+                        Voulez-vous découvrir les principales fonctions de KLASORA à travers une visite guidée interactive ?
+                    </p>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-primary btn-lg fw-semibold shadow-sm" onclick="window.KlasoraTour.start(false);" data-bs-dismiss="modal">
+                            <i class="fas fa-play-circle me-2"></i>Commencer la visite
+                        </button>
+                        <button type="button" class="btn btn-light text-muted fw-semibold" data-bs-dismiss="modal">
+                            Plus tard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
     {% endif %}
 
     {% if current_user.role == 'professeur' %}

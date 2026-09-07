@@ -5516,3 +5516,332 @@ body.auth-layout .main-content > .container {
         height: 38px;
     }
 }
+/* ==========================================================================
+   PARCOURS D'ONBOARDING & VISITE GUIDÉE SPOTLIGHT (KLASORA)
+   ========================================================================== */
+
+/* Layout Onboarding Dédié */
+body.onboarding-layout {
+    background: linear-gradient(135deg, #f8faff 0%, #edf2f7 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 1.5rem 1rem;
+}
+
+body.onboarding-layout .main-content {
+    width: 100%;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0;
+}
+
+.onboarding-wrapper {
+    width: 100%;
+}
+
+.onboarding-card {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 2.25rem 2rem;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 12px 35px rgba(30, 41, 59, 0.08) !important;
+}
+
+.onboarding-logo {
+    height: 48px;
+    max-width: 180px;
+    object-fit: contain;
+}
+
+.onboarding-school-badge {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    font-size: 0.85rem;
+}
+
+.onboarding-title {
+    color: #1e293b;
+    letter-spacing: -0.02em;
+}
+
+/* Stepper Onboarding */
+.onboarding-stepper {
+    position: relative;
+    padding: 0 0.5rem;
+}
+
+.stepper-track {
+    position: absolute;
+    top: 18px;
+    left: 28px;
+    right: 28px;
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    z-index: 1;
+}
+
+.stepper-progress {
+    height: 100%;
+    background: linear-gradient(90deg, #4361ee, #3b82f6);
+    border-radius: 4px;
+    transition: width 0.4s ease;
+}
+
+.stepper-steps {
+    z-index: 2;
+}
+
+.step-item {
+    flex: 1;
+    position: relative;
+}
+
+.step-circle {
+    width: 36px;
+    height: 36px;
+    margin: 0 auto;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid #cbd5e1;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.step-item.active .step-circle {
+    border-color: #4361ee;
+    color: #4361ee;
+    background: #eff6ff;
+    box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.15);
+}
+
+.step-item.completed .step-circle {
+    border-color: #10b981;
+    background: #10b981;
+    color: #ffffff;
+}
+
+.step-label {
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+.step-item.active .step-label {
+    color: #1e293b;
+    font-weight: 700;
+}
+
+.step-item.completed .step-label {
+    color: #10b981;
+}
+
+.onboarding-step-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.onboarding-footer {
+    border-top: 1px solid #f1f5f9;
+}
+
+/* ==========================================================================
+   VISITE GUIDÉE SPOTLIGHT (KLASORA TOUR)
+   ========================================================================== */
+
+/* Boîte de spotlight autour de l'élément cible */
+.tour-spotlight-box {
+    position: fixed;
+    z-index: 1085;
+    border-radius: 14px;
+    border: 2px solid #4361ee;
+    box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.72), 0 0 25px rgba(67, 97, 238, 0.6);
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Bulle interactive (Tooltip Popover) */
+.tour-popover {
+    position: fixed;
+    z-index: 1090;
+    width: 350px;
+    max-width: calc(100vw - 32px);
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25), 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    padding: 1.35rem 1.4rem;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+    animation: tourPopIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: auto;
+}
+
+@keyframes tourPopIn {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.tour-popover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.6rem;
+}
+
+.tour-step-badge {
+    background: #eff6ff;
+    color: #3b82f6;
+    font-weight: 700;
+    font-size: 0.78rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 20px;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.tour-title {
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.4rem;
+}
+
+.tour-description {
+    font-size: 0.88rem;
+    color: #475569;
+    line-height: 1.5;
+    margin-bottom: 1.15rem;
+}
+
+.tour-popover-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 0.85rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.tour-btn-skip {
+    font-size: 0.82rem;
+    color: #94a3b8;
+    background: transparent;
+    border: none;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.2s;
+    font-weight: 500;
+}
+
+.tour-btn-skip:hover {
+    color: #ef4444;
+    text-decoration: underline;
+}
+
+.tour-nav-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.tour-btn-prev {
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 0.4rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tour-btn-prev:hover:not(:disabled) {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.tour-btn-prev:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.tour-btn-next {
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+    border: none;
+    background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
+    color: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(67, 97, 238, 0.3);
+    transition: all 0.2s;
+}
+
+.tour-btn-next:hover {
+    box-shadow: 0 6px 14px rgba(67, 97, 238, 0.45);
+    transform: translateY(-1px);
+}
+
+.tour-btn-finish {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+}
+
+/* Modal proposition tour */
+.tour-prompt-modal {
+    border-radius: 20px;
+    border: none;
+    box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
+}
+
+/* Adaptations Mobile (320px - 414px) */
+@media (max-width: 575.98px) {
+    .onboarding-card {
+        padding: 1.5rem 1.15rem;
+        border-radius: 16px;
+    }
+
+    .onboarding-title {
+        font-size: 1.3rem;
+    }
+
+    .step-circle {
+        width: 30px;
+        height: 30px;
+        font-size: 0.8rem;
+    }
+
+    .step-label {
+        font-size: 0.72rem;
+    }
+
+    .tour-popover {
+        width: calc(100vw - 24px);
+        left: 12px !important;
+        right: 12px !important;
+        padding: 1.15rem 1.1rem;
+    }
+
+    .tour-title {
+        font-size: 1rem;
+    }
+
+    .tour-description {
+        font-size: 0.84rem;
+        margin-bottom: 0.9rem;
+    }
+}
