@@ -53,9 +53,9 @@ def setup_logging(app):
 # -------------------
 # Création de l'application
 # -------------------
-def create_app():
+def create_app(config_class=Config):
     app = Flask(__name__)
-    app.config.from_object(Config)
+    app.config.from_object(config_class)
 
     # Initialisation des extensions
     db.init_app(app)

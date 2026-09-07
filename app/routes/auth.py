@@ -140,6 +140,18 @@ def login():
                 current_app.logger.warning(f"Connexion échouée (pas d'école) pour {identifiant} depuis {ip}")
                 return redirect(url_for("main.login"))
 
+            # Vérification école bloquée / suspendue
+            if utilisateur.role != "super_admin" and utilisateur.ecole and utilisateur.ecole.statut in ('bloque', 'suspendu'):
+                ecole = utilisateur.ecole
+                if utilisateur.role == 'admin':
+                    motif = f" Motif : {ecole.motif_blocage}." if ecole.motif_blocage else ""
+                    flash(f"L'accès à votre établissement ({ecole.nom}) est suspendu.{motif} Veuillez contacter l'administration de la plateforme.", "danger")
+                else:
+                    # Confidentialité : les parents et professeurs ne voient JAMAIS le motif financier/administratif
+                    flash(f"L'accès à l'espace de votre établissement ({ecole.nom}) est temporairement indisponible. Veuillez contacter la direction de votre école.", "danger")
+                current_app.logger.warning(f"Connexion refusée (école bloquée id={ecole.id}) pour {identifiant} rôle={utilisateur.role} depuis {ip}")
+                return redirect(url_for("main.login"))
+
             # Nettoyage / mitigation session fixation
             session_keys = list(session.keys())
             for k in session_keys:

@@ -103,6 +103,7 @@ class Ecole(db.Model):
     directeur = db.Column(db.String(100))
     logo = db.Column(db.String(200), default='default_logo.png')
     statut = db.Column(db.String(20), default='actif')
+    motif_blocage = db.Column(db.String(300))
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     logo_path = db.Column(db.String(200))  # <-- champ existant
     
@@ -137,6 +138,7 @@ class Ecole(db.Model):
             "directeur": self.directeur,
             "logo": self.logo,
             "statut": self.statut,
+            "motif_blocage": self.motif_blocage,
             "date_creation": self.date_creation.isoformat() if self.date_creation else None,
             "logo_path": self.logo_path
         }

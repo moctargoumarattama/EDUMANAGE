@@ -6094,3 +6094,90 @@ body.onboarding-layout .main-content {
         margin-bottom: 0.9rem;
     }
 }
+
+/* ==========================================================================
+   SUPER ADMIN : GESTION DES ÉCOLES & TOUR DE CONTRÔLE
+   ========================================================================== */
+.school-admin-header h1 {
+    letter-spacing: -0.02em;
+}
+
+.kpi-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+}
+
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06) !important;
+}
+
+.kpi-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.school-table th {
+    background-color: #f8fafc;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.school-table td {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.school-row {
+    transition: background-color 0.15s ease;
+}
+
+.school-row:hover {
+    background-color: #f8fafc !important;
+}
+
+.filter-btn {
+    border: 1px solid #e2e8f0;
+    font-size: 0.82rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.filter-btn.active {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+    border-color: #0f172a !important;
+}
+
+.filter-btn.active .badge {
+    background-color: rgba(255, 255, 255, 0.25) !important;
+    color: #ffffff !important;
+}
+
+.school-mobile-card {
+    border: 1px solid rgba(226, 232, 240, 0.9) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.school-mobile-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.07) !important;
+}
+
+.quick-motif-btn {
+    transition: all 0.15s ease;
+}
+
+.quick-motif-btn:hover {
+    background-color: #eff6ff;
+    border-color: #3b82f6;
+    color: #2563eb;
+}
+

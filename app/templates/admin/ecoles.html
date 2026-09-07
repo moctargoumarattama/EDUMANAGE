@@ -1,47 +1,732 @@
 {% extends "base.html" %}
-{% block title %}Gérer les écoles{% endblock %}
+{% block title %}Gestion des Écoles - Tour de Contrôle KLASORA{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2><i class="fas fa-school text-primary me-2"></i>Liste des écoles</h2>
-        <div class="d-flex gap-2">
-            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary"><i class="fas fa-tachometer-alt me-1"></i>Tour de Contrôle</a>
-            <a href="{{ url_for('main.ajouter_ecole') }}" class="btn btn-success"><i class="fas fa-plus me-1"></i>Ajouter une école</a>
+<div class="container-fluid px-3 px-lg-4 py-3">
+
+    <!-- ======================================================= -->
+    <!-- 👑 EN-TÊTE SUPER ADMIN & ACTIONS RAPIDES                -->
+    <!-- ======================================================= -->
+    <div class="school-admin-header mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            <div>
+                <div class="d-inline-flex align-items-center gap-2 px-2.5 py-1 rounded-pill bg-warning-subtle text-warning-emphasis fw-bold small mb-1 border border-warning-subtle">
+                    <i class="fas fa-crown text-warning"></i>
+                    <span>Tour de Contrôle Super Admin</span>
+                </div>
+                <h1 class="h3 fw-bold text-dark mb-1">Gestion des Établissements</h1>
+                <p class="text-muted small mb-0">Pilotez, configurez, modifiez ou suspendez les écoles rattachées à la plateforme KLASORA.</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2 w-100 w-md-auto">
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-sm flex-fill flex-md-grow-0">
+                    <i class="fas fa-tachometer-alt me-1.5"></i>Tour de Contrôle
+                </a>
+                <a href="{{ url_for('main.ajouter_ecole') }}" class="btn btn-primary btn-sm fw-semibold shadow-sm flex-fill flex-md-grow-0">
+                    <i class="fas fa-plus-circle me-1.5"></i>Ajouter une école
+                </a>
+            </div>
         </div>
     </div>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }}">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
+    <!-- ======================================================= -->
+    <!-- 📊 CARTES D'INDICATEURS (KPIS)                          -->
+    <!-- ======================================================= -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 kpi-card">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="kpi-icon-wrapper rounded-3 bg-primary-subtle text-primary">
+                        <i class="fas fa-school fa-lg"></i>
+                    </div>
+                    <div>
+                        <span class="d-block text-muted small fw-medium">Total Écoles</span>
+                        <h3 class="fw-bold mb-0 text-dark">{{ stats.total_ecoles|default(ecoles|length) }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 kpi-card">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="kpi-icon-wrapper rounded-3 bg-success-subtle text-success">
+                        <i class="fas fa-check-circle fa-lg"></i>
+                    </div>
+                    <div>
+                        <span class="d-block text-muted small fw-medium">Écoles Actives</span>
+                        <h3 class="fw-bold mb-0 text-success">{{ stats.ecoles_actives|default(0) }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 kpi-card">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="kpi-icon-wrapper rounded-3 bg-danger-subtle text-danger">
+                        <i class="fas fa-ban fa-lg"></i>
+                    </div>
+                    <div>
+                        <span class="d-block text-muted small fw-medium">Suspendues</span>
+                        <h3 class="fw-bold mb-0 text-danger">{{ stats.ecoles_bloquees|default(0) }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 kpi-card">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="kpi-icon-wrapper rounded-3 bg-info-subtle text-info">
+                        <i class="fas fa-user-graduate fa-lg"></i>
+                    </div>
+                    <div>
+                        <span class="d-block text-muted small fw-medium">Total Élèves</span>
+                        <h3 class="fw-bold mb-0 text-dark">{{ stats.total_eleves|default(0) }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Nom</th>
-                <th>Adresse</th>
-                <th>Téléphone</th>
-                <th>Email</th>
-                <th>Directeur</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for ecole in ecoles %}
-            <tr>
-                <td>{{ ecole.id }}</td>
-                <td>{{ ecole.nom }}</td>
-                <td>{{ ecole.adresse }}</td>
-                <td>{{ ecole.telephone }}</td>
-                <td>{{ ecole.email }}</td>
-                <td>{{ ecole.directeur }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <!-- ======================================================= -->
+    <!-- 🔍 BARRE DE RECHERCHE ET FILTRES                        -->
+    <!-- ======================================================= -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-3">
+            <div class="row g-2 align-items-center justify-content-between">
+                <div class="col-12 col-md-5 col-lg-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-search"></i></span>
+                        <input type="text" id="schoolSearchInput" class="form-control border-start-0 bg-light" placeholder="Rechercher par nom, ville, email..." autocomplete="off">
+                    </div>
+                </div>
+                <div class="col-12 col-md-7 col-lg-8">
+                    <div class="d-flex flex-wrap align-items-center justify-content-md-end gap-1.5">
+                        <button type="button" class="btn btn-sm btn-light active filter-btn rounded-pill px-3 py-1" data-filter="all">
+                            Toutes <span class="badge bg-secondary rounded-pill ms-1">{{ ecoles|length }}</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-light filter-btn rounded-pill px-3 py-1 text-success" data-filter="actif">
+                            <i class="fas fa-check-circle me-1"></i>Actives <span class="badge bg-success-subtle text-success rounded-pill ms-1">{{ stats.ecoles_actives|default(0) }}</span>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-light filter-btn rounded-pill px-3 py-1 text-danger" data-filter="bloque">
+                            <i class="fas fa-ban me-1"></i>Bloquées <span class="badge bg-danger-subtle text-danger rounded-pill ms-1">{{ stats.ecoles_bloquees|default(0) }}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- 🖥️ VUE TABLEAU (DESKTOP & TABLETTE)                      -->
+    <!-- ======================================================= -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden d-none d-md-block mb-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 school-table" id="schoolsTable">
+                <thead class="table-light text-muted small text-uppercase">
+                    <tr>
+                        <th class="ps-4" style="width: 70px;">#ID</th>
+                        <th>Établissement</th>
+                        <th>Coordonnées</th>
+                        <th>Direction</th>
+                        <th class="text-center">Métriques</th>
+                        <th>Statut</th>
+                        <th class="text-end pe-4" style="width: 220px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="schoolsTableBody">
+                    {% for ecole in ecoles %}
+                    {% set is_blocked = ecole.statut in ['bloque', 'suspendu', 'inactive'] %}
+                    <tr class="school-row" data-statut="{{ 'bloque' if is_blocked else 'actif' }}" data-search="{{ ecole.nom|lower }} {{ ecole.adresse|default('')|lower }} {{ ecole.email|default('')|lower }} {{ ecole.directeur|default('')|lower }} {{ ecole.telephone|default('')|lower }}">
+                        <td class="ps-4 text-muted fw-semibold">
+                            #{{ ecole.id }}
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="school-avatar rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm" style="background: linear-gradient(135deg, {{ '#4361ee, #3a0ca3' if not is_blocked else '#ef4444, #991b1b' }}); width: 40px; height: 40px; font-size: 0.95rem;">
+                                    {{ ecole.nom[:2]|upper }}
+                                </div>
+                                <div>
+                                    <span class="d-block fw-bold text-dark">{{ ecole.nom }}</span>
+                                    {% if ecole.adresse %}
+                                    <span class="d-block text-muted small text-truncate" style="max-width: 230px;" title="{{ ecole.adresse }}">
+                                        <i class="fas fa-map-marker-alt text-danger me-1"></i>{{ ecole.adresse }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted small fst-italic">Adresse non renseignée</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="small">
+                                {% if ecole.email %}
+                                <div><a href="mailto:{{ ecole.email }}" class="text-decoration-none text-muted"><i class="fas fa-envelope text-primary me-1.5"></i>{{ ecole.email }}</a></div>
+                                {% endif %}
+                                {% if ecole.telephone %}
+                                <div><a href="tel:{{ ecole.telephone }}" class="text-decoration-none text-muted"><i class="fas fa-phone text-success me-1.5"></i>{{ ecole.telephone }}</a></div>
+                                {% endif %}
+                                {% if not ecole.email and not ecole.telephone %}
+                                <span class="text-muted fst-italic">Aucun contact</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="small fw-medium text-dark">
+                                {% if ecole.directeur %}
+                                <i class="fas fa-user-tie text-secondary me-1.5"></i>{{ ecole.directeur }}
+                                {% else %}
+                                <span class="text-muted fst-italic">—</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="d-inline-flex gap-1.5">
+                                <span class="badge bg-light text-dark border px-2 py-1 small" title="Élèves inscrits">
+                                    <i class="fas fa-user-graduate text-primary me-1"></i>{{ ecole.nb_eleves|default(0) }}
+                                </span>
+                                <span class="badge bg-light text-dark border px-2 py-1 small" title="Classes">
+                                    <i class="fas fa-chalkboard text-info me-1"></i>{{ ecole.nb_classes|default(0) }}
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if is_blocked %}
+                            <div>
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1 rounded-pill">
+                                    <i class="fas fa-ban me-1"></i>Bloquée
+                                </span>
+                                {% if ecole.motif_blocage %}
+                                <div class="text-danger small mt-1 text-truncate" style="max-width: 180px; font-size: 0.75rem;" title="Motif: {{ ecole.motif_blocage }}">
+                                    <i class="fas fa-info-circle me-1"></i>{{ ecole.motif_blocage }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% else %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill">
+                                <i class="fas fa-check-circle me-1"></i>Active
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group btn-group-sm shadow-sm" role="group">
+                                <!-- Modifier -->
+                                <button type="button" class="btn btn-outline-primary" title="Modifier l'école"
+                                        data-bs-toggle="modal" data-bs-target="#modalModifierEcole"
+                                        data-id="{{ ecole.id }}"
+                                        data-nom="{{ ecole.nom }}"
+                                        data-adresse="{{ ecole.adresse|default('') }}"
+                                        data-telephone="{{ ecole.telephone|default('') }}"
+                                        data-email="{{ ecole.email|default('') }}"
+                                        data-directeur="{{ ecole.directeur|default('') }}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+
+                                <!-- Bloquer / Débloquer -->
+                                {% if is_blocked %}
+                                <button type="button" class="btn btn-outline-success" title="Débloquer l'école"
+                                        data-bs-toggle="modal" data-bs-target="#modalDebloquerEcole"
+                                        data-id="{{ ecole.id }}"
+                                        data-nom="{{ ecole.nom }}">
+                                    <i class="fas fa-unlock-alt me-1"></i>Débloquer
+                                </button>
+                                {% else %}
+                                <button type="button" class="btn btn-outline-warning" title="Bloquer l'école"
+                                        data-bs-toggle="modal" data-bs-target="#modalBloquerEcole"
+                                        data-id="{{ ecole.id }}"
+                                        data-nom="{{ ecole.nom }}">
+                                    <i class="fas fa-ban me-1"></i>Bloquer
+                                </button>
+                                {% endif %}
+
+                                <!-- Supprimer -->
+                                <button type="button" class="btn btn-outline-danger" title="Supprimer définitivement"
+                                        data-bs-toggle="modal" data-bs-target="#modalSupprimerEcole"
+                                        data-id="{{ ecole.id }}"
+                                        data-nom="{{ ecole.nom }}"
+                                        data-eleves="{{ ecole.nb_eleves|default(0) }}"
+                                        data-classes="{{ ecole.nb_classes|default(0) }}">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fas fa-school fa-3x mb-3 text-secondary opacity-50 d-block"></i>
+                            <span class="fw-semibold">Aucun établissement enregistré.</span>
+                            <div class="mt-2">
+                                <a href="{{ url_for('main.ajouter_ecole') }}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus-circle me-1"></i>Créer la première école
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- 📱 VUE CARTES MOBILE (< 768px)                          -->
+    <!-- ======================================================= -->
+    <div class="d-md-none" id="schoolsMobileContainer">
+        {% for ecole in ecoles %}
+        {% set is_blocked = ecole.statut in ['bloque', 'suspendu', 'inactive'] %}
+        <div class="card border-0 shadow-sm rounded-4 mb-3 school-row school-mobile-card" data-statut="{{ 'bloque' if is_blocked else 'actif' }}" data-search="{{ ecole.nom|lower }} {{ ecole.adresse|default('')|lower }} {{ ecole.email|default('')|lower }} {{ ecole.directeur|default('')|lower }} {{ ecole.telephone|default('')|lower }}">
+            <div class="card-body p-3">
+                <!-- En-tête carte -->
+                <div class="d-flex align-items-start justify-content-between gap-2 mb-2.5">
+                    <div class="d-flex align-items-center gap-2.5">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm flex-shrink-0" style="background: linear-gradient(135deg, {{ '#4361ee, #3a0ca3' if not is_blocked else '#ef4444, #991b1b' }}); width: 42px; height: 42px; font-size: 0.95rem;">
+                            {{ ecole.nom[:2]|upper }}
+                        </div>
+                        <div>
+                            <span class="d-block fw-bold text-dark fs-6">{{ ecole.nom }}</span>
+                            <span class="text-muted small">ID: #{{ ecole.id }}</span>
+                        </div>
+                    </div>
+                    <div>
+                        {% if is_blocked %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill small">
+                            <i class="fas fa-ban me-1"></i>Bloquée
+                        </span>
+                        {% else %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill small">
+                            <i class="fas fa-check-circle me-1"></i>Active
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Si motif de blocage -->
+                {% if is_blocked and ecole.motif_blocage %}
+                <div class="alert alert-danger py-1.5 px-2.5 rounded-3 small mb-2.5" style="font-size: 0.8rem;">
+                    <i class="fas fa-info-circle me-1"></i><strong>Motif :</strong> {{ ecole.motif_blocage }}
+                </div>
+                {% endif %}
+
+                <!-- Informations -->
+                <div class="small text-muted mb-3">
+                    {% if ecole.adresse %}
+                    <div class="mb-1"><i class="fas fa-map-marker-alt text-danger me-1.5"></i>{{ ecole.adresse }}</div>
+                    {% endif %}
+                    {% if ecole.directeur %}
+                    <div class="mb-1"><i class="fas fa-user-tie text-secondary me-1.5"></i>Direction : <span class="text-dark fw-medium">{{ ecole.directeur }}</span></div>
+                    {% endif %}
+                    <div class="d-flex gap-3 mt-1">
+                        {% if ecole.email %}
+                        <a href="mailto:{{ ecole.email }}" class="text-decoration-none text-primary"><i class="fas fa-envelope me-1"></i>Email</a>
+                        {% endif %}
+                        {% if ecole.telephone %}
+                        <a href="tel:{{ ecole.telephone }}" class="text-decoration-none text-success"><i class="fas fa-phone me-1"></i>Appeler</a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Métriques puces -->
+                <div class="d-flex gap-2 mb-3 pb-2 border-bottom">
+                    <span class="badge bg-light text-dark border px-2.5 py-1">
+                        <i class="fas fa-user-graduate text-primary me-1"></i>{{ ecole.nb_eleves|default(0) }} élèves
+                    </span>
+                    <span class="badge bg-light text-dark border px-2.5 py-1">
+                        <i class="fas fa-chalkboard text-info me-1"></i>{{ ecole.nb_classes|default(0) }} classes
+                    </span>
+                    <span class="badge bg-light text-dark border px-2.5 py-1">
+                        <i class="fas fa-chalkboard-teacher text-secondary me-1"></i>{{ ecole.nb_profs|default(0) }} profs
+                    </span>
+                </div>
+
+                <!-- Actions tactiles -->
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm flex-fill"
+                            data-bs-toggle="modal" data-bs-target="#modalModifierEcole"
+                            data-id="{{ ecole.id }}"
+                            data-nom="{{ ecole.nom }}"
+                            data-adresse="{{ ecole.adresse|default('') }}"
+                            data-telephone="{{ ecole.telephone|default('') }}"
+                            data-email="{{ ecole.email|default('') }}"
+                            data-directeur="{{ ecole.directeur|default('') }}">
+                        <i class="fas fa-edit me-1"></i>Modifier
+                    </button>
+
+                    {% if is_blocked %}
+                    <button type="button" class="btn btn-success btn-sm flex-fill"
+                            data-bs-toggle="modal" data-bs-target="#modalDebloquerEcole"
+                            data-id="{{ ecole.id }}"
+                            data-nom="{{ ecole.nom }}">
+                        <i class="fas fa-unlock me-1"></i>Débloquer
+                    </button>
+                    {% else %}
+                    <button type="button" class="btn btn-outline-warning btn-sm flex-fill"
+                            data-bs-toggle="modal" data-bs-target="#modalBloquerEcole"
+                            data-id="{{ ecole.id }}"
+                            data-nom="{{ ecole.nom }}">
+                        <i class="fas fa-ban me-1"></i>Bloquer
+                    </button>
+                    {% endif %}
+
+                    <button type="button" class="btn btn-outline-danger btn-sm"
+                            data-bs-toggle="modal" data-bs-target="#modalSupprimerEcole"
+                            data-id="{{ ecole.id }}"
+                            data-nom="{{ ecole.nom }}"
+                            data-eleves="{{ ecole.nb_eleves|default(0) }}"
+                            data-classes="{{ ecole.nb_classes|default(0) }}">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
 </div>
+
+<!-- ======================================================= -->
+<!-- 📝 MODAL : MODIFIER UNE ÉCOLE                           -->
+<!-- ======================================================= -->
+<div class="modal fade" id="modalModifierEcole" tabindex="-1" aria-labelledby="modalModifierEcoleLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-bottom py-3 px-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                        <i class="fas fa-edit"></i>
+                    </div>
+                    <h5 class="modal-title fw-bold text-dark" id="modalModifierEcoleLabel">Modifier l'établissement</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <form id="formModifierEcole" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label for="edit_nom" class="form-label small fw-bold text-dark">Nom de l'école <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_nom" name="nom" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_adresse" class="form-label small fw-bold text-dark">Adresse physique</label>
+                        <input type="text" class="form-control" id="edit_adresse" name="adresse" placeholder="Ex: Rte Kenitra, Rabat">
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label for="edit_telephone" class="form-label small fw-bold text-dark">Téléphone</label>
+                            <input type="tel" class="form-control" id="edit_telephone" name="telephone" placeholder="Ex: +212 600000000">
+                        </div>
+                        <div class="col-6">
+                            <label for="edit_email" class="form-label small fw-bold text-dark">Email contact</label>
+                            <input type="email" class="form-control" id="edit_email" name="email" placeholder="contact@ecole.com">
+                        </div>
+                    </div>
+                    <div class="mb-1">
+                        <label for="edit_directeur" class="form-label small fw-bold text-dark">Directeur / Responsable</label>
+                        <input type="text" class="form-control" id="edit_directeur" name="directeur" placeholder="Nom du directeur">
+                    </div>
+                </div>
+                <div class="modal-footer border-top py-2.5 px-4 bg-light rounded-bottom-4">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-semibold">
+                        <i class="fas fa-check me-1"></i>Enregistrer les modifications
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================= -->
+<!-- 🛑 MODAL : BLOQUER UNE ÉCOLE AVEC MOTIF                 -->
+<!-- ======================================================= -->
+<div class="modal fade" id="modalBloquerEcole" tabindex="-1" aria-labelledby="modalBloquerEcoleLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-bottom py-3 px-4 bg-danger-subtle text-danger">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center shadow-sm" style="width: 38px; height: 38px;">
+                        <i class="fas fa-ban"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-danger mb-0" id="modalBloquerEcoleLabel">Bloquer l'accès à l'école</h5>
+                        <small class="text-muted" id="bloquerEcoleNom"></small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <form id="formBloquerEcole" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="bloquer">
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning py-2.5 px-3 rounded-3 small mb-3">
+                        <div class="fw-bold mb-1"><i class="fas fa-shield-alt me-1"></i>Conséquences du blocage :</div>
+                        <ul class="mb-0 ps-3">
+                            <li>Les administrateurs, professeurs et parents de cette école ne pourront plus se connecter.</li>
+                            <li><strong>Règle de discrétion :</strong> Le motif ci-dessous sera visible uniquement par l'administrateur de l'école. Les parents et professeurs verront un message neutre d'indisponibilité.</li>
+                            <li>Le Super Admin conserve l'accès complet et peut débloquer l'école à tout moment.</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="motif_blocage" class="form-label small fw-bold text-dark">
+                            Motif du blocage / suspension <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control" id="motif_blocage" name="motif_blocage" rows="3" placeholder="Indiquez clairement la raison (ex: Facture impayée premier trimestre, non-conformité administrative, contrôle en cours...)" required></textarea>
+                    </div>
+
+                    <!-- Raccourcis de motifs fréquents -->
+                    <div class="mb-2">
+                        <span class="d-block text-muted small mb-1.5">Suggestions rapides :</span>
+                        <div class="d-flex flex-wrap gap-1.5">
+                            <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2 quick-motif-btn" style="font-size: 0.76rem;" data-motif="Facture d'abonnement impayée">Facture impayée</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2 quick-motif-btn" style="font-size: 0.76rem;" data-motif="Non-conformité administrative ou dossier incomplet">Non-conformité</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2 quick-motif-btn" style="font-size: 0.76rem;" data-motif="Audit et maintenance de sécurité en cours">Audit / Sécurité</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm py-0.5 px-2 quick-motif-btn" style="font-size: 0.76rem;" data-motif="Suspension temporaire à la demande de l'établissement">Demande établissement</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top py-2.5 px-4 bg-light rounded-bottom-4">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-danger btn-sm fw-semibold shadow-sm">
+                        <i class="fas fa-lock me-1"></i>Confirmer le blocage
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================= -->
+<!-- 🟢 MODAL : DÉBLOQUER UNE ÉCOLE                          -->
+<!-- ======================================================= -->
+<div class="modal fade" id="modalDebloquerEcole" tabindex="-1" aria-labelledby="modalDebloquerEcoleLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-bottom py-3 px-4 bg-success-subtle text-success">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center shadow-sm" style="width: 38px; height: 38px;">
+                        <i class="fas fa-unlock-alt"></i>
+                    </div>
+                    <h5 class="modal-title fw-bold text-success" id="modalDebloquerEcoleLabel">Débloquer l'établissement</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <form id="formDebloquerEcole" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="debloquer">
+                <div class="modal-body p-4 text-center">
+                    <p class="text-dark mb-2">
+                        Êtes-vous sûr de vouloir réactiver l'accès pour l'école <strong id="debloquerEcoleNom"></strong> ?
+                    </p>
+                    <p class="text-muted small mb-0">
+                        Tous les administrateurs, professeurs et parents de cet établissement pourront immédiatement se reconnecter à leur espace.
+                    </p>
+                </div>
+                <div class="modal-footer border-top py-2.5 px-4 bg-light rounded-bottom-4">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success btn-sm fw-semibold shadow-sm">
+                        <i class="fas fa-check-circle me-1"></i>Débloquer et réactiver
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================= -->
+<!-- 🗑️ MODAL : SUPPRIMER UNE ÉCOLE                          -->
+<!-- ======================================================= -->
+<div class="modal fade" id="modalSupprimerEcole" tabindex="-1" aria-labelledby="modalSupprimerEcoleLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-bottom py-3 px-4 bg-danger text-white">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-white text-danger d-flex align-items-center justify-content-center shadow-sm" style="width: 38px; height: 38px;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h5 class="modal-title fw-bold" id="modalSupprimerEcoleLabel">Suppression Définitive</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <form id="formSupprimerEcole" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body p-4">
+                    <div class="alert alert-danger py-2.5 px-3 rounded-3 small mb-3">
+                        <div class="fw-bold mb-1"><i class="fas fa-radiation-alt me-1"></i>ATTENTION : ACTION IRRÉVERSIBLE</div>
+                        <div>
+                            Vous êtes sur le point de supprimer définitivement l'école <strong id="supprimerEcoleNom"></strong>.
+                        </div>
+                    </div>
+
+                    <p class="text-muted small mb-2">
+                        Cette suppression entraînera automatiquement la suppression définitive de :
+                    </p>
+                    <ul class="text-muted small mb-3">
+                        <li>Tous les élèves de l'établissement (<span id="supprimerNbEleves" class="fw-bold text-danger">0</span>)</li>
+                        <li>Toutes les classes (<span id="supprimerNbClasses" class="fw-bold text-danger">0</span>) et cours associés</li>
+                        <li>Toutes les notes, bulletins, paiements et emplois du temps</li>
+                        <li>Tous les comptes administrateurs, professeurs et parents liés à cette école</li>
+                    </ul>
+
+                    <div class="mb-3">
+                        <label for="confirmSchoolName" class="form-label small fw-bold text-dark">
+                            Pour confirmer, saisissez exactement le nom de l'école :
+                        </label>
+                        <input type="text" class="form-control" id="confirmSchoolName" placeholder="Nom de l'école" autocomplete="off">
+                    </div>
+                </div>
+                <div class="modal-footer border-top py-2.5 px-4 bg-light rounded-bottom-4">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" id="btnConfirmDeleteSchool" class="btn btn-danger btn-sm fw-semibold shadow-sm" disabled>
+                        <i class="fas fa-trash-alt me-1"></i>Supprimer définitivement
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================= -->
+<!-- ⚙️ LOGIQUE JS VANILLA FILTRES, RECHERCHE & MODALES     -->
+<!-- ======================================================= -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('schoolSearchInput');
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    const rows = document.querySelectorAll('.school-row');
+
+    let currentFilter = 'all';
+    let searchQuery = '';
+
+    function applyFilters() {
+        const query = searchQuery.trim().toLowerCase();
+
+        rows.forEach(row => {
+            const rowStatut = row.getAttribute('data-statut');
+            const rowSearch = row.getAttribute('data-search') || '';
+
+            const matchesFilter = (currentFilter === 'all') || (rowStatut === currentFilter);
+            const matchesSearch = !query || rowSearch.includes(query);
+
+            if (matchesFilter && matchesSearch) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            searchQuery = this.value;
+            applyFilters();
+        });
+    }
+
+    filterButtons.forEach(btn => {
+        btn.addEventListener('click', function () {
+            filterButtons.forEach(b => b.classList.remove('active', 'btn-secondary', 'text-white'));
+            this.classList.add('active');
+            currentFilter = this.getAttribute('data-filter');
+            applyFilters();
+        });
+    });
+
+    // 1. Modale Modifier
+    const modalModifier = document.getElementById('modalModifierEcole');
+    if (modalModifier) {
+        modalModifier.addEventListener('show.bs.modal', function (event) {
+            const btn = event.relatedTarget;
+            const id = btn.getAttribute('data-id');
+            const nom = btn.getAttribute('data-nom') || '';
+            const adresse = btn.getAttribute('data-adresse') || '';
+            const telephone = btn.getAttribute('data-telephone') || '';
+            const email = btn.getAttribute('data-email') || '';
+            const directeur = btn.getAttribute('data-directeur') || '';
+
+            document.getElementById('edit_nom').value = nom;
+            document.getElementById('edit_adresse').value = adresse;
+            document.getElementById('edit_telephone').value = telephone;
+            document.getElementById('edit_email').value = email;
+            document.getElementById('edit_directeur').value = directeur;
+
+            document.getElementById('formModifierEcole').action = '/admin/ecoles/' + id + '/modifier';
+        });
+    }
+
+    // 2. Modale Bloquer
+    const modalBloquer = document.getElementById('modalBloquerEcole');
+    if (modalBloquer) {
+        modalBloquer.addEventListener('show.bs.modal', function (event) {
+            const btn = event.relatedTarget;
+            const id = btn.getAttribute('data-id');
+            const nom = btn.getAttribute('data-nom') || '';
+
+            document.getElementById('bloquerEcoleNom').textContent = nom;
+            document.getElementById('motif_blocage').value = '';
+            document.getElementById('formBloquerEcole').action = '/admin/ecoles/' + id + '/bloquer';
+        });
+    }
+
+    // Suggestions rapides de motif
+    document.querySelectorAll('.quick-motif-btn').forEach(b => {
+        b.addEventListener('click', function () {
+            const motifInput = document.getElementById('motif_blocage');
+            if (motifInput) {
+                motifInput.value = this.getAttribute('data-motif');
+                motifInput.focus();
+            }
+        });
+    });
+
+    // 3. Modale Débloquer
+    const modalDebloquer = document.getElementById('modalDebloquerEcole');
+    if (modalDebloquer) {
+        modalDebloquer.addEventListener('show.bs.modal', function (event) {
+            const btn = event.relatedTarget;
+            const id = btn.getAttribute('data-id');
+            const nom = btn.getAttribute('data-nom') || '';
+
+            document.getElementById('debloquerEcoleNom').textContent = nom;
+            document.getElementById('formDebloquerEcole').action = '/admin/ecoles/' + id + '/bloquer';
+        });
+    }
+
+    // 4. Modale Supprimer avec confirmation du nom
+    const modalSupprimer = document.getElementById('modalSupprimerEcole');
+    if (modalSupprimer) {
+        let targetSchoolName = '';
+        const confirmInput = document.getElementById('confirmSchoolName');
+        const deleteBtn = document.getElementById('btnConfirmDeleteSchool');
+
+        modalSupprimer.addEventListener('show.bs.modal', function (event) {
+            const btn = event.relatedTarget;
+            const id = btn.getAttribute('data-id');
+            targetSchoolName = btn.getAttribute('data-nom') || '';
+            const nbEleves = btn.getAttribute('data-eleves') || '0';
+            const nbClasses = btn.getAttribute('data-classes') || '0';
+
+            document.getElementById('supprimerEcoleNom').textContent = targetSchoolName;
+            document.getElementById('supprimerNbEleves').textContent = nbEleves;
+            document.getElementById('supprimerNbClasses').textContent = nbClasses;
+            document.getElementById('formSupprimerEcole').action = '/admin/ecoles/' + id + '/supprimer';
+
+            if (confirmInput) {
+                confirmInput.value = '';
+            }
+            if (deleteBtn) {
+                deleteBtn.disabled = true;
+            }
+        });
+
+        if (confirmInput && deleteBtn) {
+            confirmInput.addEventListener('input', function () {
+                if (this.value.trim().toLowerCase() === targetSchoolName.trim().toLowerCase()) {
+                    deleteBtn.disabled = false;
+                } else {
+                    deleteBtn.disabled = true;
+                }
+            });
+        }
+    }
+});
+</script>
 {% endblock %}

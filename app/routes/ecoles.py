@@ -19,6 +19,7 @@ from .common import (
     request,
     role_required,
     secrets,
+    session,
     url_for,
 )
 
@@ -54,15 +55,31 @@ def choisir_ecole():
 @login_required
 @role_required('super_admin')
 def gestion_ecoles():
-    """Gestion des Ã©coles (super-admin seulement)"""
+    """Gestion des écoles (super-admin seulement)"""
     try:
-        ecoles = get_ecole_filter_query(Ecole).all()
-        return render_template('admin/ecoles.html', ecoles=ecoles)
+        from app.models import Classe, Eleve, Professeur
+        ecoles = get_ecole_filter_query(Ecole).order_by(Ecole.id.desc()).all()
+        total_eleves = 0
+        for ecole in ecoles:
+            ecole.nb_eleves = Eleve.query.filter_by(ecole_id=ecole.id).count()
+            ecole.nb_classes = Classe.query.filter_by(ecole_id=ecole.id).count()
+            ecole.nb_profs = Professeur.query.filter_by(ecole_id=ecole.id).count()
+            total_eleves += ecole.nb_eleves
+
+        stats = {
+            'total_ecoles': len(ecoles),
+            'ecoles_actives': sum(1 for e in ecoles if e.statut in ('actif', 'active')),
+            'ecoles_bloquees': sum(1 for e in ecoles if e.statut in ('bloque', 'suspendu', 'inactive')),
+            'total_eleves': total_eleves,
+        }
+        return render_template('admin/ecoles.html', ecoles=ecoles, stats=stats)
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erreur rÃ©cupÃ©ration Ã©coles : {e}")
-        flash("Erreur lors de la rÃ©cupÃ©ration des Ã©coles.", "danger")
-        return render_template('admin/ecoles.html', ecoles=[])
+        current_app.logger.error(f"Erreur récupération écoles : {e}")
+        flash("Erreur lors de la récupération des écoles.", "danger")
+        return render_template('admin/ecoles.html', ecoles=[], stats={
+            'total_ecoles': 0, 'ecoles_actives': 0, 'ecoles_bloquees': 0, 'total_eleves': 0
+        })
 
 @main.route('/admin/ecoles/ajouter', methods=['GET', 'POST'])
 @login_required
@@ -263,56 +280,188 @@ def gerer_ecoles_utilisateur(user_id):
         stats_ecoles=stats_ecoles
     )
 
-@main.route('/api/ecoles/<int:ecole_id>/status', methods=['PUT'])
+def safe_delete_ecole(ecole_id):
+    """Supprime proprement et en cascade toutes les données liées à une école"""
+    from app.models import (
+        Absence, Alerte, AnneeScolaire, ArchiveAbsence, ArchiveNote,
+        Bulletin, Classe, Cours, Eleve, EmploiTemps, HistoriqueImport,
+        Inscription, JournalCorrection, Log, Note, Paiement,
+        PeriodeBulletin, Presence, Professeur, Utilisateur
+    )
+    ecole = Ecole.query.get_or_404(ecole_id)
+    nom_ecole = ecole.nom
+
+    # 1. IDs des élèves et utilisateurs non super-admin
+    eleves = Eleve.query.filter_by(ecole_id=ecole_id).all()
+    eleve_ids = [el.id for el in eleves]
+
+    users = Utilisateur.query.filter_by(ecole_id=ecole_id).all()
+    user_ids = [u.id for u in users if u.role != 'super_admin']
+
+    # 2. Données liées aux élèves
+    if eleve_ids:
+        Presence.query.filter(Presence.eleve_id.in_(eleve_ids)).delete(synchronize_session=False)
+        Bulletin.query.filter(Bulletin.eleve_id.in_(eleve_ids)).delete(synchronize_session=False)
+        Inscription.query.filter(Inscription.eleve_id.in_(eleve_ids)).delete(synchronize_session=False)
+        ArchiveNote.query.filter(ArchiveNote.eleve_id.in_(eleve_ids)).delete(synchronize_session=False)
+        ArchiveAbsence.query.filter(ArchiveAbsence.eleve_id.in_(eleve_ids)).delete(synchronize_session=False)
+        Note.query.filter(Note.eleve_id.in_(eleve_ids)).delete(synchronize_session=False)
+        Absence.query.filter(Absence.eleve_id.in_(eleve_ids)).delete(synchronize_session=False)
+        Paiement.query.filter(Paiement.eleve_id.in_(eleve_ids)).delete(synchronize_session=False)
+
+    # 3. Données scolaires directes
+    Note.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+    Absence.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+    Paiement.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+    EmploiTemps.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+    PeriodeBulletin.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+    JournalCorrection.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+    Log.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+
+    # 4. Tables de liaison n-m
+    for table_query in [
+        "DELETE FROM professeur_classes WHERE ecole_id = :eid",
+        "DELETE FROM ecole_cours WHERE ecole_id = :eid",
+        "DELETE FROM gestion_ecole WHERE ecole_id = :eid"
+    ]:
+        try:
+            db.session.execute(db.text(table_query), {'eid': ecole_id})
+        except Exception as e:
+            current_app.logger.debug(f"Nettoyage association ({table_query}): {e}")
+
+    # 5. Cours, Élèves, Classes, Années, Professeurs
+    Cours.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+    Eleve.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+    Classe.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+    AnneeScolaire.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+    Professeur.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+
+    # 6. Données liées aux utilisateurs de l'école
+    if user_ids:
+        HistoriqueImport.query.filter(HistoriqueImport.utilisateur_id.in_(user_ids)).delete(synchronize_session=False)
+        Alerte.query.filter(Alerte.utilisateur_id.in_(user_ids)).delete(synchronize_session=False)
+        Log.query.filter(Log.utilisateur_id.in_(user_ids)).delete(synchronize_session=False)
+
+    # 7. Utilisateurs non-superadmin
+    Utilisateur.query.filter(
+        Utilisateur.ecole_id == ecole_id,
+        Utilisateur.role != 'super_admin'
+    ).delete(synchronize_session=False)
+
+    # 8. Nettoyer la session courante si nécessaire
+    if session.get('ecole_id') == ecole_id:
+        autre_ecole = Ecole.query.filter(Ecole.id != ecole_id).first()
+        session['ecole_id'] = autre_ecole.id if autre_ecole else None
+
+    # 9. Supprimer l'école elle-même
+    db.session.delete(ecole)
+    db.session.commit()
+    return nom_ecole
+
+
+@main.route('/admin/ecoles/<int:ecole_id>/modifier', methods=['POST'])
 @login_required
 @role_required('super_admin')
-def toggle_ecole_status(ecole_id):
-    """Changer le statut d'une Ã©cole"""
-    if current_user.role != 'super_admin':
-        return jsonify({'success': False, 'message': 'Non autorisÃ©'}), 403
-        
+def modifier_ecole(ecole_id):
+    """Modifier les informations d'un établissement"""
     ecole = Ecole.query.get_or_404(ecole_id)
-    ecole.statut = 'inactive' if ecole.statut == 'active' else 'active'
-    db.session.commit()
-    
-    return jsonify({'success': True, 'new_status': ecole.statut})
+    try:
+        nom = request.form.get('nom', '').strip()
+        adresse = request.form.get('adresse', '').strip()
+        telephone = request.form.get('telephone', '').strip()
+        email = request.form.get('email', '').strip()
+        directeur = request.form.get('directeur', '').strip()
+
+        if not nom:
+            flash("Le nom de l'établissement est obligatoire.", "danger")
+            return redirect(url_for('main.gestion_ecoles'))
+
+        ecole.nom = nom
+        ecole.adresse = adresse or None
+        ecole.telephone = telephone or None
+        ecole.email = email or None
+        ecole.directeur = directeur or None
+        db.session.commit()
+
+        flash(f"L'école « {ecole.nom} » a été modifiée avec succès ✅", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur modification école {ecole_id}: {e}")
+        flash("Une erreur est survenue lors de la modification de l'école.", "danger")
+
+    return redirect(url_for('main.gestion_ecoles'))
+
+
+@main.route('/admin/ecoles/<int:ecole_id>/bloquer', methods=['POST'])
+@login_required
+@role_required('super_admin')
+def bloquer_ecole(ecole_id):
+    """Bloquer ou débloquer un établissement avec motif explicite"""
+    ecole = Ecole.query.get_or_404(ecole_id)
+    action = request.form.get('action', '').strip()  # 'bloquer' ou 'debloquer'
+    motif = request.form.get('motif_blocage', '').strip()
+
+    try:
+        if action == 'bloquer':
+            ecole.statut = 'bloque'
+            ecole.motif_blocage = motif or 'Suspension administrative'
+            db.session.commit()
+            flash(f"L'école « {ecole.nom} » a été bloquée 🛑 (Motif: {ecole.motif_blocage})", "warning")
+        elif action == 'debloquer':
+            ecole.statut = 'actif'
+            ecole.motif_blocage = None
+            db.session.commit()
+            flash(f"L'école « {ecole.nom} » a été débloquée et réactivée avec succès 🟢", "success")
+        else:
+            flash("Action non reconnue.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur changement statut école {ecole_id}: {e}")
+        flash("Une erreur est survenue lors de l'opération sur l'école.", "danger")
+
+    return redirect(url_for('main.gestion_ecoles'))
+
+
+@main.route('/admin/ecoles/<int:ecole_id>/supprimer', methods=['POST'])
+@login_required
+@role_required('super_admin')
+def supprimer_ecole_action(ecole_id):
+    """Supprimer définitivement une école et toutes ses données associées (via formulaire)"""
+    try:
+        nom_ecole = safe_delete_ecole(ecole_id)
+        flash(f"L'école « {nom_ecole} » et toutes ses données associées ont été supprimées définitivement 🗑️", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur suppression école {ecole_id}: {e}")
+        flash(f"Erreur lors de la suppression de l'école : {str(e)}", "danger")
+
+    return redirect(url_for('main.gestion_ecoles'))
+
 
 @main.route('/api/ecoles/<int:ecole_id>', methods=['DELETE'])
 @login_required
 @role_required('super_admin')
 def supprimer_ecole(ecole_id):
-    """Supprimer une Ã©cole et tous ses utilisateurs associÃ©s"""
-    ecole = Ecole.query.get_or_404(ecole_id)
-    
+    """Supprimer une école et tous ses utilisateurs associés (via API DELETE)"""
     try:
-        # Supprimer tous les utilisateurs liÃ©s
-        for user in ecole.utilisateurs:
-            # Supprimer les enfants et inscriptions
-            for enfant in user.get_enfants():
-                for inscription in enfant.inscriptions:
-                    db.session.delete(inscription)
-                db.session.delete(enfant)
-            
-            # Supprimer les cours si c'est un professeur
-            if user.professeur_rel:
-                for cours in user.professeur_rel.cours:
-                    cours.professeur_id = None
-                db.session.delete(user.professeur_rel)
-            
-            # Supprimer alertes et logs
-            for alerte in user.alertes:
-                db.session.delete(alerte)
-            for log in user.logs:
-                db.session.delete(log)
-            
-            db.session.delete(user)
-        
-        # Supprimer l'Ã©cole
-        db.session.delete(ecole)
-        db.session.commit()
-        return jsonify({'success': True, 'message': 'Ã‰cole et utilisateurs supprimÃ©s avec succÃ¨s.'})
-
+        nom_ecole = safe_delete_ecole(ecole_id)
+        return jsonify({'success': True, 'message': f"L'école « {nom_ecole} » a été supprimée avec succès."})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Erreur lors de la suppression: {str(e)}'}), 500
+
+
+@main.route('/api/ecoles/<int:ecole_id>/status', methods=['PUT'])
+@login_required
+@role_required('super_admin')
+def toggle_ecole_status(ecole_id):
+    """Changer le statut d'une école (API bascule active/inactive)"""
+    if current_user.role != 'super_admin':
+        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
+
+    ecole = Ecole.query.get_or_404(ecole_id)
+    ecole.statut = 'inactive' if ecole.statut in ('active', 'actif') else 'actif'
+    db.session.commit()
+
+    return jsonify({'success': True, 'new_status': ecole.statut})
 

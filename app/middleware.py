@@ -505,6 +505,27 @@ def before_request_handler():
             except Exception as e:
                 current_app.logger.debug(f"Impossible d'écrire le log d'accès: {e}")
 
+        # 3️⃣-bis Vérification école bloquée / suspendue pour les sessions actives
+        if getattr(current_user, 'role', None) != 'super_admin' and getattr(current_user, 'ecole', None):
+            ecole = current_user.ecole
+            if ecole.statut in ('bloque', 'suspendu'):
+                allowed_eps = {'main.logout', 'main.login'}
+                current_ep = request.endpoint or ''
+                if current_ep not in allowed_eps and not current_ep.startswith('static') and current_ep != 'admin.static' and not request.path.startswith('/static/'):
+                    from flask_login import logout_user
+                    if current_user.role == 'admin':
+                        motif = f" Motif : {ecole.motif_blocage}." if ecole.motif_blocage else ""
+                        msg = f"L'accès à votre établissement ({ecole.nom}) est suspendu.{motif} Veuillez contacter l'administration de la plateforme."
+                    else:
+                        # Confidentialité : les parents et professeurs ne voient jamais le motif
+                        msg = f"L'accès à l'espace de votre établissement ({ecole.nom}) est temporairement indisponible. Veuillez contacter la direction de votre école."
+
+                    logout_user()
+                    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
+                        return jsonify({'error': 'school_blocked', 'message': msg}), 403
+                    flash(msg, "danger")
+                    return redirect(url_for('main.login'))
+
         # 4️⃣ Contrôle serveur du parcours d'onboarding obligatoire pour admin
         if getattr(current_user, 'role', None) == 'admin':
             ecole_id = getattr(current_user, 'ecole_id', None)
