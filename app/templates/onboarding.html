@@ -5,27 +5,33 @@
 {% block content %}
 <div class="onboarding-wrapper">
     <div class="onboarding-card shadow-lg">
-        <!-- Barre supérieure compacte pour mobile uniquement -->
-        <div class="onboarding-mobile-header d-lg-none mb-3">
-            <div class="d-flex align-items-center justify-content-between mb-2">
+        <!-- En-tête Mobile Moderne et Soigné (Visible < 992px) -->
+        <div class="onboarding-mobile-header d-lg-none text-center mb-3 pb-2 border-bottom">
+            <div class="onboarding-brand-mobile mb-2">
                 <img src="{{ url_for('static', filename='img/logo-klasora.png') }}" alt="KLASORA" class="onboarding-logo-mobile">
-                <div class="onboarding-school-badge-mobile text-truncate px-2 py-1 rounded-pill small">
-                    <i class="fas fa-school text-primary me-1"></i>
-                    <span class="fw-semibold text-dark">{{ ecole.nom if ecole else 'Votre Établissement' }}</span>
-                </div>
             </div>
-            <!-- Progress bar compacte mobile -->
-            <div class="onboarding-mobile-stepper">
-                <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="badge bg-primary-subtle text-primary fw-bold" style="font-size: 0.72rem;">
-                        {% if step == 'year' %}Étape 1 sur 2 : Année scolaire{% elif step == 'class' %}Étape 2 sur 2 : Première classe{% else %}Terminé{% endif %}
-                    </span>
-                    <span class="text-muted" style="font-size: 0.72rem;">
-                        {% if step == 'year' %}50%{% elif step == 'class' %}90%{% else %}100%{% endif %}
-                    </span>
+            <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill onboarding-school-badge-mobile mb-2">
+                <i class="fas fa-school text-primary"></i>
+                <span class="fw-semibold text-dark text-truncate" style="max-width: 240px;">
+                    {{ ecole.nom if ecole else 'Votre Établissement' }}
+                </span>
+            </div>
+
+            <!-- Stepper Chips Interactif Mobile -->
+            <div class="onboarding-mobile-steps d-flex justify-content-center align-items-center gap-2 mt-1">
+                <div class="m-step-chip {% if step in ['year', 'class', 'complete'] %}active{% endif %} {% if step in ['class', 'complete'] %}done{% endif %}">
+                    <span class="m-step-badge">{% if step in ['class', 'complete'] %}<i class="fas fa-check"></i>{% else %}1{% endif %}</span>
+                    <span class="m-step-label">Année</span>
                 </div>
-                <div class="progress" style="height: 6px;">
-                    <div class="progress-bar bg-primary" role="progressbar" style="width: {% if step == 'year' %}50%{% elif step == 'class' %}90%{% else %}100%{% endif %};" aria-valuenow="{% if step == 'year' %}50{% elif step == 'class' %}90{% else %}100{% endif %}" aria-valuemin="0" aria-valuemax="100"></div>
+                <div class="m-step-divider {% if step in ['class', 'complete'] %}done{% endif %}"></div>
+                <div class="m-step-chip {% if step in ['class', 'complete'] %}active{% endif %} {% if step == 'complete' %}done{% endif %}">
+                    <span class="m-step-badge">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}2{% endif %}</span>
+                    <span class="m-step-label">Classe</span>
+                </div>
+                <div class="m-step-divider {% if step == 'complete' %}done{% endif %}"></div>
+                <div class="m-step-chip {% if step == 'complete' %}active done{% endif %}">
+                    <span class="m-step-badge"><i class="fas fa-flag-checkered"></i></span>
+                    <span class="m-step-label">Prêt</span>
                 </div>
             </div>
         </div>
@@ -112,7 +118,7 @@
                 <div class="onboarding-sidebar-footer pt-3 mt-4 border-top d-flex align-items-center justify-content-between">
                     <div class="d-flex align-items-center gap-2 text-muted small text-truncate" style="max-width: 180px;">
                         <i class="fas fa-user-shield text-primary"></i>
-                        <span class="text-truncate">{{ current_user.prenom }} {{ current_user.nom }}</span>
+                        <span class="text-truncate">{{ (current_user.prenom ~ ' ' if current_user.prenom else '') ~ current_user.nom }}</span>
                     </div>
                     <a href="{{ url_for('main.logout') }}" class="btn btn-outline-danger btn-sm px-2 py-1" title="Se déconnecter">
                         <i class="fas fa-sign-out-alt"></i>
@@ -284,12 +290,12 @@
 
                 <!-- Footer Mobile uniquement -->
                 <div class="onboarding-mobile-footer d-lg-none d-flex justify-content-between align-items-center mt-3 pt-2.5 border-top">
-                    <div class="text-muted small text-truncate" style="font-size: 0.78rem; max-width: 200px;">
+                    <div class="text-muted small text-truncate" style="font-size: 0.8rem; max-width: 220px;">
                         <i class="fas fa-user-shield text-primary me-1"></i>
-                        <span>{{ current_user.prenom }} {{ current_user.nom }} (Admin)</span>
+                        <span>{{ (current_user.prenom ~ ' ' if current_user.prenom else '') ~ current_user.nom }} (Admin)</span>
                     </div>
                     <div>
-                        <a href="{{ url_for('main.logout') }}" class="btn btn-outline-danger btn-sm py-0.5 px-2" style="font-size: 0.75rem;" title="Se déconnecter">
+                        <a href="{{ url_for('main.logout') }}" class="btn btn-outline-danger btn-sm py-1 px-2.5" style="font-size: 0.78rem;" title="Se déconnecter">
                             <i class="fas fa-sign-out-alt me-1"></i>Déconnexion
                         </a>
                     </div>

@@ -5522,39 +5522,40 @@ body.auth-layout .main-content > .container {
 
 /* Layout Onboarding Dédié */
 body.onboarding-layout {
-    background: linear-gradient(135deg, #f8faff 0%, #edf2f7 100%);
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 2rem 1.25rem;
+    padding: 2.5rem 1.25rem;
 }
 
 body.onboarding-layout .main-content {
     width: 100%;
     max-width: 1000px; /* Élargi sur PC au lieu du 680px étroit */
-    margin: 0 auto;
+    margin: auto;
     padding: 0;
 }
 
 .onboarding-wrapper {
     width: 100%;
+    margin: auto 0;
 }
 
 .onboarding-card {
     background: #ffffff;
-    border-radius: 20px;
-    padding: 2rem;
+    border-radius: 22px;
+    padding: 2.25rem;
     border: 1px solid rgba(226, 232, 240, 0.85);
-    box-shadow: 0 16px 40px rgba(30, 41, 59, 0.08) !important;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.03) !important;
 }
 
 /* Grille 2 colonnes Desktop (Sidebar gauche + Panneau principal droit) */
 .onboarding-grid {
     display: grid;
-    grid-template-columns: 310px 1fr;
-    gap: 2.25rem;
+    grid-template-columns: 320px 1fr;
+    gap: 2.5rem;
     align-items: stretch;
 }
 
@@ -5562,21 +5563,136 @@ body.onboarding-layout .main-content {
 .onboarding-sidebar {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 1.6rem 1.35rem;
+    border-radius: 18px;
+    padding: 1.75rem 1.5rem;
 }
 
 .onboarding-logo {
-    height: 42px;
-    max-width: 160px;
+    height: 44px;
+    max-width: 165px;
     object-fit: contain;
 }
 
 .onboarding-school-badge {
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    font-size: 0.82rem;
+    font-size: 0.84rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* ==============================================
+   En-tête Mobile & Stepper Moderne (KLASORA)
+   ============================================== */
+.onboarding-mobile-header {
+    margin-bottom: 1.35rem !important;
+    padding-bottom: 1.15rem !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+}
+
+.onboarding-brand-mobile {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.onboarding-logo-mobile {
+    height: 48px;
+    max-width: 180px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.04));
+    transition: transform 0.2s ease;
+}
+
+.onboarding-school-badge-mobile {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    font-size: 0.82rem;
+    color: #1e293b;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.onboarding-mobile-steps {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.75rem;
+}
+
+.m-step-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 600;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.m-step-chip.active {
+    background: #eff6ff;
+    border-color: rgba(67, 97, 238, 0.4);
+    color: #4361ee;
+    box-shadow: 0 2px 8px rgba(67, 97, 238, 0.12);
+}
+
+.m-step-chip.done {
+    background: #ecfdf5;
+    border-color: rgba(16, 185, 129, 0.35);
+    color: #059669;
+}
+
+.m-step-badge {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    background: #cbd5e1;
+    color: #ffffff;
+    flex-shrink: 0;
+    transition: all 0.25s ease;
+}
+
+.m-step-chip.active .m-step-badge {
+    background: #4361ee;
+    color: #ffffff;
+}
+
+.m-step-chip.done .m-step-badge {
+    background: #10b981;
+    color: #ffffff;
+}
+
+.m-step-label {
+    letter-spacing: -0.01em;
+}
+
+.m-step-divider {
+    width: 14px;
+    height: 2px;
+    background: #cbd5e1;
+    border-radius: 2px;
+    flex-shrink: 0;
+    transition: background 0.25s ease;
+}
+
+.m-step-divider.done {
+    background: #10b981;
+}
+
+.onboarding-mobile-footer {
+    margin-top: 1.35rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid #f1f5f9;
 }
 
 /* Stepper Vertical Desktop */
@@ -5858,16 +5974,24 @@ body.onboarding-layout .main-content {
 /* Responsive Tablette (768px - 991px) */
 @media (max-width: 991.98px) {
     body.onboarding-layout {
-        padding: 1.25rem 1rem;
+        padding: 1.5rem 1rem;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
     }
 
     body.onboarding-layout .main-content {
-        max-width: 680px;
+        max-width: 620px;
+        width: 100%;
+        margin: auto;
     }
 
     .onboarding-card {
-        padding: 1.5rem 1.25rem;
-        border-radius: 18px;
+        padding: 1.85rem 1.5rem;
+        border-radius: 22px;
+        box-shadow: 0 18px 42px rgba(30, 41, 59, 0.08) !important;
     }
 
     .onboarding-grid {
@@ -5876,63 +6000,82 @@ body.onboarding-layout .main-content {
     }
 }
 
-/* Responsive Mobile (320px - 767px) : Ultra-compact et pas de scroll superflu */
+/* Responsive Mobile (320px - 767px) : Moderne, centré, élégant avec logo valorisé */
 @media (max-width: 767.98px) {
     body.onboarding-layout {
-        padding: 0.75rem 0.5rem;
-        justify-content: flex-start;
+        padding: 1.25rem 0.75rem;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
     }
 
     body.onboarding-layout .main-content {
-        max-width: 100%;
+        max-width: 480px;
+        width: 100%;
+        margin: auto;
+    }
+
+    body.onboarding-layout .main-content > .container {
+        padding-left: 0.35rem;
+        padding-right: 0.35rem;
     }
 
     .onboarding-card {
-        padding: 1rem 0.85rem;
-        border-radius: 16px;
-        box-shadow: 0 6px 20px rgba(30, 41, 59, 0.06) !important;
+        padding: 1.65rem 1.35rem;
+        border-radius: 22px;
+        border: 1px solid rgba(226, 232, 240, 0.95);
+        box-shadow: 0 16px 42px rgba(30, 41, 59, 0.09) !important;
+        background: #ffffff;
     }
 
     .onboarding-logo-mobile {
-        height: 32px;
-        max-width: 120px;
+        height: 48px;
+        max-width: 175px;
         object-fit: contain;
     }
 
     .onboarding-school-badge-mobile {
-        background: #f1f5f9;
+        background: #f8fafc;
         border: 1px solid #e2e8f0;
-        max-width: 170px;
-        font-size: 0.75rem;
+        font-size: 0.82rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
     }
 
     .onboarding-title {
-        font-size: 1.18rem !important;
+        font-size: 1.28rem !important;
+        font-weight: 700;
+        color: #0f172a;
     }
 
     .onboarding-pane-header {
-        padding-bottom: 0.5rem;
-        margin-bottom: 0.75rem !important;
+        padding-bottom: 0.75rem;
+        margin-bottom: 1.15rem !important;
     }
 
     .onboarding-form .form-label {
-        font-size: 0.78rem !important;
+        font-size: 0.84rem !important;
+        font-weight: 600;
+        margin-bottom: 0.35rem;
     }
 
     .onboarding-form .form-control {
-        padding: 0.48rem 0.65rem;
-        font-size: 0.86rem;
+        padding: 0.62rem 0.8rem;
+        font-size: 0.92rem;
+        border-radius: 10px;
     }
 
     .onboarding-form .input-group-text {
-        padding: 0.48rem 0.65rem;
-        font-size: 0.86rem;
+        padding: 0.62rem 0.8rem;
+        font-size: 0.92rem;
     }
 
     .onboarding-form .btn-lg {
-        padding-top: 0.65rem !important;
-        padding-bottom: 0.65rem !important;
-        font-size: 0.92rem;
+        padding-top: 0.75rem !important;
+        padding-bottom: 0.75rem !important;
+        font-size: 0.95rem;
+        border-radius: 12px;
     }
 
     .tour-popover {
