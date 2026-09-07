@@ -5528,12 +5528,12 @@ body.onboarding-layout {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 1.5rem 1rem;
+    padding: 2rem 1.25rem;
 }
 
 body.onboarding-layout .main-content {
     width: 100%;
-    max-width: 680px;
+    max-width: 1000px; /* Élargi sur PC au lieu du 680px étroit */
     margin: 0 auto;
     padding: 0;
 }
@@ -5545,65 +5545,55 @@ body.onboarding-layout .main-content {
 .onboarding-card {
     background: #ffffff;
     border-radius: 20px;
-    padding: 2.25rem 2rem;
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    box-shadow: 0 12px 35px rgba(30, 41, 59, 0.08) !important;
+    padding: 2rem;
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    box-shadow: 0 16px 40px rgba(30, 41, 59, 0.08) !important;
+}
+
+/* Grille 2 colonnes Desktop (Sidebar gauche + Panneau principal droit) */
+.onboarding-grid {
+    display: grid;
+    grid-template-columns: 310px 1fr;
+    gap: 2.25rem;
+    align-items: stretch;
+}
+
+/* Colonne Gauche Desktop */
+.onboarding-sidebar {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.6rem 1.35rem;
 }
 
 .onboarding-logo {
-    height: 48px;
-    max-width: 180px;
+    height: 42px;
+    max-width: 160px;
     object-fit: contain;
 }
 
 .onboarding-school-badge {
-    background: #f1f5f9;
+    background: #ffffff;
     border: 1px solid #e2e8f0;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.onboarding-title {
-    color: #1e293b;
-    letter-spacing: -0.02em;
+/* Stepper Vertical Desktop */
+.onboarding-vertical-stepper {
+    display: flex;
+    flex-direction: column;
 }
 
-/* Stepper Onboarding */
-.onboarding-stepper {
-    position: relative;
-    padding: 0 0.5rem;
+.v-step-item {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
 }
 
-.stepper-track {
-    position: absolute;
-    top: 18px;
-    left: 28px;
-    right: 28px;
-    height: 4px;
-    background: #e2e8f0;
-    border-radius: 4px;
-    z-index: 1;
-}
-
-.stepper-progress {
-    height: 100%;
-    background: linear-gradient(90deg, #4361ee, #3b82f6);
-    border-radius: 4px;
-    transition: width 0.4s ease;
-}
-
-.stepper-steps {
-    z-index: 2;
-}
-
-.step-item {
-    flex: 1;
-    position: relative;
-}
-
-.step-circle {
-    width: 36px;
-    height: 36px;
-    margin: 0 auto;
+.v-step-marker {
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     background: #ffffff;
     border: 2px solid #cbd5e1;
@@ -5611,46 +5601,103 @@ body.onboarding-layout .main-content {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 600;
-    font-size: 0.9rem;
+    font-weight: 700;
+    font-size: 0.84rem;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    flex-shrink: 0;
 }
 
-.step-item.active .step-circle {
+.v-step-item.active .v-step-marker {
     border-color: #4361ee;
     color: #4361ee;
     background: #eff6ff;
-    box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.15);
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
 }
 
-.step-item.completed .step-circle {
+.v-step-item.completed .v-step-marker {
     border-color: #10b981;
     background: #10b981;
     color: #ffffff;
 }
 
-.step-label {
-    color: #64748b;
-    font-size: 0.8rem;
+.v-step-content {
+    flex: 1;
 }
 
-.step-item.active .step-label {
+.v-step-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    line-height: 1.2;
+}
+
+.v-step-item.active .v-step-title {
     color: #1e293b;
     font-weight: 700;
 }
 
-.step-item.completed .step-label {
+.v-step-item.completed .v-step-title {
     color: #10b981;
 }
 
-.onboarding-step-box {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+.v-step-desc {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    margin-top: 2px;
 }
 
-.onboarding-footer {
-    border-top: 1px solid #f1f5f9;
+.v-step-line {
+    width: 2px;
+    height: 22px;
+    background: #e2e8f0;
+    margin-left: 15px;
+    transition: background 0.3s ease;
+}
+
+.v-step-line.completed {
+    background: #10b981;
+}
+
+.onboarding-guide-tip {
+    background: #ffffff;
+    border-color: #e2e8f0;
+}
+
+/* Panneau Principal Droit */
+.onboarding-main-pane {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.onboarding-pane-header {
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 0.85rem;
+}
+
+.onboarding-title {
+    color: #1e293b;
+    letter-spacing: -0.01em;
+}
+
+/* Formulaire */
+.onboarding-form .form-label {
+    letter-spacing: -0.01em;
+}
+
+.onboarding-form .form-control {
+    border-color: #cbd5e1;
+    padding: 0.58rem 0.8rem;
+    font-size: 0.9rem;
+}
+
+.onboarding-form .form-control:focus {
+    border-color: #4361ee;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+}
+
+.onboarding-form .input-group-text {
+    border-color: #cbd5e1;
 }
 
 /* ==========================================================================
@@ -5808,25 +5855,84 @@ body.onboarding-layout .main-content {
     box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
 }
 
-/* Adaptations Mobile (320px - 414px) */
-@media (max-width: 575.98px) {
+/* Responsive Tablette (768px - 991px) */
+@media (max-width: 991.98px) {
+    body.onboarding-layout {
+        padding: 1.25rem 1rem;
+    }
+
+    body.onboarding-layout .main-content {
+        max-width: 680px;
+    }
+
     .onboarding-card {
-        padding: 1.5rem 1.15rem;
+        padding: 1.5rem 1.25rem;
+        border-radius: 18px;
+    }
+
+    .onboarding-grid {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+}
+
+/* Responsive Mobile (320px - 767px) : Ultra-compact et pas de scroll superflu */
+@media (max-width: 767.98px) {
+    body.onboarding-layout {
+        padding: 0.75rem 0.5rem;
+        justify-content: flex-start;
+    }
+
+    body.onboarding-layout .main-content {
+        max-width: 100%;
+    }
+
+    .onboarding-card {
+        padding: 1rem 0.85rem;
         border-radius: 16px;
+        box-shadow: 0 6px 20px rgba(30, 41, 59, 0.06) !important;
+    }
+
+    .onboarding-logo-mobile {
+        height: 32px;
+        max-width: 120px;
+        object-fit: contain;
+    }
+
+    .onboarding-school-badge-mobile {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        max-width: 170px;
+        font-size: 0.75rem;
     }
 
     .onboarding-title {
-        font-size: 1.3rem;
+        font-size: 1.18rem !important;
     }
 
-    .step-circle {
-        width: 30px;
-        height: 30px;
-        font-size: 0.8rem;
+    .onboarding-pane-header {
+        padding-bottom: 0.5rem;
+        margin-bottom: 0.75rem !important;
     }
 
-    .step-label {
-        font-size: 0.72rem;
+    .onboarding-form .form-label {
+        font-size: 0.78rem !important;
+    }
+
+    .onboarding-form .form-control {
+        padding: 0.48rem 0.65rem;
+        font-size: 0.86rem;
+    }
+
+    .onboarding-form .input-group-text {
+        padding: 0.48rem 0.65rem;
+        font-size: 0.86rem;
+    }
+
+    .onboarding-form .btn-lg {
+        padding-top: 0.65rem !important;
+        padding-bottom: 0.65rem !important;
+        font-size: 0.92rem;
     }
 
     .tour-popover {
