@@ -126,7 +126,6 @@
                         <th class="ps-4" style="width: 70px;">#ID</th>
                         <th>Établissement</th>
                         <th>Coordonnées</th>
-                        <th>Direction</th>
                         <th class="text-center">Métriques</th>
                         <th>Statut</th>
                         <th class="text-end pe-4" style="width: 220px;">Actions</th>
@@ -135,7 +134,7 @@
                 <tbody id="schoolsTableBody">
                     {% for ecole in ecoles %}
                     {% set is_blocked = ecole.statut in ['bloque', 'suspendu', 'inactive'] %}
-                    <tr class="school-row" data-statut="{{ 'bloque' if is_blocked else 'actif' }}" data-search="{{ ecole.nom|lower }} {{ ecole.adresse|default('')|lower }} {{ ecole.email|default('')|lower }} {{ ecole.directeur|default('')|lower }} {{ ecole.telephone|default('')|lower }}">
+                    <tr class="school-row" data-statut="{{ 'bloque' if is_blocked else 'actif' }}" data-search="{{ ecole.nom|lower }} {{ ecole.adresse|default('')|lower }} {{ ecole.email|default('')|lower }} {{ ecole.telephone|default('')|lower }}">
                         <td class="ps-4 text-muted fw-semibold">
                             #{{ ecole.id }}
                         </td>
@@ -169,15 +168,7 @@
                                 {% endif %}
                             </div>
                         </td>
-                        <td>
-                            <div class="small fw-medium text-dark">
-                                {% if ecole.directeur %}
-                                <i class="fas fa-user-tie text-secondary me-1.5"></i>{{ ecole.directeur }}
-                                {% else %}
-                                <span class="text-muted fst-italic">—</span>
-                                {% endif %}
-                            </div>
-                        </td>
+
                         <td class="text-center">
                             <div class="d-inline-flex gap-1.5">
                                 <span class="badge bg-light text-dark border px-2 py-1 small" title="Élèves inscrits">
@@ -215,8 +206,7 @@
                                         data-nom="{{ ecole.nom }}"
                                         data-adresse="{{ ecole.adresse|default('') }}"
                                         data-telephone="{{ ecole.telephone|default('') }}"
-                                        data-email="{{ ecole.email|default('') }}"
-                                        data-directeur="{{ ecole.directeur|default('') }}">
+                                        data-email="{{ ecole.email|default('') }}">
                                     <i class="fas fa-edit"></i>
                                 </button>
 
@@ -273,7 +263,7 @@
     <div class="d-md-none" id="schoolsMobileContainer">
         {% for ecole in ecoles %}
         {% set is_blocked = ecole.statut in ['bloque', 'suspendu', 'inactive'] %}
-        <div class="card border-0 shadow-sm rounded-4 mb-3 school-row school-mobile-card" data-statut="{{ 'bloque' if is_blocked else 'actif' }}" data-search="{{ ecole.nom|lower }} {{ ecole.adresse|default('')|lower }} {{ ecole.email|default('')|lower }} {{ ecole.directeur|default('')|lower }} {{ ecole.telephone|default('')|lower }}">
+        <div class="card border-0 shadow-sm rounded-4 mb-3 school-row school-mobile-card" data-statut="{{ 'bloque' if is_blocked else 'actif' }}" data-search="{{ ecole.nom|lower }} {{ ecole.adresse|default('')|lower }} {{ ecole.email|default('')|lower }} {{ ecole.telephone|default('')|lower }}">
             <div class="card-body p-3">
                 <!-- En-tête carte -->
                 <div class="d-flex align-items-start justify-content-between gap-2 mb-2.5">
@@ -311,9 +301,7 @@
                     {% if ecole.adresse %}
                     <div class="mb-1"><i class="fas fa-map-marker-alt text-danger me-1.5"></i>{{ ecole.adresse }}</div>
                     {% endif %}
-                    {% if ecole.directeur %}
-                    <div class="mb-1"><i class="fas fa-user-tie text-secondary me-1.5"></i>Direction : <span class="text-dark fw-medium">{{ ecole.directeur }}</span></div>
-                    {% endif %}
+
                     <div class="d-flex gap-3 mt-1">
                         {% if ecole.email %}
                         <a href="mailto:{{ ecole.email }}" class="text-decoration-none text-primary"><i class="fas fa-envelope me-1"></i>Email</a>
@@ -345,8 +333,7 @@
                             data-nom="{{ ecole.nom }}"
                             data-adresse="{{ ecole.adresse|default('') }}"
                             data-telephone="{{ ecole.telephone|default('') }}"
-                            data-email="{{ ecole.email|default('') }}"
-                            data-directeur="{{ ecole.directeur|default('') }}">
+                            data-email="{{ ecole.email|default('') }}">
                         <i class="fas fa-edit me-1"></i>Modifier
                     </button>
 
@@ -393,7 +380,7 @@
                     <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
                         <i class="fas fa-edit"></i>
                     </div>
-                    <h5 class="modal-title fw-bold text-dark" id="modalModifierEcoleLabel">Modifier l'établissement</h5>
+                    <h5 class="modal-title fw-bold text-dark" id="modalModifierEcoleLabel">Modifier l'école</h5>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
@@ -402,25 +389,32 @@
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label for="edit_nom" class="form-label small fw-bold text-dark">Nom de l'école <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="edit_nom" name="nom" required>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted"><i class="fas fa-school"></i></span>
+                            <input type="text" class="form-control" id="edit_nom" name="nom" placeholder="Ex : Collège Al Farabi" required>
+                        </div>
                     </div>
                     <div class="mb-3">
+                        <label for="edit_email" class="form-label small fw-bold text-dark">Email de l'école <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted"><i class="fas fa-envelope"></i></span>
+                            <input type="email" class="form-control" id="edit_email" name="email" placeholder="admin@ecole.com" required>
+                        </div>
+                        <div class="form-text small text-muted"><i class="fas fa-info-circle me-1 text-primary"></i>Sert également d'identifiant de connexion pour l'école.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_telephone" class="form-label small fw-bold text-dark">Numéro de téléphone</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted"><i class="fas fa-phone"></i></span>
+                            <input type="tel" class="form-control" id="edit_telephone" name="telephone" placeholder="+212 600 000 000">
+                        </div>
+                    </div>
+                    <div class="mb-2">
                         <label for="edit_adresse" class="form-label small fw-bold text-dark">Adresse physique</label>
-                        <input type="text" class="form-control" id="edit_adresse" name="adresse" placeholder="Ex: Rte Kenitra, Rabat">
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label for="edit_telephone" class="form-label small fw-bold text-dark">Téléphone</label>
-                            <input type="tel" class="form-control" id="edit_telephone" name="telephone" placeholder="Ex: +212 600000000">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted"><i class="fas fa-map-marker-alt"></i></span>
+                            <input type="text" class="form-control" id="edit_adresse" name="adresse" placeholder="Rue, quartier, ville, pays">
                         </div>
-                        <div class="col-6">
-                            <label for="edit_email" class="form-label small fw-bold text-dark">Email contact</label>
-                            <input type="email" class="form-control" id="edit_email" name="email" placeholder="contact@ecole.com">
-                        </div>
-                    </div>
-                    <div class="mb-1">
-                        <label for="edit_directeur" class="form-label small fw-bold text-dark">Directeur / Responsable</label>
-                        <input type="text" class="form-control" id="edit_directeur" name="directeur" placeholder="Nom du directeur">
                     </div>
                 </div>
                 <div class="modal-footer border-top py-2.5 px-4 bg-light rounded-bottom-4">
@@ -637,16 +631,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const btn = event.relatedTarget;
             const id = btn.getAttribute('data-id');
             const nom = btn.getAttribute('data-nom') || '';
-            const adresse = btn.getAttribute('data-adresse') || '';
-            const telephone = btn.getAttribute('data-telephone') || '';
             const email = btn.getAttribute('data-email') || '';
-            const directeur = btn.getAttribute('data-directeur') || '';
+            const telephone = btn.getAttribute('data-telephone') || '';
+            const adresse = btn.getAttribute('data-adresse') || '';
 
             document.getElementById('edit_nom').value = nom;
-            document.getElementById('edit_adresse').value = adresse;
-            document.getElementById('edit_telephone').value = telephone;
             document.getElementById('edit_email').value = email;
-            document.getElementById('edit_directeur').value = directeur;
+            document.getElementById('edit_telephone').value = telephone;
+            document.getElementById('edit_adresse').value = adresse;
 
             document.getElementById('formModifierEcole').action = '/admin/ecoles/' + id + '/modifier';
         });

@@ -65,6 +65,10 @@ def gestion_ecoles():
             ecole.nb_classes = Classe.query.filter_by(ecole_id=ecole.id).count()
             ecole.nb_profs = Professeur.query.filter_by(ecole_id=ecole.id).count()
             total_eleves += ecole.nb_eleves
+            if not ecole.email:
+                admin_user = Utilisateur.query.filter_by(ecole_id=ecole.id, role='admin').first()
+                if admin_user and admin_user.email:
+                    ecole.email = admin_user.email
 
         stats = {
             'total_ecoles': len(ecoles),
@@ -106,19 +110,20 @@ def ajouter_ecole():
                 flash("Cet email est déjà utilisé par un autre utilisateur.", "danger")
                 return redirect(url_for('main.ajouter_ecole'))
 
-            # Création école
+            # Création école (un seul nom et un seul email)
             ecole = Ecole(
                 nom=nom_ecole,
                 adresse=adresse,
                 telephone=telephone,
+                email=email_admin,
                 statut='active'
             )
             db.session.add(ecole)
             db.session.flush()
 
-            # Création admin
+            # Création admin lié à l'école
             admin = Utilisateur(
-                nom=email_admin.split('@')[0],
+                nom=nom_ecole,
                 email=email_admin,
                 role='admin',
                 mot_de_passe=generate_password_hash(mot_de_passe),
@@ -363,26 +368,45 @@ def safe_delete_ecole(ecole_id):
 @login_required
 @role_required('super_admin')
 def modifier_ecole(ecole_id):
-    """Modifier les informations d'un établissement"""
+    """Modifier les informations d'un établissement (un seul nom, un seul email)"""
     ecole = Ecole.query.get_or_404(ecole_id)
     try:
         nom = request.form.get('nom', '').strip()
-        adresse = request.form.get('adresse', '').strip()
-        telephone = request.form.get('telephone', '').strip()
         email = request.form.get('email', '').strip()
-        directeur = request.form.get('directeur', '').strip()
+        telephone = request.form.get('telephone', '').strip()
+        adresse = request.form.get('adresse', '').strip()
 
         if not nom:
-            flash("Le nom de l'établissement est obligatoire.", "danger")
+            flash("Le nom de l'école est obligatoire.", "danger")
             return redirect(url_for('main.gestion_ecoles'))
 
-        ecole.nom = nom
-        ecole.adresse = adresse or None
-        ecole.telephone = telephone or None
-        ecole.email = email or None
-        ecole.directeur = directeur or None
-        db.session.commit()
+        if not email:
+            flash("L'email de l'école est obligatoire.", "danger")
+            return redirect(url_for('main.gestion_ecoles'))
 
+        admin = Utilisateur.query.filter_by(ecole_id=ecole.id, role='admin').first()
+
+        # Vérifier unicité email si modifié
+        conflit = Utilisateur.query.filter(
+            Utilisateur.email == email,
+            Utilisateur.id != (admin.id if admin else None)
+        ).first()
+        if conflit:
+            flash("Cet email est déjà utilisé par un autre compte utilisateur.", "danger")
+            return redirect(url_for('main.gestion_ecoles'))
+
+        # Mise à jour école
+        ecole.nom = nom
+        ecole.email = email
+        ecole.telephone = telephone or None
+        ecole.adresse = adresse or None
+
+        # Synchronisation de l'administrateur de l'école
+        if admin:
+            admin.email = email
+            admin.nom = nom
+
+        db.session.commit()
         flash(f"L'école « {ecole.nom} » a été modifiée avec succès ✅", "success")
     except Exception as e:
         db.session.rollback()
