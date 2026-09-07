@@ -121,10 +121,11 @@ def create_app():
                 if getattr(current_user, 'role', None) == 'admin':
                     setup_state = get_school_setup_state(current_user.ecole.id)
 
+            from app.models import ADMIN_TOUR_VERSION
             return dict(
                 annee_active=annee_active,
                 school_setup_state=setup_state,
-                ADMIN_TOUR_VERSION=1
+                ADMIN_TOUR_VERSION=ADMIN_TOUR_VERSION
             )
 
         # Assurer la présence permanente du super administrateur

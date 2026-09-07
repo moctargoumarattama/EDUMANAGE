@@ -112,9 +112,9 @@ def get_annee_active(ecole_id=None) -> Optional['AnneeScolaire']:
     if not ecole_id:
         return None
     
-    return AnneeScolaire.query.filter(
-        AnneeScolaire.ecole_id == ecole_id,
-        AnneeScolaire.statut.in_(['active', 'actif'])
+    return AnneeScolaire.query.filter_by(
+        ecole_id=ecole_id,
+        statut='active'
     ).first()
 
 
@@ -123,7 +123,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
     Détermine l'état de configuration d'une école (onboarding).
     
     Règles :
-    1. Présence d'une année scolaire active pour l'école
+    1. Présence d'une année scolaire active (statut == 'active') pour l'école
     2. Présence d'au moins une classe liée à cette école et à cette année active
     
     Optimisation : mise en cache dans flask.g._school_setup_cache pour la requête en cours.
@@ -161,9 +161,9 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
         pass
 
     # 1. Vérification de l'année scolaire active pour cette école
-    active_year = AnneeScolaire.query.filter(
-        AnneeScolaire.ecole_id == target_ecole_id,
-        AnneeScolaire.statut.in_(['active', 'actif'])
+    active_year = AnneeScolaire.query.filter_by(
+        ecole_id=target_ecole_id,
+        statut='active'
     ).first()
 
     if not active_year:
@@ -175,7 +175,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
             'current_step': 'year'
         }
     else:
-        # 2. Vérification d'au moins une classe pour cette année active et cette école (requête O(1))
+        # 2. Vérification d'au moins une classe pour cette année active et cette école (requête d'existence efficace / indexable)
         has_class = Classe.query.filter_by(
             ecole_id=target_ecole_id,
             annee_scolaire_id=active_year.id
@@ -205,6 +205,126 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
         pass
 
     return result
+
+
+def creer_ou_activer_annee_scolaire(ecole_id: int, nom: str, date_debut, date_fin):
+    """
+    Logique métier canonique de création ou activation d'une année scolaire.
+    Garantit :
+    - ecole_id imposé côté serveur
+    - nom obligatoire et nettoyé
+    - date_debut < date_fin
+    - statut canonique 'active'
+    - archivage de toute autre année active pour cette école (contrainte unicité)
+    - transaction atomique
+    Returns:
+        (AnneeScolaire, None) en cas de succès
+        (None, str) en cas d'erreur de validation ou système
+    """
+    from app.models import AnneeScolaire
+    from app import db
+
+    nom = (nom or '').strip()
+    if not nom or not date_debut or not date_fin:
+        return None, "Veuillez renseigner tous les champs obligatoires de l'année scolaire."
+
+    if date_fin <= date_debut:
+        return None, "La date de fin doit être postérieure à la date de début."
+
+    try:
+        # Désactiver toute autre année active pour cette école
+        AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut='active').update({'statut': 'archivee'})
+
+        # Vérifier si une année avec ce nom existe déjà pour cette école
+        existante = AnneeScolaire.query.filter_by(nom=nom, ecole_id=ecole_id).first()
+        if existante:
+            existante.statut = 'active'
+            existante.date_debut = date_debut
+            existante.date_fin = date_fin
+            annee = existante
+        else:
+            annee = AnneeScolaire(
+                nom=nom,
+                date_debut=date_debut,
+                date_fin=date_fin,
+                statut='active',
+                ecole_id=ecole_id
+            )
+            db.session.add(annee)
+
+        db.session.commit()
+        if hasattr(g, '_school_setup_cache'):
+            g._school_setup_cache.pop(ecole_id, None)
+
+        return annee, None
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"Erreur création année scolaire : {e}")
+        return None, "Une erreur est survenue lors de la configuration de l'année scolaire."
+
+
+def creer_classe_scolaire(ecole_id: int, annee_scolaire_id: int, nom: str, niveau: str, salle=None, capacite=35):
+    """
+    Logique métier canonique de création d'une classe rattachée à l'école et à l'année scolaire.
+    Garantit :
+    - ecole_id et annee_scolaire_id imposés côté serveur
+    - nom et niveau obligatoires
+    - unicité nom + annee + ecole
+    - capacité et salle
+    - transaction atomique
+    Returns:
+        (Classe, None) en cas de succès
+        (None, str) en cas d'erreur de validation ou système
+    """
+    from app.models import Classe, AnneeScolaire
+    from app import db
+
+    nom = (nom or '').strip()
+    niveau = (niveau or '').strip()
+    salle = (salle or '').strip() or None
+
+    if not nom or not niveau:
+        return None, "Le nom et le niveau de la classe sont obligatoires."
+
+    annee = AnneeScolaire.query.filter_by(id=annee_scolaire_id, ecole_id=ecole_id).first()
+    if not annee:
+        return None, "L'année scolaire spécifiée est invalide pour cet établissement."
+
+    try:
+        capacite = int(capacite)
+        if capacite <= 0:
+            capacite = 35
+    except (ValueError, TypeError):
+        capacite = 35
+
+    existing = Classe.query.filter_by(
+        nom=nom,
+        annee_scolaire_id=annee_scolaire_id,
+        ecole_id=ecole_id
+    ).first()
+    if existing:
+        return None, "Une classe avec ce nom existe déjà pour cette année scolaire."
+
+    try:
+        classe = Classe(
+            nom=nom,
+            niveau=niveau,
+            salle=salle,
+            capacite=capacite,
+            effectif=0,
+            annee_scolaire_id=annee_scolaire_id,
+            ecole_id=ecole_id
+        )
+        db.session.add(classe)
+        db.session.commit()
+        if hasattr(g, '_school_setup_cache'):
+            g._school_setup_cache.pop(ecole_id, None)
+
+        return classe, None
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"Erreur création classe : {e}")
+        return None, "Une erreur est survenue lors de la création de la classe."
 
 
 def get_or_create_annee_active(ecole_id=None) -> 'AnneeScolaire':

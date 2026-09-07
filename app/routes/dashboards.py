@@ -152,8 +152,12 @@ def professeur_home():
 @role_required('admin')
 def onboarding():
     """Parcours d'onboarding dédié pour l'administrateur d'établissement avant tout accès au dashboard"""
-    from flask import g, jsonify
-    from app.utils import get_school_setup_state
+    from flask import g, jsonify, session
+    from app.utils import (
+        get_school_setup_state,
+        creer_ou_activer_annee_scolaire,
+        creer_classe_scolaire
+    )
     from app.models import Ecole, AnneeScolaire, Classe
 
     ecole = current_user.ecole
@@ -161,9 +165,19 @@ def onboarding():
         flash("Votre compte administrateur n'est rattaché à aucun établissement.", "danger")
         return redirect(url_for('main.logout'))
 
-    setup_state = get_school_setup_state(ecole.id)
-    step = setup_state['current_step']  # 'year', 'class', or 'complete'
+    setup_state = get_school_setup_state(ecole.id, force_refresh=True)
     active_year = setup_state.get('active_year')
+
+    # Contrôle strict du cycle de vie des étapes (impossible de forcer 'complete' si setup incomplet)
+    if not setup_state['setup_complete']:
+        step = setup_state['current_step']  # Strictement 'year' ou 'class'
+    else:
+        # Configuration complète en base
+        just_completed = session.pop('onboarding_just_completed', False) or request.args.get('step') == 'complete'
+        if just_completed:
+            step = 'complete'
+        else:
+            return redirect(url_for('main.index'))
 
     # Traitement des formulaires au sein de l'expérience d'onboarding
     if request.method == 'POST':
@@ -182,39 +196,17 @@ def onboarding():
             try:
                 dt_debut = datetime.strptime(date_debut_str, '%Y-%m-%d').date()
                 dt_fin = datetime.strptime(date_fin_str, '%Y-%m-%d').date()
-
-                if dt_fin <= dt_debut:
-                    flash("La date de fin doit être postérieure à la date de début.", "warning")
-                    return redirect(url_for('main.onboarding'))
-
-                # Vérifier si une année avec ce nom existe déjà pour cette école
-                existante = AnneeScolaire.query.filter_by(nom=nom, ecole_id=ecole.id).first()
-                if existante:
-                    AnneeScolaire.query.filter_by(ecole_id=ecole.id).update({'statut': 'archivee'})
-                    existante.statut = 'active'
-                    existante.date_debut = dt_debut
-                    existante.date_fin = dt_fin
-                else:
-                    AnneeScolaire.query.filter_by(ecole_id=ecole.id).update({'statut': 'archivee'})
-                    nouvelle_annee = AnneeScolaire(
-                        nom=nom,
-                        date_debut=dt_debut,
-                        date_fin=dt_fin,
-                        statut='active',
-                        ecole_id=ecole.id
-                    )
-                    db.session.add(nouvelle_annee)
-
-                db.session.commit()
-                if hasattr(g, '_school_setup_cache'):
-                    g._school_setup_cache.pop(ecole.id, None)
-
-                flash(f"Année scolaire « {nom} » configurée et activée avec succès 🎉", "success")
+            except (ValueError, TypeError):
+                flash("Format de date invalide (AAAA-MM-JJ).", "danger")
                 return redirect(url_for('main.onboarding'))
-            except Exception as e:
-                db.session.rollback()
-                flash(f"Erreur lors de la configuration de l'année : {str(e)}", "danger")
+
+            annee, error_msg = creer_ou_activer_annee_scolaire(ecole.id, nom, dt_debut, dt_fin)
+            if error_msg:
+                flash(error_msg, "danger")
                 return redirect(url_for('main.onboarding'))
+
+            flash(f"Année scolaire « {annee.nom} » configurée et activée avec succès 🎉", "success")
+            return redirect(url_for('main.onboarding'))
 
         # Étape 2 : Création de la première classe
         elif action == 'creer_classe':
@@ -230,40 +222,21 @@ def onboarding():
             except (ValueError, TypeError):
                 capacite = 35
 
-            if not nom_classe or not niveau:
-                flash("Le nom et le niveau de la classe sont obligatoires.", "danger")
-                return redirect(url_for('main.onboarding'))
-
-            existing_classe = Classe.query.filter_by(
-                nom=nom_classe,
+            classe, error_msg = creer_classe_scolaire(
+                ecole_id=ecole.id,
                 annee_scolaire_id=active_year.id,
-                ecole_id=ecole.id
-            ).first()
-            if existing_classe:
-                flash("Une classe avec ce nom existe déjà pour cette année scolaire.", "warning")
+                nom=nom_classe,
+                niveau=niveau,
+                salle=salle,
+                capacite=capacite
+            )
+            if error_msg:
+                flash(error_msg, "danger")
                 return redirect(url_for('main.onboarding'))
 
-            try:
-                nouvelle_classe = Classe(
-                    nom=nom_classe,
-                    niveau=niveau,
-                    salle=salle or None,
-                    capacite=capacite,
-                    effectif=0,
-                    annee_scolaire_id=active_year.id,
-                    ecole_id=ecole.id
-                )
-                db.session.add(nouvelle_classe)
-                db.session.commit()
-                if hasattr(g, '_school_setup_cache'):
-                    g._school_setup_cache.pop(ecole.id, None)
-
-                flash(f"Première classe « {nom_classe} » créée avec succès 🎉", "success")
-                return redirect(url_for('main.onboarding'))
-            except Exception as e:
-                db.session.rollback()
-                flash(f"Erreur lors de la création de la classe : {str(e)}", "danger")
-                return redirect(url_for('main.onboarding'))
+            session['onboarding_just_completed'] = True
+            flash(f"Première classe « {classe.nom} » créée avec succès 🎉", "success")
+            return redirect(url_for('main.onboarding', step='complete'))
 
     return render_template(
         'onboarding.html',

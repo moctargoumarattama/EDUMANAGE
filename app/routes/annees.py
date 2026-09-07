@@ -94,7 +94,8 @@ def gestion_annees():
 
             except Exception as e:
                 db.session.rollback()
-                flash(f"Erreur lors de l'ajout: {str(e)}", "danger")
+                current_app.logger.exception(f"Erreur lors de l'ajout de l'année : {e}")
+                flash("Une erreur est survenue lors de l'ajout de l'année.", "danger")
 
         from app.utils import get_school_setup_state
         if current_user.role == 'admin' and current_user.ecole_id and not get_school_setup_state(current_user.ecole_id)['setup_complete']:

@@ -442,11 +442,12 @@ def setup_template_context():
             current_app.logger.debug(f"Impossible d'injecter l'année courante ou setup_state: {e}")
             annee = None
 
+        from app.models import ADMIN_TOUR_VERSION
         return {
             'ecole_courante': ec_res if not isinstance(ec_res, tuple) else None,
             'annee_courante': annee,
             'school_setup_state': setup_state,
-            'ADMIN_TOUR_VERSION': 1,
+            'ADMIN_TOUR_VERSION': ADMIN_TOUR_VERSION,
             'is_super_admin': is_super_admin(),
             'get_ecole_id': get_ecole_id
         }
@@ -511,16 +512,15 @@ def before_request_handler():
                 try:
                     from app.utils import get_school_setup_state
                     setup_state = get_school_setup_state(ecole_id)
+                    allowed_endpoints = {
+                        'main.onboarding',
+                        'main.login',
+                        'main.logout',
+                        'main.choisir_ecole',
+                    }
+                    current_ep = request.endpoint or ''
                     if not setup_state.get('setup_complete', False):
-                        allowed_endpoints = {
-                            'main.onboarding',
-                            'main.login',
-                            'main.logout',
-                            'main.choisir_ecole',
-                            'main.api_admin_tour_complete',
-                        }
-                        current_ep = request.endpoint or ''
-                        if current_ep not in allowed_endpoints and not current_ep.startswith('static') and current_ep != 'admin.static':
+                        if current_ep not in allowed_endpoints and not current_ep.startswith('static') and current_ep != 'admin.static' and not request.path.startswith('/static/'):
                             if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
                                 return jsonify({
                                     'error': 'school_setup_required',
@@ -528,7 +528,22 @@ def before_request_handler():
                                 }), 403
                             return redirect(url_for('main.onboarding'))
                 except Exception as e:
-                    current_app.logger.error(f"Erreur vérification onboarding admin: {e}\n{traceback.format_exc()}")
+                    current_app.logger.exception(f"Erreur vérification onboarding admin: {e}")
+                    # Comportement fail-safe (fermé) : en cas d'erreur de vérification, on ne laisse pas passer l'admin vers les routes métier
+                    allowed_endpoints = {
+                        'main.onboarding',
+                        'main.login',
+                        'main.logout',
+                        'main.choisir_ecole',
+                    }
+                    current_ep = request.endpoint or ''
+                    if current_ep not in allowed_endpoints and not current_ep.startswith('static') and current_ep != 'admin.static' and not request.path.startswith('/static/'):
+                        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
+                            return jsonify({
+                                'error': 'school_setup_required',
+                                'current_step': 'year'
+                            }), 403
+                        return redirect(url_for('main.onboarding'))
 
 
 def after_request_handler(response):

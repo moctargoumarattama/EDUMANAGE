@@ -234,7 +234,7 @@
         </div>
     </section>
 
-    {% if school_setup_state and school_setup_state.setup_complete and current_user.admin_tour_version < 1 %}
+    {% if school_setup_state and school_setup_state.setup_complete and (current_user.admin_tour_version or 0) < ADMIN_TOUR_VERSION %}
     <!-- Modal Invitation Visite Guidée (Facultative) -->
     <div class="modal fade" id="tourPromptModal" tabindex="-1" aria-labelledby="tourPromptModalLabel" aria-hidden="true" data-bs-backdrop="true">
         <div class="modal-dialog modal-dialog-centered">
