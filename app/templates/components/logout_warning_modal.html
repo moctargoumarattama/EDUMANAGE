@@ -1,0 +1,36 @@
+<!-- Modal d'avertissement de déconnexion si données hors-ligne non synchronisées -->
+<div class="modal fade" id="klasoraLogoutWarningModal" tabindex="-1" aria-labelledby="klasoraLogoutWarningModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header bg-warning bg-opacity-10 border-0 pt-4 px-4">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-warning bg-opacity-25 p-3 me-3 text-warning-emphasis">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-1" id="klasoraLogoutWarningModalLabel">Données non synchronisées</h5>
+                        <p class="text-muted small mb-0">Modifications locales en attente de transmission</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <p class="text-secondary mb-3">
+                    Vous avez <strong id="klasoraPendingCountText" class="text-danger fw-bold">plusieurs</strong> opération(s) locale(s) en attente ou conflit non résolu sur cet appareil.
+                </p>
+                <div class="alert alert-warning d-flex align-items-start mb-0 py-2 px-3 small rounded-3">
+                    <i class="fas fa-info-circle me-2 mt-1"></i>
+                    <span>Si vous vous déconnectez maintenant, ces données resteront stockées en sécurité sur ce navigateur (isolées par compte), mais l'école ne pourra pas les intégrer tant que vous ne vous reconnecterez pas avec ce même compte pour finaliser ou résoudre les éventuels conflits.</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4 pt-2 d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary px-3 rounded-3" data-bs-dismiss="modal" id="klasoraStayAndSyncBtn">
+                    <i class="fas fa-sync-alt me-1"></i> Rester et synchroniser
+                </button>
+                <a href="{{ url_for('main.logout') }}" class="btn btn-danger px-4 rounded-3" id="klasoraConfirmLogoutBtn" onclick="if(window.klasoraPwaCleanOnLogout){window.klasoraPwaCleanOnLogout();}">
+                    Se déconnecter quand même
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

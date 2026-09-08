@@ -5,26 +5,28 @@
 {% block content %}
 <div class="container mt-4">
     <h2>Historique des imports</h2>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Utilisateur</th>
-                <th>Fichier importé</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for h in historiques %}
-            <tr>
-                <td>{{ h.date_import.strftime("%d/%m/%Y %H:%M") }}</td>
-                <td>
-                    {{ h.utilisateur.prenom }} {{ h.utilisateur.nom }} 
-                    ({{ h.utilisateur.email }})
-                </td>
-                <td>{{ h.fichier }}</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Utilisateur</th>
+                    <th>Fichier importé</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for h in historiques %}
+                <tr>
+                    <td>{{ h.date_import.strftime("%d/%m/%Y %H:%M") }}</td>
+                    <td>
+                        {{ h.utilisateur.prenom }} {{ h.utilisateur.nom }}
+                        ({{ h.utilisateur.email }})
+                    </td>
+                    <td>{{ h.fichier }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}

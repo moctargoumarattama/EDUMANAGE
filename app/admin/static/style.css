@@ -101,11 +101,11 @@
 }
 
 .admin-stat-row {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
 }
 
 .action-grid {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
 }
 
 .admin-stat-card {
@@ -204,7 +204,26 @@
 
 @media (max-width: 768px) {
     .admin-main {
+        padding: 1rem 0.75rem;
+    }
+
+    .admin-card {
         padding: 1rem;
+    }
+
+    .admin-card h2 {
+        font-size: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .admin-card .badge {
+        white-space: normal !important;
+        font-size: 0.85rem !important;
+        padding: 0.35rem 0.65rem !important;
+        line-height: 1.35;
+        display: inline-block;
+        max-width: 100%;
+        word-break: break-word;
     }
 
     .backup-item {

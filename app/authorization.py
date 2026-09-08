@@ -222,7 +222,7 @@ def role_required(*roles):
         def decorated_function(*args, **kwargs):
             if not current_user.is_authenticated:
                 message = "Vous devez être connecté pour accéder à cette ressource."
-                if request.is_json:
+                if request.is_json or request.path.startswith('/api/'):
                     return jsonify({"error": message}), 401
                 flash(message, "warning")
                 return redirect(url_for('main.login'))
@@ -232,7 +232,7 @@ def role_required(*roles):
                 eleve_id = kwargs.get('eleve_id')
                 if eleve_id and not check_parent_access(eleve_id):
                     message = "Accès refusé : cet élève ne vous appartient pas."
-                    if request.is_json:
+                    if request.is_json or request.path.startswith('/api/'):
                         return jsonify({"error": message}), 403
                     flash(message, "danger")
                     return redirect(url_for('main.parent_dashboard'))
@@ -251,7 +251,7 @@ def role_required(*roles):
                     level="WARNING",
                     details=f"Tentative d'accès {request.path} par {user_role}"
                 )
-                if request.is_json:
+                if request.is_json or request.path.startswith('/api/'):
                     return jsonify({"error": message}), 403
                 flash(message, "danger")
                 return redirect(url_for('main.index'))

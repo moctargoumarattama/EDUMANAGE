@@ -56,6 +56,35 @@
     box-sizing: border-box;
 }
 
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html, body {
+    max-width: 100%;
+}
+
+img, svg, video, canvas, iframe {
+    max-width: 100%;
+    height: auto;
+}
+
+table {
+    max-width: 100%;
+}
+
+.table-responsive {
+    max-width: 100%;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+pre, code {
+    max-width: 100%;
+    word-break: break-word;
+}
+
 body {
     font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background-color: var(--gray-100);
@@ -753,11 +782,24 @@ iframe {
     top: 5rem;
     right: 1rem;
     z-index: 1050;
-    width: min(400px, calc(100vw - 2rem));
+    width: min(400px, calc(100% - 2rem));
+    max-width: 100%;
+}
+
+@media (max-width: 480px) {
+    .notifications-panel {
+        top: 4.5rem;
+        right: 0.5rem;
+        left: 0.5rem;
+        width: auto;
+        max-width: 100%;
+    }
 }
 
 .notification-toast {
-    min-width: min(350px, calc(100vw - 2rem));
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
 }
 
 .quick-access-grid,
@@ -769,9 +811,9 @@ iframe {
     gap: 1rem;
 }
 
-/* Toujours 2 cartes par ligne sur le dashboard enseignant */
+/* Toujours 2 cartes par ligne sur le dashboard enseignant sans débordement */
 .teacher-hub-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
     padding: 0.5rem 0;
 }
@@ -952,20 +994,27 @@ textarea {
 
 @media (max-width: 576px) {
     .navbar {
-        padding: 0.55rem 0.75rem;
+        padding: 0.55rem 0.5rem;
     }
 
     .navbar > .container,
     .navbar > .container-fluid {
         flex-wrap: nowrap;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        min-width: 0;
+        width: 100%;
     }
 
-    .navbar-brand {
-        max-width: calc(100vw - 5.5rem);
+    .navbar-brand,
+    .klasora-brand {
+        flex: 1 1 auto;
         min-width: 0;
+        max-width: calc(100% - 90px);
+        margin-right: 0.35rem;
         overflow: hidden;
         text-overflow: ellipsis;
-        font-size: clamp(1.05rem, 5vw, 1.25rem);
+        font-size: clamp(0.95rem, 4.5vw, 1.15rem);
     }
 
     .navbar-brand i {
@@ -5485,16 +5534,43 @@ body.auth-layout .main-content > .container {
 
 @media (max-width: 767.98px) {
     .klasora-logo-img {
-        width: 42px;
-        height: 42px;
+        width: 38px;
+        height: 38px;
     }
     .klasora-school-name {
-        font-size: 0.82rem;
-        max-width: 130px;
+        font-size: 0.8rem;
+        max-width: clamp(65px, 22vw, 110px);
+        min-width: 0;
+        flex-shrink: 1;
     }
     .login-logo {
         width: 66px;
         height: 66px;
+    }
+}
+
+@media (max-width: 360px) {
+    .klasora-logo-img {
+        width: 34px;
+        height: 34px;
+    }
+    .klasora-brand {
+        gap: 6px;
+    }
+    .klasora-school-name {
+        font-size: 0.74rem;
+        max-width: clamp(50px, 18vw, 75px);
+    }
+    .navbar-mobile-actions {
+        gap: 0.25rem;
+    }
+    .nav-icon-button {
+        width: 34px;
+        height: 34px;
+    }
+    .navbar-toggler {
+        padding: 0.2rem 0.35rem;
+        font-size: 0.95rem;
     }
 }
 
@@ -5836,7 +5912,7 @@ body.onboarding-layout .main-content {
     position: fixed;
     z-index: 1090;
     width: 350px;
-    max-width: calc(100vw - 32px);
+    max-width: min(350px, calc(100% - 24px));
     background: #ffffff;
     border-radius: 18px;
     box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25), 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -6079,9 +6155,10 @@ body.onboarding-layout .main-content {
     }
 
     .tour-popover {
-        width: calc(100vw - 24px);
         left: 12px !important;
         right: 12px !important;
+        width: auto !important;
+        max-width: calc(100% - 24px);
         padding: 1.15rem 1.1rem;
     }
 
@@ -6179,5 +6256,222 @@ body.onboarding-layout .main-content {
     background-color: #eff6ff;
     border-color: #3b82f6;
     color: #2563eb;
+}
+
+/* ==========================================================================
+   KLASORA PWA STYLES : MODAL, TOASTS & MOBILE STANDALONE
+   ========================================================================== */
+
+/* 1. Modal & Backdrop d'installation */
+.klasora-pwa-container {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1099;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 1rem;
+    transition: opacity 0.3s ease;
+}
+
+@media (min-width: 576px) {
+    .klasora-pwa-container {
+        align-items: center;
+    }
+}
+
+.klasora-pwa-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.klasora-pwa-card {
+    position: relative;
+    background: #ffffff;
+    border-radius: 24px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    padding: 2rem 1.75rem 1.5rem;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    z-index: 1100;
+    animation: pwaSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pwaSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.klasora-pwa-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: #f1f5f9;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.klasora-pwa-close:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.klasora-pwa-icon-wrap {
+    margin-bottom: 1rem;
+}
+
+.klasora-pwa-logo {
+    width: 68px;
+    height: 68px;
+    border-radius: 16px;
+    box-shadow: 0 8px 16px rgba(67, 97, 238, 0.25);
+}
+
+.klasora-pwa-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+.klasora-pwa-desc {
+    font-size: 0.95rem;
+    color: #64748b;
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+}
+
+.klasora-btn-install {
+    background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%) !important;
+    border: none !important;
+    border-radius: 14px !important;
+    font-weight: 600 !important;
+    padding: 0.85rem 1.25rem !important;
+    font-size: 1rem !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.klasora-btn-install:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(67, 97, 238, 0.35) !important;
+}
+
+.klasora-btn-later {
+    text-decoration: none !important;
+    font-size: 0.9rem !important;
+    color: #94a3b8 !important;
+    padding: 0.5rem !important;
+}
+
+.klasora-btn-later:hover {
+    color: #475569 !important;
+}
+
+.klasora-ios-box {
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 1rem;
+    text-align: left;
+    margin-bottom: 1rem;
+}
+
+/* 2. Toast Réseau Discret */
+.klasora-network-toast {
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1150;
+    pointer-events: none;
+    animation: pwaFadeDown 0.3s ease;
+}
+
+@keyframes pwaFadeDown {
+    from { opacity: 0; transform: translate(-50%, -10px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.klasora-toast-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.1rem;
+    background: rgba(15, 23, 42, 0.9);
+    color: #ffffff;
+    border-radius: 30px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(8px);
+}
+
+.klasora-toast-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.klasora-toast-dot.online {
+    background: #22c55e;
+    box-shadow: 0 0 8px #22c55e;
+}
+
+.klasora-toast-dot.offline {
+    background: #ef4444;
+    box-shadow: 0 0 8px #ef4444;
+}
+
+/* 3. Toast Mise à Jour */
+.klasora-update-toast {
+    position: fixed;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    max-width: 380px;
+    background: #1e293b;
+    color: #ffffff;
+    border-radius: 14px;
+    padding: 0.85rem 1.15rem;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+    z-index: 1140;
+    animation: pwaSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 4. Adaptations Mode Standalone & Safe Areas */
+@media all and (display-mode: standalone) {
+    body {
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        -webkit-user-select: none;
+        user-select: none;
+    }
+    input, textarea, select {
+        -webkit-user-select: auto;
+        user-select: auto;
+    }
 }
 

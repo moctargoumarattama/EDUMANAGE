@@ -112,6 +112,7 @@ from app.models import (
     PeriodeBulletin,
     Presence,
     Professeur,
+    SyncOperationLog,
     Utilisateur,
     gestion_ecole,
     professeur_classes,

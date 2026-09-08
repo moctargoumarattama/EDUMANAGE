@@ -2,7 +2,19 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#4361ee">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="KLASORA">
+
+    <!-- Web App Manifest & PWA Icons -->
+    <link rel="manifest" href="{{ url_for('main.manifest_json') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/icons/favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/icons/favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icons/apple-touch-icon.png') }}">
+
     <title>{% block title %}KLASORA - Excellence Éducative{% endblock %}</title>
     
     <!-- Bootstrap CSS -->
@@ -664,6 +676,16 @@
                         </a>
                     </li>
                     {% endif %}
+
+                    <!-- Indicateur de synchronisation hors-ligne pour Professeur & Admin -->
+                    {% if current_user.is_authenticated and current_user.role in ['professeur', 'admin'] %}
+                    <li class="nav-item me-2 d-flex align-items-center">
+                        <div id="klasoraSyncStatusBadge" class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-2 d-flex align-items-center" style="font-size: 0.78rem; cursor: pointer; user-select: none;" title="Cliquez pour forcer la synchronisation">
+                            <span id="klasoraSyncIndicatorDot" class="me-2" style="width: 8px; height: 8px; border-radius: 50%; background-color: #28a745; display: inline-block;"></span>
+                            <span id="klasoraSyncStatusText">En ligne</span>
+                        </div>
+                    </li>
+                    {% endif %}
 {% if current_user.is_authenticated %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -712,7 +734,12 @@
                             <li><hr class="dropdown-divider my-1"></li>
                             {% endif %}
                             <li>
-                                <a class="dropdown-item d-flex align-items-center text-danger py-2" href="{{ url_for('main.logout') }}">
+                                <a class="dropdown-item d-flex align-items-center py-2 btn-install-klasora-trigger d-none" href="#" role="button">
+                                    <i class="fas fa-download text-primary me-2"></i>Installer l'application
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center text-danger py-2" href="{{ url_for('main.logout') }}" onclick="if(window.klasoraPwaCleanOnLogout){window.klasoraPwaCleanOnLogout();}">
                                     <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
                                 </a>
                             </li>
@@ -764,13 +791,20 @@
                             <li><hr class="dropdown-divider"></li>
                             {% endif %}
 
+                            <!-- Installer l'application -->
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center btn-install-klasora-trigger d-none" href="#" role="button">
+                                    <i class="fas fa-download text-primary me-2"></i>Installer l'application
+                                </a>
+                            </li>
+
                             <!-- Aide commune -->
                             <li><a class="dropdown-item" href="{{ url_for('main.aide') }}"><i class="fas fa-question-circle me-2"></i>Centre d'Aide</a></li>
                             
                             <!-- Déconnexion -->
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <a class="dropdown-item d-flex align-items-center text-danger" href="{{ url_for('main.logout') }}">
+                                <a class="dropdown-item d-flex align-items-center text-danger" href="{{ url_for('main.logout') }}" onclick="if(window.klasoraPwaCleanOnLogout){window.klasoraPwaCleanOnLogout();}">
                                     <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
                                 </a>
                             </li>
@@ -955,8 +989,33 @@
         });
     </script>
     
+    <!-- Contexte utilisateur PWA (sans données sensibles) -->
+    <div id="klasoraUserContext"
+         data-authenticated="{{ 'true' if current_user.is_authenticated else 'false' }}"
+         data-user-role="{{ current_user.role if current_user.is_authenticated else 'guest' }}"
+         data-user-id="{{ current_user.id if current_user.is_authenticated else '' }}"
+         data-ecole-id="{{ current_user.ecole_id if current_user.is_authenticated else '' }}"
+         class="d-none"></div>
+
+    <script>
+        window.KLASORA_USER = {
+            isAuthenticated: {{ 'true' if current_user.is_authenticated else 'false' }},
+            role: {{ (current_user.role if current_user.is_authenticated else 'guest')|tojson }},
+            id: {{ (current_user.id if current_user.is_authenticated else None)|tojson }},
+            ecoleId: {{ (current_user.ecole_id if current_user.is_authenticated else None)|tojson }}
+        };
+    </script>
+
+    <!-- Composants Modals & Toasts PWA & Hors-ligne -->
+    {% include 'components/pwa_install_modal.html' %}
+    {% include 'components/logout_warning_modal.html' %}
+
     <!-- Scripts frontend communs -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/pwa.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/db.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/offline-manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/offline-forms.js') }}"></script>
     {% if current_user.is_authenticated and current_user.role == 'admin' %}
     <script src="{{ url_for('static', filename='js/onboarding.js') }}"></script>
     {% endif %}

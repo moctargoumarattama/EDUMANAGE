@@ -84,6 +84,17 @@ def create_app(config_class=Config):
         def load_user(user_id):
             return Utilisateur.query.get(int(user_id))
 
+        @login_manager.unauthorized_handler
+        def unauthorized_callback():
+            from flask import request, jsonify, redirect, url_for
+            if request.path.startswith('/api/') or request.is_json:
+                return jsonify({
+                    'success': False,
+                    'error': 'Authentification requise',
+                    'message': 'Session expirée ou non authentifiée'
+                }), 401
+            return redirect(url_for('main.login', next=request.url))
+
         # Blueprints
         from .routes import main
         app.register_blueprint(main)

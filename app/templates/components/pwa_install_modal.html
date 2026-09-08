@@ -1,0 +1,62 @@
+<!-- Composants UI PWA : Popup d'installation, Toast Réseau et Toast Mise à jour -->
+<div id="klasoraPwaInstallContainer" class="klasora-pwa-container d-none" aria-hidden="true">
+    <div class="klasora-pwa-backdrop" id="klasoraPwaBackdrop"></div>
+    <div class="klasora-pwa-card animate-pop-in" role="dialog" aria-modal="true" aria-labelledby="klasoraPwaTitle">
+        <button type="button" class="klasora-pwa-close" id="klasoraPwaCloseBtn" aria-label="Fermer">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="klasora-pwa-header">
+            <div class="klasora-pwa-icon-wrap">
+                <img src="{{ url_for('static', filename='img/icons/icon-192x192.png') }}" alt="KLASORA Logo" class="klasora-pwa-logo">
+            </div>
+            <h3 id="klasoraPwaTitle" class="klasora-pwa-title">Installer KLASORA</h3>
+        </div>
+        <div class="klasora-pwa-body">
+            <p class="klasora-pwa-desc">
+                Accédez plus rapidement aux notes, absences, paiements et bulletins de vos enfants.
+            </p>
+            
+            <!-- Instructions spécifiques iOS -->
+            <div id="klasoraIosInstructions" class="klasora-ios-box d-none">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="fab fa-apple fa-lg text-dark me-2"></i>
+                    <strong class="text-dark">Sur iPhone / iPad :</strong>
+                </div>
+                <p class="small text-muted mb-0">
+                    Touchez <i class="fas fa-share-from-square text-primary mx-1"></i> (Partager) dans Safari, puis sélectionnez <strong>« Sur l'écran d'accueil »</strong>.
+                </p>
+            </div>
+
+            <!-- Boutons Android / Desktop -->
+            <div id="klasoraStandardInstallActions" class="klasora-pwa-actions">
+                <button type="button" id="klasoraPwaInstallBtn" class="btn btn-primary btn-lg w-100 klasora-btn-install shadow-sm">
+                    <i class="fas fa-download me-2"></i>Installer KLASORA
+                </button>
+                <button type="button" id="klasoraPwaLaterBtn" class="btn btn-link text-muted w-100 klasora-btn-later mt-1">
+                    Plus tard
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Réseau Discret (En ligne / Hors ligne) -->
+<div id="klasoraNetworkToast" class="klasora-network-toast d-none" role="status" aria-live="polite">
+    <div class="klasora-toast-content">
+        <span class="klasora-toast-dot" id="klasoraToastDot"></span>
+        <span id="klasoraToastText">Vous êtes hors connexion</span>
+    </div>
+</div>
+
+<!-- Toast Mise à Jour PWA Disponible -->
+<div id="klasoraUpdateToast" class="klasora-update-toast d-none" role="alert">
+    <div class="d-flex align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-sparkles text-warning"></i>
+            <span class="small fw-semibold">Une nouvelle version de KLASORA est disponible.</span>
+        </div>
+        <button type="button" id="klasoraUpdateAppBtn" class="btn btn-sm btn-light text-primary fw-bold px-3 py-1">
+            Mettre à jour
+        </button>
+    </div>
+</div>

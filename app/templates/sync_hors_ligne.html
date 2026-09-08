@@ -7,8 +7,8 @@
     <div class="page-header d-flex align-items-start justify-content-between gap-3 flex-wrap mb-4">
         <div>
             <span class="section-kicker"><i class="fas fa-sync-alt me-2"></i>Hors-ligne</span>
-            <h1 class="mb-1">Synchronisation</h1>
-            <p class="text-muted mb-0">Envoyez les donnees en attente quand la connexion revient.</p>
+            <h1 class="mb-1">Synchronisation & Conflits</h1>
+            <p class="text-muted mb-0">Envoyez les données en attente et gérez les arbitrages en cas de modification concurrente.</p>
         </div>
         <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary">
             <i class="fas fa-arrow-left me-2"></i>Retour
@@ -16,6 +16,27 @@
     </div>
 
     <div id="syncAlert" class="alert d-none" role="status"></div>
+
+    <!-- Section Conflits (affichée si des conflits existent) -->
+    <div id="conflictsSection" class="card shadow-sm border-danger border-opacity-50 mb-4 d-none">
+        <div class="card-header bg-danger-subtle text-danger-emphasis py-3 px-4 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-exclamation-triangle fa-lg"></i>
+                <h5 class="mb-0 fw-bold">Conflits de synchronisation (<span id="conflictsSectionCount">0</span>)</h5>
+            </div>
+            <small class="text-muted">Des modifications concurrentes ont été détectées sur le serveur</small>
+        </div>
+        <div class="card-body p-3 p-md-4">
+            <p class="text-muted small mb-3">
+                <i class="fas fa-info-circle me-1"></i>
+                Les opérations ci-dessous n'ont pas pu être appliquées automatiquement car une version plus récente ou prioritaire existe sur le serveur.
+                Choisissez d'adopter la version serveur ou, pour un administrateur, d'arbitrer en appliquant votre version.
+            </p>
+            <div id="conflictsDataContainer" class="d-flex flex-column gap-3">
+                <!-- Les cartes de conflit seront injectées ici -->
+            </div>
+        </div>
+    </div>
 
     <div class="sync-layout">
         <section class="sync-panel">
@@ -33,6 +54,10 @@
                 <div>
                     <span id="pendingCount">0</span>
                     <small>En attente</small>
+                </div>
+                <div>
+                    <span id="conflictsMetricCount" class="text-danger">0</span>
+                    <small>Conflit(s)</small>
                 </div>
                 <div>
                     <span id="lastSync">Jamais</span>

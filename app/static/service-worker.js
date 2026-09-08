@@ -1,39 +1,48 @@
-// static/service-worker.js
-const CACHE_NAME = 'ecole-app-v1';
+// static/service-worker.js - KLASORA PWA Service Worker
+const CACHE_VERSION = 'klasora-static-v4';
 const OFFLINE_URL = '/offline';
 
-// Fichiers à mettre en cache immédiatement
-const STATIC_CACHE = [
-    '/',
-    '/static/css/style.css',
+// Ressources publiques et statiques génériques autorisées en cache
+const PRECACHE_ASSETS = [
     '/offline',
+    '/static/manifest.json',
+    '/static/css/style.css',
+    '/static/js/db.js',
+    '/static/js/offline-manager.js',
+    '/static/js/offline-forms.js',
+    '/static/js/pwa.js',
+    '/static/js/main.js',
+    '/static/img/logo-klasora.png',
+    '/static/img/icons/icon-192x192.png',
+    '/static/img/icons/icon-512x512.png',
+    '/static/img/icons/icon-maskable-512x512.png',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css',
+    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];
 
 // Installation du Service Worker
 self.addEventListener('install', event => {
-    console.log('🔧 Service Worker: Installation');
     event.waitUntil(
-        caches.open(CACHE_NAME)
+        caches.open(CACHE_VERSION)
             .then(cache => {
-                console.log('📦 Mise en cache des ressources statiques');
-                return cache.addAll(STATIC_CACHE.map(url => new Request(url, { cache: 'reload' })))
-                    .catch(err => console.warn('⚠️ Certaines ressources n\'ont pas pu être mises en cache:', err));
+                return cache.addAll(PRECACHE_ASSETS.map(url => new Request(url, { cache: 'reload' })))
+                    .catch(err => {
+                        console.warn('[SW] Pré-cache partiel:', err);
+                    });
             })
             .then(() => self.skipWaiting())
     );
 });
 
-// Activation du Service Worker
+// Activation et nettoyage des anciens caches
 self.addEventListener('activate', event => {
-    console.log('✅ Service Worker: Activation');
     event.waitUntil(
         caches.keys().then(cacheNames => {
             return Promise.all(
                 cacheNames.map(cacheName => {
-                    if (cacheName !== CACHE_NAME) {
-                        console.log('🗑️ Suppression ancien cache:', cacheName);
+                    if (cacheName !== CACHE_VERSION) {
+                        console.log('[SW] Suppression ancien cache:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
@@ -42,151 +51,139 @@ self.addEventListener('activate', event => {
     );
 });
 
-// Interception des requêtes
+// Helper pour fetch avec timeout
+function fetchWithTimeout(request, timeoutMs = 4000) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(new Error('Network timeout'));
+        }, timeoutMs);
+
+        fetch(request)
+            .then(response => {
+                clearTimeout(timer);
+                resolve(response);
+            })
+            .catch(err => {
+                clearTimeout(timer);
+                reject(err);
+            });
+    });
+}
+
+// Interception des requêtes réseau
 self.addEventListener('fetch', event => {
     const { request } = event;
     const url = new URL(request.url);
 
-    // Ignorer les requêtes non-GET
+    // 1. Ignorer les méthodes non-GET (POST, PUT, DELETE, etc.)
     if (request.method !== 'GET') {
         return;
     }
 
-    // Ignorer les requêtes vers des domaines externes (sauf CDN)
-    if (url.origin !== location.origin && !url.host.includes('cdn')) {
+    // 2. Requêtes de navigation HTML (pages de l'application)
+    // Sécurité : Network-First strict pour ne jamais servir de HTML privé périmé d'un autre utilisateur
+    if (request.mode === 'navigate') {
+        event.respondWith(
+            fetchWithTimeout(request, 4000)
+                .catch(() => {
+                    return caches.match(OFFLINE_URL).then(offlineResponse => {
+                        if (offlineResponse) return offlineResponse;
+                        return new Response('Hors connexion. Veuillez vérifier votre accès Internet.', {
+                            status: 503,
+                            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+                        });
+                    });
+                })
+        );
         return;
     }
 
-    // Stratégie: Network First, puis Cache
-    event.respondWith(
-        fetch(request)
-            .then(response => {
-                // Cloner la réponse car elle ne peut être utilisée qu'une fois
-                const responseClone = response.clone();
-                
-                // Mettre en cache les réponses réussies
-                if (response.status === 200) {
-                    caches.open(CACHE_NAME).then(cache => {
-                        cache.put(request, responseClone);
-                    });
+    // 3. Assets statiques (CSS, JS, Images, Polices, CDN) -> Cache First avec rafraîchissement
+    const isStaticAsset = (
+        url.pathname.startsWith('/static/') ||
+        url.host.includes('cdn.jsdelivr.net') ||
+        url.host.includes('cdnjs.cloudflare.com') ||
+        url.host.includes('fonts.googleapis.com') ||
+        url.host.includes('fonts.gstatic.com')
+    );
+
+    if (isStaticAsset) {
+        event.respondWith(
+            caches.match(request).then(cachedResponse => {
+                if (cachedResponse) {
+                    // Revalidation silencieuse en arrière-plan
+                    fetch(request).then(networkResponse => {
+                        if (networkResponse && networkResponse.status === 200) {
+                            caches.open(CACHE_VERSION).then(cache => {
+                                cache.put(request, networkResponse);
+                            });
+                        }
+                    }).catch(() => {/* Hors ligne, ignorer */});
+                    return cachedResponse;
                 }
-                
-                return response;
-            })
-            .catch(() => {
-                // Si le réseau échoue, essayer le cache
-                return caches.match(request).then(cachedResponse => {
-                    if (cachedResponse) {
-                        return cachedResponse;
+
+                // Si non en cache, aller chercher sur le réseau et mettre en cache
+                return fetch(request).then(networkResponse => {
+                    if (networkResponse && networkResponse.status === 200) {
+                        const responseClone = networkResponse.clone();
+                        caches.open(CACHE_VERSION).then(cache => {
+                            cache.put(request, responseClone);
+                        });
                     }
-                    
-                    // Si pas de cache et URL de navigation, afficher page offline
-                    if (request.mode === 'navigate') {
-                        return caches.match(OFFLINE_URL);
-                    }
-                    
-                    // Sinon, retourner une réponse vide
-                    return new Response('Ressource non disponible hors ligne', {
-                        status: 503,
-                        statusText: 'Service Unavailable'
-                    });
+                    return networkResponse;
                 });
             })
+        );
+        return;
+    }
+
+    // 4. Par défaut : Réseau direct sans cache aveugle (API, endpoints dynamiques)
+    event.respondWith(
+        fetch(request).catch(() => {
+            return new Response(JSON.stringify({ error: 'Réseau indisponible' }), {
+                status: 503,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        })
     );
 });
 
-// Écouter les messages du client
+// Écoute des messages du client
 self.addEventListener('message', event => {
-    if (event.data && event.data.type === 'SKIP_WAITING') {
+    if (!event.data) return;
+
+    if (event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
     }
-    
-    if (event.data && event.data.type === 'CACHE_URLS') {
-        event.waitUntil(
-            caches.open(CACHE_NAME).then(cache => {
-                return cache.addAll(event.data.urls);
-            })
-        );
-    }
-});
 
-// Synchronisation en arrière-plan
-self.addEventListener('sync', event => {
-    console.log('🔄 Background Sync:', event.tag);
-    
-    if (event.tag === 'sync-data') {
-        event.waitUntil(syncOfflineData());
-    }
-});
-
-// Fonction de synchronisation des données
-async function syncOfflineData() {
-    try {
-        console.log('🚀 Synchronisation automatique des données...');
-        
-        // Ouvrir IndexedDB
-        const db = await openDatabase();
-        const tx = db.transaction(['pendingSync'], 'readonly');
-        const store = tx.objectStore('pendingSync');
-        const allData = await getAllFromStore(store);
-        
-        if (allData.length === 0) {
-            console.log('ℹ️ Aucune donnée à synchroniser');
-            return;
-        }
-        
-        // Envoyer les données au serveur
-        const response = await fetch('/api/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(allData)
-        });
-        
-        if (response.ok) {
-            // Supprimer les données synchronisées
-            const txWrite = db.transaction(['pendingSync'], 'readwrite');
-            const storeWrite = txWrite.objectStore('pendingSync');
-            await clearStore(storeWrite);
-            
-            console.log('✅ Synchronisation automatique réussie');
-            
-            // Notifier les clients
-            const clients = await self.clients.matchAll();
-            clients.forEach(client => {
-                client.postMessage({
-                    type: 'SYNC_SUCCESS',
-                    count: allData.length
-                });
+    if (event.data.type === 'CLEAR_USER_CACHE') {
+        console.log('[SW] Nettoyage session utilisateur demandé');
+        // Ne conserve que les assets génériques pré-cachés
+        caches.keys().then(keys => {
+            keys.forEach(key => {
+                if (key !== CACHE_VERSION) {
+                    caches.delete(key);
+                }
             });
-        }
-        
-    } catch (error) {
-        console.error('❌ Erreur synchronisation automatique:', error);
-        throw error; // Relancer pour réessayer plus tard
+        });
     }
-}
+});
 
-// Helpers pour IndexedDB
-function openDatabase() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open('EcoleDB', 1);
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
-    });
-}
+// Synchronisation en arrière-plan sécurisée : notifier les fenêtres clientes actives
+// Ne jamais expédier directement pendingSync depuis le Service Worker sans connaître l'utilisateur actif
+self.addEventListener('sync', event => {
+    if (event.tag === 'sync-data') {
+        event.waitUntil(notifyClientsToSync());
+    }
+});
 
-function getAllFromStore(store) {
-    return new Promise((resolve, reject) => {
-        const request = store.getAll();
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve(request.result);
-    });
-}
-
-function clearStore(store) {
-    return new Promise((resolve, reject) => {
-        const request = store.clear();
-        request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve();
-    });
+async function notifyClientsToSync() {
+    try {
+        const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        for (const client of clients) {
+            client.postMessage({ type: 'TRIGGER_SYNC' });
+        }
+    } catch (error) {
+        console.warn('[SW] Notification sync clients:', error);
+    }
 }

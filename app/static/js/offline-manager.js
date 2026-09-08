@@ -1,4 +1,5 @@
-// static/js/offline-manager.js - Gestionnaire principal hors-ligne
+// static/js/offline-manager.js - Gestionnaire principal hors-ligne KLASORA V2
+
 class OfflineManager {
     constructor() {
         this.isOnline = navigator.onLine;
@@ -6,31 +7,44 @@ class OfflineManager {
         this.autoSyncEnabled = true;
         this.syncInterval = null;
         this.listeners = new Map();
+        this.retryDelay = 5000;
+        this.maxRetryDelay = 60000;
     }
 
     /**
      * Initialiser le gestionnaire
      */
     async init() {
-        console.log('🎯 Initialisation OfflineManager');
+        console.log('🎯 Initialisation OfflineManager V2');
 
         try {
             // Initialiser IndexedDB
             await offlineDB.init();
 
-            // Enregistrer le Service Worker
-            await this.registerServiceWorker();
-
             // Configurer les écouteurs d'événements
             this.setupEventListeners();
 
-            // Démarrer la synchronisation automatique
+            // Démarrer la synchronisation automatique si en ligne
             this.startAutoSync();
 
             // Nettoyer les vieux caches
             await offlineDB.cleanExpiredCache();
 
-            console.log('✅ OfflineManager initialisé');
+            // Si professeur connecté, précharger les données pédagogiques
+            if (this.isTeacher()) {
+                this.preloadTeacherData().catch(e => {
+                    console.log('ℹ️ Préchargement professeur différé:', e.message);
+                });
+            }
+
+            // Si administrateur connecté, précharger les données de l'école
+            if (this.isAdmin()) {
+                this.preloadAdminData().catch(e => {
+                    console.log('ℹ️ Préchargement administrateur différé:', e.message);
+                });
+            }
+
+            console.log('✅ OfflineManager V3 initialisé');
             this.emit('ready');
 
         } catch (error) {
@@ -39,60 +53,116 @@ class OfflineManager {
         }
     }
 
+    isTeacher() {
+        if (typeof window !== 'undefined') {
+            if (window.KLASORA_USER && window.KLASORA_USER.role === 'professeur') return true;
+            const contextEl = document.getElementById('klasoraUserContext');
+            if (contextEl && contextEl.getAttribute('data-user-role') === 'professeur') return true;
+        }
+        return false;
+    }
+
+    isAdmin() {
+        if (typeof window !== 'undefined') {
+            if (window.KLASORA_USER && window.KLASORA_USER.role === 'admin') return true;
+            const contextEl = document.getElementById('klasoraUserContext');
+            if (contextEl && contextEl.getAttribute('data-user-role') === 'admin') return true;
+        }
+        return false;
+    }
+
     /**
-     * Enregistrer le Service Worker
+     * Précharger les données d'administration hors-ligne
      */
-    async registerServiceWorker() {
-        if (!('serviceWorker' in navigator)) {
-            console.warn('⚠️ Service Worker non supporté');
-            return;
+    async preloadAdminData(force = false) {
+        const cacheKey = offlineDB.getAdminCacheKey();
+
+        if (!this.isOnline && !force) {
+            return await offlineDB.getCachedData(cacheKey);
         }
 
         try {
-            const registration = await navigator.serviceWorker.register('/service-worker.js', {
-                scope: '/'
+            console.log(`📥 Chargement des données hors-ligne de l'administrateur (${cacheKey})...`);
+            const response = await fetch('/api/admin/offline-data', {
+                headers: { 'Accept': 'application/json' }
             });
 
-            console.log('✅ Service Worker enregistré:', registration.scope);
-
-            // Gérer les mises à jour
-            registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                console.log('🔄 Nouvelle version du Service Worker disponible');
-
-                newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        console.log('✨ Mise à jour disponible - Rechargez la page');
-                        this.emit('update-available');
-                    }
-                });
-            });
-
-            // Écouter les messages du Service Worker
-            navigator.serviceWorker.addEventListener('message', event => {
-                this.handleServiceWorkerMessage(event.data);
-            });
-
-            // Enregistrer la synchronisation en arrière-plan
-            if ('sync' in registration) {
-                console.log('✅ Background Sync disponible');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    await offlineDB.cacheData(cacheKey, data, 1440); // 24h
+                    console.log(`✅ Données administrateur préchargées (${data.classes.length} classes, ${data.cours.length} cours, ${data.eleves.length} élèves)`);
+                    this.emit('admin-data-loaded', data);
+                    return data;
+                }
+            } else if (response.status === 401) {
+                console.warn('⚠️ Session expirée lors du chargement des données administrateur');
+                this.emit('sync-auth-required');
+            } else if (response.status === 403) {
+                console.warn('⛔ Accès refusé (403) aux données administrateur');
+                this.emit('sync-forbidden', { message: "Accès refusé aux données administrateur" });
             }
-
-        } catch (error) {
-            console.error('❌ Erreur enregistrement Service Worker:', error);
+        } catch (e) {
+            console.warn('⚠️ Impossible de rafraîchir les données administrateur (mode hors-ligne):', e.message);
         }
+
+        return await offlineDB.getCachedData(cacheKey);
+    }
+
+    /**
+     * Précharger les données pédagogiques hors-ligne du professeur
+     */
+    async preloadTeacherData(force = false) {
+        const cacheKey = offlineDB.getTeacherCacheKey();
+
+        if (!this.isOnline && !force) {
+            return await offlineDB.getCachedData(cacheKey);
+        }
+
+        try {
+            console.log(`📥 Chargement des données hors-ligne du professeur (${cacheKey})...`);
+            const response = await fetch('/api/professeur/offline-data', {
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    await offlineDB.cacheData(cacheKey, data, 1440); // 24h
+                    console.log(`✅ Données professeur préchargées (${data.classes.length} classes, ${data.cours.length} cours, ${data.eleves.length} élèves)`);
+                    this.emit('teacher-data-loaded', data);
+                    return data;
+                }
+            } else if (response.status === 401) {
+                console.warn('⚠️ Session expirée lors du chargement des données professeur');
+                this.emit('sync-auth-required');
+            } else if (response.status === 403) {
+                console.warn('⛔ Accès refusé (403) aux données professeur');
+                this.emit('sync-forbidden', { message: "Accès refusé aux données professeur" });
+            }
+        } catch (e) {
+            console.warn('⚠️ Impossible de rafraîchir les données professeur (mode hors-ligne):', e.message);
+        }
+
+        return await offlineDB.getCachedData(cacheKey);
     }
 
     /**
      * Configurer les écouteurs d'événements
      */
     setupEventListeners() {
-        // Détecter les changements de connexion
         window.addEventListener('online', () => {
             console.log('🌐 Connexion rétablie');
             this.isOnline = true;
+            this.retryDelay = 5000;
             this.emit('online');
             this.syncWhenOnline();
+            if (this.isTeacher()) {
+                this.preloadTeacherData();
+            }
+            if (this.isAdmin()) {
+                this.preloadAdminData();
+            }
         });
 
         window.addEventListener('offline', () => {
@@ -101,40 +171,25 @@ class OfflineManager {
             this.emit('offline');
         });
 
-        // Synchroniser avant de quitter la page
-        window.addEventListener('beforeunload', () => {
-            if (!this.isOnline) return;
-            
-            // Tenter une synchronisation rapide
-            navigator.sendBeacon && this.trySendBeacon();
-        });
-
-        // Synchroniser quand la page redevient visible
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && this.isOnline) {
+            if (!document.hidden && navigator.onLine) {
+                this.isOnline = true;
                 this.syncWhenOnline();
             }
         });
-    }
 
-    /**
-     * Gérer les messages du Service Worker
-     */
-    handleServiceWorkerMessage(data) {
-        console.log('📨 Message Service Worker:', data);
-
-        switch (data.type) {
-            case 'SYNC_SUCCESS':
-                this.emit('sync-success', { count: data.count });
-                break;
-            case 'SYNC_ERROR':
-                this.emit('sync-error', { error: data.error });
-                break;
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'TRIGGER_SYNC') {
+                    console.log('📬 Demande de synchronisation reçue du Service Worker');
+                    this.sync();
+                }
+            });
         }
     }
 
     /**
-     * Ajouter des données à synchroniser
+     * Ajouter une opération à la queue hors-ligne
      */
     async addToSync(type, data) {
         try {
@@ -144,45 +199,27 @@ class OfflineManager {
                 created_at: new Date().toISOString()
             };
 
-            const id = await offlineDB.addPendingSync(syncData);
-            console.log(`✅ ${type} ajouté à la queue (ID: ${id})`);
+            const res = await offlineDB.addPendingSync(syncData);
+            console.log(`✅ ${type} ajouté localement (op_id: ${res.client_op_id})`);
 
-            // Enregistrer la synchronisation en arrière-plan si disponible
-            this.registerBackgroundSync();
+            // Mettre à jour l'UI locale immédiatement
+            this.emit('data-added', { type, client_op_id: res.client_op_id });
 
-            // Essayer de synchroniser immédiatement si en ligne
-            if (this.isOnline) {
-                setTimeout(() => this.sync(), 1000);
+            // Essayer de synchroniser immédiatement si la connexion est active
+            if (navigator.onLine) {
+                setTimeout(() => this.sync(), 300);
             }
 
-            this.emit('data-added', { type, id });
-            return id;
+            return res;
 
         } catch (error) {
-            console.error('❌ Erreur ajout donnée:', error);
+            console.error('❌ Erreur ajout opération locale:', error);
             throw error;
         }
     }
 
     /**
-     * Enregistrer une synchronisation en arrière-plan
-     */
-    async registerBackgroundSync() {
-        if (!('serviceWorker' in navigator) || !('sync' in ServiceWorkerRegistration.prototype)) {
-            return;
-        }
-
-        try {
-            const registration = await navigator.serviceWorker.ready;
-            await registration.sync.register('sync-data');
-            console.log('✅ Background Sync enregistré');
-        } catch (error) {
-            console.warn('⚠️ Background Sync non disponible:', error);
-        }
-    }
-
-    /**
-     * Synchroniser les données
+     * Synchroniser les données avec le serveur (idempotence + réponse granulaire)
      */
     async sync(force = false) {
         if (this.syncInProgress && !force) {
@@ -190,8 +227,8 @@ class OfflineManager {
             return { success: false, message: 'Synchronisation en cours' };
         }
 
-        if (!this.isOnline) {
-            console.log('📡 Hors ligne - synchronisation reportée');
+        if (!navigator.onLine) {
+            console.log('📡 Hors ligne - synchronisation différée');
             return { success: false, message: 'Hors ligne' };
         }
 
@@ -199,76 +236,155 @@ class OfflineManager {
         this.emit('sync-start');
 
         try {
-            const pendingData = await offlineDB.getAllPending();
+            const pendingData = await offlineDB.getSyncablePending();
             
-            if (pendingData.length === 0) {
-                console.log('ℹ️ Aucune donnée à synchroniser');
+            if (!pendingData || pendingData.length === 0) {
+                console.log('ℹ️ Aucune opération en attente');
                 this.syncInProgress = false;
+                this.emit('sync-end');
                 return { success: true, message: 'Aucune donnée', count: 0 };
             }
 
-            console.log(`🚀 Synchronisation de ${pendingData.length} élément(s)`);
+            console.log(`🚀 Tentative de synchronisation de ${pendingData.length} opération(s)...`);
 
-            // Préparer les données (retirer les champs internes)
-            const dataToSync = pendingData.map(item => {
-                const { id, timestamp, synced, syncedAt, retries, ...data } = item;
-                return data;
-            });
+            const BATCH_SIZE = 50;
+            let confirmedCount = 0;
+            let conflictCount = 0;
+            let errorCount = 0;
+            let lastMessage = '';
 
-            // Envoyer au serveur
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-            const response = await fetch('/api/sync', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
-                },
-                body: JSON.stringify(dataToSync)
-            });
 
-            if (!response.ok) {
-                throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-            }
+            // Traitement par lots de 50 pour éviter les saturations et sécuriser la progression
+            for (let i = 0; i < pendingData.length; i += BATCH_SIZE) {
+                const batch = pendingData.slice(i, i + BATCH_SIZE);
+                const payload = batch.map(item => {
+                    const { id, synced, syncedAt, ...rest } = item;
+                    return rest;
+                });
 
-            const result = await response.json();
-            console.log('✅ Synchronisation réussie:', result);
-
-            if (result.success) {
-                // Supprimer les données synchronisées
-                for (const item of pendingData) {
-                    await offlineDB.deletePending(item.id);
+                let response;
+                try {
+                    response = await fetch('/api/sync', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {})
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                } catch (netErr) {
+                    // Coupure réseau : marquer localement comme hors ligne
+                    this.isOnline = false;
+                    throw new Error(`Coupure réseau pendant l'envoi du lot: ${netErr.message}`);
                 }
 
-                // Ajouter un log
-                await offlineDB.addSyncLog('success', result.message, {
-                    count: pendingData.length,
-                    processed: result.processed
-                });
+                if (response.status === 401) {
+                    console.warn('⚠️ Session expirée ou non authentifiée (HTTP 401). File d\'attente conservée intacte.');
+                    this.emit('sync-auth-required');
+                    return { success: false, message: 'Session expirée' };
+                }
 
-                this.emit('sync-success', {
-                    count: pendingData.length,
-                    message: result.message
-                });
+                if (response.status === 403) {
+                    console.warn('⛔ Accès interdit (HTTP 403) : autorisation révoquée ou périmètre interdit.');
+                    const forbiddenMsg = "Vous n'avez plus l'autorisation de modifier cette donnée.";
+                    for (const item of batch) {
+                        const opId = item.client_op_id;
+                        if (opId) {
+                            await offlineDB.updatePendingStatus(opId, 'forbidden', forbiddenMsg);
+                        }
+                    }
+                    this.emit('sync-forbidden', { message: forbiddenMsg, batch });
+                    // Ne pas retry en boucle : les éléments sont marqués 'forbidden' et exclus du sync automatique
+                    return { success: false, message: forbiddenMsg, forbidden: true };
+                }
 
-                return {
-                    success: true,
-                    count: pendingData.length,
-                    message: result.message,
-                    errors: result.errors
-                };
-            } else {
-                throw new Error(result.message || 'Erreur de synchronisation');
+                if (!response.ok) {
+                    throw new Error(`Erreur serveur HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log(`📥 Réponse synchronisation lot ${Math.floor(i / BATCH_SIZE) + 1}:`, result);
+                lastMessage = result.message || lastMessage;
+
+                if (result && Array.isArray(result.results)) {
+                    for (const r of result.results) {
+                        const opId = r.client_op_id;
+                        if (!opId) continue;
+
+                        if (r.status === 'synced' || r.status === 'already_processed') {
+                            // Le serveur a validé ou avait déjà validé : supprimer immédiatement de la file locale
+                            await offlineDB.deletePendingByClientOpId(opId);
+                            confirmedCount++;
+                        } else if (r.status === 'conflict') {
+                            // Conflit détecté : marquer localement sans supprimer
+                            await offlineDB.updatePendingStatus(opId, 'conflict', r.message, {
+                                server_value: r.server_value,
+                                client_value: r.client_value,
+                                locked_by_admin: r.locked_by_admin,
+                                can_arbitrate: r.can_arbitrate,
+                                entity: r.entity,
+                                entity_id: r.entity_id
+                            });
+                            conflictCount++;
+                            this.emit('sync-conflict', { client_op_id: opId, message: r.message, ...r });
+                        } else if (r.status === 'forbidden') {
+                            // Accès refusé par le serveur
+                            const forbiddenMsg = r.message || "Vous n'avez plus l'autorisation de modifier cette donnée.";
+                            await offlineDB.updatePendingStatus(opId, 'forbidden', forbiddenMsg);
+                            this.emit('sync-forbidden', { client_op_id: opId, message: forbiddenMsg, ...r });
+                            errorCount++;
+                        } else {
+                            // Autre erreur
+                            await offlineDB.updatePendingStatus(opId, 'error', r.message);
+                            errorCount++;
+                        }
+                    }
+                } else if (result.success && result.processed > 0) {
+                    for (const item of batch) {
+                        await offlineDB.deletePending(item.id);
+                        confirmedCount++;
+                    }
+                }
             }
 
+            await offlineDB.addSyncLog('success', lastMessage || 'Synchronisation terminée', {
+                confirmed: confirmedCount,
+                conflicts: conflictCount,
+                errors: errorCount
+            });
+
+            this.emit('sync-success', {
+                count: confirmedCount,
+                conflicts: conflictCount,
+                errors: errorCount,
+                message: lastMessage
+            });
+
+            // Réinitialiser le délai de retry si succès
+            this.retryDelay = 5000;
+
+            return {
+                success: true,
+                count: confirmedCount,
+                conflicts: conflictCount,
+                errors: errorCount,
+                message: lastMessage
+            };
+
         } catch (error) {
-            console.error('❌ Erreur synchronisation:', error);
+            console.error('❌ Erreur lors de la synchronisation:', error);
 
             await offlineDB.addSyncLog('error', error.message, {
                 timestamp: Date.now()
             });
 
             this.emit('sync-error', { error: error.message });
+
+            // Backoff exponentiel
+            this.retryDelay = Math.min(this.retryDelay * 2, this.maxRetryDelay);
+            console.log(`⏱️ Prochain essai dans ${this.retryDelay / 1000}s`);
 
             return {
                 success: false,
@@ -282,26 +398,23 @@ class OfflineManager {
     }
 
     /**
-     * Synchroniser quand la connexion revient
+     * Synchroniser automatiquement au retour du réseau
      */
     async syncWhenOnline() {
-        if (!this.isOnline) return;
+        if (!navigator.onLine) return;
 
-        console.log('🔄 Tentative de synchronisation automatique');
-        
-        // Attendre un peu pour laisser la connexion se stabiliser
         setTimeout(async () => {
-            const stats = await offlineDB.getStats();
-            if (stats.total > 0) {
+            const syncable = await offlineDB.getSyncablePending();
+            if (syncable && syncable.length > 0) {
                 await this.sync();
             }
-        }, 2000);
+        }, 1500);
     }
 
     /**
-     * Démarrer la synchronisation automatique périodique
+     * Démarrer l'auto-synchronisation périodique
      */
-    startAutoSync(intervalMinutes = 5) {
+    startAutoSync(intervalMinutes = 3) {
         if (this.syncInterval) {
             clearInterval(this.syncInterval);
         }
@@ -309,82 +422,100 @@ class OfflineManager {
         if (!this.autoSyncEnabled) return;
 
         this.syncInterval = setInterval(async () => {
-            if (this.isOnline && !this.syncInProgress) {
-                console.log('⏰ Synchronisation automatique périodique');
-                const stats = await offlineDB.getStats();
-                if (stats.total > 0) {
+            if (navigator.onLine && !this.syncInProgress) {
+                const syncable = await offlineDB.getSyncablePending();
+                if (syncable && syncable.length > 0) {
                     await this.sync();
                 }
             }
         }, intervalMinutes * 60 * 1000);
-
-        console.log(`⏰ Synchronisation automatique activée (${intervalMinutes}min)`);
     }
 
     /**
-     * Arrêter la synchronisation automatique
+     * Purger le cache pédagogique lors de la déconnexion (téléphone partagé)
+     * NE TOUCHE PAS au store pendingSync !
      */
+    async cleanTeacherDataOnLogout() {
+        try {
+            await offlineDB.clearTeacherOfflineData();
+            console.log('🧹 Cache pédagogique professeur purgé avec succès (pendingSync préservé)');
+        } catch (e) {
+            console.warn('⚠️ Erreur nettoyage cache professeur logout:', e);
+        }
+    }
+
+    /**
+     * Purger le cache d'administration lors de la déconnexion (ordinateur partagé)
+     * NE TOUCHE PAS au store pendingSync !
+     */
+    async cleanAdminDataOnLogout() {
+        try {
+            await offlineDB.clearAdminOfflineData();
+            console.log('🧹 Cache administration purgé avec succès (pendingSync préservé)');
+        } catch (e) {
+            console.warn('⚠️ Erreur nettoyage cache administration logout:', e);
+        }
+    }
+
+    /**
+     * Résoudre un conflit local
+     * @param {string} clientOpId
+     * @param {'discard'|'force'} action
+     */
+    async resolveConflict(clientOpId, action) {
+        if (!clientOpId) return { success: false, message: 'client_op_id manquant' };
+
+        if (action === 'discard') {
+            // Accepter la version serveur : supprimer la modification locale en conflit
+            await offlineDB.deletePendingByClientOpId(clientOpId);
+            this.emit('conflict-resolved', { client_op_id: clientOpId, action: 'discard' });
+            return { success: true, action: 'discard', message: 'Version serveur acceptée (brouillon local supprimé)' };
+        } else if (action === 'force') {
+            // Forcer la version locale (arbitrage Admin)
+            const items = await offlineDB.getAllOwnedUnresolved();
+            const item = items.find(d => d.client_op_id === clientOpId);
+            if (item) {
+                item.force = true;
+                item.status = 'pending';
+                item.retries = 0;
+                const tx = offlineDB.db.transaction(['pendingSync'], 'readwrite');
+                const store = tx.objectStore('pendingSync');
+                store.put(item);
+                await new Promise(resolve => { tx.oncomplete = resolve; });
+                this.emit('conflict-resolved', { client_op_id: clientOpId, action: 'force' });
+                // Lancer la synchronisation immédiate pour appliquer l'arbitrage
+                return await this.sync(true);
+            }
+            return { success: false, message: 'Opération introuvable' };
+        }
+        return { success: false, message: 'Action inconnue' };
+    }
+
     stopAutoSync() {
         if (this.syncInterval) {
             clearInterval(this.syncInterval);
             this.syncInterval = null;
-            console.log('⏸️ Synchronisation automatique arrêtée');
         }
     }
 
-    /**
-     * Essayer d'envoyer avec sendBeacon (pour beforeunload)
-     */
-    async trySendBeacon() {
-        try {
-            const pendingData = await offlineDB.getAllPending();
-            if (pendingData.length === 0) return;
-
-            const blob = new Blob([JSON.stringify(pendingData)], {
-                type: 'application/json'
-            });
-
-            navigator.sendBeacon('/api/sync', blob);
-            console.log('📤 Données envoyées via sendBeacon');
-
-        } catch (error) {
-            console.error('❌ Erreur sendBeacon:', error);
-        }
-    }
-
-    /**
-     * Obtenir les statistiques
-     */
     async getStats() {
         return await offlineDB.getStats();
     }
 
-    /**
-     * Obtenir toutes les données en attente
-     */
     async getPendingData() {
         return await offlineDB.getAllPending();
     }
 
-    /**
-     * Supprimer une donnée en attente
-     */
     async deletePending(id) {
         await offlineDB.deletePending(id);
         this.emit('data-deleted', { id });
     }
 
-    /**
-     * Vider toutes les données en attente
-     */
     async clearAll() {
         await offlineDB.clearAllPending();
         this.emit('data-cleared');
     }
 
-    /**
-     * Système d'événements
-     */
     on(event, callback) {
         if (!this.listeners.has(event)) {
             this.listeners.set(event, []);
@@ -396,31 +527,21 @@ class OfflineManager {
         if (!this.listeners.has(event)) return;
         const callbacks = this.listeners.get(event);
         const index = callbacks.indexOf(callback);
-        if (index > -1) {
-            callbacks.splice(index, 1);
-        }
+        if (index > -1) callbacks.splice(index, 1);
     }
 
     emit(event, data) {
         if (!this.listeners.has(event)) return;
-        this.listeners.get(event).forEach(callback => {
-            try {
-                callback(data);
-            } catch (error) {
-                console.error(`❌ Erreur callback ${event}:`, error);
-            }
+        this.listeners.get(event).forEach(cb => {
+            try { cb(data); } catch (e) { console.error(`Erreur listener ${event}:`, e); }
         });
     }
 
-    /**
-     * Vérifier l'état
-     */
     getStatus() {
         return {
-            isOnline: this.isOnline,
+            isOnline: navigator.onLine,
             syncInProgress: this.syncInProgress,
-            autoSyncEnabled: this.autoSyncEnabled,
-            serviceWorkerActive: navigator.serviceWorker?.controller !== null
+            autoSyncEnabled: this.autoSyncEnabled
         };
     }
 }
@@ -428,7 +549,15 @@ class OfflineManager {
 // Instance singleton
 const offlineManager = new OfflineManager();
 
-// Export
 if (typeof window !== 'undefined') {
     window.offlineManager = offlineManager;
+    document.addEventListener('DOMContentLoaded', () => {
+        offlineManager.init().catch(err => {
+            console.error('❌ Échec init OfflineManager:', err);
+        });
+    });
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = offlineManager;
 }

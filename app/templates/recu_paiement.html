@@ -28,62 +28,66 @@
 
                     <!-- Informations du reçu -->
                     <div class="row mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-6 mb-3 mb-md-0">
                             <h5>Informations de Paiement</h5>
-                            <table class="table table-sm">
-                                <tr>
-                                    <th>Date du paiement:</th>
-                                    <td>{{ paiement.date_paiement.strftime('%d/%m/%Y à %H:%M') }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Mois payé:</th>
-                                    <td class="fw-bold">{{ paiement.mois }} {{ paiement.annee }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Montant:</th>
-                                    <td class="fw-bold text-success">{{ "{:,.0f}".format(paiement.montant) }} FCFA</td>
-                                </tr>
-                                <tr>
-                                    <th>Mode de paiement:</th>
-                                    <td>{{ paiement.mode_paiement|title }}</td>
-                                </tr>
-                                {% if paiement.reference %}
-                                <tr>
-                                    <th>Référence:</th>
-                                    <td class="text-muted">{{ paiement.reference }}</td>
-                                </tr>
-                                {% endif %}
-                                <tr>
-                                    <th>Statut:</th>
-                                    <td>
-                                        <span class="badge bg-{{ 'success' if paiement.statut == 'payé' else 'warning' }}">
-                                            {{ paiement.statut|title }}
-                                        </span>
-                                    </td>
-                                </tr>
-                            </table>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <tr>
+                                        <th>Date du paiement:</th>
+                                        <td>{{ paiement.date_paiement.strftime('%d/%m/%Y à %H:%M') }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Mois payé:</th>
+                                        <td class="fw-bold">{{ paiement.mois }} {{ paiement.annee }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Montant:</th>
+                                        <td class="fw-bold text-success">{{ "{:,.0f}".format(paiement.montant) }} FCFA</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Mode de paiement:</th>
+                                        <td>{{ paiement.mode_paiement|title }}</td>
+                                    </tr>
+                                    {% if paiement.reference %}
+                                    <tr>
+                                        <th>Référence:</th>
+                                        <td class="text-muted">{{ paiement.reference }}</td>
+                                    </tr>
+                                    {% endif %}
+                                    <tr>
+                                        <th>Statut:</th>
+                                        <td>
+                                            <span class="badge bg-{{ 'success' if paiement.statut == 'payé' else 'warning' }}">
+                                                {{ paiement.statut|title }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
                         </div>
 
                         <div class="col-md-6">
                             <h5>Informations de l'Élève</h5>
-                            <table class="table table-sm">
-                                <tr>
-                                    <th>Élève:</th>
-                                    <td class="fw-bold">{{ paiement.eleve.prenom }} {{ paiement.eleve.nom }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Classe:</th>
-                                    <td>{{ paiement.eleve.classe.nom if paiement.eleve.classe else "Sans classe" }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Date de naissance:</th>
-                                    <td>{{ paiement.eleve.date_naissance.strftime('%d/%m/%Y') if paiement.eleve.date_naissance else 'N/A' }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Téléphone parent:</th>
-                                    <td>{{ paiement.eleve.telephone or 'N/A' }}</td>
-                                </tr>
-                            </table>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <tr>
+                                        <th>Élève:</th>
+                                        <td class="fw-bold">{{ paiement.eleve.prenom }} {{ paiement.eleve.nom }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Classe:</th>
+                                        <td>{{ paiement.eleve.classe.nom if paiement.eleve.classe else "Sans classe" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Date de naissance:</th>
+                                        <td>{{ paiement.eleve.date_naissance.strftime('%d/%m/%Y') if paiement.eleve.date_naissance else 'N/A' }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Téléphone parent:</th>
+                                        <td>{{ paiement.eleve.telephone or 'N/A' }}</td>
+                                    </tr>
+                                </table>
+                            </div>
                         </div>
                     </div>
 

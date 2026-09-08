@@ -501,6 +501,10 @@ class Note(db.Model):
     cours_id = db.Column(db.Integer, db.ForeignKey('cours.id'), nullable=False)
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'))
 
+    sync_version = db.Column(db.Integer, default=1, nullable=False, server_default='1')
+    last_by_admin = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
     def __repr__(self):
         return f'<Note {self.valeur} (élève {self.eleve_id})>'
 
@@ -514,7 +518,10 @@ class Note(db.Model):
             "date_evaluation": self.date_evaluation.isoformat() if self.date_evaluation else None,
             "eleve_id": self.eleve_id,
             "cours_id": self.cours_id,
-            "ecole_id": self.ecole_id
+            "ecole_id": self.ecole_id,
+            "sync_version": self.sync_version or 1,
+            "last_by_admin": bool(self.last_by_admin),
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
 
 # -----------------------
@@ -577,6 +584,10 @@ class Absence(db.Model):
     cours_id = db.Column(db.Integer, db.ForeignKey('cours.id'))
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'))
 
+    sync_version = db.Column(db.Integer, default=1, nullable=False, server_default='1')
+    last_by_admin = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
     def __repr__(self):
         return f'<Absence {self.date_absence} - élève {self.eleve_id}>'
 
@@ -588,7 +599,10 @@ class Absence(db.Model):
             "justifiee": self.justifiee,
             "eleve_id": self.eleve_id,
             "cours_id": self.cours_id,
-            "ecole_id": self.ecole_id
+            "ecole_id": self.ecole_id,
+            "sync_version": self.sync_version or 1,
+            "last_by_admin": bool(self.last_by_admin),
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
 
 # -----------------------
@@ -1091,5 +1105,46 @@ class EcoleGoogleMailConfig(db.Model):
             "is_connected": self.is_connected,
             "connected_at": self.connected_at.isoformat() if self.connected_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+# -----------------------------------------------------------------------------
+# Journal d'idempotence et d'audit pour la synchronisation hors-ligne
+# -----------------------------------------------------------------------------
+class SyncOperationLog(db.Model):
+    __tablename__ = 'sync_operation_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    client_op_id = db.Column(db.String(64), nullable=False, unique=True, index=True)
+    ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id', ondelete='CASCADE'), nullable=False, index=True)
+    entity_type = db.Column(db.String(32), nullable=False)  # 'note', 'absence', 'paiement'
+    entity_id = db.Column(db.Integer, nullable=True)        # ID de l'entité créée/mise à jour
+    status = db.Column(db.String(32), nullable=False, default='synced')  # 'synced', 'already_processed', 'conflict', 'forbidden', 'error'
+    payload_hash = db.Column(db.String(64), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relations
+    ecole = db.relationship('Ecole', backref=db.backref('sync_logs', lazy='dynamic'))
+    utilisateur = db.relationship('Utilisateur', backref=db.backref('sync_logs', lazy='dynamic'))
+
+    @property
+    def user(self):
+        return self.utilisateur
+
+    def __repr__(self):
+        return f"<SyncOperationLog op_id={self.client_op_id} type={self.entity_type} status={self.status}>"
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "client_op_id": self.client_op_id,
+            "ecole_id": self.ecole_id,
+            "user_id": self.user_id,
+            "entity_type": self.entity_type,
+            "entity_id": self.entity_id,
+            "status": self.status,
+            "payload_hash": self.payload_hash,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

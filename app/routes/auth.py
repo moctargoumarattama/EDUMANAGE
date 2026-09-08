@@ -264,7 +264,9 @@ def logout():
     # session.modified = True
 
     flash('Vous avez été déconnecté avec succès', 'info')
-    return redirect(url_for('main.login'))
+    response = redirect(url_for('main.login'))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
 
 @main.route('/aide')
 @login_required
