@@ -1,28 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}Gestion des Élèves par Classe - KLASORA{% endblock %}
+{% block title %}Gestion des Ã‰lÃ¨ves par Classe - KLASORA{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-3 px-md-4">
-    <!-- En-tête Principal -->
+    <!-- En-tÃªte Principal -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
                 <h1 class="h4 mb-0 fw-bold text-gray-800">
-                    <i class="fas fa-user-graduate text-primary me-2"></i>Gestion des Élèves par Classe
+                    <i class="fas fa-user-graduate text-primary me-2"></i>Gestion des Ã‰lÃ¨ves par Classe
                 </h1>
                 <span class="badge bg-primary rounded-pill px-2 py-1 small">
-                    {{ total_eleves }} élève{{ 's' if total_eleves > 1 else '' }}
+                    {{ total_eleves }} Ã©lÃ¨ve{{ 's' if total_eleves > 1 else '' }}
                 </span>
             </div>
             <p class="text-muted mb-0 small">
-                Consultez l'effectif, gérez les inscriptions et accédez aux dossiers annuels complets par classe.
+                Consultez l'effectif, gÃ©rez les inscriptions et accÃ©dez aux dossiers annuels complets par classe.
             </p>
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
             {% if current_user.role == 'admin' %}
             <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-sm btn-success fw-semibold">
-                <i class="fas fa-plus me-1"></i>Ajouter un élève
+                <i class="fas fa-plus me-1"></i>Ajouter un Ã©lÃ¨ve
             </a>
             <a href="{{ url_for('main.export_eleves_excel') }}" class="btn btn-sm btn-outline-success">
                 <i class="fas fa-file-excel me-1"></i>Exporter Excel
@@ -34,7 +34,7 @@
         </div>
     </div>
 
-    <!-- 3 Cartes d'Indicateurs Clés (KPIs) -->
+    <!-- 3 Cartes d'Indicateurs ClÃ©s (KPIs) -->
     <div class="row g-3 mb-4">
         <div class="col-12 col-md-4">
             <div class="card border-0 shadow-sm h-100 p-3 bg-white">
@@ -44,7 +44,7 @@
                     </div>
                     <div>
                         <h3 class="h4 fw-bold mb-0 text-gray-800">{{ stats.total_eleves }}</h3>
-                        <div class="text-muted small">Total Élèves</div>
+                        <div class="text-muted small">Total Ã‰lÃ¨ves</div>
                     </div>
                 </div>
             </div>
@@ -71,15 +71,15 @@
                         <i class="fas fa-venus-mars"></i>
                     </div>
                     <div>
-                        <h3 class="h4 fw-bold mb-0 text-gray-800">{{ stats.total_garcons }} G • {{ stats.total_filles }} F</h3>
-                        <div class="text-muted small">Répartition Garçons / Filles</div>
+                        <h3 class="h4 fw-bold mb-0 text-gray-800">{{ stats.total_garcons }} G â€¢ {{ stats.total_filles }} F</h3>
+                        <div class="text-muted small">RÃ©partition GarÃ§ons / Filles</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Barre d'outils et de recherche réactive -->
+    <!-- Barre d'outils et de recherche rÃ©active -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
             <div class="row g-3 align-items-center">
@@ -90,14 +90,14 @@
                             <i class="fas fa-search"></i>
                         </span>
                         <input type="text" class="form-control border-start-0 ps-0" id="searchStudentInput"
-                               placeholder="Rechercher par nom, prénom, matricule...">
+                               placeholder="Rechercher par nom, prÃ©nom, matricule...">
                         <button class="btn btn-outline-secondary border-start-0 d-none" type="button" id="btnClearStudentSearch">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- Sélecteur de classe pour isoler une classe -->
+                <!-- SÃ©lecteur de classe pour isoler une classe -->
                 <div class="col-12 col-md-4">
                     <select class="form-select form-select-sm" id="selectClassFilter">
                         <option value="all">Toutes les classes (Vue d'ensemble)</option>
@@ -107,11 +107,11 @@
                     </select>
                 </div>
 
-                <!-- Boutons Tout Déplier / Tout Replier -->
+                <!-- Boutons Tout DÃ©plier / Tout Replier -->
                 <div class="col-12 col-md-3 text-md-end">
                     <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-outline-secondary" id="btnExpandAllStudents" title="Déplier toutes les classes">
-                            <i class="fas fa-chevron-down me-1"></i>Déplier tout
+                        <button type="button" class="btn btn-outline-secondary" id="btnExpandAllStudents" title="DÃ©plier toutes les classes">
+                            <i class="fas fa-chevron-down me-1"></i>DÃ©plier tout
                         </button>
                         <button type="button" class="btn btn-outline-secondary" id="btnCollapseAllStudents" title="Replier toutes les classes">
                             <i class="fas fa-chevron-up me-1"></i>Replier tout
@@ -122,7 +122,7 @@
         </div>
     </div>
 
-    <!-- Conteneur des Classes (Notre système signature par classe) -->
+    <!-- Conteneur des Classes (Notre systÃ¨me signature par classe) -->
     <div id="classesStudentContainer">
         {% if classes_eleves %}
             {% for grp in classes_eleves %}
@@ -130,7 +130,7 @@
                  data-class-id="{{ grp.id }}" 
                  data-class-nom="{{ grp.nom | lower }}">
                 
-                <!-- En-tête de la classe cliquable pour ouvrir/fermer -->
+                <!-- En-tÃªte de la classe cliquable pour ouvrir/fermer -->
                 <div class="class-student-header" data-bs-toggle="collapse" 
                      data-bs-target="#collapse-class-{{ grp.id }}" 
                      aria-expanded="true">
@@ -156,11 +156,11 @@
                             </div>
                             <div class="d-flex align-items-center gap-2 flex-wrap mt-1">
                                 <span class="badge bg-primary rounded-pill">
-                                    <i class="fas fa-users me-1"></i><span class="class-count-span">{{ grp.eleves | length }}</span> élève{{ 's' if grp.eleves|length > 1 else '' }}
+                                    <i class="fas fa-users me-1"></i><span class="class-count-span">{{ grp.eleves | length }}</span> Ã©lÃ¨ve{{ 's' if grp.eleves|length > 1 else '' }}
                                 </span>
                                 {% if grp.eleves %}
                                 <span class="badge bg-light text-muted border small">
-                                    {{ grp.garcons_count }} Garçon{{ 's' if grp.garcons_count > 1 else '' }} • {{ grp.filles_count }} Fille{{ 's' if grp.filles_count > 1 else '' }}
+                                    {{ grp.garcons_count }} GarÃ§on{{ 's' if grp.garcons_count > 1 else '' }} â€¢ {{ grp.filles_count }} Fille{{ 's' if grp.filles_count > 1 else '' }}
                                 </span>
                                 {% endif %}
                             </div>
@@ -171,13 +171,13 @@
                     </div>
                 </div>
 
-                <!-- Corps de la classe avec ses élèves -->
+                <!-- Corps de la classe avec ses Ã©lÃ¨ves -->
                 <div class="collapse show" id="collapse-class-{{ grp.id }}">
                     <div class="class-student-body">
                         {% if grp.eleves %}
                         <div class="student-list-group">
                             {% for eleve in grp.eleves %}
-                            <div class="student-entry-card" 
+                            <div class="student-entry-card" id="eleve-card-{{ eleve.id }}"
                                  data-student-id="{{ eleve.id }}"
                                  data-class-id="{{ grp.id }}"
                                  data-search="{{ (eleve.nom ~ ' ' ~ eleve.prenom ~ ' ' ~ (eleve.code_parent or '') ~ ' ' ~ (eleve.contact_parent or '') ~ ' ' ~ grp.nom) | lower }}">
@@ -190,7 +190,7 @@
                                         <div class="d-flex align-items-center gap-2 flex-wrap">
                                             <h3 class="student-entry-name">{{ eleve.prenom }} {{ eleve.nom }}</h3>
                                             <span class="badge {% if eleve.genre == 'F' %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} small">
-                                                {{ 'Fille' if eleve.genre == 'F' else 'Garçon' }}
+                                                {{ 'Fille' if eleve.genre == 'F' else 'GarÃ§on' }}
                                             </span>
                                             {% if eleve.statut == 'actif' %}
                                             <span class="badge bg-success-subtle text-success border border-success-subtle small">Actif</span>
@@ -203,7 +203,7 @@
                                             </span>
                                             <span>
                                                 <i class="fas fa-user-friends text-muted me-1"></i>
-                                                Parent : {{ eleve.parent.nom ~ ' ' ~ eleve.parent.prenom if eleve.parent else (eleve.contact_parent or 'Non assigné') }}
+                                                Parent : {{ eleve.parent.nom ~ ' ' ~ eleve.parent.prenom if eleve.parent else (eleve.contact_parent or 'Non assignÃ©') }}
                                             </span>
                                             {% if eleve.contact_parent or (eleve.parent and eleve.parent.telephone) %}
                                             <span>
@@ -215,7 +215,7 @@
                                     </div>
                                 </div>
 
-                                <!-- Barre d'actions rapides pour cet élève -->
+                                <!-- Barre d'actions rapides pour cet Ã©lÃ¨ve -->
                                 <div class="student-entry-actions">
                                     <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" 
                                        class="student-action-btn btn btn-sm btn-primary" 
@@ -230,13 +230,12 @@
                                     {% if current_user.role == 'admin' %}
                                     <a href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id) }}" 
                                        class="student-action-btn btn btn-sm btn-outline-warning" 
-                                       title="Modifier les données de l'élève">
+                                       title="Modifier les donnÃ©es de l'Ã©lÃ¨ve">
                                         <i class="fas fa-edit me-1"></i>Modifier
                                     </a>
-                                    <form method="post" action="{{ url_for('main.supprimer_eleve', id=eleve.id) }}" class="d-inline"
-                                          onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer l\'élève {{ eleve.prenom }} {{ eleve.nom }} ? Cette action est irréversible.');">
+                                    <form method="post" action="{{ url_for('main.supprimer_eleve', id=eleve.id) }}" class="d-inline" data-klasora-form data-remove-target="#eleve-card-{{ eleve.id }}" data-confirm="Supprimer cet élève ?" data-loading="Suppression...">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="student-action-btn btn btn-sm btn-outline-danger" title="Supprimer l'élève">
+                                        <button type="submit" class="student-action-btn btn btn-sm btn-outline-danger" title="Supprimer l'Ã©lÃ¨ve">
                                             <i class="fas fa-trash-alt"></i>
                                         </button>
                                     </form>
@@ -248,10 +247,10 @@
                         {% else %}
                         <div class="text-center py-4 text-muted">
                             <i class="fas fa-user-plus fa-2x mb-2 opacity-50"></i>
-                            <p class="mb-2 small">Aucun élève inscrit dans cette classe pour le moment.</p>
+                            <p class="mb-2 small">Aucun Ã©lÃ¨ve inscrit dans cette classe pour le moment.</p>
                             {% if current_user.role == 'admin' %}
                             <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-plus me-1"></i>Inscrire un élève dans cette classe
+                                <i class="fas fa-plus me-1"></i>Inscrire un Ã©lÃ¨ve dans cette classe
                             </a>
                             {% endif %}
                         </div>
@@ -261,17 +260,17 @@
             </div>
             {% endfor %}
         {% else %}
-            <!-- État vide global -->
+            <!-- Ã‰tat vide global -->
             <div class="card border-0 shadow-sm text-center py-5">
                 <div class="card-body">
                     <i class="fas fa-user-graduate text-muted fa-4x mb-3 opacity-50"></i>
-                    <h4 class="fw-bold text-gray-800 mb-2">Aucun élève enregistré</h4>
+                    <h4 class="fw-bold text-gray-800 mb-2">Aucun Ã©lÃ¨ve enregistrÃ©</h4>
                     <p class="text-muted mx-auto mb-3" style="max-width: 460px;">
-                        Votre établissement ne compte encore aucun élève inscrit. Commencez par inscrire un nouvel élève.
+                        Votre Ã©tablissement ne compte encore aucun Ã©lÃ¨ve inscrit. Commencez par inscrire un nouvel Ã©lÃ¨ve.
                     </p>
                     {% if current_user.role == 'admin' %}
                     <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-primary btn-sm px-3">
-                        <i class="fas fa-plus me-1"></i>Ajouter le premier élève
+                        <i class="fas fa-plus me-1"></i>Ajouter le premier Ã©lÃ¨ve
                     </a>
                     {% endif %}
                 </div>
@@ -279,14 +278,14 @@
         {% endif %}
     </div>
 
-    <!-- Message aucun résultat de recherche -->
+    <!-- Message aucun rÃ©sultat de recherche -->
     <div id="noStudentMatch" class="card border-0 shadow-sm text-center py-5 d-none">
         <div class="card-body">
             <i class="fas fa-search text-muted fa-3x mb-3 opacity-50"></i>
-            <h5 class="fw-bold text-gray-800 mb-1">Aucun élève trouvé</h5>
-            <p class="text-muted small mb-3">Aucun élève ne correspond à votre terme de recherche.</p>
+            <h5 class="fw-bold text-gray-800 mb-1">Aucun Ã©lÃ¨ve trouvÃ©</h5>
+            <p class="text-muted small mb-3">Aucun Ã©lÃ¨ve ne correspond Ã  votre terme de recherche.</p>
             <button type="button" class="btn btn-sm btn-outline-primary" onclick="resetStudentSearch()">
-                <i class="fas fa-sync-alt me-1"></i>Réinitialiser la recherche
+                <i class="fas fa-sync-alt me-1"></i>RÃ©initialiser la recherche
             </button>
         </div>
     </div>

@@ -36,3 +36,4 @@ from . import ecoles
 from . import annees
 from . import errors
 from . import email_settings
+from . import support

@@ -15,6 +15,7 @@ from .common import (
     flash,
     func,
     io,
+    joinedload,
     login_required,
     redirect,
     render_template,
@@ -297,9 +298,12 @@ def generer_recu_pdf(id):
 @login_required
 @role_required('admin')
 def export_paiements_excel():
-    # Récupère tous les paiements filtrés par école
+    # Récupère tous les paiements filtrés par école avec eager loading élève/classe
     paiements = filtre_par_ecole(
-        Paiement.query.join(Eleve).order_by(Paiement.date_paiement.desc()), Paiement
+        Paiement.query.options(
+            joinedload(Paiement.eleve).joinedload(Eleve.classe)
+        ).join(Eleve).order_by(Paiement.date_paiement.desc()),
+        Paiement
     ).all()
 
     data = {

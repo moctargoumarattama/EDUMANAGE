@@ -561,11 +561,11 @@ def export_eleves_excel():
         ecole_id=current_user.ecole_id if current_user.role == "admin" else None
     ).first()
 
-    # Filtrage selon rÃ´le et annÃ©e
+    # Filtrage selon rôle et année
     if current_user.role == 'super-admin':
-        eleves = get_ecole_filter_query(Eleve).all()
+        eleves = get_ecole_filter_query(Eleve).options(joinedload(Eleve.classe)).all()
     else:
-        eleves = Eleve.query.filter_by(ecole_id=current_user.ecole_id).all()
+        eleves = Eleve.query.options(joinedload(Eleve.classe)).filter_by(ecole_id=current_user.ecole_id).all()
 
     # Filtrer seulement Ã©lÃ¨ves inscrits dans l'annÃ©e active
     if annee_active:

@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="home-page">
-    <section class="home-hero">
+    <section class="home-hero admin-welcome-hero">
         <div class="home-hero-content">
             {% if current_user.role == 'super_admin' %}
             <span class="home-hero-kicker text-warning"><i class="fas fa-crown me-1"></i>KLASORA Tour de Contrôle</span>
@@ -26,6 +26,19 @@
             </span>
         </div>
     </section>
+
+    {% if current_user.role in ['admin', 'super_admin'] %}
+    <div class="mobile-welcome-toast" data-mobile-welcome-toast data-role="{{ current_user.role }}" aria-live="polite">
+        <div class="mobile-welcome-orb">
+            <img src="{{ url_for('static', filename='img/logo-klasora.png') }}" alt="" aria-hidden="true">
+        </div>
+        <div class="mobile-welcome-copy">
+            <strong><span class="welcome-wave" aria-hidden="true">&#128075;</span>Bonjour</strong>
+            <span>Bienvenue sur KLASORA</span>
+            <small>Votre espace de gestion scolaire centralisé et intelligent.</small>
+        </div>
+    </div>
+    {% endif %}
 
     {% if current_user.role == 'super_admin' %}
     <!-- ======================================================= -->
@@ -59,14 +72,14 @@
             <div class="home-stat-card">
                 <span class="home-stat-icon" style="background: linear-gradient(135deg, #6366f1, #4338ca); color: white;"><i class="fas fa-database"></i></span>
                 <div class="home-stat-info">
-                    <strong style="font-size: 1.05rem;">SQLite {{ stats.db_version }}</strong>
+                    <strong class="home-stat-value home-stat-value-compact">SQLite {{ stats.db_version }}</strong>
                     <small>{{ stats.table_count }} tables actives</small>
                 </div>
             </div>
             <div class="home-stat-card">
                 <span class="home-stat-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;"><i class="fas fa-history"></i></span>
                 <div class="home-stat-info">
-                    <strong style="font-size: 0.95rem;">{{ stats.last_backup if stats.last_backup else 'Aucune' }}</strong>
+                    <strong class="home-stat-value home-stat-value-compact">{{ stats.last_backup if stats.last_backup else 'Aucune' }}</strong>
                     <small>Dernière sauvegarde</small>
                 </div>
             </div>
@@ -111,6 +124,14 @@
                 <div class="home-action-info">
                     <strong>Logs Système</strong>
                     <small>Journaux & sécurité</small>
+                </div>
+                <i class="fas fa-chevron-right action-card-arrow"></i>
+            </a>
+            <a href="{{ url_for('admin.support_tickets') }}" class="home-action-card">
+                <span class="home-action-icon" style="background: linear-gradient(135deg, #0ea5e9, #0284c7);"><i class="fas fa-life-ring"></i></span>
+                <div class="home-action-info">
+                    <strong>Support KLASORA {% if nouveau_tickets_count and nouveau_tickets_count > 0 %}<span class="badge bg-danger rounded-pill ms-1">{{ nouveau_tickets_count }}</span>{% endif %}</strong>
+                    <small>Tickets d'assistance technique</small>
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
@@ -277,4 +298,10 @@
     </section>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if current_user.role in ['admin', 'super_admin'] %}
+<script src="{{ url_for('static', filename='js/mobile-welcome.js') }}"></script>
+{% endif %}
 {% endblock %}

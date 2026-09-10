@@ -387,7 +387,10 @@ def supprimer_classe(classe_id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur suppression classe {classe_id}: {e}")
-        flash("Erreur lors de la suppression de la classe.", "danger")
+        message = "Erreur lors de la suppression de la classe."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({'success': False, 'message': message}), 500
+        flash(message, "danger")
 
     return redirect(url_for("main.liste_classes"))
 

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Trop de tentatives - KLASORA{% endblock %}
+
+{% block content %}
+<div class="rate-limit-page">
+    <section class="rate-limit-card" aria-labelledby="rateLimitTitle">
+        <img class="rate-limit-logo" src="{{ url_for('static', filename='img/logo-klasora.png') }}" alt="KLASORA">
+        <span class="rate-limit-icon" aria-hidden="true">
+            <i class="fas fa-shield-alt"></i>
+        </span>
+        <h1 id="rateLimitTitle">Trop de tentatives de connexion</h1>
+        <p>
+            Vous avez effectué trop de tentatives en peu de temps.
+            Patientez quelques instants puis réessayez.
+        </p>
+        <a class="btn btn-primary rate-limit-button" href="{{ login_url or url_for('main.login') }}">
+            <i class="fas fa-arrow-left me-2" aria-hidden="true"></i>Retour à la connexion
+        </a>
+    </section>
+</div>
+{% endblock %}

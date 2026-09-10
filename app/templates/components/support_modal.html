@@ -1,0 +1,502 @@
+{% if current_user.is_authenticated and current_user.role in ['admin', 'professeur', 'parent'] %}
+<!-- =======================================================
+     BOUTON FLOTTANT DÉPLAÇABLE & MODAL SUPPORT PREMIUM
+     Rôles autorisés : admin, professeur, parent
+     (Exclut strictement : super_admin et visiteurs)
+     ======================================================= -->
+
+<!-- Bouton Flottant Support Déplaçable (Sleek & Clean) -->
+<div id="klasoraSupportTriggerBtn"
+     class="klasora-floating-support-btn"
+     role="button"
+     tabindex="0"
+     aria-label="Support technique KLASORA"
+     title="Support technique KLASORA — Cliquez pour ouvrir, glissez pour déplacer">
+    <i class="fas fa-life-ring support-btn-icon" aria-hidden="true"></i>
+    <span class="support-btn-label">Support</span>
+</div>
+
+<!-- Modal / Bottom-Sheet Support Premium -->
+<div id="klasoraSupportModalContainer" class="klasora-support-container d-none" aria-hidden="true">
+    <div class="klasora-support-backdrop" id="klasoraSupportBackdrop"></div>
+    <div class="klasora-support-dialog animate-slide-up" role="dialog" aria-modal="true" aria-labelledby="klasoraSupportTitle">
+
+        <!-- Barre d'accentuation dégradée supérieure -->
+        <div class="klasora-support-top-accent"></div>
+
+        <!-- En-tête Premium -->
+        <div class="klasora-support-header">
+            <div class="d-flex align-items-center gap-3">
+                <div class="support-header-avatar">
+                    <i class="fas fa-life-ring"></i>
+                </div>
+                <div>
+                    <div class="d-flex align-items-center gap-2">
+                        <h5 id="klasoraSupportTitle" class="support-modal-title mb-0">Support KLASORA</h5>
+                        <span class="support-status-chip">
+                            <span class="support-status-chip-dot"></span>En ligne
+                        </span>
+                    </div>
+                    <span class="support-modal-subtitle">Assistance technique de la plateforme</span>
+                </div>
+            </div>
+            <button type="button" class="klasora-support-close" id="klasoraSupportCloseBtn" aria-label="Fermer" title="Fermer (Échap)">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="klasora-support-body">
+            <!-- Alertes dynamiques -->
+            <div id="supportAlertBox" class="alert d-none mb-3" role="alert"></div>
+
+            <!-- ETAPE 1 : CHOIX DU SUPPORT (HUB D'AIGUILLAGE) -->
+            <div id="supportStepHub" class="support-step-view">
+                <div class="support-intro-lead mb-3">
+                    Un problème ou une question ? Choisissez votre mode d'assistance :
+                </div>
+
+                <div class="support-options-grid">
+                    <!-- Option 1 : Ticket Technique -->
+                    <div class="support-option-card option-card-ticket" id="btnOpenTicketForm" role="button" tabindex="0">
+                        <div class="support-option-icon-wrap icon-wrap-ticket">
+                            <i class="fas fa-ticket-alt"></i>
+                        </div>
+                        <div class="support-option-content">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <h6 class="support-card-title mb-0">Signaler un problème</h6>
+                                <span class="support-tag tag-primary">Ticket</span>
+                            </div>
+                            <p class="support-card-desc mb-0">
+                                Transmettez un bug ou un dysfonctionnement directement à l'équipe technique.
+                            </p>
+                        </div>
+                        <div class="support-option-arrow">
+                            <i class="fas fa-chevron-right"></i>
+                        </div>
+                    </div>
+
+                    <!-- Option 2 : WhatsApp Direct -->
+                    <a href="https://wa.me/{{ SUPPORT_WHATSAPP_NUMBER }}?text=Bonjour,%20j'ai%20besoin%20d'aide%20technique%20sur%20KLASORA."
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="support-option-card option-card-whatsapp text-decoration-none">
+                        <div class="support-option-icon-wrap icon-wrap-whatsapp">
+                            <i class="fab fa-whatsapp"></i>
+                        </div>
+                        <div class="support-option-content">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <h6 class="support-card-title mb-0 text-dark">WhatsApp Direct</h6>
+                                <span class="support-tag tag-danger pulse-urgent">
+                                    <i class="fas fa-bolt me-1"></i>Urgence
+                                </span>
+                            </div>
+                            <p class="support-card-desc mb-0">
+                                Échangez en direct avec un conseiller technique en cas de blocage immédiat.
+                            </p>
+                        </div>
+                        <div class="support-option-arrow">
+                            <i class="fas fa-arrow-up-right-from-square"></i>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Footer rassurant -->
+                <div class="support-guarantee-note mt-3 text-center">
+                    <i class="fas fa-shield-check text-success me-1"></i>
+                    Support technique officiel &amp; réactif
+                </div>
+            </div>
+
+            <!-- ETAPE 2 : FORMULAIRE TICKET -->
+            <div id="supportStepForm" class="support-step-view d-none">
+                <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                    <button type="button" class="btn btn-sm btn-light border py-1 px-2.5 rounded-3 text-secondary support-btn-back" id="supportBackToHubBtn">
+                        <i class="fas fa-arrow-left me-1.5"></i>Retour
+                    </button>
+                    <span class="support-tag tag-primary">Nouveau signalement</span>
+                </div>
+
+                <form id="klasoraSupportTicketForm" novalidate>
+                    <div class="mb-3">
+                        <label for="supportTicketSujet" class="support-input-label">
+                            Sujet du problème <span class="text-danger">*</span>
+                        </label>
+                        <input type="text"
+                               class="form-control support-input"
+                               id="supportTicketSujet"
+                               name="sujet"
+                               placeholder="Ex: Erreur lors de la validation des notes"
+                               minlength="3"
+                               maxlength="150"
+                               required>
+                        <div class="support-input-hint">Soyez clair et concis (3 à 150 caractères).</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="supportTicketMessage" class="support-input-label">
+                            Description détaillée <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control support-textarea"
+                                  id="supportTicketMessage"
+                                  name="message"
+                                  rows="4"
+                                  placeholder="Expliquez ce qui s'est passé, les actions effectuées et le message affiché..."
+                                  minlength="10"
+                                  maxlength="4000"
+                                  required></textarea>
+                        <div class="support-input-hint">Minimum 10 caractères. Plus de détails = résolution plus rapide.</div>
+                    </div>
+
+                    <!-- Encart diagnostic automatique -->
+                    <div class="support-diag-pill mb-3">
+                        <div class="support-diag-icon"><i class="fas fa-shield-halved"></i></div>
+                        <div class="support-diag-text">
+                            <strong>Diagnostic automatique :</strong> Page <code id="supportCurrentPagePreview" class="support-page-code">/</code> et profil utilisateur joints automatiquement.
+                        </div>
+                    </div>
+
+                    <button type="submit" id="supportSubmitBtn" class="btn btn-primary w-100 py-2.5 fw-semibold support-btn-submit shadow-sm">
+                        <i class="fas fa-paper-plane me-1.5"></i> Envoyer le signalement
+                    </button>
+                </form>
+            </div>
+
+            <!-- ETAPE 3 : CONFIRMATION SUCCES -->
+            <div id="supportStepSuccess" class="support-step-view d-none text-center py-4">
+                <div class="support-success-badge-wrap mb-3">
+                    <div class="support-success-badge">
+                        <i class="fas fa-check"></i>
+                    </div>
+                </div>
+                <h5 class="fw-bold mb-2 text-dark">Signalement transmis avec succès !</h5>
+                <p class="text-muted small mb-4 px-3" style="line-height: 1.55;">
+                    Votre ticket a bien été reçu par nos techniciens. Nous analysons les données de contexte jointes pour résoudre le problème rapidement.
+                </p>
+                <button type="button" class="btn btn-primary px-4 py-2 rounded-3 shadow-sm support-btn-close-final" id="supportCloseSuccessBtn">
+                    Terminer
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // --- 1. BOUTON DÉPLAÇABLE (DRAGGABLE) & GESTION DU CLIC ---
+    const btn = document.getElementById('klasoraSupportTriggerBtn');
+    const container = document.getElementById('klasoraSupportModalContainer');
+    const backdrop = document.getElementById('klasoraSupportBackdrop');
+    const closeBtn = document.getElementById('klasoraSupportCloseBtn');
+    const closeSuccessBtn = document.getElementById('supportCloseSuccessBtn');
+    const stepHub = document.getElementById('supportStepHub');
+    const stepForm = document.getElementById('supportStepForm');
+    const stepSuccess = document.getElementById('supportStepSuccess');
+    const btnOpenForm = document.getElementById('btnOpenTicketForm');
+    const btnBackToHub = document.getElementById('supportBackToHubBtn');
+    const form = document.getElementById('klasoraSupportTicketForm');
+    const submitBtn = document.getElementById('supportSubmitBtn');
+    const alertBox = document.getElementById('supportAlertBox');
+    const pagePreview = document.getElementById('supportCurrentPagePreview');
+    const sujetInput = document.getElementById('supportTicketSujet');
+    const messageInput = document.getElementById('supportTicketMessage');
+
+    if (!btn || !container) return;
+
+    let isPointerDown = false;
+    let isDragging = false;
+    let didMove = false;
+    let startX = 0, startY = 0;
+    let initialLeft = 0, initialTop = 0;
+    let suppressClickUntil = 0;
+    const DRAG_THRESHOLD = 8; // Déplacement minimum en px pour distinguer le glissement du clic
+
+    // Restaurer la position sauvegardée si valide
+    try {
+        const savedPos = localStorage.getItem('klasora_support_btn_pos');
+        if (savedPos) {
+            const pos = JSON.parse(savedPos);
+            if (typeof pos.left === 'number' && typeof pos.top === 'number') {
+                const btnW = btn.offsetWidth || 110;
+                const btnH = btn.offsetHeight || 42;
+                const maxX = window.innerWidth - btnW - 12;
+                const maxY = window.innerHeight - btnH - 12;
+                const left = Math.min(Math.max(12, pos.left), Math.max(12, maxX));
+                const top = Math.min(Math.max(12, pos.top), Math.max(12, maxY));
+                btn.style.left = left + 'px';
+                btn.style.top = top + 'px';
+                btn.style.right = 'auto';
+                btn.style.bottom = 'auto';
+                btn.classList.add('is-repositioned');
+            }
+        }
+    } catch(e) {}
+
+    let lastDownTime = 0;
+
+    function onPointerDown(e) {
+        if (e.button !== undefined && e.button !== 0) return;
+        if (Date.now() - lastDownTime < 60) return;
+        lastDownTime = Date.now();
+
+        isPointerDown = true;
+        isDragging = false;
+        didMove = false;
+
+        const coords = (e.touches && e.touches.length > 0) ? e.touches[0] : e;
+        startX = coords.clientX;
+        startY = coords.clientY;
+
+        const rect = btn.getBoundingClientRect();
+        initialLeft = rect.left;
+        initialTop = rect.top;
+
+        window.addEventListener('pointermove', onPointerMove, { passive: false });
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('touchmove', onPointerMove, { passive: false });
+
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('mouseup', onPointerUp);
+        window.addEventListener('touchend', onPointerUp);
+    }
+
+    function onPointerMove(e) {
+        if (!isPointerDown) return;
+
+        const coords = (e.touches && e.touches.length > 0) ? e.touches[0] : e;
+        const dx = coords.clientX - startX;
+        const dy = coords.clientY - startY;
+        const dist = Math.hypot(dx, dy);
+
+        if (!isDragging && dist > DRAG_THRESHOLD) {
+            isDragging = true;
+            didMove = true;
+            btn.classList.add('is-dragging');
+        }
+
+        if (isDragging) {
+            if (e.cancelable) e.preventDefault();
+
+            const btnWidth = btn.offsetWidth || 110;
+            const btnHeight = btn.offsetHeight || 42;
+            const minX = 10;
+            const minY = 10;
+            const maxX = window.innerWidth - btnWidth - 10;
+            const maxY = window.innerHeight - btnHeight - 10;
+
+            let newLeft = Math.min(Math.max(minX, initialLeft + dx), maxX);
+            let newTop = Math.min(Math.max(minY, initialTop + dy), maxY);
+
+            btn.style.left = newLeft + 'px';
+            btn.style.top = newTop + 'px';
+            btn.style.right = 'auto';
+            btn.style.bottom = 'auto';
+            btn.classList.add('is-repositioned');
+        }
+    }
+
+    function onPointerUp(e) {
+        if (!isPointerDown) return;
+        isPointerDown = false;
+
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('mousemove', onPointerMove);
+        window.removeEventListener('touchmove', onPointerMove);
+
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('mouseup', onPointerUp);
+        window.removeEventListener('touchend', onPointerUp);
+
+        if (isDragging) {
+            isDragging = false;
+            btn.classList.remove('is-dragging');
+            suppressClickUntil = Date.now() + 350;
+
+            const rect = btn.getBoundingClientRect();
+            try {
+                localStorage.setItem('klasora_support_btn_pos', JSON.stringify({
+                    left: Math.round(rect.left),
+                    top: Math.round(rect.top)
+                }));
+            } catch(e) {}
+        }
+    }
+
+    btn.addEventListener('pointerdown', onPointerDown);
+    btn.addEventListener('mousedown', onPointerDown);
+    btn.addEventListener('touchstart', onPointerDown, { passive: true });
+
+    // Clic pour ouvrir le modal
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (didMove || Date.now() < suppressClickUntil) {
+            didMove = false;
+            return;
+        }
+
+        openModal();
+    });
+
+    // Ajustement dynamique au redimensionnement de l'écran
+    window.addEventListener('resize', function() {
+        if (!btn.classList.contains('is-repositioned')) return;
+        const rect = btn.getBoundingClientRect();
+        const btnW = btn.offsetWidth || 110;
+        const btnH = btn.offsetHeight || 42;
+        const maxX = window.innerWidth - btnW - 10;
+        const maxY = window.innerHeight - btnH - 10;
+        if (rect.left > maxX || rect.top > maxY) {
+            const left = Math.min(Math.max(10, rect.left), Math.max(10, maxX));
+            const top = Math.min(Math.max(10, rect.top), Math.max(10, maxY));
+            btn.style.left = left + 'px';
+            btn.style.top = top + 'px';
+        }
+    });
+
+    // Clavier accessibilité sur le bouton
+    btn.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openModal();
+        }
+    });
+
+    // --- 2. GESTION DU MODAL ---
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    function openModal() {
+        container.classList.remove('d-none');
+        container.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('support-modal-open');
+        showStep('hub');
+        if (pagePreview) {
+            pagePreview.textContent = window.location.pathname || '/';
+        }
+    }
+
+    function closeModal() {
+        container.classList.add('d-none');
+        container.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('support-modal-open');
+        hideAlert();
+        form.reset();
+    }
+
+    function showStep(step) {
+        hideAlert();
+        stepHub.classList.add('d-none');
+        stepForm.classList.add('d-none');
+        stepSuccess.classList.add('d-none');
+
+        if (step === 'hub') {
+            stepHub.classList.remove('d-none');
+        } else if (step === 'form') {
+            stepForm.classList.remove('d-none');
+            setTimeout(() => { if (sujetInput) sujetInput.focus(); }, 120);
+        } else if (step === 'success') {
+            stepSuccess.classList.remove('d-none');
+        }
+    }
+
+    function showAlert(type, message) {
+        alertBox.className = `alert alert-${type} py-2.5 px-3.5 small mb-3 border-0 rounded-3 shadow-xs`;
+        alertBox.innerHTML = `<i class="fas fa-${type === 'danger' ? 'exclamation-circle' : 'check-circle'} me-2"></i> ${message}`;
+        alertBox.classList.remove('d-none');
+    }
+
+    function hideAlert() {
+        alertBox.classList.add('d-none');
+        alertBox.innerHTML = '';
+    }
+
+    backdrop.addEventListener('click', closeModal);
+    closeBtn.addEventListener('click', closeModal);
+    if (closeSuccessBtn) closeSuccessBtn.addEventListener('click', closeModal);
+
+    if (btnOpenForm) {
+        btnOpenForm.addEventListener('click', () => showStep('form'));
+        btnOpenForm.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                showStep('form');
+            }
+        });
+    }
+
+    if (btnBackToHub) {
+        btnBackToHub.addEventListener('click', () => showStep('hub'));
+    }
+
+    // Soumission du formulaire
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        hideAlert();
+
+        const sujet = (sujetInput.value || '').trim();
+        const message = (messageInput.value || '').trim();
+
+        if (sujet.length < 3 || sujet.length > 150) {
+            showAlert('danger', "Le sujet doit comporter entre 3 et 150 caractères.");
+            sujetInput.focus();
+            return;
+        }
+
+        if (message.length < 10) {
+            showAlert('danger', "Veuillez décrire votre problème avec au moins 10 caractères.");
+            messageInput.focus();
+            return;
+        }
+
+        submitBtn.disabled = true;
+        const originalBtnHtml = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Transmission en cours...';
+
+        try {
+            const pageUrl = window.location.pathname + window.location.search;
+            const csrfToken = getCsrfToken();
+
+            const response = await fetch('/api/support/ticket', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-CSRF-Token': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    sujet: sujet,
+                    message: message,
+                    page_url: pageUrl
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                showStep('success');
+                form.reset();
+            } else {
+                showAlert('danger', data.message || "Une erreur est survenue lors de l'envoi du ticket.");
+            }
+        } catch (err) {
+            console.error('[Support] Erreur réseau:', err);
+            showAlert('danger', "Impossible d'envoyer le ticket pour le moment. Veuillez vérifier votre connexion ou utiliser WhatsApp.");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnHtml;
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !container.classList.contains('d-none')) {
+            closeModal();
+        }
+    });
+})();
+</script>
+{% endif %}

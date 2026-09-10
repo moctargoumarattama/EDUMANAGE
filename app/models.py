@@ -176,6 +176,10 @@ class Utilisateur(db.Model, UserMixin):
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id', ondelete='SET NULL'), nullable=True)
     ecole = db.relationship('Ecole', back_populates='utilisateurs')
 
+    __table_args__ = (
+        db.Index('ix_utilisateur_ecole_role', 'ecole_id', 'role'),
+    )
+
     # écoles gérées (admin/gestionnaire)
     ecoles_gerees = db.relationship(
         'Ecole',
@@ -283,6 +287,10 @@ class Professeur(db.Model):
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id', ondelete='CASCADE'), nullable=False)
     ecole = db.relationship('Ecole', back_populates='professeurs')
 
+    __table_args__ = (
+        db.Index('ix_professeur_utilisateur_ecole', 'utilisateur_id', 'ecole_id'),
+    )
+
     utilisateur = db.relationship('Utilisateur', back_populates='professeur_rel', uselist=False)
     cours = db.relationship('Cours', back_populates='professeur', lazy=True, cascade="all, delete-orphan")
     emplois_du_temps = db.relationship('EmploiTemps', back_populates='professeur', lazy=True, cascade="all, delete-orphan")
@@ -348,6 +356,10 @@ class Classe(db.Model):
     emplois = db.relationship('EmploiTemps', back_populates='classe', lazy=True, cascade="all, delete-orphan")
     cours = db.relationship('Cours', back_populates='classe', lazy=True, cascade="all, delete-orphan")
     capacite_max = db.Column(db.Integer, nullable=False, default=30)
+
+    __table_args__ = (
+        db.Index('ix_classe_ecole_annee', 'ecole_id', 'annee_scolaire_id'),
+    )
 
     # NOUVELLE RELATION - Professeurs assignés à cette classe
     professeurs_assignes = db.relationship(
@@ -434,6 +446,11 @@ class Eleve(db.Model):
     alertes = db.relationship('Alerte', back_populates='eleve', lazy=True)
     annee_premiere_ecole = db.Column(db.Integer)
 
+    __table_args__ = (
+        db.Index('ix_eleve_ecole_classe', 'ecole_id', 'classe_id'),
+        db.Index('ix_eleve_parent_id', 'parent_id'),
+    )
+
     @staticmethod
     def generer_code_parent(length=8):
         lettres_chiffres = string.ascii_uppercase + string.digits
@@ -505,6 +522,11 @@ class Note(db.Model):
     last_by_admin = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    __table_args__ = (
+        db.Index('ix_note_ecole_eleve', 'ecole_id', 'eleve_id'),
+        db.Index('ix_note_cours_eleve', 'cours_id', 'eleve_id'),
+    )
+
     def __repr__(self):
         return f'<Note {self.valeur} (élève {self.eleve_id})>'
 
@@ -540,6 +562,10 @@ class Paiement(db.Model):
     reference = db.Column(db.String(100))
     eleve_id = db.Column(db.Integer, db.ForeignKey('eleve.id'), nullable=False)
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'))
+
+    __table_args__ = (
+        db.Index('ix_paiement_ecole_statut', 'ecole_id', 'statut'),
+    )
 
     def statut_paiement(self):
         mois_num = {
@@ -588,6 +614,10 @@ class Absence(db.Model):
     last_by_admin = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    __table_args__ = (
+        db.Index('ix_absence_ecole_eleve', 'ecole_id', 'eleve_id'),
+    )
+
     def __repr__(self):
         return f'<Absence {self.date_absence} - élève {self.eleve_id}>'
 
@@ -618,6 +648,10 @@ class Cours(db.Model):
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'), nullable=False)
     classe_id = db.Column(db.Integer, db.ForeignKey('classe.id'))
     professeur_id = db.Column(db.Integer, db.ForeignKey('professeur.id'))
+
+    __table_args__ = (
+        db.Index('ix_cours_ecole_classe', 'ecole_id', 'classe_id'),
+    )
 
     # Relations existantes
     classe = db.relationship('Classe', back_populates='cours')
@@ -1146,5 +1180,51 @@ class SyncOperationLog(db.Model):
             "status": self.status,
             "payload_hash": self.payload_hash,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+# -----------------------------------------------------------------------------
+# Modèle Support KLASORA (Tickets de support technique plateforme)
+# -----------------------------------------------------------------------------
+class SupportTicket(db.Model):
+    __tablename__ = 'support_ticket'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id', ondelete='CASCADE'), nullable=False, index=True)
+    utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id', ondelete='CASCADE'), nullable=False, index=True)
+    role = db.Column(db.String(32), nullable=False)
+    sujet = db.Column(db.String(150), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    page_url = db.Column(db.String(255), nullable=True)
+    statut = db.Column(db.String(20), nullable=False, default='nouveau', index=True)  # 'nouveau', 'en_cours', 'resolu'
+    user_agent = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    resolved_at = db.Column(db.DateTime, nullable=True)
+
+    # Relations
+    ecole = db.relationship('Ecole', backref=db.backref('support_tickets', lazy='dynamic', cascade='all, delete-orphan'))
+    utilisateur = db.relationship('Utilisateur', backref=db.backref('support_tickets', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f"<SupportTicket id={self.id} ecole_id={self.ecole_id} statut={self.statut} sujet={self.sujet[:30]}>"
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "ecole_id": self.ecole_id,
+            "ecole_nom": self.ecole.nom if self.ecole else None,
+            "utilisateur_id": self.utilisateur_id,
+            "utilisateur_nom": f"{self.utilisateur.prenom} {self.utilisateur.nom}" if self.utilisateur else None,
+            "utilisateur_email": self.utilisateur.email if self.utilisateur else None,
+            "role": self.role,
+            "sujet": self.sujet,
+            "message": self.message,
+            "page_url": self.page_url,
+            "statut": self.statut,
+            "user_agent": self.user_agent,
+            "created_at": self.created_at.strftime('%d/%m/%Y %H:%M') if self.created_at else None,
+            "updated_at": self.updated_at.strftime('%d/%m/%Y %H:%M') if self.updated_at else None,
+            "resolved_at": self.resolved_at.strftime('%d/%m/%Y %H:%M') if self.resolved_at else None,
         }
 

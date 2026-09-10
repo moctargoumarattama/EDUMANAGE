@@ -12,7 +12,7 @@
                 </div>
                 <div>
                     <h1 class="page-title">Classes</h1>
-                    <p class="page-subtitle d-none d-md-block">Liste des classes de votre établissement.</p>
+                    <p class="page-subtitle d-none d-md-block">Liste des classes de votre Ã©tablissement.</p>
                 </div>
             </div>
             {% if current_user.role == 'admin' %}
@@ -36,7 +36,7 @@
             <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="fas fa-users"></i></div>
             <div>
                 <h3 class="stat-number">{{ total_eleves }}</h3>
-                <p class="stat-label">Élèves</p>
+                <p class="stat-label">Ã‰lÃ¨ves</p>
             </div>
         </div>
         <div class="stat-card">
@@ -65,12 +65,12 @@
                 <label for="niveau" class="form-label">Niveau</label>
                 <select id="niveau" name="niveau" class="form-select">
                     <option value="">Tous les niveaux</option>
-                    <option value="6eme" {% if current_filters.niveau == '6eme' %}selected{% endif %}>6ème</option>
-                    <option value="5eme" {% if current_filters.niveau == '5eme' %}selected{% endif %}>5ème</option>
-                    <option value="4eme" {% if current_filters.niveau == '4eme' %}selected{% endif %}>4ème</option>
-                    <option value="3eme" {% if current_filters.niveau == '3eme' %}selected{% endif %}>3ème</option>
+                    <option value="6eme" {% if current_filters.niveau == '6eme' %}selected{% endif %}>6Ã¨me</option>
+                    <option value="5eme" {% if current_filters.niveau == '5eme' %}selected{% endif %}>5Ã¨me</option>
+                    <option value="4eme" {% if current_filters.niveau == '4eme' %}selected{% endif %}>4Ã¨me</option>
+                    <option value="3eme" {% if current_filters.niveau == '3eme' %}selected{% endif %}>3Ã¨me</option>
                     <option value="2nde" {% if current_filters.niveau == '2nde' %}selected{% endif %}>2nde</option>
-                    <option value="1ere" {% if current_filters.niveau == '1ere' %}selected{% endif %}>1ère</option>
+                    <option value="1ere" {% if current_filters.niveau == '1ere' %}selected{% endif %}>1Ã¨re</option>
                     <option value="terminale" {% if current_filters.niveau == 'terminale' %}selected{% endif %}>Terminale</option>
                 </select>
             </div>
@@ -86,14 +86,14 @@
                 <button type="submit" class="btn btn-outline-primary">
                     <i class="fas fa-search me-2"></i>Filtrer
                 </button>
-                <a href="{{ url_for('main.liste_classes') }}" class="btn btn-outline-secondary">Réinitialiser</a>
+                <a href="{{ url_for('main.liste_classes') }}" class="btn btn-outline-secondary">RÃ©initialiser</a>
             </div>
         </form>
     </div>
     {% endif %}
 
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-        <span class="text-muted">Classes affichées : <span class="badge bg-primary">{{ pagination.total if pagination else classes|length }}</span></span>
+        <span class="text-muted">Classes affichÃ©es : <span class="badge bg-primary">{{ pagination.total if pagination else classes|length }}</span></span>
         {% if pagination and pagination.pages > 1 %}
         <span class="text-muted small">Page {{ pagination.page }} / {{ pagination.pages }}</span>
         {% endif %}
@@ -105,21 +105,21 @@
         {% set capacite = classe.capacite or classe.capacite_max or 35 %}
         {% set effectif_actuel = classe.effectif_reel %}
         {% set capacity_percentage = ((effectif_actuel / capacite * 100)|round(0, 'floor')) if capacite else 0 %}
-        <article class="class-card">
+        <article class="class-card" id="classe-card-{{ classe.id }}">
             <div class="class-card-header">
                 <div class="class-card-icon">
                     <i class="fas fa-chalkboard"></i>
                 </div>
                 <div class="min-w-0">
                     <h2>{{ classe.nom }}</h2>
-                    <p>{{ classe.niveau or 'Niveau non renseigné' }}</p>
+                    <p>{{ classe.niveau or 'Niveau non renseignÃ©' }}</p>
                 </div>
             </div>
 
             <div class="class-card-meta">
                 <span><strong>Niveau</strong>{{ classe.niveau or 'N/A' }}</span>
-                <span><strong>Inscrits</strong>{{ effectif_actuel }} élève(s)</span>
-                <span><strong>Capacité</strong>{{ capacite }} max</span>
+                <span><strong>Inscrits</strong>{{ effectif_actuel }} Ã©lÃ¨ve(s)</span>
+                <span><strong>CapacitÃ©</strong>{{ capacite }} max</span>
             </div>
 
             <div>
@@ -145,7 +145,7 @@
                 <a href="{{ url_for('main.modifier_classe', classe_id=classe.id) }}" class="btn btn-sm btn-outline-warning">
                     <i class="fas fa-edit me-1"></i>Modifier
                 </a>
-                <form method="POST" action="{{ url_for('main.supprimer_classe', classe_id=classe.id) }}" onsubmit="return confirm('Supprimer cette classe ?');">
+                <form method="POST" action="{{ url_for('main.supprimer_classe', classe_id=classe.id) }}" data-klasora-form data-remove-target="#classe-card-{{ classe.id }}" data-confirm="Supprimer cette classe ?" data-loading="Suppression...">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-sm btn-outline-danger">
                         <i class="fas fa-trash me-1"></i>Supprimer
@@ -161,7 +161,7 @@
     <nav class="mt-4" aria-label="Pagination classes">
         <ul class="pagination justify-content-center">
             <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('main.liste_classes', page=pagination.prev_num, search=current_filters.search, niveau=current_filters.niveau, sort=current_filters.sort) if pagination.has_prev else '#' }}">Précédent</a>
+                <a class="page-link" href="{{ url_for('main.liste_classes', page=pagination.prev_num, search=current_filters.search, niveau=current_filters.niveau, sort=current_filters.sort) if pagination.has_prev else '#' }}">PrÃ©cÃ©dent</a>
             </li>
             {% for page_num in pagination.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
                 {% if page_num %}
@@ -181,7 +181,7 @@
     {% else %}
     <div class="empty-state">
         <div class="empty-state-icon"><i class="fas fa-chalkboard"></i></div>
-        <h2 class="empty-state-title">Aucune classe trouvée</h2>
+        <h2 class="empty-state-title">Aucune classe trouvÃ©e</h2>
         <p class="empty-state-text">Ajoutez une classe ou modifiez vos filtres.</p>
         {% if current_user.role == 'admin' %}
         <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary">

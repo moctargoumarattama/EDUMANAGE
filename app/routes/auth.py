@@ -100,7 +100,7 @@ def index():
         return redirect(url_for('main.login'))
 
 @main.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per minute", key_func=get_remote_address)  # limite par IP
+@limiter.limit("10 per minute; 50 per hour", key_func=get_remote_address)  # limite par IP
 def login():
     """Route de connexion principale pour tous les utilisateurs avec sécurité multi-écoles"""
     if current_user.is_authenticated:

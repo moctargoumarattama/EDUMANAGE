@@ -1,0 +1,521 @@
+{% extends "base_admin.html" %}
+
+{% block title %}Support KLASORA - Tickets Techniques{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">Administration</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Support KLASORA</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="admin-page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="h3 fw-bold mb-1"><i class="fas fa-life-ring text-primary me-2"></i>Support Technique KLASORA</h1>
+        <p class="text-muted mb-0">Gestion et suivi des signalements techniques envoyÃƒÂ©s par les ÃƒÂ©coles et utilisateurs.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <a href="{{ url_for('admin.support_tickets') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-sync-alt me-1"></i> Actualiser
+        </a>
+    </div>
+</div>
+
+<!-- Cartes KPI / Compteurs -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 border-start border-4 border-primary h-100">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small fw-semibold">Total Tickets</div>
+                        <div class="fs-4 fw-bold text-dark">{{ total_tickets }}</div>
+                    </div>
+                    <div class="rounded-circle bg-primary-subtle text-primary p-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 border-start border-4 border-danger h-100">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small fw-semibold">Nouveaux</div>
+                        <div class="fs-4 fw-bold text-danger">{{ nouveau_count }}</div>
+                    </div>
+                    <div class="rounded-circle bg-danger-subtle text-danger p-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 border-start border-4 border-warning h-100">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small fw-semibold">En cours</div>
+                        <div class="fs-4 fw-bold text-warning">{{ en_cours_count }}</div>
+                    </div>
+                    <div class="rounded-circle bg-warning-subtle text-warning p-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                        <i class="fas fa-spinner"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card shadow-sm border-0 border-start border-4 border-success h-100">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small fw-semibold">RÃƒÂ©solus</div>
+                        <div class="fs-4 fw-bold text-success">{{ resolu_count }}</div>
+                    </div>
+                    <div class="rounded-circle bg-success-subtle text-success p-3 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtres et Recherche -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-3">
+        <form method="GET" action="{{ url_for('admin.support_tickets') }}" class="row g-2 align-items-center">
+            <!-- Filtre Statut -->
+            <div class="col-12 col-md-3">
+                <label for="filterStatut" class="form-label small text-muted mb-1">Statut</label>
+                <select name="statut" id="filterStatut" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="tous" {% if current_statut == 'tous' %}selected{% endif %}>Tous les statuts</option>
+                    <option value="nouveau" {% if current_statut == 'nouveau' %}selected{% endif %}>Nouveau ({{ nouveau_count }})</option>
+                    <option value="en_cours" {% if current_statut == 'en_cours' %}selected{% endif %}>En cours ({{ en_cours_count }})</option>
+                    <option value="resolu" {% if current_statut == 'resolu' %}selected{% endif %}>RÃƒÂ©solu ({{ resolu_count }})</option>
+                </select>
+            </div>
+
+            <!-- Filtre Ãƒâ€°cole -->
+            <div class="col-12 col-md-4">
+                <label for="filterEcole" class="form-label small text-muted mb-1">Ãƒâ€°tablissement</label>
+                <select name="ecole_id" id="filterEcole" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Tous les ÃƒÂ©tablissements</option>
+                    {% for ecole in ecoles %}
+                    <option value="{{ ecole.id }}" {% if current_ecole_id|string == ecole.id|string %}selected{% endif %}>
+                        {{ ecole.nom }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Recherche Texte -->
+            <div class="col-12 col-md-3">
+                <label for="filterSearch" class="form-label small text-muted mb-1">Recherche</label>
+                <input type="text" name="q" id="filterSearch" class="form-control form-control-sm" placeholder="Sujet, message..." value="{{ current_search }}">
+            </div>
+
+            <!-- Boutons -->
+            <div class="col-12 col-md-2 d-flex gap-1 align-self-end">
+                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                    <i class="fas fa-search me-1"></i> Filtrer
+                </button>
+                {% if current_statut != 'tous' or current_ecole_id or current_search %}
+                <a href="{{ url_for('admin.support_tickets') }}" class="btn btn-outline-secondary btn-sm" title="RÃƒÂ©initialiser les filtres">
+                    <i class="fas fa-times"></i>
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Liste des Tickets -->
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0 fw-bold">
+            <i class="fas fa-ticket-alt me-2 text-primary"></i>Tickets reÃƒÂ§us ({{ tickets|length }})
+        </h5>
+    </div>
+
+    <div class="card-body p-0">
+        {% if tickets %}
+        <div class="table-responsive support-ticket-table-wrap">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light small text-muted">
+                    <tr>
+                        <th style="width: 80px;">RÃƒÂ©f</th>
+                        <th style="width: 140px;">Date</th>
+                        <th style="width: 160px;">Ãƒâ€°tablissement</th>
+                        <th style="width: 170px;">Auteur</th>
+                        <th>Sujet</th>
+                        <th style="width: 110px;">Statut</th>
+                        <th style="width: 130px;" class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tickets %}
+                    <tr>
+                        <td data-ticket-status="{{ t.id }}">
+                            <span class="badge bg-light text-dark border font-monospace">#TK-{{ t.id }}</span>
+                        </td>
+                        <td class="small text-muted">
+                            <div>{{ t.created_at.strftime('%d/%m/%Y') }}</div>
+                            <div style="font-size: 0.75rem;">{{ t.created_at.strftime('%H:%M') }}</div>
+                        </td>
+                        <td>
+                            <div class="fw-semibold small text-truncate" style="max-width: 150px;" title="{{ t.ecole.nom if t.ecole else 'N/A' }}">
+                                {{ t.ecole.nom if t.ecole else 'N/A' }}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="small fw-semibold text-truncate" style="max-width: 160px;">
+                                {% if t.utilisateur %}
+                                    {{ t.utilisateur.nom }} {{ t.utilisateur.prenom or '' }}
+                                {% else %}
+                                    <span class="text-muted">Utilisateur supprimÃƒÂ©</span>
+                                {% endif %}
+                            </div>
+                            <div>
+                                {% if t.role == 'admin' %}
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.65rem;">Directeur / Admin</span>
+                                {% elif t.role == 'professeur' %}
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size: 0.65rem;">Professeur</span>
+                                {% elif t.role == 'parent' %}
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" style="font-size: 0.65rem;">Parent</span>
+                                {% else %}
+                                    <span class="badge bg-light text-dark border" style="font-size: 0.65rem;">{{ t.role }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-dark text-truncate" style="max-width: 280px;" title="{{ t.sujet }}">
+                                {{ t.sujet }}
+                            </div>
+                            <div class="text-muted small text-truncate" style="max-width: 280px; font-size: 0.78rem;">
+                                {{ t.message[:90] }}{% if t.message|length > 90 %}...{% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if t.statut == 'nouveau' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>Nouveau
+                                </span>
+                            {% elif t.statut == 'en_cours' %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+                                    <i class="fas fa-spinner fa-spin me-1" style="font-size: 0.65rem;"></i>En cours
+                                </span>
+                            {% elif t.statut == 'resolu' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                    <i class="fas fa-check me-1" style="font-size: 0.65rem;"></i>RÃƒÂ©solu
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">{{ t.statut }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <button type="button"
+                                    class="btn btn-sm btn-primary py-1 px-2 btn-open-ticket-detail"
+                                    data-ticket-id="{{ t.id }}"
+                                    title="Voir le dÃƒÂ©tail et traiter">
+                                <i class="fas fa-eye me-1"></i> Traiter
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="support-ticket-card-list">
+            {% for t in tickets %}
+            <article class="support-ticket-card">
+                <div class="support-ticket-card-head">
+                    <span class="badge bg-light text-dark border font-monospace">#TK-{{ t.id }}</span>
+                    <span data-ticket-card-status="{{ t.id }}">
+                    {% if t.statut == 'nouveau' %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Nouveau</span>
+                    {% elif t.statut == 'en_cours' %}
+                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle">En cours</span>
+                    {% elif t.statut == 'resolu' %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">RÃƒÂ©solu</span>
+                    {% else %}
+                        <span class="badge bg-light text-dark border">{{ t.statut }}</span>
+                    {% endif %}
+                    </span>
+                </div>
+
+                <h6 class="support-ticket-subject">{{ t.sujet }}</h6>
+                <p class="support-ticket-message">{{ t.message[:110] }}{% if t.message|length > 110 %}...{% endif %}</p>
+
+                <div class="support-ticket-meta">
+                    <span><i class="fas fa-calendar-alt"></i>{{ t.created_at.strftime('%d/%m/%Y') }} ÃƒÂ  {{ t.created_at.strftime('%H:%M') }}</span>
+                    <span><i class="fas fa-school"></i>{{ t.ecole.nom if t.ecole else 'N/A' }}</span>
+                    <span><i class="fas fa-user"></i>
+                        {% if t.utilisateur %}
+                            {{ t.utilisateur.nom }} {{ t.utilisateur.prenom or '' }}
+                        {% else %}
+                            Utilisateur supprimÃƒÂ©
+                        {% endif %}
+                    </span>
+                </div>
+
+                <button type="button"
+                        class="btn btn-primary btn-sm w-100 btn-open-ticket-detail"
+                        data-ticket-id="{{ t.id }}">
+                    <i class="fas fa-eye me-1"></i>Traiter
+                </button>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <div class="mb-3">
+                <i class="fas fa-inbox fa-3x text-secondary opacity-50"></i>
+            </div>
+            <h6 class="fw-bold">Aucun ticket trouvÃƒÂ©</h6>
+            <p class="small mb-0">Aucun signalement technique ne correspond aux filtres sÃƒÂ©lectionnÃƒÂ©s.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- MODAL DETAIL TICKET (SUPER ADMIN) -->
+<div class="modal fade" id="modalTicketDetail" tabindex="-1" aria-labelledby="modalTicketDetailTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+
+            <div class="modal-header bg-light">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-dark font-monospace" id="modalTicketRef">#TK-</span>
+                    <h5 class="modal-title fw-bold mb-0" id="modalTicketDetailTitle">DÃƒÂ©tail du ticket</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+
+            <div class="modal-body p-4">
+                <!-- En-tÃƒÂªte Statut & Date -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 p-3 bg-light rounded mb-3 border">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted small">Statut actuel :</span>
+                        <span id="modalTicketStatutBadge" class="badge"></span>
+                    </div>
+                    <div class="text-muted small">
+                        CrÃƒÂ©ÃƒÂ© le <strong id="modalTicketCreatedAt"></strong>
+                        <span id="modalTicketResolvedWrap" class="ms-2 d-none">
+                            | RÃƒÂ©solu le <strong id="modalTicketResolvedAt"></strong>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Sujet -->
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-semibold mb-1">Sujet :</label>
+                    <div class="fw-bold fs-6 p-2 bg-white rounded border" id="modalTicketSujet"></div>
+                </div>
+
+                <!-- Message complet -->
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-semibold mb-1">Description du problÃƒÂ¨me :</label>
+                    <div class="p-3 bg-light rounded border text-dark" id="modalTicketMessage" style="white-space: pre-wrap; font-size: 0.92rem; line-height: 1.5;"></div>
+                </div>
+
+                <!-- Contexte Utilisateur & Ãƒâ€°cole -->
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <div class="p-3 rounded border bg-white h-100">
+                            <h6 class="fw-bold small text-primary mb-2"><i class="fas fa-user me-1"></i> Auteur du signalement</h6>
+                            <div class="small mb-1"><strong>Nom :</strong> <span id="modalTicketUserNom"></span></div>
+                            <div class="small mb-1"><strong>RÃƒÂ´le :</strong> <span id="modalTicketUserRole" class="badge bg-secondary-subtle text-secondary"></span></div>
+                            <div class="small mb-1"><strong>Email :</strong> <span id="modalTicketUserEmail"></span></div>
+                            <div class="small mb-1"><strong>TÃƒÂ©lÃƒÂ©phone :</strong> <span id="modalTicketUserTel"></span></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded border bg-white h-100">
+                            <h6 class="fw-bold small text-primary mb-2"><i class="fas fa-school me-1"></i> Ãƒâ€°tablissement</h6>
+                            <div class="small mb-1"><strong>Ãƒâ€°cole :</strong> <span id="modalTicketEcoleNom"></span></div>
+                            <div class="small mb-1"><strong>TÃƒÂ©lÃƒÂ©phone ÃƒÂ©cole :</strong> <span id="modalTicketEcoleTel"></span></div>
+                            <div class="small mb-1"><strong>Page signalÃƒÂ©e :</strong> <code id="modalTicketPageUrl" class="text-break"></code></div>
+                            <div class="small text-muted text-truncate" title="Navigateur" style="font-size: 0.75rem;">
+                                <strong>Appareil :</strong> <span id="modalTicketUserAgent"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions de contact direct -->
+                <div class="p-3 bg-light rounded border d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                    <div class="small fw-semibold text-muted">
+                        <i class="fas fa-comments me-1"></i> Contacter l'utilisateur :
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="#" id="modalBtnWhatsApp" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success d-none">
+                            <i class="fab fa-whatsapp me-1"></i> WhatsApp
+                        </a>
+                        <a href="#" id="modalBtnEmail" class="btn btn-sm btn-outline-secondary d-none">
+                            <i class="fas fa-envelope me-1"></i> Email
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Changement de statut -->
+                <div class="p-3 border rounded">
+                    <label class="form-label text-muted small fw-semibold mb-2">Modifier le statut d'intervention :</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-change-statut" data-statut="nouveau">
+                            <i class="fas fa-clock me-1"></i> Remettre ÃƒÂ  Nouveau
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-warning text-dark btn-change-statut" data-statut="en_cours">
+                            <i class="fas fa-spinner me-1"></i> Marquer En cours
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success btn-change-statut" data-statut="resolu">
+                            <i class="fas fa-check-circle me-1"></i> Marquer RÃƒÂ©solu
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fermer</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentTicketId = null;
+    const modalEl = document.getElementById('modalTicketDetail');
+    const modal = new bootstrap.Modal(modalEl);
+
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.getAttribute('content') : '';
+    }
+
+    // Ouvrir le modal et charger les dÃƒÂ©tails
+    document.querySelectorAll('.btn-open-ticket-detail').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const ticketId = this.getAttribute('data-ticket-id');
+            currentTicketId = ticketId;
+
+            try {
+                const response = await fetch(`/admin/support/${ticketId}?json=1`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const res = await response.json();
+                if (!res.success) {
+                    window.KlasoraUI.showToast('Erreur lors du chargement du ticket.', 'danger');
+                    return;
+                }
+
+                const t = res.ticket;
+                document.getElementById('modalTicketRef').textContent = `#TK-${t.id}`;
+                document.getElementById('modalTicketSujet').textContent = t.sujet;
+                document.getElementById('modalTicketMessage').textContent = t.message;
+                document.getElementById('modalTicketCreatedAt').textContent = t.created_at;
+
+                // Statut badge
+                const badge = document.getElementById('modalTicketStatutBadge');
+                if (t.statut === 'nouveau') {
+                    badge.className = 'badge bg-danger-subtle text-danger border border-danger-subtle';
+                    badge.textContent = 'Nouveau';
+                } else if (t.statut === 'en_cours') {
+                    badge.className = 'badge bg-warning-subtle text-warning border border-warning-subtle';
+                    badge.textContent = 'En cours';
+                } else if (t.statut === 'resolu') {
+                    badge.className = 'badge bg-success-subtle text-success border border-success-subtle';
+                    badge.textContent = 'RÃƒÂ©solu';
+                }
+
+                // RÃƒÂ©solution
+                const resolvedWrap = document.getElementById('modalTicketResolvedWrap');
+                if (t.resolved_at) {
+                    resolvedWrap.classList.remove('d-none');
+                    document.getElementById('modalTicketResolvedAt').textContent = t.resolved_at;
+                } else {
+                    resolvedWrap.classList.add('d-none');
+                }
+
+                // Utilisateur
+                document.getElementById('modalTicketUserNom').textContent = t.user.nom_complet || 'Inconnu';
+                document.getElementById('modalTicketUserRole').textContent = t.role || '-';
+                document.getElementById('modalTicketUserEmail').textContent = t.user.email || 'Non renseignÃƒÂ©';
+                document.getElementById('modalTicketUserTel').textContent = t.user.telephone || 'Non renseignÃƒÂ©';
+
+                // Ãƒâ€°cole
+                document.getElementById('modalTicketEcoleNom').textContent = t.ecole.nom || 'Inconnue';
+                document.getElementById('modalTicketEcoleTel').textContent = t.ecole.telephone || 'Non renseignÃƒÂ©';
+                document.getElementById('modalTicketPageUrl').textContent = t.page_url || '-';
+                document.getElementById('modalTicketUserAgent').textContent = t.user_agent || '-';
+
+                // Bouton WhatsApp
+                const btnWa = document.getElementById('modalBtnWhatsApp');
+                if (t.whatsapp_tel) {
+                    const waText = encodeURIComponent(`Bonjour ${t.user.nom_complet}, suite ÃƒÂ  votre ticket support KLASORA (#TK-${t.id}) concernant "${t.sujet}" :`);
+                    btnWa.href = `https://wa.me/${t.whatsapp_tel}?text=${waText}`;
+                    btnWa.classList.remove('d-none');
+                } else {
+                    btnWa.classList.add('d-none');
+                }
+
+                // Bouton Email
+                const btnMail = document.getElementById('modalBtnEmail');
+                if (t.user.email) {
+                    btnMail.href = `mailto:${t.user.email}?subject=${encodeURIComponent(`[KLASORA Support #TK-${t.id}] ${t.sujet}`)}`;
+                    btnMail.classList.remove('d-none');
+                } else {
+                    btnMail.classList.add('d-none');
+                }
+
+                modal.show();
+
+            } catch (err) {
+                console.error('Erreur chargement ticket:', err);
+                window.KlasoraUI.showToast('Impossible de charger le ticket.', 'danger');
+            }
+        });
+    });
+
+    // Mise à jour du statut sans rechargement
+    document.querySelectorAll('.btn-change-statut').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            if (!currentTicketId) return;
+            const newStatut = this.getAttribute('data-statut');
+            const restore = window.KlasoraUI.setButtonLoading(this, 'Mise à jour...');
+
+            try {
+                const res = await window.KlasoraUI.fetch(`/admin/support/${currentTicketId}/statut`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ statut: newStatut })
+                });
+
+                const badgeHtml = window.KlasoraUI.statusBadge(res.statut || newStatut);
+                const modalBadge = document.getElementById('modalTicketStatutBadge');
+                if (modalBadge) modalBadge.innerHTML = badgeHtml;
+                document.querySelectorAll(`[data-ticket-status="${currentTicketId}"], [data-ticket-card-status="${currentTicketId}"]`).forEach((target) => {
+                    target.innerHTML = badgeHtml;
+                });
+                window.KlasoraUI.showToast(res.message || 'Statut mis à jour.', 'success');
+                modal.hide();
+            } catch (err) {
+                console.error('Erreur mise à jour statut:', err);
+                window.KlasoraUI.showToast(err.message || 'Erreur réseau lors de la mise à jour.', 'danger');
+            } finally {
+                restore();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

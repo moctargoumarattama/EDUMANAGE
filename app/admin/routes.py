@@ -6,12 +6,12 @@ from . import admin_bp
 # Import standard
 from app import db
 from sqlalchemy import inspect
+from sqlalchemy.orm import joinedload
 import os
 import re
 from datetime import datetime
 
-# Import modèles
-from app.models import Log, Ecole
+from app.models import Log, Ecole, SupportTicket
 
 # Formulaires
 from app.admin.forms import BackupSchoolForm
@@ -106,7 +106,6 @@ def maintenance_page():
     backups = get_all_backups_list()
     db_health = get_database_health()
     cache_info = get_cache_info()
-    recent_logs = Log.query.order_by(Log.timestamp.desc()).limit(10).all()
 
     return render_template(
         'maintenance.html',
@@ -114,8 +113,7 @@ def maintenance_page():
         auto_backup=auto_backup,
         backups=backups,
         db_health=db_health,
-        cache_info=cache_info,
-        recent_logs=recent_logs
+        cache_info=cache_info
     )
 
 # --- Bascule du Mode Maintenance ---
@@ -325,3 +323,153 @@ def restore_school(filename):
     except Exception as e:
         flash(f"Erreur lors de la restauration: {str(e)}", "error")
     return redirect(url_for('admin.backup_page'))
+
+
+# --- Support Technique KLASORA (Super Admin) ---
+
+@admin_bp.route('/admin/support')
+def support_tickets():
+    """
+    Gestion des tickets de support technique KLASORA pour le Super Admin.
+    Filtrage par statut ('tous', 'nouveau', 'en_cours', 'resolu'), école, et recherche texte.
+    """
+    statut_filter = request.args.get('statut', 'tous').strip()
+    ecole_filter = request.args.get('ecole_id', '').strip()
+    search = request.args.get('q', '').strip()
+
+    query = SupportTicket.query.options(
+        joinedload(SupportTicket.ecole),
+        joinedload(SupportTicket.utilisateur)
+    )
+
+    if statut_filter and statut_filter in ('nouveau', 'en_cours', 'resolu'):
+        query = query.filter(SupportTicket.statut == statut_filter)
+
+    if ecole_filter and ecole_filter.isdigit():
+        query = query.filter(SupportTicket.ecole_id == int(ecole_filter))
+
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            db.or_(
+                SupportTicket.sujet.ilike(search_term),
+                SupportTicket.message.ilike(search_term),
+                SupportTicket.page_url.ilike(search_term)
+            )
+        )
+
+    tickets = query.order_by(SupportTicket.created_at.desc()).all()
+
+    # Compteurs globaux pour les KPI cards
+    total_tickets = SupportTicket.query.count()
+    nouveau_count = SupportTicket.query.filter_by(statut='nouveau').count()
+    en_cours_count = SupportTicket.query.filter_by(statut='en_cours').count()
+    resolu_count = SupportTicket.query.filter_by(statut='resolu').count()
+
+    ecoles = Ecole.query.order_by(Ecole.nom.asc()).all()
+
+    return render_template(
+        'support.html',
+        tickets=tickets,
+        total_tickets=total_tickets,
+        nouveau_count=nouveau_count,
+        en_cours_count=en_cours_count,
+        resolu_count=resolu_count,
+        ecoles=ecoles,
+        current_statut=statut_filter,
+        current_ecole_id=ecole_filter,
+        current_search=search
+    )
+
+
+@admin_bp.route('/admin/support/<int:ticket_id>')
+def support_ticket_detail(ticket_id):
+    """
+    Détail d'un ticket de support (retourne JSON pour affichage modal ou vue détaillée).
+    """
+    ticket = SupportTicket.query.get_or_404(ticket_id)
+
+    user_nom = f"{ticket.utilisateur.nom} {ticket.utilisateur.prenom or ''}".strip() if ticket.utilisateur else "Utilisateur inconnu"
+    user_email = ticket.utilisateur.email if ticket.utilisateur else ""
+    user_tel = ticket.utilisateur.telephone if ticket.utilisateur else ""
+    ecole_nom = ticket.ecole.nom if ticket.ecole else "École inconnue"
+    ecole_tel = ticket.ecole.telephone if ticket.ecole else ""
+
+    # Téléphone à privilégier pour WhatsApp
+    tel_contact = user_tel or ecole_tel or ""
+    tel_clean = re.sub(r'[^0-9]', '', tel_contact)
+
+    data = {
+        'id': ticket.id,
+        'sujet': ticket.sujet,
+        'message': ticket.message,
+        'statut': ticket.statut,
+        'role': ticket.role,
+        'page_url': ticket.page_url,
+        'user_agent': ticket.user_agent,
+        'created_at': ticket.created_at.strftime('%d/%m/%Y à %H:%M') if ticket.created_at else "",
+        'updated_at': ticket.updated_at.strftime('%d/%m/%Y à %H:%M') if ticket.updated_at else "",
+        'resolved_at': ticket.resolved_at.strftime('%d/%m/%Y à %H:%M') if ticket.resolved_at else None,
+        'user': {
+            'id': ticket.utilisateur_id,
+            'nom_complet': user_nom,
+            'email': user_email,
+            'telephone': user_tel
+        },
+        'ecole': {
+            'id': ticket.ecole_id,
+            'nom': ecole_nom,
+            'telephone': ecole_tel
+        },
+        'whatsapp_tel': tel_clean
+    }
+
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('json'):
+        return jsonify({'success': True, 'ticket': data})
+
+    return render_template('support.html', ticket=ticket, data=data)
+
+
+@admin_bp.route('/admin/support/<int:ticket_id>/statut', methods=['POST'])
+def support_ticket_update_statut(ticket_id):
+    """
+    Mise à jour du statut d'un ticket ('nouveau', 'en_cours', 'resolu').
+    """
+    ticket = SupportTicket.query.get_or_404(ticket_id)
+
+    if request.is_json:
+        payload = request.get_json() or {}
+        nouveau_statut = payload.get('statut')
+    else:
+        nouveau_statut = request.form.get('statut')
+
+    if nouveau_statut not in ('nouveau', 'en_cours', 'resolu'):
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Statut invalide.'}), 400
+        flash("Statut invalide.", "error")
+        return redirect(url_for('admin.support_tickets'))
+
+    ticket.statut = nouveau_statut
+    ticket.updated_at = datetime.utcnow()
+    if nouveau_statut == 'resolu':
+        ticket.resolved_at = datetime.utcnow()
+    else:
+        ticket.resolved_at = None
+
+    try:
+        db.session.commit()
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'message': f'Statut du ticket mis à jour vers "{nouveau_statut}".',
+                'statut': ticket.statut,
+                'resolved_at': ticket.resolved_at.strftime('%d/%m/%Y à %H:%M') if ticket.resolved_at else None
+            })
+        flash(f"Statut du ticket #{ticket.id} mis à jour : {nouveau_statut}.", "success")
+    except Exception as e:
+        db.session.rollback()
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': "Erreur lors de la mise à jour."}), 500
+        flash(f"Erreur lors de la mise à jour : {str(e)}", "error")
+
+    return redirect(url_for('admin.support_tickets'))

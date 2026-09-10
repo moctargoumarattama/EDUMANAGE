@@ -16,6 +16,7 @@ Flask-Mail==0.10.0
 Flask-Migrate==4.0.4
 Flask-Moment==1.0.2
 Flask-Limiter==4.1.1
+gunicorn==21.2.0
 
 # Analyse de données et Excel
 pandas==2.1.1

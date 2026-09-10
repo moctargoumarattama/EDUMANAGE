@@ -93,7 +93,7 @@
             }
             deferredPrompt = null;
         } catch (err) {
-            console.error('[PWA] Erreur lors du prompt d'installation:', err);
+            console.error("[PWA] Erreur lors du prompt d'installation:", err);
             hideInstallPrompt();
         }
     }
@@ -203,11 +203,11 @@
             console.log('[PWA] Événement beforeinstallprompt capturé');
 
             // Affichage automatique pour le parent, le professeur ou l'admin connecté sur son dashboard
-            const isParentDashboard = currentPath.startsWith('/parent/dashboard') || (isAuthenticated && userRole === 'parent');
-            const isTeacherDashboard = currentPath.includes('/professeur') || (isAuthenticated && userRole === 'professeur');
-            const isAdminDashboard = currentPath.includes('/admin') || (isAuthenticated && userRole === 'admin');
-            const isAllowedRole = isParentDashboard || isTeacherDashboard || isAdminDashboard;
-            const isExcludedPage = currentPath.includes('/login') || currentPath.includes('/onboarding');
+            const isParentDashboard = currentPath.startsWith('/parent');
+            const isTeacherDashboard = currentPath.startsWith('/professeur');
+            const isAdminDashboard = currentPath.startsWith('/admin') && !currentPath.includes('/support');
+            const isAllowedRole = (isAuthenticated && (isParentDashboard || isTeacherDashboard || isAdminDashboard));
+            const isExcludedPage = currentPath.includes('/login') || currentPath.includes('/onboarding') || currentPath.includes('/aide');
 
             if (!alreadyInstalled && !isDismissedRecently() && isAllowedRole && !isExcludedPage) {
                 // Délai de courtoisie de 2 secondes pour ne pas surprendre l'utilisateur

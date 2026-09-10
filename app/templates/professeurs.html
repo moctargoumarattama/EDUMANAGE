@@ -7,7 +7,7 @@
     <div class="page-header mb-4">
         <div>
             <h1 class="page-title">Professeurs</h1>
-            <p class="text-muted mb-0">Consultez et gérez les professeurs de votre établissement.</p>
+            <p class="text-muted mb-0">Consultez et gÃ©rez les professeurs de votre Ã©tablissement.</p>
         </div>
         <a href="{{ url_for('main.ajouter_professeur') }}" class="btn btn-primary">
             <i class="fas fa-plus me-2"></i>Ajouter
@@ -19,20 +19,20 @@
             <form method="get" class="d-flex flex-wrap gap-2">
                 <div class="flex-grow-1 min-w-0">
                     <label for="search" class="form-label">Recherche</label>
-                    <input id="search" name="search" type="search" class="form-control" value="{{ search }}" placeholder="Nom, email ou matière">
+                    <input id="search" name="search" type="search" class="form-control" value="{{ search }}" placeholder="Nom, email ou matiÃ¨re">
                 </div>
                 <div class="d-flex align-items-end gap-2 flex-wrap">
                     <button type="submit" class="btn btn-outline-primary">
                         <i class="fas fa-search me-2"></i>Filtrer
                     </button>
-                    <a href="{{ url_for('main.professeurs') }}" class="btn btn-outline-secondary">Réinitialiser</a>
+                    <a href="{{ url_for('main.professeurs') }}" class="btn btn-outline-secondary">RÃ©initialiser</a>
                 </div>
             </form>
         </div>
     </div>
 
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-        <span class="text-muted">Professeurs affichés : <span class="badge bg-primary">{{ professeurs.total }}</span></span>
+        <span class="text-muted">Professeurs affichÃ©s : <span class="badge bg-primary">{{ professeurs.total }}</span></span>
         {% if professeurs.pages > 1 %}
         <span class="text-muted small">Page {{ professeurs.page }} / {{ professeurs.pages }}</span>
         {% endif %}
@@ -41,20 +41,20 @@
     {% if professeurs.items %}
     <div class="teacher-grid">
         {% for prof in professeurs.items %}
-        <article class="teacher-card">
+        <article class="teacher-card" id="prof-card-{{ prof.id }}">
             <div class="teacher-card-main">
                 <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
                     {{ (prof.prenom[0] if prof.prenom else prof.nom[0])|upper }}
                 </div>
                 <div class="min-w-0">
                     <h2>{{ prof.prenom or '' }} {{ prof.nom }}</h2>
-                    <p>{{ prof.email or 'Email non renseigné' }}</p>
+                    <p>{{ prof.email or 'Email non renseignÃ©' }}</p>
                 </div>
             </div>
 
             <div class="teacher-card-meta">
-                <span><i class="fas fa-phone"></i>{{ prof.telephone or 'Téléphone non renseigné' }}</span>
-                <span><i class="fas fa-book"></i>{{ prof.matieres_enseignees or 'Matière non renseignée' }}</span>
+                <span><i class="fas fa-phone"></i>{{ prof.telephone or 'TÃ©lÃ©phone non renseignÃ©' }}</span>
+                <span><i class="fas fa-book"></i>{{ prof.matieres_enseignees or 'MatiÃ¨re non renseignÃ©e' }}</span>
             </div>
 
             <div class="teacher-card-actions">
@@ -67,7 +67,7 @@
                 <a href="{{ url_for('main.modifier_professeur', id=prof.id) }}" class="btn btn-sm btn-outline-warning">
                     <i class="fas fa-edit me-1"></i>Modifier
                 </a>
-                <form action="{{ url_for('main.supprimer_professeur', id=prof.id) }}" method="POST" onsubmit="return confirm('Supprimer ce professeur ?');">
+                <form action="{{ url_for('main.supprimer_professeur', id=prof.id) }}" method="POST" data-klasora-form data-remove-target="#prof-card-{{ prof.id }}" data-confirm="Supprimer ce professeur ?" data-loading="Suppression...">
                     {{ delete_form.hidden_tag() }}
                     <button type="submit" class="btn btn-sm btn-outline-danger">
                         <i class="fas fa-trash me-1"></i>Supprimer
@@ -82,7 +82,7 @@
     <nav class="mt-4" aria-label="Pagination professeurs">
         <ul class="pagination justify-content-center">
             <li class="page-item {% if not professeurs.has_prev %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('main.professeurs', page=professeurs.prev_num, search=search) if professeurs.has_prev else '#' }}">Précédent</a>
+                <a class="page-link" href="{{ url_for('main.professeurs', page=professeurs.prev_num, search=search) if professeurs.has_prev else '#' }}">PrÃ©cÃ©dent</a>
             </li>
             {% for page_num in professeurs.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
                 {% if page_num %}
@@ -102,7 +102,7 @@
     {% else %}
     <div class="empty-state">
         <div class="empty-state-icon"><i class="fas fa-chalkboard-teacher"></i></div>
-        <h2 class="empty-state-title">Aucun professeur trouvé</h2>
+        <h2 class="empty-state-title">Aucun professeur trouvÃ©</h2>
         <p class="empty-state-text">Ajoutez un professeur ou modifiez votre recherche.</p>
         <a href="{{ url_for('main.ajouter_professeur') }}" class="btn btn-primary">
             <i class="fas fa-plus me-2"></i>Ajouter un professeur

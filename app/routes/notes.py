@@ -23,6 +23,7 @@ from .common import (
     flash,
     get_ecole_courante,
     io,
+    joinedload,
     login_required,
     redirect,
     render_template,
@@ -246,7 +247,13 @@ L'équipe pédagogique"""
 @role_required('admin')
 def export_notes_excel():
     """Export Excel de toutes les notes avec jointures élèves/cours"""
-    notes = filtre_par_ecole(Note.query.join(Eleve).join(Cours).order_by(Note.date_evaluation.desc()), Note).all()
+    notes = filtre_par_ecole(
+        Note.query.options(
+            joinedload(Note.eleve).joinedload(Eleve.classe),
+            joinedload(Note.cours)
+        ).join(Eleve).join(Cours).order_by(Note.date_evaluation.desc()),
+        Note
+    ).all()
     
     data = {
         'Date': [n.date_evaluation.strftime('%d/%m/%Y') for n in notes],

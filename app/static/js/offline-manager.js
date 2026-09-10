@@ -100,7 +100,6 @@ class OfflineManager {
                 this.emit('sync-auth-required');
             } else if (response.status === 403) {
                 console.warn('⛔ Accès refusé (403) aux données administrateur');
-                this.emit('sync-forbidden', { message: "Accès refusé aux données administrateur" });
             }
         } catch (e) {
             console.warn('⚠️ Impossible de rafraîchir les données administrateur (mode hors-ligne):', e.message);

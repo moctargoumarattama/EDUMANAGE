@@ -538,6 +538,7 @@ def before_request_handler():
                         'main.login',
                         'main.logout',
                         'main.choisir_ecole',
+                        'main.creer_support_ticket',
                     }
                     current_ep = request.endpoint or ''
                     if not setup_state.get('setup_complete', False):
@@ -556,6 +557,7 @@ def before_request_handler():
                         'main.login',
                         'main.logout',
                         'main.choisir_ecole',
+                        'main.creer_support_ticket',
                     }
                     current_ep = request.endpoint or ''
                     if current_ep not in allowed_endpoints and not current_ep.startswith('static') and current_ep != 'admin.static' and not request.path.startswith('/static/'):
@@ -568,7 +570,42 @@ def before_request_handler():
 
 
 def after_request_handler(response):
-    """Exécuté après chaque requête pour nettoyer le contexte"""
+    """Exécuté après chaque requête pour nettoyer le contexte et appliquer la politique de sécurité / cache HTTP"""
+    try:
+        # En-têtes de sécurité de base (Défense en profondeur)
+        response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+        response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+        response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+
+        # Politique de cache HTTP
+        path = request.path if request else ''
+
+        # 1. Service Worker : STRICTEMENT JAMAIS EN CACHE (pour mises à jour instantanées)
+        if path in ('/service-worker.js', '/static/service-worker.js'):
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            response.headers['Service-Worker-Allowed'] = '/'
+        # 2. Manifest PWA : Cache court (1h)
+        elif path in ('/manifest.json', '/static/manifest.json'):
+            response.headers.setdefault('Cache-Control', 'public, max-age=3600')
+        # 3. Fichiers statiques publics (CSS, JS, images, polices) : Cache long (30 jours)
+        elif path.startswith('/static/'):
+            response.headers['Cache-Control'] = 'public, max-age=2592000'
+        # 4. Données sensibles, API et pages d'utilisateurs connectés : Anti-cache strict
+        elif getattr(current_user, 'is_authenticated', False) or path.startswith('/api/'):
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        # 5. Pages publiques dynamiques (login, register, welcome)
+        else:
+            response.headers.setdefault('Cache-Control', 'no-cache, private')
+    except Exception as e:
+        try:
+            current_app.logger.debug(f"Erreur application en-têtes HTTP after_request: {e}")
+        except Exception:
+            pass
+
     try:
         if hasattr(g, 'ecole_courante'):
             del g.ecole_courante

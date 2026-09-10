@@ -132,11 +132,21 @@ def create_app(config_class=Config):
                 if getattr(current_user, 'role', None) == 'admin':
                     setup_state = get_school_setup_state(current_user.ecole.id)
 
-            from app.models import ADMIN_TOUR_VERSION
+            from app.models import ADMIN_TOUR_VERSION, SupportTicket
+            nouveau_tickets_count = 0
+            if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'role', None) == 'super_admin':
+                try:
+                    nouveau_tickets_count = SupportTicket.query.filter_by(statut='nouveau').count()
+                except Exception:
+                    nouveau_tickets_count = 0
+
             return dict(
                 annee_active=annee_active,
                 school_setup_state=setup_state,
-                ADMIN_TOUR_VERSION=ADMIN_TOUR_VERSION
+                ADMIN_TOUR_VERSION=ADMIN_TOUR_VERSION,
+                SUPPORT_WHATSAPP_NUMBER=app.config.get('SUPPORT_WHATSAPP_NUMBER', '212770010264'),
+                SUPPORT_EMAIL=app.config.get('SUPPORT_EMAIL', 'moctargoumarattama@gmail.com'),
+                nouveau_tickets_count=nouveau_tickets_count
             )
 
         # Assurer la présence permanente du super administrateur
@@ -167,6 +177,8 @@ def create_app(config_class=Config):
         db.session.add(correction)
         db.session.commit()
 
-    app.log_correction = log_correction
+    # Support du reverse proxy (Nginx) pour la transmission de l'IP réelle et du protocole
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
     return app

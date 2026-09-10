@@ -27,7 +27,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto+Slab:wght@300;400;500;600&display=swap" rel="stylesheet">
     
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=config.VERSION) }}">
     <style>
         :root {
             --primary: #4361ee;
@@ -1011,13 +1011,13 @@
     {% include 'components/logout_warning_modal.html' %}
 
     <!-- Scripts frontend communs -->
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/pwa.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/db.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/offline-manager.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/offline-forms.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js', v=config.VERSION) }}"></script>
+    <script src="{{ url_for('static', filename='js/pwa.js', v=config.VERSION) }}"></script>
+    <script src="{{ url_for('static', filename='js/db.js', v=config.VERSION) }}"></script>
+    <script src="{{ url_for('static', filename='js/offline-manager.js', v=config.VERSION) }}"></script>
+    <script src="{{ url_for('static', filename='js/offline-forms.js', v=config.VERSION) }}"></script>
     {% if current_user.is_authenticated and current_user.role == 'admin' %}
-    <script src="{{ url_for('static', filename='js/onboarding.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/onboarding.js', v=config.VERSION) }}"></script>
     {% endif %}
     
     <!-- Scripts spécifiques aux pages -->

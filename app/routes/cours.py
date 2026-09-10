@@ -23,6 +23,7 @@ from .common import (
     io,
     joinedload,
     json,
+    jsonify,
     login_required,
     os,
     redirect,
@@ -635,6 +636,9 @@ def supprimer_cours(id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur suppression cours {id}: {e}")
-        flash("Erreur inattendue lors de la suppression du cours.", "danger")
+        message = "Erreur inattendue lors de la suppression du cours."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({'success': False, 'message': message}), 500
+        flash(message, "danger")
         return redirect(url_for('main.cours'))
 

@@ -16,6 +16,7 @@ from .common import (
     generate_password_hash,
     joinedload,
     json,
+    jsonify,
     login_required,
     professeur_classes,
     redirect,
@@ -267,7 +268,10 @@ def supprimer_professeur(id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur lors de la suppression du professeur {professeur.id} : {e}")
-        flash("Erreur lors de la suppression du professeur.", "danger")
+        message = "Erreur lors de la suppression du professeur."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({'success': False, 'message': message}), 500
+        flash(message, "danger")
 
     return redirect(url_for('main.professeurs'))
 

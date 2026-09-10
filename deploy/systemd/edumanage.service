@@ -1,0 +1,24 @@
+[Unit]
+Description=KLASORA (EDUMANAGE) - Plateforme de Gestion Scolaire
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/edumanage
+Environment="PATH=/var/www/edumanage/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
+Environment="PYTHONPATH=/var/www/edumanage"
+Environment="FLASK_ENV=production"
+ExecStart=/var/www/edumanage/venv/bin/gunicorn --config gunicorn.conf.py run:app
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=30
+PrivateTmp=true
+Restart=always
+RestartSec=5
+
+# Limites de fichiers pour supporter le trafic concurrent
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
