@@ -1,23 +1,27 @@
 [Unit]
-Description=KLASORA (EDUMANAGE) - Plateforme de Gestion Scolaire
-After=network.target
+Description=KLASORA Gunicorn
+After=network-online.target
+Wants=network-online.target
 
 [Service]
-User=www-data
-Group=www-data
-WorkingDirectory=/var/www/edumanage
-Environment="PATH=/var/www/edumanage/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
-Environment="PYTHONPATH=/var/www/edumanage"
-Environment="FLASK_ENV=production"
-ExecStart=/var/www/edumanage/venv/bin/gunicorn --config gunicorn.conf.py run:app
-ExecReload=/bin/kill -s HUP $MAINPID
-KillMode=mixed
-TimeoutStopSec=30
-PrivateTmp=true
-Restart=always
-RestartSec=5
+User=moctar
+Group=moctar
+WorkingDirectory=/home/moctar/EDUMANAGE
+Environment="PATH=/home/moctar/EDUMANAGE/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
 
-# Limites de fichiers pour supporter le trafic concurrent
+Environment="GUNICORN_WORKERS=1"
+Environment="GUNICORN_THREADS=1"
+Environment="GUNICORN_WORKER_CLASS=sync"
+Environment="GUNICORN_TIMEOUT=120"
+Environment="GUNICORN_ACCESS_LOG=-"
+Environment="GUNICORN_ERROR_LOG=-"
+
+ExecStart=/home/moctar/EDUMANAGE/venv/bin/gunicorn --config /home/moctar/EDUMANAGE/gunicorn.conf.py run:app
+ExecReload=/bin/kill -s HUP $MAINPID
+
+Restart=always
+RestartSec=3
+TimeoutStopSec=30
 LimitNOFILE=65535
 
 [Install]
