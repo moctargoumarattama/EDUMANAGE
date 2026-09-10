@@ -92,6 +92,60 @@ class AnneeScolaire(db.Model):
 # -----------------------
 # École
 # -----------------------
+class NiveauScolaire(db.Model):
+    __tablename__ = 'niveau_scolaire'
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), nullable=False, unique=True)
+    nom = db.Column(db.String(50), nullable=False)
+    cycle = db.Column(db.String(20), nullable=False)
+    ordre = db.Column(db.Integer, nullable=False, index=True)
+    niveau_suivant_id = db.Column(db.Integer, db.ForeignKey('niveau_scolaire.id'), nullable=True)
+
+    niveau_suivant = db.relationship('NiveauScolaire', remote_side=[id], lazy=True)
+    configurations_ecoles = db.relationship('EcoleNiveauConfig', back_populates='niveau', lazy=True)
+    classes = db.relationship('Classe', back_populates='niveau_scolaire', lazy=True)
+
+    __table_args__ = (
+        db.Index('ix_niveau_scolaire_cycle_ordre', 'cycle', 'ordre'),
+    )
+
+    def __repr__(self):
+        return f'<NiveauScolaire {self.code}>'
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "code": self.code,
+            "nom": self.nom,
+            "cycle": self.cycle,
+            "ordre": self.ordre,
+            "niveau_suivant_id": self.niveau_suivant_id,
+        }
+
+
+class EcoleNiveauConfig(db.Model):
+    __tablename__ = 'ecole_niveau_config'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'), nullable=False)
+    niveau_id = db.Column(db.Integer, db.ForeignKey('niveau_scolaire.id'), nullable=False)
+    actif = db.Column(db.Boolean, nullable=False, default=True)
+    date_activation = db.Column(db.DateTime, nullable=True)
+    date_desactivation = db.Column(db.DateTime, nullable=True)
+
+    ecole = db.relationship('Ecole', back_populates='niveaux_config')
+    niveau = db.relationship('NiveauScolaire', back_populates='configurations_ecoles')
+
+    __table_args__ = (
+        db.UniqueConstraint('ecole_id', 'niveau_id', name='uq_ecole_niveau_config'),
+        db.Index('ix_ecole_niveau_config_ecole_actif', 'ecole_id', 'actif'),
+    )
+
+    def __repr__(self):
+        return f'<EcoleNiveauConfig ecole={self.ecole_id} niveau={self.niveau_id} actif={self.actif}>'
+
+
 class Ecole(db.Model):
     __tablename__ = 'ecole'
 
@@ -123,6 +177,7 @@ class Ecole(db.Model):
     classes = db.relationship('Classe', back_populates='ecole', lazy=True)
     eleves = db.relationship('Eleve', back_populates='ecole', lazy=True)
     professeurs = db.relationship('Professeur', back_populates='ecole', lazy=True)
+    niveaux_config = db.relationship('EcoleNiveauConfig', back_populates='ecole', lazy=True, cascade="all, delete-orphan")
     google_mail_config = db.relationship(
         'EcoleGoogleMailConfig',
         back_populates='ecole',
@@ -339,6 +394,8 @@ class Classe(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nom = db.Column(db.String(50), nullable=False)
     niveau = db.Column(db.String(50))
+    niveau_id = db.Column(db.Integer, db.ForeignKey('niveau_scolaire.id'), nullable=True)
+    section = db.Column(db.String(30), nullable=True)
     effectif = db.Column(db.Integer, default=0)
     capacite = db.Column(db.Integer, default=30)
 
@@ -351,6 +408,7 @@ class Classe(db.Model):
     # Lien avec l'année scolaire
     annee_scolaire_id = db.Column(db.Integer, db.ForeignKey('annee_scolaire.id'), nullable=False, default=1)
     annee_scolaire = db.relationship('AnneeScolaire', back_populates='classes')
+    niveau_scolaire = db.relationship('NiveauScolaire', back_populates='classes')
 
     eleves = db.relationship('Eleve', back_populates='classe', lazy=True, cascade="all, delete-orphan")
     emplois = db.relationship('EmploiTemps', back_populates='classe', lazy=True, cascade="all, delete-orphan")
@@ -359,6 +417,8 @@ class Classe(db.Model):
 
     __table_args__ = (
         db.Index('ix_classe_ecole_annee', 'ecole_id', 'annee_scolaire_id'),
+        db.Index('ix_classe_niveau_id', 'niveau_id'),
+        db.UniqueConstraint('ecole_id', 'annee_scolaire_id', 'nom', name='uq_classe_ecole_annee_nom'),
     )
 
     # NOUVELLE RELATION - Professeurs assignés à cette classe

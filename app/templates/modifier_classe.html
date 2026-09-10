@@ -53,9 +53,17 @@
                                     {% endfor %}
                                 </div>
                                 <div class="col-md-6">
-                                    {{ form.niveau.label(class="form-label fw-medium") }}
-                                    {{ form.niveau(class="form-select") }}
-                                    {% for error in form.niveau.errors %}
+                                    {{ form.niveau_id.label(class="form-label fw-medium") }}
+                                    {{ form.niveau_id(class="form-select") }}
+                                    {% for error in form.niveau_id.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+
+                                <div>
+                                    {{ form.section.label(class="form-label fw-medium") }}
+                                    {{ form.section(class="form-control", placeholder="Ex: A, 1, Bleu, D1") }}
+                                    {% for error in form.section.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
                                     {% endfor %}
                                 </div>

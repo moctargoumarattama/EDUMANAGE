@@ -276,8 +276,9 @@ def creer_classe_scolaire(ecole_id: int, annee_scolaire_id: int, nom: str, nivea
         (Classe, None) en cas de succès
         (None, str) en cas d'erreur de validation ou système
     """
-    from app.models import Classe, AnneeScolaire
+    from app.models import Classe, AnneeScolaire, NiveauScolaire
     from app import db
+    from app.services.niveaux import creer_classe_depuis_niveau, get_niveaux_actifs, infer_niveau_from_classe_name
 
     nom = (nom or '').strip()
     niveau = (niveau or '').strip()
@@ -289,6 +290,25 @@ def creer_classe_scolaire(ecole_id: int, annee_scolaire_id: int, nom: str, nivea
     annee = AnneeScolaire.query.filter_by(id=annee_scolaire_id, ecole_id=ecole_id).first()
     if not annee:
         return None, "L'année scolaire spécifiée est invalide pour cet établissement."
+
+    if annee.statut == 'archivee':
+        return None, "Impossible de creer une classe dans une annee scolaire archivee."
+
+    niveaux_actifs = get_niveaux_actifs(ecole_id)
+    niveau_key = infer_niveau_from_classe_name(niveau) or infer_niveau_from_classe_name(nom)
+    niveau_obj = next((n for n in niveaux_actifs if n.code == niveau_key or n.nom == niveau), None)
+    if not niveau_obj:
+        niveau_obj = NiveauScolaire.query.filter_by(nom=niveau).first()
+    if niveau_obj:
+        return creer_classe_depuis_niveau(
+            ecole_id=ecole_id,
+            annee_scolaire_id=annee_scolaire_id,
+            niveau_id=niveau_obj.id,
+            nom=nom,
+            section=None,
+            salle=salle,
+            capacite=capacite,
+        )
 
     try:
         capacite = int(capacite)

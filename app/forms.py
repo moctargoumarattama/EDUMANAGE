@@ -250,6 +250,8 @@ class ResetPasswordForm(FlaskForm):
 
 class ClasseForm(FlaskForm):
     nom = StringField("Nom de la classe", validators=[DataRequired()])
+    niveau_id = SelectField("Niveau", coerce=int, validators=[DataRequired(message="Veuillez choisir un niveau.")])
+    section = StringField("Section", validators=[Optional()])
     niveau = SelectField("Niveau", choices=[
         ("6eme", "6ème"), 
         ("5eme", "5ème"), 
@@ -284,6 +286,10 @@ class ClasseForm(FlaskForm):
             from app.models import AnneeScolaire
             annees_query = AnneeScolaire.query.filter_by(ecole_id=ecole.id).order_by(AnneeScolaire.id.desc())
             self.annee_scolaire_id.choices = [(0, "---")] + [(a.id, a.nom) for a in annees_query.all()]
+            from app.services.niveaux import get_niveaux_actifs
+            niveaux_actifs = get_niveaux_actifs(ecole.id)
+            self.niveau_id.choices = [(n.id, n.nom) for n in niveaux_actifs]
+            self.niveau.choices = [(n.nom, n.nom) for n in niveaux_actifs]
 
             # Pré-sélection année active
             annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole.id, statut='active').first()
@@ -293,6 +299,8 @@ class ClasseForm(FlaskForm):
         else:
             self.professeur_principal_id.choices = [(0, "--- Aucun ---")]
             self.annee_scolaire_id.choices = [(0, "---")]
+            self.niveau_id.choices = []
+            self.niveau.choices = []
 # -----------------------
 # Formulaire Ecole
 # -----------------------

@@ -76,7 +76,8 @@ def create_app(config_class=Config):
     with app.app_context():
         from .models import (
             Utilisateur, Professeur, Eleve, Cours, Note, Paiement, Absence,
-            Classe, EmploiTemps, Bulletin, Log, SyncLog, JournalCorrection, Ecole
+            Classe, EmploiTemps, Bulletin, Log, SyncLog, JournalCorrection, Ecole,
+            NiveauScolaire, EcoleNiveauConfig
         )
 
         # user_loader

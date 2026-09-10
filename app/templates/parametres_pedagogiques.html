@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Parametres pedagogiques - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-4">
+    <section class="page-header">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon">
+                    <i class="fas fa-layer-group" aria-hidden="true"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">Parametres pedagogiques</h1>
+                    <p class="page-subtitle d-none d-md-block">Niveaux proposes pour les nouvelles classes.</p>
+                </div>
+            </div>
+            <a href="{{ url_for('main.liste_classes') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Classes
+            </a>
+        </div>
+    </section>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-md-6">
+            <div class="form-card h-100">
+                <div class="form-card-body d-flex align-items-center justify-content-between gap-3">
+                    <div>
+                        <h2 class="h6 fw-bold mb-1">Primaire</h2>
+                        <p class="small text-muted mb-0">CI a CM2</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <form method="post">
+                            {{ csrf_token() }}
+                            <input type="hidden" name="action" value="primaire">
+                            <input type="hidden" name="actif" value="1">
+                            <button class="btn btn-sm btn-primary" type="submit">Activer</button>
+                        </form>
+                        <form method="post">
+                            {{ csrf_token() }}
+                            <input type="hidden" name="action" value="primaire">
+                            <input type="hidden" name="actif" value="0">
+                            <button class="btn btn-sm btn-outline-secondary" type="submit">Desactiver</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6">
+            <div class="form-card h-100">
+                <div class="form-card-body d-flex align-items-center justify-content-between gap-3">
+                    <div>
+                        <h2 class="h6 fw-bold mb-1">Secondaire</h2>
+                        <p class="small text-muted mb-0">College et lycee</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <form method="post">
+                            {{ csrf_token() }}
+                            <input type="hidden" name="action" value="secondaire">
+                            <input type="hidden" name="actif" value="1">
+                            <button class="btn btn-sm btn-primary" type="submit">Activer</button>
+                        </form>
+                        <form method="post">
+                            {{ csrf_token() }}
+                            <input type="hidden" name="action" value="secondaire">
+                            <input type="hidden" name="actif" value="0">
+                            <button class="btn btn-sm btn-outline-secondary" type="submit">Desactiver</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% set labels = {'primaire': 'Primaire', 'college': 'College', 'lycee': 'Lycee'} %}
+    <div class="row g-3">
+        {% for cycle, configs in grouped_configs.items() %}
+        <div class="col-12 col-lg-4">
+            <div class="form-card h-100">
+                <div class="form-card-body">
+                    <h2 class="h6 fw-bold mb-3">{{ labels.get(cycle, cycle|title) }}</h2>
+                    <div class="d-grid gap-2">
+                        {% for config in configs %}
+                        <form method="post" class="d-flex align-items-center justify-content-between gap-2 rounded-3 border p-2 bg-white">
+                            {{ csrf_token() }}
+                            <input type="hidden" name="action" value="niveau">
+                            <input type="hidden" name="niveau_id" value="{{ config.niveau_id }}">
+                            <input type="hidden" name="actif" value="{{ 0 if config.actif else 1 }}">
+                            <span class="fw-semibold">{{ config.niveau.nom }}</span>
+                            <button type="submit" class="btn btn-sm {{ 'btn-success' if config.actif else 'btn-outline-secondary' }}">
+                                {{ 'Actif' if config.actif else 'Inactif' }}
+                            </button>
+                        </form>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

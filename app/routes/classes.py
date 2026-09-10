@@ -28,6 +28,7 @@ from .common import (
     url_for,
 )
 from app.services import get_statistics
+from app.services.niveaux import creer_classe_depuis_niveau, get_niveau_configs_grouped, modifier_classe_depuis_niveau, set_cycle_actif, set_niveau_actif
 
 
 @main.route('/api/classes')
@@ -35,13 +36,13 @@ from app.services import get_statistics
 @role_required('admin', 'professeur')
 @ecole_required
 def api_classes():
-    """Retourne la liste des classes filtrÃ©e par Ã©cole et annÃ©e active (JSON)"""
-    # DÃ©termination de l'Ã©cole
+    """Retourne la liste des classes filtrée par école et année active (JSON)"""
+    # Détermination de l'école
     ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
     if not ecole_id:
-        return jsonify([]), 403  # Super-admin sans Ã©cole sÃ©lectionnÃ©e
+        return jsonify([]), 403  # Super-admin sans école sélectionnée
 
-    # RÃ©cupÃ©ration de l'annÃ©e scolaire active
+    # Récupération de l'année scolaire active
     annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
 
     # Filtrage des classes
@@ -76,7 +77,7 @@ def liste_classes():
     niveau = request.args.get('niveau', '')
     sort_by = request.args.get('sort', 'nom')
 
-    # Base query pour l'Ã©cole de l'utilisateur
+    # Base query pour l'école de l'utilisateur
     base_query = Classe.query.filter_by(ecole_id=current_user.ecole_id)
 
     if current_user.role == 'professeur':
@@ -106,7 +107,7 @@ def liste_classes():
         base_query = base_query.order_by(Classe.effectif.desc())
     elif sort_by == 'niveau':
         base_query = base_query.order_by(Classe.niveau)
-    else:  # tri par nom par dÃ©faut
+    else:  # tri par nom par défaut
         base_query = base_query.order_by(Classe.nom)
 
     # Pagination
@@ -114,7 +115,7 @@ def liste_classes():
         page=page, per_page=per_page, error_out=False
     )
 
-    # RÃ©cupÃ©rer toutes les classes pour les statistiques (sans pagination)
+    # Récupérer toutes les classes pour les statistiques (sans pagination)
     all_classes = base_query.all()
 
     # Calculer les valeurs pour la pagination
@@ -160,36 +161,23 @@ def ajouter_classe():
 
     if form.validate_on_submit():
         try:
-            nom_classe = form.nom.data.strip() if form.nom.data else ""
-
-            # Vérifier doublon : même nom + année active + école
-            existing = Classe.query.filter_by(
-                nom=nom_classe,
-                annee_scolaire_id=annee_active.id,
-                ecole_id=current_user.ecole_id
-            ).first()
-            if existing:
-                flash(f"Une classe nommée '{nom_classe}' existe déjà pour l'année scolaire active ({annee_active.nom}).", "warning")
-                return redirect(url_for("main.ajouter_classe"))
-
             prof_id = form.professeur_principal_id.data if (form.professeur_principal_id.data and form.professeur_principal_id.data > 0) else None
             capacite_val = form.capacite.data or form.effectif.data or 35
-
-            classe = Classe(
-                nom=nom_classe,
-                niveau=form.niveau.data,
-                capacite=capacite_val,
-                capacite_max=capacite_val,
-                effectif=0,
-                salle=None,
-                professeur_id=prof_id,
+            classe, error_msg = creer_classe_depuis_niveau(
+                ecole_id=current_user.ecole_id,
                 annee_scolaire_id=annee_active.id,
-                ecole_id=current_user.ecole_id
+                niveau_id=form.niveau_id.data,
+                nom=form.nom.data,
+                section=form.section.data,
+                capacite=capacite_val,
+                professeur_id=prof_id,
             )
-            db.session.add(classe)
-            db.session.commit()
-            flash(f"Classe '{nom_classe}' (Capacité : {capacite_val} élèves) ajoutée avec succès pour l'année {annee_active.nom} ✅", "success")
+            if error_msg:
+                flash(error_msg, "warning")
+                return redirect(url_for("main.ajouter_classe"))
+            flash(f"Classe '{classe.nom}' ajoutee avec succes pour l'annee {annee_active.nom}.", "success")
             return redirect(url_for("main.liste_classes"))
+
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Erreur ajout classe : {e}")
@@ -347,22 +335,56 @@ def modifier_classe(classe_id):
     if request.method == "GET":
         form.capacite.data = classe.capacite or classe.capacite_max or 35
         form.professeur_principal_id.data = classe.professeur_id or 0
+        form.niveau_id.data = classe.niveau_id or 0
+        form.section.data = classe.section
 
     if form.validate_on_submit():
         prof_id = form.professeur_principal_id.data if (form.professeur_principal_id.data and form.professeur_principal_id.data > 0) else None
         capacite_val = form.capacite.data or form.effectif.data or classe.capacite or 35
 
-        classe.nom = form.nom.data.strip() if form.nom.data else classe.nom
-        classe.niveau = form.niveau.data
-        classe.capacite = capacite_val
-        classe.capacite_max = capacite_val
-        classe.effectif = classe.effectif_reel
-        classe.professeur_id = prof_id
-        db.session.commit()
+        classe, error_msg = modifier_classe_depuis_niveau(
+            classe=classe,
+            ecole_id=current_user.ecole_id,
+            niveau_id=form.niveau_id.data,
+            nom=form.nom.data,
+            section=form.section.data,
+            capacite=capacite_val,
+            professeur_id=prof_id,
+        )
+        if error_msg:
+            flash(error_msg, "warning")
+            return redirect(url_for("main.modifier_classe", classe_id=classe_id))
         flash(f"Classe '{classe.nom}' modifiée avec succès (Capacité : {classe.capacite} élèves) ✅", "success")
         return redirect(url_for("main.liste_classes"))
 
     return render_template("modifier_classe.html", form=form, classe=classe)
+
+
+@main.route("/parametres-pedagogiques", methods=["GET", "POST"])
+@login_required
+@role_required('admin', 'super_admin')
+def parametres_pedagogiques():
+    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
+    if not ecole_id:
+        flash("Veuillez selectionner une ecole avant de modifier les parametres pedagogiques.", "warning")
+        return redirect(url_for("main.index"))
+
+    if request.method == "POST":
+        action = request.form.get("action")
+        actif = request.form.get("actif") == "1"
+
+        if action in ("primaire", "secondaire"):
+            set_cycle_actif(ecole_id, action, actif)
+            flash("Configuration mise a jour.", "success")
+        elif action == "niveau":
+            niveau_id = request.form.get("niveau_id", type=int)
+            _config, error_msg = set_niveau_actif(ecole_id, niveau_id, actif)
+            flash(error_msg or "Niveau mis a jour.", "warning" if error_msg else "success")
+
+        return redirect(url_for("main.parametres_pedagogiques"))
+
+    grouped_configs = get_niveau_configs_grouped(ecole_id)
+    return render_template("parametres_pedagogiques.html", grouped_configs=grouped_configs)
 
 
 @main.route("/classes/<int:classe_id>/supprimer", methods=["POST"])
@@ -377,13 +399,13 @@ def supprimer_classe(classe_id):
         or Inscription.query.filter_by(classe_id=classe.id).first()
     )
     if has_dependencies:
-        flash("Impossible de supprimer une classe contenant des Ã©lÃ¨ves, cours ou emplois du temps.", "warning")
+        flash("Impossible de supprimer une classe contenant des élèves, cours ou emplois du temps.", "warning")
         return redirect(url_for("main.liste_classes"))
 
     try:
         db.session.delete(classe)
         db.session.commit()
-        flash("Classe supprimÃ©e avec succÃ¨s.", "success")
+        flash("Classe supprimée avec succès.", "success")
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur suppression classe {classe_id}: {e}")
@@ -427,7 +449,7 @@ def get_classes(annee_id):
 @login_required
 @role_required('admin')
 def api_classes_par_annee(annee_id):
-    """API pour rÃ©cupÃ©rer les classes d'une annÃ©e scolaire spÃ©cifique"""
+    """API pour récupérer les classes d'une année scolaire spécifique"""
     from app.models import Classe
 
     classes = Classe.query.filter(
@@ -443,4 +465,3 @@ def api_classes_par_annee(annee_id):
     } for c in classes]
 
     return jsonify(classes_list)
-
