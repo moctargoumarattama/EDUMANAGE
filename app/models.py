@@ -1005,6 +1005,7 @@ class Inscription(db.Model):
     __tablename__ = "inscriptions"
 
     id = db.Column(db.Integer, primary_key=True)
+    ecole_id = db.Column(db.Integer, db.ForeignKey("ecole.id"), nullable=False)
     eleve_id = db.Column(db.Integer, db.ForeignKey("eleve.id"), nullable=False)
     classe_id = db.Column(db.Integer, db.ForeignKey("classe.id"), nullable=False)
     cours_id = db.Column(db.Integer, db.ForeignKey("cours.id"), nullable=True)
@@ -1013,47 +1014,45 @@ class Inscription(db.Model):
     annee_scolaire_id = db.Column(db.Integer, db.ForeignKey('annee_scolaire.id'), nullable=False)
     annee_scolaire = db.relationship('AnneeScolaire', back_populates='inscriptions')
 
+    statut = db.Column(db.String(20), nullable=False, default='inscrit')
+    date_inscription = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    date_sortie = db.Column(db.DateTime, nullable=True)
+    motif_sortie = db.Column(db.String(255), nullable=True)
+    decision_fin_annee = db.Column(db.String(30), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    ecole = db.relationship("Ecole", backref="inscriptions")
     eleve = db.relationship("Eleve", backref="inscriptions", foreign_keys=[eleve_id])
     classe = db.relationship("Classe", backref="inscriptions", foreign_keys=[classe_id])
     cours = db.relationship("Cours", backref="inscriptions", foreign_keys=[cours_id])
 
+    __table_args__ = (
+        db.UniqueConstraint('ecole_id', 'annee_scolaire_id', 'eleve_id', name='uq_inscription_ecole_annee_eleve'),
+        db.Index('ix_inscription_ecole_annee', 'ecole_id', 'annee_scolaire_id'),
+        db.Index('ix_inscription_eleve_annee', 'eleve_id', 'annee_scolaire_id'),
+        db.Index('ix_inscription_classe', 'classe_id'),
+    )
+
     def to_dict(self):
         return {
             "id": self.id,
+            "ecole_id": self.ecole_id,
             "eleve_id": self.eleve_id,
             "classe_id": self.classe_id,
             "cours_id": self.cours_id,
-            "annee_scolaire_id": self.annee_scolaire_id
+            "annee_scolaire_id": self.annee_scolaire_id,
+            "statut": self.statut,
+            "date_inscription": self.date_inscription.isoformat() if self.date_inscription else None,
+            "date_sortie": self.date_sortie.isoformat() if self.date_sortie else None,
+            "motif_sortie": self.motif_sortie,
+            "decision_fin_annee": self.decision_fin_annee
         }
 
 @event.listens_for(Eleve, "after_insert")
 def creer_inscription(mapper, connection, target):
-    """Créer automatiquement une inscription quand un élève est ajouté."""
-    # Récupérer l'année scolaire active
-    annee_active = AnneeScolaire.query.filter_by(
-        ecole_id=target.ecole_id,
-        statut='active'
-    ).first()
-    if not annee_active:
-        # Créer une année scolaire par défaut si aucune n'existe
-        annee_active = AnneeScolaire(
-            nom=f"{datetime.now().year}-{datetime.now().year+1}",
-            date_debut=date(datetime.now().year, 9, 1),
-            date_fin=date(datetime.now().year+1, 7, 31),
-            statut='active',
-            ecole_id=target.ecole_id
-        )
-        db.session.add(annee_active)
-        db.session.commit()
-
-    connection.execute(
-        Inscription.__table__.insert().values(
-            eleve_id=target.id,
-            classe_id=target.classe_id,
-            cours_id=None,
-            annee_scolaire_id=annee_active.id
-        )
-    )
+    # Phase 2A: inscriptions are created by the central service.
+    return
 
 # -----------------------
 # JournalCorrection
