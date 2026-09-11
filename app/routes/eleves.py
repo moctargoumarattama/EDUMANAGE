@@ -35,7 +35,8 @@ from .common import (
     session,
     url_for,
 )
-from app.services.inscriptions_annuelles import creer_inscription_annuelle, modifier_inscription_annuelle
+from app.services.annees_scolaires import get_annee_consultee, get_classes_annee
+from app.services.inscriptions_annuelles import creer_inscription_annuelle, get_inscription_active, get_parcours_eleve, modifier_inscription_annuelle
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -53,23 +54,38 @@ def eleves():
     per_page = 50
     classe_id = request.args.get('classe_id', type=int)
     search = (request.args.get('search') or '').strip()
+    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
+    if not ecole_id:
+        abort(403)
+    annee_consultee = get_annee_consultee(ecole_id, request.args.get("annee_id", type=int))
 
     # ---------------- Base query avec relations pour éviter N+1 ----------------
     base_query = Eleve.query.options(
         db.joinedload(Eleve.classe),
         db.joinedload(Eleve.parent)
     )
+    if annee_consultee:
+        base_query = base_query.join(
+            Inscription,
+            db.and_(
+                Inscription.eleve_id == Eleve.id,
+                Inscription.ecole_id == ecole_id,
+                Inscription.annee_scolaire_id == annee_consultee.id,
+            )
+        )
+    else:
+        base_query = base_query.filter(db.false())
 
     # ---------------- Filtrage multi-écoles selon rôle ----------------
     if current_user.role == 'admin':
-        all_eleves_query = filtre_par_ecole(base_query, Eleve).order_by(Eleve.nom.asc(), Eleve.prenom.asc())
+        all_eleves_query = base_query.filter(Eleve.ecole_id == ecole_id).order_by(Eleve.nom.asc(), Eleve.prenom.asc())
 
     elif current_user.role == 'professeur':
         professeur_id = getattr(current_user.professeur_rel, 'id', None)
         all_eleves_query = (
-            base_query.join(Classe)
+            base_query.join(Classe, Classe.id == Inscription.classe_id)
             .filter(
-                Classe.ecole_id == current_user.ecole_id,
+                Classe.ecole_id == ecole_id,
                 db.or_(
                     Classe.professeur_id == professeur_id,
                     Classe.id.in_(
@@ -77,7 +93,7 @@ def eleves():
                         .filter(professeur_classes.c.professeur_id == professeur_id)
                     )
                 ),
-                Eleve.ecole_id == current_user.ecole_id
+                Eleve.ecole_id == ecole_id
             )
             .order_by(Eleve.nom.asc(), Eleve.prenom.asc())
         )
@@ -91,14 +107,14 @@ def eleves():
     # Query pour la pagination rétrocompatible
     eleves_query = all_eleves_query
     if classe_id:
-        eleves_query = eleves_query.filter(Eleve.classe_id == classe_id)
+        eleves_query = eleves_query.filter(Inscription.classe_id == classe_id)
     if search:
         like = f"%{search}%"
         eleves_query = eleves_query.filter(db.or_(Eleve.nom.ilike(like), Eleve.prenom.ilike(like)))
     eleves_pagination = eleves_query.paginate(page=page, per_page=per_page, error_out=False)
 
     # Classes autorisées
-    classes_query = Classe.query.filter_by(ecole_id=current_user.ecole_id)
+    classes_query = get_classes_annee(ecole_id, annee_consultee.id) if annee_consultee else Classe.query.filter_by(ecole_id=ecole_id).filter(db.false())
     if current_user.role == 'professeur':
         professeur_id = getattr(current_user.professeur_rel, 'id', None)
         classes_query = classes_query.filter(
@@ -111,6 +127,19 @@ def eleves():
             )
         )
     classes = classes_query.order_by(Classe.nom.asc()).all()
+    inscriptions = []
+    if annee_consultee and all_eleves:
+        inscriptions = (
+            Inscription.query
+            .options(joinedload(Inscription.classe))
+            .filter(
+                Inscription.ecole_id == ecole_id,
+                Inscription.annee_scolaire_id == annee_consultee.id,
+                Inscription.eleve_id.in_([e.id for e in all_eleves]),
+            )
+            .all()
+        )
+    inscription_par_eleve = {ins.eleve_id: ins for ins in inscriptions}
 
     # Organisation des élèves par classe
     classes_dict = {}
@@ -140,7 +169,8 @@ def eleves():
     }
 
     for e in all_eleves:
-        cid = e.classe_id
+        inscription = inscription_par_eleve.get(e.id)
+        cid = inscription.classe_id if inscription else e.classe_id
         grp = classes_dict.get(cid, sans_classe_group)
         grp['eleves'].append(e)
         if (e.genre or '').upper() == 'F':
@@ -199,6 +229,11 @@ def ajouter_eleve():
             return redirect(url_for('main.eleves'))
     else:
         ecole_id = current_user.ecole_id
+
+    annee_consultee = get_annee_consultee(ecole_id, request.args.get("annee_id", type=int))
+    if annee_consultee and annee_consultee.statut == "archivee":
+        flash("Impossible de creer un eleve dans une annee archivee.", "warning")
+        return redirect(url_for('main.eleves'))
 
     # ---------------- Année scolaire active ----------------
     annees_ecole = AnneeScolaire.query.filter_by(ecole_id=ecole_id).order_by(AnneeScolaire.id.desc()).all()
@@ -637,6 +672,12 @@ def voir_eleve(eleve_id):
         abort(403)
 
     # 1. Notes & Performances académiques de l'année
+    inscription_active = get_inscription_active(eleve)
+    parcours_scolaire = get_parcours_eleve(eleve)
+    eleve.inscription_active = inscription_active
+    eleve.parcours_scolaire = parcours_scolaire
+    eleve.classe_actuelle = inscription_active.classe if inscription_active else eleve.classe
+
     notes = sorted(eleve.notes, key=lambda n: n.date_evaluation or datetime.min, reverse=True)
     total_pondere = sum((n.valeur or 0) * (n.coefficient or 1) for n in notes)
     total_coefficients = sum((n.coefficient or 1) for n in notes)

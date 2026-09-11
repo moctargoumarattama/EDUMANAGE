@@ -28,6 +28,7 @@ from .common import (
     url_for,
 )
 from app.services import get_statistics
+from app.services.annees_scolaires import get_annee_consultee, get_classes_annee
 from app.services.niveaux import creer_classe_depuis_niveau, get_niveau_configs_grouped, modifier_classe_depuis_niveau, set_cycle_actif, set_niveau_actif
 
 
@@ -43,7 +44,7 @@ def api_classes():
         return jsonify([]), 403  # Super-admin sans école sélectionnée
 
     # Récupération de l'année scolaire active
-    annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
+    annee_consultee = get_annee_consultee(ecole_id, request.args.get("annee_id", type=int))
 
     # Filtrage des classes
     classes_query = Classe.query.filter_by(ecole_id=ecole_id)
@@ -60,8 +61,8 @@ def api_classes():
                 )
             )
         )
-    if annee_active:
-        classes_query = classes_query.filter_by(annee_scolaire_id=annee_active.id)
+    if annee_consultee:
+        classes_query = classes_query.filter_by(annee_scolaire_id=annee_consultee.id)
     classes = classes_query.order_by(Classe.nom).all()
 
     return jsonify([{'id': c.id, 'nom': c.nom} for c in classes])
@@ -78,7 +79,13 @@ def liste_classes():
     sort_by = request.args.get('sort', 'nom')
 
     # Base query pour l'école de l'utilisateur
-    base_query = Classe.query.filter_by(ecole_id=current_user.ecole_id)
+    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
+    if not ecole_id:
+        flash("Veuillez selectionner une ecole.", "warning")
+        return redirect(url_for("main.index"))
+
+    annee_consultee = get_annee_consultee(ecole_id, request.args.get("annee_id", type=int))
+    base_query = get_classes_annee(ecole_id, annee_consultee.id) if annee_consultee else Classe.query.filter_by(ecole_id=ecole_id).filter(db.false())
 
     if current_user.role == 'professeur':
         professeur = current_user.get_professeur()
@@ -145,6 +152,11 @@ def ajouter_classe():
     from app.models import AnneeScolaire, Professeur, Classe
 
     # Récupération obligatoire de l'année scolaire active pour l'école
+    annee_consultee = get_annee_consultee(current_user.ecole_id, request.args.get("annee_id", type=int))
+    if annee_consultee and annee_consultee.statut == "archivee":
+        flash("Impossible de creer une classe dans une annee archivee.", "warning")
+        return redirect(url_for("main.liste_classes"))
+
     annee_active = AnneeScolaire.query.filter_by(ecole_id=current_user.ecole_id, statut='active').first()
     if not annee_active:
         flash("Veuillez d'abord activer une année scolaire pour votre établissement avant d'ajouter une classe.", "warning")
@@ -326,6 +338,10 @@ def detail_classe(classe_id):
 @role_required('admin')
 def modifier_classe(classe_id):
     classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first_or_404()
+    if classe.annee_scolaire and classe.annee_scolaire.statut == "archivee":
+        flash("Impossible de modifier une classe d'une annee archivee.", "warning")
+        return redirect(url_for("main.liste_classes"))
+
     form = ClasseForm(obj=classe)
     professeurs = Professeur.query.filter_by(ecole_id=current_user.ecole_id).order_by(Professeur.nom).all()
     form.professeur_principal_id.choices = [(0, "--- Aucun professeur principal ---")] + [
@@ -392,6 +408,10 @@ def parametres_pedagogiques():
 @role_required('admin')
 def supprimer_classe(classe_id):
     classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first_or_404()
+    if classe.annee_scolaire and classe.annee_scolaire.statut == "archivee":
+        flash("Impossible de supprimer une classe d'une annee archivee.", "warning")
+        return redirect(url_for("main.liste_classes"))
+
     has_dependencies = bool(
         classe.eleves
         or classe.cours
