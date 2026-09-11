@@ -35,7 +35,7 @@ from .common import (
     session,
     url_for,
 )
-from app.services.annees_scolaires import get_annee_consultee, get_classes_annee
+from app.services.annees_scolaires import get_annee_consultee, get_annees_ecole, get_classes_annee
 from app.services.inscriptions_annuelles import creer_inscription_annuelle, get_inscription_active, get_parcours_eleve, modifier_inscription_annuelle
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, letter
@@ -58,6 +58,7 @@ def eleves():
     if not ecole_id:
         abort(403)
     annee_consultee = get_annee_consultee(ecole_id, request.args.get("annee_id", type=int))
+    annees_ecole = get_annees_ecole(ecole_id)
 
     # ---------------- Base query avec relations pour éviter N+1 ----------------
     base_query = Eleve.query.options(
@@ -211,7 +212,9 @@ def eleves():
         classe_id=classe_id,
         search=search,
         eleves=eleves_pagination,
-        all_eleves=all_eleves
+        all_eleves=all_eleves,
+        annee_consultee=annee_consultee,
+        annees_ecole=annees_ecole
     )
 
 @main.route('/ajouter_eleve', methods=['GET', 'POST'])

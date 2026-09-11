@@ -15,13 +15,19 @@
                     <p class="page-subtitle d-none d-md-block">Liste des classes de votre Ã©tablissement.</p>
                 </div>
             </div>
-            {% if current_user.role == 'admin' %}
+            {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
             <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary">
                 <i class="fas fa-plus me-2"></i>Nouvelle classe
             </a>
             {% endif %}
         </div>
     </section>
+
+    {% if annee_consultee and annee_consultee.statut == 'archivee' %}
+    <div class="alert alert-warning" role="alert">
+        Vous consultez une année archivée : {{ annee_consultee.nom }}
+    </div>
+    {% endif %}
 
     {% if current_user.role == 'admin' %}
     <div class="stat-grid mb-4">
@@ -57,6 +63,16 @@
 
     <div class="filter-card mb-4">
         <form method="get" action="{{ url_for('main.liste_classes') }}" class="responsive-form-grid">
+            <div>
+                <label for="annee_id" class="form-label">Année scolaire</label>
+                <select id="annee_id" name="annee_id" class="form-select">
+                    {% for annee in annees_ecole %}
+                    <option value="{{ annee.id }}" {% if annee_consultee and annee.id == annee_consultee.id %}selected{% endif %}>
+                        {{ annee.nom }}{% if annee.statut == 'active' %} - Active{% elif annee.statut == 'archivee' %} - Archivée{% elif annee.statut == 'planifiee' %} - Planifiée{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
             <div>
                 <label for="search" class="form-label">Recherche</label>
                 <input id="search" name="search" type="search" class="form-control" value="{{ current_filters.search }}" placeholder="Nom de classe">
@@ -141,7 +157,7 @@
                 <a href="{{ url_for('main.detail_classe', classe_id=classe.id) }}" class="btn btn-sm btn-outline-primary">
                     <i class="fas fa-eye me-1"></i>Voir
                 </a>
-                {% if current_user.role == 'admin' %}
+                {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
                 <a href="{{ url_for('main.modifier_classe', classe_id=classe.id) }}" class="btn btn-sm btn-outline-warning">
                     <i class="fas fa-edit me-1"></i>Modifier
                 </a>
@@ -183,7 +199,7 @@
         <div class="empty-state-icon"><i class="fas fa-chalkboard"></i></div>
         <h2 class="empty-state-title">Aucune classe trouvÃ©e</h2>
         <p class="empty-state-text">Ajoutez une classe ou modifiez vos filtres.</p>
-        {% if current_user.role == 'admin' %}
+        {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
         <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary">
             <i class="fas fa-plus me-2"></i>Ajouter une classe
         </a>

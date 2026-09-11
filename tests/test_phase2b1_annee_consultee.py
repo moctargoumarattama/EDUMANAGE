@@ -49,6 +49,13 @@ class Phase2B1AnneeConsulteeTestCase(unittest.TestCase):
             statut="active",
             ecole_id=self.ecole_a.id,
         )
+        self.annee_vide = AnneeScolaire(
+            nom="2027-2028",
+            date_debut=date(2027, 9, 1),
+            date_fin=date(2028, 7, 31),
+            statut="planifiee",
+            ecole_id=self.ecole_a.id,
+        )
         self.annee_b = AnneeScolaire(
             nom="2026-2027",
             date_debut=date(2026, 9, 1),
@@ -56,7 +63,7 @@ class Phase2B1AnneeConsulteeTestCase(unittest.TestCase):
             statut="active",
             ecole_id=self.ecole_b.id,
         )
-        db.session.add_all([self.annee_archivee, self.annee_active, self.annee_b])
+        db.session.add_all([self.annee_archivee, self.annee_active, self.annee_vide, self.annee_b])
         db.session.flush()
 
         self.classe_6a = Classe(nom="6e A", niveau="6e", ecole_id=self.ecole_a.id, annee_scolaire_id=self.annee_archivee.id)
@@ -145,7 +152,7 @@ class Phase2B1AnneeConsulteeTestCase(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             context = recorded[-1][1]
             self.assertEqual(context["annee_consultee"].id, self.annee_active.id)
-            self.assertEqual({a.id for a in context["annees_ecole"]}, {self.annee_active.id, self.annee_archivee.id})
+            self.assertEqual({a.id for a in context["annees_ecole"]}, {self.annee_active.id, self.annee_archivee.id, self.annee_vide.id})
             self.assertNotIn(self.annee_b.id, {a.id for a in context["annees_ecole"]})
 
             response = client.get(f"/classes?annee_id={self.annee_archivee.id}")
@@ -173,6 +180,34 @@ class Phase2B1AnneeConsulteeTestCase(unittest.TestCase):
 
         client = self._client_as_admin()
         self.assertEqual(client.get(f"/eleves?annee_id={self.annee_archivee.id}&classe_id={self.classe_6a.id}&page=1").status_code, 200)
+
+    def test_eleves_template_recoit_annee_consultee_annees_ecole_et_annee_vide(self):
+        client = self._client_as_admin()
+        recorded, receiver = self._capture_templates()
+        try:
+            response = client.get("/eleves")
+            self.assertEqual(response.status_code, 200)
+            context = recorded[-1][1]
+            self.assertEqual(context["annee_consultee"].id, self.annee_active.id)
+            self.assertEqual({a.id for a in context["annees_ecole"]}, {self.annee_active.id, self.annee_archivee.id, self.annee_vide.id})
+            self.assertNotIn(self.annee_b.id, {a.id for a in context["annees_ecole"]})
+            self.assertEqual(context["total_eleves"], 1)
+
+            response = client.get(f"/eleves?annee_id={self.annee_archivee.id}&search=Moussa")
+            self.assertEqual(response.status_code, 200)
+            context = recorded[-1][1]
+            self.assertEqual(context["annee_consultee"].id, self.annee_archivee.id)
+            self.assertEqual(context["total_eleves"], 1)
+            self.assertEqual(db.session.get(AnneeScolaire, self.annee_archivee.id).statut, "archivee")
+
+            response = client.get(f"/eleves?annee_id={self.annee_vide.id}")
+            self.assertEqual(response.status_code, 200)
+            context = recorded[-1][1]
+            self.assertEqual(context["annee_consultee"].id, self.annee_vide.id)
+            self.assertEqual(context["total_eleves"], 0)
+            self.assertEqual(list(context["eleves"].items), [])
+        finally:
+            template_rendered.disconnect(receiver, self.app)
 
     def test_parcours_deux_annees_et_ecole_b_inaccessible(self):
         parcours = get_parcours_eleve(self.eleve)
