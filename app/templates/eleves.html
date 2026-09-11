@@ -20,10 +20,12 @@
             </p>
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
-            {% if current_user.role == 'admin' %}
+            {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
             <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-sm btn-success fw-semibold">
                 <i class="fas fa-plus me-1"></i>Ajouter un Ã©lÃ¨ve
             </a>
+            {% endif %}
+            {% if current_user.role == 'admin' %}
             <a href="{{ url_for('main.export_eleves_excel') }}" class="btn btn-sm btn-outline-success">
                 <i class="fas fa-file-excel me-1"></i>Exporter Excel
             </a>
@@ -35,6 +37,12 @@
     </div>
 
     <!-- 3 Cartes d'Indicateurs ClÃ©s (KPIs) -->
+    {% if annee_consultee and annee_consultee.statut == 'archivee' %}
+    <div class="alert alert-warning" role="alert">
+        Vous consultez une année archivée : {{ annee_consultee.nom }}
+    </div>
+    {% endif %}
+
     <div class="row g-3 mb-4">
         <div class="col-12 col-md-4">
             <div class="card border-0 shadow-sm h-100 p-3 bg-white">
@@ -82,6 +90,29 @@
     <!-- Barre d'outils et de recherche rÃ©active -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
+            <form method="get" action="{{ url_for('main.eleves') }}" class="row g-3 align-items-end mb-3">
+                <div class="col-12 col-md-4">
+                    <label for="annee_id" class="form-label small fw-semibold">Année scolaire</label>
+                    <select id="annee_id" name="annee_id" class="form-select form-select-sm">
+                        {% for annee in annees_ecole %}
+                        <option value="{{ annee.id }}" {% if annee_consultee and annee.id == annee_consultee.id %}selected{% endif %}>
+                            {{ annee.nom }}{% if annee.statut == 'active' %} - Active{% elif annee.statut == 'archivee' %} - Archivée{% elif annee.statut == 'planifiee' %} - Planifiée{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if classe_id %}
+                <input type="hidden" name="classe_id" value="{{ classe_id }}">
+                {% endif %}
+                {% if search %}
+                <input type="hidden" name="search" value="{{ search }}">
+                {% endif %}
+                <div class="col-12 col-md-auto">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye me-1"></i>Afficher
+                    </button>
+                </div>
+            </form>
             <div class="row g-3 align-items-center">
                 <!-- Champ de recherche live -->
                 <div class="col-12 col-md-5">
@@ -227,7 +258,7 @@
                                        title="Consulter le bulletin scolaire">
                                         <i class="fas fa-file-alt me-1"></i>Bulletin
                                     </a>
-                                    {% if current_user.role == 'admin' %}
+                                    {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
                                     <a href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id) }}" 
                                        class="student-action-btn btn btn-sm btn-outline-warning" 
                                        title="Modifier les donnÃ©es de l'Ã©lÃ¨ve">
@@ -248,7 +279,7 @@
                         <div class="text-center py-4 text-muted">
                             <i class="fas fa-user-plus fa-2x mb-2 opacity-50"></i>
                             <p class="mb-2 small">Aucun Ã©lÃ¨ve inscrit dans cette classe pour le moment.</p>
-                            {% if current_user.role == 'admin' %}
+                            {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
                             <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-plus me-1"></i>Inscrire un Ã©lÃ¨ve dans cette classe
                             </a>
@@ -268,7 +299,7 @@
                     <p class="text-muted mx-auto mb-3" style="max-width: 460px;">
                         Votre Ã©tablissement ne compte encore aucun Ã©lÃ¨ve inscrit. Commencez par inscrire un nouvel Ã©lÃ¨ve.
                     </p>
-                    {% if current_user.role == 'admin' %}
+                    {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
                     <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-primary btn-sm px-3">
                         <i class="fas fa-plus me-1"></i>Ajouter le premier Ã©lÃ¨ve
                     </a>
