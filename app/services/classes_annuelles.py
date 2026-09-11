@@ -48,14 +48,12 @@ def _source_classes_autorisees(ecole_id, source_annee_id):
     )
 
 
-def preparer_structure_classes(ecole_id, annee_cible_id, source_annee_id=None, statuts=None):
-    annee_cible = AnneeScolaire.query.filter_by(id=annee_cible_id, ecole_id=ecole_id).first()
-    if not annee_cible:
-        return None, "Annee cible invalide pour cet etablissement."
-    if annee_cible.statut == "archivee":
-        return None, "Impossible de preparer les classes d'une annee archivee."
-
-    if source_annee_id is None:
+def _resolve_source_annee(ecole_id, annee_cible, source_annee_id=None):
+    if source_annee_id is not None:
+        source = AnneeScolaire.query.filter_by(id=source_annee_id, ecole_id=ecole_id).first()
+        if not source:
+            return None, "Annee source invalide pour cet etablissement."
+    else:
         source = (
             AnneeScolaire.query
             .filter(
@@ -66,17 +64,31 @@ def preparer_structure_classes(ecole_id, annee_cible_id, source_annee_id=None, s
             .order_by(AnneeScolaire.date_debut.desc(), AnneeScolaire.id.desc())
             .first()
         )
-    else:
-        source = AnneeScolaire.query.filter_by(id=source_annee_id, ecole_id=ecole_id).first()
+
+    if source and source.id == annee_cible.id:
+        return None, "L'annee source doit etre differente de l'annee cible."
+    return source, None
+
+
+def preparer_structure_classes(ecole_id, annee_cible_id, source_annee_id=None, statuts=None):
+    annee_cible = AnneeScolaire.query.filter_by(id=annee_cible_id, ecole_id=ecole_id).first()
+    if not annee_cible:
+        return None, "Annee cible invalide pour cet etablissement."
+    if annee_cible.statut == "archivee":
+        return None, "Impossible de preparer les classes d'une annee archivee."
+
+    source, error = _resolve_source_annee(ecole_id, annee_cible, source_annee_id)
+    if error:
+        return None, error
     if not source:
-        return {"created": [], "existing": [], "skipped": []}, None
+        return {"created": [], "existing": [], "skipped": [], "source_to_target": {}, "source": None, "target": annee_cible}, None
 
     existing = {
         _classe_identity(classe): classe
         for classe in Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_cible.id).all()
     }
     requested_statuts = statuts or {}
-    result = {"created": [], "existing": [], "skipped": []}
+    result = {"created": [], "existing": [], "skipped": [], "source_to_target": {}, "source": source, "target": annee_cible}
 
     for source_classe in _source_classes_autorisees(ecole_id, source.id):
         if source_classe.niveau_id and not niveau_peut_etre_utilise(ecole_id, source_classe.niveau_id):
@@ -89,8 +101,8 @@ def preparer_structure_classes(ecole_id, annee_cible_id, source_annee_id=None, s
 
         if identity in existing:
             target = existing[identity]
-            target.statut = statut
             result["existing"].append(target)
+            result["source_to_target"][source_classe.id] = target
             continue
 
         classe = Classe(
@@ -111,8 +123,36 @@ def preparer_structure_classes(ecole_id, annee_cible_id, source_annee_id=None, s
         db.session.flush()
         existing[identity] = classe
         result["created"].append(classe)
+        result["source_to_target"][source_classe.id] = classe
 
     return result, None
+
+
+def preparer_structure_annee(ecole_id, annee_cible_id, annee_source_id=None):
+    classes_result, error = preparer_structure_classes(ecole_id, annee_cible_id, annee_source_id)
+    if error:
+        return None, error
+
+    from app.services.cours_annuels import preparer_cours_pour_correspondances
+
+    cours_result = preparer_cours_pour_correspondances(
+        ecole_id=ecole_id,
+        source_to_target=classes_result["source_to_target"],
+    )
+    summary = {
+        "annee_source_id": classes_result["source"].id if classes_result["source"] else None,
+        "annee_cible_id": classes_result["target"].id,
+        "classes_creees": len(classes_result["created"]),
+        "classes_existantes": len(classes_result["existing"]),
+        "classes_ignorees_niveau_desactive": len(classes_result["skipped"]),
+        "classes_fermees": sum(1 for classe in list(classes_result["created"]) + list(classes_result["existing"]) if not classe_est_ouverte(classe)),
+        "cours_crees": len(cours_result["created"]),
+        "cours_existants": len(cours_result["existing"]),
+        "cours_ignores_classe_fermee": len(cours_result["skipped_closed_class"]),
+        "classes": classes_result,
+        "cours": cours_result,
+    }
+    return summary, None
 
 
 def count_inscriptions_annee(ecole_id, annee_scolaire_id):

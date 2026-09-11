@@ -8,13 +8,16 @@ from .common import (
     db,
     flash,
     get_ecole_filter_query,
+    jsonify,
     login_required,
     redirect,
     render_template,
     request,
     role_required,
+    session,
     url_for,
 )
+from app.services.classes_annuelles import preparer_structure_annee
 
 
 @main.route('/annees', methods=['GET', 'POST'])
@@ -126,3 +129,41 @@ def changer_annee(annee_id):
         return redirect(url_for('main.onboarding'))
 
     return redirect(request.referrer or url_for('main.gestion_annees'))
+
+
+@main.route('/annees/<int:annee_id>/preparer-structure', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def preparer_structure_annee_route(annee_id):
+    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
+    if not ecole_id:
+        return jsonify({"success": False, "message": "Veuillez selectionner une ecole."}), 403
+
+    payload = request.get_json(silent=True) or {}
+    source_id = payload.get('annee_source_id') or request.form.get('annee_source_id', type=int)
+    try:
+        source_id = int(source_id) if source_id else None
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Annee source invalide."}), 400
+
+    result, error = preparer_structure_annee(ecole_id, annee_id, source_id)
+    if error:
+        db.session.rollback()
+        return jsonify({"success": False, "message": error}), 400
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Structure annuelle preparee.",
+        "result": {
+            "annee_source_id": result["annee_source_id"],
+            "annee_cible_id": result["annee_cible_id"],
+            "classes_creees": result["classes_creees"],
+            "classes_existantes": result["classes_existantes"],
+            "classes_ignorees_niveau_desactive": result["classes_ignorees_niveau_desactive"],
+            "classes_fermees": result["classes_fermees"],
+            "cours_crees": result["cours_crees"],
+            "cours_existants": result["cours_existants"],
+            "cours_ignores_classe_fermee": result["cours_ignores_classe_fermee"],
+        }
+    })
