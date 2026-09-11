@@ -398,6 +398,7 @@ class Classe(db.Model):
     section = db.Column(db.String(30), nullable=True)
     effectif = db.Column(db.Integer, default=0)
     capacite = db.Column(db.Integer, default=30)
+    statut = db.Column(db.String(20), nullable=False, default='ouverte', server_default='ouverte')
 
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'), nullable=False)
     ecole = db.relationship('Ecole', back_populates='classes')
@@ -446,6 +447,10 @@ class Classe(db.Model):
     def est_pleine(self):
         return self.effectif_reel >= self.capacite_totale
 
+    @property
+    def est_ouverte(self):
+        return (self.statut or 'ouverte') == 'ouverte'
+
     def __repr__(self):
         return f'<Classe {self.nom_complet}>'
 
@@ -460,6 +465,8 @@ class Classe(db.Model):
             "salle": self.salle,
             "professeur_id": self.professeur_id,
             "annee_scolaire_id": self.annee_scolaire_id,
+            "statut": self.statut,
+            "est_ouverte": self.est_ouverte,
             "capacite": self.capacite_totale,
             "capacite_max": self.capacite_totale,
             "effectif_reel": self.effectif_reel,

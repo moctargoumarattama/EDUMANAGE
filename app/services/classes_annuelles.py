@@ -1,0 +1,119 @@
+from app import db
+from app.models import AnneeScolaire, Classe, Inscription
+from app.services.niveaux import niveau_peut_etre_utilise
+
+
+STATUT_CLASSE_OUVERTE = "ouverte"
+STATUT_CLASSE_FERMEE = "fermee"
+STATUTS_CLASSE = {STATUT_CLASSE_OUVERTE, STATUT_CLASSE_FERMEE}
+
+
+def classe_est_ouverte(classe):
+    return bool(classe) and (classe.statut or STATUT_CLASSE_OUVERTE) == STATUT_CLASSE_OUVERTE
+
+
+def get_classes_ouvertes_annee(ecole_id, annee_scolaire_id):
+    return Classe.query.filter_by(
+        ecole_id=ecole_id,
+        annee_scolaire_id=annee_scolaire_id,
+        statut=STATUT_CLASSE_OUVERTE,
+    )
+
+
+def set_classe_ouverte(ecole_id, classe_id, ouverte):
+    classe = Classe.query.filter_by(id=classe_id, ecole_id=ecole_id).first()
+    if not classe:
+        return None, "Classe introuvable pour cet etablissement."
+    if classe.annee_scolaire and classe.annee_scolaire.statut == "archivee":
+        return None, "Impossible de modifier une classe d'une annee archivee."
+
+    classe.statut = STATUT_CLASSE_OUVERTE if ouverte else STATUT_CLASSE_FERMEE
+    db.session.flush()
+    return classe, None
+
+
+def _classe_identity(classe):
+    section = (classe.section or "").strip().upper()
+    if classe.niveau_id:
+        return ("niveau_section", classe.niveau_id, section)
+    return ("nom", (classe.nom or "").strip().upper())
+
+
+def _source_classes_autorisees(ecole_id, source_annee_id):
+    return (
+        Classe.query
+        .filter_by(ecole_id=ecole_id, annee_scolaire_id=source_annee_id)
+        .order_by(Classe.niveau_id.asc(), Classe.nom.asc(), Classe.id.asc())
+        .all()
+    )
+
+
+def preparer_structure_classes(ecole_id, annee_cible_id, source_annee_id=None, statuts=None):
+    annee_cible = AnneeScolaire.query.filter_by(id=annee_cible_id, ecole_id=ecole_id).first()
+    if not annee_cible:
+        return None, "Annee cible invalide pour cet etablissement."
+    if annee_cible.statut == "archivee":
+        return None, "Impossible de preparer les classes d'une annee archivee."
+
+    if source_annee_id is None:
+        source = (
+            AnneeScolaire.query
+            .filter(
+                AnneeScolaire.ecole_id == ecole_id,
+                AnneeScolaire.id != annee_cible.id,
+                AnneeScolaire.date_debut < annee_cible.date_debut,
+            )
+            .order_by(AnneeScolaire.date_debut.desc(), AnneeScolaire.id.desc())
+            .first()
+        )
+    else:
+        source = AnneeScolaire.query.filter_by(id=source_annee_id, ecole_id=ecole_id).first()
+    if not source:
+        return {"created": [], "existing": [], "skipped": []}, None
+
+    existing = {
+        _classe_identity(classe): classe
+        for classe in Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_cible.id).all()
+    }
+    requested_statuts = statuts or {}
+    result = {"created": [], "existing": [], "skipped": []}
+
+    for source_classe in _source_classes_autorisees(ecole_id, source.id):
+        if source_classe.niveau_id and not niveau_peut_etre_utilise(ecole_id, source_classe.niveau_id):
+            result["skipped"].append(source_classe)
+            continue
+
+        identity = _classe_identity(source_classe)
+        requested = requested_statuts.get(source_classe.id, source_classe.statut or STATUT_CLASSE_OUVERTE)
+        statut = requested if requested in STATUTS_CLASSE else STATUT_CLASSE_OUVERTE
+
+        if identity in existing:
+            target = existing[identity]
+            target.statut = statut
+            result["existing"].append(target)
+            continue
+
+        classe = Classe(
+            nom=source_classe.nom,
+            niveau=source_classe.niveau,
+            niveau_id=source_classe.niveau_id,
+            section=source_classe.section,
+            effectif=0,
+            capacite=source_classe.capacite or source_classe.capacite_max or 35,
+            capacite_max=source_classe.capacite_max or source_classe.capacite or 35,
+            statut=statut,
+            ecole_id=ecole_id,
+            salle=source_classe.salle,
+            professeur_id=None,
+            annee_scolaire_id=annee_cible.id,
+        )
+        db.session.add(classe)
+        db.session.flush()
+        existing[identity] = classe
+        result["created"].append(classe)
+
+    return result, None
+
+
+def count_inscriptions_annee(ecole_id, annee_scolaire_id):
+    return Inscription.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_scolaire_id).count()

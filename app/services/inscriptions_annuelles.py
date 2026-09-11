@@ -2,6 +2,7 @@ from datetime import datetime
 
 from app import db
 from app.models import AnneeScolaire, Classe, Eleve, Inscription
+from app.services.classes_annuelles import classe_est_ouverte
 
 
 STATUTS_INSCRIPTION = {"inscrit", "termine", "sorti", "transfere", "diplome"}
@@ -53,6 +54,8 @@ def _validate_inscription_context(ecole_id, eleve_id, annee_scolaire_id, classe_
         return None, None, None, "Classe invalide pour cet etablissement."
     if classe.annee_scolaire_id != annee.id:
         return None, None, None, "La classe n'appartient pas a cette annee scolaire."
+    if not classe_est_ouverte(classe):
+        return None, None, None, "La classe est fermee pour cette annee scolaire."
 
     return eleve, annee, classe, None
 
