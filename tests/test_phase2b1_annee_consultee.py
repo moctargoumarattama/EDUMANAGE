@@ -6,6 +6,7 @@ from sqlalchemy import event
 from app import create_app, db
 from app.config import Config
 from app.models import AnneeScolaire, Classe, Ecole, Eleve, Inscription, Utilisateur
+from flask import template_rendered
 from app.services.annees_scolaires import (
     get_annee_active,
     get_annee_consultee,
@@ -102,6 +103,15 @@ class Phase2B1AnneeConsulteeTestCase(unittest.TestCase):
             session["_fresh"] = True
         return client
 
+    def _capture_templates(self):
+        recorded = []
+
+        def record(_sender, template, context, **_extra):
+            recorded.append((template, context))
+
+        template_rendered.connect(record, self.app)
+        return recorded, record
+
     def test_moteur_annee_consultee_fallback_session_et_multi_ecoles(self):
         with self.app.test_request_context("/"):
             self.assertEqual(get_annee_active(self.ecole_a.id).id, self.annee_active.id)
@@ -126,6 +136,25 @@ class Phase2B1AnneeConsulteeTestCase(unittest.TestCase):
         self.assertEqual(client.get("/classes").status_code, 200)
         self.assertEqual(client.get(f"/classes?annee_id={self.annee_archivee.id}").status_code, 200)
         self.assertEqual(client.get("/classes?annee_id=999999").status_code, 200)
+
+    def test_classes_template_recoit_annee_consultee_et_annees_ecole(self):
+        client = self._client_as_admin()
+        recorded, receiver = self._capture_templates()
+        try:
+            response = client.get("/classes")
+            self.assertEqual(response.status_code, 200)
+            context = recorded[-1][1]
+            self.assertEqual(context["annee_consultee"].id, self.annee_active.id)
+            self.assertEqual({a.id for a in context["annees_ecole"]}, {self.annee_active.id, self.annee_archivee.id})
+            self.assertNotIn(self.annee_b.id, {a.id for a in context["annees_ecole"]})
+
+            response = client.get(f"/classes?annee_id={self.annee_archivee.id}")
+            self.assertEqual(response.status_code, 200)
+            context = recorded[-1][1]
+            self.assertEqual(context["annee_consultee"].id, self.annee_archivee.id)
+            self.assertEqual(db.session.get(AnneeScolaire, self.annee_archivee.id).statut, "archivee")
+        finally:
+            template_rendered.disconnect(receiver, self.app)
 
     def test_eleves_annuels_filtre_historique_pagination_et_cache_classe(self):
         eleves_2025 = get_eleves_annee_query(self.ecole_a.id, self.annee_archivee.id).all()

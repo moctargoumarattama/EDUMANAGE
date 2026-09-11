@@ -28,7 +28,7 @@ from .common import (
     url_for,
 )
 from app.services import get_statistics
-from app.services.annees_scolaires import get_annee_consultee, get_classes_annee
+from app.services.annees_scolaires import get_annee_consultee, get_annees_ecole, get_classes_annee
 from app.services.niveaux import creer_classe_depuis_niveau, get_niveau_configs_grouped, modifier_classe_depuis_niveau, set_cycle_actif, set_niveau_actif
 
 
@@ -85,6 +85,7 @@ def liste_classes():
         return redirect(url_for("main.index"))
 
     annee_consultee = get_annee_consultee(ecole_id, request.args.get("annee_id", type=int))
+    annees_ecole = get_annees_ecole(ecole_id)
     base_query = get_classes_annee(ecole_id, annee_consultee.id) if annee_consultee else Classe.query.filter_by(ecole_id=ecole_id).filter(db.false())
 
     if current_user.role == 'professeur':
@@ -141,6 +142,8 @@ def liste_classes():
             'niveau': niveau,
             'sort': sort_by
         },
+        annee_consultee=annee_consultee,
+        annees_ecole=annees_ecole,
         start_item=start_item,
         end_item=end_item
     )
