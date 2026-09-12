@@ -33,6 +33,9 @@ class RequestFormatter(logging.Formatter):
         return super().format(record)
 
 def setup_logging(app):
+    if app.config.get('TESTING'):
+        return
+
     if not os.path.exists('logs'):
         os.mkdir('logs')
 
