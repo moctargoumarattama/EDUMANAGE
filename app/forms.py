@@ -133,7 +133,7 @@ class CoursForm(FlaskForm):
     nom = StringField('Nom du cours', validators=[DataRequired(), Length(max=100)])
     description = TextAreaField('Description', validators=[Optional()])
     coefficient = FloatField('Coefficient', default=1.0, validators=[DataRequired()])
-    professeur_id = SelectField('Professeur', coerce=int, validators=[DataRequired()])
+    professeur_id = SelectField('Professeur', coerce=int, validators=[Optional()])
     classe_id = SelectField('Classe', coerce=int, validators=[DataRequired()])  # <-- nouveau
     submit = SubmitField('Enregistrer le cours')
 

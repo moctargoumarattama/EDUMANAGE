@@ -36,27 +36,76 @@ from .common import (
 from unidecode import unidecode
 import pandas as pd
 from app.services import check_ecole_access
+from app.services.annees_scolaires import get_annee_consultee, get_annees_ecole
+from app.services.classes_annuelles import classe_est_ouverte
 from app.services.cours_annuels import valider_classe_pour_nouveau_cours
 from app.utils import get_annee_active
 
 
+def _professeurs_affectables(ecole_id):
+    return (
+        Professeur.query
+        .filter_by(ecole_id=ecole_id)
+        .order_by(Professeur.nom.asc(), Professeur.prenom.asc(), Professeur.id.asc())
+        .all()
+    )
+
+
+def _professeur_choices(professeurs):
+    return [(0, "Non affecte")] + [
+        (prof.id, f"{prof.prenom} {prof.nom}") for prof in professeurs
+    ]
+
+
+def _cours_annee_query(ecole_id, annee_id):
+    query = (
+        Cours.query
+        .join(Classe, Classe.id == Cours.classe_id)
+        .options(joinedload(Cours.classe), joinedload(Cours.professeur), joinedload(Cours.notes))
+        .filter(Cours.ecole_id == ecole_id, Classe.ecole_id == ecole_id)
+    )
+    if annee_id:
+        query = query.filter(Classe.annee_scolaire_id == annee_id)
+    else:
+        query = query.filter(False)
+    return query
+
+
+def _valider_affectation_professeur(ecole_id, cours_id, professeur_id):
+    cours = (
+        Cours.query
+        .join(Classe, Classe.id == Cours.classe_id)
+        .options(joinedload(Cours.classe).joinedload(Classe.annee_scolaire))
+        .filter(Cours.id == cours_id, Cours.ecole_id == ecole_id, Classe.ecole_id == ecole_id)
+        .first()
+    )
+    if not cours:
+        return None, None, "Cours introuvable pour cet etablissement."
+    if not cours.classe:
+        return None, None, "Ce cours n'est rattache a aucune classe."
+    if cours.classe.annee_scolaire and cours.classe.annee_scolaire.statut == "archivee":
+        return None, None, "Impossible de modifier une affectation dans une annee archivee."
+    if not classe_est_ouverte(cours.classe):
+        return None, None, "Impossible de modifier une affectation dans une classe fermee."
+    if not professeur_id:
+        return cours, None, None
+
+    professeur = Professeur.query.filter_by(id=professeur_id, ecole_id=ecole_id).first()
+    if not professeur:
+        return None, None, "Professeur invalide pour cet etablissement."
+    return cours, professeur, None
+
+
 @main.route('/cours')
 @login_required
-@role_required('admin', 'professeur')
+@role_required('admin', 'super_admin', 'professeur')
 def cours():
-    """
-    Page de gestion des cours filtrÃ©e par Ã©cole
-    Affichage diffÃ©renciÃ© selon le rÃ´le utilisateur
-    """
-    
-    # === INITIALISATION DES DONNÃ‰ES DE BASE ===
     ecole_courante = get_ecole_courante()
     delete_form = DeleteForm()
-    is_super_admin = getattr(current_user, 'is_super_admin', False)
-    
-    # === FONCTION UTILITAIRE POUR LA SÃ‰RIALISATION JSON ===
+    annee_consultee = get_annee_consultee(ecole_courante.id, request.args.get("annee_id", type=int))
+    annees_ecole = get_annees_ecole(ecole_courante.id)
+
     def cours_to_dict(cours_item):
-        """Transforme un objet Cours en dictionnaire pour JSON"""
         return {
             'id': cours_item.id,
             'nom': cours_item.nom,
@@ -65,103 +114,67 @@ def cours():
             'classe': {
                 'id': cours_item.classe.id,
                 'nom': cours_item.classe.nom,
-                'niveau': cours_item.classe.niveau
+                'niveau': cours_item.classe.niveau,
+                'statut': cours_item.classe.statut,
+                'annee_scolaire_id': cours_item.classe.annee_scolaire_id,
             } if cours_item.classe else None,
             'professeur': {
                 'id': cours_item.professeur.id,
                 'prenom': cours_item.professeur.prenom,
-                'nom': cours_item.professeur.nom
+                'nom': cours_item.professeur.nom,
             } if cours_item.professeur else None,
             'notes_count': len(cours_item.notes) if hasattr(cours_item, 'notes') else 0,
-            'ecole_id': cours_item.ecole_id
+            'ecole_id': cours_item.ecole_id,
         }
 
-    # === LOGIQUE SPÃ‰CIFIQUE PAR RÃ”LE ===
-    
-    if current_user.role == 'admin':
-        # === ADMINISTRATEUR ===
+    if current_user.role in ('admin', 'super_admin'):
         form = CoursForm()
-        
-        # RÃ©cupÃ©ration des donnÃ©es de l'Ã©cole
-        professeurs = Professeur.query.filter_by(
-            ecole_id=ecole_courante.id
-        ).order_by(Professeur.nom, Professeur.prenom).all()
-        
+        professeurs = _professeurs_affectables(ecole_courante.id)
         classes = (
             Classe.query
             .filter_by(ecole_id=ecole_courante.id, statut="ouverte")
             .filter(~Classe.annee_scolaire.has(statut="archivee"))
+            .filter(Classe.annee_scolaire_id == annee_consultee.id if annee_consultee else False)
             .order_by(Classe.niveau, Classe.nom)
             .all()
         )
-        
-        # RÃ©cupÃ©ration des cours avec filtre super admin
-        if is_super_admin:
-            tous_cours = Cours.query.order_by(Cours.nom).all()
-        else:
-            tous_cours = Cours.query.filter_by(
-                ecole_id=ecole_courante.id
-            ).order_by(Cours.nom).all()
-        
-        # Peuplement des choix des formulaires
-        form.professeur_id.choices = [
-            (prof.id, f"{prof.prenom} {prof.nom}") 
-            for prof in professeurs
-        ]
+        tous_cours = (
+            _cours_annee_query(ecole_courante.id, annee_consultee.id if annee_consultee else None)
+            .order_by(Classe.nom.asc(), Cours.nom.asc())
+            .all()
+        )
+        form.professeur_id.choices = _professeur_choices(professeurs)
         form.classe_id.choices = [
-            (classe.id, f"{classe.nom} ({classe.niveau})") 
+            (classe.id, f"{classe.nom} ({classe.niveau})")
             for classe in classes
         ]
-        
-        # Calcul des statistiques
-        professeurs_actifs = len(set([
-            c.professeur_id for c in tous_cours 
-            if c.professeur_id
-        ]))
-        notes_total = sum([
-            len(c.notes) for c in tous_cours 
-            if hasattr(c, 'notes')
-        ])
+        professeurs_actifs = len({c.professeur_id for c in tous_cours if c.professeur_id})
+        notes_total = sum(len(c.notes) for c in tous_cours if hasattr(c, 'notes'))
         cours_total = len(tous_cours)
-        
-        # SÃ©rialisation JSON
         cours_json = [cours_to_dict(c) for c in tous_cours]
-        
+        cours_source = tous_cours
     else:
-        # === PROFESSEUR ===
         form = None
-        
-        # VÃ©rification du profil enseignant
+        professeurs = []
         professeur = Professeur.query.filter_by(
             utilisateur_id=current_user.id,
-            ecole_id=ecole_courante.id
+            ecole_id=ecole_courante.id,
         ).first()
-        
         if not professeur:
-            flash(
-                "âŒ Profil enseignant introuvable pour cette Ã©cole.", 
-                "danger"
-            )
+            flash("Profil enseignant introuvable pour cette ecole.", "danger")
             return redirect(url_for('main.index'))
-        
-        # RÃ©cupÃ©ration des cours assignÃ©s
-        mes_cours = Cours.query.filter_by(
-            professeur_id=professeur.id,
-            ecole_id=ecole_courante.id
-        ).order_by(Cours.nom).all()
-        
-        # Calcul des statistiques
-        notes_total = sum([
-            len(c.notes) for c in mes_cours 
-            if hasattr(c, 'notes')
-        ])
+        mes_cours = (
+            _cours_annee_query(ecole_courante.id, annee_consultee.id if annee_consultee else None)
+            .filter(Cours.professeur_id == professeur.id)
+            .order_by(Classe.nom.asc(), Cours.nom.asc())
+            .all()
+        )
+        notes_total = sum(len(c.notes) for c in mes_cours if hasattr(c, 'notes'))
         cours_total = len(mes_cours)
-        professeurs_actifs = 1  # Le professeur courant
-        
-        # SÃ©rialisation JSON
+        professeurs_actifs = 1
         cours_json = [cours_to_dict(c) for c in mes_cours]
+        cours_source = mes_cours
 
-    # === RENDU DU TEMPLATE ===
     return render_template(
         'cours.html',
         cours=cours_json,
@@ -170,21 +183,56 @@ def cours():
         professeurs_count=professeurs_actifs,
         notes_count=notes_total,
         cours_count=cours_total,
-        ecole_nom=ecole_courante.nom if ecole_courante else "SystÃ¨me"
+        ecole_nom=ecole_courante.nom if ecole_courante else "Systeme",
+        annee_consultee=annee_consultee,
+        annees_ecole=annees_ecole,
+        professeurs=professeurs,
+        cours_sans_professeur=sum(1 for c in cours_source if not c.professeur_id),
+        affectations_modifiables=bool(
+            annee_consultee
+            and annee_consultee.statut != "archivee"
+            and current_user.role in ('admin', 'super_admin')
+        ),
     )
+
+
+@main.route('/cours/<int:cours_id>/professeur', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def affecter_professeur_cours(cours_id):
+    ecole_courante = get_ecole_courante()
+    payload = request.get_json(silent=True) if request.is_json else None
+    raw_professeur_id = payload.get("professeur_id") if isinstance(payload, dict) else request.form.get("professeur_id")
+    try:
+        professeur_id = int(raw_professeur_id) if raw_professeur_id not in (None, "") else None
+    except (TypeError, ValueError):
+        professeur_id = None
+    professeur_id = professeur_id or None
+    cours_obj, professeur, error = _valider_affectation_professeur(ecole_courante.id, cours_id, professeur_id)
+    if error:
+        if request.is_json:
+            return jsonify({"success": False, "message": error}), 400
+        flash(error, "danger")
+        return redirect(request.referrer or url_for('main.cours'))
+
+    cours_obj.professeur_id = professeur.id if professeur else None
+    db.session.commit()
+
+    if request.is_json:
+        return jsonify({"success": True, "professeur_id": cours_obj.professeur_id})
+    flash("Affectation professeur enregistree.", "success")
+    return redirect(request.referrer or url_for('main.cours', annee_id=cours_obj.classe.annee_scolaire_id))
+
 
 @main.route('/ajouter_cours', methods=['POST'])
 @login_required
-@role_required('admin')
+@role_required('admin', 'super_admin')
 def ajouter_cours():
     ecole_courante = get_ecole_courante()
     form = CoursForm()
 
     # Choix restreints Ã  l'Ã©cole courante
-    form.professeur_id.choices = [
-        (p.id, f"{p.prenom} {p.nom}") 
-        for p in Professeur.query.filter_by(ecole_id=ecole_courante.id).order_by(Professeur.nom).all()
-    ]
+    form.professeur_id.choices = _professeur_choices(_professeurs_affectables(ecole_courante.id))
     form.classe_id.choices = [
         (c.id, f"{c.nom} ({c.niveau})") 
         for c in (
@@ -199,12 +247,9 @@ def ajouter_cours():
     if form.validate_on_submit():
         try:
             # VÃ©rification stricte dans l'Ã©cole courante
-            prof = Professeur.query.filter_by(id=form.professeur_id.data, ecole_id=ecole_courante.id).first()
+            prof = Professeur.query.filter_by(id=form.professeur_id.data, ecole_id=ecole_courante.id).first() if form.professeur_id.data else None
             classe, classe_error = valider_classe_pour_nouveau_cours(ecole_courante.id, form.classe_id.data)
 
-            if not prof:
-                flash("Le professeur ou la classe nâ€™appartient pas Ã  votre Ã©cole.", "danger")
-                return redirect(url_for('main.cours'))
             if classe_error:
                 flash(classe_error, "danger")
                 return redirect(url_for('main.cours'))
@@ -222,7 +267,7 @@ def ajouter_cours():
                 nom=form.nom.data,
                 description=form.description.data,
                 coefficient=form.coefficient.data,
-                professeur_id=prof.id,
+                professeur_id=prof.id if prof else None,
                 classe_id=classe.id,
                 ecole_id=ecole_courante.id
             )

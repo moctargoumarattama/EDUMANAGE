@@ -13,14 +13,14 @@
                 </div>
                 <div>
                     <h1 class="page-title">
-                        {% if current_user.role == 'admin' %}
+                        {% if current_user.role in ['admin', 'super_admin'] %}
                             Gestion des Cours par Classe
                         {% else %}
                             Mes Cours par Classe
                         {% endif %}
                     </h1>
                     <p class="page-subtitle d-none d-md-block">
-                        {% if current_user.role == 'admin' %}
+                        {% if current_user.role in ['admin', 'super_admin'] %}
                             Consultez, recherchez et organisez les matiÃƒÂ¨res enseignÃƒÂ©es par classe dans l'ÃƒÂ©tablissement.
                         {% else %}
                             Liste des cours et matiÃƒÂ¨res qui vous sont assignÃƒÂ©s, regroupÃƒÂ©s par classe.
@@ -29,10 +29,27 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
+                {% if annees_ecole %}
+                <form method="GET" action="{{ url_for('main.cours') }}" class="d-flex align-items-center gap-2">
+                    <label for="annee_id" class="small fw-semibold text-muted mb-0">Ann&eacute;e scolaire :</label>
+                    <select name="annee_id" id="annee_id" class="form-select form-select-sm" onchange="this.form.submit()" style="min-height: 42px;">
+                        {% for annee in annees_ecole %}
+                        <option value="{{ annee.id }}" {% if annee_consultee and annee.id == annee_consultee.id %}selected{% endif %}>
+                            {{ annee.nom }}{% if annee.statut %} - {{ annee.statut|capitalize }}{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </form>
+                {% endif %}
+                {% if current_user.role in ['admin', 'super_admin'] %}
+                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">
+                    {{ cours_sans_professeur }} sans professeur
+                </span>
+                {% endif %}
                 <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllClassAccordions" title="DÃƒÂ©plier ou replier toutes les classes">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout dÃƒÂ©plier</span>
                 </button>
-                {% if form and current_user.role == 'admin' %}
+                {% if form and current_user.role in ['admin', 'super_admin'] and affectations_modifiables %}
                 <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours" aria-expanded="false" aria-controls="collapseAjouterCours" id="btnToggleAddCourse">
                     <i class="fas fa-plus-circle me-2"></i>Nouveau cours
                 </button>
@@ -42,7 +59,7 @@
     </section>
 
     <!-- Formulaire d'ajout (admin, rÃƒÂ©tractable pour prÃƒÂ©server le confort mobile) -->
-    {% if form and current_user.role == 'admin' %}
+    {% if form and current_user.role in ['admin', 'super_admin'] and affectations_modifiables %}
     <div class="collapse mb-4" id="collapseAjouterCours">
         <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
             <div class="card-header bg-primary text-white py-3 px-4 d-flex justify-content-between align-items-center">
@@ -55,6 +72,9 @@
             <div class="card-body p-4 bg-light bg-opacity-50">
                 <form method="POST" action="{{ url_for('main.ajouter_cours') }}" class="needs-validation" novalidate>
                     {{ form.hidden_tag() }}
+                    {% if annee_consultee %}
+                    <input type="hidden" name="annee_id" value="{{ annee_consultee.id }}">
+                    {% endif %}
                     <div class="row g-3">
                         <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold" for="nom">Nom de la matiÃƒÂ¨re / cours <span class="text-danger">*</span></label>
@@ -69,7 +89,7 @@
                             {{ form.classe_id(class="form-select", id="classe_id") }}
                         </div>
                         <div class="col-12 col-md-3">
-                            <label class="form-label fw-semibold" for="professeur_id">Professeur assignÃƒÂ© <span class="text-danger">*</span></label>
+                            <label class="form-label fw-semibold" for="professeur_id">Professeur assignÃƒÂ©</label>
                             {{ form.professeur_id(class="form-select", id="professeur_id") }}
                         </div>
                         <div class="col-12">
@@ -136,7 +156,7 @@
             </div>
 
             <!-- Filtre par professeur (admin) -->
-            {% if current_user.role == 'admin' %}
+            {% if current_user.role in ['admin', 'super_admin'] %}
             <div class="col-6 col-md-3 col-lg-2">
                 <select id="filterProfSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="">Tous les professeurs</option>
@@ -157,7 +177,7 @@
             {% endif %}
 
             <!-- Tri des classes -->
-            <div class="col-6 col-md-2 col-lg-{% if current_user.role == 'admin' %}1{% else %}3{% endif %}">
+            <div class="col-6 col-md-2 col-lg-{% if current_user.role in ['admin', 'super_admin'] %}1{% else %}3{% endif %}">
                 <select id="sortClassesSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="nom-asc">Classe (A &rarr; Z)</option>
                     <option value="nom-desc">Classe (Z &rarr; A)</option>
@@ -285,7 +305,7 @@
                                     <th style="width: 70px;">ID</th>
                                     <th>MatiÃƒÂ¨re / Cours</th>
                                     <th>Coeff.</th>
-                                    {% if current_user.role == 'admin' %}<th>Professeur</th>{% endif %}
+                                    {% if current_user.role in ['admin', 'super_admin'] %}<th>Professeur</th>{% endif %}
                                     <th>Description</th>
                                     <th class="text-center">Notes</th>
                                     <th class="text-end pe-4">Actions</th>
@@ -306,13 +326,23 @@
                                     <td>
                                         <span class="badge bg-primary">x{{ c.coefficient }}</span>
                                     </td>
-                                    {% if current_user.role == 'admin' %}
+                                    {% if current_user.role in ['admin', 'super_admin'] %}
                                     <td>
-                                        {% if c.professeur %}
-                                            <span class="text-dark"><i class="fas fa-user-tie text-muted me-1"></i>{{ c.professeur.prenom }} {{ c.professeur.nom }}</span>
-                                        {% else %}
-                                            <span class="text-muted fst-italic">Non assignÃƒÂ©</span>
-                                        {% endif %}
+                                        {% set can_assign = affectations_modifiables and c.classe and c.classe.statut == 'ouverte' %}
+                                        <form method="POST" action="{{ url_for('main.affecter_professeur_cours', cours_id=c.id) }}" class="d-flex gap-2 align-items-center">
+                                            {{ delete_form.hidden_tag() }}
+                                            <select name="professeur_id" class="form-select form-select-sm" {% if not can_assign %}disabled{% endif %}>
+                                                <option value="0" {% if not c.professeur %}selected{% endif %}>Non affect&eacute;</option>
+                                                {% for prof in professeurs %}
+                                                <option value="{{ prof.id }}" {% if c.professeur and c.professeur.id == prof.id %}selected{% endif %}>
+                                                    {{ prof.prenom }} {{ prof.nom }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                            {% if can_assign %}
+                                            <button type="submit" class="btn btn-sm btn-outline-primary">OK</button>
+                                            {% endif %}
+                                        </form>
                                     </td>
                                     {% endif %}
                                     <td>
@@ -332,7 +362,7 @@
                                             <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-sm btn-outline-primary" title="DÃƒÂ©tails du cours">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            {% if current_user.role == 'admin' %}
+                                            {% if current_user.role in ['admin', 'super_admin'] %}
                                             <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-sm btn-outline-warning" title="Modifier le cours">
                                                 <i class="fas fa-edit"></i>
                                             </a>
@@ -367,7 +397,7 @@
                             </div>
 
                             <div class="d-flex align-items-center gap-2 flex-wrap text-muted small">
-                                {% if current_user.role == 'admin' %}
+                                {% if current_user.role in ['admin', 'super_admin'] %}
                                 <span>
                                     <i class="fas fa-user-tie me-1"></i>{{ prof_full }}
                                 </span>
@@ -376,6 +406,24 @@
                                     <i class="fas fa-file-signature me-1"></i>{{ c.notes_count }} note{{ 's' if c.notes_count > 1 else '' }}
                                 </span>
                             </div>
+
+                            {% if current_user.role in ['admin', 'super_admin'] %}
+                            {% set can_assign = affectations_modifiables and c.classe and c.classe.statut == 'ouverte' %}
+                            <form method="POST" action="{{ url_for('main.affecter_professeur_cours', cours_id=c.id) }}" class="d-flex gap-2 align-items-center">
+                                {{ delete_form.hidden_tag() }}
+                                <select name="professeur_id" class="form-select form-select-sm" {% if not can_assign %}disabled{% endif %}>
+                                    <option value="0" {% if not c.professeur %}selected{% endif %}>Non affect&eacute;</option>
+                                    {% for prof in professeurs %}
+                                    <option value="{{ prof.id }}" {% if c.professeur and c.professeur.id == prof.id %}selected{% endif %}>
+                                        {{ prof.prenom }} {{ prof.nom }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% if can_assign %}
+                                <button type="submit" class="btn btn-sm btn-outline-primary">OK</button>
+                                {% endif %}
+                            </form>
+                            {% endif %}
 
                             {% if c.description %}
                             <div class="text-muted small text-truncate" style="font-size: 0.8rem;">
@@ -387,7 +435,7 @@
                                 <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-outline-primary btn-sm" title="DÃƒÂ©tails">
                                     <i class="fas fa-eye me-1"></i>DÃƒÂ©tails
                                 </a>
-                                {% if current_user.role == 'admin' %}
+                                {% if current_user.role in ['admin', 'super_admin'] %}
                                 <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-outline-warning btn-sm" title="Modifier">
                                     <i class="fas fa-edit me-1"></i>Modifier
                                 </a>
@@ -475,7 +523,7 @@
                                     <th style="width: 70px;">ID</th>
                                     <th>MatiÃƒÂ¨re / Cours</th>
                                     <th>Coeff.</th>
-                                    {% if current_user.role == 'admin' %}<th>Professeur</th>{% endif %}
+                                    {% if current_user.role in ['admin', 'super_admin'] %}<th>Professeur</th>{% endif %}
                                     <th>Description</th>
                                     <th class="text-center">Notes</th>
                                     <th class="text-end pe-4">Actions</th>
@@ -494,7 +542,7 @@
                                         </div>
                                     </td>
                                     <td><span class="badge bg-primary">x{{ c.coefficient }}</span></td>
-                                    {% if current_user.role == 'admin' %}
+                                    {% if current_user.role in ['admin', 'super_admin'] %}
                                     <td>
                                         {% if c.professeur %}
                                             <span class="text-dark"><i class="fas fa-user-tie text-muted me-1"></i>{{ c.professeur.prenom }} {{ c.professeur.nom }}</span>
@@ -516,7 +564,7 @@
                                             <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-sm btn-outline-primary" title="DÃƒÂ©tails du cours">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            {% if current_user.role == 'admin' %}
+                                            {% if current_user.role in ['admin', 'super_admin'] %}
                                             <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-sm btn-outline-warning" title="Modifier le cours">
                                                 <i class="fas fa-edit"></i>
                                             </a>
@@ -549,7 +597,7 @@
                                 <span class="badge bg-primary">x{{ c.coefficient }}</span>
                             </div>
                             <div class="d-flex align-items-center gap-2 flex-wrap text-muted small">
-                                {% if current_user.role == 'admin' %}
+                                {% if current_user.role in ['admin', 'super_admin'] %}
                                 <span><i class="fas fa-user-tie me-1"></i>{{ prof_full }}</span>
                                 {% endif %}
                                 <span class="badge bg-light text-muted border">{{ c.notes_count }} note(s)</span>
@@ -563,7 +611,7 @@
                                 <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-outline-primary btn-sm" title="DÃƒÂ©tails">
                                     <i class="fas fa-eye me-1"></i>DÃƒÂ©tails
                                 </a>
-                                {% if current_user.role == 'admin' %}
+                                {% if current_user.role in ['admin', 'super_admin'] %}
                                 <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-outline-warning btn-sm" title="Modifier">
                                     <i class="fas fa-edit me-1"></i>Modifier
                                 </a>
@@ -603,7 +651,7 @@
         </div>
         <h2 class="h4 fw-bold text-dark">Aucun cours enregistrÃƒÂ©</h2>
         <p class="text-muted mb-3">Votre ÃƒÂ©tablissement n'a pas encore de cours ou de matiÃƒÂ¨res enregistrÃƒÂ©es.</p>
-        {% if form and current_user.role == 'admin' %}
+        {% if form and current_user.role in ['admin', 'super_admin'] and affectations_modifiables %}
         <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours">
             <i class="fas fa-plus-circle me-2"></i>CrÃƒÂ©er le premier cours
         </button>
