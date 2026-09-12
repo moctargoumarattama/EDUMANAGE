@@ -98,6 +98,9 @@
                             <td>{{ annee.date_debut.strftime('%d/%m/%Y') }}</td>
                             <td>{{ annee.date_fin.strftime('%d/%m/%Y') }}</td>
                             <td>
+                                {% if annee_consultee and annee.id == annee_consultee.id %}
+                                    <span class="badge bg-info text-dark">ConsultÃ©e</span>
+                                {% endif %}
                                 {% if annee.statut == 'active' %}
                                     <span class="badge bg-success">Active</span>
                                 {% elif annee.statut == 'planifiee' %}
@@ -107,6 +110,10 @@
                                 {% endif %}
                             </td>
                             <td class="text-end">
+                                <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}" class="d-inline">
+                                    {{ csrf_form.hidden_tag() }}
+                                    <button type="submit" class="btn btn-sm btn-outline-success">Consulter</button>
+                                </form>
                                 <a href="{{ url_for('main.structure_annee', annee_id=annee.id) }}" class="btn btn-sm btn-outline-secondary">
                                     <i class="fas fa-layer-group me-1"></i>Structure
                                 </a>
@@ -148,6 +155,13 @@
                 {% else %}
                     <span class="badge bg-secondary">Archivée</span>
                 {% endif %}
+                {% if annee_consultee and annee.id == annee_consultee.id %}
+                    <span class="badge bg-info text-dark">ConsultÃ©e</span>
+                {% endif %}
+                <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}">
+                    {{ csrf_form.hidden_tag() }}
+                    <button type="submit" class="btn btn-sm btn-outline-success">Consulter</button>
+                </form>
                 <a href="{{ url_for('main.structure_annee', annee_id=annee.id) }}" class="btn btn-sm btn-outline-secondary">
                     <i class="fas fa-layer-group me-1"></i>Structure
                 </a>

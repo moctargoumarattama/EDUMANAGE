@@ -226,6 +226,8 @@ class Phase2C3ClassesOuvertesTestCase(unittest.TestCase):
         self.assertEqual(Cours.query.filter_by(classe_id=self.classe_active.id).count(), count_before)
 
         set_classe_ouverte(self.ecole_a.id, self.classe_planifiee_b.id, True)
+        with client.session_transaction() as session:
+            session["annee_consultee"] = {str(self.ecole_a.id): self.planifiee.id}
         response = client.post("/ajouter_cours", data={
             "nom": "Physique",
             "description": "Intro",

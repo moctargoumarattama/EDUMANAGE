@@ -29,17 +29,14 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                {% if annees_ecole %}
-                <form method="GET" action="{{ url_for('main.cours') }}" class="d-flex align-items-center gap-2">
-                    <label for="annee_id" class="small fw-semibold text-muted mb-0">Ann&eacute;e scolaire :</label>
-                    <select name="annee_id" id="annee_id" class="form-select form-select-sm" onchange="this.form.submit()" style="min-height: 42px;">
-                        {% for annee in annees_ecole %}
-                        <option value="{{ annee.id }}" {% if annee_consultee and annee.id == annee_consultee.id %}selected{% endif %}>
-                            {{ annee.nom }}{% if annee.statut %} - {{ annee.statut|capitalize }}{% endif %}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </form>
+                {% if annee_consultee %}
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="small fw-semibold text-muted">Année consultée :</span>
+                    <span class="badge bg-light text-dark border">
+                        {{ annee_consultee.nom }}{% if annee_consultee.statut %} - {{ annee_consultee.statut|capitalize }}{% endif %}
+                    </span>
+                    <a href="{{ url_for('main.gestion_annees') }}" class="small text-decoration-none">Changer depuis Années</a>
+                </div>
                 {% endif %}
                 {% if current_user.role in ['admin', 'super_admin'] %}
                 <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">
@@ -72,9 +69,6 @@
             <div class="card-body p-4 bg-light bg-opacity-50">
                 <form method="POST" action="{{ url_for('main.ajouter_cours') }}" class="needs-validation" novalidate>
                     {{ form.hidden_tag() }}
-                    {% if annee_consultee %}
-                    <input type="hidden" name="annee_id" value="{{ annee_consultee.id }}">
-                    {% endif %}
                     <div class="row g-3">
                         <div class="col-12 col-md-4">
                             <label class="form-label fw-semibold" for="nom">Nom de la matiÃƒÂ¨re / cours <span class="text-danger">*</span></label>

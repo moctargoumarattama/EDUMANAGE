@@ -58,7 +58,7 @@ def eleves():
     ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
     if not ecole_id:
         abort(403)
-    annee_consultee = get_annee_consultee(ecole_id, request.args.get("annee_id", type=int))
+    annee_consultee = get_annee_consultee(ecole_id)
     annees_ecole = get_annees_ecole(ecole_id)
 
     # ---------------- Base query avec relations pour éviter N+1 ----------------
@@ -234,7 +234,7 @@ def ajouter_eleve():
     else:
         ecole_id = current_user.ecole_id
 
-    annee_consultee = get_annee_consultee(ecole_id, request.args.get("annee_id", type=int))
+    annee_consultee = get_annee_consultee(ecole_id)
     if annee_consultee and annee_consultee.statut == "archivee":
         flash("Impossible de creer un eleve dans une annee archivee.", "warning")
         return redirect(url_for('main.eleves'))
@@ -247,6 +247,7 @@ def ajouter_eleve():
 
     # ---------------- Classes ----------------
     annee_classes = annee_consultee or annee_active
+    annee_active = annee_classes
     classes_query = Classe.query.filter_by(ecole_id=ecole_id).filter(db.false())
     if annee_classes:
         classes_query = get_classes_ouvertes_annee(ecole_id, annee_classes.id)
@@ -272,6 +273,10 @@ def ajouter_eleve():
             classe_selectionnee = filtre_par_ecole(Classe.query, Classe).filter_by(id=form.classe_id.data).first()
             if not classe_selectionnee or classe_selectionnee.ecole_id != ecole_id:
                 flash("❌ Classe invalide ou non autorisée pour cette école.", "danger")
+                return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
+                                       annee_active=annee_active, classes=classes)
+            if not annee_consultee or classe_selectionnee.annee_scolaire_id != annee_consultee.id:
+                flash("Classe invalide pour l'annee consultee.", "danger")
                 return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
                                        annee_active=annee_active, classes=classes)
 

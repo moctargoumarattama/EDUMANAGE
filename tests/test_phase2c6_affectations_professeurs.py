@@ -124,13 +124,17 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
         self.assertIsNone(self.target_course.professeur_id)
 
         client = self.login_as(self.admin)
-        response = client.get(f"/cours?annee_id={self.target.id}")
+        with client.session_transaction() as session:
+            session["annee_consultee"] = {str(self.ecole_a.id): self.target.id}
+        response = client.get("/cours")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Mathematiques", response.data)
         self.assertIn(b"Non affect", response.data)
         self.assertNotIn(b"Prof B", response.data)
 
-        response = client.get(f"/cours?annee_id={self.source.id}")
+        with client.session_transaction() as session:
+            session["annee_consultee"] = {str(self.ecole_a.id): self.source.id}
+        response = client.get("/cours")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Prof Ali", response.data)
 

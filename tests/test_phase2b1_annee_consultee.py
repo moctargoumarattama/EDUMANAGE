@@ -127,7 +127,7 @@ class Phase2B1AnneeConsulteeTestCase(unittest.TestCase):
             archivee = get_annee_consultee(self.ecole_a.id, self.annee_archivee.id)
             self.assertEqual(archivee.id, self.annee_archivee.id)
             self.assertEqual(db.session.get(AnneeScolaire, self.annee_archivee.id).statut, "archivee")
-            self.assertEqual(get_annee_consultee(self.ecole_a.id).id, self.annee_archivee.id)
+            self.assertEqual(get_annee_consultee(self.ecole_a.id).id, self.annee_active.id)
 
             self.assertIsNone(set_annee_consultee(self.ecole_a.id, self.annee_b.id))
             self.assertEqual(get_annee_consultee(self.ecole_b.id).id, self.annee_b.id)
@@ -152,14 +152,19 @@ class Phase2B1AnneeConsulteeTestCase(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             context = recorded[-1][1]
             self.assertEqual(context["annee_consultee"].id, self.annee_active.id)
-            self.assertEqual({a.id for a in context["annees_ecole"]}, {self.annee_active.id, self.annee_archivee.id, self.annee_vide.id})
-            self.assertNotIn(self.annee_b.id, {a.id for a in context["annees_ecole"]})
 
             response = client.get(f"/classes?annee_id={self.annee_archivee.id}")
             self.assertEqual(response.status_code, 200)
             context = recorded[-1][1]
-            self.assertEqual(context["annee_consultee"].id, self.annee_archivee.id)
+            self.assertEqual(context["annee_consultee"].id, self.annee_active.id)
             self.assertEqual(db.session.get(AnneeScolaire, self.annee_archivee.id).statut, "archivee")
+
+            with client.session_transaction() as session:
+                session["annee_consultee"] = {str(self.ecole_a.id): self.annee_archivee.id}
+            response = client.get("/classes")
+            self.assertEqual(response.status_code, 200)
+            context = recorded[-1][1]
+            self.assertEqual(context["annee_consultee"].id, self.annee_archivee.id)
         finally:
             template_rendered.disconnect(receiver, self.app)
 
@@ -196,11 +201,13 @@ class Phase2B1AnneeConsulteeTestCase(unittest.TestCase):
             response = client.get(f"/eleves?annee_id={self.annee_archivee.id}&search=Moussa")
             self.assertEqual(response.status_code, 200)
             context = recorded[-1][1]
-            self.assertEqual(context["annee_consultee"].id, self.annee_archivee.id)
+            self.assertEqual(context["annee_consultee"].id, self.annee_active.id)
             self.assertEqual(context["total_eleves"], 1)
             self.assertEqual(db.session.get(AnneeScolaire, self.annee_archivee.id).statut, "archivee")
 
-            response = client.get(f"/eleves?annee_id={self.annee_vide.id}")
+            with client.session_transaction() as session:
+                session["annee_consultee"] = {str(self.ecole_a.id): self.annee_vide.id}
+            response = client.get("/eleves")
             self.assertEqual(response.status_code, 200)
             context = recorded[-1][1]
             self.assertEqual(context["annee_consultee"].id, self.annee_vide.id)

@@ -64,14 +64,14 @@
     <div class="filter-card mb-4">
         <form method="get" action="{{ url_for('main.liste_classes') }}" class="responsive-form-grid">
             <div>
-                <label for="annee_id" class="form-label">Année scolaire</label>
-                <select id="annee_id" name="annee_id" class="form-select">
-                    {% for annee in annees_ecole %}
-                    <option value="{{ annee.id }}" {% if annee_consultee and annee.id == annee_consultee.id %}selected{% endif %}>
-                        {{ annee.nom }}{% if annee.statut == 'active' %} - Active{% elif annee.statut == 'archivee' %} - Archivée{% elif annee.statut == 'planifiee' %} - Planifiée{% endif %}
-                    </option>
-                    {% endfor %}
-                </select>
+                <span class="form-label d-block">Année consultée</span>
+                <div class="form-control bg-light">
+                    {{ annee_consultee.nom if annee_consultee else 'Aucune année' }}
+                    {% if annee_consultee and annee_consultee.statut %}
+                    <span class="badge bg-secondary ms-2">{{ annee_consultee.statut|capitalize }}</span>
+                    {% endif %}
+                </div>
+                <a href="{{ url_for('main.gestion_annees') }}" class="small text-decoration-none">Changer depuis Années</a>
             </div>
             <div>
                 <label for="search" class="form-label">Recherche</label>

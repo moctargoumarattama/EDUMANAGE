@@ -28,7 +28,7 @@ from .common import (
     url_for,
 )
 from app.services import get_statistics
-from app.services.annees_scolaires import get_annee_consultee, get_annees_ecole, get_classes_annee
+from app.services.annees_scolaires import get_annee_consultee, get_classes_annee
 from app.services.classes_annuelles import set_classe_ouverte
 from app.services.niveaux import creer_classe_depuis_niveau, get_niveau_configs_grouped, modifier_classe_depuis_niveau, set_cycle_actif, set_niveau_actif
 
@@ -45,7 +45,7 @@ def api_classes():
         return jsonify([]), 403  # Super-admin sans école sélectionnée
 
     # Récupération de l'année scolaire active
-    annee_consultee = get_annee_consultee(ecole_id, request.args.get("annee_id", type=int))
+    annee_consultee = get_annee_consultee(ecole_id)
 
     # Filtrage des classes
     classes_query = Classe.query.filter_by(ecole_id=ecole_id)
@@ -85,8 +85,7 @@ def liste_classes():
         flash("Veuillez selectionner une ecole.", "warning")
         return redirect(url_for("main.index"))
 
-    annee_consultee = get_annee_consultee(ecole_id, request.args.get("annee_id", type=int))
-    annees_ecole = get_annees_ecole(ecole_id)
+    annee_consultee = get_annee_consultee(ecole_id)
     base_query = get_classes_annee(ecole_id, annee_consultee.id) if annee_consultee else Classe.query.filter_by(ecole_id=ecole_id).filter(db.false())
 
     if current_user.role == 'professeur':
@@ -144,7 +143,6 @@ def liste_classes():
             'sort': sort_by
         },
         annee_consultee=annee_consultee,
-        annees_ecole=annees_ecole,
         start_item=start_item,
         end_item=end_item
     )
@@ -156,7 +154,7 @@ def ajouter_classe():
     from app.models import AnneeScolaire, Professeur, Classe, NiveauScolaire
 
     # Récupération obligatoire de l'année scolaire active pour l'école
-    annee_consultee = get_annee_consultee(current_user.ecole_id, request.args.get("annee_id", type=int))
+    annee_consultee = get_annee_consultee(current_user.ecole_id)
     if annee_consultee and annee_consultee.statut == "archivee":
         flash("Impossible de creer une classe dans une annee archivee.", "warning")
         return redirect(url_for("main.liste_classes"))
@@ -195,7 +193,7 @@ def ajouter_classe():
             )
             if error_msg:
                 flash(error_msg, "warning")
-                return redirect(url_for("main.ajouter_classe", annee_id=annee_cible.id, niveau_id=form.niveau_id.data))
+                return redirect(url_for("main.ajouter_classe", niveau_id=form.niveau_id.data))
             flash(f"Classe '{classe.nom}' ajoutee avec succes pour l'annee {annee_cible.nom}.", "success")
             return redirect(url_for("main.structure_annee", annee_id=annee_cible.id))
 
@@ -203,7 +201,7 @@ def ajouter_classe():
             db.session.rollback()
             current_app.logger.error(f"Erreur ajout classe : {e}")
             flash("Erreur lors de l'ajout de la classe.", "danger")
-            return redirect(url_for("main.ajouter_classe", annee_id=annee_cible.id, niveau_id=form.niveau_id.data))
+            return redirect(url_for("main.ajouter_classe", niveau_id=form.niveau_id.data))
 
     niveaux_form = []
     for niveau_id, label in form.niveau_id.choices:

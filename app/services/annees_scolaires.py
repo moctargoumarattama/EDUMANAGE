@@ -66,10 +66,7 @@ def get_annee_consultee(ecole_id, annee_id=None):
         return None
 
     if annee_id:
-        annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
-        if annee:
-            set_annee_consultee(ecole_id, annee.id)
-            return annee
+        return AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
 
     stored_id = _get_session_annee_id(ecole_id)
     if stored_id:
@@ -77,10 +74,7 @@ def get_annee_consultee(ecole_id, annee_id=None):
         if annee:
             return annee
 
-    active = get_annee_active(ecole_id)
-    if active:
-        set_annee_consultee(ecole_id, active.id)
-    return active
+    return get_annee_active(ecole_id)
 
 
 def get_classes_annee(ecole_id, annee_id):

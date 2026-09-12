@@ -18,6 +18,7 @@ from .common import (
     url_for,
 )
 from app.services.classes_annuelles import preparer_structure_annee
+from app.services.annees_scolaires import get_annee_consultee, set_annee_consultee
 from app.services.niveaux import get_niveaux_actifs
 from app.models import Classe, Cours
 from app.services.niveaux_annuels import get_selection_annuelle, sauvegarder_selection_annuelle
@@ -29,7 +30,7 @@ def _current_ecole_id_for_annees():
 
 @main.route('/annees', methods=['GET', 'POST'])
 @login_required
-@role_required('admin')
+@role_required('admin', 'super_admin')
 def gestion_annees():
     csrf_form = CSRFForm()
 
@@ -64,6 +65,7 @@ def gestion_annees():
                 AnneeScolaire.query.filter_by(ecole_id=annee.ecole_id).update({'statut': 'archivee'})
                 annee.statut = 'active'
                 db.session.commit()
+                set_annee_consultee(annee.ecole_id, annee.id)
                 flash(f"L'année {annee.nom} est maintenant active.", "success")
             else:
                 flash("Action non autorisée pour cette école.", "danger")
@@ -113,19 +115,41 @@ def gestion_annees():
 
         return redirect(url_for('main.gestion_annees'))
 
-    return render_template('gestion_annees.html', annees=annees, ecoles=ecoles, csrf_form=csrf_form)
+    ecole_id = _current_ecole_id_for_annees()
+    annee_consultee = get_annee_consultee(ecole_id) if ecole_id else None
+    return render_template('gestion_annees.html', annees=annees, ecoles=ecoles, csrf_form=csrf_form, annee_consultee=annee_consultee)
+
+
+@main.route('/annees/<int:annee_id>/consulter', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def consulter_annee(annee_id):
+    ecole_id = _current_ecole_id_for_annees()
+    if not ecole_id:
+        flash("Veuillez selectionner une ecole.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    annee = set_annee_consultee(ecole_id, annee_id)
+    if not annee:
+        flash("Annee invalide pour cet etablissement.", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    flash(f"Annee consultee : {annee.nom}.", "success")
+    return redirect(url_for('main.gestion_annees'))
 
 @main.route('/changer_annee/<int:annee_id>', methods=['POST'])
 @login_required
-@role_required('admin')
+@role_required('admin', 'super_admin')
 def changer_annee(annee_id):
-    annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=current_user.ecole_id).first_or_404()
+    ecole_id = _current_ecole_id_for_annees()
+    annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first_or_404()
     try:
         # Désactiver toutes les années de la même école
         AnneeScolaire.query.filter_by(ecole_id=annee.ecole_id).update({'statut': 'archivee'})
         # Activer l'année sélectionnée
         annee.statut = 'active'
         db.session.commit()
+        set_annee_consultee(annee.ecole_id, annee.id)
         flash(f"L'année {annee.nom} est maintenant active.", "success")
     except Exception as e:
         db.session.rollback()

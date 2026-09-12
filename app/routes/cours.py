@@ -36,7 +36,7 @@ from .common import (
 from unidecode import unidecode
 import pandas as pd
 from app.services import check_ecole_access
-from app.services.annees_scolaires import get_annee_consultee, get_annees_ecole
+from app.services.annees_scolaires import get_annee_consultee
 from app.services.classes_annuelles import classe_est_ouverte
 from app.services.cours_annuels import valider_classe_pour_nouveau_cours
 from app.utils import get_annee_active
@@ -102,8 +102,7 @@ def _valider_affectation_professeur(ecole_id, cours_id, professeur_id):
 def cours():
     ecole_courante = get_ecole_courante()
     delete_form = DeleteForm()
-    annee_consultee = get_annee_consultee(ecole_courante.id, request.args.get("annee_id", type=int))
-    annees_ecole = get_annees_ecole(ecole_courante.id)
+    annee_consultee = get_annee_consultee(ecole_courante.id)
 
     def cours_to_dict(cours_item):
         return {
@@ -185,7 +184,6 @@ def cours():
         cours_count=cours_total,
         ecole_nom=ecole_courante.nom if ecole_courante else "Systeme",
         annee_consultee=annee_consultee,
-        annees_ecole=annees_ecole,
         professeurs=professeurs,
         cours_sans_professeur=sum(1 for c in cours_source if not c.professeur_id),
         affectations_modifiables=bool(
@@ -221,7 +219,7 @@ def affecter_professeur_cours(cours_id):
     if request.is_json:
         return jsonify({"success": True, "professeur_id": cours_obj.professeur_id})
     flash("Affectation professeur enregistree.", "success")
-    return redirect(request.referrer or url_for('main.cours', annee_id=cours_obj.classe.annee_scolaire_id))
+    return redirect(request.referrer or url_for('main.cours'))
 
 
 @main.route('/ajouter_cours', methods=['POST'])
@@ -229,6 +227,7 @@ def affecter_professeur_cours(cours_id):
 @role_required('admin', 'super_admin')
 def ajouter_cours():
     ecole_courante = get_ecole_courante()
+    annee_consultee = get_annee_consultee(ecole_courante.id)
     form = CoursForm()
 
     # Choix restreints Ã  l'Ã©cole courante
@@ -239,6 +238,7 @@ def ajouter_cours():
             Classe.query
             .filter_by(ecole_id=ecole_courante.id, statut="ouverte")
             .filter(~Classe.annee_scolaire.has(statut="archivee"))
+            .filter(Classe.annee_scolaire_id == annee_consultee.id if annee_consultee else False)
             .order_by(Classe.nom)
             .all()
         )
@@ -252,6 +252,9 @@ def ajouter_cours():
 
             if classe_error:
                 flash(classe_error, "danger")
+                return redirect(url_for('main.cours'))
+            if not annee_consultee or classe.annee_scolaire_id != annee_consultee.id:
+                flash("Classe invalide pour l'annee consultee.", "danger")
                 return redirect(url_for('main.cours'))
 
             doublon = Cours.query.filter_by(

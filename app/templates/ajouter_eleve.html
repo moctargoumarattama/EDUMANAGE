@@ -73,13 +73,14 @@
             <div class="form-section">
                 <h3 class="form-section-title"><i class="fas fa-school"></i> Informations scolaires</h3>
                 <div class="responsive-form-grid">
-                    <div class="form-floating">
-                        <select class="form-select" name="annee_scolaire_id" required>
-                            {% for annee in annees_ecole %}
-                            <option value="{{ annee.id }}" {% if annee_active and annee.id == annee_active.id %}selected{% endif %}>{{ annee.nom }}</option>
-                            {% endfor %}
-                        </select>
-                        <label>Année scolaire</label>
+                    <div>
+                        <span class="form-label d-block">Année consultée</span>
+                        <div class="form-control bg-light">
+                            {{ annee_active.nom if annee_active else 'Aucune année' }}
+                            {% if annee_active and annee_active.statut %}
+                            <span class="badge bg-secondary ms-2">{{ annee_active.statut|capitalize }}</span>
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="form-floating">
                         <select class="form-select" name="classe_id" id="classe_id" required>
@@ -163,25 +164,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const anneeSelect = document.querySelector('select[name="annee_scolaire_id"]');
-    const classeSelect = document.querySelector('select[name="classe_id"]');
-    if (anneeSelect && classeSelect) {
-        anneeSelect.addEventListener('change', () => {
-            fetch(`/get_classes/${anneeSelect.value}`)
-                .then(res => res.json())
-                .then(data => {
-                    classeSelect.innerHTML = '<option value="">Sélectionnez une classe</option>';
-                    data.classes.forEach(c => {
-                        const option = document.createElement('option');
-                        option.value = c.id;
-                        option.textContent = c.nom;
-                        classeSelect.appendChild(option);
-                    });
-                    if (data.classes.length > 0) classeSelect.value = data.classes[0].id;
-                })
-                .catch(err => console.error('Erreur lors du chargement des classes:', err));
-        });
-    }
 });
 </script>
 {% endblock %}

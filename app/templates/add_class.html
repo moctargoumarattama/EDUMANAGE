@@ -32,7 +32,7 @@
                 </div>
 
                 <div class="form-card-body">
-                    <form method="POST" action="{{ url_for('main.ajouter_classe', annee_id=annee_active.id if annee_active else None, niveau_id=selected_niveau_id) }}" class="needs-validation" novalidate>
+                    <form method="POST" action="{{ url_for('main.ajouter_classe', niveau_id=selected_niveau_id) }}" class="needs-validation" novalidate>
                         {{ form.hidden_tag() }}
 
                         <div class="form-section">

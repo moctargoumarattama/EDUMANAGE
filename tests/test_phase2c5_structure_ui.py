@@ -222,8 +222,10 @@ class Phase2C5StructureUITestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Classe.query.filter_by(ecole_id=empty_school.id, annee_scolaire_id=annee.id).count(), 0)
 
+        with client.session_transaction() as session:
+            session["annee_consultee"] = {str(empty_school.id): annee.id}
         response = client.post(
-            f"/classes/add?annee_id={annee.id}",
+            "/classes/add",
             data={
                 "nom": "6e C",
                 "niveau_id": n6.id,
