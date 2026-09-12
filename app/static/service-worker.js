@@ -1,5 +1,5 @@
 // static/service-worker.js - KLASORA PWA Service Worker
-const CACHE_VERSION = 'klasora-static-v4';
+const CACHE_VERSION = 'klasora-static-v5';
 const OFFLINE_URL = '/offline';
 
 // Ressources publiques et statiques génériques autorisées en cache
@@ -35,7 +35,7 @@ self.addEventListener('install', event => {
     );
 });
 
-// Activation et nettoyage des anciens caches
+// Activation et nettoyage des anciens caches (ex: klasora-static-v4)
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(cacheNames => {
@@ -51,23 +51,29 @@ self.addEventListener('activate', event => {
     );
 });
 
-// Helper pour fetch avec timeout
-function fetchWithTimeout(request, timeoutMs = 4000) {
-    return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => {
-            reject(new Error('Network timeout'));
-        }, timeoutMs);
-
-        fetch(request)
-            .then(response => {
-                clearTimeout(timer);
-                resolve(response);
-            })
-            .catch(err => {
-                clearTimeout(timer);
-                reject(err);
+// Gestionnaire de navigation HTML : Network-First sans timeout artificiel
+// Tente fetch(request) normalement (les réponses lentes ou HTTP 4xx/5xx sont rendues telles quelles).
+// Si fetch échoue (rejet réseau), fait une seconde tentative après 800ms pour absorber un reload Flask temporaire.
+// Uniquement si la 2ème tentative échoue également, bascule sur OFFLINE_URL.
+async function handleNavigation(request) {
+    try {
+        return await fetch(request);
+    } catch (firstError) {
+        // Pause de 800ms pour laisser le temps à un redémarrage temporaire de Flask
+        await new Promise(resolve => setTimeout(resolve, 800));
+        try {
+            return await fetch(request);
+        } catch (secondError) {
+            const offlineResponse = await caches.match(OFFLINE_URL);
+            if (offlineResponse) {
+                return offlineResponse;
+            }
+            return new Response('Hors connexion. Veuillez vérifier votre accès Internet.', {
+                status: 503,
+                headers: { 'Content-Type': 'text/plain; charset=utf-8' }
             });
-    });
+        }
+    }
 }
 
 // Interception des requêtes réseau
@@ -81,20 +87,9 @@ self.addEventListener('fetch', event => {
     }
 
     // 2. Requêtes de navigation HTML (pages de l'application)
-    // Sécurité : Network-First strict pour ne jamais servir de HTML privé périmé d'un autre utilisateur
+    // Network-First strict sans timeout artificiel, avec retry anti-rebond Flask
     if (request.mode === 'navigate') {
-        event.respondWith(
-            fetchWithTimeout(request, 4000)
-                .catch(() => {
-                    return caches.match(OFFLINE_URL).then(offlineResponse => {
-                        if (offlineResponse) return offlineResponse;
-                        return new Response('Hors connexion. Veuillez vérifier votre accès Internet.', {
-                            status: 503,
-                            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-                        });
-                    });
-                })
-        );
+        event.respondWith(handleNavigation(request));
         return;
     }
 
