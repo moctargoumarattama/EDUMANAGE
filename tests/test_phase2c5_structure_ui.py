@@ -5,10 +5,12 @@ from app import create_app, db
 from app.config import Config
 from app.models import (
     Absence,
+    AnneeNiveauConfig,
     AnneeScolaire,
     Classe,
     Cours,
     Ecole,
+    EcoleNiveauConfig,
     Eleve,
     EmploiTemps,
     Inscription,
@@ -114,16 +116,29 @@ class Phase2C5StructureUITestCase(unittest.TestCase):
 
         response = client.get(f"/annees/{self.target.id}/structure")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Preparer la structure", response.data)
-        self.assertIn(b"Ajouter une classe", response.data)
+        self.assertIn(b"Enregistrer la structure annuelle", response.data)
+        self.assertNotIn(b"Ajouter une classe", response.data)
+        self.assertNotIn(b"Ajouter une section", response.data)
+        self.assertNotIn(b"Ajouter une serie", response.data)
+        self.assertNotIn(b"/statut", response.data)
         self.assertIn(b"6e", response.data)
         self.assertNotIn(b"CI", response.data)
+        self.assertEqual(AnneeNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id, annee_scolaire_id=self.target.id).count(), 0)
+
+        response = client.post(
+            f"/annees/{self.target.id}/structure",
+            data={"niveau_ids": [str(self.n6.id)]},
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            {config.niveau_id for config in AnneeNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id, annee_scolaire_id=self.target.id, actif=True).all()},
+            {self.n6.id},
+        )
 
         response = client.post(f"/annees/{self.target.id}/preparer-structure", data={"_redirect_to_structure": "1"}, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"6e A", response.data)
-        self.assertIn(b"Mathematiques", response.data)
-        self.assertIn(b"professeur non affecte", response.data)
+        self.assertNotIn(b"6e A", response.data)
 
         self.assertEqual(Classe.query.filter_by(ecole_id=self.ecole_a.id, annee_scolaire_id=self.target.id).count(), 2)
         target_6a = Classe.query.filter_by(ecole_id=self.ecole_a.id, annee_scolaire_id=self.target.id, nom="6e A").first()
@@ -150,8 +165,7 @@ class Phase2C5StructureUITestCase(unittest.TestCase):
         self.assertEqual(db.session.get(Classe, classe.id).statut, "fermee")
 
         response = client.get(f"/annees/{self.target.id}/structure")
-        self.assertIn(b"Fermee", response.data)
-        self.assertIn(b"Ouvrir", response.data)
+        self.assertNotIn(f"/classes/{classe.id}/statut".encode(), response.data)
 
         self.archivee.statut = "active"
         db.session.flush()
@@ -166,6 +180,11 @@ class Phase2C5StructureUITestCase(unittest.TestCase):
         self.assertNotIn(b"Ajouter une classe", response.data)
         self.assertNotIn(f"/classes/{archived_classe.id}/statut".encode(), response.data)
         self.assertEqual(client.post(f"/classes/{archived_classe.id}/statut", json={"statut": "fermee"}).status_code, 400)
+
+        before = AnneeNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id, annee_scolaire_id=self.archivee.id).count()
+        response = client.post(f"/annees/{self.archivee.id}/structure", data={"niveau_ids": [str(self.n6.id)]}, follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(AnneeNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id, annee_scolaire_id=self.archivee.id).count(), before)
 
     def test_roles_et_multi_ecoles(self):
         admin_client = self.login_as(self.admin)
@@ -196,7 +215,8 @@ class Phase2C5StructureUITestCase(unittest.TestCase):
         client = self.login_as(admin)
         response = client.get(f"/annees/{annee.id}/structure")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b"Aucune classe", response.data)
+        self.assertIn(b"Selection par defaut", response.data)
+        self.assertEqual(AnneeNiveauConfig.query.filter_by(ecole_id=empty_school.id, annee_scolaire_id=annee.id).count(), 0)
 
         response = client.post(f"/annees/{annee.id}/preparer-structure", data={"_redirect_to_structure": "1"}, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
@@ -327,10 +347,14 @@ class Phase2C5StructureUITestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         for label in [b"CI", b"CP", b"6e", b"2nde", b"Terminale"]:
             self.assertIn(label, response.data)
-        self.assertIn(b"Ajouter une section", response.data)
-        self.assertIn(b"Ajouter une serie", response.data)
-        self.assertIn(b"Aucune section", response.data)
-        self.assertIn(b"Aucune serie", response.data)
+        self.assertIn(b"Primaire", response.data)
+        self.assertIn(b"College", response.data)
+        self.assertIn(b"Lycee", response.data)
+        self.assertIn(b'type="checkbox"', response.data)
+        self.assertNotIn(b"Ajouter une section", response.data)
+        self.assertNotIn(b"Ajouter une serie", response.data)
+        self.assertNotIn(b"Ajouter une classe", response.data)
+        self.assertNotIn(b"Autre", response.data)
         self.assertNotIn(b"CE1", response.data)
 
 

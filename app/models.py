@@ -67,6 +67,7 @@ class AnneeScolaire(db.Model):
     # Relations
     classes = db.relationship('Classe', back_populates='annee_scolaire', lazy=True)
     inscriptions = db.relationship('Inscription', back_populates='annee_scolaire', lazy=True)
+    niveaux_config = db.relationship('AnneeNiveauConfig', back_populates='annee_scolaire', lazy=True, cascade="all, delete-orphan")
 
     # Contrainte unique nom + ecole
     __table_args__ = (
@@ -104,6 +105,7 @@ class NiveauScolaire(db.Model):
 
     niveau_suivant = db.relationship('NiveauScolaire', remote_side=[id], lazy=True)
     configurations_ecoles = db.relationship('EcoleNiveauConfig', back_populates='niveau', lazy=True)
+    configurations_annuelles = db.relationship('AnneeNiveauConfig', back_populates='niveau', lazy=True)
     classes = db.relationship('Classe', back_populates='niveau_scolaire', lazy=True)
 
     __table_args__ = (
@@ -146,6 +148,29 @@ class EcoleNiveauConfig(db.Model):
         return f'<EcoleNiveauConfig ecole={self.ecole_id} niveau={self.niveau_id} actif={self.actif}>'
 
 
+class AnneeNiveauConfig(db.Model):
+    __tablename__ = 'annee_niveau_config'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'), nullable=False)
+    annee_scolaire_id = db.Column(db.Integer, db.ForeignKey('annee_scolaire.id'), nullable=False)
+    niveau_id = db.Column(db.Integer, db.ForeignKey('niveau_scolaire.id'), nullable=False)
+    actif = db.Column(db.Boolean, nullable=False, default=True)
+
+    ecole = db.relationship('Ecole', back_populates='niveaux_annuels_config')
+    annee_scolaire = db.relationship('AnneeScolaire', back_populates='niveaux_config')
+    niveau = db.relationship('NiveauScolaire', back_populates='configurations_annuelles')
+
+    __table_args__ = (
+        db.UniqueConstraint('ecole_id', 'annee_scolaire_id', 'niveau_id', name='uq_annee_niveau_config'),
+        db.Index('ix_annee_niveau_config_annee_actif', 'annee_scolaire_id', 'actif'),
+        db.Index('ix_annee_niveau_config_ecole_annee', 'ecole_id', 'annee_scolaire_id'),
+    )
+
+    def __repr__(self):
+        return f'<AnneeNiveauConfig ecole={self.ecole_id} annee={self.annee_scolaire_id} niveau={self.niveau_id} actif={self.actif}>'
+
+
 class Ecole(db.Model):
     __tablename__ = 'ecole'
 
@@ -178,6 +203,7 @@ class Ecole(db.Model):
     eleves = db.relationship('Eleve', back_populates='ecole', lazy=True)
     professeurs = db.relationship('Professeur', back_populates='ecole', lazy=True)
     niveaux_config = db.relationship('EcoleNiveauConfig', back_populates='ecole', lazy=True, cascade="all, delete-orphan")
+    niveaux_annuels_config = db.relationship('AnneeNiveauConfig', back_populates='ecole', lazy=True, cascade="all, delete-orphan")
     google_mail_config = db.relationship(
         'EcoleGoogleMailConfig',
         back_populates='ecole',

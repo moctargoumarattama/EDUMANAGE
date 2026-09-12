@@ -50,7 +50,19 @@
                             <div class="responsive-form-grid">
                                 <div>
                                     {{ form.niveau_id.label(class="form-label fw-medium") }}
-                                    {{ form.niveau_id(class="form-select", **{"data-niveaux": niveaux_form|tojson}) }}
+                                    <select class="form-select" id="{{ form.niveau_id.id }}" name="{{ form.niveau_id.name }}" required>
+                                        {% if niveaux_form %}
+                                            {% for niveau in niveaux_form %}
+                                            <option value="{{ niveau.id }}" data-cycle="{{ niveau.cycle }}"{% if (form.niveau_id.data and form.niveau_id.data|string == niveau.id|string) or (not form.niveau_id.data and selected_niveau_id and selected_niveau_id|string == niveau.id|string) %} selected{% endif %}>
+                                                {{ niveau.nom }}
+                                            </option>
+                                            {% endfor %}
+                                        {% else %}
+                                            {% for val, label in form.niveau_id.choices %}
+                                            <option value="{{ val }}"{% if form.niveau_id.data and form.niveau_id.data|string == val|string %} selected{% endif %}>{{ label }}</option>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </select>
                                     {% for error in form.niveau_id.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
                                     {% endfor %}
@@ -58,7 +70,7 @@
 
                                 <div>
                                     <label for="{{ form.section.id }}" class="form-label fw-medium" id="sectionLabel">Section</label>
-                                    {{ form.section(class="form-control", placeholder="Ex: A", maxlength="1", pattern="[A-Za-zÀ-ÖØ-öø-ÿ]", autocomplete="off") }}
+                                    {{ form.section(class="form-control", placeholder="Ex : A", maxlength="1", pattern="[A-Za-zÀ-ÖØ-öø-ÿ]", autocomplete="off") }}
                                     {% for error in form.section.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
                                     {% endfor %}
@@ -108,14 +120,23 @@
 document.addEventListener('DOMContentLoaded', function () {
     const niveauSelect = document.getElementById('{{ form.niveau_id.id }}');
     const sectionLabel = document.getElementById('sectionLabel');
+    const sectionInput = document.getElementById('{{ form.section.id }}');
     if (!niveauSelect || !sectionLabel) return;
-    const niveaux = JSON.parse(niveauSelect.dataset.niveaux || '[]');
-    const refreshLabel = () => {
-        const selected = niveaux.find((niveau) => String(niveau.id) === String(niveauSelect.value));
-        sectionLabel.textContent = selected && selected.cycle === 'lycee' ? 'Série' : 'Section';
-    };
-    niveauSelect.addEventListener('change', refreshLabel);
-    refreshLabel();
+
+    function updateSectionLabel() {
+        const selectedOption = niveauSelect.options[niveauSelect.selectedIndex];
+        if (selectedOption && selectedOption.dataset.cycle === 'lycee') {
+            sectionLabel.textContent = 'Série';
+            if (sectionInput) sectionInput.placeholder = 'Ex : A';
+        } else {
+            sectionLabel.textContent = 'Section';
+            if (sectionInput) sectionInput.placeholder = 'Ex : A';
+        }
+    }
+
+    niveauSelect.addEventListener('change', updateSectionLabel);
+    niveauSelect.addEventListener('input', updateSectionLabel);
+    updateSectionLabel();
 });
 </script>
 {% endblock %}

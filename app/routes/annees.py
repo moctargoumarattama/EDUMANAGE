@@ -20,6 +20,7 @@ from .common import (
 from app.services.classes_annuelles import preparer_structure_annee
 from app.services.niveaux import get_niveaux_actifs
 from app.models import Classe, Cours
+from app.services.niveaux_annuels import get_selection_annuelle, sauvegarder_selection_annuelle
 
 
 def _current_ecole_id_for_annees():
@@ -186,7 +187,7 @@ def preparer_structure_annee_route(annee_id):
     })
 
 
-@main.route('/annees/<int:annee_id>/structure')
+@main.route('/annees/<int:annee_id>/structure', methods=['GET', 'POST'])
 @login_required
 @role_required('admin', 'super_admin')
 def structure_annee(annee_id):
@@ -197,6 +198,28 @@ def structure_annee(annee_id):
 
     annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first_or_404()
     csrf_form = CSRFForm()
+    niveaux_actifs = get_niveaux_actifs(ecole_id)
+
+    if request.method == 'POST':
+        if annee.statut == "archivee":
+            flash("Impossible de modifier la structure d'une annee archivee.", "warning")
+            return redirect(url_for('main.structure_annee', annee_id=annee.id))
+        result, error = sauvegarder_selection_annuelle(
+            ecole_id,
+            annee.id,
+            request.form.getlist('niveau_ids'),
+        )
+        if error:
+            db.session.rollback()
+            flash(error, "warning")
+            return redirect(url_for('main.structure_annee', annee_id=annee.id))
+        db.session.commit()
+        if result["closed_classes"]:
+            flash(f"Structure enregistree. {result['closed_classes']} classe(s) fermee(s).", "success")
+        else:
+            flash("Structure annuelle enregistree.", "success")
+        return redirect(url_for('main.structure_annee', annee_id=annee.id))
+
     classes = (
         Classe.query
         .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
@@ -220,17 +243,45 @@ def structure_annee(annee_id):
             cours_par_classe.setdefault(cours.classe_id, []).append(cours)
     total_cours = sum(cours_counts.values())
 
-    niveaux_actifs = get_niveaux_actifs(ecole_id)
+    source_annee = (
+        AnneeScolaire.query
+        .filter(
+            AnneeScolaire.ecole_id == ecole_id,
+            AnneeScolaire.id != annee.id,
+            AnneeScolaire.date_debut < annee.date_debut,
+        )
+        .order_by(AnneeScolaire.date_debut.desc(), AnneeScolaire.id.desc())
+        .first()
+    )
+    cours_par_niveau = {niveau.id: [] for niveau in niveaux_actifs}
+    cours_source_classes = classes
+    if not cours_source_classes and source_annee:
+        cours_source_classes = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=source_annee.id).all()
+    if cours_source_classes:
+        source_class_ids = [classe.id for classe in cours_source_classes]
+        niveau_by_classe = {classe.id: classe.niveau_id for classe in cours_source_classes if classe.niveau_id}
+        seen_by_niveau = {niveau.id: set() for niveau in niveaux_actifs}
+        for cours in (
+            Cours.query
+            .filter(Cours.ecole_id == ecole_id, Cours.classe_id.in_(source_class_ids))
+            .order_by(Cours.nom.asc())
+            .all()
+        ):
+            niveau_id = niveau_by_classe.get(cours.classe_id)
+            if niveau_id not in seen_by_niveau:
+                continue
+            key = (cours.nom or "").strip().lower()
+            if key and key not in seen_by_niveau[niveau_id]:
+                seen_by_niveau[niveau_id].add(key)
+                cours_par_niveau[niveau_id].append(cours.nom)
+
+    selection = get_selection_annuelle(ecole_id, annee.id)
+    selected_niveau_ids = selection if selection is not None else {niveau.id for niveau in niveaux_actifs}
     grouped = {"primaire": {}, "college": {}, "lycee": {}, "autre": {}}
     cycle_labels = {"primaire": "Primaire", "college": "College", "lycee": "Lycee", "autre": "Autre"}
     for niveau in niveaux_actifs:
         cycle = niveau.cycle if niveau.cycle in grouped else "autre"
-        grouped[cycle].setdefault(niveau.nom, {"niveau": niveau, "classes": []})
-    for classe in classes:
-        niveau = classe.niveau_scolaire
-        cycle = niveau.cycle if niveau and niveau.cycle in grouped else "autre"
-        niveau_label = niveau.nom if niveau else (classe.niveau or "Sans niveau")
-        grouped[cycle].setdefault(niveau_label, {"niveau": niveau, "classes": []})["classes"].append(classe)
+        grouped[cycle].setdefault(niveau.nom, {"niveau": niveau})
 
     return render_template(
         'structure_annee.html',
@@ -241,6 +292,9 @@ def structure_annee(annee_id):
         cours_counts=cours_counts,
         total_cours=total_cours,
         cours_par_classe=cours_par_classe,
+        cours_par_niveau=cours_par_niveau,
         niveaux_actifs=niveaux_actifs,
+        selected_niveau_ids=selected_niveau_ids,
+        has_saved_selection=selection is not None,
         csrf_form=csrf_form,
     )
