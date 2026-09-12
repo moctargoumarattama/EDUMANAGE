@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Confirmation d'activation : {{ annee.nom }} - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container py-4 academic-page" style="max-width: 900px;">
+    {# --- EN-TÊTE --- #}
+    <div class="page-header mb-4">
+        <div class="page-header-body d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div class="page-title-group">
+                <div class="page-icon bg-warning-subtle text-warning">
+                    <i class="fas fa-power-off"></i>
+                </div>
+                <div>
+                    <h1 class="page-title mb-0">Confirmation d'activation annuelle</h1>
+                    <p class="page-subtitle text-muted mb-0">
+                        Établissement : <strong>{{ annee.ecole.nom }}</strong>
+                    </p>
+                </div>
+            </div>
+            <a href="{{ url_for('main.preparation_annee', annee_id=annee.id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Retour à la préparation
+            </a>
+        </div>
+    </div>
+
+    {# --- AVERTISSEMENT SOLENNEL --- #}
+    <div class="alert alert-warning border-warning shadow-sm mb-4">
+        <div class="d-flex gap-3">
+            <div class="fs-3 text-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div>
+                <h2 class="h5 alert-heading fw-bold mb-1">Passage solennel à la nouvelle année scolaire</h2>
+                <p class="mb-2">
+                    Vous êtes sur le point d'activer définitivement l'année scolaire <strong>{{ annee.nom }}</strong>.
+                </p>
+                <ul class="mb-0 ps-3 small">
+                    {% if ancienne_active %}
+                        <li>L'année active en cours (<strong>{{ ancienne_active.nom }}</strong>) sera <strong>archivée et passera en lecture seule</strong>.</li>
+                    {% else %}
+                        <li>Il s'agit de la <strong>première année scolaire active</strong> pour votre établissement.</li>
+                    {% endif %}
+                    <li>La nouvelle année scolaire (<strong>{{ annee.nom }}</strong>) deviendra l'unique cadre de travail actif de l'établissement.</li>
+                    <li>Les classes courantes des élèves seront <strong>resynchronisées</strong> à partir de leurs inscriptions de la nouvelle année.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    {# --- BILAN DE LA TRANSITION --- #}
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white py-3 border-bottom">
+            <h3 class="h6 mb-0 fw-bold text-dark">
+                <i class="fas fa-calendar-alt text-primary me-2"></i>Bilan de la bascule annuelle
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="p-3 bg-light rounded border h-100">
+                        <span class="text-muted small d-block mb-1">Année actuellement active :</span>
+                        {% if ancienne_active %}
+                            <h4 class="h5 fw-bold text-dark mb-1">{{ ancienne_active.nom }}</h4>
+                            <span class="badge bg-secondary mb-2">Deviendra archivée</span>
+                            <div class="small text-muted">
+                                Du {{ ancienne_active.date_debut.strftime('%d/%m/%Y') }} au {{ ancienne_active.date_fin.strftime('%d/%m/%Y') }}
+                            </div>
+                        {% else %}
+                            <h4 class="h5 fw-bold text-muted mb-1">Aucune</h4>
+                            <span class="badge bg-info text-dark">Première activation</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="p-3 bg-light-success rounded border border-success h-100">
+                        <span class="text-muted small d-block mb-1">Nouvelle année à activer :</span>
+                        <h4 class="h5 fw-bold text-success mb-1">{{ annee.nom }}</h4>
+                        <span class="badge bg-success mb-2">Deviendra active</span>
+                        <div class="small text-muted">
+                            Du {{ annee.date_debut.strftime('%d/%m/%Y') }} au {{ annee.date_fin.strftime('%d/%m/%Y') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# Synthèse des contrôles de préparation #}
+            <h4 class="h6 fw-bold mb-3">Contrôles de préparation :</h4>
+            <div class="table-responsive mb-4">
+                <table class="table table-bordered align-middle small mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Étape</th>
+                            <th>Statut</th>
+                            <th>Détails</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>1. Structure pédagogique</strong></td>
+                            <td><span class="badge bg-success"><i class="fas fa-check me-1"></i>Prête</span></td>
+                            <td>{{ etat_preparation.structure.total_niveaux }} niveau(x) actif(s) configuré(s)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>2. Classes</strong></td>
+                            <td><span class="badge bg-success"><i class="fas fa-check me-1"></i>Prêtes</span></td>
+                            <td>{{ etat_preparation.classes.ouvertes }} classe(s) ouverte(s) (aucun niveau manquant)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>3. Passage des élèves</strong></td>
+                            <td>
+                                {% if etat_preparation.passage.applicable %}
+                                    <span class="badge bg-success"><i class="fas fa-check me-1"></i>Complet</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Non applicable</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if etat_preparation.passage.applicable %}
+                                    {{ etat_preparation.passage.traites }} / {{ etat_preparation.passage.total_eleves }} élève(s) traité(s)
+                                {% else %}
+                                    Première année scolaire (aucun élève antérieur)
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>4. Cours & professeurs</strong></td>
+                            <td>
+                                {% if etat_preparation.cours.sans_prof > 0 or etat_preparation.cours.classes_sans_cours %}
+                                    <span class="badge bg-info text-dark">Avertissements</span>
+                                {% else %}
+                                    <span class="badge bg-success"><i class="fas fa-check me-1"></i>Complet</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ etat_preparation.cours.total_cours }} cours créé(s)
+                                {% if etat_preparation.verification.avertissements %}
+                                    ({{ etat_preparation.verification.avertissements|length }} recommandation(s) non bloquante(s))
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            {# Synchronisation des élèves #}
+            <h4 class="h6 fw-bold mb-3">Impact sur les effectifs élèves :</h4>
+            <div class="row g-3">
+                <div class="col-sm-6">
+                    <div class="p-3 bg-light rounded border text-center">
+                        <div class="fs-3 fw-bold text-success">{{ nb_synchronises }}</div>
+                        <div class="small text-muted">Élève(s) inscrit(s) qui rejoindront leur nouvelle classe</div>
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="p-3 bg-light rounded border text-center">
+                        <div class="fs-3 fw-bold text-secondary">{{ nb_sans_inscription }}</div>
+                        <div class="small text-muted">Élève(s) non réinscrits (sorties, transferts, diplômés ou historiques)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# --- FORMULAIRE DE CONFIRMATION --- #}
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4 text-center">
+            <h3 class="h6 fw-bold mb-2">Confirmez-vous le basculement annuel ?</h3>
+            <p class="text-muted small mb-4">
+                Cette opération est immédiate et irréversible. Votre session de travail sera automatiquement basculée sur l'année <strong>{{ annee.nom }}</strong>.
+            </p>
+
+            <form method="POST" action="{{ url_for('main.activer_annee', annee_id=annee.id) }}" class="d-flex justify-content-center gap-3">
+                {{ csrf_form.hidden_tag() }}
+                <a href="{{ url_for('main.preparation_annee', annee_id=annee.id) }}" class="btn btn-outline-secondary px-4">
+                    <i class="fas fa-times me-1"></i>Annuler
+                </a>
+                <button type="submit" class="btn btn-success px-4 fw-semibold shadow-sm">
+                    <i class="fas fa-power-off me-2"></i>Confirmer l'activation de l'année {{ annee.nom }}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

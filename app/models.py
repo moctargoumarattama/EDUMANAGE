@@ -526,7 +526,7 @@ class Eleve(db.Model):
     ecole = db.relationship('Ecole', back_populates='eleves')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    classe_id = db.Column(db.Integer, db.ForeignKey('classe.id', ondelete='RESTRICT'), nullable=False)
+    classe_id = db.Column(db.Integer, db.ForeignKey('classe.id', ondelete='RESTRICT'), nullable=True)
     classe = db.relationship('Classe', back_populates='eleves')
 
     # parent_id : ondelete SET NULL pour ne pas supprimer un élève si le parent est supprimé

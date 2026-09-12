@@ -38,44 +38,18 @@ from app.services.passage_annee import (
 )
 
 
+from app.services.preparation_annee import (
+    determiner_source_passage_pour_cible,
+    get_etat_preparation_annee,
+)
+from app.services.activation_annee import (
+    preparer_activation_annee,
+    activer_annee_scolaire,
+)
+
+
 def _current_ecole_id_for_annees():
     return current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
-
-
-def determiner_source_passage_pour_cible(cible, toutes_annees):
-    """
-    Détermine l'année source appropriée pour un passage vers `cible`.
-    Conditions :
-      - même établissement (ecole_id) ;
-      - cible non archivée ;
-      - source.date_debut < cible.date_debut ;
-      - couple validé par valider_contexte_passage.
-    """
-    if not cible or getattr(cible, 'statut', None) == 'archivee':
-        return None
-
-    candidats = [
-        a for a in toutes_annees
-        if a.ecole_id == cible.ecole_id and a.id != cible.id and a.statut != 'archivee' and a.date_debut < cible.date_debut
-    ]
-    if not candidats:
-        return None
-
-    # 1. Si cible est planifiée et qu'une année active antérieure existe, la privilégier
-    source_active = next((a for a in candidats if a.statut == 'active'), None)
-    if source_active:
-        annee_src, _, err = valider_contexte_passage(cible.ecole_id, source_active.id, cible.id)
-        if not err:
-            return annee_src
-
-    # 2. Sinon (ou si cible est elle-même active), prendre l'antérieure la plus récente
-    candidats_tries = sorted(candidats, key=lambda a: a.date_debut, reverse=True)
-    for cand in candidats_tries:
-        annee_src, _, err = valider_contexte_passage(cible.ecole_id, cand.id, cible.id)
-        if not err:
-            return annee_src
-
-    return None
 
 
 @main.route('/annees', methods=['GET', 'POST'])
@@ -109,14 +83,9 @@ def gestion_annees():
         annee_id = request.form.get('annee_id')
 
         if action == 'activer' and annee_id:
-            annee = AnneeScolaire.query.get(int(annee_id))
+            annee = db.session.get(AnneeScolaire, int(annee_id))
             if annee and annee.ecole_id in [e.id for e in ecoles]:
-                # Désactiver uniquement les années de la même école
-                AnneeScolaire.query.filter_by(ecole_id=annee.ecole_id).update({'statut': 'archivee'})
-                annee.statut = 'active'
-                db.session.commit()
-                set_annee_consultee(annee.ecole_id, annee.id)
-                flash(f"L'année {annee.nom} est maintenant active.", "success")
+                return redirect(url_for('main.activation_annee_confirmation', annee_id=annee.id))
             else:
                 flash("Action non autorisée pour cette école.", "danger")
 
@@ -213,23 +182,7 @@ def consulter_annee(annee_id):
 def changer_annee(annee_id):
     ecole_id = _current_ecole_id_for_annees()
     annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first_or_404()
-    try:
-        # Désactiver toutes les années de la même école
-        AnneeScolaire.query.filter_by(ecole_id=annee.ecole_id).update({'statut': 'archivee'})
-        # Activer l'année sélectionnée
-        annee.statut = 'active'
-        db.session.commit()
-        set_annee_consultee(annee.ecole_id, annee.id)
-        flash(f"L'année {annee.nom} est maintenant active.", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Erreur lors de l'activation: {str(e)}", "danger")
-
-    from app.utils import get_school_setup_state
-    if current_user.role == 'admin' and current_user.ecole_id and not get_school_setup_state(current_user.ecole_id)['setup_complete']:
-        return redirect(url_for('main.onboarding'))
-
-    return redirect(request.referrer or url_for('main.gestion_annees'))
+    return redirect(url_for('main.activation_annee_confirmation', annee_id=annee.id))
 
 
 @main.route('/annees/<int:annee_id>/preparer-structure', methods=['POST'])
@@ -279,6 +232,113 @@ def preparer_structure_annee_route(annee_id):
             "cours_ignores_classe_fermee": result["cours_ignores_classe_fermee"],
         }
     })
+
+
+@main.route('/annees/<int:annee_id>/preparation', methods=['GET'], endpoint='preparation_annee')
+@login_required
+@role_required('admin', 'super_admin')
+def preparation_annee(annee_id):
+    ecole_id = _current_ecole_id_for_annees()
+    if not ecole_id:
+        flash("Veuillez sélectionner un établissement.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
+    if not annee:
+        flash("Année scolaire introuvable.", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    if annee.statut == 'archivee':
+        flash("Cette année scolaire est archivée et ne peut plus être préparée.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    if annee.statut == 'active':
+        flash("Cette année scolaire est déjà active.", "info")
+        return redirect(url_for('main.gestion_annees'))
+
+    etat = get_etat_preparation_annee(ecole_id, annee.id)
+    annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut='active').first()
+    annee_consultee = get_annee_consultee(ecole_id)
+    csrf_form = CSRFForm()
+
+    return render_template(
+        'preparation_annee.html',
+        annee=annee,
+        annee_active=annee_active,
+        annee_consultee=annee_consultee,
+        etat=etat,
+        csrf_form=csrf_form,
+    )
+
+
+@main.route('/annees/<int:annee_id>/activation', methods=['GET'], endpoint='activation_annee_confirmation')
+@login_required
+@role_required('admin', 'super_admin')
+def activation_annee_confirmation(annee_id):
+    ecole_id = _current_ecole_id_for_annees()
+    if not ecole_id:
+        flash("Veuillez sélectionner un établissement.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
+    if not annee:
+        flash("Année scolaire introuvable.", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    if annee.statut == 'active':
+        flash("Cette année scolaire est déjà active.", "info")
+        return redirect(url_for('main.gestion_annees'))
+
+    if annee.statut == 'archivee':
+        flash("Cette année scolaire est archivée et ne peut plus être activée.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    prep, err = preparer_activation_annee(ecole_id, annee.id)
+    if err:
+        flash(err, "danger")
+        return redirect(url_for('main.preparation_annee', annee_id=annee.id))
+
+    csrf_form = CSRFForm()
+    return render_template(
+        'activation_annee_confirmation.html',
+        annee=prep['annee_cible'],
+        ancienne_active=prep['ancienne_active'],
+        etat_preparation=prep['etat_preparation'],
+        nb_synchronises=prep['nb_synchronises'],
+        nb_sans_inscription=prep['nb_sans_inscription'],
+        prep=prep,
+        csrf_form=csrf_form,
+    )
+
+
+@main.route('/annees/<int:annee_id>/activer', methods=['POST'], endpoint='activer_annee')
+@login_required
+@role_required('admin', 'super_admin')
+def activer_annee(annee_id):
+    ecole_id = _current_ecole_id_for_annees()
+    if not ecole_id:
+        flash("Veuillez sélectionner un établissement.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
+    if not annee:
+        flash("Année scolaire introuvable.", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    csrf_form = CSRFForm()
+    if not csrf_form.validate_on_submit():
+        flash("Session expirée ou jeton CSRF invalide.", "danger")
+        return redirect(url_for('main.activation_annee_confirmation', annee_id=annee_id))
+
+    succes, msg, details = activer_annee_scolaire(ecole_id, annee_id, user_id=current_user.id)
+    if not succes:
+        flash(msg, "danger")
+        return redirect(url_for('main.activation_annee_confirmation', annee_id=annee_id))
+
+    # Activation réussie : mettre à jour session["annee_consultee"] vers la nouvelle année active
+    set_annee_consultee(ecole_id, annee_id)
+    flash(msg, "success")
+    return redirect(url_for('main.gestion_annees'))
 
 
 @main.route('/annees/<int:annee_id>/structure', methods=['GET', 'POST'])

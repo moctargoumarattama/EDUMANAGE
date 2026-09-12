@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block title %}Préparer l'année {{ annee.nom }} - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container py-4 academic-page">
+    {# --- EN-TÊTE DE PAGE --- #}
+    <div class="page-header mb-4">
+        <div class="page-header-body d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <div class="page-title-group">
+                <div class="page-icon">
+                    <i class="fas fa-tasks"></i>
+                </div>
+                <div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <h1 class="page-title mb-0">Préparer l'année : {{ annee.nom }}</h1>
+                        <span class="badge bg-warning text-dark">Planifiée</span>
+                        {% if annee_consultee and annee_consultee.id == annee.id %}
+                            <span class="badge bg-info text-dark">Consultée</span>
+                        {% endif %}
+                    </div>
+                    <p class="page-subtitle text-muted mb-0">
+                        Établissement : <strong>{{ annee.ecole.nom }}</strong>
+                        {% if annee_active %}
+                            &bull; Année active en cours : <span class="badge bg-success">{{ annee_active.nom }}</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <div class="page-actions d-flex gap-2 flex-wrap align-items-center">
+                <a href="{{ url_for('main.gestion_annees') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Années
+                </a>
+                {% if annee_active and annee_consultee and annee_consultee.id != annee_active.id %}
+                <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee_active.id) }}" class="d-inline">
+                    {{ csrf_form.hidden_tag() }}
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <button type="submit" class="btn btn-outline-success" title="Basculer la session sur l'année active">
+                        <i class="fas fa-history me-1"></i>Revenir à l'année active ({{ annee_active.nom }})
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# --- CARTE DE PROGRESSION GLOBALE --- #}
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                <h2 class="h5 mb-0 fw-bold">
+                    <i class="fas fa-chart-line text-primary me-2"></i>Progression de la préparation
+                </h2>
+                <div>
+                    {% if etat.verification.prete_pour_activation %}
+                        <span class="badge bg-success px-3 py-2 fs-6">
+                            <i class="fas fa-check-circle me-1"></i>Prête pour activation
+                        </span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark px-3 py-2 fs-6">
+                            <i class="fas fa-hourglass-half me-1"></i>Préparation en cours ({{ etat.progression }}%)
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="progress" style="height: 20px; border-radius: 10px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated {% if etat.progression == 100 %}bg-success{% else %}bg-primary{% endif %}"
+                     role="progressbar"
+                     style="width: {{ etat.progression }}%;"
+                     aria-valuenow="{{ etat.progression }}"
+                     aria-valuemin="0"
+                     aria-valuemax="100">
+                    {{ etat.progression }}%
+                </div>
+            </div>
+            <p class="text-muted small mt-2 mb-0">
+                L'année peut être entièrement préparée à l'avance sans interrompre l'année scolaire active.
+            </p>
+        </div>
+    </div>
+
+    {# --- GRILLE DES 6 ÉTAPES DE PRÉPARATION --- #}
+    <div class="row g-4">
+        {# ÉTAPE 1 : STRUCTURE PÉDAGOGIQUE #}
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <h3 class="h6 mb-0 fw-bold text-dark">
+                        <i class="fas fa-layer-group text-primary me-2"></i>1. Structure pédagogique
+                    </h3>
+                    {% if etat.structure.prete %}
+                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>Configurée</span>
+                    {% else %}
+                        <span class="badge bg-danger"><i class="fas fa-exclamation-triangle me-1"></i>À configurer</span>
+                    {% endif %}
+                </div>
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <div>
+                        <p class="text-muted mb-3">
+                            Définition des niveaux scolaires ouverts pour cette année scolaire (ex : 6e, 5e, 4e, 3e).
+                        </p>
+                        <div class="mb-3">
+                            <strong>Niveaux actifs :</strong>
+                            {% if etat.structure.total_niveaux > 0 %}
+                                <div class="d-flex flex-wrap gap-1 mt-2">
+                                    {% for niveau in etat.structure.niveaux %}
+                                        <span class="badge bg-light text-dark border">{{ niveau.nom }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-danger small mt-1">
+                                    <i class="fas fa-times-circle me-1"></i>Aucun niveau actif configuré pour cette année.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="pt-3 border-top mt-2">
+                        <a href="{{ url_for('main.structure_annee', annee_id=annee.id) }}" class="btn btn-outline-primary btn-sm w-100">
+                            <i class="fas fa-sliders-h me-1"></i>Configurer la structure
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ÉTAPE 2 : CLASSES #}
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <h3 class="h6 mb-0 fw-bold text-dark">
+                        <i class="fas fa-chalkboard text-primary me-2"></i>2. Classes
+                    </h3>
+                    {% if etat.classes.prete %}
+                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>Prête</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Incomplète</span>
+                    {% endif %}
+                </div>
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <div>
+                        <p class="text-muted mb-3">
+                            Création et ouverture des classes associées aux niveaux scolaires de l'année.
+                        </p>
+                        <ul class="list-unstyled mb-3 small">
+                            <li><i class="fas fa-circle text-muted me-2" style="font-size: 8px;"></i>Total classes : <strong>{{ etat.classes.total_classes }}</strong></li>
+                            <li><i class="fas fa-circle text-success me-2" style="font-size: 8px;"></i>Classes ouvertes : <strong>{{ etat.classes.ouvertes }}</strong></li>
+                            <li><i class="fas fa-circle text-secondary me-2" style="font-size: 8px;"></i>Classes fermées : <strong>{{ etat.classes.fermees }}</strong></li>
+                        </ul>
+                        {% if etat.classes.niveaux_sans_classe %}
+                            <div class="alert alert-warning py-2 px-3 small mb-0">
+                                <i class="fas fa-exclamation-circle me-1"></i>
+                                <strong>Niveau(x) sans classe ouverte :</strong>
+                                {% for n in etat.classes.niveaux_sans_classe %}
+                                    <span class="badge bg-light text-dark border ms-1">{{ n.nom }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="pt-3 border-top mt-2">
+                        <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}">
+                            {{ csrf_form.hidden_tag() }}
+                            <input type="hidden" name="next" value="{{ url_for('main.liste_classes') }}">
+                            <button type="submit" class="btn btn-outline-primary btn-sm w-100" title="Consulter cette année et ouvrir le module classes">
+                                <i class="fas fa-external-link-alt me-1"></i>Gérer les classes
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ÉTAPE 3 : COURS ET PROFESSEURS #}
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <h3 class="h6 mb-0 fw-bold text-dark">
+                        <i class="fas fa-book-open text-primary me-2"></i>3. Cours et professeurs
+                    </h3>
+                    {% if etat.cours.total_cours > 0 and etat.cours.sans_prof == 0 %}
+                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>Complet</span>
+                    {% elif etat.cours.total_cours > 0 %}
+                        <span class="badge bg-info text-dark"><i class="fas fa-info-circle me-1"></i>En cours</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Optionnel / Informatif</span>
+                    {% endif %}
+                </div>
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <div>
+                        <p class="text-muted mb-3">
+                            Matières enseignées et affectation des enseignants aux classes (non bloquant).
+                        </p>
+                        <ul class="list-unstyled mb-3 small">
+                            <li><i class="fas fa-circle text-muted me-2" style="font-size: 8px;"></i>Total cours : <strong>{{ etat.cours.total_cours }}</strong></li>
+                            <li><i class="fas fa-circle text-success me-2" style="font-size: 8px;"></i>Avec professeur : <strong>{{ etat.cours.avec_prof }}</strong></li>
+                            <li><i class="fas fa-circle text-warning me-2" style="font-size: 8px;"></i>Sans professeur : <strong>{{ etat.cours.sans_prof }}</strong></li>
+                        </ul>
+                        {% if etat.cours.classes_sans_cours %}
+                            <div class="text-muted small">
+                                <i class="fas fa-info-circle me-1"></i>{{ etat.cours.classes_sans_cours|length }} classe(s) ouverte(s) sans cours.
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="pt-3 border-top mt-2">
+                        <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}">
+                            {{ csrf_form.hidden_tag() }}
+                            <input type="hidden" name="next" value="{{ url_for('main.cours') }}">
+                            <button type="submit" class="btn btn-outline-secondary btn-sm w-100" title="Consulter cette année et ouvrir le module cours">
+                                <i class="fas fa-book me-1"></i>Gérer les cours
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ÉTAPE 4 : PASSAGE DES ÉLÈVES #}
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                    <h3 class="h6 mb-0 fw-bold text-dark">
+                        <i class="fas fa-user-graduate text-primary me-2"></i>4. Passage des élèves
+                    </h3>
+                    {% if not etat.passage.applicable %}
+                        <span class="badge bg-secondary">Non applicable</span>
+                    {% elif etat.passage.prete %}
+                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>Terminé</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>En cours</span>
+                    {% endif %}
+                </div>
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <div>
+                        {% if not etat.passage.applicable %}
+                            <p class="text-muted mb-3">
+                                Première année scolaire ou aucune année source antérieure identifiée. Le passage d'élèves n'est pas applicable.
+                            </p>
+                            <div class="alert alert-light border small text-muted mb-0">
+                                <i class="fas fa-info-circle me-1"></i>Les élèves pourront être inscrits directement une fois les classes ouvertes.
+                            </div>
+                        {% else %}
+                            <p class="text-muted mb-3">
+                                Passage, redoublement, transfert ou clôture des élèves de l'année précédente (<strong>{{ etat.passage.source.nom }}</strong>).
+                            </p>
+                            <ul class="list-unstyled mb-3 small">
+                                <li><i class="fas fa-circle text-muted me-2" style="font-size: 8px;"></i>Total élèves source : <strong>{{ etat.passage.total_eleves }}</strong></li>
+                                <li><i class="fas fa-circle text-success me-2" style="font-size: 8px;"></i>Élèves traités : <strong>{{ etat.passage.traites }}</strong></li>
+                                <li><i class="fas fa-circle text-danger me-2" style="font-size: 8px;"></i>Élèves à traiter : <strong>{{ etat.passage.a_traiter }}</strong></li>
+                            </ul>
+                        {% endif %}
+                    </div>
+                    {% if etat.passage.applicable %}
+                    <div class="pt-3 border-top mt-2">
+                        <a href="{{ url_for('main.passage_annee', source_id=etat.passage.source.id, cible_id=annee.id) }}" class="btn btn-outline-info btn-sm w-100">
+                            <i class="fas fa-user-graduate me-1"></i>Gérer le passage des élèves
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# ÉTAPE 5 : VÉRIFICATION FINALE (SYNTHÈSE) #}
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h3 class="h6 mb-0 fw-bold text-dark">
+                        <i class="fas fa-clipboard-check text-primary me-2"></i>5. Contrôles et synthèse
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% if etat.verification.bloquants %}
+                        <div class="alert alert-danger py-2 px-3 small mb-3">
+                            <h4 class="h6 alert-heading fw-bold mb-2">
+                                <i class="fas fa-ban me-1"></i>Points bloquants ({{ etat.verification.bloquants|length }}) :
+                            </h4>
+                            <ul class="mb-0 ps-3">
+                                {% for b in etat.verification.bloquants %}
+                                    <li>{{ b }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-success py-2 px-3 small mb-3">
+                            <i class="fas fa-check-circle me-1"></i><strong>Aucun point bloquant.</strong> Les prérequis structurels et élèves sont validés.
+                        </div>
+                    {% endif %}
+
+                    {% if etat.verification.avertissements %}
+                        <div class="alert alert-warning py-2 px-3 small mb-0">
+                            <h4 class="h6 alert-heading fw-bold mb-2">
+                                <i class="fas fa-exclamation-triangle me-1"></i>Recommandations (non bloquantes) :
+                            </h4>
+                            <ul class="mb-0 ps-3">
+                                {% for a in etat.verification.avertissements %}
+                                    <li>{{ a }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# ÉTAPE 6 : ACTIVATION DE L'ANNÉE (INFORMATIF) #}
+        <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100 border-0">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h3 class="h6 mb-0 fw-bold text-dark">
+                        <i class="fas fa-power-off text-primary me-2"></i>6. Statut pour l'activation
+                    </h3>
+                </div>
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <div>
+                        {% if etat.verification.prete_pour_activation %}
+                            <div class="p-3 bg-light-success rounded border border-success mb-3">
+                                <h4 class="h6 text-success fw-bold mb-2">
+                                    <i class="fas fa-check-double me-1"></i>Prête pour l'activation
+                                </h4>
+                                <p class="small text-muted mb-0">
+                                    Toutes les étapes obligatoires ont été complétées. L'année scolaire {{ annee.nom }} peut être activée lorsque la nouvelle rentrée scolaire débute.
+                                </p>
+                            </div>
+                        {% else %}
+                            <div class="p-3 bg-light rounded border border-warning mb-3">
+                                <h4 class="h6 text-warning-emphasis fw-bold mb-2">
+                                    <i class="fas fa-lock me-1"></i>Préparation incomplète
+                                </h4>
+                                <p class="small text-muted mb-0">
+                                    L'année ne pourra être activée que lorsque tous les points bloquants de l'étape 5 auront été corrigés.
+                                </p>
+                            </div>
+                        {% endif %}
+                        <p class="text-muted small mb-0">
+                            <em>Note de sécurité :</em> L'activation finale reste contrôlée depuis le menu des années scolaires le jour effectif de la rentrée.
+                        </p>
+                    </div>
+                    <div class="pt-3 border-top mt-2 d-flex flex-column gap-2">
+                        {% if etat.verification.prete_pour_activation %}
+                        <a href="{{ url_for('main.activation_annee_confirmation', annee_id=annee.id) }}" class="btn btn-success btn-sm w-100 fw-semibold">
+                            <i class="fas fa-power-off me-1"></i>Activer cette année scolaire
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('main.gestion_annees') }}" class="btn btn-outline-secondary btn-sm w-100">
+                            <i class="fas fa-calendar-alt me-1"></i>Voir la liste des années scolaires
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

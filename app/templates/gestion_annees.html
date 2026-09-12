@@ -99,7 +99,7 @@
                             <td>{{ annee.date_fin.strftime('%d/%m/%Y') }}</td>
                             <td>
                                 {% if annee_consultee and annee.id == annee_consultee.id %}
-                                    <span class="badge bg-info text-dark">ConsultÃ©e</span>
+                                    <span class="badge bg-info text-dark">Consultée</span>
                                 {% endif %}
                                 {% if annee.statut == 'active' %}
                                     <span class="badge bg-success">Active</span>
@@ -110,6 +110,11 @@
                                 {% endif %}
                             </td>
                             <td class="text-end">
+                                {% if annee.statut == 'planifiee' %}
+                                <a href="{{ url_for('main.preparation_annee', annee_id=annee.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-tasks me-1"></i>Préparer l'année
+                                </a>
+                                {% endif %}
                                 <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}" class="d-inline">
                                     {{ csrf_form.hidden_tag() }}
                                     <button type="submit" class="btn btn-sm btn-outline-success">Consulter</button>
@@ -122,14 +127,11 @@
                                     <i class="fas fa-user-graduate me-1"></i>Passage des élèves
                                 </a>
                                 {% endif %}
-                                {% if annee.statut != 'active' %}
-                                <form method="POST" action="{{ url_for('main.gestion_annees') }}" class="d-inline js-confirm-form" data-confirm="Définir cette année comme active ?">
-                                    {{ csrf_form.hidden_tag() }}
-                                    <input type="hidden" name="action" value="activer">
-                                    <input type="hidden" name="annee_id" value="{{ annee.id }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-primary">Activer</button>
-                                </form>
-                                {% else %}
+                                {% if annee.statut == 'planifiee' %}
+                                <a href="{{ url_for('main.activation_annee_confirmation', annee_id=annee.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-power-off me-1"></i>Activer
+                                </a>
+                                {% elif annee.statut == 'active' %}
                                     <span class="text-success small fw-semibold">Année en cours</span>
                                 {% endif %}
                             </td>
@@ -161,7 +163,12 @@
                     <span class="badge bg-secondary">Archivée</span>
                 {% endif %}
                 {% if annee_consultee and annee.id == annee_consultee.id %}
-                    <span class="badge bg-info text-dark">ConsultÃ©e</span>
+                    <span class="badge bg-info text-dark">Consultée</span>
+                {% endif %}
+                {% if annee.statut == 'planifiee' %}
+                <a href="{{ url_for('main.preparation_annee', annee_id=annee.id) }}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-tasks me-1"></i>Préparer l'année
+                </a>
                 {% endif %}
                 <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}">
                     {{ csrf_form.hidden_tag() }}
@@ -175,13 +182,10 @@
                     <i class="fas fa-user-graduate me-1"></i>Passage des élèves
                 </a>
                 {% endif %}
-                {% if annee.statut != 'active' %}
-                <form method="POST" action="{{ url_for('main.gestion_annees') }}" class="js-confirm-form" data-confirm="Définir cette année comme active ?">
-                    {{ csrf_form.hidden_tag() }}
-                    <input type="hidden" name="action" value="activer">
-                    <input type="hidden" name="annee_id" value="{{ annee.id }}">
-                    <button type="submit" class="btn btn-sm btn-outline-primary">Activer</button>
-                </form>
+                {% if annee.statut == 'planifiee' %}
+                <a href="{{ url_for('main.activation_annee_confirmation', annee_id=annee.id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-power-off me-1"></i>Activer
+                </a>
                 {% endif %}
             </div>
         </article>
