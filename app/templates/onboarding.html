@@ -1,304 +1,213 @@
 {% extends "base.html" %}
 
-{% block title %}Configuration de votre établissement - KLASORA{% endblock %}
+{% block title %}Configuration de votre etablissement - KLASORA{% endblock %}
 
 {% block content %}
 <div class="onboarding-wrapper">
     <div class="onboarding-card shadow-lg">
-        <!-- En-tête Mobile Moderne et Soigné (Visible < 992px) -->
         <div class="onboarding-mobile-header d-lg-none text-center mb-3 pb-2 border-bottom">
             <div class="onboarding-brand-mobile mb-2">
                 <img src="{{ url_for('static', filename='img/logo-klasora.png') }}" alt="KLASORA" class="onboarding-logo-mobile">
             </div>
             <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill onboarding-school-badge-mobile mb-2">
                 <i class="fas fa-school text-primary"></i>
-                <span class="fw-semibold text-dark text-truncate" style="max-width: 240px;">
-                    {{ ecole.nom if ecole else 'Votre Établissement' }}
-                </span>
+                <span class="fw-semibold text-dark text-truncate" style="max-width: 240px;">{{ ecole.nom if ecole else 'Votre etablissement' }}</span>
             </div>
-
-            <!-- Stepper Chips Interactif Mobile -->
             <div class="onboarding-mobile-steps d-flex justify-content-center align-items-center gap-2 mt-1">
-                <div class="m-step-chip {% if step in ['year', 'class', 'complete'] %}active{% endif %} {% if step in ['class', 'complete'] %}done{% endif %}">
-                    <span class="m-step-badge">{% if step in ['class', 'complete'] %}<i class="fas fa-check"></i>{% else %}1{% endif %}</span>
-                    <span class="m-step-label">Année</span>
+                <div class="m-step-chip {% if step in ['year', 'pedagogie', 'complete'] %}active{% endif %} {% if step in ['pedagogie', 'complete'] %}done{% endif %}">
+                    <span class="m-step-badge">{% if step in ['pedagogie', 'complete'] %}<i class="fas fa-check"></i>{% else %}1{% endif %}</span>
+                    <span class="m-step-label">Annee</span>
                 </div>
-                <div class="m-step-divider {% if step in ['class', 'complete'] %}done{% endif %}"></div>
-                <div class="m-step-chip {% if step in ['class', 'complete'] %}active{% endif %} {% if step == 'complete' %}done{% endif %}">
+                <div class="m-step-divider {% if step in ['pedagogie', 'complete'] %}done{% endif %}"></div>
+                <div class="m-step-chip {% if step in ['pedagogie', 'complete'] %}active{% endif %} {% if step == 'complete' %}done{% endif %}">
                     <span class="m-step-badge">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}2{% endif %}</span>
-                    <span class="m-step-label">Classe</span>
+                    <span class="m-step-label">Niveaux</span>
                 </div>
                 <div class="m-step-divider {% if step == 'complete' %}done{% endif %}"></div>
                 <div class="m-step-chip {% if step == 'complete' %}active done{% endif %}">
                     <span class="m-step-badge"><i class="fas fa-flag-checkered"></i></span>
-                    <span class="m-step-label">Prêt</span>
+                    <span class="m-step-label">Pret</span>
                 </div>
             </div>
         </div>
 
         <div class="onboarding-grid">
-            <!-- COLONNE GAUCHE (Desktop Sidebar) -->
             <aside class="onboarding-sidebar d-none d-lg-flex flex-column justify-content-between">
                 <div>
-                    <!-- Branding et École -->
                     <div class="onboarding-brand mb-3">
                         <img src="{{ url_for('static', filename='img/logo-klasora.png') }}" alt="KLASORA" class="onboarding-logo">
                     </div>
                     <div class="onboarding-school-badge d-inline-flex align-items-center gap-2 px-3 py-1.5 rounded-pill mb-4">
                         <i class="fas fa-school text-primary"></i>
-                        <span class="fw-semibold text-dark text-truncate" style="max-width: 220px;" title="{{ ecole.nom if ecole else '' }}">
-                            {{ ecole.nom if ecole else 'Votre Établissement' }}
-                        </span>
+                        <span class="fw-semibold text-dark text-truncate" style="max-width: 220px;" title="{{ ecole.nom if ecole else '' }}">{{ ecole.nom if ecole else 'Votre etablissement' }}</span>
                     </div>
 
-                    <!-- Stepper Vertical Desktop -->
                     <div class="onboarding-vertical-stepper mb-4">
-                        <div class="v-step-item {% if step in ['year', 'class', 'complete'] %}active{% endif %} {% if step in ['class', 'complete'] %}completed{% endif %}">
-                            <div class="v-step-marker">
-                                {% if step in ['class', 'complete'] %}
-                                    <i class="fas fa-check"></i>
-                                {% else %}
-                                    <span>1</span>
-                                {% endif %}
-                            </div>
+                        <div class="v-step-item {% if step in ['year', 'pedagogie', 'complete'] %}active{% endif %} {% if step in ['pedagogie', 'complete'] %}completed{% endif %}">
+                            <div class="v-step-marker">{% if step in ['pedagogie', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>1</span>{% endif %}</div>
                             <div class="v-step-content">
-                                <div class="v-step-title">Année scolaire</div>
-                                <div class="v-step-desc">Période active obligatoire</div>
+                                <div class="v-step-title">Annee scolaire</div>
+                                <div class="v-step-desc">Periode active obligatoire</div>
                             </div>
                         </div>
-
-                        <div class="v-step-line {% if step in ['class', 'complete'] %}completed{% endif %}"></div>
-
-                        <div class="v-step-item {% if step in ['class', 'complete'] %}active{% endif %} {% if step == 'complete' %}completed{% endif %}">
-                            <div class="v-step-marker">
-                                {% if step == 'complete' %}
-                                    <i class="fas fa-check"></i>
-                                {% else %}
-                                    <span>2</span>
-                                {% endif %}
-                            </div>
+                        <div class="v-step-line {% if step in ['pedagogie', 'complete'] %}completed{% endif %}"></div>
+                        <div class="v-step-item {% if step in ['pedagogie', 'complete'] %}active{% endif %} {% if step == 'complete' %}completed{% endif %}">
+                            <div class="v-step-marker">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}<span>2</span>{% endif %}</div>
                             <div class="v-step-content">
-                                <div class="v-step-title">Première classe</div>
-                                <div class="v-step-desc">Structure d'accueil des élèves</div>
+                                <div class="v-step-title">Offre pedagogique</div>
+                                <div class="v-step-desc">Cycles et niveaux proposes</div>
                             </div>
                         </div>
-
                         <div class="v-step-line {% if step == 'complete' %}completed{% endif %}"></div>
-
                         <div class="v-step-item {% if step == 'complete' %}active completed{% endif %}">
-                            <div class="v-step-marker">
-                                <i class="fas fa-flag-checkered"></i>
-                            </div>
+                            <div class="v-step-marker"><i class="fas fa-flag-checkered"></i></div>
                             <div class="v-step-content">
-                                <div class="v-step-title">Prêt</div>
+                                <div class="v-step-title">Pret</div>
                                 <div class="v-step-desc">Tableau de bord KLASORA</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Encadré Conseils / Pourquoi cette étape -->
                     <div class="onboarding-guide-tip p-3 rounded-3 border">
                         <div class="d-flex align-items-center gap-2 mb-1 text-primary fw-bold small">
-                            <i class="fas fa-lightbulb"></i>
-                            <span>Le saviez-vous ?</span>
+                            <i class="fas fa-lightbulb"></i><span>Le saviez-vous ?</span>
                         </div>
                         <p class="text-muted mb-0" style="font-size: 0.8rem; line-height: 1.4;">
                             {% if step == 'year' %}
-                                L'année scolaire active permettra d'affecter les classes, cours, notes et paiements avec un cloisonnement temporel parfait.
-                            {% elif step == 'class' %}
-                                Votre première classe créée permettra d'effectuer immédiatement vos inscriptions et assigner des professeurs.
+                                L'annee active permettra de rattacher chaque classe, inscription et operation a la bonne periode.
+                            {% elif step == 'pedagogie' %}
+                                Les niveaux definissent votre offre. Les classes reelles seront creees ensuite selon vos besoins.
                             {% else %}
-                                Votre établissement est prêt ! Vous pourrez ajouter d'autres classes et professeurs depuis vos menus normaux.
+                                Votre etablissement est pret. Vous pouvez creer vos classes depuis les menus habituels.
                             {% endif %}
                         </p>
                     </div>
                 </div>
 
-                <!-- Footer Sidebar Desktop -->
                 <div class="onboarding-sidebar-footer pt-3 mt-4 border-top d-flex align-items-center justify-content-between">
                     <div class="d-flex align-items-center gap-2 text-muted small text-truncate" style="max-width: 180px;">
                         <i class="fas fa-user-shield text-primary"></i>
                         <span class="text-truncate">{{ (current_user.prenom ~ ' ' if current_user.prenom else '') ~ current_user.nom }}</span>
                     </div>
-                    <a href="{{ url_for('main.logout') }}" class="btn btn-outline-danger btn-sm px-2 py-1" title="Se déconnecter">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </a>
+                    <a href="{{ url_for('main.logout') }}" class="btn btn-outline-danger btn-sm px-2 py-1" title="Se deconnecter"><i class="fas fa-sign-out-alt"></i></a>
                 </div>
             </aside>
 
-            <!-- COLONNE DROITE (Formulaire / Action Principal) -->
             <main class="onboarding-main-pane">
                 {% if step == 'year' %}
-                    <!-- ============================================== -->
-                    <!-- ÉTAPE 1 : ANNÉE SCOLAIRE                       -->
-                    <!-- ============================================== -->
                     <div class="onboarding-pane-header mb-3 mb-sm-4">
                         <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
-                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Étape 1 sur 2</span>
-                            <span class="text-muted small"><i class="fas fa-calendar-alt text-primary me-1"></i>Année scolaire</span>
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 1 sur 2</span>
+                            <span class="text-muted small"><i class="fas fa-calendar-alt text-primary me-1"></i>Annee scolaire</span>
                         </div>
-                        <h1 class="onboarding-title h4 fw-bold text-dark mb-1">
-                            Bienvenue sur KLASORA 👋
-                        </h1>
-                        <p class="text-muted small mb-0">
-                            Créer et activer la première année scolaire de votre établissement.
-                        </p>
+                        <h1 class="onboarding-title h4 fw-bold text-dark mb-1">Bienvenue sur KLASORA</h1>
+                        <p class="text-muted small mb-0">Creer et activer la premiere annee scolaire de votre etablissement.</p>
                     </div>
 
                     <form method="POST" action="{{ url_for('main.onboarding') }}" class="onboarding-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="creer_annee">
-
                         <div class="mb-2.5 mb-sm-3">
-                            <label for="nom" class="form-label small fw-bold text-dark mb-1">
-                                Intitulé de l'année scolaire <span class="text-danger">*</span>
-                            </label>
+                            <label for="nom" class="form-label small fw-bold text-dark mb-1">Intitule de l'annee scolaire <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-signature"></i></span>
                                 <input type="text" class="form-control border-start-0" id="nom" name="nom" placeholder="Ex: 2025-2026" required autofocus>
                             </div>
-                            <div class="form-text d-none d-sm-block mt-1" style="font-size: 0.75rem;">Format standard recommandé : YYYY-YYYY (ex: 2025-2026).</div>
                         </div>
-
                         <div class="row g-2 g-sm-3 mb-3 mb-sm-4">
                             <div class="col-6">
-                                <label for="date_debut" class="form-label small fw-bold text-dark mb-1">
-                                    Date de rentrée <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <input type="date" class="form-control" id="date_debut" name="date_debut" required>
-                                </div>
+                                <label for="date_debut" class="form-label small fw-bold text-dark mb-1">Date de rentree <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="date_debut" name="date_debut" required>
                             </div>
                             <div class="col-6">
-                                <label for="date_fin" class="form-label small fw-bold text-dark mb-1">
-                                    Date de fin <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <input type="date" class="form-control" id="date_fin" name="date_fin" required>
-                                </div>
+                                <label for="date_fin" class="form-label small fw-bold text-dark mb-1">Date de fin <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="date_fin" name="date_fin" required>
                             </div>
                         </div>
-
                         <div class="d-grid mt-3 mt-sm-4">
-                            <button type="submit" class="btn btn-primary btn-lg fw-semibold shadow-sm py-2.5 py-sm-3">
-                                <i class="fas fa-check-circle me-2"></i>Créer et activer l'année scolaire
-                            </button>
+                            <button type="submit" class="btn btn-primary btn-lg fw-semibold shadow-sm py-2.5 py-sm-3"><i class="fas fa-check-circle me-2"></i>Creer et activer l'annee scolaire</button>
                         </div>
                     </form>
 
-                {% elif step == 'class' %}
-                    <!-- ============================================== -->
-                    <!-- ÉTAPE 2 : PREMIÈRE CLASSE                     -->
-                    <!-- ============================================== -->
+                {% elif step == 'pedagogie' %}
                     <div class="onboarding-pane-header mb-3 mb-sm-4">
                         <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
-                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Étape 2 sur 2</span>
-                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1">
-                                <i class="fas fa-check me-1"></i>Année {{ active_year.nom if active_year else 'active' }}
-                            </span>
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 2 sur 2</span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1"><i class="fas fa-check me-1"></i>Annee {{ active_year.nom if active_year else 'active' }}</span>
                         </div>
-                        <h1 class="onboarding-title h4 fw-bold text-dark mb-1">
-                            Créer votre première classe 🏫
-                        </h1>
-                        <p class="text-muted small mb-0">
-                            Ajoutez la première classe pour organiser les élèves et les cours.
-                        </p>
+                        <h1 class="onboarding-title h4 fw-bold text-dark mb-1">Configurer l'offre pedagogique</h1>
+                        <p class="text-muted small mb-0">Selectionnez les niveaux proposes par votre etablissement.</p>
                     </div>
 
                     <form method="POST" action="{{ url_for('main.onboarding') }}" class="onboarding-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="action" value="creer_classe">
-
-                        <div class="row g-2 g-sm-3 mb-2.5 mb-sm-3">
-                            <div class="col-12 col-sm-6">
-                                <label for="nom_classe" class="form-label small fw-bold text-dark mb-1">
-                                    Nom de la classe <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-chalkboard"></i></span>
-                                    <input type="text" class="form-control border-start-0" id="nom_classe" name="nom" placeholder="Ex: 6ème A, 2nde C..." required autofocus>
+                        <input type="hidden" name="action" value="configurer_pedagogie">
+                        {% set cycle_labels = {'primaire': 'Primaire', 'college': 'College', 'lycee': 'Lycee'} %}
+                        <div class="row g-2 g-sm-3 mb-3">
+                            {% for cycle_key, configs in niveau_configs_grouped.items() %}
+                                <div class="col-12 col-md-4">
+                                    <div class="border rounded-3 p-3 h-100 bg-light">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input cycle-toggle" type="checkbox" id="cycle_{{ cycle_key }}" data-cycle="{{ cycle_key }}">
+                                            <label class="form-check-label fw-bold text-dark" for="cycle_{{ cycle_key }}">Tout le {{ cycle_labels.get(cycle_key, cycle_key) }}</label>
+                                        </div>
+                                        <div class="d-grid gap-1">
+                                            {% for config in configs %}
+                                                <label class="form-check small mb-0">
+                                                    <input class="form-check-input niveau-checkbox" type="checkbox" name="niveau_ids" value="{{ config.niveau_id }}" data-cycle="{{ cycle_key }}" {% if config.actif %}checked{% endif %}>
+                                                    <span class="form-check-label">{{ config.niveau.nom }}</span>
+                                                </label>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-12 col-sm-6">
-                                <label for="niveau" class="form-label small fw-bold text-dark mb-1">
-                                    Niveau / Cycle <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-layer-group"></i></span>
-                                    <input type="text" class="form-control border-start-0" id="niveau" name="niveau" placeholder="Ex: 6ème, Collège..." required>
-                                </div>
-                            </div>
+                            {% endfor %}
                         </div>
-
-                        <div class="row g-2 g-sm-3 mb-3 mb-sm-4">
-                            <div class="col-6">
-                                <label for="salle" class="form-label small fw-bold text-dark mb-1">
-                                    Salle (optionnel)
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted d-none d-sm-flex"><i class="fas fa-door-open"></i></span>
-                                    <input type="text" class="form-control border-sm-start-0" id="salle" name="salle" placeholder="Ex: Salle 101">
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <label for="capacite" class="form-label small fw-bold text-dark mb-1">
-                                    Capacité maximale
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0 text-muted d-none d-sm-flex"><i class="fas fa-users"></i></span>
-                                    <input type="number" class="form-control border-sm-start-0" id="capacite" name="capacite" value="35" min="1" max="200">
-                                </div>
-                            </div>
-                        </div>
-
                         <div class="d-grid mt-3 mt-sm-4">
-                            <button type="submit" class="btn btn-primary btn-lg fw-semibold shadow-sm py-2.5 py-sm-3">
-                                <i class="fas fa-plus-circle me-2"></i>Créer ma première classe
-                            </button>
+                            <button type="submit" class="btn btn-primary btn-lg fw-semibold shadow-sm py-2.5 py-sm-3"><i class="fas fa-check-circle me-2"></i>Continuer</button>
                         </div>
                     </form>
 
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            document.querySelectorAll('.cycle-toggle').forEach(function (cycleToggle) {
+                                var cycle = cycleToggle.dataset.cycle;
+                                var boxes = Array.from(document.querySelectorAll('.niveau-checkbox[data-cycle="' + cycle + '"]'));
+                                function syncCycle() {
+                                    var checked = boxes.filter(function (box) { return box.checked; }).length;
+                                    cycleToggle.checked = checked === boxes.length && boxes.length > 0;
+                                    cycleToggle.indeterminate = checked > 0 && checked < boxes.length;
+                                }
+                                cycleToggle.addEventListener('change', function () {
+                                    boxes.forEach(function (box) { box.checked = cycleToggle.checked; });
+                                    syncCycle();
+                                });
+                                boxes.forEach(function (box) { box.addEventListener('change', syncCycle); });
+                                syncCycle();
+                            });
+                        });
+                    </script>
+
                 {% else %}
-                    <!-- ============================================== -->
-                    <!-- ÉTAPE 3 : CONFIGURATION TERMINÉE              -->
-                    <!-- ============================================== -->
                     <div class="onboarding-success-pane text-center py-3 py-sm-4">
-                        <div class="success-badge-icon d-inline-flex align-items-center justify-content-center rounded-circle bg-success-subtle text-success mb-3 shadow-sm" style="width: 68px; height: 68px; font-size: 1.8rem;">
-                            <i class="fas fa-check-double"></i>
-                        </div>
-                        <h2 class="h4 fw-bold text-dark mb-2">Configuration terminée 🎉</h2>
-                        <p class="text-muted small mb-4 px-2">
-                            Félicitations ! Votre établissement <strong>{{ ecole.nom if ecole else '' }}</strong> dispose désormais d'une année active (<strong>{{ active_year.nom if active_year else '' }}</strong>) et de sa première classe.
-                        </p>
-
+                        <div class="success-badge-icon d-inline-flex align-items-center justify-content-center rounded-circle bg-success-subtle text-success mb-3 shadow-sm" style="width: 68px; height: 68px; font-size: 1.8rem;"><i class="fas fa-check-double"></i></div>
+                        <h2 class="h4 fw-bold text-dark mb-2">Configuration terminee</h2>
+                        <p class="text-muted small mb-4 px-2">Votre etablissement <strong>{{ ecole.nom if ecole else '' }}</strong> dispose d'une annee active et d'une offre pedagogique.</p>
                         <div class="onboarding-summary d-flex flex-wrap justify-content-center gap-2 mb-4">
-                            <div class="summary-pill px-3 py-1.5 bg-light rounded-pill border small text-dark">
-                                <i class="fas fa-calendar-check text-success me-1"></i>Année : {{ active_year.nom if active_year else 'Active' }}
-                            </div>
-                            <div class="summary-pill px-3 py-1.5 bg-light rounded-pill border small text-dark">
-                                <i class="fas fa-school text-primary me-1"></i>Première classe créée
-                            </div>
+                            <div class="summary-pill px-3 py-1.5 bg-light rounded-pill border small text-dark"><i class="fas fa-calendar-check text-success me-1"></i>Annee : {{ active_year.nom if active_year else 'Active' }}</div>
+                            <div class="summary-pill px-3 py-1.5 bg-light rounded-pill border small text-dark"><i class="fas fa-layer-group text-primary me-1"></i>Niveaux configures</div>
                         </div>
-
                         <div class="d-grid gap-2 col-12 col-md-10 mx-auto">
-                            <a href="{{ url_for('main.index') }}" class="btn btn-success btn-lg fw-bold shadow-sm py-2.5 py-sm-3">
-                                <i class="fas fa-arrow-right me-2"></i>Accéder à mon tableau de bord
-                            </a>
+                            <a href="{{ url_for('main.index') }}" class="btn btn-success btn-lg fw-bold shadow-sm py-2.5 py-sm-3"><i class="fas fa-arrow-right me-2"></i>Acceder a mon tableau de bord</a>
                         </div>
                     </div>
                 {% endif %}
 
-                <!-- Footer Mobile uniquement -->
                 <div class="onboarding-mobile-footer d-lg-none d-flex justify-content-between align-items-center mt-3 pt-2.5 border-top">
                     <div class="text-muted small text-truncate" style="font-size: 0.8rem; max-width: 220px;">
-                        <i class="fas fa-user-shield text-primary me-1"></i>
-                        <span>{{ (current_user.prenom ~ ' ' if current_user.prenom else '') ~ current_user.nom }} (Admin)</span>
+                        <i class="fas fa-user-shield text-primary me-1"></i><span>{{ (current_user.prenom ~ ' ' if current_user.prenom else '') ~ current_user.nom }} (Admin)</span>
                     </div>
-                    <div>
-                        <a href="{{ url_for('main.logout') }}" class="btn btn-outline-danger btn-sm py-1 px-2.5" style="font-size: 0.78rem;" title="Se déconnecter">
-                            <i class="fas fa-sign-out-alt me-1"></i>Déconnexion
-                        </a>
-                    </div>
+                    <a href="{{ url_for('main.logout') }}" class="btn btn-outline-danger btn-sm py-1 px-2.5" style="font-size: 0.78rem;" title="Se deconnecter"><i class="fas fa-sign-out-alt me-1"></i>Deconnexion</a>
                 </div>
             </main>
         </div>

@@ -136,7 +136,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
             setup_complete: bool
             current_step: 'year' | 'class' | 'complete'
     """
-    from app.models import AnneeScolaire, Classe
+    from app.models import AnneeScolaire, Classe, EcoleNiveauConfig, NiveauScolaire
     from app.middleware import get_ecole_id
 
     target_ecole_id = ecole_id or get_ecole_id()
@@ -145,6 +145,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
             'has_active_year': False,
             'active_year': None,
             'has_class': False,
+            'has_pedagogie': False,
             'setup_complete': False,
             'current_step': 'year'
         }
@@ -171,29 +172,43 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
             'has_active_year': False,
             'active_year': None,
             'has_class': False,
+            'has_pedagogie': False,
             'setup_complete': False,
             'current_step': 'year'
         }
     else:
         # 2. Vérification d'au moins une classe pour cette année active et cette école (requête d'existence efficace / indexable)
+        has_pedagogie = (
+            EcoleNiveauConfig.query
+            .join(NiveauScolaire, NiveauScolaire.id == EcoleNiveauConfig.niveau_id)
+            .filter(
+                EcoleNiveauConfig.ecole_id == target_ecole_id,
+                EcoleNiveauConfig.actif.is_(True),
+            )
+            .with_entities(EcoleNiveauConfig.id)
+            .first()
+            is not None
+        )
         has_class = Classe.query.filter_by(
             ecole_id=target_ecole_id,
             annee_scolaire_id=active_year.id
         ).with_entities(Classe.id).first() is not None
 
-        if not has_class:
+        if not has_pedagogie and not has_class:
             result = {
                 'has_active_year': True,
                 'active_year': active_year,
                 'has_class': False,
+                'has_pedagogie': False,
                 'setup_complete': False,
-                'current_step': 'class'
+                'current_step': 'pedagogie'
             }
         else:
             result = {
                 'has_active_year': True,
                 'active_year': active_year,
-                'has_class': True,
+                'has_class': has_class,
+                'has_pedagogie': has_pedagogie,
                 'setup_complete': True,
                 'current_step': 'complete'
             }

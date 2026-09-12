@@ -1,5 +1,6 @@
 from datetime import datetime
 import re
+from types import SimpleNamespace
 
 from app import db
 from app.models import AnneeScolaire, Classe, Ecole, EcoleNiveauConfig, NiveauScolaire
@@ -85,12 +86,50 @@ def get_niveaux_actifs(ecole_id):
     ).order_by(NiveauScolaire.ordre).all()
 
 
-def get_niveau_configs_grouped(ecole_id):
-    configs = ensure_ecole_niveau_configs(ecole_id, default_active=True, commit=False)
+def get_niveau_configs_grouped(ecole_id, default_active=True):
+    configs = ensure_ecole_niveau_configs(ecole_id, default_active=default_active, commit=False)
     grouped = {"primaire": [], "college": [], "lycee": []}
     for config in configs:
         grouped.setdefault(config.niveau.cycle, []).append(config)
     return grouped
+
+
+def get_niveau_options_grouped(ecole_id):
+    niveaux = ensure_standard_niveaux(commit=False)
+    existing = {
+        config.niveau_id: config
+        for config in EcoleNiveauConfig.query.filter_by(ecole_id=ecole_id).all()
+    }
+    grouped = {"primaire": [], "college": [], "lycee": []}
+    for niveau in niveaux:
+        config = existing.get(niveau.id)
+        grouped.setdefault(niveau.cycle, []).append(SimpleNamespace(
+            niveau_id=niveau.id,
+            actif=bool(config.actif) if config else False,
+            niveau=niveau,
+        ))
+    return grouped
+
+
+def configurer_niveaux_ecole(ecole_id, niveau_ids):
+    niveaux = ensure_standard_niveaux(commit=False)
+    valid_ids = {niveau.id for niveau in niveaux}
+    selected_ids = {int(niveau_id) for niveau_id in (niveau_ids or []) if str(niveau_id).isdigit()}
+    selected_ids = selected_ids.intersection(valid_ids)
+    if not selected_ids:
+        return None, "Veuillez selectionner au moins un niveau scolaire."
+
+    configs = ensure_ecole_niveau_configs(ecole_id, default_active=False, commit=False)
+    now = datetime.utcnow()
+    for config in configs:
+        config.actif = config.niveau_id in selected_ids
+        if config.actif:
+            config.date_activation = now
+            config.date_desactivation = None
+        else:
+            config.date_desactivation = now
+    db.session.flush()
+    return configs, None
 
 
 def set_niveau_actif(ecole_id, niveau_id, actif):

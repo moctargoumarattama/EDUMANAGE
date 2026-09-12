@@ -156,9 +156,8 @@ def onboarding():
     from app.utils import (
         get_school_setup_state,
         creer_ou_activer_annee_scolaire,
-        creer_classe_scolaire
     )
-    from app.models import Ecole, AnneeScolaire, Classe
+    from app.services.niveaux import configurer_niveaux_ecole, get_niveau_options_grouped
 
     ecole = current_user.ecole
     if not ecole:
@@ -209,41 +208,33 @@ def onboarding():
             return redirect(url_for('main.onboarding'))
 
         # Étape 2 : Création de la première classe
-        elif action == 'creer_classe':
+        elif action == 'configurer_pedagogie':
             if not active_year:
                 flash("Veuillez d'abord configurer une année scolaire active.", "warning")
                 return redirect(url_for('main.onboarding'))
 
-            nom_classe = request.form.get('nom', '').strip()
-            niveau = request.form.get('niveau', '').strip()
-            salle = request.form.get('salle', '').strip()
-            try:
-                capacite = int(request.form.get('capacite') or 35)
-            except (ValueError, TypeError):
-                capacite = 35
-
-            classe, error_msg = creer_classe_scolaire(
+            configs, error_msg = configurer_niveaux_ecole(
                 ecole_id=ecole.id,
-                annee_scolaire_id=active_year.id,
-                nom=nom_classe,
-                niveau=niveau,
-                salle=salle,
-                capacite=capacite
+                niveau_ids=request.form.getlist('niveau_ids')
             )
             if error_msg:
                 flash(error_msg, "danger")
                 return redirect(url_for('main.onboarding'))
 
+            db.session.commit()
             session['onboarding_just_completed'] = True
-            flash(f"Première classe « {classe.nom} » créée avec succès 🎉", "success")
+            flash("Configuration pedagogique enregistree avec succes.", "success")
             return redirect(url_for('main.onboarding', step='complete'))
+
+    niveau_configs_grouped = get_niveau_options_grouped(ecole.id)
 
     return render_template(
         'onboarding.html',
         ecole=ecole,
         setup_state=setup_state,
         step=step,
-        active_year=active_year
+        active_year=active_year,
+        niveau_configs_grouped=niveau_configs_grouped
     )
 
 
