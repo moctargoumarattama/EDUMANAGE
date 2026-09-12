@@ -29,6 +29,7 @@ from .common import (
 )
 from app.services import get_statistics
 from app.services.annees_scolaires import get_annee_consultee, get_annees_ecole, get_classes_annee
+from app.services.classes_annuelles import set_classe_ouverte
 from app.services.niveaux import creer_classe_depuis_niveau, get_niveau_configs_grouped, modifier_classe_depuis_niveau, set_cycle_actif, set_niveau_actif
 
 
@@ -437,6 +438,43 @@ def supprimer_classe(classe_id):
             return jsonify({'success': False, 'message': message}), 500
         flash(message, "danger")
 
+    return redirect(url_for("main.liste_classes"))
+
+
+@main.route("/classes/<int:classe_id>/statut", methods=["POST"])
+@login_required
+@role_required('admin', 'super_admin')
+def changer_statut_classe(classe_id):
+    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
+    if not ecole_id:
+        message = "Veuillez selectionner une ecole."
+        if request.is_json:
+            return jsonify({"success": False, "message": message}), 403
+        flash(message, "warning")
+        return redirect(url_for("main.liste_classes"))
+
+    payload = request.get_json(silent=True) or {}
+    statut = payload.get("statut") or request.form.get("statut")
+    if statut not in ("ouverte", "fermee"):
+        message = "Statut de classe invalide."
+        if request.is_json:
+            return jsonify({"success": False, "message": message}), 400
+        flash(message, "warning")
+        return redirect(url_for("main.liste_classes"))
+
+    classe, error = set_classe_ouverte(ecole_id, classe_id, statut == "ouverte")
+    if error:
+        db.session.rollback()
+        if request.is_json:
+            return jsonify({"success": False, "message": error}), 400
+        flash(error, "warning")
+        return redirect(url_for("main.liste_classes"))
+
+    db.session.commit()
+    message = "Classe ouverte." if classe.statut == "ouverte" else "Classe fermee."
+    if request.is_json:
+        return jsonify({"success": True, "message": message, "classe_id": classe.id, "statut": classe.statut})
+    flash(message, "success")
     return redirect(url_for("main.liste_classes"))
 
 @main.route('/get_classes/<int:annee_id>')

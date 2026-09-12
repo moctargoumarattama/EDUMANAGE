@@ -1,10 +1,34 @@
 from app import db
-from app.models import Cours
+from app.models import Classe, Cours
 from app.services.classes_annuelles import classe_est_ouverte
 
 
 def _cours_key(cours):
     return (cours.ecole_id, cours.classe_id, (cours.nom or "").strip().upper())
+
+
+def valider_classe_pour_nouveau_cours(ecole_id, classe_id):
+    classe = Classe.query.filter_by(id=classe_id, ecole_id=ecole_id).first()
+    if not classe:
+        return None, "Classe invalide pour cet etablissement."
+    if classe.annee_scolaire and classe.annee_scolaire.statut == "archivee":
+        return None, "Impossible de creer un cours dans une annee archivee."
+    if not classe_est_ouverte(classe):
+        return None, "Impossible de creer un cours dans une classe fermee."
+    return classe, None
+
+
+def get_cours_classes_ouvertes(ecole_id, annee_scolaire_id=None, classe_id=None):
+    query = Cours.query.join(Classe, Classe.id == Cours.classe_id).filter(
+        Cours.ecole_id == ecole_id,
+        Classe.ecole_id == ecole_id,
+        Classe.statut == "ouverte",
+    )
+    if annee_scolaire_id:
+        query = query.filter(Classe.annee_scolaire_id == annee_scolaire_id)
+    if classe_id:
+        query = query.filter(Classe.id == classe_id)
+    return query
 
 
 def preparer_cours_pour_correspondances(ecole_id, source_to_target):

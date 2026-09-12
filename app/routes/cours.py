@@ -36,6 +36,7 @@ from .common import (
 from unidecode import unidecode
 import pandas as pd
 from app.services import check_ecole_access
+from app.services.cours_annuels import valider_classe_pour_nouveau_cours
 from app.utils import get_annee_active
 
 
@@ -86,9 +87,13 @@ def cours():
             ecole_id=ecole_courante.id
         ).order_by(Professeur.nom, Professeur.prenom).all()
         
-        classes = Classe.query.filter_by(
-            ecole_id=ecole_courante.id
-        ).order_by(Classe.niveau, Classe.nom).all()
+        classes = (
+            Classe.query
+            .filter_by(ecole_id=ecole_courante.id, statut="ouverte")
+            .filter(~Classe.annee_scolaire.has(statut="archivee"))
+            .order_by(Classe.niveau, Classe.nom)
+            .all()
+        )
         
         # RÃ©cupÃ©ration des cours avec filtre super admin
         if is_super_admin:
@@ -182,17 +187,26 @@ def ajouter_cours():
     ]
     form.classe_id.choices = [
         (c.id, f"{c.nom} ({c.niveau})") 
-        for c in Classe.query.filter_by(ecole_id=ecole_courante.id).order_by(Classe.nom).all()
+        for c in (
+            Classe.query
+            .filter_by(ecole_id=ecole_courante.id, statut="ouverte")
+            .filter(~Classe.annee_scolaire.has(statut="archivee"))
+            .order_by(Classe.nom)
+            .all()
+        )
     ]
 
     if form.validate_on_submit():
         try:
             # VÃ©rification stricte dans l'Ã©cole courante
             prof = Professeur.query.filter_by(id=form.professeur_id.data, ecole_id=ecole_courante.id).first()
-            classe = Classe.query.filter_by(id=form.classe_id.data, ecole_id=ecole_courante.id).first()
+            classe, classe_error = valider_classe_pour_nouveau_cours(ecole_courante.id, form.classe_id.data)
 
-            if not prof or not classe:
+            if not prof:
                 flash("Le professeur ou la classe nâ€™appartient pas Ã  votre Ã©cole.", "danger")
+                return redirect(url_for('main.cours'))
+            if classe_error:
+                flash(classe_error, "danger")
                 return redirect(url_for('main.cours'))
 
             doublon = Cours.query.filter_by(
@@ -291,9 +305,16 @@ def modifier_cours(id):
 
     if form.validate_on_submit():
         professeur = Professeur.query.filter_by(id=form.professeur_id.data, ecole_id=ecole_courante.id).first()
-        classe = Classe.query.filter_by(id=form.classe_id.data, ecole_id=ecole_courante.id).first()
+        if form.classe_id.data == cours.classe_id:
+            classe = Classe.query.filter_by(id=form.classe_id.data, ecole_id=ecole_courante.id).first()
+            classe_error = None
+        else:
+            classe, classe_error = valider_classe_pour_nouveau_cours(ecole_courante.id, form.classe_id.data)
         if not professeur or not classe:
             flash("Le professeur ou la classe n'appartient pas Ã  votre Ã©cole.", "danger")
+            return redirect(url_for('main.modifier_cours', id=cours.id))
+        if classe_error:
+            flash(classe_error, "danger")
             return redirect(url_for('main.modifier_cours', id=cours.id))
 
         cours.nom = form.nom.data

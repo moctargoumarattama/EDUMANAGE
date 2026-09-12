@@ -36,6 +36,7 @@ from .common import (
     url_for,
 )
 from app.services.annees_scolaires import get_annee_consultee, get_annees_ecole, get_classes_annee
+from app.services.classes_annuelles import get_classes_ouvertes_annee
 from app.services.inscriptions_annuelles import creer_inscription_annuelle, get_inscription_active, get_parcours_eleve, modifier_inscription_annuelle
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, letter
@@ -245,9 +246,10 @@ def ajouter_eleve():
         annee_active = annees_ecole[0]
 
     # ---------------- Classes ----------------
-    classes_query = Classe.query.filter_by(ecole_id=ecole_id)
-    if annee_active:
-        classes_query = classes_query.filter_by(annee_scolaire_id=annee_active.id)
+    annee_classes = annee_consultee or annee_active
+    classes_query = Classe.query.filter_by(ecole_id=ecole_id).filter(db.false())
+    if annee_classes:
+        classes_query = get_classes_ouvertes_annee(ecole_id, annee_classes.id)
     classes = classes_query.order_by(Classe.nom).all()
     form.classe_id.choices = [(c.id, c.nom_complet) for c in classes]
     if not classes:
