@@ -32,7 +32,7 @@
                 </div>
 
                 <div class="form-card-body">
-                    <form method="POST" action="{{ url_for('main.ajouter_classe') }}" class="needs-validation" novalidate>
+                    <form method="POST" action="{{ url_for('main.ajouter_classe', annee_id=annee_active.id if annee_active else None, niveau_id=selected_niveau_id) }}" class="needs-validation" novalidate>
                         {{ form.hidden_tag() }}
 
                         <div class="form-section">
@@ -42,31 +42,23 @@
                                 </h3>
                                 {% if annee_active %}
                                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill small fw-semibold">
-                                    <i class="fas fa-calendar-check me-1"></i>Année active : {{ annee_active.nom }}
+                                    <i class="fas fa-calendar-check me-1"></i>Année : {{ annee_active.nom }}
                                 </span>
                                 {% endif %}
                             </div>
 
                             <div class="responsive-form-grid">
                                 <div>
-                                    {{ form.nom.label(class="form-label fw-medium") }}
-                                    {{ form.nom(class="form-control", placeholder="Ex: 6ème A") }}
-                                    {% for error in form.nom.errors %}
-                                    <div class="invalid-feedback d-block">{{ error }}</div>
-                                    {% endfor %}
-                                </div>
-
-                                <div>
                                     {{ form.niveau_id.label(class="form-label fw-medium") }}
-                                    {{ form.niveau_id(class="form-select") }}
+                                    {{ form.niveau_id(class="form-select", **{"data-niveaux": niveaux_form|tojson}) }}
                                     {% for error in form.niveau_id.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
                                     {% endfor %}
                                 </div>
 
                                 <div>
-                                    {{ form.section.label(class="form-label fw-medium") }}
-                                    {{ form.section(class="form-control", placeholder="Ex: A, 1, Bleu, D1") }}
+                                    <label for="{{ form.section.id }}" class="form-label fw-medium" id="sectionLabel">Section</label>
+                                    {{ form.section(class="form-control", placeholder="Ex: A", maxlength="1", pattern="[A-Za-zÀ-ÖØ-öø-ÿ]", autocomplete="off") }}
                                     {% for error in form.section.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
                                     {% endfor %}
@@ -108,4 +100,22 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const niveauSelect = document.getElementById('{{ form.niveau_id.id }}');
+    const sectionLabel = document.getElementById('sectionLabel');
+    if (!niveauSelect || !sectionLabel) return;
+    const niveaux = JSON.parse(niveauSelect.dataset.niveaux || '[]');
+    const refreshLabel = () => {
+        const selected = niveaux.find((niveau) => String(niveau.id) === String(niveauSelect.value));
+        sectionLabel.textContent = selected && selected.cycle === 'lycee' ? 'Série' : 'Section';
+    };
+    niveauSelect.addEventListener('change', refreshLabel);
+    refreshLabel();
+});
+</script>
 {% endblock %}

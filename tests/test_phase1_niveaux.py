@@ -90,21 +90,28 @@ class Phase1NiveauxTestCase(unittest.TestCase):
         set_cycle_actif(self.ecole_a.id, "secondaire", False)
         self.assertIsNotNone(db.session.get(Classe, classe.id))
 
-    def test_creation_classe_niveau_actif_ok_et_sections_libres(self):
+    def test_creation_classe_niveau_actif_ok_et_sections_strictes(self):
         sixieme = self.niveau("6E")
-        for nom, section in [("6e A", "A"), ("6e B", "B"), ("6e 1", "1")]:
+        for section in ["A", "b"]:
             classe, error = creer_classe_depuis_niveau(
-                self.ecole_a.id, self.annee_a.id, sixieme.id, nom=nom, section=section
+                self.ecole_a.id, self.annee_a.id, sixieme.id, nom="Nom falsifie", section=section
             )
             self.assertIsNone(error)
-            self.assertEqual(classe.section, section)
+            self.assertEqual(classe.section, section.upper())
+            self.assertEqual(classe.nom, f"6e {section.upper()}")
+
+        classe, error = creer_classe_depuis_niveau(
+            self.ecole_a.id, self.annee_a.id, sixieme.id, nom="6e 1", section="1"
+        )
+        self.assertIsNone(classe)
+        self.assertIn("une seule lettre", error)
 
         terminale = self.niveau("TERMINALE")
         classe, error = creer_classe_depuis_niveau(
-            self.ecole_a.id, self.annee_a.id, terminale.id, nom="Terminale D1", section="D1"
+            self.ecole_a.id, self.annee_a.id, terminale.id, nom="Terminale D1", section="D"
         )
         self.assertIsNone(error)
-        self.assertEqual(classe.nom, "Terminale D1")
+        self.assertEqual(classe.nom, "Terminale Serie D")
 
     def test_creation_classe_niveau_desactive_refusee(self):
         sixieme = self.niveau("6E")

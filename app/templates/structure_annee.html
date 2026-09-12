@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Structure {{ annee.nom }} - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container py-4 academic-page">
+    <div class="page-header">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">Structure {{ annee.nom }}</h1>
+                    <p class="page-subtitle d-none d-md-block">Classes annuelles, cours prepares et ouverture des inscriptions.</p>
+                </div>
+            </div>
+            <div class="page-actions d-flex gap-2 flex-wrap">
+                <a href="{{ url_for('main.gestion_annees') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Annees
+                </a>
+                {% if annee.statut != 'archivee' %}
+                <a href="{{ url_for('main.ajouter_classe', annee_id=annee.id) }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Ajouter une classe
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <section class="form-card mb-4">
+        <div class="form-card-body d-flex flex-column flex-md-row justify-content-between gap-3">
+            <div>
+                {% if annee.statut == 'active' %}
+                    <span class="badge bg-success mb-2">Active</span>
+                {% elif annee.statut == 'planifiee' %}
+                    <span class="badge bg-warning text-dark mb-2">Planifiee</span>
+                {% else %}
+                    <span class="badge bg-secondary mb-2">Archivee</span>
+                {% endif %}
+                <h2 class="h5 mb-1">{{ classes|length }} classe(s)</h2>
+                <p class="text-muted mb-0">{{ total_cours }} cours prepare(s)</p>
+            </div>
+            {% if annee.statut == 'planifiee' %}
+            <form method="POST" action="{{ url_for('main.preparer_structure_annee_route', annee_id=annee.id) }}" class="d-flex align-items-start">
+                {{ csrf_form.hidden_tag() }}
+                <input type="hidden" name="_redirect_to_structure" value="1">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-wand-magic-sparkles me-2"></i>
+                    {% if classes %}Mettre a jour la structure{% else %}Preparer la structure{% endif %}
+                </button>
+            </form>
+            {% elif annee.statut == 'archivee' %}
+            <div class="alert alert-secondary mb-0 py-2">Annee archivee : consultation seulement.</div>
+            {% endif %}
+        </div>
+    </section>
+
+    {% if not classes %}
+    <div class="empty-state">
+        <div class="empty-state-icon"><i class="fas fa-chalkboard"></i></div>
+        <h2 class="empty-state-title">Aucune classe pour cette annee</h2>
+        <p class="empty-state-text">Pour une premiere annee, creez manuellement les sections reelles a partir des niveaux actifs.</p>
+        {% if annee.statut != 'archivee' %}
+        <div class="d-flex justify-content-center gap-2 flex-wrap">
+            {% if annee.statut == 'planifiee' %}
+            <form method="POST" action="{{ url_for('main.preparer_structure_annee_route', annee_id=annee.id) }}">
+                {{ csrf_form.hidden_tag() }}
+                <input type="hidden" name="_redirect_to_structure" value="1">
+                <button type="submit" class="btn btn-outline-primary">Tenter une reprise</button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('main.ajouter_classe', annee_id=annee.id) }}" class="btn btn-primary">Ajouter une classe</a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% for cycle_key, niveaux in grouped.items() %}
+        {% if niveaux %}
+        <section class="mb-4">
+            <h2 class="h5 fw-bold mb-3">{{ cycle_labels.get(cycle_key, cycle_key) }}</h2>
+            {% for niveau_label, niveau_data in niveaux.items() %}
+            <div class="mb-3">
+                <h3 class="h6 text-muted text-uppercase">{{ niveau_label }}</h3>
+                {% set niveau = niveau_data.niveau %}
+                {% set niveau_classes = niveau_data.classes %}
+                <div class="row g-3">
+                    {% if not niveau_classes %}
+                    <div class="col-12">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-body d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                                <span class="text-muted small">Aucune {{ 'serie' if niveau and niveau.cycle == 'lycee' else 'section' }}</span>
+                                {% if annee.statut != 'archivee' and niveau %}
+                                <a href="{{ url_for('main.ajouter_classe', annee_id=annee.id, niveau_id=niveau.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-plus me-1"></i>Ajouter une {{ 'serie' if niveau.cycle == 'lycee' else 'section' }}
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% for classe in niveau_classes %}
+                    <div class="col-12 col-md-6 col-xl-4">
+                        <article class="card h-100 shadow-sm border-0">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                    <div>
+                                        <h4 class="h6 fw-bold mb-1">{{ classe.nom }}</h4>
+                                        <p class="small text-muted mb-0">{{ classe.section or classe.niveau or 'Section non renseignee' }}</p>
+                                    </div>
+                                    {% if classe.statut == 'fermee' %}
+                                        <span class="badge bg-secondary">Fermee</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Ouverte</span>
+                                    {% endif %}
+                                </div>
+                                <div class="small text-muted mb-2">
+                                    <i class="fas fa-book me-1"></i>{{ cours_counts.get(classe.id, 0) }} cours
+                                </div>
+                                {% if cours_par_classe.get(classe.id) %}
+                                <details class="small mb-3">
+                                    <summary>Voir les cours</summary>
+                                    <ul class="mb-0 ps-3 mt-2">
+                                        {% for cours in cours_par_classe.get(classe.id) %}
+                                        <li>{{ cours.nom }}{% if not cours.professeur_id %} <span class="text-muted">- professeur non affecte</span>{% endif %}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </details>
+                                {% endif %}
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <a href="{{ url_for('main.liste_classes', annee_id=annee.id, search=classe.nom) }}" class="btn btn-sm btn-outline-primary">Voir</a>
+                                    {% if annee.statut != 'archivee' %}
+                                    <form method="POST" action="{{ url_for('main.changer_statut_classe', classe_id=classe.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="statut" value="{{ 'ouverte' if classe.statut == 'fermee' else 'fermee' }}">
+                                        <button type="submit" class="btn btn-sm {% if classe.statut == 'fermee' %}btn-outline-success{% else %}btn-outline-secondary{% endif %}">
+                                            {{ 'Ouvrir' if classe.statut == 'fermee' else 'Fermer' }}
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                                {% if annee.statut != 'archivee' and loop.last and niveau %}
+                                <div class="mt-2">
+                                    <a href="{{ url_for('main.ajouter_classe', annee_id=annee.id, niveau_id=niveau.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-plus me-1"></i>Ajouter une {{ 'serie' if niveau.cycle == 'lycee' else 'section' }}
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </article>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+    {% endfor %}
+
+    {% if annee.statut != 'archivee' and niveaux_actifs %}
+    <section class="form-card mt-4">
+        <div class="form-card-body">
+            <h2 class="h6 fw-bold mb-2">Niveaux actifs disponibles</h2>
+            <div class="d-flex flex-wrap gap-2">
+                {% for niveau in niveaux_actifs %}
+                    <span class="badge bg-light text-dark border">{{ niveau.nom }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

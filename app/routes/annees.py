@@ -18,6 +18,12 @@ from .common import (
     url_for,
 )
 from app.services.classes_annuelles import preparer_structure_annee
+from app.services.niveaux import get_niveaux_actifs
+from app.models import Classe, Cours
+
+
+def _current_ecole_id_for_annees():
+    return current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
 
 
 @main.route('/annees', methods=['GET', 'POST'])
@@ -135,12 +141,13 @@ def changer_annee(annee_id):
 @login_required
 @role_required('admin', 'super_admin')
 def preparer_structure_annee_route(annee_id):
-    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
+    ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:
         return jsonify({"success": False, "message": "Veuillez selectionner une ecole."}), 403
 
     payload = request.get_json(silent=True) or {}
     source_id = payload.get('annee_source_id') or request.form.get('annee_source_id', type=int)
+    redirect_to_structure = request.form.get('_redirect_to_structure') == '1'
     try:
         source_id = int(source_id) if source_id else None
     except (TypeError, ValueError):
@@ -149,8 +156,18 @@ def preparer_structure_annee_route(annee_id):
     result, error = preparer_structure_annee(ecole_id, annee_id, source_id)
     if error:
         db.session.rollback()
+        if redirect_to_structure:
+            flash(error, "warning")
+            return redirect(url_for('main.structure_annee', annee_id=annee_id))
         return jsonify({"success": False, "message": error}), 400
     db.session.commit()
+
+    if redirect_to_structure:
+        flash(
+            f"{result['classes_creees']} classe(s) et {result['cours_crees']} cours prepare(s).",
+            "success"
+        )
+        return redirect(url_for('main.structure_annee', annee_id=annee_id))
 
     return jsonify({
         "success": True,
@@ -167,3 +184,63 @@ def preparer_structure_annee_route(annee_id):
             "cours_ignores_classe_fermee": result["cours_ignores_classe_fermee"],
         }
     })
+
+
+@main.route('/annees/<int:annee_id>/structure')
+@login_required
+@role_required('admin', 'super_admin')
+def structure_annee(annee_id):
+    ecole_id = _current_ecole_id_for_annees()
+    if not ecole_id:
+        flash("Veuillez selectionner une ecole.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first_or_404()
+    csrf_form = CSRFForm()
+    classes = (
+        Classe.query
+        .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
+        .order_by(Classe.niveau_id.asc(), Classe.nom.asc(), Classe.id.asc())
+        .all()
+    )
+    cours_counts = dict(
+        db.session.query(Cours.classe_id, db.func.count(Cours.id))
+        .filter(Cours.ecole_id == ecole_id, Cours.classe_id.in_([c.id for c in classes] or [-1]))
+        .group_by(Cours.classe_id)
+        .all()
+    )
+    cours_par_classe = {}
+    if classes:
+        for cours in (
+            Cours.query
+            .filter(Cours.ecole_id == ecole_id, Cours.classe_id.in_([c.id for c in classes]))
+            .order_by(Cours.nom.asc())
+            .all()
+        ):
+            cours_par_classe.setdefault(cours.classe_id, []).append(cours)
+    total_cours = sum(cours_counts.values())
+
+    niveaux_actifs = get_niveaux_actifs(ecole_id)
+    grouped = {"primaire": {}, "college": {}, "lycee": {}, "autre": {}}
+    cycle_labels = {"primaire": "Primaire", "college": "College", "lycee": "Lycee", "autre": "Autre"}
+    for niveau in niveaux_actifs:
+        cycle = niveau.cycle if niveau.cycle in grouped else "autre"
+        grouped[cycle].setdefault(niveau.nom, {"niveau": niveau, "classes": []})
+    for classe in classes:
+        niveau = classe.niveau_scolaire
+        cycle = niveau.cycle if niveau and niveau.cycle in grouped else "autre"
+        niveau_label = niveau.nom if niveau else (classe.niveau or "Sans niveau")
+        grouped[cycle].setdefault(niveau_label, {"niveau": niveau, "classes": []})["classes"].append(classe)
+
+    return render_template(
+        'structure_annee.html',
+        annee=annee,
+        classes=classes,
+        grouped=grouped,
+        cycle_labels=cycle_labels,
+        cours_counts=cours_counts,
+        total_cours=total_cours,
+        cours_par_classe=cours_par_classe,
+        niveaux_actifs=niveaux_actifs,
+        csrf_form=csrf_form,
+    )

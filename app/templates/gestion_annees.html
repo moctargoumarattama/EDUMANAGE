@@ -107,6 +107,9 @@
                                 {% endif %}
                             </td>
                             <td class="text-end">
+                                <a href="{{ url_for('main.structure_annee', annee_id=annee.id) }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-layer-group me-1"></i>Structure
+                                </a>
                                 {% if annee.statut != 'active' %}
                                 <form method="POST" action="{{ url_for('main.gestion_annees') }}" class="d-inline js-confirm-form" data-confirm="Définir cette année comme active ?">
                                     {{ csrf_form.hidden_tag() }}
@@ -145,6 +148,9 @@
                 {% else %}
                     <span class="badge bg-secondary">Archivée</span>
                 {% endif %}
+                <a href="{{ url_for('main.structure_annee', annee_id=annee.id) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-layer-group me-1"></i>Structure
+                </a>
                 {% if annee.statut != 'active' %}
                 <form method="POST" action="{{ url_for('main.gestion_annees') }}" class="js-confirm-form" data-confirm="Définir cette année comme active ?">
                     {{ csrf_form.hidden_tag() }}

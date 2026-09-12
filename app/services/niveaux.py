@@ -1,5 +1,5 @@
-from datetime import datetime
 import re
+from datetime import datetime
 from types import SimpleNamespace
 
 from app import db
@@ -178,9 +178,26 @@ def niveau_peut_etre_utilise(ecole_id, niveau_id):
     ).first() is not None
 
 
+SECTION_RE = re.compile(r"^[A-Za-zÀ-ÖØ-öø-ÿ]$")
+
+
+def normaliser_section_classe(section):
+    raw_section = section or ""
+    section = raw_section.strip()
+    if raw_section != section or not SECTION_RE.fullmatch(section):
+        return None, "La section/serie doit contenir exactement une seule lettre."
+    return section.upper(), None
+
+
+def libelle_section_niveau(niveau):
+    return "Serie" if getattr(niveau, "cycle", None) == "lycee" else "Section"
+
+
 def proposer_nom_classe(niveau, section):
     niveau_nom = niveau.nom if hasattr(niveau, "nom") else str(niveau or "")
-    section = (section or "").strip()
+    section = (section or "").strip().upper()
+    if getattr(niveau, "cycle", None) == "lycee":
+        return f"{niveau_nom} Serie {section}".strip()
     return f"{niveau_nom} {section}".strip()
 
 
@@ -197,10 +214,10 @@ def creer_classe_depuis_niveau(ecole_id, annee_scolaire_id, niveau_id, nom=None,
     if not niveau_peut_etre_utilise(ecole_id, niveau.id):
         return None, f"Le niveau {niveau.nom} est desactive pour cet etablissement."
 
-    section = (section or "").strip() or None
-    nom = (nom or proposer_nom_classe(niveau, section)).strip()
-    if not nom:
-        return None, "Le nom de la classe est obligatoire."
+    section, error = normaliser_section_classe(section)
+    if error:
+        return None, error
+    nom = proposer_nom_classe(niveau, section)
 
     try:
         capacite = int(capacite)
@@ -209,8 +226,17 @@ def creer_classe_depuis_niveau(ecole_id, annee_scolaire_id, niveau_id, nom=None,
     except (ValueError, TypeError):
         capacite = 35
 
-    existing = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id, nom=nom).first()
+    existing = Classe.query.filter_by(
+        ecole_id=ecole_id,
+        annee_scolaire_id=annee.id,
+        niveau_id=niveau.id,
+        section=section,
+    ).first()
     if existing:
+        return None, "Une classe existe deja pour ce niveau et cette section dans cette annee scolaire."
+
+    existing_name = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id, nom=nom).first()
+    if existing_name:
         return None, "Une classe avec ce nom existe deja pour cette annee scolaire."
 
     classe = Classe(
@@ -248,18 +274,28 @@ def modifier_classe_depuis_niveau(classe, ecole_id, niveau_id, nom=None, section
     if not niveau_peut_etre_utilise(ecole_id, niveau.id):
         return None, f"Le niveau {niveau.nom} est desactive pour cet etablissement."
 
-    section = (section or "").strip() or None
-    nom = (nom or proposer_nom_classe(niveau, section)).strip()
-    if not nom:
-        return None, "Le nom de la classe est obligatoire."
+    section, error = normaliser_section_classe(section)
+    if error:
+        return None, error
+    nom = proposer_nom_classe(niveau, section)
 
     existing = Classe.query.filter(
+        Classe.ecole_id == ecole_id,
+        Classe.annee_scolaire_id == annee.id,
+        Classe.niveau_id == niveau.id,
+        Classe.section == section,
+        Classe.id != classe.id,
+    ).first()
+    if existing:
+        return None, "Une classe existe deja pour ce niveau et cette section dans cette annee scolaire."
+
+    existing_name = Classe.query.filter(
         Classe.ecole_id == ecole_id,
         Classe.annee_scolaire_id == annee.id,
         Classe.nom == nom,
         Classe.id != classe.id,
     ).first()
-    if existing:
+    if existing_name:
         return None, "Une classe avec ce nom existe deja pour cette annee scolaire."
 
     try:

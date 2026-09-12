@@ -153,7 +153,7 @@ def liste_classes():
 @login_required
 @role_required('admin')
 def ajouter_classe():
-    from app.models import AnneeScolaire, Professeur, Classe
+    from app.models import AnneeScolaire, Professeur, Classe, NiveauScolaire
 
     # Récupération obligatoire de l'année scolaire active pour l'école
     annee_consultee = get_annee_consultee(current_user.ecole_id, request.args.get("annee_id", type=int))
@@ -162,18 +162,23 @@ def ajouter_classe():
         return redirect(url_for("main.liste_classes"))
 
     annee_active = AnneeScolaire.query.filter_by(ecole_id=current_user.ecole_id, statut='active').first()
-    if not annee_active:
+    annee_cible = annee_consultee or annee_active
+    if not annee_cible:
         flash("Veuillez d'abord activer une année scolaire pour votre établissement avant d'ajouter une classe.", "warning")
         return redirect(url_for("main.gestion_annees"))
 
+    selected_niveau_id = request.args.get("niveau_id", type=int)
     form = ClasseForm()
     # Professeurs filtrés par école
     professeurs = get_ecole_filter_query(Professeur).filter_by(ecole_id=current_user.ecole_id).order_by(Professeur.nom).all()
     form.professeur_principal_id.choices = [(0, "--- Aucun professeur principal ---")] + [
         (p.id, f"{p.prenom} {p.nom}") for p in professeurs
     ]
-    form.annee_scolaire_id.choices = [(annee_active.id, annee_active.nom)]
-    form.annee_scolaire_id.data = annee_active.id
+    form.annee_scolaire_id.choices = [(annee_cible.id, annee_cible.nom)]
+    form.annee_scolaire_id.data = annee_cible.id
+    if selected_niveau_id and any(choice_id == selected_niveau_id for choice_id, _label in form.niveau_id.choices):
+        form.niveau_id.data = selected_niveau_id
+    form.nom.data = form.nom.data or "AUTO"
 
     if form.validate_on_submit():
         try:
@@ -181,30 +186,38 @@ def ajouter_classe():
             capacite_val = form.capacite.data or form.effectif.data or 35
             classe, error_msg = creer_classe_depuis_niveau(
                 ecole_id=current_user.ecole_id,
-                annee_scolaire_id=annee_active.id,
+                annee_scolaire_id=annee_cible.id,
                 niveau_id=form.niveau_id.data,
-                nom=form.nom.data,
+                nom=None,
                 section=form.section.data,
                 capacite=capacite_val,
                 professeur_id=prof_id,
             )
             if error_msg:
                 flash(error_msg, "warning")
-                return redirect(url_for("main.ajouter_classe"))
-            flash(f"Classe '{classe.nom}' ajoutee avec succes pour l'annee {annee_active.nom}.", "success")
-            return redirect(url_for("main.liste_classes"))
+                return redirect(url_for("main.ajouter_classe", annee_id=annee_cible.id, niveau_id=form.niveau_id.data))
+            flash(f"Classe '{classe.nom}' ajoutee avec succes pour l'annee {annee_cible.nom}.", "success")
+            return redirect(url_for("main.structure_annee", annee_id=annee_cible.id))
 
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Erreur ajout classe : {e}")
             flash("Erreur lors de l'ajout de la classe.", "danger")
-            return redirect(url_for("main.ajouter_classe"))
+            return redirect(url_for("main.ajouter_classe", annee_id=annee_cible.id, niveau_id=form.niveau_id.data))
+
+    niveaux_form = []
+    for niveau_id, label in form.niveau_id.choices:
+        niveau = db.session.get(NiveauScolaire, niveau_id)
+        if niveau:
+            niveaux_form.append({"id": niveau.id, "nom": label, "cycle": niveau.cycle})
 
     return render_template(
         "add_class.html",
         form=form,
         professeurs=professeurs,
-        annee_active=annee_active
+        annee_active=annee_cible,
+        niveaux_form=niveaux_form,
+        selected_niveau_id=selected_niveau_id,
     )
 
 @main.route("/classes/<int:classe_id>")
@@ -475,7 +488,7 @@ def changer_statut_classe(classe_id):
     if request.is_json:
         return jsonify({"success": True, "message": message, "classe_id": classe.id, "statut": classe.statut})
     flash(message, "success")
-    return redirect(url_for("main.liste_classes"))
+    return redirect(request.referrer or url_for("main.liste_classes"))
 
 @main.route('/get_classes/<int:annee_id>')
 @login_required
