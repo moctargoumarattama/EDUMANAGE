@@ -34,8 +34,11 @@ def get_annees_ecole(ecole_id):
 
 
 def _get_session_map():
-    data = session.get(SESSION_KEY)
-    return data if isinstance(data, dict) else {}
+    try:
+        data = session.get(SESSION_KEY)
+        return data if isinstance(data, dict) else {}
+    except RuntimeError:
+        return {}
 
 
 def _get_session_annee_id(ecole_id):

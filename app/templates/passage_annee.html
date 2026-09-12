@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+
+{% block title %}Passage d'année : {{ annee_source.nom }} → {{ annee_cible.nom }} - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container py-4 academic-page">
+    <!-- Header -->
+    <div class="page-header">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">Passage d'année : {{ annee_source.nom }} → {{ annee_cible.nom }}</h1>
+                    <p class="page-subtitle d-none d-md-block">Préparation et transition individuelle des élèves d'une année scolaire à la suivante.</p>
+                </div>
+            </div>
+            <div class="page-actions d-flex gap-2 flex-wrap">
+                <a href="{{ url_for('main.gestion_annees') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Retour aux années
+                </a>
+                <a href="{{ url_for('main.structure_annee', annee_id=annee_cible.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-layer-group me-1"></i>Structure cible
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if annee_source.statut == 'archivee' %}
+    <div class="alert alert-secondary d-flex align-items-center gap-2 mb-4">
+        <i class="fas fa-archive fa-lg text-secondary"></i>
+        <div>
+            <strong>Année source archivée — Mode lecture seule.</strong>
+            <div class="small">Cette année scolaire est archivée et immuable. Les décisions de fin d'année ne peuvent plus être modifiées.</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Alerte structure cible si incomplète (informative) -->
+    {% if not structure_prete %}
+    <div class="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+        <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-exclamation-triangle fa-lg text-warning"></i>
+            <div>
+                <strong>Structure de l’année cible en cours de configuration.</strong>
+                <div class="small">L'année cible {{ annee_cible.nom }} ne dispose pas encore de classes ouvertes pour tous les niveaux. Vous pouvez toutefois traiter les élèves (sorties, transferts, diplômes ou niveaux déjà prêts).</div>
+            </div>
+        </div>
+        <a href="{{ url_for('main.structure_annee', annee_id=annee_cible.id) }}" class="btn btn-sm btn-warning">
+            <i class="fas fa-layer-group me-1"></i>Configurer la structure cible
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Progression et Compteurs -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-primary bg-opacity-10 p-3 text-primary">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Total élèves source</div>
+                        <div class="fs-4 fw-bold text-dark">{{ total_eleves }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-success bg-opacity-10 p-3 text-success">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Élèves traités</div>
+                        <div class="fs-4 fw-bold text-success">{{ nb_traites }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-warning bg-opacity-10 p-3 text-warning">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Élèves à traiter</div>
+                        <div class="fs-4 fw-bold text-warning">{{ nb_a_traiter }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barre de progression -->
+    {% if total_eleves > 0 %}
+    {% set pct = ((nb_traites / total_eleves) * 100)|round|int %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-semibold small">Progression : {{ nb_traites }} / {{ total_eleves }} élèves traités</span>
+                <span class="badge bg-primary">{{ pct }}%</span>
+            </div>
+            <div class="progress" style="height: 8px;">
+                <div class="progress-bar bg-success" role="progressbar" style="width: {{ pct }}%;" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filtres -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-3">
+            <form method="GET" action="{{ url_for('main.passage_annee', source_id=annee_source.id, cible_id=annee_cible.id) }}" class="row g-2 align-items-center">
+                <div class="col-12 col-sm-auto">
+                    <label class="form-label small text-muted mb-0 me-2"><i class="fas fa-filter me-1"></i>Filtrer :</label>
+                </div>
+                <div class="col-12 col-sm-auto">
+                    <select name="classe_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">Toutes les classes sources</option>
+                        {% for c in classes_source_disponibles %}
+                            <option value="{{ c.id }}" {% if classe_id_filtre == c.id %}selected{% endif %}>{{ c.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-sm-auto">
+                    <select name="statut" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="tous" {% if statut_filtre == 'tous' %}selected{% endif %}>Tous les états</option>
+                        <option value="a_traiter" {% if statut_filtre == 'a_traiter' %}selected{% endif %}>À traiter ({{ nb_a_traiter }})</option>
+                        <option value="traites" {% if statut_filtre == 'traites' %}selected{% endif %}>Traités ({{ nb_traites }})</option>
+                    </select>
+                </div>
+                {% if classe_id_filtre or (statut_filtre and statut_filtre != 'tous') %}
+                <div class="col-12 col-sm-auto">
+                    <a href="{{ url_for('main.passage_annee', source_id=annee_source.id, cible_id=annee_cible.id) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>Réinitialiser
+                    </a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Table des élèves -->
+    {% if annee_source.statut != 'archivee' %}
+    <form method="POST" action="{{ url_for('main.passage_masse_apercu', source_id=annee_source.id, cible_id=annee_cible.id) }}" id="form-passage-masse">
+        {{ csrf_form.csrf_token }}
+
+        <!-- Panneau d'actions groupées -->
+        <div class="card border-primary border-opacity-25 shadow-sm mb-4 bg-light">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-2">
+                <div class="fw-semibold">
+                    <i class="fas fa-tasks me-2"></i>Traitement groupé / en masse
+                </div>
+                <span class="badge bg-white text-primary fw-bold" id="badge-selection-count">0 élève(s) sélectionné(s)</span>
+            </div>
+            <div class="card-body py-3">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label small fw-semibold">Décision commune :</label>
+                        <select name="decision" id="select-decision" class="form-select form-select-sm" required>
+                            <option value="passage" selected>Passage au niveau supérieur</option>
+                            <option value="redoublement">Maintien / Redoublement</option>
+                            <option value="transfert">Transfert vers autre école</option>
+                            <option value="sortie">Sortie définitive / Abandon</option>
+                            <option value="diplome">Diplômé / Fin d'études</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4" id="bloc-classe-cible">
+                        <label class="form-label small fw-semibold">Classe cible (ouverte) :</label>
+                        <select name="classe_cible_id" id="select-classe-cible" class="form-select form-select-sm">
+                            <option value="">-- Choisir la classe cible --</option>
+                            {% for c in classes_cible_ouvertes %}
+                            <option value="{{ c.id }}">{{ c.nom }}{% if c.niveau_scolaire %} ({{ c.niveau_scolaire.nom }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-4" id="bloc-motif-sortie" style="display: none;">
+                        <label class="form-label small fw-semibold">Motif (optionnel) :</label>
+                        <input type="text" name="motif_sortie" id="input-motif-sortie" class="form-control form-control-sm" placeholder="Ex: Déménagement, fin de scolarité...">
+                    </div>
+                    <div class="col-12 col-md-5 d-flex gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary" id="btn-submit-masse">
+                            <i class="fas fa-arrow-right me-1"></i>Aperçu avant confirmation
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-select-non-traites">
+                            Sélectionner non traités
+                        </button>
+                    </div>
+                </div>
+                <div class="form-text small text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i>Cochez les élèves dans la liste ci-dessous puis cliquez sur "Aperçu avant confirmation". Aucune modification ne sera appliquée avant votre validation finale.
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="table-card academic-table-wrap">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Liste des élèves ({{ items|length }})</h2>
+            <span class="badge bg-secondary">{{ annee_source.nom }}</span>
+        </div>
+        <div class="card-body p-0">
+            {% if items %}
+            <div class="table-responsive">
+                <table class="table data-table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            {% if annee_source.statut != 'archivee' %}
+                            <th style="width: 40px;" class="text-center">
+                                <input type="checkbox" id="check-all-eleves" class="form-check-input" title="Tout sélectionner">
+                            </th>
+                            {% endif %}
+                            <th>Élève</th>
+                            <th>Classe source</th>
+                            <th>Situation cible</th>
+                            <th>État</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            {% if annee_source.statut != 'archivee' %}
+                            <td class="text-center">
+                                <input type="checkbox" name="eleve_ids" value="{{ item.eleve.id }}" class="form-check-input check-eleve" {% if item.est_traite %}data-deja-traite="true"{% endif %}>
+                            </td>
+                            {% endif %}
+                            <td>
+                                <strong>{{ item.eleve.nom }} {{ item.eleve.prenom }}</strong>
+                            </td>
+                            <td>
+                                {% if item.classe_source %}
+                                    <span class="badge bg-light text-dark border">{{ item.classe_source.nom }}</span>
+                                {% else %}
+                                    <span class="text-muted small">Sans classe</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.est_traite %}
+                                    <span class="text-success fw-semibold small">{{ item.detail_statut }}</span>
+                                {% else %}
+                                    <span class="text-muted small">En attente de décision</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.est_traite %}
+                                    <span class="badge bg-success"><i class="fas fa-check me-1"></i>Traité</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Non traité</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if annee_source.statut == 'archivee' %}
+                                    {% if item.est_traite %}
+                                        <span class="badge bg-light text-success border"><i class="fas fa-check me-1"></i>Enregistré</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted border"><i class="fas fa-lock me-1"></i>Lecture seule</span>
+                                    {% endif %}
+                                {% else %}
+                                    {% if not item.est_traite %}
+                                        <a href="{{ url_for('main.passage_eleve', source_id=annee_source.id, cible_id=annee_cible.id, eleve_id=item.eleve.id) }}" class="btn btn-sm btn-primary">
+                                             <i class="fas fa-edit me-1"></i>Traiter
+                                        </a>
+                                    {% else %}
+                                        <a href="{{ url_for('main.passage_eleve', source_id=annee_source.id, cible_id=annee_cible.id, eleve_id=item.eleve.id) }}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-eye me-1"></i>Voir
+                                        </a>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state p-4 text-center">
+                <div class="empty-state-icon text-muted mb-2"><i class="fas fa-user-slash fa-2x"></i></div>
+                <h3 class="h6 text-muted">Aucun élève trouvé pour ces critères</h3>
+                <p class="text-muted small mb-0">Tous les élèves sont peut-être déjà traités ou aucun élève n'est inscrit dans cette classe source.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if annee_source.statut != 'archivee' %}
+    </form>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectDecision = document.getElementById('select-decision');
+        const blocClasseCible = document.getElementById('bloc-classe-cible');
+        const selectClasseCible = document.getElementById('select-classe-cible');
+        const blocMotifSortie = document.getElementById('bloc-motif-sortie');
+        const checkAll = document.getElementById('check-all-eleves');
+        const eleveChecks = document.querySelectorAll('.check-eleve');
+        const badgeCount = document.getElementById('badge-selection-count');
+        const btnSelectNonTraites = document.getElementById('btn-select-non-traites');
+
+        function updateFormState() {
+            if (!selectDecision) return;
+            const dec = selectDecision.value;
+            if (dec === 'passage' || dec === 'redoublement') {
+                if (blocClasseCible) blocClasseCible.style.display = '';
+                if (selectClasseCible) selectClasseCible.required = true;
+                if (blocMotifSortie) blocMotifSortie.style.display = 'none';
+            } else if (dec === 'transfert' || dec === 'sortie') {
+                if (blocClasseCible) blocClasseCible.style.display = 'none';
+                if (selectClasseCible) selectClasseCible.required = false;
+                if (blocMotifSortie) blocMotifSortie.style.display = '';
+            } else {
+                // diplome
+                if (blocClasseCible) blocClasseCible.style.display = 'none';
+                if (selectClasseCible) selectClasseCible.required = false;
+                if (blocMotifSortie) blocMotifSortie.style.display = 'none';
+            }
+        }
+
+        function updateCount() {
+            const count = Array.from(eleveChecks).filter(c => c.checked).length;
+            if (badgeCount) badgeCount.textContent = count + ' élève(s) sélectionné(s)';
+        }
+
+        if (selectDecision) {
+            selectDecision.addEventListener('change', updateFormState);
+            updateFormState();
+        }
+
+        if (checkAll) {
+            checkAll.addEventListener('change', function() {
+                eleveChecks.forEach(c => c.checked = checkAll.checked);
+                updateCount();
+            });
+        }
+
+        eleveChecks.forEach(c => {
+            c.addEventListener('change', function() {
+                updateCount();
+                if (checkAll && !this.checked) checkAll.checked = false;
+            });
+        });
+
+        if (btnSelectNonTraites) {
+            btnSelectNonTraites.addEventListener('click', function() {
+                eleveChecks.forEach(c => {
+                    c.checked = !c.getAttribute('data-deja-traite');
+                });
+                if (checkAll) checkAll.checked = false;
+                updateCount();
+            });
+        }
+
+        updateCount();
+    });
+    </script>
+    {% endif %}
+</div>
+{% endblock %}
+

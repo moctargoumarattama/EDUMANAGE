@@ -19,9 +19,19 @@
                 <a href="{{ url_for('main.gestion_annees') }}" class="btn btn-outline-primary">
                     <i class="fas fa-arrow-left me-2"></i>Annees
                 </a>
-                <a href="{{ url_for('main.liste_classes', annee_id=annee.id) }}" class="btn btn-outline-primary">
+                {% if annee_consultee and annee_consultee.id == annee.id %}
+                <a href="{{ url_for('main.liste_classes') }}" class="btn btn-outline-primary">
                     <i class="fas fa-chalkboard me-2"></i>Classes
                 </a>
+                {% else %}
+                <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}" class="d-inline">
+                    {{ csrf_form.hidden_tag() }}
+                    <input type="hidden" name="next" value="{{ url_for('main.liste_classes') }}">
+                    <button type="submit" class="btn btn-outline-primary" title="Consulter cette année et voir ses classes">
+                        <i class="fas fa-chalkboard me-2"></i>Classes (consulter)
+                    </button>
+                </form>
+                {% endif %}
                 <a href="{{ url_for('main.cours') }}" class="btn btn-outline-secondary">
                     <i class="fas fa-book me-2"></i>Gerer les cours
                 </a>

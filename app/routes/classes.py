@@ -153,17 +153,14 @@ def liste_classes():
 def ajouter_classe():
     from app.models import AnneeScolaire, Professeur, Classe, NiveauScolaire
 
-    # Récupération obligatoire de l'année scolaire active pour l'école
-    annee_consultee = get_annee_consultee(current_user.ecole_id)
-    if annee_consultee and annee_consultee.statut == "archivee":
+    annee_cible = get_annee_consultee(current_user.ecole_id)
+    if not annee_cible:
+        flash("Veuillez d'abord configurer ou activer une année scolaire pour votre établissement avant d'ajouter une classe.", "warning")
+        return redirect(url_for("main.gestion_annees"))
+
+    if annee_cible.statut == "archivee":
         flash("Impossible de creer une classe dans une annee archivee.", "warning")
         return redirect(url_for("main.liste_classes"))
-
-    annee_active = AnneeScolaire.query.filter_by(ecole_id=current_user.ecole_id, statut='active').first()
-    annee_cible = annee_consultee or annee_active
-    if not annee_cible:
-        flash("Veuillez d'abord activer une année scolaire pour votre établissement avant d'ajouter une classe.", "warning")
-        return redirect(url_for("main.gestion_annees"))
 
     selected_niveau_id = request.args.get("niveau_id", type=int)
     form = ClasseForm()
@@ -174,9 +171,26 @@ def ajouter_classe():
     ]
     form.annee_scolaire_id.choices = [(annee_cible.id, annee_cible.nom)]
     form.annee_scolaire_id.data = annee_cible.id
-    if selected_niveau_id and any(choice_id == selected_niveau_id for choice_id, _label in form.niveau_id.choices):
-        form.niveau_id.data = selected_niveau_id
-    form.nom.data = form.nom.data or "AUTO"
+
+    # Filtrer les niveaux avec les niveaux annuels actifs de l'année cible
+    from app.services.niveaux_annuels import get_niveaux_annuels_actifs
+    niveaux_annee = get_niveaux_annuels_actifs(current_user.ecole_id, annee_cible.id)
+    form.niveau_id.choices = [(n.id, n.nom) for n in niveaux_annee]
+    form.niveau.choices = [(n.nom, n.nom) for n in niveaux_annee]
+
+    if request.method == "GET":
+        if selected_niveau_id and any(choice_id == selected_niveau_id for choice_id, _label in form.niveau_id.choices):
+            form.niveau_id.data = selected_niveau_id
+        elif not form.niveau_id.data and form.niveau_id.choices:
+            form.niveau_id.data = form.niveau_id.choices[0][0]
+
+    # Garde-fou 3 : Calculer niveau et nom côté backend si non renseignés dans le payload UI
+    niveau_obj = db.session.get(NiveauScolaire, form.niveau_id.data) if form.niveau_id.data else None
+    if niveau_obj:
+        if not form.niveau.data:
+            form.niveau.data = niveau_obj.nom
+    if not form.nom.data:
+        form.nom.data = "AUTO"
 
     if form.validate_on_submit():
         try:
@@ -194,8 +208,8 @@ def ajouter_classe():
             if error_msg:
                 flash(error_msg, "warning")
                 return redirect(url_for("main.ajouter_classe", niveau_id=form.niveau_id.data))
-            flash(f"Classe '{classe.nom}' ajoutee avec succes pour l'annee {annee_cible.nom}.", "success")
-            return redirect(url_for("main.structure_annee", annee_id=annee_cible.id))
+            flash(f"Classe '{classe.nom}' ajoutée avec succès pour l'année {annee_cible.nom}.", "success")
+            return redirect(url_for("main.liste_classes"))
 
         except Exception as e:
             db.session.rollback()

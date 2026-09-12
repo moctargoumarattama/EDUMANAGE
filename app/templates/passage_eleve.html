@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}Passage élève : {{ eleve.nom }} {{ eleve.prenom }} - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container py-4 academic-page" style="max-width: 800px;">
+    <!-- Header -->
+    <div class="page-header mb-4">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">{{ eleve.nom }} {{ eleve.prenom }}</h1>
+                    <p class="page-subtitle d-none d-md-block">Passage d'année individuel : {{ annee_source.nom }} → {{ annee_cible.nom }}</p>
+                </div>
+            </div>
+            <div class="page-actions">
+                <a href="{{ url_for('main.passage_annee', source_id=annee_source.id, cible_id=annee_cible.id) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Retour aux passages
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fiche récapitulative élève -->
+    <section class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white py-3">
+            <h2 class="h6 mb-0 text-primary fw-bold"><i class="fas fa-id-card me-2"></i>Situation actuelle de l'élève</h2>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-sm-6">
+                    <span class="text-muted small d-block">Établissement</span>
+                    <span class="fw-semibold">{{ eleve.ecole.nom }}</span>
+                </div>
+                <div class="col-sm-6">
+                    <span class="text-muted small d-block">Année source</span>
+                    <span class="fw-semibold">{{ annee_source.nom }}</span>
+                    <span class="badge bg-secondary ms-1">{{ annee_source.statut }}</span>
+                </div>
+                <div class="col-sm-6">
+                    <span class="text-muted small d-block">Classe source</span>
+                    <span class="fw-semibold">
+                        {% if classe_source %}
+                            {{ classe_source.nom }}
+                        {% else %}
+                            <span class="text-danger">Sans classe</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="col-sm-6">
+                    <span class="text-muted small d-block">Niveau source</span>
+                    <span class="fw-semibold">
+                        {% if niveau_source %}
+                            {{ niveau_source.nom }} ({{ niveau_source.code }})
+                        {% else %}
+                            <span class="text-danger">Non configuré</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            {% if inscription_cible %}
+            <div class="alert alert-info d-flex align-items-center gap-2 mt-3 mb-0 py-2">
+                <i class="fas fa-info-circle fa-lg"></i>
+                <div>
+                    <strong>Déjà inscrit pour l'année {{ annee_cible.nom }} :</strong>
+                    Classe {{ inscription_cible.classe.nom if inscription_cible.classe else 'N/A' }} (Statut : {{ inscription_cible.statut }}).
+                </div>
+            </div>
+            {% elif inscription_source.decision_fin_annee %}
+            <div class="alert alert-info d-flex align-items-center gap-2 mt-3 mb-0 py-2">
+                <i class="fas fa-info-circle fa-lg"></i>
+                <div>
+                    <strong>Décision enregistrée :</strong>
+                    {{ inscription_source.decision_fin_annee|capitalize }} (Statut source : {{ inscription_source.statut }}).
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Formulaire de décision -->
+    <section class="card border-0 shadow-sm">
+        <div class="card-header bg-white py-3">
+            <h2 class="h6 mb-0 text-primary fw-bold"><i class="fas fa-tasks me-2"></i>Décision de fin d'année pour {{ annee_cible.nom }}</h2>
+        </div>
+        <div class="card-body">
+            {% if blocage_niveau %}
+            <div class="alert alert-danger mb-4">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Le niveau de la classe source n'est pas configuré.</strong>
+                <p class="small mb-0 mt-1">La classe source ne possède pas de niveau scolaire rattaché (héritage legacy). Le passage et le redoublement automatiques ne peuvent pas déterminer le niveau attendu.</p>
+            </div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('main.passage_eleve', source_id=annee_source.id, cible_id=annee_cible.id, eleve_id=eleve.id) }}" id="form-passage">
+                {{ csrf_form.hidden_tag() }}
+
+                <!-- Choix de la décision -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Décision <span class="text-danger">*</span></label>
+                    <div class="d-flex flex-column gap-2">
+                        {% if peut_passer %}
+                        <div class="form-check p-3 border rounded">
+                            <input class="form-check-input" type="radio" name="decision" id="decision_passage" value="passage" checked>
+                            <label class="form-check-label fw-semibold" for="decision_passage">
+                                <i class="fas fa-level-up-alt text-success me-2"></i>Passage (Promotion vers {{ niveau_suivant.nom if niveau_suivant else 'niveau supérieur' }})
+                            </label>
+                            <div class="text-muted small ms-4">L'élève passe en classe supérieure dans l'année {{ annee_cible.nom }}.</div>
+                        </div>
+                        {% endif %}
+
+                        {% if niveau_source %}
+                        <div class="form-check p-3 border rounded">
+                            <input class="form-check-input" type="radio" name="decision" id="decision_redoublement" value="redoublement" {% if not peut_passer %}checked{% endif %}>
+                            <label class="form-check-label fw-semibold" for="decision_redoublement">
+                                <i class="fas fa-redo text-warning me-2"></i>Redoublement (Même niveau : {{ niveau_source.nom }})
+                            </label>
+                            <div class="text-muted small ms-4">L'élève refait une année dans le même niveau scolaire.</div>
+                        </div>
+                        {% endif %}
+
+                        <div class="form-check p-3 border rounded">
+                            <input class="form-check-input" type="radio" name="decision" id="decision_transfert" value="transfert" {% if not peut_passer and not niveau_source %}checked{% endif %}>
+                            <label class="form-check-label fw-semibold" for="decision_transfert">
+                                <i class="fas fa-exchange-alt text-info me-2"></i>Transfert (Quitte l'établissement)
+                            </label>
+                            <div class="text-muted small ms-4">L'élève change d'établissement. Aucune inscription créée dans l'année cible.</div>
+                        </div>
+
+                        <div class="form-check p-3 border rounded">
+                            <input class="form-check-input" type="radio" name="decision" id="decision_sortie" value="sortie">
+                            <label class="form-check-label fw-semibold" for="decision_sortie">
+                                <i class="fas fa-door-open text-secondary me-2"></i>Sortie définitive (Abandon / Fin de scolarité)
+                            </label>
+                            <div class="text-muted small ms-4">L'élève quitte définitivement la scolarité. Aucune inscription créée dans l'année cible.</div>
+                        </div>
+
+                        {% if peut_diplome %}
+                        <div class="form-check p-3 border rounded">
+                            <input class="form-check-input" type="radio" name="decision" id="decision_diplome" value="diplome">
+                            <label class="form-check-label fw-semibold" for="decision_diplome">
+                                <i class="fas fa-graduation-cap text-primary me-2"></i>Diplômé (Fin de cycle terminal)
+                            </label>
+                            <div class="text-muted small ms-4">L'élève a achevé son cycle d'études avec succès.</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Sélection de la classe cible -->
+                <div class="mb-4" id="groupe-classe-cible">
+                    <label class="form-label fw-bold">Classe de destination ({{ annee_cible.nom }}) <span class="text-danger">*</span></label>
+                    <select name="classe_cible_id" id="classe_cible_id" class="form-select">
+                        <option value="">-- Sélectionner une classe --</option>
+                        {% for c in candidates_passage %}
+                            <option value="{{ c.id }}" data-decision="passage">{{ c.nom }} ({{ c.niveau_scolaire.nom if c.niveau_scolaire else c.niveau }})</option>
+                        {% endfor %}
+                        {% for c in candidates_redoublement %}
+                            <option value="{{ c.id }}" data-decision="redoublement">{{ c.nom }} ({{ c.niveau_scolaire.nom if c.niveau_scolaire else c.niveau }})</option>
+                        {% endfor %}
+                    </select>
+
+                    <div id="msg-aucun-passage" class="alert alert-warning small mt-2 d-none">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Aucune classe ouverte disponible pour le niveau attendu.
+                    </div>
+                    <div id="msg-aucun-redoublement" class="alert alert-warning small mt-2 d-none">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Aucune classe ouverte disponible pour ce niveau.
+                    </div>
+                </div>
+
+                <!-- Motif de sortie (optionnel) -->
+                <div class="mb-4 d-none" id="groupe-motif">
+                    <label class="form-label fw-bold">Motif de sortie / transfert <span class="text-muted small fw-normal">(optionnel)</span></label>
+                    <input type="text" name="motif_sortie" id="motif_sortie" class="form-control" placeholder="Ex. Déménagement, réorientation...">
+                </div>
+
+                <!-- Boutons d'action -->
+                <div class="d-flex gap-2 justify-content-end">
+                    <a href="{{ url_for('main.passage_annee', source_id=annee_source.id, cible_id=annee_cible.id) }}" class="btn btn-outline-secondary">
+                        Annuler
+                    </a>
+                    <button type="submit" class="btn btn-primary" id="btn-confirmer">
+                        <i class="fas fa-check me-2"></i>Confirmer la décision
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const radios = document.querySelectorAll('input[name="decision"]');
+    const groupeClasse = document.getElementById('groupe-classe-cible');
+    const selectClasse = document.getElementById('classe_cible_id');
+    const optionsClasse = Array.from(selectClasse.querySelectorAll('option[data-decision]'));
+    const groupeMotif = document.getElementById('groupe-motif');
+    const msgPassage = document.getElementById('msg-aucun-passage');
+    const msgRedoublement = document.getElementById('msg-aucun-redoublement');
+    const btnConfirmer = document.getElementById('btn-confirmer');
+
+    function updateForm() {
+        const checkedRadio = document.querySelector('input[name="decision"]:checked');
+        if (!checkedRadio) return;
+        const decision = checkedRadio.value;
+
+        // Reset alertes
+        msgPassage.classList.add('d-none');
+        msgRedoublement.classList.add('d-none');
+
+        if (decision === 'passage' || decision === 'redoublement') {
+            groupeClasse.classList.remove('d-none');
+            selectClasse.required = true;
+            groupeMotif.classList.add('d-none');
+
+            // Filtrer les options de classe
+            let countVisible = 0;
+            let firstVisibleVal = '';
+            optionsClasse.forEach(opt => {
+                if (opt.getAttribute('data-decision') === decision) {
+                    opt.style.display = '';
+                    opt.disabled = false;
+                    countVisible++;
+                    if (!firstVisibleVal) firstVisibleVal = opt.value;
+                } else {
+                    opt.style.display = 'none';
+                    opt.disabled = true;
+                }
+            });
+
+            // Si l'option actuelle n'est pas compatible, sélectionner la première valide
+            const selectedOpt = selectClasse.options[selectClasse.selectedIndex];
+            if (!selectedOpt || selectedOpt.getAttribute('data-decision') !== decision) {
+                selectClasse.value = firstVisibleVal || '';
+            }
+
+            // Gestion de l'absence de classes
+            if (countVisible === 0) {
+                if (decision === 'passage') msgPassage.classList.remove('d-none');
+                if (decision === 'redoublement') msgRedoublement.classList.remove('d-none');
+                btnConfirmer.disabled = true;
+            } else {
+                btnConfirmer.disabled = false;
+            }
+        } else {
+            // Transfert, Sortie, Diplôme
+            groupeClasse.classList.add('d-none');
+            selectClasse.required = false;
+            selectClasse.value = '';
+            btnConfirmer.disabled = false;
+
+            if (decision === 'transfert' || decision === 'sortie') {
+                groupeMotif.classList.remove('d-none');
+            } else {
+                groupeMotif.classList.add('d-none');
+            }
+        }
+    }
+
+    radios.forEach(radio => radio.addEventListener('change', updateForm));
+    updateForm();
+});
+</script>
+{% endblock %}
+

@@ -506,3 +506,435 @@ def executer_passage_eleve(
         "deja_traite": False,
     }, None
 
+
+# ---------------------------------------------------------------------------
+# 6. Traitement en masse (Phase 2D-4)
+# ---------------------------------------------------------------------------
+
+def preparer_passage_masse(
+    ecole_id,
+    annee_source_id,
+    annee_cible_id,
+    eleve_ids,
+    decision,
+    classe_cible_id=None,
+    motif_sortie=None,
+):
+    """
+    Prépare et audite le passage d'année pour un lot d'élèves, SANS RIEN MODIFIER EN BASE.
+
+    Retourne un dict :
+      ok: bool (True si les paramètres globaux sont valides)
+      error: str | None (message d'erreur global si ok=False)
+      annee_source: AnneeScolaire | None
+      annee_cible: AnneeScolaire | None
+      classe_cible: Classe | None
+      decision: str
+      motif_sortie: str | None
+      total: int
+      nb_valides: int
+      nb_deja_traites: int
+      nb_conflits: int
+      items: list[dict]
+    """
+    result = {
+        "ok": False,
+        "error": None,
+        "annee_source": None,
+        "annee_cible": None,
+        "classe_cible": None,
+        "decision": decision,
+        "motif_sortie": motif_sortie,
+        "total": 0,
+        "nb_valides": 0,
+        "nb_deja_traites": 0,
+        "nb_conflits": 0,
+        "items": [],
+    }
+
+    if not eleve_ids:
+        result["error"] = "Aucun élève sélectionné."
+        return result
+
+    if decision not in TOUTES_DECISIONS:
+        result["error"] = f"Décision inconnue : '{decision}'."
+        return result
+
+    annee_source, annee_cible, error = valider_contexte_passage(
+        ecole_id, annee_source_id, annee_cible_id
+    )
+    if error:
+        result["error"] = error
+        return result
+
+    result["annee_source"] = annee_source
+    result["annee_cible"] = annee_cible
+
+    if annee_source.statut == "archivee":
+        result["error"] = (
+            "L'année source est archivée. "
+            "Une inscription archivée ne peut pas être modifiée."
+        )
+        return result
+
+    classe_cible = None
+    if decision in DECISIONS_AVEC_CIBLE:
+        if not classe_cible_id:
+            result["error"] = f"La décision '{decision}' requiert une classe cible explicite."
+            return result
+
+        classe_cible = Classe.query.filter_by(
+            id=classe_cible_id, ecole_id=ecole_id
+        ).first()
+        if not classe_cible:
+            result["error"] = "Classe cible introuvable pour cet établissement."
+            return result
+        if classe_cible.annee_scolaire_id != annee_cible.id:
+            result["error"] = "La classe cible n'appartient pas à l'année cible."
+            return result
+        if not classe_est_ouverte(classe_cible):
+            result["error"] = "La classe cible est fermée."
+            return result
+
+        result["classe_cible"] = classe_cible
+
+    # Déduplication ordonnée des eleve_ids
+    seen = set()
+    eleve_ids_uniques = []
+    for eid in eleve_ids:
+        if eid not in seen:
+            seen.add(eid)
+            eleve_ids_uniques.append(eid)
+
+    items = []
+    for eid in eleve_ids_uniques:
+        eleve = Eleve.query.filter_by(id=eid, ecole_id=ecole_id).first()
+        if not eleve:
+            items.append({
+                "eleve_id": eid,
+                "eleve": None,
+                "inscription_source": None,
+                "classe_source": None,
+                "statut": "conflit",
+                "statut_label": "Introuvable",
+                "motif": "Élève introuvable pour cet établissement.",
+            })
+            continue
+
+        prep = preparer_passage_eleve(
+            ecole_id=ecole_id,
+            eleve_id=eleve.id,
+            annee_source_id=annee_source.id,
+            annee_cible_id=annee_cible.id,
+            decision=decision,
+        )
+
+        insc_source = prep.get("inscription_source")
+        classe_src = prep.get("classe_source")
+
+        if prep.get("blocage"):
+            items.append({
+                "eleve_id": eleve.id,
+                "eleve": eleve,
+                "inscription_source": insc_source,
+                "classe_source": classe_src,
+                "statut": "conflit",
+                "statut_label": "Non éligible",
+                "motif": prep["blocage"],
+            })
+            continue
+
+        # Inscription cible déjà existante ?
+        insc_cible_existante = prep.get("inscription_cible_existante")
+
+        if decision in DECISIONS_AVEC_CIBLE:
+            # Vérifier la cohérence de niveau
+            niveau_attendu = prep.get("niveau_cible")
+            if niveau_attendu and classe_cible.niveau_id != niveau_attendu.id:
+                items.append({
+                    "eleve_id": eleve.id,
+                    "eleve": eleve,
+                    "inscription_source": insc_source,
+                    "classe_source": classe_src,
+                    "statut": "conflit",
+                    "statut_label": "Conflit",
+                    "motif": (
+                        f"La classe cible {classe_cible.nom} "
+                        f"({classe_cible.niveau_scolaire.nom if classe_cible.niveau_scolaire else 'sans niveau'}) "
+                        f"ne correspond pas au niveau attendu ({niveau_attendu.nom})."
+                    ),
+                })
+                continue
+
+            if insc_cible_existante:
+                if insc_cible_existante.classe_id == classe_cible.id:
+                    items.append({
+                        "eleve_id": eleve.id,
+                        "eleve": eleve,
+                        "inscription_source": insc_source,
+                        "classe_source": classe_src,
+                        "statut": "deja_traite",
+                        "statut_label": "Déjà traité",
+                        "motif": f"Déjà inscrit dans la classe {classe_cible.nom}.",
+                    })
+                else:
+                    nom_autre = (
+                        insc_cible_existante.classe.nom
+                        if insc_cible_existante.classe
+                        else f"classe #{insc_cible_existante.classe_id}"
+                    )
+                    items.append({
+                        "eleve_id": eleve.id,
+                        "eleve": eleve,
+                        "inscription_source": insc_source,
+                        "classe_source": classe_src,
+                        "statut": "conflit",
+                        "statut_label": "Conflit",
+                        "motif": f"Déjà inscrit dans une autre classe ({nom_autre}) pour l'année cible.",
+                    })
+                continue
+
+            # Tout est valide pour décision avec cible
+            items.append({
+                "eleve_id": eleve.id,
+                "eleve": eleve,
+                "inscription_source": insc_source,
+                "classe_source": classe_src,
+                "statut": "valide",
+                "statut_label": "Prêt",
+                "motif": None,
+            })
+
+        else:
+            # DECISIONS_SANS_CIBLE
+            if decision == "diplome":
+                niveau_src = prep.get("niveau_source")
+                if niveau_src and niveau_src.niveau_suivant is not None:
+                    items.append({
+                        "eleve_id": eleve.id,
+                        "eleve": eleve,
+                        "inscription_source": insc_source,
+                        "classe_source": classe_src,
+                        "statut": "conflit",
+                        "statut_label": "Non éligible",
+                        "motif": (
+                            f"La décision 'diplome' n'est pas autorisée pour le niveau "
+                            f"{niveau_src.nom} (réservée au cycle terminal)."
+                        ),
+                    })
+                    continue
+
+                if insc_source and (
+                    insc_source.decision_fin_annee == "diplome"
+                    or insc_source.statut == "diplome"
+                ):
+                    items.append({
+                        "eleve_id": eleve.id,
+                        "eleve": eleve,
+                        "inscription_source": insc_source,
+                        "classe_source": classe_src,
+                        "statut": "deja_traite",
+                        "statut_label": "Déjà traité",
+                        "motif": "Élève déjà diplômé.",
+                    })
+                    continue
+
+            elif decision in ("transfert", "sortie"):
+                if insc_source and (
+                    insc_source.decision_fin_annee == decision
+                    or insc_source.statut in ("transfere", "sorti")
+                ):
+                    items.append({
+                        "eleve_id": eleve.id,
+                        "eleve": eleve,
+                        "inscription_source": insc_source,
+                        "classe_source": classe_src,
+                        "statut": "deja_traite",
+                        "statut_label": "Déjà traité",
+                        "motif": f"Élève déjà enregistré comme {insc_source.statut}.",
+                    })
+                    continue
+
+            # Cas valide sans cible
+            items.append({
+                "eleve_id": eleve.id,
+                "eleve": eleve,
+                "inscription_source": insc_source,
+                "classe_source": classe_src,
+                "statut": "valide",
+                "statut_label": "Prêt",
+                "motif": None,
+            })
+
+    result["ok"] = True
+    result["items"] = items
+    result["total"] = len(items)
+    result["nb_valides"] = sum(1 for it in items if it["statut"] == "valide")
+    result["nb_deja_traites"] = sum(1 for it in items if it["statut"] == "deja_traite")
+    result["nb_conflits"] = sum(1 for it in items if it["statut"] == "conflit")
+    return result
+
+
+def executer_passage_masse(
+    ecole_id,
+    annee_source_id,
+    annee_cible_id,
+    eleve_ids,
+    decision,
+    classe_cible_id=None,
+    motif_sortie=None,
+):
+    """
+    Exécute atomiquement par élève (savepoint SQLAlchemy) le passage d'année en masse.
+
+    Pour chaque élève :
+      - Ouvre un savepoint : savepoint = db.session.begin_nested()
+      - Tente executer_passage_eleve(...)
+      - Si erreur : savepoint.rollback(), enregistre l'échec/conflit
+      - Si deja_traite : savepoint.rollback(), enregistre déjà traité
+      - Si succès : savepoint.commit(), enregistre le succès
+
+    À la fin de la boucle, fait db.session.commit() pour persister l'ensemble des élèves réussis.
+
+    Retourne : (rapport_dict, error_str | None)
+    """
+    if not eleve_ids:
+        return None, "Aucun élève sélectionné."
+
+    if decision not in TOUTES_DECISIONS:
+        return None, f"Décision inconnue : '{decision}'."
+
+    annee_source, annee_cible, error = valider_contexte_passage(
+        ecole_id, annee_source_id, annee_cible_id
+    )
+    if error:
+        return None, error
+
+    if annee_source.statut == "archivee":
+        return None, (
+            "L'année source est archivée. "
+            "Une inscription archivée ne peut pas être modifiée."
+        )
+
+    classe_cible = None
+    classe_cible_nom = None
+    if decision in DECISIONS_AVEC_CIBLE:
+        if not classe_cible_id:
+            return None, f"La décision '{decision}' requiert une classe cible explicite."
+
+        classe_cible = Classe.query.filter_by(
+            id=classe_cible_id, ecole_id=ecole_id
+        ).first()
+        if not classe_cible:
+            return None, "Classe cible introuvable pour cet établissement."
+        if classe_cible.annee_scolaire_id != annee_cible.id:
+            return None, "La classe cible n'appartient pas à l'année cible."
+        if not classe_est_ouverte(classe_cible):
+            return None, "La classe cible est fermée."
+
+        classe_cible_nom = classe_cible.nom
+
+    # Déduplication ordonnée
+    seen = set()
+    eleve_ids_uniques = []
+    for eid in eleve_ids:
+        if eid not in seen:
+            seen.add(eid)
+            eleve_ids_uniques.append(eid)
+
+    details = []
+    nb_reussis = 0
+    nb_deja_traites = 0
+    nb_conflits = 0
+    nb_echecs = 0
+
+    for eid in eleve_ids_uniques:
+        eleve = Eleve.query.filter_by(id=eid, ecole_id=ecole_id).first()
+        eleve_nom = f"{eleve.nom} {eleve.prenom}" if eleve else f"Élève #{eid}"
+
+        savepoint = db.session.begin_nested()
+        try:
+            res, err = executer_passage_eleve(
+                ecole_id=ecole_id,
+                eleve_id=eid,
+                annee_source_id=annee_source_id,
+                annee_cible_id=annee_cible_id,
+                decision=decision,
+                classe_cible_id=classe_cible_id,
+                motif_sortie=motif_sortie,
+            )
+
+            if err:
+                savepoint.rollback()
+                is_conflit = (
+                    "conflit" in err.lower()
+                    or "niveau" in err.lower()
+                    or "fermée" in err.lower()
+                    or "archivée" in err.lower()
+                )
+                statut_code = "conflit" if is_conflit else "erreur"
+                if is_conflit:
+                    nb_conflits += 1
+                else:
+                    nb_echecs += 1
+
+                details.append({
+                    "eleve_id": eid,
+                    "eleve_nom": eleve_nom,
+                    "statut": statut_code,
+                    "message": err,
+                    "classe_cible_nom": classe_cible_nom,
+                })
+            elif res and res.get("deja_traite"):
+                savepoint.rollback()
+                nb_deja_traites += 1
+                details.append({
+                    "eleve_id": eid,
+                    "eleve_nom": eleve_nom,
+                    "statut": "deja_traite",
+                    "message": "Déjà traité pour l'année cible.",
+                    "classe_cible_nom": classe_cible_nom,
+                })
+            else:
+                savepoint.commit()
+                nb_reussis += 1
+                details.append({
+                    "eleve_id": eid,
+                    "eleve_nom": eleve_nom,
+                    "statut": "succes",
+                    "message": f"Action '{decision}' validée avec succès.",
+                    "classe_cible_nom": classe_cible_nom,
+                })
+
+        except Exception as exc:  # noqa: BLE001
+            savepoint.rollback()
+            nb_echecs += 1
+            details.append({
+                "eleve_id": eid,
+                "eleve_nom": eleve_nom,
+                "statut": "erreur",
+                "message": f"Erreur inattendue : {exc}",
+                "classe_cible_nom": classe_cible_nom,
+            })
+
+    try:
+        db.session.commit()
+    except Exception as exc:  # noqa: BLE001
+        db.session.rollback()
+        return None, f"Erreur lors de la validation en base de données : {exc}"
+
+    rapport = {
+        "ok": True,
+        "annee_source": annee_source,
+        "annee_cible": annee_cible,
+        "decision": decision,
+        "classe_cible_nom": classe_cible_nom,
+        "total": len(eleve_ids_uniques),
+        "nb_reussis": nb_reussis,
+        "nb_deja_traites": nb_deja_traites,
+        "nb_conflits": nb_conflits,
+        "nb_echecs": nb_echecs,
+        "details": details,
+    }
+    return rapport, None
+

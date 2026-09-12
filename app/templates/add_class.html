@@ -35,6 +35,22 @@
                     <form method="POST" action="{{ url_for('main.ajouter_classe', niveau_id=selected_niveau_id) }}" class="needs-validation" novalidate>
                         {{ form.hidden_tag() }}
 
+                        {% if form.errors %}
+                        <div class="alert alert-danger mb-4">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="fas fa-exclamation-circle fa-lg"></i>
+                                <strong>Veuillez corriger les erreurs suivantes :</strong>
+                            </div>
+                            <ul class="mb-0 ps-3">
+                                {% for field_name, errors in form.errors.items() %}
+                                    {% for error in errors %}
+                                    <li><strong>{{ form[field_name].label.text if field_name in form else field_name }} :</strong> {{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
                         <div class="form-section">
                             <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                                 <h3 class="form-section-title mb-0">

@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Rapport d'exécution du passage en masse - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container py-4 academic-page">
+    <!-- Header -->
+    <div class="page-header mb-4">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon">
+                    <i class="fas fa-poll"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">Rapport d'exécution — Passage en masse</h1>
+                    <p class="page-subtitle d-none d-md-block">{{ annee_source.nom }} → {{ annee_cible.nom }}</p>
+                </div>
+            </div>
+            <div class="page-actions d-flex gap-2">
+                <a href="{{ url_for('main.passage_annee', source_id=annee_source.id, cible_id=annee_cible.id) }}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left me-1"></i>Retour au tableau de passage
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Synthèse alerte -->
+    {% if rapport.nb_reussis > 0 %}
+    <div class="alert alert-success d-flex align-items-center gap-2 mb-4">
+        <i class="fas fa-check-circle fa-lg text-success"></i>
+        <div>
+            <strong>Traitement terminé avec succès.</strong>
+            <div class="small">{{ rapport.nb_reussis }} élève{{ 's ont' if rapport.nb_reussis > 1 else ' a' }} été mis à jour pour l'année scolaire {{ annee_cible.nom }}.</div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-4">
+        <i class="fas fa-exclamation-circle fa-lg text-warning"></i>
+        <div>
+            <strong>Aucune modification effectuée.</strong>
+            <div class="small">Aucun nouvel enregistrement n'a été créé (les élèves étaient déjà traités ou bloqués).</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Compteurs -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-secondary bg-opacity-10 p-2 text-secondary">
+                        <i class="fas fa-users fa-lg"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Total soumis</div>
+                        <div class="fs-5 fw-bold text-dark">{{ rapport.total }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-success bg-opacity-10 p-2 text-success">
+                        <i class="fas fa-check-circle fa-lg"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Réussis</div>
+                        <div class="fs-5 fw-bold text-success">{{ rapport.nb_reussis }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-info bg-opacity-10 p-2 text-info">
+                        <i class="fas fa-history fa-lg"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Déjà traités</div>
+                        <div class="fs-5 fw-bold text-info">{{ rapport.nb_deja_traites }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-danger bg-opacity-10 p-2 text-danger">
+                        <i class="fas fa-times-circle fa-lg"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Conflits / Échecs</div>
+                        <div class="fs-5 fw-bold text-danger">{{ rapport.nb_conflits + rapport.nb_echecs }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau de détail -->
+    <div class="table-card academic-table-wrap mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Détail des résultats par élève ({{ rapport.details|length }})</h2>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table data-table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Élève</th>
+                            <th>Action</th>
+                            <th>Classe cible</th>
+                            <th>Résultat</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in rapport.details %}
+                        <tr class="{% if d.statut == 'succes' %}table-success table-opacity-10{% elif d.statut == 'deja_traite' %}table-light{% else %}table-danger table-opacity-10{% endif %}">
+                            <td>
+                                <strong>{{ d.eleve_nom }}</strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">{{ decision }}</span>
+                            </td>
+                            <td>
+                                {% if d.classe_cible_nom %}
+                                    <span class="badge bg-light text-dark border">{{ d.classe_cible_nom }}</span>
+                                {% else %}
+                                    <span class="text-muted small">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if d.statut == 'succes' %}
+                                    <span class="badge bg-success"><i class="fas fa-check me-1"></i>Succès</span>
+                                {% elif d.statut == 'deja_traite' %}
+                                    <span class="badge bg-info text-dark"><i class="fas fa-history me-1"></i>Déjà traité</span>
+                                {% elif d.statut == 'conflit' %}
+                                    <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i>Conflit</span>
+                                {% else %}
+                                    <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Erreur</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="small {% if d.statut in ('conflit', 'erreur') %}text-danger fw-semibold{% else %}text-muted{% endif %}">
+                                    {{ d.message }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions bas de page -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <a href="{{ url_for('main.passage_annee', source_id=annee_source.id, cible_id=annee_cible.id) }}" class="btn btn-primary">
+            <i class="fas fa-arrow-left me-1"></i>Retourner au tableau de passage
+        </a>
+        <a href="{{ url_for('main.gestion_annees') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-calendar-alt me-1"></i>Gestion des années scolaires
+        </a>
+    </div>
+</div>
+{% endblock %}
+

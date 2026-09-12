@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Aperçu du passage en masse : {{ annee_source.nom }} → {{ annee_cible.nom }} - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container py-4 academic-page">
+    <!-- Header -->
+    <div class="page-header mb-4">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon">
+                    <i class="fas fa-clipboard-check"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">Aperçu avant confirmation — Passage en masse</h1>
+                    <p class="page-subtitle d-none d-md-block">{{ annee_source.nom }} → {{ annee_cible.nom }}</p>
+                </div>
+            </div>
+            <div class="page-actions d-flex gap-2">
+                <a href="{{ url_for('main.passage_annee', source_id=annee_source.id, cible_id=annee_cible.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Annuler et revenir
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerte informative -->
+    <div class="alert alert-info d-flex align-items-center gap-2 mb-4">
+        <i class="fas fa-info-circle fa-lg text-primary"></i>
+        <div>
+            <strong>Contrôle préalable sans modification de la base de données.</strong>
+            <div class="small">Veuillez vérifier les informations ci-dessous. Seuls les élèves dont le statut est <strong>Prêt</strong> seront traités lors de la confirmation finale.</div>
+        </div>
+    </div>
+
+    <!-- Récapitulatif paramètres -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-12 col-md-3">
+                    <span class="text-muted small d-block">Décision commune</span>
+                    <span class="badge bg-primary fs-6 mt-1">
+                        {% if decision == 'passage' %}Passage au niveau supérieur
+                        {% elif decision == 'redoublement' %}Maintien / Redoublement
+                        {% elif decision == 'transfert' %}Transfert vers autre école
+                        {% elif decision == 'sortie' %}Sortie définitive / Abandon
+                        {% elif decision == 'diplome' %}Diplômé / Fin d'études
+                        {% else %}{{ decision }}{% endif %}
+                    </span>
+                </div>
+                <div class="col-12 col-md-4">
+                    <span class="text-muted small d-block">Classe cible</span>
+                    <strong class="text-dark">
+                        {% if classe_cible %}
+                            {{ classe_cible.nom }}
+                            {% if classe_cible.niveau_scolaire %}
+                                <span class="badge bg-light text-dark border ms-1">{{ classe_cible.niveau_scolaire.nom }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted fst-italic">Aucune (clôture source)</span>
+                        {% endif %}
+                    </strong>
+                </div>
+                {% if motif_sortie %}
+                <div class="col-12 col-md-5">
+                    <span class="text-muted small d-block">Motif</span>
+                    <span class="text-secondary small">{{ motif_sortie }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Compteurs -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-secondary bg-opacity-10 p-2 text-secondary">
+                        <i class="fas fa-users fa-lg"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Sélectionnés</div>
+                        <div class="fs-5 fw-bold text-dark">{{ prep.total }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-success bg-opacity-10 p-2 text-success">
+                        <i class="fas fa-check-circle fa-lg"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Prêts à valider</div>
+                        <div class="fs-5 fw-bold text-success">{{ prep.nb_valides }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-info bg-opacity-10 p-2 text-info">
+                        <i class="fas fa-history fa-lg"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Déjà traités</div>
+                        <div class="fs-5 fw-bold text-info">{{ prep.nb_deja_traites }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-3 d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-danger bg-opacity-10 p-2 text-danger">
+                        <i class="fas fa-exclamation-triangle fa-lg"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Conflits / Bloqués</div>
+                        <div class="fs-5 fw-bold text-danger">{{ prep.nb_conflits }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table de contrôle -->
+    <div class="table-card academic-table-wrap mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Détail des élèves audités ({{ items|length }})</h2>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table data-table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Élève</th>
+                            <th>Classe source</th>
+                            <th>État d'éligibilité</th>
+                            <th>Observation / Motif</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for it in items %}
+                        <tr class="{% if it.statut == 'conflit' %}table-danger table-opacity-10{% elif it.statut == 'deja_traite' %}table-light{% endif %}">
+                            <td>
+                                <strong>
+                                    {% if it.eleve %}
+                                        {{ it.eleve.nom }} {{ it.eleve.prenom }}
+                                    {% else %}
+                                        Élève #{{ it.eleve_id }}
+                                    {% endif %}
+                                </strong>
+                            </td>
+                            <td>
+                                {% if it.classe_source %}
+                                    <span class="badge bg-light text-dark border">{{ it.classe_source.nom }}</span>
+                                {% else %}
+                                    <span class="text-muted small">Sans classe</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if it.statut == 'valide' %}
+                                    <span class="badge bg-success"><i class="fas fa-check me-1"></i>Prêt</span>
+                                {% elif it.statut == 'deja_traite' %}
+                                    <span class="badge bg-info text-dark"><i class="fas fa-info-circle me-1"></i>Déjà traité</span>
+                                {% else %}
+                                    <span class="badge bg-danger"><i class="fas fa-exclamation-triangle me-1"></i>{{ it.statut_label }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if it.motif %}
+                                    <span class="small {% if it.statut == 'conflit' %}text-danger fw-semibold{% else %}text-muted{% endif %}">
+                                        {{ it.motif }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-success small"><i class="fas fa-check me-1"></i>Prêt pour enregistrement</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulaire de validation finale -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <a href="{{ url_for('main.passage_annee', source_id=annee_source.id, cible_id=annee_cible.id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-times me-1"></i>Annuler et modifier la sélection
+            </a>
+
+            <form method="POST" action="{{ url_for('main.passage_masse_confirmer', source_id=annee_source.id, cible_id=annee_cible.id) }}">
+                {{ csrf_form.csrf_token }}
+                <input type="hidden" name="decision" value="{{ decision }}">
+                {% if classe_cible %}
+                    <input type="hidden" name="classe_cible_id" value="{{ classe_cible.id }}">
+                {% endif %}
+                {% if motif_sortie %}
+                    <input type="hidden" name="motif_sortie" value="{{ motif_sortie }}">
+                {% endif %}
+                {% for it in items %}
+                    {% if it.statut == 'valide' %}
+                        <input type="hidden" name="eleve_ids" value="{{ it.eleve_id }}">
+                    {% endif %}
+                {% endfor %}
+
+                {% if prep.nb_valides > 0 %}
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="fas fa-check-circle me-2"></i>Confirmer le passage ({{ prep.nb_valides }} élève{{ 's' if prep.nb_valides > 1 else '' }})
+                    </button>
+                {% else %}
+                    <button type="button" class="btn btn-secondary btn-lg" disabled>
+                        <i class="fas fa-ban me-2"></i>Aucun élève éligible à traiter
+                    </button>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

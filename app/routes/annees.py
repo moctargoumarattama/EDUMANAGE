@@ -3,6 +3,7 @@ from .common import (
     AnneeScolaire,
     CSRFForm,
     Ecole,
+    current_app,
     current_user,
     datetime,
     db,
@@ -17,15 +18,64 @@ from .common import (
     session,
     url_for,
 )
-from app.services.classes_annuelles import preparer_structure_annee
+from app.services.classes_annuelles import preparer_structure_annee, classe_est_ouverte
 from app.services.annees_scolaires import get_annee_consultee, set_annee_consultee
 from app.services.niveaux import get_niveaux_actifs
-from app.models import Classe, Cours
-from app.services.niveaux_annuels import get_selection_annuelle, sauvegarder_selection_annuelle
+from app.models import Classe, Cours, Eleve, Inscription
+from app.services.niveaux_annuels import (
+    get_selection_annuelle,
+    sauvegarder_selection_annuelle,
+    get_niveaux_annuels_actifs,
+)
+from app.services.inscriptions_annuelles import get_inscription
+from app.services.passage_annee import (
+    valider_contexte_passage,
+    get_classes_candidates_passage,
+    preparer_passage_eleve,
+    executer_passage_eleve,
+    preparer_passage_masse,
+    executer_passage_masse,
+)
 
 
 def _current_ecole_id_for_annees():
     return current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
+
+
+def determiner_source_passage_pour_cible(cible, toutes_annees):
+    """
+    Détermine l'année source appropriée pour un passage vers `cible`.
+    Conditions :
+      - même établissement (ecole_id) ;
+      - cible non archivée ;
+      - source.date_debut < cible.date_debut ;
+      - couple validé par valider_contexte_passage.
+    """
+    if not cible or getattr(cible, 'statut', None) == 'archivee':
+        return None
+
+    candidats = [
+        a for a in toutes_annees
+        if a.ecole_id == cible.ecole_id and a.id != cible.id and a.statut != 'archivee' and a.date_debut < cible.date_debut
+    ]
+    if not candidats:
+        return None
+
+    # 1. Si cible est planifiée et qu'une année active antérieure existe, la privilégier
+    source_active = next((a for a in candidats if a.statut == 'active'), None)
+    if source_active:
+        annee_src, _, err = valider_contexte_passage(cible.ecole_id, source_active.id, cible.id)
+        if not err:
+            return annee_src
+
+    # 2. Sinon (ou si cible est elle-même active), prendre l'antérieure la plus récente
+    candidats_tries = sorted(candidats, key=lambda a: a.date_debut, reverse=True)
+    for cand in candidats_tries:
+        annee_src, _, err = valider_contexte_passage(cible.ecole_id, cand.id, cible.id)
+        if not err:
+            return annee_src
+
+    return None
 
 
 @main.route('/annees', methods=['GET', 'POST'])
@@ -117,7 +167,24 @@ def gestion_annees():
 
     ecole_id = _current_ecole_id_for_annees()
     annee_consultee = get_annee_consultee(ecole_id) if ecole_id else None
-    return render_template('gestion_annees.html', annees=annees, ecoles=ecoles, csrf_form=csrf_form, annee_consultee=annee_consultee)
+    source_active_par_ecole = {
+        a.ecole_id: a for a in AnneeScolaire.query.filter_by(statut='active').all()
+    }
+    sources_passage_par_cible = {}
+    for a in annees:
+        src = determiner_source_passage_pour_cible(a, annees)
+        if src:
+            sources_passage_par_cible[a.id] = src
+
+    return render_template(
+        'gestion_annees.html',
+        annees=annees,
+        ecoles=ecoles,
+        csrf_form=csrf_form,
+        annee_consultee=annee_consultee,
+        source_active_par_ecole=source_active_par_ecole,
+        sources_passage_par_cible=sources_passage_par_cible,
+    )
 
 
 @main.route('/annees/<int:annee_id>/consulter', methods=['POST'])
@@ -135,6 +202,9 @@ def consulter_annee(annee_id):
         return redirect(url_for('main.gestion_annees'))
 
     flash(f"Annee consultee : {annee.nom}.", "success")
+    next_url = request.form.get("next") or request.args.get("next")
+    if next_url and next_url.startswith('/') and not next_url.startswith('//') and '\\' not in next_url:
+        return redirect(next_url)
     return redirect(url_for('main.gestion_annees'))
 
 @main.route('/changer_annee/<int:annee_id>', methods=['POST'])
@@ -310,6 +380,7 @@ def structure_annee(annee_id):
     return render_template(
         'structure_annee.html',
         annee=annee,
+        annee_consultee=get_annee_consultee(ecole_id),
         classes=classes,
         grouped=grouped,
         cycle_labels=cycle_labels,
@@ -322,3 +393,385 @@ def structure_annee(annee_id):
         has_saved_selection=selection is not None,
         csrf_form=csrf_form,
     )
+
+
+@main.route('/annees/<int:source_id>/passage/<int:cible_id>', methods=['GET'])
+@login_required
+@role_required('admin', 'super_admin')
+def passage_annee(source_id, cible_id):
+    ecole_id = _current_ecole_id_for_annees()
+    if not ecole_id:
+        flash("Veuillez sélectionner un établissement.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    annee_source, annee_cible, error = valider_contexte_passage(ecole_id, source_id, cible_id)
+    if error:
+        flash(error, "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    # Structure cible utilisable ?
+    niveaux_cible_actifs = get_niveaux_annuels_actifs(ecole_id, cible_id)
+    classes_ouvertes_cible_count = Classe.query.filter_by(
+        ecole_id=ecole_id,
+        annee_scolaire_id=cible_id,
+        statut='ouverte'
+    ).count()
+    structure_prete = bool(niveaux_cible_actifs and classes_ouvertes_cible_count > 0)
+
+    # Inscriptions source pour cette école
+    inscriptions_source = (
+        Inscription.query
+        .filter_by(ecole_id=ecole_id, annee_scolaire_id=source_id)
+        .join(Eleve, Eleve.id == Inscription.eleve_id)
+        .options(
+            db.joinedload(Inscription.eleve),
+            db.joinedload(Inscription.classe).joinedload(Classe.niveau_scolaire)
+        )
+        .order_by(Inscription.classe_id.asc(), Eleve.nom.asc(), Eleve.prenom.asc())
+        .all()
+    )
+
+    # Inscriptions cible existantes
+    inscriptions_cible = {
+        insc.eleve_id: insc
+        for insc in Inscription.query
+        .filter_by(ecole_id=ecole_id, annee_scolaire_id=cible_id)
+        .options(db.joinedload(Inscription.classe))
+        .all()
+    }
+
+    # Préparation des lignes
+    items = []
+    classes_source_set = set()
+    for insc_src in inscriptions_source:
+        eleve = insc_src.eleve
+        classe_src = insc_src.classe
+        if classe_src:
+            classes_source_set.add(classe_src)
+        insc_cible = inscriptions_cible.get(eleve.id)
+
+        est_traite = False
+        detail_statut = "Non traité"
+
+        if insc_cible:
+            est_traite = True
+            nom_classe_cible = insc_cible.classe.nom if insc_cible.classe else "Classe inconnue"
+            if insc_src.decision_fin_annee == "passage":
+                detail_statut = f"Passage → {nom_classe_cible}"
+            elif insc_src.decision_fin_annee == "redoublement":
+                detail_statut = f"Redoublement → {nom_classe_cible}"
+            else:
+                detail_statut = f"Inscrit → {nom_classe_cible}"
+        elif insc_src.decision_fin_annee in ("transfert", "sortie", "diplome"):
+            est_traite = True
+            labels = {
+                "transfert": "Transfert",
+                "sortie": "Sortie",
+                "diplome": "Diplôme",
+            }
+            detail_statut = labels.get(insc_src.decision_fin_annee, insc_src.decision_fin_annee.capitalize())
+        elif insc_src.statut in ("transfere", "sorti", "diplome"):
+            est_traite = True
+            detail_statut = insc_src.statut.capitalize()
+
+        items.append({
+            "eleve": eleve,
+            "inscription_source": insc_src,
+            "classe_source": classe_src,
+            "inscription_cible": insc_cible,
+            "est_traite": est_traite,
+            "detail_statut": detail_statut,
+        })
+
+    # Compteurs globaux
+    total_eleves = len(items)
+    nb_traites = sum(1 for item in items if item["est_traite"])
+    nb_a_traiter = total_eleves - nb_traites
+
+    # Filtres éventuels
+    classe_id_filtre = request.args.get('classe_id', type=int)
+    statut_filtre = request.args.get('statut', 'tous')
+
+    items_affiches = items
+    if classe_id_filtre:
+        items_affiches = [it for it in items_affiches if it["classe_source"] and it["classe_source"].id == classe_id_filtre]
+    if statut_filtre == 'a_traiter':
+        items_affiches = [it for it in items_affiches if not it["est_traite"]]
+    elif statut_filtre == 'traites':
+        items_affiches = [it for it in items_affiches if it["est_traite"]]
+
+    classes_source_disponibles = sorted(
+        list(classes_source_set),
+        key=lambda c: (c.nom or "")
+    )
+
+    classes_cible_ouvertes = [
+        c for c in Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_cible.id).order_by(Classe.nom).all()
+        if classe_est_ouverte(c)
+    ]
+
+    csrf_form = CSRFForm()
+    return render_template(
+        'passage_annee.html',
+        annee_source=annee_source,
+        annee_cible=annee_cible,
+        items=items_affiches,
+        total_eleves=total_eleves,
+        nb_traites=nb_traites,
+        nb_a_traiter=nb_a_traiter,
+        structure_prete=structure_prete,
+        classes_source_disponibles=classes_source_disponibles,
+        classes_cible_ouvertes=classes_cible_ouvertes,
+        classe_id_filtre=classe_id_filtre,
+        statut_filtre=statut_filtre,
+        csrf_form=csrf_form,
+    )
+
+
+@main.route('/annees/<int:source_id>/passage/<int:cible_id>/eleves/<int:eleve_id>', methods=['GET', 'POST'], endpoint='passage_eleve')
+@main.route('/annees/<int:source_id>/passage/<int:cible_id>/eleves/<int:eleve_id>/executer', methods=['POST'], endpoint='passage_eleve_executer')
+@login_required
+@role_required('admin', 'super_admin')
+def passage_eleve(source_id, cible_id, eleve_id):
+    ecole_id = _current_ecole_id_for_annees()
+    if not ecole_id:
+        flash("Veuillez sélectionner un établissement.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    annee_source, annee_cible, error = valider_contexte_passage(ecole_id, source_id, cible_id)
+    if error:
+        flash(error, "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    # Protection absolue : année source archivée = lecture seule / aucune modification
+    if annee_source.statut == "archivee":
+        flash(
+            "Cette année scolaire est archivée. "
+            "Les décisions de fin d'année sont désormais en lecture seule.",
+            "warning"
+        )
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    eleve = Eleve.query.filter_by(id=eleve_id, ecole_id=ecole_id).first()
+    if not eleve:
+        flash("Élève introuvable pour cet établissement.", "danger")
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    inscription_source = get_inscription(eleve, annee_source)
+    if not inscription_source:
+        flash("Aucune inscription trouvée pour cet élève dans l'année source.", "danger")
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    csrf_form = CSRFForm()
+
+    if request.method == 'POST':
+        if not csrf_form.validate_on_submit():
+            flash("Session expirée ou jeton CSRF invalide.", "danger")
+            return redirect(url_for('main.passage_eleve', source_id=source_id, cible_id=cible_id, eleve_id=eleve.id))
+
+        decision = (request.form.get('decision') or '').strip()
+        classe_cible_id = request.form.get('classe_cible_id', type=int)
+        motif_sortie = (request.form.get('motif_sortie') or '').strip() or None
+
+        result, error = executer_passage_eleve(
+            ecole_id=ecole_id,
+            eleve_id=eleve.id,
+            annee_source_id=source_id,
+            annee_cible_id=cible_id,
+            decision=decision,
+            classe_cible_id=classe_cible_id,
+            motif_sortie=motif_sortie,
+        )
+
+        if error:
+            db.session.rollback()
+            flash(error, "danger")
+            return redirect(url_for('main.passage_eleve', source_id=source_id, cible_id=cible_id, eleve_id=eleve.id))
+
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.exception(f"Erreur commit passage élève : {e}")
+            flash("Erreur lors de l'enregistrement de la décision.", "danger")
+            return redirect(url_for('main.passage_eleve', source_id=source_id, cible_id=cible_id, eleve_id=eleve.id))
+
+        if result.get("deja_traite"):
+            flash(f"L'élève {eleve.nom} {eleve.prenom} a déjà été traité pour l'année cible.", "info")
+        else:
+            flash(f"Passage validé avec succès pour {eleve.nom} {eleve.prenom} ({decision}).", "success")
+
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    # GET
+    classe_source = inscription_source.classe
+    niveau_source = classe_source.niveau_scolaire if classe_source else None
+
+    prep_passage = preparer_passage_eleve(ecole_id, eleve.id, source_id, cible_id, 'passage')
+    prep_redoublement = preparer_passage_eleve(ecole_id, eleve.id, source_id, cible_id, 'redoublement')
+
+    candidates_passage = prep_passage.get("classes_candidates", [])
+    candidates_redoublement = prep_redoublement.get("classes_candidates", [])
+    niveau_suivant = prep_passage.get("niveau_cible")
+
+    blocage_niveau = None
+    if not niveau_source:
+        blocage_niveau = "Le niveau de la classe source n'est pas configuré."
+
+    peut_passer = bool(niveau_source and niveau_source.niveau_suivant is not None)
+    peut_diplome = bool(niveau_source and niveau_source.niveau_suivant is None)
+
+    inscription_cible = get_inscription(eleve, annee_cible)
+
+    return render_template(
+        'passage_eleve.html',
+        annee_source=annee_source,
+        annee_cible=annee_cible,
+        eleve=eleve,
+        inscription_source=inscription_source,
+        classe_source=classe_source,
+        niveau_source=niveau_source,
+        niveau_suivant=niveau_suivant,
+        candidates_passage=candidates_passage,
+        candidates_redoublement=candidates_redoublement,
+        blocage_niveau=blocage_niveau,
+        peut_passer=peut_passer,
+        peut_diplome=peut_diplome,
+        inscription_cible=inscription_cible,
+        csrf_form=csrf_form,
+    )
+
+
+@main.route('/annees/<int:source_id>/passage/<int:cible_id>/masse/apercu', methods=['POST'], endpoint='passage_masse_apercu')
+@login_required
+@role_required('admin', 'super_admin')
+def passage_masse_apercu(source_id, cible_id):
+    ecole_id = _current_ecole_id_for_annees()
+    if not ecole_id:
+        flash("Veuillez sélectionner un établissement.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    annee_source, annee_cible, error = valider_contexte_passage(ecole_id, source_id, cible_id)
+    if error:
+        flash(error, "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    # Protection absolue : année source archivée = lecture seule
+    if annee_source.statut == "archivee":
+        flash(
+            "Cette année scolaire est archivée. "
+            "Les décisions de fin d'année sont désormais en lecture seule.",
+            "warning"
+        )
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    csrf_form = CSRFForm()
+    if not csrf_form.validate_on_submit():
+        flash("Session expirée ou jeton CSRF invalide.", "danger")
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    eleve_ids = request.form.getlist('eleve_ids', type=int)
+    if not eleve_ids:
+        flash("Veuillez sélectionner au moins un élève pour le traitement en masse.", "warning")
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    decision = (request.form.get('decision') or '').strip()
+    if not decision:
+        flash("Veuillez choisir une décision pour le lot d'élèves.", "warning")
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    classe_cible_id = request.form.get('classe_cible_id', type=int)
+    motif_sortie = (request.form.get('motif_sortie') or '').strip() or None
+
+    prep = preparer_passage_masse(
+        ecole_id=ecole_id,
+        annee_source_id=source_id,
+        annee_cible_id=cible_id,
+        eleve_ids=eleve_ids,
+        decision=decision,
+        classe_cible_id=classe_cible_id,
+        motif_sortie=motif_sortie,
+    )
+
+    if not prep.get("ok"):
+        flash(prep.get("error") or "Erreur lors de la préparation du passage en masse.", "danger")
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    return render_template(
+        'passage_masse_apercu.html',
+        annee_source=annee_source,
+        annee_cible=annee_cible,
+        classe_cible=prep.get("classe_cible"),
+        decision=decision,
+        motif_sortie=motif_sortie,
+        prep=prep,
+        items=prep.get("items", []),
+        csrf_form=csrf_form,
+    )
+
+
+@main.route('/annees/<int:source_id>/passage/<int:cible_id>/masse/confirmer', methods=['POST'], endpoint='passage_masse_confirmer')
+@login_required
+@role_required('admin', 'super_admin')
+def passage_masse_confirmer(source_id, cible_id):
+    ecole_id = _current_ecole_id_for_annees()
+    if not ecole_id:
+        flash("Veuillez sélectionner un établissement.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    annee_source, annee_cible, error = valider_contexte_passage(ecole_id, source_id, cible_id)
+    if error:
+        flash(error, "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    # Protection absolue : année source archivée = lecture seule
+    if annee_source.statut == "archivee":
+        flash(
+            "Cette année scolaire est archivée. "
+            "Les décisions de fin d'année sont désormais en lecture seule.",
+            "warning"
+        )
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    csrf_form = CSRFForm()
+    if not csrf_form.validate_on_submit():
+        flash("Session expirée ou jeton CSRF invalide.", "danger")
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    eleve_ids = request.form.getlist('eleve_ids', type=int)
+    if not eleve_ids:
+        flash("Aucun élève sélectionné pour la confirmation.", "warning")
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    decision = (request.form.get('decision') or '').strip()
+    if not decision:
+        flash("Décision manquante pour la confirmation.", "danger")
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    classe_cible_id = request.form.get('classe_cible_id', type=int)
+    motif_sortie = (request.form.get('motif_sortie') or '').strip() or None
+
+    rapport, err = executer_passage_masse(
+        ecole_id=ecole_id,
+        annee_source_id=source_id,
+        annee_cible_id=cible_id,
+        eleve_ids=eleve_ids,
+        decision=decision,
+        classe_cible_id=classe_cible_id,
+        motif_sortie=motif_sortie,
+    )
+
+    if err:
+        flash(err, "danger")
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    return render_template(
+        'passage_masse_rapport.html',
+        annee_source=annee_source,
+        annee_cible=annee_cible,
+        decision=decision,
+        rapport=rapport,
+        csrf_form=csrf_form,
+    )
+
+
