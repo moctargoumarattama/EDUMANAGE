@@ -49,7 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
     notifications.forEach((n, index) => {
         const toastEl = document.createElement("div");
         toastEl.className = "toast align-items-center text-bg-" + 
-            (n.type === "warning" ? "warning" : n.type === "info" ? "info" : "secondary") +
+            (n.type === "warning"  "warning" : n.type === "info"  "info" : "secondary") +
             " border-0 mb-2";
         toastEl.setAttribute("role", "alert");
         toastEl.setAttribute("aria-live", "assertive");

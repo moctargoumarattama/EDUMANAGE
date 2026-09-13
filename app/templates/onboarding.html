@@ -70,7 +70,7 @@
 
                     <div class="onboarding-guide-tip p-3 rounded-3 border">
                         <div class="d-flex align-items-center gap-2 mb-1 text-primary fw-bold small">
-                            <i class="fas fa-lightbulb"></i><span>Le saviez-vous ?</span>
+                            <i class="fas fa-lightbulb"></i><span>Le saviez-vous </span>
                         </div>
                         <p class="text-muted mb-0" style="font-size: 0.8rem; line-height: 1.4;">
                             {% if step == 'year' %}
@@ -108,11 +108,16 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="creer_annee">
                         <div class="mb-2.5 mb-sm-3">
-                            <label for="nom" class="form-label small fw-bold text-dark mb-1">Intitule de l'annee scolaire <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-signature"></i></span>
-                                <input type="text" class="form-control border-start-0" id="nom" name="nom" placeholder="Ex: 2025-2026" required autofocus>
+                            <label class="form-label small fw-bold text-dark mb-1">Année scolaire <span class="text-danger">*</span></label>
+                            <div class="d-flex align-items-center gap-2 p-2 border rounded bg-white">
+                                <span class="text-muted ps-1"><i class="fas fa-calendar-alt"></i></span>
+                                <span class="fw-bold text-muted ms-1">20</span>
+                                <input type="text" class="form-control text-center fw-bold px-1" id="annee_debut_court" name="annee_debut_court" maxlength="2" placeholder="26" pattern="\d{2}" style="max-width: 70px;" required autofocus>
+                                <span class="fw-bold text-muted px-1">-</span>
+                                <span class="fw-bold text-muted">20</span>
+                                <input type="text" class="form-control text-center fw-bold bg-light px-1" id="annee_fin_court" placeholder="27" style="max-width: 70px;" readonly tabindex="-1">
                             </div>
+                            <div class="form-text small text-muted">Saisissez les 2 derniers chiffres de l'année de départ (ex: 26 pour 2026-2027).</div>
                         </div>
                         <div class="row g-2 g-sm-3 mb-3 mb-sm-4">
                             <div class="col-6">
@@ -128,6 +133,25 @@
                             <button type="submit" class="btn btn-primary btn-lg fw-semibold shadow-sm py-2.5 py-sm-3"><i class="fas fa-check-circle me-2"></i>Creer et activer l'annee scolaire</button>
                         </div>
                     </form>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            const debut = document.getElementById('annee_debut_court');
+                            const fin = document.getElementById('annee_fin_court');
+                            if (debut && fin) {
+                                function syncFin() {
+                                    const v = (debut.value || '').trim();
+                                    if (/^\d{2}$/.test(v)) {
+                                        const n = (parseInt(v, 10) + 1) % 100;
+                                        fin.value = n.toString().padStart(2, '0');
+                                    } else {
+                                        fin.value = '';
+                                    }
+                                }
+                                debut.addEventListener('input', syncFin);
+                                syncFin();
+                            }
+                        });
+                    </script>
 
                 {% elif step == 'pedagogie' %}
                     <div class="onboarding-pane-header mb-3 mb-sm-4">

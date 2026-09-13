@@ -385,7 +385,7 @@
                                                            aria-label="Modifier">
                                                             <i class="fas fa-edit"></i>
                                                         </a>
-                                                        <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="d-inline js-confirm-form" data-confirm="Voulez-vous vraiment supprimer ce créneau ({{ e.cours.nom if e.cours else 'Matière' }} - {{ e.jour }} {{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }}) ?">
+                                                        <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="d-inline js-confirm-form" data-confirm="Voulez-vous vraiment supprimer ce créneau ({{ e.cours.nom if e.cours else 'Matière' }} - {{ e.jour }} {{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }}) ">
                                                             {{ delete_form.hidden_tag() }}
                                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer ce créneau" aria-label="Supprimer">
                                                                 <i class="fas fa-trash-alt"></i>
@@ -448,7 +448,7 @@
                                                title="Modifier ce créneau">
                                                 <i class="fas fa-edit me-1"></i>Modifier
                                             </a>
-                                            <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="js-confirm-form" data-confirm="Voulez-vous vraiment supprimer ce créneau ({{ e.cours.nom if e.cours else 'Matière' }} - {{ e.jour }}) ?">
+                                            <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="js-confirm-form" data-confirm="Voulez-vous vraiment supprimer ce créneau ({{ e.cours.nom if e.cours else 'Matière' }} - {{ e.jour }}) ">
                                                 {{ delete_form.hidden_tag() }}
                                                 <button type="submit" class="btn btn-outline-danger" title="Supprimer ce créneau">
                                                     <i class="fas fa-trash-alt me-1"></i>Supprimer
@@ -541,7 +541,7 @@
                                                 <a href="{{ url_for('main.modifier_emploi', id=e.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="d-inline js-confirm-form" data-confirm="Supprimer ce créneau orphelin ?">
+                                                <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="d-inline js-confirm-form" data-confirm="Supprimer ce créneau orphelin ">
                                                     {{ delete_form.hidden_tag() }}
                                                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                                         <i class="fas fa-trash-alt"></i>
@@ -571,7 +571,7 @@
                                     <a href="{{ url_for('main.modifier_emploi', id=e.id) }}" class="btn btn-outline-primary">
                                         <i class="fas fa-edit me-1"></i>Modifier
                                     </a>
-                                    <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="js-confirm-form" data-confirm="Supprimer ce créneau ?">
+                                    <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="js-confirm-form" data-confirm="Supprimer ce créneau ">
                                         {{ delete_form.hidden_tag() }}
                                         <button type="submit" class="btn btn-outline-danger">
                                             <i class="fas fa-trash-alt me-1"></i>Supprimer
@@ -715,7 +715,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
 
-            // La classe est-elle éligible ?
+            // La classe est-elle éligible 
             let isClassMatch = false;
             if (slotItems.length === 0) {
                 // Classe sans créneau
@@ -924,12 +924,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Confirmation de suppression
     document.querySelectorAll('.js-confirm-form').forEach(form => {
         form.addEventListener('submit', function(e) {
-            const confirmMsg = this.dataset.confirm || 'Voulez-vous vraiment supprimer ce créneau ?';
+            const confirmMsg = this.dataset.confirm || 'Voulez-vous vraiment supprimer ce créneau ';
             if (!window.confirm(confirmMsg)) {
                 e.preventDefault();
             }
         });
     });
+
+    function syncUrl() {
+        const params = new URLSearchParams(window.location.search);
+        if (searchInput && searchInput.value.trim()) params.set('q', searchInput.value.trim()); else params.delete('q');
+        if (filterDay && filterDay.value) params.set('jour', filterDay.value); else params.delete('jour');
+        if (filterClasse && filterClasse.value) params.set('classe', filterClasse.value); else params.delete('classe');
+        if (sortSelect && sortSelect.value !== 'nom-asc') params.set('sort', sortSelect.value); else params.delete('sort');
+        const newUrl = window.location.pathname + (params.toString() ? '' + params.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+    }
 
     // Réinitialisation des filtres
     function resetFilters() {
@@ -939,13 +949,19 @@ document.addEventListener('DOMContentLoaded', function() {
         if (sortSelect) sortSelect.value = 'nom-asc';
         currentPage = 1;
         render();
+        syncUrl();
     }
 
-    // Écouteurs d'événements
+    // Écouteurs d'événements avec debouncing ~300ms
+    let debounceTimer = null;
     if (searchInput) {
         searchInput.addEventListener('input', function() {
-            currentPage = 1;
-            render();
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                currentPage = 1;
+                render();
+                syncUrl();
+            }, 300);
         });
     }
 
@@ -954,6 +970,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (searchInput) searchInput.value = '';
             currentPage = 1;
             render();
+            syncUrl();
             if (searchInput) searchInput.focus();
         });
     }
@@ -962,6 +979,7 @@ document.addEventListener('DOMContentLoaded', function() {
         filterDay.addEventListener('change', function() {
             currentPage = 1;
             render();
+            syncUrl();
         });
     }
 
@@ -969,6 +987,7 @@ document.addEventListener('DOMContentLoaded', function() {
         filterClasse.addEventListener('change', function() {
             currentPage = 1;
             render();
+            syncUrl();
         });
     }
 
@@ -976,6 +995,7 @@ document.addEventListener('DOMContentLoaded', function() {
         sortSelect.addEventListener('change', function() {
             currentPage = 1;
             render();
+            syncUrl();
         });
     }
 
@@ -989,6 +1009,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (btnReset) btnReset.addEventListener('click', resetFilters);
     if (btnResetEmpty) btnResetEmpty.addEventListener('click', resetFilters);
+
+    // Initialisation depuis les URL params
+    const initParams = new URLSearchParams(window.location.search);
+    if (initParams.has('q') && searchInput) searchInput.value = initParams.get('q');
+    if (initParams.has('jour') && filterDay) filterDay.value = initParams.get('jour');
+    if (initParams.has('classe') && filterClasse) filterClasse.value = initParams.get('classe');
+    if (initParams.has('sort') && sortSelect) sortSelect.value = initParams.get('sort');
 
     // Rendu initial
     render();

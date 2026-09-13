@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% block title %}Saisie Rapide des Notes par Classe - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-4">
+
+    <!-- En-tête de page standardisé KLASORA -->
+    <section class="page-header mb-4">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon bg-success text-white">
+                    <i class="fas fa-table-list" aria-hidden="true"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">Saisie Rapide des Notes par Classe</h1>
+                    <p class="page-subtitle d-none d-md-block">
+                        Saisissez les notes de l'ensemble d'une classe pour une évaluation en une seule étape.
+                    </p>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                {% if annee_consultee %}
+                <div class="d-flex align-items-center gap-2">
+                    <span class="small fw-semibold text-muted">Année :</span>
+                    <span class="badge bg-light text-dark border">
+                        {{ annee_consultee.nom }}
+                        {% if annee_consultee.statut == 'active' %}
+                        <span class="badge bg-success ms-1">ACTIVE</span>
+                        {% elif annee_consultee.statut == 'planifiee' %}
+                        <span class="badge bg-info text-dark ms-1">PLANIFIÉE</span>
+                        {% elif annee_consultee.statut == 'archivee' %}
+                        <span class="badge bg-secondary ms-1">ARCHIVÉE</span>
+                        {% endif %}
+                    </span>
+                    <a href="{{ url_for('main.gestion_annees') }}" class="small text-decoration-none">Changer</a>
+                </div>
+                {% endif %}
+                <a href="{{ url_for('main.notes') }}" class="btn btn-outline-secondary shadow-sm">
+                    <i class="fas fa-arrow-left me-2"></i>Retour aux notes
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Message de statut d'année scolaire -->
+    {% if annee_consultee and annee_consultee.statut == 'archivee' %}
+    <div class="alert alert-warning border-0 shadow-sm rounded-4 mb-4" role="alert">
+        <i class="fas fa-lock me-2"></i>Vous consultez l'année archivée <strong>{{ annee_consultee.nom }}</strong>. La saisie des notes est désactivée (lecture seule historique).
+    </div>
+    {% elif message_annee %}
+    <div class="alert alert-info border-0 shadow-sm rounded-4 mb-4" role="alert">
+        <i class="fas fa-info-circle me-2"></i>{{ message_annee }}
+    </div>
+    {% endif %}
+
+    {% if not classes %}
+    <div class="card shadow-sm border-0 rounded-4 text-center py-5">
+        <div class="card-body">
+            <div class="avatar-lg bg-light text-muted rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+                <i class="fas fa-chalkboard fa-2x"></i>
+            </div>
+            <h5 class="fw-bold">Aucune classe disponible</h5>
+            <p class="text-muted">Aucune classe n'est disponible pour vous dans l'année scolaire consultée.</p>
+            <a href="{{ url_for('main.notes') }}" class="btn btn-primary">
+                <i class="fas fa-arrow-left me-2"></i>Retour
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <form method="POST" action="{{ url_for('main.saisie_notes_classe') }}" id="formSaisieClasse">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+
+        <!-- Paramètres de l'évaluation -->
+        <div class="card shadow-sm border-0 rounded-4 mb-4">
+            <div class="card-header bg-light py-3 px-4">
+                <h5 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
+                    <i class="fas fa-sliders text-primary"></i>Paramètres de l'évaluation
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <!-- Classe -->
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label for="selectClasse" class="form-label fw-semibold">Classe <span class="text-danger">*</span></label>
+                        <select name="classe_id" id="selectClasse" class="form-select shadow-sm" required onchange="onClasseChange(this.value)">
+                            {% for c in classes %}
+                            <option value="{{ c.id }}" {% if c.id == selected_classe_id %}selected{% endif %}>
+                                {{ c.nom }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Cours -->
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label for="selectCours" class="form-label fw-semibold">Cours / Matière <span class="text-danger">*</span></label>
+                        <select name="cours_id" id="selectCours" class="form-select shadow-sm" required {% if not cours_disponibles %}disabled{% endif %}>
+                            {% if cours_disponibles %}
+                                {% for cours in cours_disponibles %}
+                                <option value="{{ cours.id }}" {% if cours.id == selected_cours_id %}selected{% endif %}>
+                                    {{ cours.nom }}
+                                </option>
+                                {% endfor %}
+                            {% else %}
+                                <option value="">--- Aucun cours pour cette classe ---</option>
+                            {% endif %}
+                        </select>
+                    </div>
+
+                    <!-- Période -->
+                    <div class="col-12 col-md-6 col-lg-2">
+                        <label for="selectPeriode" class="form-label fw-semibold">Période <span class="text-danger">*</span></label>
+                        <select name="periode" id="selectPeriode" class="form-select shadow-sm" required>
+                            <option value="Semestre 1" selected>Semestre 1</option>
+                            <option value="Semestre 2">Semestre 2</option>
+                        </select>
+                    </div>
+
+                    <!-- Type d'évaluation -->
+                    <div class="col-12 col-md-6 col-lg-2">
+                        <label for="selectType" class="form-label fw-semibold">Type <span class="text-danger">*</span></label>
+                        <select name="type_evaluation" id="selectType" class="form-select shadow-sm" required>
+                            <option value="Devoir" selected>Devoir</option>
+                            <option value="Interrogation">Interrogation</option>
+                            <option value="Composition">Composition</option>
+                        </select>
+                    </div>
+
+                    <!-- Coefficient -->
+                    <div class="col-12 col-md-6 col-lg-2">
+                        <label for="inputCoefficient" class="form-label fw-semibold">Coefficient <span class="text-danger">*</span></label>
+                        <input type="number" name="coefficient" id="inputCoefficient" class="form-control shadow-sm" value="1.0" min="0.1" step="0.1" required>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grille des élèves -->
+        <div class="card shadow-sm border-0 rounded-4 mb-4">
+            <div class="card-header bg-light py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-user-graduate text-success"></i>
+                    <h5 class="mb-0 fw-bold text-dark">
+                        Élèves inscrits ({{ inscriptions|length }})
+                    </h5>
+                </div>
+                <div class="small text-muted d-none d-md-flex align-items-center gap-2">
+                    <i class="fas fa-keyboard"></i>
+                    <span>Appuyez sur <strong>Entrée</strong> ou <strong>Flèche Bas</strong> pour passer rapidement à l'élève suivant. Laissez vide pour ne pas noter.</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if not inscriptions %}
+                <div class="p-5 text-center text-muted">
+                    <i class="fas fa-user-slash fa-3x mb-3 text-secondary opacity-50"></i>
+                    <h6>Aucun élève inscrit dans cette classe pour l'année scolaire active.</h6>
+                </div>
+                {% else %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 50px;" class="text-center">#</th>
+                                <th>Élève</th>
+                                <th class="d-none d-sm-table-cell">Matricule</th>
+                                <th style="width: 200px;" class="text-center">Note / 20</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ins in inscriptions %}
+                            {% set eleve = ins.eleve %}
+                            <tr>
+                                <td class="text-center text-muted fw-semibold">{{ loop.index }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-3">
+                                        {% if eleve.photo_url %}
+                                        <img src="{{ eleve.photo_url }}" alt="" class="rounded-circle border" style="width: 40px; height: 40px; object-fit: cover;">
+                                        {% else %}
+                                        <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px;">
+                                            {{ (eleve.prenom[:1] if eleve.prenom else '') ~ (eleve.nom[:1] if eleve.nom else '') }}
+                                        </div>
+                                        {% endif %}
+                                        <div>
+                                            <span class="fw-bold text-dark d-block">{{ eleve.nom }} {{ eleve.prenom }}</span>
+                                            <span class="text-muted small d-sm-none">{{ eleve.matricule or '-' }}</span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="d-none d-sm-table-cell">
+                                    <span class="badge bg-light text-secondary border font-monospace">{{ eleve.matricule or '-' }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="input-group" style="max-width: 150px; margin: 0 auto;">
+                                        <input
+                                            type="number"
+                                            name="note_{{ eleve.id }}"
+                                            class="form-control text-center fw-bold note-input"
+                                            min="0"
+                                            max="20"
+                                            step="0.25"
+                                            placeholder="--"
+                                            data-index="{{ loop.index0 }}"
+                                            autocomplete="off"
+                                            {% if not notes_modifiables %}disabled{% endif %}
+                                        >
+                                        <span class="input-group-text small text-muted">/ 20</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+            {% if inscriptions and notes_modifiables %}
+            <div class="card-footer bg-light p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span class="text-muted small">
+                    <i class="fas fa-info-circle me-1"></i>Les notes vides seront ignorées. Seules les notes renseignées seront créées.
+                </span>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ url_for('main.notes') }}" class="btn btn-outline-secondary">
+                        Annuler
+                    </a>
+                    <button type="submit" class="btn btn-success px-4" id="btnSubmitNotes">
+                        <i class="fas fa-check me-2"></i>Enregistrer les notes de la classe
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </form>
+    {% endif %}
+
+</div>
+
+<script>
+function onClasseChange(classeId) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('classe_id', classeId);
+    url.searchParams.delete('cours_id');
+    window.location.href = url.toString();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const inputs = Array.from(document.querySelectorAll('.note-input'));
+
+    inputs.forEach((input, idx) => {
+        // Navigation au clavier : Entrée et Flèche Bas descendent, Flèche Haut monte
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                const next = inputs[idx + 1];
+                if (next) {
+                    next.focus();
+                    next.select();
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const prev = inputs[idx - 1];
+                if (prev) {
+                    prev.focus();
+                    prev.select();
+                }
+            }
+        });
+
+        // Validation en direct de l'intervalle [0, 20]
+        input.addEventListener('input', function() {
+            const val = parseFloat(this.value);
+            if (!isNaN(val) && (val < 0 || val > 20)) {
+                this.classList.add('is-invalid');
+            } else {
+                this.classList.remove('is-invalid');
+            }
+        });
+    });
+
+    // Focus sur le premier champ de note si présent
+    if (inputs.length > 0) {
+        inputs[0].focus();
+    }
+});
+</script>
+{% endblock %}
+

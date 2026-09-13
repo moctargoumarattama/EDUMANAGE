@@ -195,7 +195,7 @@
                 '<button type="button" class="tour-btn-skip" id="tour-skip-btn">Passer</button>' +
                 '<div class="tour-nav-buttons">' +
                     (!isFirst ? '<button type="button" class="tour-btn-prev" id="tour-prev-btn"><i class="fas fa-chevron-left me-1"></i>Précédent</button>' : '') +
-                    (!isLast ? 
+                    (!isLast  
                         '<button type="button" class="tour-btn-next" id="tour-next-btn">Suivant<i class="fas fa-chevron-right ms-1"></i></button>' : 
                         '<button type="button" class="tour-btn-next tour-btn-finish" id="tour-finish-btn"><i class="fas fa-check me-1"></i>Terminer</button>') +
                 '</div>' +
@@ -237,7 +237,7 @@
     }
 
     function skipTour() {
-        if (confirm('Souhaitez-vous passer la visite guidée ? Vous pourrez la relancer à tout moment depuis le menu utilisateur.')) {
+        if (confirm('Souhaitez-vous passer la visite guidée  Vous pourrez la relancer à tout moment depuis le menu utilisateur.')) {
             saveTourCompleted();
             cleanupOverlayElements();
         }

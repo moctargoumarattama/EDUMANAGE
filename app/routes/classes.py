@@ -64,9 +64,22 @@ def api_classes():
         )
     if annee_consultee:
         classes_query = classes_query.filter_by(annee_scolaire_id=annee_consultee.id)
+
+    # Support filtre niveau et search
+    niveau = request.args.get('niveau') or request.args.get('niveau_id')
+    if niveau:
+        if str(niveau).isdigit():
+            classes_query = classes_query.filter(db.or_(Classe.niveau_id == int(niveau), Classe.niveau == str(niveau)))
+        else:
+            classes_query = classes_query.filter(Classe.niveau == str(niveau))
+
+    search = (request.args.get('search') or request.args.get('q') or '').strip()
+    if search:
+        classes_query = classes_query.filter(Classe.nom.ilike(f"%{search}%"))
+
     classes = classes_query.order_by(Classe.nom).all()
 
-    return jsonify([{'id': c.id, 'nom': c.nom} for c in classes])
+    return jsonify([{'id': c.id, 'nom': c.nom, 'niveau': c.niveau} for c in classes])
 
 
 @main.route('/api/niveaux')
@@ -168,6 +181,25 @@ def liste_classes():
     # Calculer les valeurs pour la pagination
     start_item = ((page - 1) * per_page) + 1
     end_item = min(page * per_page, classes_paginated.total)
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
+        return jsonify({
+            'success': True,
+            'total': classes_paginated.total,
+            'pages': classes_paginated.pages,
+            'page': classes_paginated.page,
+            'classes': [
+                {
+                    'id': c.id,
+                    'nom': c.nom,
+                    'niveau': c.niveau,
+                    'capacite': c.capacite,
+                    'effectif_reel': c.effectif_reel,
+                    'professeur_principal': f"{c.professeur.prenom} {c.professeur.nom}" if c.professeur else None
+                }
+                for c in classes_paginated.items
+            ]
+        })
 
     return render_template(
         "classes.html",

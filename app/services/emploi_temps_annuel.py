@@ -16,6 +16,10 @@ from app.models import (
     Inscription,
     AnneeScolaire,
 )
+from app.services.coherence_temporelle import (
+    intervalles_se_chevauchent,
+    valider_intervalle_heures,
+)
 
 MESSAGE_ANNEE_ARCHIVEE = "Cette année est archivée : l'emploi du temps est consultable en lecture seule."
 MESSAGE_ANNEE_PLANIFIEE = "Préparation de l'emploi du temps"
@@ -97,8 +101,9 @@ def detecter_conflits(ecole_id, annee, jour, heure_debut, heure_fin, classe_id, 
     if not annee:
         return True, "Année scolaire non définie."
 
-    if heure_debut >= heure_fin:
-        return True, "L'heure de début doit être strictement antérieure à l'heure de fin."
+    ok_heures, err_heures = valider_intervalle_heures(heure_debut, heure_fin)
+    if not ok_heures:
+        return True, err_heures
 
     # Récupérer tous les créneaux du même jour dans la même école et même année scolaire
     creneaux_jour = (
@@ -118,9 +123,9 @@ def detecter_conflits(ecole_id, annee, jour, heure_debut, heure_fin, classe_id, 
             continue
 
         # Test de chevauchement temporel
-        if heure_debut < c.heure_fin and heure_fin > c.heure_debut:
-            c_debut_str = c.heure_debut.strftime('%H:%M') if c.heure_debut else '?'
-            c_fin_str = c.heure_fin.strftime('%H:%M') if c.heure_fin else '?'
+        if intervalles_se_chevauchent(heure_debut, heure_fin, c.heure_debut, c.heure_fin):
+            c_debut_str = c.heure_debut.strftime('%H:%M') if c.heure_debut else ''
+            c_fin_str = c.heure_fin.strftime('%H:%M') if c.heure_fin else ''
 
             # Conflit classe
             if c.classe_id == classe_id:

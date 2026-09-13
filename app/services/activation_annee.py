@@ -1,26 +1,26 @@
 ﻿"""
 app/services/activation_annee.py
 =============================================================
-KLASORA â€” Phase 2D-5
-Service d'activation annuelle sÃ©curisÃ©e et de clÃ´ture du cycle.
+KLASORA — Phase 2D-5
+Service d'activation annuelle sécurisée et de clôture du cycle.
 
-ResponsabilitÃ©s :
-  1. PrÃ©parer et valider l'activation (lecture seule, sans effet de bord).
-  2. ExÃ©cuter l'activation sous transaction globale atomique (all-or-nothing) :
-     - Ancienne annÃ©e active -> 'archivee'
-     - Nouvelle annÃ©e planifiÃ©e -> 'active'
-     - Resynchronisation de Eleve.classe_id Ã  partir des inscriptions de la nouvelle annÃ©e active
-     - DÃ©connexion (classe_id = NULL) des Ã©lÃ¨ves sortis, transfÃ©rÃ©s, diplÃ´mÃ©s ou historiques sans inscription cible
+Responsabilités :
+  1. Préparer et valider l'activation (lecture seule, sans effet de bord).
+  2. Exécuter l'activation sous transaction globale atomique (all-or-nothing) :
+     - Ancienne année active -> 'archivee'
+     - Nouvelle année planifiée -> 'active'
+     - Resynchronisation de Eleve.classe_id ? partir des inscriptions de la nouvelle année active
+     - Déconnexion (classe_id = NULL) des élèves sortis, transférés, diplômés ou historiques sans inscription cible
      - Commit unique
-  3. Mettre Ã  jour session["annee_consultee"] pour l'Ã©cole concernÃ©e.
-  4. Idempotence : si l'annÃ©e est dÃ©jÃ  active, ne rien re-muter.
+  3. Mettre ? jour session["annee_consultee"] pour l'école concernée.
+  4. Idempotence : si l'année est d?j? active, ne rien re-muter.
 
-RÃ¨gles absolues :
-  - AnneeScolaire.statut est l'unique source de vÃ©ritÃ© (active, planifiee, archivee).
+Règles absolues :
+  - AnneeScolaire.statut est l'unique source de vérité (active, planifiee, archivee).
   - Aucune colonne is_active.
-  - Aucune crÃ©ation automatique de classe/niveau/cours/inscription/professeur.
-  - Rollback intÃ©gral en cas d'erreur.
-  - Cloisonnement multi-Ã©tablissement strict.
+  - Aucune création automatique de classe/niveau/cours/inscription/professeur.
+  - Rollback intégral en cas d'erreur.
+  - Cloisonnement multi-établissement strict.
 =============================================================
 """
 
@@ -34,56 +34,56 @@ logger = logging.getLogger(__name__)
 
 def preparer_activation_annee(ecole_id, annee_id):
     """
-    VÃ©rifie l'Ã©ligibilitÃ© d'une annÃ©e planifiÃ©e Ã  l'activation et
+    Vérifie l'éligibilité d'une année planifiée ? l'activation et
     calcule le bilan de transition pour la page de confirmation.
 
-    OpÃ©ration purement en lecture seule : aucune modification de base
-    de donnÃ©es ni de session.
+    Opération purement en lecture seule : aucune modification de base
+    de données ni de session.
 
     Retourne : (donnees_dict, error_str | None)
     """
     if not ecole_id:
-        return None, "Ã‰tablissement non spÃ©cifiÃ©."
+        return None, "Établissement non spécifié."
 
     cible = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
     if not cible:
-        return None, "AnnÃ©e scolaire introuvable pour cet Ã©tablissement."
+        return None, "Année scolaire introuvable pour cet établissement."
 
     if cible.statut == "active":
-        return None, "Cette annÃ©e scolaire est dÃ©jÃ  active."
+        return None, "Cette année scolaire est d?j? active."
 
     if cible.statut == "archivee":
-        return None, "Une annÃ©e scolaire archivÃ©e ne peut pas Ãªtre activÃ©e."
+        return None, "Une année scolaire archivée ne peut pas être activée."
 
     if cible.statut != "planifiee":
         return None, f"Statut invalide pour l'activation : '{cible.statut}'."
 
-    # VÃ©rification de l'unicitÃ© de l'annÃ©e active existante
+    # Vérification de l'unicité de l'année active existante
     actives = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").all()
     if len(actives) > 1:
-        return None, "IncohÃ©rence dÃ©tectÃ©e : plusieurs annÃ©es scolaires actives."
+        return None, "Incohérence détectée : plusieurs années scolaires actives."
 
     ancienne_active = actives[0] if actives else None
 
-    # Validation chronologique si une annÃ©e active existe
+    # Validation chronologique si une année active existe
     if ancienne_active:
         if cible.date_debut <= ancienne_active.date_debut:
             return None, (
-                f"IncohÃ©rence chronologique : l'annÃ©e cible ({cible.nom}) dÃ©bute le "
-                f"{cible.date_debut.strftime('%d/%m/%Y')}, ce qui n'est pas postÃ©rieur Ã  l'annÃ©e "
-                f"active ({ancienne_active.nom}, dÃ©but le {ancienne_active.date_debut.strftime('%d/%m/%Y')})."
+                f"Incohérence chronologique : l'année cible ({cible.nom}) débute le "
+                f"{cible.date_debut.strftime('%d/%m/%Y')}, ce qui n'est pas postérieur ? l'année "
+                f"active ({ancienne_active.nom}, début le {ancienne_active.date_debut.strftime('%d/%m/%Y')})."
             )
 
-    # Revalidation des prÃ©requis de prÃ©paration
+    # Revalidation des prérequis de préparation
     etat = get_etat_preparation_annee(ecole_id, cible.id)
     if not etat:
-        return None, "Impossible d'Ã©valuer l'Ã©tat de prÃ©paration de l'annÃ©e scolaire."
+        return None, "Impossible d'évaluer l'état de préparation de l'année scolaire."
 
     if not etat["verification"]["prete_pour_activation"] or len(etat["verification"]["bloquants"]) > 0:
         bloquants_str = "; ".join(etat["verification"]["bloquants"])
-        return None, f"PrÃ©paration incomplÃ¨te : {bloquants_str}"
+        return None, f"Préparation incomplète : {bloquants_str}"
 
-    # Statistiques prÃ©visionnelles sur les Ã©lÃ¨ves de l'Ã©cole
+    # Statistiques prévisionnelles sur les élèves de l'école
     eleves_ecole = Eleve.query.filter_by(ecole_id=ecole_id).all()
     inscriptions_cible = {
         insc.eleve_id: insc
@@ -114,13 +114,13 @@ def preparer_activation_annee(ecole_id, annee_id):
 
 def resynchroniser_classes_eleves_annee_active(ecole_id, annee_active_id):
     """
-    Met Ã  jour le cache Eleve.classe_id pour tous les Ã©lÃ¨ves de l'Ã©tablissement
-    en fonction de leurs inscriptions dans l'annÃ©e scolaire dÃ©sormais active.
+    Met ? jour le cache Eleve.classe_id pour tous les élèves de l'établissement
+    en fonction de leurs inscriptions dans l'année scolaire désormais active.
 
-    RÃ¨gles :
-      - Si l'Ã©lÃ¨ve possÃ¨de une Inscription active (statut == 'inscrit') avec classe_id :
+    Règles :
+      - Si l'élève possède une Inscription active (statut == 'inscrit') avec classe_id :
           eleve.classe_id = inscription.classe_id
-      - Sinon (aucune inscription dans l'annÃ©e active, ou inscription sortie/transfÃ©rÃ©e/diplÃ´mÃ©e) :
+      - Sinon (aucune inscription dans l'année active, ou inscription sortie/transférée/diplômée) :
           eleve.classe_id = None
 
     Retourne : dict avec total, synchronises et mis_a_null.

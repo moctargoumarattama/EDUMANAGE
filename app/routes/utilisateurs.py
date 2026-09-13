@@ -34,7 +34,7 @@ from .common import (
 @login_required
 @role_required('admin')
 def create_user():
-    """CrÃ©ation d'utilisateurs par l'administrateur"""
+    """Création d'utilisateurs par l'administrateur"""
     form = CreateUserForm()
     form.eleve_id.choices = [(0, "--- Aucun ---")] + [(e.id, f"{e.nom} {e.prenom} ({e.classe})") for e in get_ecole_filter_query(Eleve).all()]
 
@@ -57,20 +57,20 @@ def create_user():
 
             db.session.add(user)
             db.session.commit()
-            flash(f"Utilisateur {user.nom} crÃ©Ã© avec succÃ¨s !", "success")
+            flash(f"Utilisateur {user.nom} créé avec succès !", "success")
             return redirect(url_for('main.dashboard'))
             
         except IntegrityError as e:
             db.session.rollback()
             if 'email' in str(e):
-                flash("Cet email est dÃ©jÃ  utilisÃ©.", "danger")
+                flash("Cet email est d?j? utilisé.", "danger")
             else:
-                flash("Erreur lors de la crÃ©ation de l'utilisateur.", "danger")
+                flash("Erreur lors de la création de l'utilisateur.", "danger")
                 current_app.logger.error(f"IntegrityError: {e}")
         except Exception as e:
             db.session.rollback()
-            flash("Erreur inattendue lors de la crÃ©ation.", "danger")
-            current_app.logger.error(f"Erreur crÃ©ation utilisateur: {e}")
+            flash("Erreur inattendue lors de la création.", "danger")
+            current_app.logger.error(f"Erreur création utilisateur: {e}")
 
     return render_template('admin/create_user.html', form=form)
 
@@ -89,7 +89,7 @@ def gestion_utilisateurs():
 
     try:
         if not ecole:
-            flash("Votre compte n'est associÃ© Ã  aucune Ã©cole.", "danger")
+            flash("Votre compte n'est associé ? aucune école.", "danger")
             return redirect(url_for('main.index'))
 
         utilisateurs_query = filtre_par_ecole(Utilisateur.query, Utilisateur)
@@ -127,7 +127,7 @@ def gestion_utilisateurs():
 
     except Exception as e:
         current_app.logger.error(f"Erreur gestion utilisateurs: {e}")
-        flash("Erreur lors de la rÃ©cupÃ©ration des utilisateurs.", "danger")
+        flash("Erreur lors de la récupération des utilisateurs.", "danger")
         return redirect(url_for('main.index'))
 
 @main.route('/admin/creer_utilisateur', methods=['GET', 'POST'])
@@ -145,11 +145,11 @@ def creer_utilisateur():
         mot_de_passe = request.form.get('mot_de_passe', '').strip()
 
         if not all([nom, prenom, email, mot_de_passe]):
-            flash("Tous les champs obligatoires doivent Ãªtre remplis.", "warning")
+            flash("Tous les champs obligatoires doivent être remplis.", "warning")
             return redirect(url_for('main.creer_utilisateur'))
 
         if Utilisateur.query.filter_by(email=email).first():
-            flash('Cet email est dÃ©jÃ  utilisÃ©', 'danger')
+            flash('Cet email est d?j? utilisé', 'danger')
             return redirect(url_for('main.gestion_utilisateurs'))
 
         try:
@@ -168,12 +168,12 @@ def creer_utilisateur():
             db.session.add(nouvel_utilisateur)
             db.session.commit()
 
-            flash('Utilisateur crÃ©Ã© avec succÃ¨s', 'success')
+            flash('Utilisateur créé avec succès', 'success')
             return redirect(url_for('main.gestion_utilisateurs'))
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Erreur crÃ©ation utilisateur: {e}")
-            flash("Erreur lors de la crÃ©ation de l'utilisateur.", "danger")
+            current_app.logger.error(f"Erreur création utilisateur: {e}")
+            flash("Erreur lors de la création de l'utilisateur.", "danger")
             return redirect(url_for('main.gestion_utilisateurs'))
 
     return render_template('admin/creer_utilisateur.html')
@@ -281,7 +281,7 @@ def regenerer_code_parent(eleve_id):
         return jsonify({'success': True, 'nouveau_code': nouveau_code}), 200
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erreur gÃ©nÃ©ration code parent: {e}")
+        current_app.logger.error(f"Erreur génération code parent: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @main.route('/admin/parent/<int:parent_id>/envoyer-credentials', methods=['POST'])
@@ -290,11 +290,11 @@ def regenerer_code_parent(eleve_id):
 def envoyer_credentials_parent(parent_id):
     parent = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=parent_id, role='parent').first()
     if not parent:
-        return jsonify({'success': False, 'message': "Parent introuvable ou non autorisÃ©."}), 404
+        return jsonify({'success': False, 'message': "Parent introuvable ou non autorisé."}), 404
 
     eleve = parent.enfants[0] if parent.enfants else None
     if not eleve:
-        return jsonify({'success': False, 'message': "Aucun Ã©lÃ¨ve associÃ© Ã  ce parent."}), 400
+        return jsonify({'success': False, 'message': "Aucun élève associé ? ce parent."}), 400
 
     if not eleve.code_parent:
         eleve.code_parent = Eleve.generer_code_parent()
@@ -315,23 +315,23 @@ def envoyer_credentials_parent(parent_id):
         sujet = "Vos identifiants de connexion - KLASORA"
         message = f"""
         <h3>Bonjour {parent.prenom or ''} {parent.nom},</h3>
-        <p>Voici vos identifiants pour accÃ©der au portail parent :</p>
+        <p>Voici vos identifiants pour accéder au portail parent :</p>
         <ul>
             <li>Email : {parent.email}</li>
-            <li>Code d'accÃ¨s : {eleve.code_parent}</li>
+            <li>Code d'accès : {eleve.code_parent}</li>
         </ul>
         <img src="data:image/png;base64,{qr_base64}" width="150" height="150"/>
         """
 
         from app.notifications import envoyer_email
         if envoyer_email(parent.email, sujet, message):
-            return jsonify({'success': True, 'message': 'Email envoyÃ© avec succÃ¨s.'}), 200
+            return jsonify({'success': True, 'message': 'Email envoyé avec succès.'}), 200
         else:
-            return jsonify({'success': False, 'message': 'Erreur lors de lâ€™envoi de lâ€™email.'}), 500
+            return jsonify({'success': False, 'message': 'Erreur lors de l’envoi de l’email.'}), 500
 
     except Exception as e:
         from flask import current_app
-        current_app.logger.error(f"Erreur lors de lâ€™envoi des credentials: {e}")
+        current_app.logger.error(f"Erreur lors de l’envoi des credentials: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 def seed_critical_corrections_if_empty():
@@ -533,15 +533,15 @@ def journaux_corrections():
 def toggle_user_status(user_id):
     """Changer le statut d'un utilisateur"""
     if current_user.role not in ['admin']:
-        return jsonify({'success': False, 'message': 'Non autorisÃ©'}), 403
+        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
         
     user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
     
-    # VÃ©rifier les permissions
+    # Vérifier les permissions
     if user.ecole_id != current_user.ecole_id:
-        return jsonify({'success': False, 'message': 'Non autorisÃ©'}), 403
+        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
         
-    # EmpÃªcher de se dÃ©sactiver soi-mÃªme
+    # Empêcher de se désactiver soi-même
     if user.id == current_user.id:
         return jsonify({'success': False, 'message': 'Vous ne pouvez pas modifier votre propre statut'}), 400
     
@@ -553,19 +553,19 @@ def toggle_user_status(user_id):
 @main.route('/api/users/<int:user_id>', methods=['DELETE'])
 @login_required
 def delete_user(user_id):
-    """Supprimer un utilisateur et toutes ses dÃ©pendances (enfants + inscriptions)"""
+    """Supprimer un utilisateur et toutes ses dépendances (enfants + inscriptions)"""
     
-    # VÃ©rification des rÃ´les
+    # Vérification des rôles
     if current_user.role not in ['admin']:
-        return jsonify({'success': False, 'message': 'Non autorisÃ©'}), 403
+        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
 
     user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
 
-    # EmpÃªcher un admin de supprimer un utilisateur d'une autre Ã©cole
+    # Empêcher un admin de supprimer un utilisateur d'une autre école
     if user.ecole_id != current_user.ecole_id:
-        return jsonify({'success': False, 'message': 'Non autorisÃ©'}), 403
+        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
 
-    # EmpÃªcher de se supprimer soi-mÃªme
+    # Empêcher de se supprimer soi-même
     if user.id == current_user.id:
         return jsonify({'success': False, 'message': 'Vous ne pouvez pas vous supprimer'}), 400
 
@@ -592,11 +592,11 @@ def delete_user(user_id):
         for log in user.logs:
             db.session.delete(log)
 
-        # 5ï¸âƒ£ Supprimer lâ€™utilisateur
+        # 5ï¸âƒ£ Supprimer l’utilisateur
         db.session.delete(user)
 
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Utilisateur supprimÃ© avec toutes ses dÃ©pendances.'})
+        return jsonify({'success': True, 'message': 'Utilisateur supprimé avec toutes ses dépendances.'})
 
     except Exception as e:
         db.session.rollback()

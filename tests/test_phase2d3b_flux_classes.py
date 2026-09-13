@@ -8,7 +8,7 @@ Vérifications :
 1. Règle 2C-5D : transition via POST /annees/<id>/consulter avec paramètre next safe
 2. Sécurité : rejet des redirections externes dans next
 3. UI structure : bouton conforme 2C-5D (POST consulter si non consultée, lien direct si déjà consultée)
-4. Absence absolue de ?annee_id= dans le flux structure -> classes
+4. Absence absolue de annee_id= dans le flux structure -> classes
 5. GET /classes/add : filtrage des niveaux selon AnneeNiveauConfig de l'année cible consultée
 6. POST /classes/add : succès avec HTTP 302, calcul automatique nom/niveau côté backend
 7. POST /classes/add : échec avec affichage clair des erreurs (aucun 200 silencieux)
@@ -189,13 +189,13 @@ class FluxClassesPassageTestCase(unittest.TestCase):
             self.assertIn("/annees", response.headers.get("Location"))
 
     def test_structure_annee_bouton_classes_affiche_action_consulter_si_non_consultee(self):
-        """Sur /annees/<id>/structure, si l'année n'est pas consultée, un formulaire POST vers consulter est présent sans ?annee_id=."""
+        """Sur /annees/<id>/structure, si l'année n'est pas consultée, un formulaire POST vers consulter est présent sans annee_id=."""
         client = self.login_as(self.admin)
         response = client.get(f"/annees/{self.annee_cible.id}/structure")
         self.assertEqual(response.status_code, 200)
 
-        # Absence du lien obsolète ?annee_id=
-        self.assertNotIn(f"/classes?annee_id={self.annee_cible.id}".encode(), response.data)
+        # Absence du lien obsolète annee_id=
+        self.assertNotIn(f"/classesannee_id={self.annee_cible.id}".encode(), response.data)
         # Présence du bouton d'action vers consulter_annee
         self.assertIn(f"/annees/{self.annee_cible.id}/consulter".encode(), response.data)
         self.assertIn(b"Classes (consulter)", response.data)
@@ -208,9 +208,9 @@ class FluxClassesPassageTestCase(unittest.TestCase):
 
         response = client.get(f"/annees/{self.annee_cible.id}/structure")
         self.assertEqual(response.status_code, 200)
-        # Lien direct vers /classes sans ?annee_id=
+        # Lien direct vers /classes sans annee_id=
         self.assertIn(b'href="/classes"', response.data)
-        self.assertNotIn(f"/classes?annee_id={self.annee_cible.id}".encode(), response.data)
+        self.assertNotIn(f"/classesannee_id={self.annee_cible.id}".encode(), response.data)
 
     # -------------------------------------------------------------------------
     # 2. Ajout de classe (GET et POST)

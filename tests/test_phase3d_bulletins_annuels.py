@@ -697,7 +697,7 @@ class Phase3DBulletinsAnnuelsTestCase(unittest.TestCase):
         with client.session_transaction() as sess:
             sess["_user_id"] = str(self.admin.id)
 
-        res = client.get(f"/bulletin_eleve/{self.eleve_1.id}?inscription_id={self.insc_active_1.id}")
+        res = client.get(f"/bulletin_eleve/{self.eleve_1.id}inscription_id={self.insc_active_1.id}")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.mimetype, "application/pdf")
 
@@ -707,7 +707,7 @@ class Phase3DBulletinsAnnuelsTestCase(unittest.TestCase):
         with client.session_transaction() as sess:
             sess["_user_id"] = str(self.parent.id)
 
-        res = client.get(f"/bulletin_eleve/{self.eleve_1.id}?inscription_id={self.insc_active_1.id}")
+        res = client.get(f"/bulletin_eleve/{self.eleve_1.id}inscription_id={self.insc_active_1.id}")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.mimetype, "application/pdf")
 
@@ -717,7 +717,7 @@ class Phase3DBulletinsAnnuelsTestCase(unittest.TestCase):
         with client.session_transaction() as sess:
             sess["_user_id"] = str(self.parent.id)
 
-        res = client.get(f"/bulletin_eleve/{self.eleve_autre_parent.id}?inscription_id={self.insc_active_autre.id}")
+        res = client.get(f"/bulletin_eleve/{self.eleve_autre_parent.id}inscription_id={self.insc_active_autre.id}")
         self.assertEqual(res.status_code, 302)
         # Redirection vers parent_dashboard
 
@@ -732,7 +732,7 @@ class Phase3DBulletinsAnnuelsTestCase(unittest.TestCase):
         with client.session_transaction() as sess:
             sess["_user_id"] = str(self.parent.id)
 
-        res = client.get(f"/bulletin_eleve/{self.eleve_1.id}?inscription_id={self.insc_archive_1.id}")
+        res = client.get(f"/bulletin_eleve/{self.eleve_1.id}inscription_id={self.insc_archive_1.id}")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.mimetype, "application/pdf")
 
@@ -743,7 +743,7 @@ class Phase3DBulletinsAnnuelsTestCase(unittest.TestCase):
             sess["_user_id"] = str(self.prof_user_1.id)
 
         # Prof 1 enseigne les mathématiques en 5e Active où Moussa est inscrit
-        res = client.get(f"/bulletin_eleve/{self.eleve_1.id}?inscription_id={self.insc_active_1.id}")
+        res = client.get(f"/bulletin_eleve/{self.eleve_1.id}inscription_id={self.insc_active_1.id}")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.mimetype, "application/pdf")
 
@@ -753,7 +753,7 @@ class Phase3DBulletinsAnnuelsTestCase(unittest.TestCase):
         with client.session_transaction() as sess:
             sess["_user_id"] = str(self.admin.id)
 
-        res = client.get(f"/bulletin_eleve/{self.eleve_b.id}?inscription_id={self.insc_b.id}")
+        res = client.get(f"/bulletin_eleve/{self.eleve_b.id}inscription_id={self.insc_b.id}")
         self.assertEqual(res.status_code, 302)  # Redirection avec flash danger
 
     # =========================================================================
@@ -784,7 +784,7 @@ class Phase3DBulletinsAnnuelsTestCase(unittest.TestCase):
         with client.session_transaction() as sess:
             sess["_user_id"] = str(self.admin.id)
 
-        res = client.get(f"/bulletin_eleve/{self.eleve_1.id}?inscription_id={self.insc_archive_1.id}")
+        res = client.get(f"/bulletin_eleve/{self.eleve_1.id}inscription_id={self.insc_archive_1.id}")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.mimetype, "application/pdf")
         self.assertIn("bulletin_Moussa_Diallo", res.headers.get("Content-Disposition", ""))
@@ -814,7 +814,7 @@ class Phase3DBulletinsAnnuelsTestCase(unittest.TestCase):
         with client.session_transaction() as sess:
             sess["_user_id"] = str(self.admin.id)
 
-        res = client.get(f"/bulletin_eleve/{self.eleve_1.id}?inscription_id={self.insc_archive_1.id}")
+        res = client.get(f"/bulletin_eleve/{self.eleve_1.id}inscription_id={self.insc_archive_1.id}")
         self.assertEqual(res.status_code, 200)
 
     # =========================================================================
@@ -835,13 +835,13 @@ class Phase3DBulletinsAnnuelsTestCase(unittest.TestCase):
             self.assertEqual(sess["annee_consultee"][str(self.ecole_a.id)], self.active.id)
 
     def test_41_http_parametre_annee_id_ne_mute_pas_session(self):
-        """41. Passer ?annee_id=X à /bulletins ne modifie pas la session."""
+        """41. Passer annee_id=X à /bulletins ne modifie pas la session."""
         client = self.app.test_client()
         with client.session_transaction() as sess:
             sess["_user_id"] = str(self.admin.id)
             sess["annee_consultee"] = {str(self.ecole_a.id): self.active.id}
 
-        res = client.get(f"/bulletins?annee_id={self.archivee.id}")
+        res = client.get(f"/bulletinsannee_id={self.archivee.id}")
         self.assertEqual(res.status_code, 200)
 
         with client.session_transaction() as sess:
@@ -873,7 +873,7 @@ class Phase3DBulletinsAnnuelsTestCase(unittest.TestCase):
         with client.session_transaction() as sess:
             sess["_user_id"] = str(self.admin.id)
 
-        res = client.get(f"/bulletin_eleve/{self.eleve_1.id}?inscription_id={insc_plan.id}")
+        res = client.get(f"/bulletin_eleve/{self.eleve_1.id}inscription_id={insc_plan.id}")
         self.assertEqual(res.status_code, 302)
 
     # =========================================================================

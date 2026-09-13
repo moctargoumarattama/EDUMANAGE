@@ -176,18 +176,30 @@
                 </div>
             </div>
 
+            <!-- Filtre par niveau -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select id="filterNiveauSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Tous les niveaux</option>
+                    {% if niveaux_annee %}
+                        {% for niv in niveaux_annee %}
+                            <option value="{{ niv.nom }}">{{ niv.nom }}</option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </div>
+
             <!-- Filtre par classe -->
             <div class="col-6 col-md-3 col-lg-2">
                 <select id="filterClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="">Toutes les classes</option>
-                    {% set classes_list = [] %}
+                    {% set classes_list = {} %}
                     {% for a in absences_avec_classe %}
                         {% if a.annee_classe.nom not in classes_list %}
-                            {% set _ = classes_list.append(a.annee_classe.nom) %}
+                            {% set _ = classes_list.update({a.annee_classe.nom: a.annee_classe.niveau}) %}
                         {% endif %}
                     {% endfor %}
-                    {% for cl in classes_list|sort %}
-                        <option value="{{ cl }}">{{ cl }}</option>
+                    {% for cl, niv in classes_list.items()|sort %}
+                        <option value="{{ cl }}" data-niveau="{{ niv or '' }}">{{ cl }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -428,7 +440,7 @@
                                                     <a href="{{ url_for('main.edit_absence', absence_id=a.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier l'absence">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
-                                                    <form action="{{ url_for('main.delete_absence', absence_id=a.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette absence ?');">
+                                                    <form action="{{ url_for('main.delete_absence', absence_id=a.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette absence ');">
                                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                                         <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer l'absence">
                                                             <i class="fas fa-trash"></i>
@@ -480,7 +492,7 @@
                                         <a href="{{ url_for('main.edit_absence', absence_id=a.id) }}" class="btn btn-outline-primary btn-sm" title="Modifier">
                                             <i class="fas fa-edit me-1"></i>Modifier
                                         </a>
-                                        <form action="{{ url_for('main.delete_absence', absence_id=a.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette absence ?');">
+                                        <form action="{{ url_for('main.delete_absence', absence_id=a.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette absence ');">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                             <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
                                                 <i class="fas fa-trash me-1"></i>Supprimer
@@ -570,7 +582,7 @@
                                     <td>{{ a.motif or "-" }}</td>
                                     {% if can_mutate %}
                                     <td class="text-end pe-4">
-                                        <form action="{{ url_for('main.delete_absence', absence_id=a.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer ?');">
+                                        <form action="{{ url_for('main.delete_absence', absence_id=a.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer ');">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                             <button type="submit" class="btn btn-sm btn-outline-danger">
                                                 <i class="fas fa-trash"></i>
@@ -676,6 +688,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Éléments du DOM pour les filtres et accordéons
     const searchInput = document.getElementById('absenceSearchInput');
     const searchClear = document.getElementById('absenceSearchClear');
+    const filterNiveau = document.getElementById('filterNiveauSelect');
     const filterClasse = document.getElementById('filterClasseSelect');
     const filterStatut = document.getElementById('filterStatutSelect');
     const sortSelect = document.getElementById('sortClassesSelect');
@@ -725,9 +738,26 @@ document.addEventListener('DOMContentLoaded', function() {
             .replace(/[\u0300-\u036f]/g, '');
     }
 
+    // Synchronisation URL
+    function syncUrl() {
+        const params = new URLSearchParams();
+        const q = searchInput ? searchInput.value.trim() : '';
+        const niv = filterNiveau ? filterNiveau.value.trim() : '';
+        const cl = filterClasse ? filterClasse.value.trim() : '';
+        const st = filterStatut ? filterStatut.value.trim() : '';
+        if (q) params.set('search', q);
+        if (niv) params.set('niveau', niv);
+        if (cl) params.set('classe', cl);
+        if (st) params.set('justifiee', st);
+        const newUrl = window.location.pathname + (params.toString() ? '' + params.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+    }
+
     // Filtrage et Tri
     function getFilteredAndSortedItems() {
+        syncUrl();
         const query = normalizeStr(searchInput.value.trim());
+        const selectedNiveau = filterNiveau ? filterNiveau.value.trim() : '';
         const selectedClasse = filterClasse ? filterClasse.value.trim() : '';
         const selectedStatut = filterStatut ? filterStatut.value.trim() : '';
         const sortMode = sortSelect ? sortSelect.value : 'nom-asc';
@@ -750,6 +780,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                   cours.includes(query) ||
                                   motifs.includes(query);
                 if (!textMatch) return false;
+            }
+
+            // Filtre par niveau
+            if (selectedNiveau && card.dataset.niveau !== selectedNiveau) {
+                return false;
             }
 
             // Filtre par classe exacte
@@ -980,7 +1015,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Réinitialisation des filtres
     function resetFilters() {
         if (searchInput) searchInput.value = '';
-        if (filterClasse) filterClasse.value = '';
+        if (filterNiveau) filterNiveau.value = '';
+        if (filterClasse) {
+            filterClasse.value = '';
+            Array.from(filterClasse.options).forEach(opt => { opt.hidden = false; });
+        }
         if (filterStatut) filterStatut.value = '';
         if (sortSelect) sortSelect.value = 'nom-asc';
         currentPage = 1;
@@ -989,7 +1028,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Écouteurs d'événements
     if (searchInput) {
+        let debounceTimer;
         searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                currentPage = 1;
+                render();
+            }, 300);
+        });
+    }
+
+    if (filterNiveau) {
+        filterNiveau.addEventListener('change', function() {
+            const niv = this.value;
+            if (filterClasse) {
+                Array.from(filterClasse.options).forEach(opt => {
+                    if (!opt.value) return;
+                    const optNiv = opt.dataset.niveau || '';
+                    opt.hidden = (niv && optNiv && optNiv !== niv);
+                });
+                if (filterClasse.selectedOptions.length && filterClasse.selectedOptions[0].hidden) {
+                    filterClasse.value = '';
+                }
+            }
             currentPage = 1;
             render();
         });

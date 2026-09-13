@@ -1,10 +1,13 @@
 from . import main
 from .common import (
     Absence,
+    AnneeScolaire,
+    Bulletin,
     Classe,
     Cours,
     Ecole,
     Eleve,
+    Inscription,
     Note,
     Paiement,
     Professeur,
@@ -21,6 +24,7 @@ from .common import (
     render_template,
     request,
     role_required,
+    session,
     timedelta,
     url_for,
 )
@@ -326,51 +330,122 @@ def recherche():
     terme = request.args.get('q', '').strip()
     type_recherche = request.args.get('type', 'all')
     classe_id = request.args.get('classe', type=int)
+    page = max(request.args.get('page', 1, type=int) or 1, 1)
+    per_page = min(max(request.args.get('per_page', 10, type=int) or 10, 1), 30)
 
     if not terme:
-        return render_template('recherche.html', results=None)
+        return render_template('recherche.html', results=None, pagination=None)
 
     ecole_id = None
     if current_user.role in ['admin', 'professeur', 'parent']:
         ecole_id = current_user.ecole_id
+    elif current_user.role == 'super_admin':
+        ecole_id = session.get('ecole_id')
 
-    queries = []
+    results = {'eleves': [], 'professeurs': [], 'cours': [], 'total': 0}
+    pagination = None
 
-    # ---------- ÉLÈVES ----------
-    # ---------- ELEVES ----------
     if type_recherche in ['all', 'eleves']:
-        annee_recherche = get_annee_consultee(ecole_id) if ecole_id else None
-        eleve_query = db.session.query(
-            Eleve.id.label('id'),
-            Eleve.nom.label('nom'),
-            Eleve.prenom.label('prenom'),
-            Classe.nom.label('classe'),
-            literal('eleve').label('type')
-        ).join(Inscription, Inscription.eleve_id == Eleve.id).join(Classe, Classe.id == Inscription.classe_id).filter(
-            (Eleve.nom.ilike(f"%{terme}%")) | (Eleve.prenom.ilike(f"%{terme}%"))
+        like = f"%{terme}%"
+        eleve_query = Eleve.query.filter(
+            (Eleve.nom.ilike(like)) |
+            (Eleve.prenom.ilike(like)) |
+            (Eleve.code_parent.ilike(like))
         )
-        if annee_recherche:
-            eleve_query = eleve_query.filter(Inscription.annee_scolaire_id == annee_recherche.id)
-        else:
+
+        if ecole_id:
+            eleve_query = eleve_query.filter(Eleve.ecole_id == ecole_id)
+        elif current_user.role != 'super_admin':
             eleve_query = eleve_query.filter(db.false())
 
-        if classe_id:
-            eleve_query = eleve_query.filter(Inscription.classe_id == classe_id)
+        inscription_ids_query = Inscription.query.with_entities(Inscription.eleve_id)
         if ecole_id:
-            eleve_query = eleve_query.filter(Inscription.ecole_id == ecole_id, Classe.ecole_id == ecole_id)
+            inscription_ids_query = inscription_ids_query.filter(Inscription.ecole_id == ecole_id)
 
+        restricted_to_inscriptions = bool(classe_id)
+        if classe_id:
+            inscription_ids_query = inscription_ids_query.filter(Inscription.classe_id == classe_id)
+
+        classe_ids_prof = None
         if current_user.role == 'professeur':
             professeur = Professeur.query.filter_by(utilisateur_id=current_user.id).first()
-            if professeur:
-                classe_ids = [c.id for c in professeur.classes_assignees.all()]
-                eleve_query = eleve_query.filter(Inscription.classe_id.in_(classe_ids))
-
+            classe_ids_prof = [c.id for c in professeur.classes_assignees.all()] if professeur else []
+            inscription_ids_query = inscription_ids_query.filter(Inscription.classe_id.in_(classe_ids_prof))
+            restricted_to_inscriptions = True
         elif current_user.role == 'parent':
             eleve_query = eleve_query.filter(Eleve.parent_id == current_user.id)
 
-        queries.append(eleve_query)
+        if restricted_to_inscriptions:
+            eleve_query = eleve_query.filter(Eleve.id.in_(inscription_ids_query))
 
-    # ---------- PROFESSEURS ----------
+        pagination_obj = eleve_query.order_by(Eleve.nom.asc(), Eleve.prenom.asc()).paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False,
+        )
+        pagination = pagination_obj
+        eleves = pagination_obj.items
+        results['total'] += pagination_obj.total
+
+        eleve_ids = [e.id for e in eleves]
+        historiques = {eleve_id: [] for eleve_id in eleve_ids}
+        if eleve_ids:
+            inscriptions_query = (
+                Inscription.query
+                .join(Classe, Classe.id == Inscription.classe_id)
+                .join(AnneeScolaire, AnneeScolaire.id == Inscription.annee_scolaire_id)
+                .filter(Inscription.eleve_id.in_(eleve_ids))
+            )
+            if ecole_id:
+                inscriptions_query = inscriptions_query.filter(Inscription.ecole_id == ecole_id)
+            if classe_id:
+                inscriptions_query = inscriptions_query.filter(Inscription.classe_id == classe_id)
+            if classe_ids_prof is not None:
+                inscriptions_query = inscriptions_query.filter(Inscription.classe_id.in_(classe_ids_prof))
+
+            inscriptions = inscriptions_query.order_by(
+                AnneeScolaire.date_debut.desc(),
+                AnneeScolaire.nom.desc(),
+                Classe.nom.asc(),
+            ).all()
+
+            inscription_ids = [i.id for i in inscriptions]
+            bulletins_par_inscription = {}
+            if inscription_ids:
+                bulletins_query = Bulletin.query.filter(Bulletin.inscription_id.in_(inscription_ids))
+                if ecole_id:
+                    bulletins_query = bulletins_query.filter(Bulletin.ecole_id == ecole_id)
+                for bulletin in bulletins_query.order_by(Bulletin.periode.asc(), Bulletin.id.asc()).all():
+                    bulletins_par_inscription.setdefault(bulletin.inscription_id, []).append({
+                        'id': bulletin.id,
+                        'periode': bulletin.periode,
+                        'moyenne': bulletin.moyenne_generale,
+                    })
+
+            for inscription in inscriptions:
+                annee = inscription.annee_scolaire
+                classe = inscription.classe
+                ecole = inscription.ecole
+                historiques.setdefault(inscription.eleve_id, []).append({
+                    'annee': annee.nom if annee else '',
+                    'annee_statut': annee.statut if annee else '',
+                    'classe': classe.nom if classe else '',
+                    'statut': inscription.statut,
+                    'ecole': ecole.nom if ecole else '',
+                    'bulletins': bulletins_par_inscription.get(inscription.id, []),
+                })
+
+        for eleve in eleves:
+            historique = historiques.get(eleve.id, [])
+            results['eleves'].append({
+                'id': eleve.id,
+                'nom': eleve.nom,
+                'prenom': eleve.prenom,
+                'classe': historique[0]['classe'] if historique else '',
+                'ecole': eleve.ecole.nom if getattr(eleve, 'ecole', None) else '',
+                'historique': historique,
+            })
+
     if type_recherche in ['all', 'professeurs'] and current_user.role == 'admin':
         prof_query = db.session.query(
             Professeur.id.label('id'),
@@ -388,9 +463,10 @@ def recherche():
             (Professeur.prenom.ilike(f"%{terme}%")) |
             (Professeur.specialite.ilike(f"%{terme}%"))
         )
-        queries.append(prof_query)
+        for r in prof_query.limit(10).all():
+            results['professeurs'].append({'id': r.id, 'nom': r.nom, 'prenom': r.prenom, 'specialite': r.classe})
+        results['total'] += len(results['professeurs'])
 
-    # ---------- COURS ----------
     if type_recherche in ['all', 'cours'] and current_user.role in ('admin', 'professeur'):
         cours_query = db.session.query(
             Cours.id.label('id'),
@@ -411,24 +487,8 @@ def recherche():
         cours_query = cours_query.filter(
             (Cours.nom.ilike(f"%{terme}%")) | (Cours.description.ilike(f"%{terme}%"))
         )
-        queries.append(cours_query)
-
-    # Union de toutes les requêtes (sans limit dans les sous-requêtes)
-    if queries:
-        final_query = queries[0]
-        for q in queries[1:]:
-            final_query = final_query.union_all(q)
-        results_raw = final_query.limit(30).all()  # Limite globale après l'union
-    else:
-        results_raw = []
-
-    results = {'eleves': [], 'professeurs': [], 'cours': [], 'total': len(results_raw)}
-    for r in results_raw:
-        if r.type == 'eleve':
-            results['eleves'].append({'id': r.id, 'nom': r.nom, 'prenom': r.prenom, 'classe': r.classe})
-        elif r.type == 'professeur':
-            results['professeurs'].append({'id': r.id, 'nom': r.nom, 'prenom': r.prenom, 'specialite': r.classe})
-        elif r.type == 'cours':
+        for r in cours_query.limit(10).all():
             results['cours'].append({'id': r.id, 'nom': r.nom, 'description': r.description, 'classe': r.classe})
+        results['total'] += len(results['cours'])
 
-    return render_template('recherche.html', results=results, terme=terme)
+    return render_template('recherche.html', results=results, terme=terme, pagination=pagination)

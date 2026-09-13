@@ -46,7 +46,7 @@ async function runTests() {
     let deletedCaches = [];
 
     // Isoler la fonction handleNavigation
-    const handleNavMatch = swCode.match(/async function handleNavigation\(request\)[\s\S]*?\n\}/);
+    const handleNavMatch = swCode.match(/async function handleNavigation\(request\)[\s\S]*\n\}/);
     assert.ok(handleNavMatch, 'handleNavigation doit être définie dans service-worker.js');
     
     // Évaluer handleNavigation avec l'environnement mocké

@@ -91,7 +91,7 @@ class Phase2C5DContexteAnnuelUniqueTestCase(unittest.TestCase):
             self.assertIn(b"Planifiee A", response.data)
 
         for url in ("/classes", "/eleves", "/cours"):
-            response = client.get(f"{url}?annee_id={self.archivee.id}")
+            response = client.get(f"{url}annee_id={self.archivee.id}")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(self.session_year(client), self.planifiee.id)
 

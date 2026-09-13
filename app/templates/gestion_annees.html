@@ -50,8 +50,15 @@
                 {% endif %}
 
                 <div class="col-md-3">
-                    <label class="form-label">Nom <span class="text-danger">*</span></label>
-                    <input type="text" name="nom" class="form-control" placeholder="2026-2027" required>
+                    <label class="form-label">Année scolaire <span class="text-danger">*</span></label>
+                    <div class="d-flex align-items-center gap-1">
+                        <span class="fw-bold text-muted">20</span>
+                        <input type="text" name="annee_debut_court" id="annee_debut_court" class="form-control text-center fw-bold" style="width: 65px;" maxlength="2" pattern="\d{2}" inputmode="numeric" autocomplete="new-password" required>
+                        <span class="fw-bold text-muted px-1">-</span>
+                        <span class="fw-bold text-muted">20</span>
+                        <input type="text" name="annee_fin_court" id="annee_fin_court" class="form-control text-center fw-bold" style="width: 65px;" maxlength="2" pattern="\d{2}" inputmode="numeric" autocomplete="new-password" required>
+                    </div>
+                    <div class="form-text small text-muted">Exemple : 20 26 - 20 27</div>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Début <span class="text-danger">*</span></label>
@@ -73,9 +80,26 @@
 
     {% if annees %}
     <div class="table-card academic-table-wrap">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h2 class="h5 mb-0">Historique</h2>
-            <span class="badge bg-primary">{{ annees|length }}</span>
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="h5 mb-0">Historique</h2>
+                <span class="badge bg-primary" id="badgeTotalAnnees">{{ annees|length }}</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <div class="input-group input-group-sm" style="max-width: 220px;">
+                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control border-start-0 ps-0" id="searchAnneeInput" placeholder="Rechercher...">
+                </div>
+                <select class="form-select form-select-sm" id="filterStatutAnnee" style="max-width: 170px;">
+                    <option value="">Tous les statuts</option>
+                    <option value="active">Active</option>
+                    <option value="planifiee">Planifiée</option>
+                    <option value="archivee">Archivée</option>
+                </select>
+                <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="btnResetAnnees" title="Réinitialiser">
+                    <i class="fas fa-undo"></i>
+                </button>
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -90,9 +114,15 @@
                             <th class="text-end">Action</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="anneesTableBody">
+                        <tr id="emptyAnneesRow" class="d-none">
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="fas fa-search fa-2x mb-2 d-block"></i>
+                                Aucune année ne correspond aux critères de recherche.
+                            </td>
+                        </tr>
                         {% for annee in annees %}
-                        <tr>
+                        <tr class="annee-row" data-nom="{{ annee.nom | lower }}" data-statut="{{ annee.statut }}" data-ecole="{{ annee.ecole.nom | lower if annee.ecole else '' }}">
                             <td>{{ annee.ecole.nom }}</td>
                             <td><strong>{{ annee.nom }}</strong></td>
                             <td>{{ annee.date_debut.strftime('%d/%m/%Y') }}</td>
@@ -110,6 +140,17 @@
                                 {% endif %}
                             </td>
                             <td class="text-end">
+                                {% if annee.statut != 'archivee' %}
+                                <button type="button" class="btn btn-sm btn-outline-warning btn-modifier-annee"
+                                    data-bs-toggle="modal" data-bs-target="#modalModifierAnnee"
+                                    data-annee-id="{{ annee.id }}"
+                                    data-annee-nom="{{ annee.nom }}"
+                                    data-date-debut="{{ annee.date_debut.strftime('%Y-%m-%d') }}"
+                                    data-date-fin="{{ annee.date_fin.strftime('%Y-%m-%d') }}"
+                                    title="Modifier l'année">
+                                    <i class="fas fa-edit me-1"></i>Modifier
+                                </button>
+                                {% endif %}
                                 {% if annee.statut == 'planifiee' %}
                                 <a href="{{ url_for('main.preparation_annee', annee_id=annee.id) }}" class="btn btn-sm btn-primary">
                                     <i class="fas fa-tasks me-1"></i>Préparer l'année
@@ -165,6 +206,17 @@
                 {% else %}
                     <span class="badge bg-secondary">ARCHIVÉE (Lecture seule)</span>
                 {% endif %}
+                {% if annee.statut != 'archivee' %}
+                <button type="button" class="btn btn-sm btn-outline-warning btn-modifier-annee"
+                    data-bs-toggle="modal" data-bs-target="#modalModifierAnnee"
+                    data-annee-id="{{ annee.id }}"
+                    data-annee-nom="{{ annee.nom }}"
+                    data-date-debut="{{ annee.date_debut.strftime('%Y-%m-%d') }}"
+                    data-date-fin="{{ annee.date_fin.strftime('%Y-%m-%d') }}"
+                    title="Modifier l'année">
+                    <i class="fas fa-edit me-1"></i>Modifier
+                </button>
+                {% endif %}
                 {% if annee.statut == 'planifiee' %}
                 <a href="{{ url_for('main.preparation_annee', annee_id=annee.id) }}" class="btn btn-sm btn-primary">
                     <i class="fas fa-tasks me-1"></i>Préparer l'année
@@ -198,9 +250,142 @@
         <p class="empty-state-text">Créez la première année scolaire.</p>
     </div>
     {% endif %}
+
+    <!-- Modal Modifier Année -->
+    <div class="modal fade" id="modalModifierAnnee" tabindex="-1" aria-labelledby="modalModifierAnneeLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('main.gestion_annees') }}" id="formModifierAnnee">
+                    {{ csrf_form.hidden_tag() }}
+                    <input type="hidden" name="action" value="modifier">
+                    <input type="hidden" name="annee_id" id="edit_annee_id">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalModifierAnneeLabel">
+                            <i class="fas fa-edit me-2 text-warning"></i>Modifier l'année scolaire
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Année scolaire <span class="text-danger">*</span></label>
+                            <div class="d-flex align-items-center gap-1">
+                                <span class="fw-bold text-muted">20</span>
+                                <input type="text" name="annee_debut_court" id="edit_annee_debut_court" class="form-control text-center fw-bold" style="width: 70px;" maxlength="2" placeholder="26" pattern="\d{2}" inputmode="numeric" autocomplete="off" required>
+                                <span class="fw-bold text-muted px-1">-</span>
+                                <span class="fw-bold text-muted">20</span>
+                                <input type="text" name="annee_fin_court" id="edit_annee_fin_court" class="form-control text-center fw-bold" style="width: 70px;" maxlength="2" placeholder="27" pattern="\d{2}" inputmode="numeric" autocomplete="off" required>
+                            </div>
+                            <div class="form-text small text-muted">Exemple : 20 26 - 20 27</div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label">Début <span class="text-danger">*</span></label>
+                                <input type="date" name="date_debut" id="edit_date_debut" class="form-control" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Fin <span class="text-danger">*</span></label>
+                                <input type="date" name="date_fin" id="edit_date_fin" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-save me-1"></i>Enregistrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/academic-settings.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.getElementById('searchAnneeInput');
+    const statutSelect = document.getElementById('filterStatutAnnee');
+    const btnReset = document.getElementById('btnResetAnnees');
+    const badgeTotal = document.getElementById('badgeTotalAnnees');
+    const rows = document.querySelectorAll('.annee-row');
+    const emptyRow = document.getElementById('emptyAnneesRow');
+
+    function syncUrl() {
+        const params = new URLSearchParams(window.location.search);
+        if (searchInput && searchInput.value.trim()) params.set('q', searchInput.value.trim()); else params.delete('q');
+        if (statutSelect && statutSelect.value) params.set('statut', statutSelect.value); else params.delete('statut');
+        const newUrl = window.location.pathname + (params.toString() ? '' + params.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+    }
+
+    function applyFilters() {
+        const query = (searchInput ? searchInput.value : '').trim().toLowerCase();
+        const statut = (statutSelect ? statutSelect.value : '').trim();
+
+        if (btnReset) {
+            btnReset.classList.toggle('d-none', !query && !statut);
+        }
+
+        let visibleCount = 0;
+        rows.forEach(function (row) {
+            const rowNom = row.dataset.nom || '';
+            const rowStatut = row.dataset.statut || '';
+            const rowEcole = row.dataset.ecole || '';
+
+            const matchQuery = !query || rowNom.includes(query) || rowEcole.includes(query);
+            const matchStatut = !statut || rowStatut === statut;
+
+            if (matchQuery && matchStatut) {
+                row.classList.remove('d-none');
+                visibleCount++;
+            } else {
+                row.classList.add('d-none');
+            }
+        });
+
+        if (emptyRow) {
+            emptyRow.classList.toggle('d-none', visibleCount > 0);
+        }
+        if (badgeTotal) {
+            badgeTotal.textContent = visibleCount;
+        }
+    }
+
+    let debounceTimer = null;
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function () {
+                applyFilters();
+                syncUrl();
+            }, 300);
+        });
+    }
+
+    if (statutSelect) {
+        statutSelect.addEventListener('change', function () {
+            applyFilters();
+            syncUrl();
+        });
+    }
+
+    if (btnReset) {
+        btnReset.addEventListener('click', function () {
+            if (searchInput) searchInput.value = '';
+            if (statutSelect) statutSelect.value = '';
+            applyFilters();
+            syncUrl();
+            if (searchInput) searchInput.focus();
+        });
+    }
+
+    // Init from URL params
+    const initParams = new URLSearchParams(window.location.search);
+    if (initParams.has('q') && searchInput) searchInput.value = initParams.get('q');
+    if (initParams.has('statut') && statutSelect) statutSelect.value = initParams.get('statut');
+    if (initParams.has('q') || initParams.has('statut')) applyFilters();
+});
+</script>
 {% endblock %}

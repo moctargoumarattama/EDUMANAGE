@@ -4,7 +4,7 @@
 {% block content %}
 <div class="container-fluid px-3 px-lg-4 py-4">
 
-    <!-- En-tÃƒÂªte de page standardisÃƒÂ© KLASORA -->
+    <!-- En-tête de page standardisé KLASORA -->
     <section class="page-header mb-4">
         <div class="page-header-body">
             <div class="page-title-group">
@@ -21,9 +21,9 @@
                     </h1>
                     <p class="page-subtitle d-none d-md-block">
                         {% if current_user.role in ['admin', 'super_admin'] %}
-                            Consultez, recherchez et organisez les matiÃƒÂ¨res enseignÃƒÂ©es par classe dans l'ÃƒÂ©tablissement.
+                            Consultez, recherchez et organisez les matières enseignées par classe dans l'établissement.
                         {% else %}
-                            Liste des cours et matiÃƒÂ¨res qui vous sont assignÃƒÂ©s, regroupÃƒÂ©s par classe.
+                            Liste des cours et matières qui vous sont assignés, regroupés par classe.
                         {% endif %}
                     </p>
                 </div>
@@ -43,8 +43,8 @@
                     {{ cours_sans_professeur }} sans professeur
                 </span>
                 {% endif %}
-                <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllClassAccordions" title="DÃƒÂ©plier ou replier toutes les classes">
-                    <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout dÃƒÂ©plier</span>
+                <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllClassAccordions" title="Déplier ou replier toutes les classes">
+                    <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
                 {% if form and current_user.role in ['admin', 'super_admin'] and affectations_modifiables %}
                 <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours" aria-expanded="false" aria-controls="collapseAjouterCours" id="btnToggleAddCourse">
@@ -55,7 +55,7 @@
         </div>
     </section>
 
-    <!-- Formulaire d'ajout (admin, rÃƒÂ©tractable pour prÃƒÂ©server le confort mobile) -->
+    <!-- Formulaire d'ajout (admin, rétractable pour préserver le confort mobile) -->
     {% if form and current_user.role in ['admin', 'super_admin'] and affectations_modifiables %}
     <div class="collapse mb-4" id="collapseAjouterCours">
         <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
@@ -71,8 +71,8 @@
                     {{ form.hidden_tag() }}
                     <div class="row g-3">
                         <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold" for="nom">Nom de la matiÃƒÂ¨re / cours <span class="text-danger">*</span></label>
-                            {{ form.nom(class="form-control", id="nom", placeholder="Ex: MathÃƒÂ©matiques, FranÃƒÂ§ais, SVT...") }}
+                            <label class="form-label fw-semibold" for="nom">Nom de la matière / cours <span class="text-danger">*</span></label>
+                            {{ form.nom(class="form-control", id="nom", placeholder="Ex: Mathématiques, Français, SVT...") }}
                         </div>
                         <div class="col-12 col-sm-6 col-md-2">
                             <label class="form-label fw-semibold" for="coefficient">Coefficient <span class="text-danger">*</span></label>
@@ -83,12 +83,12 @@
                             {{ form.classe_id(class="form-select", id="classe_id") }}
                         </div>
                         <div class="col-12 col-md-3">
-                            <label class="form-label fw-semibold" for="professeur_id">Professeur assignÃƒÂ©</label>
+                            <label class="form-label fw-semibold" for="professeur_id">Professeur assigné</label>
                             {{ form.professeur_id(class="form-select", id="professeur_id") }}
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-semibold" for="description">Description ou objectifs (optionnel)</label>
-                            {{ form.description(class="form-control", id="description", rows="2", placeholder="BrÃƒÂ¨ve prÃƒÂ©sentation du cours ou remarques pÃƒÂ©dagogiques...") }}
+                            {{ form.description(class="form-control", id="description", rows="2", placeholder="Brève présentation du cours ou remarques pédagogiques...") }}
                         </div>
                         <div class="col-12 d-flex justify-content-end gap-2 pt-2">
                             <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours">Annuler</button>
@@ -110,27 +110,11 @@
             <div class="col-12 col-md-4 col-lg-3">
                 <div class="course-search-box">
                     <i class="fas fa-search search-icon"></i>
-                    <input type="text" id="classCourseSearchInput" class="form-control" placeholder="Rechercher classe, niveau, matiÃƒÂ¨re..." autocomplete="off">
+                    <input type="text" id="classCourseSearchInput" class="form-control" placeholder="Rechercher classe, niveau, matière..." autocomplete="off">
                     <button type="button" id="classCourseSearchClear" class="clear-btn" title="Effacer la recherche">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-            </div>
-
-            <!-- Filtre par classe / niveau -->
-            <div class="col-6 col-md-3 col-lg-2">
-                <select id="filterClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Toutes les classes</option>
-                    {% set classes_list = [] %}
-                    {% for c in cours %}
-                        {% if c.classe and c.classe.nom not in classes_list %}
-                            {% set _ = classes_list.append(c.classe.nom) %}
-                        {% endif %}
-                    {% endfor %}
-                    {% for cl in classes_list|sort %}
-                        <option value="{{ cl }}">{{ cl }}</option>
-                    {% endfor %}
-                </select>
             </div>
 
             <!-- Filtre par niveau -->
@@ -145,6 +129,22 @@
                     {% endfor %}
                     {% for nv in niveaux_list|sort %}
                         <option value="{{ nv }}">{{ nv }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtre par classe / niveau -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select id="filterClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Toutes les classes</option>
+                    {% set seen_classes = {} %}
+                    {% for c in cours %}
+                        {% if c.classe and c.classe.nom not in seen_classes %}
+                            {% set _ = seen_classes.update({c.classe.nom: c.classe.niveau}) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% for cl, niv in seen_classes.items()|sort %}
+                        <option value="{{ cl }}" data-niveau="{{ niv or '' }}">{{ cl }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -175,8 +175,8 @@
                 <select id="sortClassesSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="nom-asc">Classe (A &rarr; Z)</option>
                     <option value="nom-desc">Classe (Z &rarr; A)</option>
-                    <option value="cours-desc">MatiÃƒÂ¨res &darr;</option>
-                    <option value="cours-asc">MatiÃƒÂ¨res &uarr;</option>
+                    <option value="cours-desc">Matières &darr;</option>
+                    <option value="cours-asc">Matières &uarr;</option>
                 </select>
             </div>
 
@@ -199,19 +199,19 @@
                 <span id="classFilterStats">Chargement des cours par classe...</span>
             </div>
             <button type="button" id="btnResetFilter" class="btn btn-link btn-sm text-decoration-none text-muted p-0" style="display: none;">
-                <i class="fas fa-undo me-1"></i>RÃƒÂ©initialiser les filtres
+                <i class="fas fa-undo me-1"></i>Réinitialiser les filtres
             </button>
         </div>
     </div>
 
-    <!-- LISTE DES CLASSES ET LEURS COURS (ACCORDÃƒâ€°ON) -->
+    <!-- LISTE DES CLASSES ET LEURS COURS (ACCORDÉON) -->
     <div id="classAccordionList" class="class-course-list">
         {% for group in cours|selectattr('classe')|groupby('classe.id') %}
             {% set classe = group.list[0].classe %}
             {% set classe_cours = group.list %}
             {% set classe_cours_count = classe_cours|length %}
 
-            <!-- Calculs agrÃƒÂ©gÃƒÂ©s pour la classe -->
+            <!-- Calculs agrégés pour la classe -->
             {% set ns = namespace(coeffs=0, profs=[], matieres=[], notes_total=0) %}
             {% for c in classe_cours %}
                 {% set ns.coeffs = ns.coeffs + (c.coefficient or 1) %}
@@ -238,7 +238,7 @@
                      data-profs="{{ profs_str }}"
                      data-coeff-total="{{ ns.coeffs }}">
 
-                <!-- En-tÃƒÂªte cliquable pour dÃƒÂ©plier/replier les cours de la classe -->
+                <!-- En-tête cliquable pour déplier/replier les cours de la classe -->
                 <div class="class-course-header"
                      data-bs-toggle="collapse"
                      data-bs-target="#collapseClasse{{ classe.id }}"
@@ -254,10 +254,10 @@
                             <div class="class-course-meta">
                                 {% if classe.niveau %}
                                     {% set niveau_color = {
-                                        '6ÃƒÂ¨me': 'bg-info bg-opacity-10 text-info border border-info-subtle',
-                                        '5ÃƒÂ¨me': 'bg-success bg-opacity-10 text-success border border-success-subtle',
-                                        '4ÃƒÂ¨me': 'bg-warning bg-opacity-10 text-dark border border-warning-subtle',
-                                        '3ÃƒÂ¨me': 'bg-danger bg-opacity-10 text-danger border border-danger-subtle'
+                                        '6ème': 'bg-info bg-opacity-10 text-info border border-info-subtle',
+                                        '5ème': 'bg-success bg-opacity-10 text-success border border-success-subtle',
+                                        '4ème': 'bg-warning bg-opacity-10 text-dark border border-warning-subtle',
+                                        '3ème': 'bg-danger bg-opacity-10 text-danger border border-danger-subtle'
                                     } %}
                                     <span class="badge {{ niveau_color.get(classe.niveau, 'bg-secondary bg-opacity-10 text-secondary border') }}">
                                         <i class="fas fa-graduation-cap me-1"></i>{{ classe.niveau }}
@@ -273,7 +273,7 @@
                     <div class="class-course-stats">
                         <!-- Badge nombre de cours -->
                         <span class="badge bg-light text-dark border" style="font-size: 0.82rem;">
-                            <i class="fas fa-book-open text-primary me-1"></i>{{ classe_cours_count }} matiÃƒÂ¨re{{ 's' if classe_cours_count > 1 else '' }}
+                            <i class="fas fa-book-open text-primary me-1"></i>{{ classe_cours_count }} matière{{ 's' if classe_cours_count > 1 else '' }}
                         </span>
 
                         <!-- Badge total coefficient -->
@@ -281,14 +281,14 @@
                             <i class="fas fa-weight-hanging text-secondary me-1"></i>Total coeff. x{{ ns.coeffs }}
                         </span>
 
-                        <!-- Chevron de dÃƒÂ©pliement -->
+                        <!-- Chevron de dépliement -->
                         <span class="class-course-chevron">
                             <i class="fas fa-chevron-down"></i>
                         </span>
                     </div>
                 </div>
 
-                <!-- Contenu dÃƒÂ©pliable : liste des cours de cette classe -->
+                <!-- Contenu dépliable : liste des cours de cette classe -->
                 <div class="collapse class-course-content" id="collapseClasse{{ classe.id }}">
 
                     <!-- Tableau sur Desktop -->
@@ -297,7 +297,7 @@
                             <thead>
                                 <tr>
                                     <th style="width: 70px;">ID</th>
-                                    <th>MatiÃƒÂ¨re / Cours</th>
+                                    <th>Matière / Cours</th>
                                     <th>Coeff.</th>
                                     {% if current_user.role in ['admin', 'super_admin'] %}<th>Professeur</th>{% endif %}
                                     <th>Description</th>
@@ -341,7 +341,7 @@
                                     {% endif %}
                                     <td>
                                         <span class="text-muted small text-truncate d-inline-block" style="max-width: 250px;" title="{{ c.description or '' }}">
-                                            {{ c.description or "Ã¢â‚¬â€" }}
+                                            {{ c.description or "?" }}
                                         </span>
                                     </td>
                                     <td class="text-center">
@@ -353,14 +353,14 @@
                                     </td>
                                     <td class="text-end pe-4">
                                         <div class="d-inline-flex gap-1">
-                                            <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-sm btn-outline-primary" title="DÃƒÂ©tails du cours">
+                                            <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-sm btn-outline-primary" title="Détails du cours">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             {% if current_user.role in ['admin', 'super_admin'] %}
                                             <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-sm btn-outline-warning" title="Modifier le cours">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-                                            <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours ?" data-loading="Suppression...">
+                                            <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours " data-loading="Suppression...">
                                                 {{ delete_form.hidden_tag() }}
                                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer ce cours">
                                                     <i class="fas fa-trash"></i>
@@ -375,10 +375,10 @@
                         </table>
                     </div>
 
-                    <!-- Cartes sur Mobile (ZÃƒÂ©ro dÃƒÂ©filement horizontal) -->
+                    <!-- Cartes sur Mobile (Zéro défilement horizontal) -->
                     <div class="class-course-cards">
                         {% for c in classe_cours %}
-                        {% set prof_full = (c.professeur.prenom ~ ' ' ~ c.professeur.nom) if c.professeur else 'Non assignÃƒÂ©' %}
+                        {% set prof_full = (c.professeur.prenom ~ ' ' ~ c.professeur.nom) if c.professeur else 'Non assigné' %}
                         <div class="class-course-mini-card">
                             <div class="class-course-mini-top">
                                 <div class="d-flex align-items-center gap-2 min-w-0">
@@ -426,14 +426,14 @@
                             {% endif %}
 
                             <div class="class-course-mini-actions">
-                                <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-outline-primary btn-sm" title="DÃƒÂ©tails">
-                                    <i class="fas fa-eye me-1"></i>DÃƒÂ©tails
+                                <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-outline-primary btn-sm" title="Détails">
+                                    <i class="fas fa-eye me-1"></i>Détails
                                 </a>
                                 {% if current_user.role in ['admin', 'super_admin'] %}
                                 <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-outline-warning btn-sm" title="Modifier">
                                     <i class="fas fa-edit me-1"></i>Modifier
                                 </a>
-                                <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours ?" data-loading="Suppression...">
+                                <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours " data-loading="Suppression...">
                                     {{ delete_form.hidden_tag() }}
                                     <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
                                         <i class="fas fa-trash me-1"></i>Supprimer
@@ -449,7 +449,7 @@
             </article>
         {% endfor %}
 
-        <!-- AccordÃƒÂ©on distinct pour les cours sans classe assignÃƒÂ©e (si existants) -->
+        <!-- Accordéon distinct pour les cours sans classe assignée (si existants) -->
         {% set cours_sans_classe = cours|rejectattr('classe')|list %}
         {% if cours_sans_classe %}
             {% set sans_classe_count = cours_sans_classe|length %}
@@ -472,7 +472,7 @@
 
             <article class="class-course-card"
                      data-id="sans-classe"
-                     data-nom="Cours non assignÃƒÂ©s"
+                     data-nom="Cours non assignés"
                      data-niveau=""
                      data-cours-count="{{ sans_classe_count }}"
                      data-matieres="{{ matieres_sc_str }}"
@@ -490,7 +490,7 @@
                             <i class="fas fa-folder-open"></i>
                         </div>
                         <div class="class-course-info">
-                            <h2 class="class-course-name text-secondary">Cours non assignÃƒÂ©s</h2>
+                            <h2 class="class-course-name text-secondary">Cours non assignés</h2>
                             <div class="class-course-meta">
                                 <span class="badge bg-secondary bg-opacity-10 text-secondary border">
                                     Sans classe cible
@@ -515,7 +515,7 @@
                             <thead>
                                 <tr>
                                     <th style="width: 70px;">ID</th>
-                                    <th>MatiÃƒÂ¨re / Cours</th>
+                                    <th>Matière / Cours</th>
                                     <th>Coeff.</th>
                                     {% if current_user.role in ['admin', 'super_admin'] %}<th>Professeur</th>{% endif %}
                                     <th>Description</th>
@@ -547,7 +547,7 @@
                                     {% endif %}
                                     <td>
                                         <span class="text-muted small text-truncate d-inline-block" style="max-width: 250px;">
-                                            {{ c.description or "Ã¢â‚¬â€ " }}
+                                            {{ c.description or "?" }}
                                         </span>
                                     </td>
                                     <td class="text-center">
@@ -555,14 +555,14 @@
                                     </td>
                                     <td class="text-end pe-4">
                                         <div class="d-inline-flex gap-1">
-                                            <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-sm btn-outline-primary" title="DÃƒÂ©tails du cours">
+                                            <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-sm btn-outline-primary" title="Détails du cours">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             {% if current_user.role in ['admin', 'super_admin'] %}
                                             <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-sm btn-outline-warning" title="Modifier le cours">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-                                            <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours ?" data-loading="Suppression...">
+                                            <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours " data-loading="Suppression...">
                                                 {{ delete_form.hidden_tag() }}
                                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                                     <i class="fas fa-trash"></i>
@@ -579,7 +579,7 @@
 
                     <div class="class-course-cards">
                         {% for c in cours_sans_classe %}
-                        {% set prof_full = (c.professeur.prenom ~ ' ' ~ c.professeur.nom) if c.professeur else 'Non assignÃƒÂ©' %}
+                        {% set prof_full = (c.professeur.prenom ~ ' ' ~ c.professeur.nom) if c.professeur else 'Non assigné' %}
                         <div class="class-course-mini-card">
                             <div class="class-course-mini-top">
                                 <div class="d-flex align-items-center gap-2 min-w-0">
@@ -602,14 +602,14 @@
                             </div>
                             {% endif %}
                             <div class="class-course-mini-actions">
-                                <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-outline-primary btn-sm" title="DÃƒÂ©tails">
-                                    <i class="fas fa-eye me-1"></i>DÃƒÂ©tails
+                                <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-outline-primary btn-sm" title="Détails">
+                                    <i class="fas fa-eye me-1"></i>Détails
                                 </a>
                                 {% if current_user.role in ['admin', 'super_admin'] %}
                                 <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-outline-warning btn-sm" title="Modifier">
                                     <i class="fas fa-edit me-1"></i>Modifier
                                 </a>
-                                <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours ?" data-loading="Suppression...">
+                                <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours " data-loading="Suppression...">
                                     {{ delete_form.hidden_tag() }}
                                     <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
                                         <i class="fas fa-trash me-1"></i>Supprimer
@@ -625,19 +625,19 @@
         {% endif %}
     </div>
 
-    <!-- Ãƒâ€°tat vide (si aucun rÃƒÂ©sultat trouvÃƒÂ© aprÃƒÂ¨s filtrage) -->
+    <!-- État vide (si aucun résultat trouvé après filtrage) -->
     <div id="noClassesFoundState" class="empty-state py-5 my-4" style="display: none;">
         <div class="empty-state-icon text-muted mb-3" style="font-size: 3rem;">
             <i class="fas fa-search"></i>
         </div>
-        <h3 class="h5 fw-bold text-dark">Aucune classe ni cours trouvÃƒÂ©</h3>
-        <p class="text-muted mb-3">Aucune classe ne correspond ÃƒÂ  vos critÃƒÂ¨res de recherche ou de filtre.</p>
+        <h3 class="h5 fw-bold text-dark">Aucune classe ni cours trouvé</h3>
+        <p class="text-muted mb-3">Aucune classe ne correspond ? vos critères de recherche ou de filtre.</p>
         <button type="button" class="btn btn-outline-primary" id="btnResetFiltersEmpty">
-            <i class="fas fa-undo me-2"></i>RÃƒÂ©initialiser les filtres
+            <i class="fas fa-undo me-2"></i>Réinitialiser les filtres
         </button>
     </div>
 
-    <!-- Ãƒâ€°tat vide global (si aucun cours n'est crÃƒÂ©ÃƒÂ© dans l'ÃƒÂ©cole) -->
+    <!-- État vide global (si aucun cours n'est créé dans l'école) -->
     {% if not cours %}
     <div class="empty-state py-5 my-4">
         <div class="empty-state-icon text-muted mb-3" style="font-size: 3.5rem;">
@@ -660,17 +660,17 @@
         </div>
         <nav aria-label="Pagination des classes">
             <ul class="pagination pagination-sm mb-0" id="paginationList">
-                <!-- Dynamiquement gÃƒÂ©nÃƒÂ©rÃƒÂ© par JavaScript -->
+                <!-- Dynamiquement généré par JavaScript -->
             </ul>
         </nav>
     </div>
 
 </div>
 
-<!-- ContrÃƒÂ´leur JavaScript rÃƒÂ©actif pour la gestion des cours par classe -->
+<!-- Contrôleur JavaScript réactif pour la gestion des cours par classe -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Ãƒâ€°lÃƒÂ©ments du DOM
+    // Éléments du DOM
     const searchInput = document.getElementById('classCourseSearchInput');
     const searchClear = document.getElementById('classCourseSearchClear');
     const filterClasse = document.getElementById('filterClasseSelect');
@@ -687,13 +687,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const paginationList = document.getElementById('paginationList');
     const pageInfoText = document.getElementById('pageInfoText');
 
-    // Bouton Tout dÃƒÂ©plier / Tout replier
+    // Bouton Tout déplier / Tout replier
     const btnToggleAll = document.getElementById('btnToggleAllClassAccordions');
     const iconToggleAll = document.getElementById('iconToggleAll');
     const textToggleAll = document.getElementById('textToggleAll');
     let allExpanded = false;
 
-    // RÃƒÂ©cupÃƒÂ©ration de tous les ÃƒÂ©lÃƒÂ©ments accordÃƒÂ©ons de classes
+    // Récupération de tous les éléments accordéons de classes
     const classCards = Array.from(document.querySelectorAll('.class-course-card'));
     const totalClasses = classCards.length;
 
@@ -705,15 +705,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (totalClasses === 0) {
         if (paginationBar) paginationBar.style.display = 'none';
-        if (filterStats) filterStats.innerHTML = 'Aucun cours enregistrÃƒÂ©';
+        if (filterStats) filterStats.innerHTML = 'Aucun cours enregistré';
         return;
     }
 
-    // Ãƒâ€°tat courant
+    // État courant
     let currentPage = 1;
     let pageSize = parseInt(pageSizeSelect.value, 10) || 20;
 
-    // Normalisation de chaÃƒÂ®ne (insensible ÃƒÂ  la casse et aux accents)
+    // Normalisation de chaîne (insensible ? la casse et aux accents)
     function normalizeStr(str) {
         if (!str) return '';
         return str.toString().toLowerCase()
@@ -721,8 +721,24 @@ document.addEventListener('DOMContentLoaded', function() {
             .replace(/[\u0300-\u036f]/g, '');
     }
 
+    // Synchronisation URL
+    function syncUrl() {
+        const params = new URLSearchParams();
+        const q = searchInput ? searchInput.value.trim() : '';
+        const cl = filterClasse ? filterClasse.value.trim() : '';
+        const niv = filterNiveau ? filterNiveau.value.trim() : '';
+        const pr = filterProf ? filterProf.value.trim() : '';
+        if (q) params.set('search', q);
+        if (cl) params.set('classe', cl);
+        if (niv) params.set('niveau', niv);
+        if (pr) params.set('professeur', pr);
+        const newUrl = window.location.pathname + (params.toString() ? '' + params.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+    }
+
     // Filtrage et Tri
     function getFilteredAndSortedItems() {
+        syncUrl();
         const query = normalizeStr(searchInput.value.trim());
         const selectedClasse = filterClasse ? filterClasse.value.trim() : '';
         const selectedNiveau = filterNiveau ? filterNiveau.value.trim() : '';
@@ -785,12 +801,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const matched = getFilteredAndSortedItems();
         const count = matched.length;
 
-        // Mise ÃƒÂ  jour de l'icÃƒÂ´ne d'effacement
+        // Mise ? jour de l'icône d'effacement
         if (searchClear) {
             searchClear.style.display = searchInput.value.trim().length > 0 ? 'inline-block' : 'none';
         }
 
-        // Bouton rÃƒÂ©initialiser
+        // Bouton réinitialiser
         const isFiltered = searchInput.value.trim().length > 0 ||
                            (filterClasse && filterClasse.value !== '') ||
                            (filterNiveau && filterNiveau.value !== '') ||
@@ -801,7 +817,7 @@ document.addEventListener('DOMContentLoaded', function() {
             btnReset.style.display = isFiltered ? 'inline-block' : 'none';
         }
 
-        // Compteur de cours affichÃƒÂ©s
+        // Compteur de cours affichés
         let visibleCourses = 0;
         matched.forEach(c => {
             visibleCourses += parseInt(c.dataset.coursCount || 0, 10);
@@ -811,11 +827,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (count === totalClasses) {
                 filterStats.innerHTML = `Affichage de <strong>${count}</strong> classe${count > 1 ? 's' : ''} (<strong>${totalCourses}</strong> cours)`;
             } else {
-                filterStats.innerHTML = `<strong>${count}</strong> classe${count > 1 ? 's' : ''} trouvÃƒÂ©e${count > 1 ? 's' : ''} (<strong>${visibleCourses}</strong> cours) sur ${totalClasses}`;
+                filterStats.innerHTML = `<strong>${count}</strong> classe${count > 1 ? 's' : ''} trouvée${count > 1 ? 's' : ''} (<strong>${visibleCourses}</strong> cours) sur ${totalClasses}`;
             }
         }
 
-        // Gestion ÃƒÂ©tat vide
+        // Gestion état vide
         if (count === 0) {
             if (classList) classList.style.display = 'none';
             if (noResults) noResults.style.display = 'block';
@@ -836,12 +852,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const pageItems = matched.slice(startIndex, endIndex);
         const visibleIds = new Set(pageItems.map(item => item.dataset.id));
 
-        // Afficher / masquer les accordÃƒÂ©ons
+        // Afficher / masquer les accordéons
         classCards.forEach(card => {
             card.style.display = visibleIds.has(card.dataset.id) ? 'block' : 'none';
         });
 
-        // RÃƒÂ©ordonner les ÃƒÂ©lÃƒÂ©ments dans le DOM selon le tri
+        // Réordonner les éléments dans le DOM selon le tri
         if (classList) {
             pageItems.forEach(item => classList.appendChild(item));
         }
@@ -866,9 +882,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let html = '';
 
-        // Bouton PrÃƒÂ©cÃƒÂ©dent
+        // Bouton Précédent
         html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-            <button type="button" class="page-link" data-page="${currentPage - 1}" aria-label="PrÃƒÂ©cÃƒÂ©dent" ${currentPage === 1 ? 'disabled' : ''}>
+            <button type="button" class="page-link" data-page="${currentPage - 1}" aria-label="Précédent" ${currentPage === 1 ? 'disabled' : ''}>
                 <i class="fas fa-chevron-left"></i>
             </button>
         </li>`;
@@ -920,7 +936,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Gestion du bouton "Tout dÃƒÂ©plier / Tout replier"
+    // Gestion du bouton "Tout déplier / Tout replier"
     if (btnToggleAll) {
         btnToggleAll.addEventListener('click', function() {
             allExpanded = !allExpanded;
@@ -946,12 +962,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (textToggleAll) textToggleAll.textContent = 'Tout replier';
             } else {
                 if (iconToggleAll) iconToggleAll.className = 'fas fa-chevron-down me-1';
-                if (textToggleAll) textToggleAll.textContent = 'Tout dÃƒÂ©plier';
+                if (textToggleAll) textToggleAll.textContent = 'Tout déplier';
             }
         });
     }
 
-    // Synchronisation de l'icÃƒÂ´ne chevron avec l'ÃƒÂ©tat Bootstrap Collapse
+    // Synchronisation de l'icône chevron avec l'état Bootstrap Collapse
     document.querySelectorAll('.class-course-content').forEach(collapseEl => {
         collapseEl.addEventListener('show.bs.collapse', function() {
             const card = this.closest('.class-course-card');
@@ -969,7 +985,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // RÃƒÂ©initialisation des filtres
+    // Réinitialisation des filtres
     function resetFilters() {
         if (searchInput) searchInput.value = '';
         if (filterClasse) filterClasse.value = '';
@@ -980,9 +996,31 @@ document.addEventListener('DOMContentLoaded', function() {
         render();
     }
 
-    // Ãƒâ€°couteurs d'ÃƒÂ©vÃƒÂ©nements
+    // Écouteurs d'événements
     if (searchInput) {
+        let debounceTimer;
         searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                currentPage = 1;
+                render();
+            }, 300);
+        });
+    }
+
+    if (filterNiveau) {
+        filterNiveau.addEventListener('change', function() {
+            const niv = this.value;
+            if (filterClasse) {
+                Array.from(filterClasse.options).forEach(opt => {
+                    if (!opt.value) return;
+                    const optNiv = opt.dataset.niveau || '';
+                    opt.hidden = (niv && optNiv && optNiv !== niv);
+                });
+                if (filterClasse.selectedOptions.length && filterClasse.selectedOptions[0].hidden) {
+                    filterClasse.value = '';
+                }
+            }
             currentPage = 1;
             render();
         });

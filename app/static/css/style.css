@@ -4026,21 +4026,12 @@ body.auth-layout .main-content > .container {
         font-size: 0.95rem;
     }
 
-    .app-footer .footer-links,
-    .app-footer .footer-contact {
+    .app-footer .footer-links {
         justify-content: center;
     }
 
     .app-footer .footer-contact {
-        flex-direction: column;
-        width: 100%;
-        gap: 0.5rem;
-    }
-
-    .app-footer .footer-mail-link,
-    .app-footer .btn-footer-whatsapp {
-        width: 100%;
-        justify-content: center;
+        display: none !important;
     }
 
     .app-footer .footer-bottom {

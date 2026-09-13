@@ -6,8 +6,8 @@
     }
 
     function applyFilters() {
-        const search = normalize(document.getElementById('scheduleSearch')?.value);
-        const day = document.getElementById('scheduleDay')?.value || '';
+        const search = normalize(document.getElementById('scheduleSearch').value);
+        const day = document.getElementById('scheduleDay').value || '';
         const items = document.querySelectorAll('#scheduleTable tbody tr, #scheduleCards .schedule-card');
 
         items.forEach(function (item) {
@@ -20,12 +20,12 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        document.getElementById('scheduleSearch')?.addEventListener('input', applyFilters);
-        document.getElementById('scheduleDay')?.addEventListener('change', applyFilters);
+        document.getElementById('scheduleSearch').addEventListener('input', applyFilters);
+        document.getElementById('scheduleDay').addEventListener('change', applyFilters);
 
         document.querySelectorAll('.js-confirm-form').forEach(function (form) {
             form.addEventListener('submit', function (event) {
-                const message = form.dataset.confirm || 'Confirmer cette action ?';
+                const message = form.dataset.confirm || 'Confirmer cette action ';
                 if (!window.confirm(message)) {
                     event.preventDefault();
                 }

@@ -21,47 +21,75 @@
         </a>
     </div>
 
-    <div class="card mb-4">
+    <div class="card mb-4" id="professeurs-filter-section">
         <div class="card-body">
-            <form method="get" class="d-flex flex-wrap gap-2">
-                <div class="flex-grow-1 min-w-0">
-                    <label for="search" class="form-label">Recherche</label>
-                    <input id="search" name="search" type="search" class="form-control" value="{{ search }}" placeholder="Nom, email ou matiÃ¨re">
+            <form method="get" action="{{ url_for('main.professeurs') }}" class="row g-2 align-items-center" id="professeursFilterForm">
+                <div class="col-12 col-md-5">
+                    <label for="search" class="form-label small fw-semibold text-muted mb-1">Recherche multi-critères</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input id="search" name="search" type="search" class="form-control border-start-0 ps-0" value="{{ search or '' }}" placeholder="Nom, prénom, email, téléphone, code...">
+                    </div>
                 </div>
-                <div class="d-flex align-items-end gap-2 flex-wrap">
-                    <button type="submit" class="btn btn-outline-primary">
-                        <i class="fas fa-search me-2"></i>Filtrer
+                <div class="col-6 col-md-3">
+                    <label for="filterClasseSelect" class="form-label small fw-semibold text-muted mb-1">Classe</label>
+                    <select id="filterClasseSelect" name="classe_id" class="form-select">
+                        <option value="">Toutes les classes</option>
+                        {% if classes %}
+                            {% for c in classes %}
+                                <option value="{{ c.id }}" {% if classe_id == c.id %}selected{% endif %}>{{ c.nom }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label for="filterStatutSelect" class="form-label small fw-semibold text-muted mb-1">Statut</label>
+                    <select id="filterStatutSelect" name="statut" class="form-select">
+                        <option value="">Tous les statuts</option>
+                        <option value="actif" {% if statut == 'actif' %}selected{% endif %}>Actif</option>
+                        <option value="inactif" {% if statut == 'inactif' %}selected{% endif %}>Inactif</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-2 d-flex align-items-end gap-2 mt-md-4">
+                    <button type="button" id="btnResetProfFilters" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-undo me-1"></i>Reset
                     </button>
-                    <a href="{{ url_for('main.professeurs') }}" class="btn btn-outline-secondary">RÃ©initialiser</a>
                 </div>
             </form>
         </div>
     </div>
 
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-        <span class="text-muted">Professeurs affichÃ©s : <span class="badge bg-primary">{{ professeurs.total }}</span></span>
+        <span class="text-muted">Professeurs affichés : <span class="badge bg-primary" id="professeursCountBadge">{{ professeurs.total }}</span></span>
         {% if professeurs.pages > 1 %}
         <span class="text-muted small">Page {{ professeurs.page }} / {{ professeurs.pages }}</span>
         {% endif %}
     </div>
 
     {% if professeurs.items %}
-    <div class="teacher-grid">
+    <div class="teacher-grid" id="teacherGridContainer">
         {% for prof in professeurs.items %}
-        <article class="teacher-card" id="prof-card-{{ prof.id }}">
+        <article class="teacher-card" id="prof-card-{{ prof.id }}"
+                 data-id="{{ prof.id }}"
+                 data-search="{{ prof.prenom|lower }} {{ prof.nom|lower }} {{ (prof.email or '')|lower }} {{ (prof.telephone or '')|lower }} {{ (prof.code_prof or '')|lower }} {{ (prof.specialite or '')|lower }} {{ (prof.matieres_enseignees or '')|lower }}"
+                 data-classes="{{ prof.classes_assignees|map(attribute='id')|join(',') }}"
+                 data-statut="{{ prof.utilisateur.statut if prof.utilisateur else 'actif' }}">
             <div class="teacher-card-main">
                 <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
                     {{ (prof.prenom[0] if prof.prenom else prof.nom[0])|upper }}
                 </div>
                 <div class="min-w-0">
                     <h2>{{ prof.prenom or '' }} {{ prof.nom }}</h2>
-                    <p>{{ prof.email or 'Email non renseignÃ©' }}</p>
+                    <p>{{ prof.email or 'Email non renseigné' }}</p>
+                    {% if prof.code_prof %}
+                    <small class="badge bg-light text-muted border">Code: {{ prof.code_prof }}</small>
+                    {% endif %}
                 </div>
             </div>
 
             <div class="teacher-card-meta">
-                <span><i class="fas fa-phone"></i>{{ prof.telephone or 'TÃ©lÃ©phone non renseignÃ©' }}</span>
-                <span><i class="fas fa-book"></i>{{ prof.matieres_enseignees or 'MatiÃ¨re non renseignÃ©e' }}</span>
+                <span><i class="fas fa-phone"></i>{{ prof.telephone or 'Téléphone non renseigné' }}</span>
+                <span><i class="fas fa-book"></i>{{ prof.matieres_enseignees or prof.specialite or 'Matière non renseignée' }}</span>
             </div>
 
             <div class="teacher-card-actions">
@@ -74,7 +102,7 @@
                 <a href="{{ url_for('main.modifier_professeur', id=prof.id) }}" class="btn btn-sm btn-outline-warning" title="Modifier le professeur">
                     <i class="fas fa-edit me-1"></i>Modifier
                 </a>
-                <form action="{{ url_for('main.supprimer_professeur', id=prof.id) }}" method="POST" data-klasora-form data-remove-target="#prof-card-{{ prof.id }}" data-confirm="Supprimer ce professeur ?" data-loading="Suppression...">
+                <form action="{{ url_for('main.supprimer_professeur', id=prof.id) }}" method="POST" data-klasora-form data-remove-target="#prof-card-{{ prof.id }}" data-confirm="Supprimer ce professeur " data-loading="Suppression...">
                     {{ delete_form.hidden_tag() }}
                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer ce professeur">
                         <i class="fas fa-trash me-1"></i>Supprimer
@@ -89,7 +117,7 @@
     <nav class="mt-4" aria-label="Pagination professeurs">
         <ul class="pagination justify-content-center">
             <li class="page-item {% if not professeurs.has_prev %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('main.professeurs', page=professeurs.prev_num, search=search) if professeurs.has_prev else '#' }}">PrÃ©cÃ©dent</a>
+                <a class="page-link" href="{{ url_for('main.professeurs', page=professeurs.prev_num, search=search) if professeurs.has_prev else '#' }}">Précédent</a>
             </li>
             {% for page_num in professeurs.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
                 {% if page_num %}
@@ -109,7 +137,7 @@
     {% else %}
     <div class="empty-state">
         <div class="empty-state-icon"><i class="fas fa-chalkboard-teacher"></i></div>
-        <h2 class="empty-state-title">Aucun professeur trouvÃ©</h2>
+        <h2 class="empty-state-title">Aucun professeur trouvé</h2>
         <p class="empty-state-text">Ajoutez un professeur ou modifiez votre recherche.</p>
         <a href="{{ url_for('main.ajouter_professeur') }}" class="btn btn-primary">
             <i class="fas fa-plus me-2"></i>Ajouter un professeur
@@ -117,4 +145,74 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search');
+    const classeSelect = document.getElementById('filterClasseSelect');
+    const statutSelect = document.getElementById('filterStatutSelect');
+    const resetBtn = document.getElementById('btnResetProfFilters');
+    const cards = Array.from(document.querySelectorAll('.teacher-card'));
+    const badge = document.getElementById('professeursCountBadge');
+
+    function syncUrl(q, cid, st) {
+        const params = new URLSearchParams();
+        if (q) params.set('search', q);
+        if (cid) params.set('classe_id', cid);
+        if (st) params.set('statut', st);
+        const newUrl = window.location.pathname + (params.toString() ? '' + params.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+    }
+
+    function filterCards() {
+        const q = (searchInput ? searchInput.value : '').toLowerCase().trim();
+        const cid = classeSelect ? classeSelect.value : '';
+        const st = (statutSelect ? statutSelect.value : '').toLowerCase();
+
+        syncUrl(q, cid, st);
+
+        let visible = 0;
+        cards.forEach(card => {
+            const cardSearch = (card.dataset.search || '').toLowerCase();
+            const cardClasses = (card.dataset.classes || '').split(',');
+            const cardStatut = (card.dataset.statut || '').toLowerCase();
+
+            const matchQ = !q || cardSearch.includes(q);
+            const matchC = !cid || cardClasses.includes(cid);
+            const matchS = !st || cardStatut === st;
+
+            if (matchQ && matchC && matchS) {
+                card.style.display = '';
+                visible++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        if (badge) {
+            badge.textContent = visible;
+        }
+    }
+
+    let debounceTimer;
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(filterCards, 300);
+        });
+    }
+
+    if (classeSelect) classeSelect.addEventListener('change', filterCards);
+    if (statutSelect) statutSelect.addEventListener('change', filterCards);
+
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            if (searchInput) searchInput.value = '';
+            if (classeSelect) classeSelect.value = '';
+            if (statutSelect) statutSelect.value = '';
+            filterCards();
+        });
+    }
+});
+</script>
 {% endblock %}

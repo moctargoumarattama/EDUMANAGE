@@ -99,10 +99,10 @@
                 const eleve_id = eleveSelect.value;
                 const cours_id = coursSelect ? coursSelect.value : null;
                 const valeur = valeurInput.value;
-                const type_eval = form.querySelector('select[name="type_evaluation"]')?.value || 'Devoir';
-                const coef = form.querySelector('input[name="coefficient"]')?.value || 1.0;
-                const periode = form.querySelector('select[name="periode"]')?.value || form.querySelector('select[name="annee_id"]')?.selectedOptions?.[0]?.text || '';
-                const date_eval = form.querySelector('input[name="date_evaluation"]')?.value || new Date().toISOString();
+                const type_eval = form.querySelector('select[name="type_evaluation"]').value || 'Devoir';
+                const coef = form.querySelector('input[name="coefficient"]').value || 1.0;
+                const periode = form.querySelector('select[name="periode"]').value || form.querySelector('select[name="annee_id"]').selectedOptions.[0].text || '';
+                const date_eval = form.querySelector('input[name="date_evaluation"]').value || new Date().toISOString();
 
                 if (!eleve_id || !cours_id || valeur === '') {
                     alert('Veuillez remplir les champs obligatoires (Élève, Cours, Note).');
@@ -110,9 +110,9 @@
                 }
 
                 try {
-                    const studentName = eleveSelect.selectedOptions?.[0]?.text || 'Élève';
-                    const baseVersionVal = form.querySelector('input[name="base_version"], input[name="sync_version"]')?.value;
-                    const noteIdVal = form.querySelector('input[name="note_id"], input[name="id"]')?.value;
+                    const studentName = eleveSelect.selectedOptions.[0].text || 'Élève';
+                    const baseVersionVal = form.querySelector('input[name="base_version"], input[name="sync_version"]').value;
+                    const noteIdVal = form.querySelector('input[name="note_id"], input[name="id"]').value;
                     const notePayload = {
                         eleve_id: parseInt(eleve_id, 10),
                         cours_id: parseInt(cours_id, 10),
@@ -160,10 +160,10 @@
                 e.preventDefault();
 
                 const eleve_id = eleveSelect.value;
-                const cours_id = form.querySelector('select[name="cours_id"]')?.value || null;
+                const cours_id = form.querySelector('select[name="cours_id"]').value || null;
                 const date_absence = dateInput ? dateInput.value : new Date().toISOString().slice(0, 10);
-                const motif = form.querySelector('input[name="motif"], textarea[name="motif"]')?.value || '';
-                const justifiee = form.querySelector('input[name="justifiee"]')?.checked || false;
+                const motif = form.querySelector('input[name="motif"], textarea[name="motif"]').value || '';
+                const justifiee = form.querySelector('input[name="justifiee"]').checked || false;
 
                 if (!eleve_id || !date_absence) {
                     alert('Veuillez sélectionner au moins un élève et une date.');
@@ -171,9 +171,9 @@
                 }
 
                 try {
-                    const studentName = eleveSelect.selectedOptions?.[0]?.text || 'Élève';
-                    const baseVersionVal = form.querySelector('input[name="base_version"], input[name="sync_version"]')?.value;
-                    const absIdVal = form.querySelector('input[name="absence_id"], input[name="id"]')?.value;
+                    const studentName = eleveSelect.selectedOptions.[0].text || 'Élève';
+                    const baseVersionVal = form.querySelector('input[name="base_version"], input[name="sync_version"]').value;
+                    const absIdVal = form.querySelector('input[name="absence_id"], input[name="id"]').value;
                     const absPayload = {
                         eleve_id: parseInt(eleve_id, 10),
                         cours_id: cours_id ? parseInt(cours_id, 10) : null,
@@ -215,7 +215,7 @@
         let cached = await offlineDB.getCachedData(cacheKey);
         if (!cached && typeof offlineDB.getAdminCacheKey === 'function' && typeof offlineDB.getTeacherCacheKey === 'function') {
             const altKey = (cacheKey === offlineDB.getAdminCacheKey()) 
-                ? offlineDB.getTeacherCacheKey() 
+                 offlineDB.getTeacherCacheKey() 
                 : offlineDB.getAdminCacheKey();
             cached = await offlineDB.getCachedData(altKey);
         }
@@ -290,7 +290,7 @@
                         if (stats.conflicts > 0) {
                             msg += ` dont ${stats.conflicts} conflit(s) à résoudre`;
                         }
-                        msg += `.\n\nVoulez-vous vraiment vous déconnecter ?`;
+                        msg += `.\n\nVoulez-vous vraiment vous déconnecter `;
                         const confirmLogout = confirm(msg);
                         if (confirmLogout) {
                             if (window.klasoraPwaCleanOnLogout) window.klasoraPwaCleanOnLogout();

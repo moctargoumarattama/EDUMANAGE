@@ -33,6 +33,16 @@ from app.notifications import envoyer_email
 MESSAGE_ANNEE_PLANIFIEE = "Les notes pourront être saisies lorsque cette année sera active."
 MESSAGE_ANNEE_ARCHIVEE = "Cette année est archivée : les notes sont consultables en lecture seule."
 
+SEMESTRE_1 = "Semestre 1"
+SEMESTRE_2 = "Semestre 2"
+PERIODES_SEMESTRES = [SEMESTRE_1, SEMESTRE_2]
+
+TYPE_DEVOIR = "Devoir"
+TYPE_INTERROGATION = "Interrogation"
+TYPE_COMPOSITION = "Composition"
+TYPES_CONTROLE_CONTINU = {TYPE_DEVOIR, TYPE_INTERROGATION}
+TYPES_EVALUATION = [TYPE_DEVOIR, TYPE_INTERROGATION, TYPE_COMPOSITION]
+
 
 def _is_admin_like(user):
     return getattr(user, "role", None) in {"admin", "super_admin"}
@@ -290,54 +300,192 @@ def calculer_statistiques_notes(notes_list):
     }
 
 
-def calculer_moyennes_eleve_annee(inscription_id, ecole_id, annee_id=None):
-    """Calcule la moyenne pondérée globale et par matière d'une inscription annuelle."""
+def calculer_moyenne_controles(notes_controles):
+    """
+    Calcule la moyenne arithmétique simple des notes de contrôle continu (Devoir, Interrogation).
+    Les coefficients individuels des notes ne sont pas pris en compte.
+    Retourne float arrondi à 2 décimales, ou None si aucune note valide.
+    """
+    if not notes_controles:
+        return None
+    valeurs = []
+    for n in notes_controles:
+        val = getattr(n, "valeur", n)
+        if val is not None:
+            try:
+                valeurs.append(float(val))
+            except (ValueError, TypeError):
+                pass
+    if not valeurs:
+        return None
+    return round(sum(valeurs) / len(valeurs), 2)
+
+
+def calculer_moyenne_matiere_semestre(moyenne_controles, note_composition):
+    """
+    Calcule la moyenne semestrielle d'une matière :
+    (moyenne_controles + note_composition) / 2
+    Condition stricte : les deux composantes doivent être présentes.
+    Si l'une manque -> retourne None (incomplet / non finalisé, jamais 0).
+    """
+    if moyenne_controles is None or note_composition is None:
+        return None
+    try:
+        mc = float(moyenne_controles)
+        nc = float(note_composition)
+        return round((mc + nc) / 2.0, 2)
+    except (ValueError, TypeError):
+        return None
+
+
+def calculer_points_matiere(moyenne_matiere, cours_coefficient):
+    """
+    Calcule les points de la matière : moyenne_matiere * cours_coefficient.
+    Retourne None si moyenne_matiere est None.
+    """
+    if moyenne_matiere is None:
+        return None
+    try:
+        coef = float(cours_coefficient) if cours_coefficient is not None else 1.0
+        return round(float(moyenne_matiere) * coef, 2)
+    except (ValueError, TypeError):
+        return None
+
+
+def calculer_moyenne_generale_semestre(matieres_finalisees):
+    """
+    Calcule la moyenne générale semestrielle pondérée par les coefficients des cours :
+    sum(points_matiere) / sum(cours_coefficient)
+    matieres_finalisees : liste de dicts avec {'moyenne': float, 'coefficient': float} ou tuples (moyenne, coef).
+    Retourne float arrondi à 2 décimales, ou None si aucune matière finalisée.
+    """
+    if not matieres_finalisees:
+        return None
+    total_points = 0.0
+    total_coef = 0.0
+    count_valid = 0
+    for m in matieres_finalisees:
+        if isinstance(m, dict):
+            moy = m.get('moyenne')
+            coef = m.get('coefficient', 1.0)
+            pts = m.get('points')
+        else:
+            moy, coef = m[0], m[1]
+            pts = None
+        if moy is not None:
+            try:
+                coef_f = float(coef)
+                pts_f = float(pts) if pts is not None else float(moy) * coef_f
+                total_points += pts_f
+                total_coef += coef_f
+                count_valid += 1
+            except (ValueError, TypeError):
+                pass
+    if count_valid == 0 or total_coef <= 0:
+        return None
+    return round(total_points / total_coef, 2)
+
+
+def calculer_moyenne_annuelle(moyenne_s1, moyenne_s2):
+    """
+    Calcule la moyenne annuelle : (moyenne_s1 + moyenne_s2) / 2.
+    Nécessite que les deux semestres soient finalisés (non None).
+    Si l'un manque -> retourne None.
+    """
+    if moyenne_s1 is None or moyenne_s2 is None:
+        return None
+    try:
+        return round((float(moyenne_s1) + float(moyenne_s2)) / 2.0, 2)
+    except (ValueError, TypeError):
+        return None
+
+
+def calculer_moyennes_eleve_annee(inscription_id, ecole_id, annee_id=None, periode=None):
+    """Calcule la moyenne semestrielle ou annuelle et le détail par matière d'une inscription."""
     if not inscription_id:
         return {"moyenne": 0.0, "total_coefficients": 0.0, "par_matiere": {}}
 
-    query = Note.query.filter_by(inscription_id=inscription_id, ecole_id=ecole_id)
+    query = Note.query.options(joinedload(Note.cours)).filter_by(inscription_id=inscription_id, ecole_id=ecole_id)
     if annee_id:
         query = query.filter_by(annee_id=annee_id)
+    if periode:
+        query = query.filter_by(periode=periode)
     notes = query.all()
 
     if not notes:
         return {"moyenne": 0.0, "total_coefficients": 0.0, "par_matiere": {}}
 
     par_matiere = {}
-    total_pondere = 0.0
-    total_coef = 0.0
-
     for n in notes:
         c_id = n.cours_id
         if c_id not in par_matiere:
-            par_matiere[c_id] = {"pondere": 0.0, "coef": 0.0, "notes": []}
-        coef = n.coefficient or 1.0
-        par_matiere[c_id]["pondere"] += (n.valeur or 0.0) * coef
-        par_matiere[c_id]["coef"] += coef
+            par_matiere[c_id] = {"notes": [], "cours": n.cours}
         par_matiere[c_id]["notes"].append(n)
 
-        total_pondere += (n.valeur or 0.0) * coef
-        total_coef += coef
-
     result_par_matiere = {}
+    matieres_finalisees = []
+
     for c_id, data in par_matiere.items():
-        m = round(data["pondere"] / data["coef"], 2) if data["coef"] > 0 else 0.0
+        c_notes = data["notes"]
+        cours = data["cours"]
+        cours_coef = cours.coefficient if (cours and cours.coefficient) else 1.0
+
+        controles = [n for n in c_notes if n.type_evaluation in TYPES_CONTROLE_CONTINU]
+        comp = next((n for n in c_notes if n.type_evaluation == TYPE_COMPOSITION), None)
+
+        moy_controles = calculer_moyenne_controles(controles)
+        note_comp = comp.valeur if comp else None
+        moy_semestre = calculer_moyenne_matiere_semestre(moy_controles, note_comp)
+        pts = calculer_points_matiere(moy_semestre, cours_coef)
+
+        if moy_semestre is not None:
+            matieres_finalisees.append({"moyenne": moy_semestre, "coefficient": cours_coef, "points": pts})
+
+        # Pour compatibilité descendante : si modèle 2 semestres incomplet, calculer aussi moyenne simple
+        total_p = sum((n.valeur or 0.0) * (n.coefficient or 1.0) for n in c_notes)
+        total_c = sum((n.coefficient or 1.0) for n in c_notes)
+        moy_simple = round(total_p / total_c, 2) if total_c > 0 else 0.0
+
         result_par_matiere[c_id] = {
-            "moyenne": m,
-            "total_coefficients": data["coef"],
-            "nb_notes": len(data["notes"]),
+            "moyenne": moy_semestre if moy_semestre is not None else moy_simple,
+            "moyenne_controles": moy_controles,
+            "note_composition": note_comp,
+            "moyenne_semestre": moy_semestre,
+            "points": pts,
+            "total_coefficients": cours_coef,
+            "nb_notes": len(c_notes),
+            "finalisee": moy_semestre is not None,
         }
 
-    moyenne_globale = round(total_pondere / total_coef, 2) if total_coef > 0 else 0.0
+    moy_gen = calculer_moyenne_generale_semestre(matieres_finalisees)
+    if moy_gen is None:
+        # Fallback pour compatibilité
+        tot_pondere = sum((n.valeur or 0.0) * (n.coefficient or 1.0) for n in notes)
+        tot_coef = sum(n.coefficient or 1.0 for n in notes)
+        moy_gen = round(tot_pondere / tot_coef, 2) if tot_coef > 0 else 0.0
+        tot_coef_return = tot_coef
+    else:
+        tot_coef_return = sum(m["coefficient"] for m in matieres_finalisees)
 
     return {
-        "moyenne": moyenne_globale,
-        "total_coefficients": total_coef,
+        "moyenne": moy_gen,
+        "total_coefficients": tot_coef_return,
         "par_matiere": result_par_matiere,
     }
 
 
-def valider_mutation_note(ecole_id, annee, user, eleve_id, cours_id, valeur, coefficient=1.0, note_id=None):
+def valider_mutation_note(
+    ecole_id,
+    annee,
+    user,
+    eleve_id,
+    cours_id,
+    valeur,
+    coefficient=1.0,
+    note_id=None,
+    type_evaluation=TYPE_DEVOIR,
+    periode=SEMESTRE_1,
+):
     """Valide les contraintes métiers et d'intégrité annuelle pour la création ou mise à jour d'une note.
     
     Retourne:
@@ -358,6 +506,28 @@ def valider_mutation_note(ecole_id, annee, user, eleve_id, cours_id, valeur, coe
     role = getattr(user, "role", None)
     if role not in {"admin", "super_admin", "professeur"}:
         return False, "Vous n'êtes pas autorisé à gérer les notes.", None, None, None
+
+    # Validation de la période semestrielle
+    target_periode = periode or SEMESTRE_1
+    if target_periode not in PERIODES_SEMESTRES:
+        return (
+            False,
+            f"Période non autorisée. Seuls les semestres sont acceptés ({', '.join(PERIODES_SEMESTRES)}).",
+            None,
+            None,
+            None,
+        )
+
+    # Validation du type d'évaluation
+    target_type = type_evaluation or TYPE_DEVOIR
+    if target_type not in TYPES_EVALUATION:
+        return (
+            False,
+            f"Type d'évaluation non autorisé. Types valides : {', '.join(TYPES_EVALUATION)}.",
+            None,
+            None,
+            None,
+        )
 
     try:
         valeur_num = float(valeur)
@@ -406,6 +576,26 @@ def valider_mutation_note(ecole_id, annee, user, eleve_id, cours_id, valeur, coe
             None,
         )
 
+    # Règle Composition : au plus une composition par élève / matière / semestre
+    if target_type == TYPE_COMPOSITION:
+        comp_query = Note.query.filter(
+            Note.inscription_id == inscription.id,
+            Note.cours_id == cours.id,
+            Note.periode == target_periode,
+            Note.type_evaluation == TYPE_COMPOSITION,
+            Note.ecole_id == ecole_id,
+        )
+        if note_id:
+            comp_query = comp_query.filter(Note.id != note_id)
+        if comp_query.first():
+            return (
+                False,
+                f"Une composition existe déjà pour cet élève en {cours.nom} pour le {target_periode}.",
+                None,
+                None,
+                None,
+            )
+
     return True, None, inscription, cours, eleve
 
 
@@ -417,8 +607,8 @@ def creer_note(
     cours_id,
     valeur,
     coefficient=1.0,
-    type_evaluation="Devoir",
-    periode="Trimestre 1",
+    type_evaluation=TYPE_DEVOIR,
+    periode=SEMESTRE_1,
     date_evaluation=None,
 ):
     """Crée et enregistre une nouvelle note liée à l'inscription annuelle."""
@@ -430,6 +620,8 @@ def creer_note(
         cours_id=cours_id,
         valeur=valeur,
         coefficient=coefficient,
+        type_evaluation=type_evaluation,
+        periode=periode,
     )
     if not valide:
         return None, msg
@@ -438,8 +630,8 @@ def creer_note(
         nouvelle_note = Note(
             valeur=float(valeur),
             coefficient=float(coefficient),
-            type_evaluation=type_evaluation or "Devoir",
-            periode=periode or "Trimestre 1",
+            type_evaluation=type_evaluation or TYPE_DEVOIR,
+            periode=periode or SEMESTRE_1,
             date_evaluation=date_evaluation or datetime.utcnow(),
             annee_id=annee.id,
             inscription_id=inscription.id,
@@ -512,8 +704,8 @@ def modifier_note(
     note_id,
     valeur,
     coefficient=1.0,
-    type_evaluation="Devoir",
-    periode="Trimestre 1",
+    type_evaluation=None,
+    periode=None,
     eleve_id=None,
     cours_id=None,
 ):
@@ -536,6 +728,8 @@ def modifier_note(
 
     target_eleve_id = eleve_id or note.eleve_id
     target_cours_id = cours_id or note.cours_id
+    target_type = type_evaluation or note.type_evaluation or TYPE_DEVOIR
+    target_per = periode or note.periode or SEMESTRE_1
 
     valide, msg, inscription, cours, eleve = valider_mutation_note(
         ecole_id=ecole_id,
@@ -546,6 +740,8 @@ def modifier_note(
         valeur=valeur,
         coefficient=coefficient,
         note_id=note.id,
+        type_evaluation=target_type,
+        periode=target_per,
     )
     if not valide:
         return None, msg
@@ -662,3 +858,193 @@ def supprimer_note(ecole_id, annee, user, note_id):
         db.session.rollback()
         current_app.logger.error(f"Erreur suppression note: {e}")
         return False, "Erreur interne lors de la suppression de la note."
+
+
+def get_classes_notes(ecole_id, annee, user=None):
+    """Retourne les classes de l'année consultée accessibles selon les permissions de l'utilisateur."""
+    if not ecole_id or not annee:
+        return []
+    query = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
+    role = getattr(user, "role", None)
+    if role == "professeur":
+        classe_ids = _professeur_classe_ids(user, annee.id)
+        if not classe_ids:
+            return []
+        query = query.filter(Classe.id.in_(classe_ids))
+    return query.order_by(Classe.nom).all()
+
+
+def saisir_notes_classe(
+    ecole_id,
+    annee,
+    user,
+    classe_id,
+    cours_id,
+    notes_dict,
+    periode=SEMESTRE_1,
+    type_evaluation=TYPE_DEVOIR,
+    coefficient=1.0,
+    date_evaluation=None,
+):
+    """Enregistre par lot les notes des élèves d'une classe pour une évaluation donnée (Phase 5C & 5D).
+
+    Retourne:
+        (nb_notes_creees: int, error_message: str | None)
+    """
+    if not annee:
+        return 0, "Aucune année scolaire active ou consultée."
+
+    if annee.statut == "archivee":
+        return 0, MESSAGE_ANNEE_ARCHIVEE
+
+    if annee.statut == "planifiee":
+        return 0, MESSAGE_ANNEE_PLANIFIEE
+
+    if annee.statut != "active":
+        return 0, "Les notes ne peuvent être saisies que pour une année scolaire active."
+
+    role = getattr(user, "role", None)
+    if role not in {"admin", "super_admin", "professeur"}:
+        return 0, "Vous n'êtes pas autorisé à gérer les notes."
+
+    per = periode or SEMESTRE_1
+    if per not in PERIODES_SEMESTRES:
+        return 0, f"Période non autorisée. Seuls les semestres sont acceptés ({', '.join(PERIODES_SEMESTRES)})."
+
+    type_eval = type_evaluation or TYPE_DEVOIR
+    if type_eval not in TYPES_EVALUATION:
+        return 0, f"Type d'évaluation non autorisé. Types valides : {', '.join(TYPES_EVALUATION)}."
+
+    try:
+        coef_num = float(coefficient)
+        if coef_num <= 0:
+            return 0, "Le coefficient doit être supérieur à 0."
+    except (ValueError, TypeError):
+        return 0, "Coefficient invalide."
+
+    classe = Classe.query.filter_by(id=classe_id, ecole_id=ecole_id).first()
+    if not classe:
+        return 0, "Classe introuvable pour cette école."
+    if classe.annee_scolaire_id != annee.id:
+        return 0, "Cette classe n'appartient pas à l'année scolaire active."
+
+    cours = Cours.query.filter_by(id=cours_id, ecole_id=ecole_id).first()
+    if not cours:
+        return 0, "Cours introuvable pour cette école."
+    if cours.classe_id != classe.id:
+        return 0, "Ce cours n'appartient pas à la classe sélectionnée."
+
+    if role == "professeur":
+        prof = _professeur(user)
+        if not prof or cours.professeur_id != prof.id:
+            return 0, "Vous ne pouvez saisir des notes que pour vos propres cours."
+
+    inscriptions = Inscription.query.filter_by(
+        ecole_id=ecole_id,
+        annee_scolaire_id=annee.id,
+        classe_id=classe.id,
+    ).all()
+    inscriptions_by_eleve_id = {ins.eleve_id: ins for ins in inscriptions}
+
+    notes_to_create = []
+    if not notes_dict:
+        return 0, "Aucune note fournie."
+
+    for eleve_id_raw, val in notes_dict.items():
+        if val is None:
+            continue
+        val_str = str(val).strip()
+        if val_str == "":
+            continue
+
+        try:
+            eleve_id = int(eleve_id_raw)
+        except (ValueError, TypeError):
+            return 0, f"Identifiant d'élève invalide: {eleve_id_raw}."
+
+        if eleve_id not in inscriptions_by_eleve_id:
+            return 0, f"L'élève ID {eleve_id} n'est pas inscrit dans cette classe pour l'année scolaire active."
+
+        try:
+            val_float = float(val_str)
+            if val_float < 0 or val_float > 20:
+                return 0, f"La note doit être comprise entre 0 et 20 (reçu: {val_str})."
+        except (ValueError, TypeError):
+            return 0, f"Valeur de note invalide: '{val_str}'."
+
+        ins = inscriptions_by_eleve_id[eleve_id]
+        notes_to_create.append((ins, val_float))
+
+    if not notes_to_create:
+        return 0, "Aucune note n'a été saisie."
+
+    is_admin = role in {"admin", "super_admin"}
+    date_eval = date_evaluation or datetime.utcnow()
+
+    created_notes = []
+    try:
+        for ins, val_float in notes_to_create:
+            # Gestion stricte de la composition unique : mise à jour sans doublon
+            if type_eval == TYPE_COMPOSITION:
+                comp_existante = Note.query.filter_by(
+                    inscription_id=ins.id,
+                    cours_id=cours.id,
+                    periode=per,
+                    type_evaluation=TYPE_COMPOSITION,
+                    ecole_id=ecole_id,
+                ).first()
+                if comp_existante:
+                    comp_existante.valeur = val_float
+                    comp_existante.coefficient = coef_num
+                    comp_existante.date_evaluation = date_eval
+                    comp_existante.sync_version = (comp_existante.sync_version or 1) + 1
+                    comp_existante.last_by_admin = is_admin
+                    comp_existante.updated_at = datetime.utcnow()
+                    created_notes.append(comp_existante)
+                    continue
+
+            nouvelle_note = Note(
+                valeur=val_float,
+                coefficient=coef_num,
+                type_evaluation=type_eval,
+                periode=per,
+                date_evaluation=date_eval,
+                annee_id=annee.id,
+                inscription_id=ins.id,
+                eleve_id=ins.eleve_id,
+                cours_id=cours.id,
+                ecole_id=ecole_id,
+                sync_version=1,
+                last_by_admin=is_admin,
+            )
+            db.session.add(nouvelle_note)
+            created_notes.append(nouvelle_note)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur saisie notes classe: {e}")
+        return 0, "Erreur lors de l'enregistrement des notes."
+
+    if hasattr(current_app, "log_correction"):
+        try:
+            current_app.log_correction(
+                action="ajout_masse",
+                description=f"{len(created_notes)} note(s) ajoutée(s) pour la classe {classe.id} en cours {cours.id}",
+                ecole_id=ecole_id,
+                cible_type="classe",
+                cible_id=classe.id,
+                ancienne_valeur=None,
+                nouvelle_valeur=json.dumps({
+                    "nb_notes": len(created_notes),
+                    "cours_id": cours.id,
+                    "periode": per,
+                    "type_evaluation": type_eval,
+                    "coefficient": coef_num,
+                }),
+                niveau="info",
+            )
+        except Exception as log_err:
+            current_app.logger.warning(f"Erreur journalisation saisie classe: {log_err}")
+
+    return len(created_notes), None
+

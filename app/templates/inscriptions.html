@@ -366,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
             modalContent.innerHTML = '';
             modal.show();
 
-            fetch(`/recherche_json?inscription_id=${insId}`)
+            fetch(`/recherche_jsoninscription_id=${insId}`)
                 .then(r => r.json())
                 .then(student => {
                     modalLoading.style.display = 'none';
@@ -383,13 +383,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <p class="mb-1"><strong>Classe :</strong> <span class="badge bg-primary">${student.classe}</span></p>
                                     <p class="mb-1"><strong>Année scolaire :</strong> ${student.annee_scolaire}</p>
                                     <p class="mb-1"><strong>Parent / Tuteur :</strong> ${student.parent_nom}</p>
-                                    <p class="mb-0"><strong>1ère école :</strong> ${student.annee_premiere_ecole ?? "N/A"}</p>
+                                    <p class="mb-0"><strong>1ère école :</strong> ${student.annee_premiere_ecole  "N/A"}</p>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="card bg-light border-0 p-3 h-100">
                                     <h6 class="fw-bold text-primary mb-2">Évaluations Récentes</h6>
-                                    ${student.notes?.length > 0 ? 
+                                    ${student.notes.length > 0  
                                         student.notes.map(note => `
                                             <div class="d-flex justify-content-between align-items-center mb-1">
                                                 <span>${note.cours}</span>

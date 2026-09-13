@@ -262,7 +262,8 @@
                                     data-student-name="{{ eleve.prenom|lower }} {{ eleve.nom|lower }}"
                                     data-student-matricule="{{ eleve.id }}"
                                     data-student-mention="{{ item.appreciation_code }}"
-                                    data-student-notes="{{ item.notes_count }}">
+                                    data-student-notes="{{ item.notes_count }}"
+                                    data-bulletin-genere="{{ '1' if item.bulletin_genere else '0' }}">
                                     <td class="ps-3 text-center">
                                         {% if item.rang_classe %}
                                         <span class="badge {% if item.rang_classe == 1 %}bg-warning text-dark{% elif item.rang_classe <= 3 %}bg-primary{% else %}bg-secondary{% endif %} rounded-pill px-2 py-1 shadow-sm">

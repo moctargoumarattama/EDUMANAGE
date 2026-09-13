@@ -12,7 +12,7 @@
                 </div>
                 <div>
                     <h1 class="page-title">Classes</h1>
-                    <p class="page-subtitle d-none d-md-block">Liste des classes de votre Ã©tablissement.</p>
+                    <p class="page-subtitle d-none d-md-block">Liste des classes de votre établissement.</p>
                 </div>
             </div>
             {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
@@ -42,7 +42,7 @@
             <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="fas fa-users"></i></div>
             <div>
                 <h3 class="stat-number">{{ total_eleves }}</h3>
-                <p class="stat-label">Ã‰lÃ¨ves</p>
+                <p class="stat-label">Élèves</p>
             </div>
         </div>
         <div class="stat-card">
@@ -100,27 +100,32 @@
                 <button type="submit" class="btn btn-outline-primary">
                     <i class="fas fa-search me-2"></i>Filtrer
                 </button>
-                <a href="{{ url_for('main.liste_classes') }}" class="btn btn-outline-secondary">Réinitialiser</a>
+                <a href="{{ url_for('main.liste_classes') }}" id="btnResetClassesFilter" class="btn btn-outline-secondary">Réinitialiser</a>
             </div>
         </form>
     </div>
     {% endif %}
 
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-        <span class="text-muted">Classes affichées : <span class="badge bg-primary">{{ pagination.total if pagination else classes|length }}</span></span>
+        <span class="text-muted">Classes affichées : <span class="badge bg-primary" id="classesCountBadge">{{ pagination.total if pagination else classes|length }}</span></span>
         {% if pagination and pagination.pages > 1 %}
         <span class="text-muted small">Page {{ pagination.page }} / {{ pagination.pages }}</span>
         {% endif %}
     </div>
 
     {% if classes %}
-    <div class="class-grid">
+    <div class="class-grid" id="classGridContainer">
         {% for classe in classes %}
         {% set is_lycee = (classe.niveau_scolaire and classe.niveau_scolaire.cycle == 'lycee') or (classe.niveau and ('2nde' in classe.niveau.lower() or '1ere' in classe.niveau.lower() or '1ère' in classe.niveau.lower() or 'terminale' in classe.niveau.lower())) %}
         {% set capacite = classe.capacite or classe.capacite_max or 35 %}
         {% set effectif_actuel = classe.effectif_reel %}
         {% set capacity_percentage = ((effectif_actuel / capacite * 100)|round(0, 'floor')) if capacite else 0 %}
-        <article class="class-card" id="classe-card-{{ classe.id }}">
+        <article class="class-card" id="classe-card-{{ classe.id }}"
+                 data-id="{{ classe.id }}"
+                 data-nom="{{ classe.nom }}"
+                 data-niveau="{{ classe.niveau or '' }}"
+                 data-search="{{ classe.nom|lower }} {{ (classe.niveau or '')|lower }}"
+                 data-effectif="{{ effectif_actuel }}">
             <div class="class-card-header">
                 <div class="class-card-icon">
                     <i class="fas fa-chalkboard"></i>
@@ -166,7 +171,7 @@
                 <a href="{{ url_for('main.modifier_classe', classe_id=classe.id) }}" class="btn btn-sm btn-outline-warning">
                     <i class="fas fa-edit me-1"></i>Modifier
                 </a>
-                <form method="POST" action="{{ url_for('main.supprimer_classe', classe_id=classe.id) }}" data-klasora-form data-remove-target="#classe-card-{{ classe.id }}" data-confirm="Supprimer cette classe ?" data-loading="Suppression...">
+                <form method="POST" action="{{ url_for('main.supprimer_classe', classe_id=classe.id) }}" data-klasora-form data-remove-target="#classe-card-{{ classe.id }}" data-confirm="Supprimer cette classe " data-loading="Suppression...">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-sm btn-outline-danger">
                         <i class="fas fa-trash me-1"></i>Supprimer
@@ -218,4 +223,87 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search');
+    const niveauSelect = document.getElementById('niveau');
+    const sortSelect = document.getElementById('sort');
+    const resetBtn = document.getElementById('btnResetClassesFilter');
+    const cards = Array.from(document.querySelectorAll('.class-card'));
+    const badge = document.getElementById('classesCountBadge');
+    const grid = document.getElementById('classGridContainer');
+
+    function syncUrl(q, niv, srt) {
+        const params = new URLSearchParams();
+        if (q) params.set('search', q);
+        if (niv) params.set('niveau', niv);
+        if (srt && srt !== 'nom') params.set('sort', srt);
+        const newUrl = window.location.pathname + (params.toString() ? '' + params.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+    }
+
+    function filterAndSort() {
+        const q = (searchInput ? searchInput.value : '').toLowerCase().trim();
+        const niv = (niveauSelect ? niveauSelect.value : '').trim();
+        const srt = sortSelect ? sortSelect.value : 'nom';
+
+        syncUrl(q, niv, srt);
+
+        let matched = [];
+        cards.forEach(card => {
+            const cardSearch = (card.dataset.search || '').toLowerCase();
+            const cardNiveau = (card.dataset.niveau || '').trim();
+
+            const matchQ = !q || cardSearch.includes(q);
+            const matchN = !niv || cardNiveau === niv;
+
+            if (matchQ && matchN) {
+                card.style.display = '';
+                matched.push(card);
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        matched.sort((a, b) => {
+            if (srt === 'effectif') {
+                return (parseInt(b.dataset.effectif, 10) || 0) - (parseInt(a.dataset.effectif, 10) || 0);
+            } else if (srt === 'niveau') {
+                return (a.dataset.niveau || '').localeCompare(b.dataset.niveau || '', 'fr');
+            }
+            return (a.dataset.nom || '').localeCompare(b.dataset.nom || '', 'fr');
+        });
+
+        if (grid) {
+            matched.forEach(card => grid.appendChild(card));
+        }
+
+        if (badge) {
+            badge.textContent = matched.length;
+        }
+    }
+
+    let debounceTimer;
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(filterAndSort, 300);
+        });
+    }
+
+    if (niveauSelect) niveauSelect.addEventListener('change', filterAndSort);
+    if (sortSelect) sortSelect.addEventListener('change', filterAndSort);
+
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (searchInput) searchInput.value = '';
+            if (niveauSelect) niveauSelect.value = '';
+            if (sortSelect) sortSelect.value = 'nom';
+            filterAndSort();
+        });
+    }
+});
+</script>
 {% endblock %}

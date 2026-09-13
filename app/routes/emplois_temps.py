@@ -109,6 +109,28 @@ def admin_emplois():
         else:
             emplois_sans_classe.append(e)
 
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
+        return jsonify({
+            'emplois': [
+                {
+                    'id': e.id,
+                    'jour': e.jour,
+                    'heure_debut': str(e.heure_debut),
+                    'heure_fin': str(e.heure_fin),
+                    'classe_id': e.classe_id,
+                    'classe_nom': e.classe.nom if e.classe else '',
+                    'cours_id': e.cours_id,
+                    'cours_nom': e.cours.nom if e.cours else '',
+                    'professeur_id': e.professeur_id,
+                    'professeur_nom': f"{e.professeur.prenom} {e.professeur.nom}" if e.professeur else '',
+                    'salle': e.salle or '',
+                } for e in all_emplois
+            ],
+            'classes_count': classes_count,
+            'professeurs_count': professeurs_count,
+            'salles_count': salles_count,
+        })
+
     return render_template(
         'admin_emplois.html',
         emplois=all_emplois,

@@ -70,13 +70,13 @@
                                 <div class="action-buttons justify-content-end">
                                     <a href="{{ url_for('main.toggle_periode', id=periode.id) }}"
                                        class="btn btn-sm {% if periode.publie %}btn-outline-warning{% else %}btn-outline-success{% endif %} js-confirm-link"
-                                       data-confirm="{% if periode.publie %}Dépublier cette période ?{% else %}Publier cette période ?{% endif %}">
+                                       data-confirm="{% if periode.publie %}Dépublier cette période {% else %}Publier cette période {% endif %}">
                                         {% if periode.publie %}Dépublier{% else %}Publier{% endif %}
                                     </a>
                                     {% if not periode.periode_active and periode.publie %}
                                     <a href="{{ url_for('main.activer_periode', id=periode.id) }}"
                                        class="btn btn-sm btn-outline-primary js-confirm-link"
-                                       data-confirm="Définir cette période comme active ?">
+                                       data-confirm="Définir cette période comme active ">
                                         Activer
                                     </a>
                                     {% endif %}
@@ -110,13 +110,13 @@
             <div class="period-card-actions">
                 <a href="{{ url_for('main.toggle_periode', id=periode.id) }}"
                    class="btn btn-sm {% if periode.publie %}btn-outline-warning{% else %}btn-outline-success{% endif %} js-confirm-link"
-                   data-confirm="{% if periode.publie %}Dépublier cette période ?{% else %}Publier cette période ?{% endif %}">
+                   data-confirm="{% if periode.publie %}Dépublier cette période {% else %}Publier cette période {% endif %}">
                     {% if periode.publie %}Dépublier{% else %}Publier{% endif %}
                 </a>
                 {% if not periode.periode_active and periode.publie %}
                 <a href="{{ url_for('main.activer_periode', id=periode.id) }}"
                    class="btn btn-sm btn-outline-primary js-confirm-link"
-                   data-confirm="Définir cette période comme active ?">
+                   data-confirm="Définir cette période comme active ">
                     Activer
                 </a>
                 {% endif %}

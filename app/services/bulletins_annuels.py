@@ -28,6 +28,18 @@ from app.models import (
     Note,
     PeriodeBulletin,
 )
+from app.services.notes_annuelles import (
+    SEMESTRE_1,
+    SEMESTRE_2,
+    PERIODES_SEMESTRES,
+    TYPE_COMPOSITION,
+    TYPES_CONTROLE_CONTINU,
+    calculer_moyenne_controles,
+    calculer_moyenne_matiere_semestre,
+    calculer_points_matiere,
+    calculer_moyenne_generale_semestre,
+    calculer_moyenne_annuelle,
+)
 
 
 MESSAGE_ANNEE_PLANIFIEE = "Les bulletins pourront être générés lorsque cette année sera active."
@@ -99,53 +111,108 @@ def get_inscriptions_bulletins(ecole_id, annee, user):
     return q.order_by(Inscription.classe_id.asc()).all()
 
 
+def _get_appreciation(moyenne):
+    if moyenne is None:
+        return "En attente"
+    if moyenne >= 16:
+        return "Excellent"
+    if moyenne >= 14:
+        return "Très bien"
+    if moyenne >= 12:
+        return "Bien"
+    if moyenne >= 10:
+        return "Assez bien"
+    return "Insuffisant"
+
+
 def calculer_bulletin_data(ecole_id, annee, inscription, periode=None):
     """
-    Calcule toutes les données académiques pour le bulletin d'une Inscription.
-    Les notes proviennent exclusivement de Note.inscription_id == inscription.id.
+    Calcule toutes les données académiques pour le bulletin semestriel d'une Inscription (Phase 5D).
+    Modèle à 2 semestres :
+    - Moyenne contrôles (Devoir, Interrogation) = simple moyenne arithmétique.
+    - Note composition (max 1 par matière/semestre).
+    - Moyenne semestre matière = (moyenne_controles + note_composition) / 2 (None si incomplet).
+    - Coefficient officiel = Cours.coefficient.
+    - Points matière = moyenne_semestre * Cours.coefficient.
+    - Moyenne générale semestrielle = sum(points) / sum(coefficients) des matières finalisées.
+    - Statistiques de classe semestrielles (rang, effectif, moyenne classe, min, max).
     """
     if not inscription or inscription.ecole_id != ecole_id:
         return None, "Inscription introuvable ou non autorisée."
 
-    # Sélection des notes de cette inscription uniquement
-    q = Note.query.options(joinedload(Note.cours)).filter(
+    target_periode = periode or SEMESTRE_1
+
+    # Sélection des notes de cette inscription pour la période demandée
+    q = Note.query.options(joinedload(Note.cours).joinedload(Cours.professeur)).filter(
         Note.inscription_id == inscription.id,
-        Note.ecole_id == ecole_id
+        Note.ecole_id == ecole_id,
+        Note.periode == target_periode
     )
-    if periode:
-        q = q.filter(Note.periode == periode)
 
     notes = q.order_by(Note.cours_id, Note.date_evaluation.desc()).all()
 
-    # Regroupement des notes par cours / matière
+    # Regroupement des notes par cours
     notes_par_cours = defaultdict(list)
     for n in notes:
         cours_nom = n.cours.nom if n.cours else (n.matiere or "Non renseigné")
         notes_par_cours[cours_nom].append(n)
 
-    # Calcul des moyennes par cours pondérées par les coefficients des notes
+    disciplines = []
     moyennes_par_cours = {}
     coefficients_par_cours = {}
+    points_par_cours = {}
 
-    for cours_nom, c_notes in notes_par_cours.items():
-        total_pondere = sum((n.valeur or 0.0) * (n.coefficient or 1.0) for n in c_notes)
-        total_coefs = sum((n.coefficient or 1.0) for n in c_notes)
-        moyenne_c = round(total_pondere / total_coefs, 2) if total_coefs > 0 else 0.0
-        moyennes_par_cours[cours_nom] = moyenne_c
-        # Coefficient matière : soit depuis le cours, soit moyen des notes
-        coef_cours = c_notes[0].cours.coefficient if (c_notes and c_notes[0].cours and c_notes[0].cours.coefficient) else 1.0
-        coefficients_par_cours[cours_nom] = coef_cours
+    for cours_nom, c_notes in sorted(notes_par_cours.items(), key=lambda x: (x[0] or "").lower()):
+        cours = c_notes[0].cours if (c_notes and c_notes[0].cours) else None
+        cours_coef = cours.coefficient if (cours and cours.coefficient) else 1.0
 
-    # Moyenne générale pondérée par les coefficients des matières (ou notes)
-    if moyennes_par_cours:
-        total_pondere_gen = sum(moyennes_par_cours[c] * coefficients_par_cours.get(c, 1.0) for c in moyennes_par_cours)
-        total_coef_gen = sum(coefficients_par_cours.get(c, 1.0) for c in moyennes_par_cours)
-        moyenne_generale = round(total_pondere_gen / total_coef_gen, 2) if total_coef_gen > 0 else 0.0
+        controles = [n for n in c_notes if n.type_evaluation in TYPES_CONTROLE_CONTINU]
+        comp = next((n for n in c_notes if n.type_evaluation == TYPE_COMPOSITION), None)
+
+        moy_controles = calculer_moyenne_controles(controles)
+        note_comp = comp.valeur if comp else None
+        moy_semestre = calculer_moyenne_matiere_semestre(moy_controles, note_comp)
+        pts = calculer_points_matiere(moy_semestre, cours_coef)
+
+        prof_nom = "Non assigné"
+        if cours and cours.professeur:
+            p = cours.professeur
+            prof_nom = f"{p.prenom or ''} {p.nom or ''}".strip() or "Non assigné"
+
+        apprec_disc = _get_appreciation(moy_semestre)
+
+        disciplines.append({
+            'cours': cours,
+            'cours_nom': cours_nom,
+            'professeur_nom': prof_nom,
+            'moyenne_controles': moy_controles,
+            'note_composition': note_comp,
+            'moyenne_semestre': moy_semestre,
+            'coefficient': cours_coef,
+            'points': pts,
+            'est_finalisee': (moy_semestre is not None),
+            'appreciation': apprec_disc,
+            'notes_controles': controles,
+            'notes': c_notes,
+        })
+
+        moyennes_par_cours[cours_nom] = moy_semestre
+        coefficients_par_cours[cours_nom] = cours_coef
+        points_par_cours[cours_nom] = pts
+
+    # Matières finalisées pour le calcul de la moyenne générale
+    finalisees = [d for d in disciplines if d['est_finalisee']]
+    if finalisees:
+        total_points = round(sum(d['points'] for d in finalisees), 2)
+        total_coefs = sum(d['coefficient'] for d in finalisees)
+        moyenne_generale = round(total_points / total_coefs, 2) if total_coefs > 0 else None
     else:
-        moyenne_generale = 0.0
+        total_points = 0.0
+        total_coefs = 0.0
+        moyenne_generale = None
 
-    # Mention / appréciation
-    if notes:
+    # Mention / appréciation globale
+    if moyenne_generale is not None:
         if moyenne_generale >= 16:
             appreciation = "Excellent"
             appreciation_code = "excellent"
@@ -171,13 +238,13 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None):
         appreciation_code = "non-evalue"
         badge_class = "badge-mention-non-evalue bg-secondary text-white"
 
-    # Calcul du rang au sein de la classe annuelle
-    rang, rang_total = _calculer_rang_classe(
+    # Calcul du rang et des statistiques de classe pour le semestre
+    rang, rang_total, stats_classe = _calculer_rang_et_stats_classe(
         ecole_id,
         inscription.classe_id,
         inscription.annee_scolaire_id,
         inscription.id,
-        periode=periode
+        periode=target_periode
     )
 
     data = {
@@ -185,15 +252,21 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None):
         'eleve': inscription.eleve,
         'classe': inscription.classe,
         'annee_scolaire': inscription.annee_scolaire,
-        'periode': periode or "Trimestre 1",
+        'periode': target_periode,
         'notes': notes,
+        'disciplines': disciplines,
         'notes_par_cours': dict(notes_par_cours),
         'moyennes_par_cours': moyennes_par_cours,
         'coefficients_par_cours': coefficients_par_cours,
+        'points_par_cours': points_par_cours,
+        'total_coefficients': total_coefs,
+        'total_points': total_points,
         'moyenne_generale': moyenne_generale,
         'notes_count': len(notes),
         'rang': rang,
         'rang_total': rang_total,
+        'effectif_classe': stats_classe.get('effectif_classe', 0) if stats_classe else 0,
+        'stats_classe': stats_classe,
         'appreciation': appreciation,
         'appreciation_code': appreciation_code,
         'badge_class': badge_class,
@@ -201,10 +274,10 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None):
     return data, None
 
 
-def _calculer_rang_classe(ecole_id, classe_id, annee_scolaire_id, target_inscription_id, periode=None):
+def _calculer_rang_et_stats_classe(ecole_id, classe_id, annee_scolaire_id, target_inscription_id, periode=SEMESTRE_1):
     """
-    Calcule le rang d'une inscription parmi tous les élèves inscrits dans la même
-    classe et même année scolaire (population Inscription stricte).
+    Calcule le rang et les statistiques complètes de classe pour un semestre donné
+    parmi tous les élèves inscrits dans la classe et année scolaire.
     """
     inscriptions_classe = Inscription.query.filter_by(
         ecole_id=ecole_id,
@@ -212,44 +285,88 @@ def _calculer_rang_classe(ecole_id, classe_id, annee_scolaire_id, target_inscrip
         annee_scolaire_id=annee_scolaire_id
     ).all()
 
-    inscr_ids = [ins.id for ins in inscriptions_classe]
-    if not inscr_ids:
-        return None, 0
+    effectif_classe = len(inscriptions_classe)
+    if not inscriptions_classe:
+        return None, 0, {
+            'effectif_classe': 0,
+            'evalues_count': 0,
+            'moyenne_classe': None,
+            'plus_forte_moyenne': None,
+            'plus_faible_moyenne': None,
+        }
 
-    # Récupération de toutes les notes pour ces inscriptions
-    q = Note.query.filter(
+    inscr_ids = [ins.id for ins in inscriptions_classe]
+
+    # Récupération de toutes les notes pour ces inscriptions dans le semestre
+    q = Note.query.options(joinedload(Note.cours)).filter(
         Note.inscription_id.in_(inscr_ids),
-        Note.ecole_id == ecole_id
+        Note.ecole_id == ecole_id,
+        Note.periode == (periode or SEMESTRE_1),
     )
-    if periode:
-        q = q.filter(Note.periode == periode)
     notes_toutes = q.all()
 
-    notes_par_insc = defaultdict(list)
+    notes_par_insc = defaultdict(lambda: defaultdict(list))
     for n in notes_toutes:
-        notes_par_insc[n.inscription_id].append(n)
+        notes_par_insc[n.inscription_id][n.cours_id].append(n)
 
-    # Calcul des moyennes pour chaque élève inscrit
+    # Calcul de la moyenne générale semestrielle pour chaque élève inscrit
     scores = []
     for ins_id in inscr_ids:
-        ins_notes = notes_par_insc.get(ins_id, [])
-        if ins_notes:
-            tot_p = sum((n.valeur or 0.0) * (n.coefficient or 1.0) for n in ins_notes)
-            tot_c = sum((n.coefficient or 1.0) for n in ins_notes)
-            moy = round(tot_p / tot_c, 2) if tot_c > 0 else 0.0
-            scores.append((ins_id, moy, len(ins_notes)))
+        cours_notes_map = notes_par_insc.get(ins_id, {})
+        matieres_finalisees = []
+        for c_id, c_notes in cours_notes_map.items():
+            cours = c_notes[0].cours if (c_notes and c_notes[0].cours) else None
+            cours_coef = cours.coefficient if (cours and cours.coefficient) else 1.0
+
+            controles = [n for n in c_notes if n.type_evaluation in TYPES_CONTROLE_CONTINU]
+            comp = next((n for n in c_notes if n.type_evaluation == TYPE_COMPOSITION), None)
+
+            moy_ctrl = calculer_moyenne_controles(controles)
+            n_comp = comp.valeur if comp else None
+            moy_sem = calculer_moyenne_matiere_semestre(moy_ctrl, n_comp)
+
+            if moy_sem is not None:
+                pts = calculer_points_matiere(moy_sem, cours_coef)
+                matieres_finalisees.append({'moyenne': moy_sem, 'coefficient': cours_coef, 'points': pts})
+
+        moy_gen = calculer_moyenne_generale_semestre(matieres_finalisees)
+        if moy_gen is not None:
+            scores.append((ins_id, moy_gen))
 
     # Trier par moyenne décroissante
     scores.sort(key=lambda x: x[1], reverse=True)
     evalues_count = len(scores)
 
     target_rank = None
-    for rank, (ins_id, moy, cnt) in enumerate(scores, 1):
+    for rank, (ins_id, moy) in enumerate(scores, 1):
         if ins_id == target_inscription_id:
             target_rank = rank
             break
 
-    return target_rank, evalues_count
+    if scores:
+        moyenne_classe = round(sum(s[1] for s in scores) / evalues_count, 2)
+        plus_forte_moyenne = max(s[1] for s in scores)
+        plus_faible_moyenne = min(s[1] for s in scores)
+    else:
+        moyenne_classe = None
+        plus_forte_moyenne = None
+        plus_faible_moyenne = None
+
+    stats_classe = {
+        'effectif_classe': effectif_classe,
+        'evalues_count': evalues_count,
+        'moyenne_classe': moyenne_classe,
+        'plus_forte_moyenne': plus_forte_moyenne,
+        'plus_faible_moyenne': plus_faible_moyenne,
+    }
+
+    return target_rank, evalues_count, stats_classe
+
+
+def _calculer_rang_classe(ecole_id, classe_id, annee_scolaire_id, target_inscription_id, periode=None):
+    """Pour rétrocompatibilité."""
+    rank, total, _ = _calculer_rang_et_stats_classe(ecole_id, classe_id, annee_scolaire_id, target_inscription_id, periode)
+    return rank, total
 
 
 def generer_ou_recuperer_bulletin(ecole_id, annee, user, inscription_id, periode=None, appreciation_generale=None):
@@ -266,7 +383,7 @@ def generer_ou_recuperer_bulletin(ecole_id, annee, user, inscription_id, periode
     if not inscription:
         return None, "Inscription introuvable ou non autorisée."
 
-    periode_nom = periode or "Trimestre 1"
+    periode_nom = periode or SEMESTRE_1
 
     # Vérification année planifiée
     if annee.statut == "planifiee":

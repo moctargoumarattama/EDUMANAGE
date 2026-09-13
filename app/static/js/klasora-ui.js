@@ -74,7 +74,7 @@
 
             const contentType = response.headers.get('content-type') || '';
             const data = contentType.includes('application/json')
-                ? await response.json()
+                 await response.json()
                 : { success: response.ok, message: await response.text() };
 
             if (!response.ok) {

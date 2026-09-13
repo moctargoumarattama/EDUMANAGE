@@ -364,8 +364,14 @@ def generer_bulletin_pdf(
     rang=None,
     rang_total=None,
     appreciation_generale=None,
+    disciplines=None,
+    total_coefficients=None,
+    total_points=None,
+    stats_classe=None,
 ):
     import io
+    import os
+    from datetime import datetime
 
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
@@ -375,8 +381,8 @@ def generer_bulletin_pdf(
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer, pagesize=A4,
-        topMargin=50, bottomMargin=50,
-        leftMargin=45, rightMargin=45
+        topMargin=40, bottomMargin=40,
+        leftMargin=40, rightMargin=40
     )
 
     styles = getSampleStyleSheet()
@@ -384,19 +390,21 @@ def generer_bulletin_pdf(
 
     title_style = ParagraphStyle(
         'Title', parent=styles['Heading1'],
-        fontSize=18, textColor=colors.HexColor('#1A5276'),
-        spaceAfter=15, alignment=1, fontName='Helvetica-Bold'
+        fontSize=15, textColor=colors.HexColor('#1A5276'),
+        spaceAfter=8, alignment=1, fontName='Helvetica-Bold'
     )
     subtitle_style = ParagraphStyle(
         'Subtitle', parent=styles['Heading2'],
-        fontSize=14, textColor=colors.HexColor('#2E86C1'),
-        spaceAfter=10, fontName='Helvetica-Bold', alignment=1
+        fontSize=12, textColor=colors.HexColor('#2E86C1'),
+        spaceAfter=8, fontName='Helvetica-Bold', alignment=1
     )
     header_style = ParagraphStyle(
         'HeaderStyle', parent=styles['Normal'],
-        fontSize=11, textColor=colors.HexColor('#34495E'), spaceAfter=6
+        fontSize=10, textColor=colors.HexColor('#34495E'), spaceAfter=4
     )
-    normal_center = ParagraphStyle('normal_center', parent=styles['Normal'], alignment=1)
+    cell_center = ParagraphStyle('cell_center', parent=styles['Normal'], fontSize=9, alignment=1)
+    cell_left = ParagraphStyle('cell_left', parent=styles['Normal'], fontSize=9, alignment=0)
+    cell_bold_center = ParagraphStyle('cell_bold_center', parent=styles['Normal'], fontSize=9, fontName='Helvetica-Bold', alignment=1)
 
     if not nom_ecole or not adresse_ecole or not contact_ecole:
         if hasattr(eleve, 'ecole') and eleve.ecole:
@@ -408,117 +416,195 @@ def generer_bulletin_pdf(
             adresse_ecole = adresse_ecole or "Non renseignee"
             contact_ecole = contact_ecole or "-"
 
-    logo_cell = Image(logo_path, width=80, height=80) if logo_path and os.path.exists(logo_path) else Paragraph("", styles['Normal'])
-    school_info = Paragraph(f"<b>{nom_ecole}</b><br/><font size='10'>{adresse_ecole}<br/>{contact_ecole}</font>", header_style)
+    logo_cell = Image(logo_path, width=70, height=70) if logo_path and os.path.exists(logo_path) else Paragraph("", styles['Normal'])
+    school_info = Paragraph(f"<b>{nom_ecole}</b><br/><font size='9'>{adresse_ecole}<br/>{contact_ecole}</font>", header_style)
     
-    title_text = "<b>BULLETIN SCOLAIRE</b>"
+    # Titre dynamique Semestre 1 / Semestre 2
+    per_str = str(periode_nom or "Semestre 1")
+    if "1" in per_str:
+        title_text = "<b>BULLETIN DE NOTES DU 1ER SEMESTRE</b>"
+    elif "2" in per_str:
+        title_text = "<b>BULLETIN DE NOTES DU 2ÈME SEMESTRE</b>"
+    else:
+        title_text = f"<b>BULLETIN DE NOTES — {per_str.upper()}</b>"
+
     if annee_scolaire_nom:
-        title_text += f"<br/><font size='11' color='#5D6D7E'>{annee_scolaire_nom}</font>"
+        title_text += f"<br/><font size='10' color='#5D6D7E'>Année Scolaire : {annee_scolaire_nom}</font>"
     title = Paragraph(title_text, title_style)
 
     header_data = [[logo_cell, school_info, title]]
-    header_table = Table(header_data, colWidths=[80, 230, 180])
+    header_table = Table(header_data, colWidths=[75, 220, 220])
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 12)
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8)
     ]))
     elements.append(header_table)
-    elements.append(Spacer(1, 10))
+    elements.append(Spacer(1, 6))
     elements.append(Paragraph("<hr width='100%' color='#3498DB' size='2'/>", styles['Normal']))
-    elements.append(Spacer(1, 15))
+    elements.append(Spacer(1, 10))
 
     classe_affichee = classe_nom or (eleve.classe.nom if (eleve and eleve.classe) else "Non renseignee")
     student_info = [
-        ['INFORMATIONS ELEVE', '', ''],
-        ['Nom et Prenom', f"{eleve.nom} {eleve.prenom}" if eleve else "-", ''],
-        ['Classe', classe_affichee, ''],
+        ['INFORMATIONS ÉLÈVE', '', 'INFORMATIONS CLASSE', ''],
+        ['Nom et Prénom', f"{eleve.nom} {eleve.prenom}" if eleve else "-", 'Classe', classe_affichee],
     ]
-    if annee_scolaire_nom:
-        student_info.append(['Annee Scolaire', annee_scolaire_nom, ''])
-    if periode_nom:
-        student_info.append(['Periode', periode_nom, ''])
-    if rang:
-        rang_str = f"{rang}e sur {rang_total}" if rang_total else f"{rang}e"
-        student_info.append(['Rang', rang_str, ''])
+    
+    rang_str = f"{rang}e sur {rang_total}" if (rang and rang_total) else (f"{rang}e" if rang else "-")
+    eff_classe = stats_classe.get('effectif_classe', rang_total) if stats_classe else (rang_total or "-")
+    student_info.append(['Période', per_str, 'Rang / Effectif', f"{rang_str} (Eff: {eff_classe})"])
 
-    student_info.extend([
-        ['Date de Naissance', eleve.date_naissance.strftime('%d/%m/%Y') if (eleve and eleve.date_naissance) else "Non renseignee", ''],
-        ['Date d edition', datetime.now().strftime('%d/%m/%Y %H:%M'), '']
+    if stats_classe and stats_classe.get('moyenne_classe') is not None:
+        moy_cl_str = f"{stats_classe.get('moyenne_classe'):.2f}/20"
+        extremes_str = f"Min: {stats_classe.get('plus_faible_moyenne') or '-'} | Max: {stats_classe.get('plus_forte_moyenne') or '-'}"
+        student_info.append(['Moyenne classe', moy_cl_str, 'Extrêmes classe', extremes_str])
+
+    student_info.append([
+        'Date de Naissance', eleve.date_naissance.strftime('%d/%m/%Y') if (eleve and eleve.date_naissance) else "Non renseignee",
+        'Date d\'édition', datetime.now().strftime('%d/%m/%Y %H:%M')
     ])
 
-    student_table = Table(student_info, colWidths=[150, 220, 120])
+    student_table = Table(student_info, colWidths=[120, 140, 120, 135])
     student_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2980B9')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#BDC3C7')),
-        ('ROWBACKGROUNDS', (1, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9F9')])
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#BDC3C7')),
+        ('ROWBACKGROUNDS', (1, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9F9')]),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
     elements.append(student_table)
+    elements.append(Spacer(1, 14))
+
+    elements.append(Paragraph("RÉSULTATS DU SEMESTRE", subtitle_style))
+
+    # Tableau semestriel à 7 colonnes
+    if disciplines is not None:
+        data = [['Discipline', 'Moy. Contrôles /20', 'Composition /20', 'Moy. Semestre /20', 'Coef.', 'Points', 'Appréciation']]
+        for d in disciplines:
+            c_nom = d.get('cours_nom') or 'Matière'
+            mc = f"{d['moyenne_controles']:.2f}" if d.get('moyenne_controles') is not None else "-"
+            comp = f"{d['note_composition']:.2f}" if d.get('note_composition') is not None else "-"
+            ms = f"{d['moyenne_semestre']:.2f}" if d.get('moyenne_semestre') is not None else "En attente"
+            coef = f"{d.get('coefficient', 1.0)}"
+            pts = f"{d['points']:.2f}" if d.get('points') is not None else "-"
+            app = d.get('appreciation', '-')
+
+            data.append([
+                Paragraph(f"<b>{c_nom}</b>", cell_left),
+                Paragraph(mc, cell_center),
+                Paragraph(comp, cell_center),
+                Paragraph(f"<b>{ms}</b>" if ms != "En attente" else ms, cell_center),
+                Paragraph(coef, cell_center),
+                Paragraph(pts, cell_center),
+                Paragraph(app, cell_center)
+            ])
+
+        # Ligne Total
+        tot_coef_str = f"{total_coefficients}" if total_coefficients is not None else "-"
+        tot_pts_str = f"{total_points:.2f}" if total_points is not None else "-"
+        data.append([
+            Paragraph("<b>TOTAL</b>", cell_bold_center),
+            "", "", "",
+            Paragraph(f"<b>{tot_coef_str}</b>", cell_bold_center),
+            Paragraph(f"<b>{tot_pts_str}</b>", cell_bold_center),
+            ""
+        ])
+
+        # Ligne Moyenne Générale
+        moy_gen_str = f"{moyenne_generale:.2f} / 20" if moyenne_generale is not None else "Non évalué"
+        data.append([
+            Paragraph("<b>MOYENNE GÉNÉRALE DU SEMESTRE</b>", cell_bold_center),
+            "", "",
+            Paragraph(f"<b>{moy_gen_str}</b>", cell_bold_center),
+            "", "", ""
+        ])
+
+        col_widths = [145, 65, 65, 65, 40, 50, 85]
+        table = Table(data, colWidths=col_widths)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F618D')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#7F8C8D')),
+            ('ROWBACKGROUNDS', (1, 1), (-1, -3), [colors.white, colors.HexColor('#F8F9F9')]),
+            ('BACKGROUND', (0, -2), (-1, -2), colors.HexColor('#EAEDED')),
+            ('SPAN', (0, -2), (3, -2)),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#D4E6F1')),
+            ('SPAN', (0, -1), (2, -1)),
+            ('SPAN', (3, -1), (-1, -1)),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]))
+    else:
+        # Fallback rétrocompatible à 4 colonnes
+        data = [['Matière', 'Professeur', 'Moyenne', 'Appréciation']]
+        for cours in sorted(moyennes_par_cours.keys(), key=lambda x: (x or "").lower()):
+            moyenne = moyennes_par_cours.get(cours, 0) or 0.0
+            if moyenne >= 16:
+                appreciation = "Excellent"
+            elif moyenne >= 14:
+                appreciation = "Très bien"
+            elif moyenne >= 12:
+                appreciation = "Bien"
+            elif moyenne >= 10:
+                appreciation = "Assez bien"
+            else:
+                appreciation = "Insuffisant"
+
+            prof_nom = 'Non assigné'
+            notes_for_course = notes_par_cours.get(cours, [])
+            for n in notes_for_course:
+                if getattr(n, 'cours', None) and getattr(n.cours, 'professeur', None):
+                    p = n.cours.professeur
+                    if p and (getattr(p, 'prenom', None) or getattr(p, 'nom', None)):
+                        prof_nom = f"{p.prenom or ''} {p.nom or ''}".strip()
+                        break
+
+            moyenne_cell = Paragraph(f"<b>{moyenne:.2f}</b>", cell_center)
+            data.append([cours, prof_nom, moyenne_cell, appreciation])
+
+        moy_gen_disp = f"{moyenne_generale:.2f}" if moyenne_generale is not None else "0.00"
+        overall_row = ['', '', Paragraph(f"<b>{moy_gen_disp}</b>", cell_center), '']
+        data.append(overall_row)
+
+        table = Table(data, colWidths=[175, 135, 75, 130])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F618D')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#7F8C8D')),
+            ('ROWBACKGROUNDS', (1, 1), (-1, -2), [colors.white, colors.HexColor('#F8F9F9')]),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#EBF5FB')),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('SPAN', (0, -1), (1, -1)),
+        ]))
+
+    elements.append(table)
     elements.append(Spacer(1, 20))
 
-    elements.append(Paragraph("RESULTATS SCOLAIRES", subtitle_style))
+    if moyenne_generale is not None:
+        obs_text = appreciation_generale if appreciation_generale else (
+            f"Moyenne générale : {moyenne_generale:.2f} - {'Très bon travail' if moyenne_generale >= 14 else 'Bon travail' if moyenne_generale >= 12 else 'Satisfaisant' if moyenne_generale >= 10 else 'Doit faire des efforts'}"
+        )
+    else:
+        obs_text = appreciation_generale if appreciation_generale else "Non évalué pour ce semestre."
 
-    data = [['Matiere', 'Professeur', 'Moyenne', 'Appreciation']]
-
-    for cours in sorted(moyennes_par_cours.keys(), key=lambda x: (x or "").lower()):
-        moyenne = moyennes_par_cours.get(cours, 0) or 0.0
-        if moyenne >= 16:
-            appreciation = "Excellent"
-        elif moyenne >= 14:
-            appreciation = "Tres bien"
-        elif moyenne >= 12:
-            appreciation = "Bien"
-        elif moyenne >= 10:
-            appreciation = "Assez bien"
-        else:
-            appreciation = "Insuffisant"
-
-        prof_nom = 'Non assigne'
-        notes_for_course = notes_par_cours.get(cours, [])
-        for n in notes_for_course:
-            if getattr(n, 'cours', None) and getattr(n.cours, 'professeur', None):
-                p = n.cours.professeur
-                if p and getattr(p, 'prenom', None) or getattr(p, 'nom', None):
-                    prof_nom = f"{p.prenom or ''} {p.nom or ''}".strip()
-                    break
-
-        moyenne_cell = Paragraph(f"<b>{moyenne:.2f}</b>", normal_center)
-        data.append([cours, prof_nom, moyenne_cell, appreciation])
-
-    overall_row = ['', '', Paragraph(f"<b>{moyenne_generale:.2f}</b>", normal_center), '']
-    data.append(overall_row)
-
-    table = Table(data, colWidths=[180, 130, 70, 130])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F618D')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#7F8C8D')),
-        ('ROWBACKGROUNDS', (1, 1), (-1, -2), [colors.white, colors.HexColor('#F8F9F9')]),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#EBF5FB')),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('SPAN', (0, -1), (1, -1)),
-    ]))
-    elements.append(table)
-    elements.append(Spacer(1, 30))
-
-    obs_text = appreciation_generale if appreciation_generale else (
-        f"Moyenne generale : {moyenne_generale:.2f} - {'Tres bon travail' if moyenne_generale >= 12 else 'Satisfaisant' if moyenne_generale >= 10 else 'Doit faire des efforts'}"
-    )
     signature_data = [
-        ['OBSERVATIONS GENERALES:', ''],
+        ['OBSERVATIONS GÉNÉRALES :', ''],
         [Paragraph(f"<i>{obs_text}</i>", styles['Italic']), ''],
-        ['', 'Le Directeur'],
+        ['', 'Le Directeur / La Direction'],
         ['', '_________________________']
     ]
-    signature_table = Table(signature_data, colWidths=[330, 150])
+    signature_table = Table(signature_data, colWidths=[340, 175])
     signature_table.setStyle(TableStyle([
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('TOPPADDING', (0, 0), (-1, -1), 6)
+        ('TOPPADDING', (0, 0), (-1, -1), 4)
     ]))
     elements.append(signature_table)
 

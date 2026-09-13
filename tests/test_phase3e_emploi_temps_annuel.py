@@ -742,7 +742,7 @@ class Phase3EEmploiTempsAnnuelTestCase(unittest.TestCase):
                 sess['ecole_id'] = self.ecole_a.id
                 sess['annee_consultee'] = str(self.active.id)
 
-            resp = client.get(f'/admin/emplois?annee_id={self.archivee.id}')
+            resp = client.get(f'/admin/emploisannee_id={self.archivee.id}')
             self.assertEqual(resp.status_code, 200)
 
             with client.session_transaction() as sess:

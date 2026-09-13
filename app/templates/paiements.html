@@ -167,22 +167,35 @@
                 </div>
             </div>
 
+            <!-- Filtre par niveau -->
+            <div class="col-6 col-md-3 col-lg-2">
+                <select id="filterPaymentNiveauSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Tous les niveaux</option>
+                    {% if niveaux %}
+                        {% for niv in niveaux %}
+                            <option value="{{ niv.nom }}">{{ niv.nom }}</option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </div>
+
             <!-- Filtre par classe -->
             <div class="col-6 col-md-3 col-lg-2">
                 <select id="filterPaymentClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="">Toutes les classes</option>
                     {% if classes %}
                         {% for cl in classes %}
-                            <option value="{{ cl.nom }}">{{ cl.nom }}</option>
+                            <option value="{{ cl.nom }}" data-niveau="{{ cl.niveau or '' }}" data-id="{{ cl.id }}">{{ cl.nom }}</option>
                         {% endfor %}
                     {% endif %}
                 </select>
             </div>
 
             <!-- Filtre par statut financier -->
-            <div class="col-6 col-md-2 col-lg-2">
+            <div class="col-6 col-md-3 col-lg-2">
                 <select id="filterPaymentStatutSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="">Tous les statuts</option>
+                    <option value="reste_a_payer">Reste à payer (&gt; 0)</option>
                     <option value="partiel">Partiellement payé</option>
                     <option value="aucun">Aucun versement</option>
                     <option value="complet">Totalement soldé</option>
@@ -363,6 +376,8 @@
                                      data-student-id="{{ el.id }}"
                                      data-student-name="{{ el.prenom }} {{ el.nom }}"
                                      data-statut="{{ el_statut }}"
+                                     data-reste="{{ el_reste }}"
+                                     data-paye="{{ el_paye }}"
                                      data-search="{{ el_search }}">
 
                                     <!-- En-tête de l'élève -->
@@ -481,7 +496,7 @@
                                                                     <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}"
                                                                           method="POST"
                                                                           class="d-inline js-confirm-form"
-                                                                          data-confirm="Supprimer ce paiement de {{ '{:,.0f}'.format(p.montant) }} FCFA ?">
+                                                                          data-confirm="Supprimer ce paiement de {{ '{:,.0f}'.format(p.montant) }} FCFA ">
                                                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                                         <button type="submit"
                                                                                 class="btn btn-sm btn-outline-danger"
@@ -524,7 +539,7 @@
                                                             <i class="fas fa-file-pdf me-1"></i>PDF
                                                         </a>
                                                         {% if not annee_consultee or annee_consultee.statut == 'active' %}
-                                                        <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}" method="POST" class="js-confirm-form" data-confirm="Supprimer ce versement ?">
+                                                        <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}" method="POST" class="js-confirm-form" data-confirm="Supprimer ce versement ">
                                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                             <button type="submit" class="btn btn-sm btn-outline-danger">
                                                                 <i class="fas fa-trash-alt me-1"></i>Supprimer
@@ -690,6 +705,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Éléments du DOM
     const searchInput = document.getElementById('paymentSearchInput');
     const searchClear = document.getElementById('paymentSearchClear');
+    const filterNiveau = document.getElementById('filterPaymentNiveauSelect');
     const filterClasse = document.getElementById('filterPaymentClasseSelect');
     const filterStatut = document.getElementById('filterPaymentStatutSelect');
     const sortSelect = document.getElementById('sortPaymentSelect');
@@ -712,9 +728,25 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentPage = 1;
     let pageSize = 20;
 
+    // Synchronisation URL
+    function syncUrl() {
+        const params = new URLSearchParams();
+        const q = searchInput ? searchInput.value.trim() : '';
+        const niv = filterNiveau ? filterNiveau.value : '';
+        const cl = filterClasse ? filterClasse.value : '';
+        const st = filterStatut ? filterStatut.value : '';
+        if (q) params.set('recherche', q);
+        if (niv) params.set('niveau', niv);
+        if (cl) params.set('classe', cl);
+        if (st) params.set('statut_solde', st);
+        const newUrl = window.location.pathname + (params.toString() ? '' + params.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+    }
+
     // Rendu et filtrage dynamique
     function render() {
         const query = normalize(searchInput ? searchInput.value : '');
+        const selectedNiveau = filterNiveau ? filterNiveau.value : '';
         const selectedClasse = filterClasse ? filterClasse.value : '';
         const selectedStatut = filterStatut ? filterStatut.value : '';
         const sortMode = sortSelect ? sortSelect.value : 'nom-asc';
@@ -723,8 +755,10 @@ document.addEventListener('DOMContentLoaded', function() {
             searchClear.style.display = query ? 'block' : 'none';
         }
 
-        const isFiltered = !!(query || selectedClasse || selectedStatut || sortMode !== 'nom-asc');
+        const isFiltered = !!(query || selectedNiveau || selectedClasse || selectedStatut || sortMode !== 'nom-asc');
         if (btnReset) btnReset.style.display = isFiltered ? 'inline-flex' : 'none';
+
+        syncUrl();
 
         let matched = [];
         let totalVisibleStudents = 0;
@@ -732,8 +766,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         classCards.forEach(card => {
             const cardNom = card.dataset.nom || '';
+            const cardNiveau = card.dataset.niveau || '';
             const cardSearch = normalize(card.dataset.search || '');
             const cardId = card.dataset.id || '';
+
+            // Filtrage par niveau sélectionné
+            if (selectedNiveau && cardNiveau !== selectedNiveau) {
+                card.style.display = 'none';
+                return;
+            }
 
             // Filtrage par classe sélectionnée
             if (selectedClasse && cardNom !== selectedClasse && cardId !== selectedClasse) {
@@ -748,10 +789,17 @@ document.addEventListener('DOMContentLoaded', function() {
             if (studentBlocks.length > 0) {
                 studentBlocks.forEach(student => {
                     const studentStatut = student.dataset.statut || '';
+                    const studentReste = parseFloat(student.dataset.reste) || 0;
                     const studentSearch = normalize(student.dataset.search || '');
                     const studentName = normalize(student.dataset.studentName || '');
 
-                    const matchStatut = !selectedStatut || studentStatut === selectedStatut;
+                    let matchStatut = true;
+                    if (selectedStatut === 'reste_a_payer' || selectedStatut === 'impaye') {
+                        matchStatut = studentReste > 0;
+                    } else if (selectedStatut) {
+                        matchStatut = (studentStatut === selectedStatut);
+                    }
+
                     const matchQuery = !query || studentSearch.includes(query) || studentName.includes(query) || cardSearch.includes(query);
 
                     if (matchStatut && matchQuery) {
@@ -1001,7 +1049,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Confirmation de suppression
     document.querySelectorAll('.js-confirm-form').forEach(form => {
         form.addEventListener('submit', function(e) {
-            const confirmMsg = this.dataset.confirm || 'Voulez-vous vraiment supprimer ce paiement ?';
+            const confirmMsg = this.dataset.confirm || 'Voulez-vous vraiment supprimer ce paiement ';
             if (!window.confirm(confirmMsg)) {
                 e.preventDefault();
             }
@@ -1011,7 +1059,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Réinitialisation des filtres
     function resetFilters() {
         if (searchInput) searchInput.value = '';
-        if (filterClasse) filterClasse.value = '';
+        if (filterNiveau) filterNiveau.value = '';
+        if (filterClasse) {
+            filterClasse.value = '';
+            Array.from(filterClasse.options).forEach(opt => { opt.hidden = false; });
+        }
         if (filterStatut) filterStatut.value = '';
         if (sortSelect) sortSelect.value = 'nom-asc';
         currentPage = 1;
@@ -1020,9 +1072,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Écouteurs d'événements
     if (searchInput) {
+        let debounceTimer;
         searchInput.addEventListener('input', function() {
-            currentPage = 1;
-            render();
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                currentPage = 1;
+                render();
+            }, 300);
         });
     }
 
@@ -1032,6 +1088,24 @@ document.addEventListener('DOMContentLoaded', function() {
             currentPage = 1;
             render();
             if (searchInput) searchInput.focus();
+        });
+    }
+
+    if (filterNiveau) {
+        filterNiveau.addEventListener('change', function() {
+            const niv = this.value;
+            if (filterClasse) {
+                Array.from(filterClasse.options).forEach(opt => {
+                    if (!opt.value) return;
+                    const optNiv = opt.dataset.niveau || '';
+                    opt.hidden = (niv && optNiv && optNiv !== niv);
+                });
+                if (filterClasse.selectedOptions.length && filterClasse.selectedOptions[0].hidden) {
+                    filterClasse.value = '';
+                }
+            }
+            currentPage = 1;
+            render();
         });
     }
 

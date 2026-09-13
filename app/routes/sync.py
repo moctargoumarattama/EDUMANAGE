@@ -910,7 +910,7 @@ def api_admin_offline_data():
     Fournit les données indispensables au travail hors-ligne de l'administrateur:
     - Classes de son établissement
     - Cours dispensés avec professeurs assignés
-    - Élèves de l'établissement (avec filtrage optionnel par ?classe_id=X et payload compact)
+    - Élèves de l'établissement (avec filtrage optionnel par classe_id=X et payload compact)
     - Support du cache conditionnel HTTP via ETag (304 Not Modified)
     - Année scolaire active & périodes
     """

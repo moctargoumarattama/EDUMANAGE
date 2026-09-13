@@ -172,7 +172,7 @@ def get_google_auth_url(state: str) -> str:
         "prompt": "consent",
         "state": state,
     }
-    return f"{GOOGLE_AUTH_URL}?{urlencode(params)}"
+    return f"{GOOGLE_AUTH_URL}{urlencode(params)}"
 
 
 def exchange_code_for_tokens(code: str) -> dict:

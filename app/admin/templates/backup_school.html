@@ -59,7 +59,7 @@
                     <div class="backup-actions">
                         <a href="{{ url_for('admin.restore_school', filename=backup.filename) }}"
                            class="btn btn-warning btn-sm"
-                           onclick="return confirm('Restaurer cette école ?')">
+                           onclick="return confirm('Restaurer cette école ')">
                             <i class="fas fa-undo me-1"></i> Restaurer
                         </a>
                         <a href="{{ url_for('admin.download_backup', filename=backup.filename) }}" class="btn btn-primary btn-sm">
@@ -67,7 +67,7 @@
                         </a>
                         <a href="{{ url_for('admin.delete_backup', filename=backup.filename) }}"
                            class="btn btn-danger btn-sm"
-                           onclick="return confirm('Supprimer cette sauvegarde ?')">
+                           onclick="return confirm('Supprimer cette sauvegarde ')">
                             <i class="fas fa-trash me-1"></i> Supprimer
                         </a>
                     </div>

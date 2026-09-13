@@ -156,14 +156,14 @@ class NoteForm(FlaskForm):
     annee_id = SelectField("Année scolaire", coerce=int, validators=[DataRequired()])
     coefficient = FloatField('Coefficient', default=1.0, validators=[DataRequired()])
     type_evaluation = SelectField('Type d\'évaluation', choices=[
-        ('Devoir', 'Devoir'), ('Composition', 'Composition'),
-        ('Interrogation', 'Interrogation'), ('Projet', 'Projet')
-    ], validators=[DataRequired()])
+        ('Devoir', 'Devoir'),
+        ('Interrogation', 'Interrogation'),
+        ('Composition', 'Composition')
+    ], default='Devoir', validators=[DataRequired()])
     periode = SelectField('Période', choices=[
-        ('Trimestre 1', 'Trimestre 1'), ('Trimestre 2', 'Trimestre 2'),
-        ('Trimestre 3', 'Trimestre 3'), ('Semestre 1', 'Semestre 1'),
-        ('Semestre 2', 'Semestre 2'), ('Annuelle', 'Annuelle')
-    ], default='Trimestre 1', validators=[DataRequired()])
+        ('Semestre 1', 'Semestre 1'),
+        ('Semestre 2', 'Semestre 2')
+    ], default='Semestre 1', validators=[DataRequired()])
     submit = SubmitField('Enregistrer la note')
 
     def __init__(self, *args, **kwargs):

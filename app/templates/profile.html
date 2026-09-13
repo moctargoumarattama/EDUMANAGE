@@ -544,18 +544,18 @@
 <script>
 // Fonction pour appliquer les filtres
 function applyFilters() {
-    const search = document.getElementById('searchInput')?.value || '';
-    const role = document.getElementById('roleFilter')?.value || '';
+    const search = document.getElementById('searchInput').value || '';
+    const role = document.getElementById('roleFilter').value || '';
     
     {% if current_user.role == 'super_admin' %}
-        const ecole = document.getElementById('ecoleFilter')?.value || '';
+        const ecole = document.getElementById('ecoleFilter').value || '';
         const params = new URLSearchParams({
             search: search,
             role: role,
             ecole: ecole
         });
     {% else %}
-        const statut = document.getElementById('statutFilter')?.value || '';
+        const statut = document.getElementById('statutFilter').value || '';
         const params = new URLSearchParams({
             search: search,
             role: role,
@@ -563,7 +563,7 @@ function applyFilters() {
         });
     {% endif %}
     
-    window.location.href = `{{ url_for('main.profile') }}?${params.toString()}`;
+    window.location.href = `{{ url_for('main.profile') }}${params.toString()}`;
 }
 
 // Fonction pour changer le statut d'un utilisateur
@@ -571,7 +571,7 @@ function toggleUserStatus(userId, currentStatus) {
     const newStatus = currentStatus === 'actif' ? 'inactif' : 'actif';
     const action = newStatus === 'inactif' ? 'désactiver' : 'activer';
     
-    if (confirm(`Êtes-vous sûr de vouloir ${action} cet utilisateur ?`)) {
+    if (confirm(`Êtes-vous sûr de vouloir ${action} cet utilisateur `)) {
         fetch(`/api/users/${userId}/status`, {
             method: 'PUT',
             headers: {

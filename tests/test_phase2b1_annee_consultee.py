@@ -141,8 +141,8 @@ class Phase2B1AnneeConsulteeTestCase(unittest.TestCase):
 
         client = self._client_as_admin()
         self.assertEqual(client.get("/classes").status_code, 200)
-        self.assertEqual(client.get(f"/classes?annee_id={self.annee_archivee.id}").status_code, 200)
-        self.assertEqual(client.get("/classes?annee_id=999999").status_code, 200)
+        self.assertEqual(client.get(f"/classesannee_id={self.annee_archivee.id}").status_code, 200)
+        self.assertEqual(client.get("/classesannee_id=999999").status_code, 200)
 
     def test_classes_template_recoit_annee_consultee_et_annees_ecole(self):
         client = self._client_as_admin()
@@ -153,7 +153,7 @@ class Phase2B1AnneeConsulteeTestCase(unittest.TestCase):
             context = recorded[-1][1]
             self.assertEqual(context["annee_consultee"].id, self.annee_active.id)
 
-            response = client.get(f"/classes?annee_id={self.annee_archivee.id}")
+            response = client.get(f"/classesannee_id={self.annee_archivee.id}")
             self.assertEqual(response.status_code, 200)
             context = recorded[-1][1]
             self.assertEqual(context["annee_consultee"].id, self.annee_active.id)
@@ -184,7 +184,7 @@ class Phase2B1AnneeConsulteeTestCase(unittest.TestCase):
         self.assertEqual([e.id for e in historique], [self.eleve.id])
 
         client = self._client_as_admin()
-        self.assertEqual(client.get(f"/eleves?annee_id={self.annee_archivee.id}&classe_id={self.classe_6a.id}&page=1").status_code, 200)
+        self.assertEqual(client.get(f"/elevesannee_id={self.annee_archivee.id}&classe_id={self.classe_6a.id}&page=1").status_code, 200)
 
     def test_eleves_template_recoit_annee_consultee_annees_ecole_et_annee_vide(self):
         client = self._client_as_admin()
@@ -198,7 +198,7 @@ class Phase2B1AnneeConsulteeTestCase(unittest.TestCase):
             self.assertNotIn(self.annee_b.id, {a.id for a in context["annees_ecole"]})
             self.assertEqual(context["total_eleves"], 1)
 
-            response = client.get(f"/eleves?annee_id={self.annee_archivee.id}&search=Moussa")
+            response = client.get(f"/elevesannee_id={self.annee_archivee.id}&search=Moussa")
             self.assertEqual(response.status_code, 200)
             context = recorded[-1][1]
             self.assertEqual(context["annee_consultee"].id, self.annee_active.id)

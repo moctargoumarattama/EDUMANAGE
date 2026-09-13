@@ -126,6 +126,12 @@ def cours():
             'ecole_id': cours_item.ecole_id,
         }
 
+    search = (request.args.get('search') or request.args.get('q') or '').strip()
+    classe_id = request.args.get('classe_id', type=int) or request.args.get('classe', type=int)
+    niveau = (request.args.get('niveau') or '').strip()
+    professeur_id = request.args.get('professeur_id', type=int) or request.args.get('professeur', type=int)
+    affectation = (request.args.get('affectation') or '').strip().lower()
+
     if current_user.role in ('admin', 'super_admin'):
         form = CoursForm()
         professeurs = _professeurs_affectables(ecole_courante.id)
@@ -137,11 +143,35 @@ def cours():
             .order_by(Classe.niveau, Classe.nom)
             .all()
         )
-        tous_cours = (
-            _cours_annee_query(ecole_courante.id, annee_consultee.id if annee_consultee else None)
-            .order_by(Classe.nom.asc(), Cours.nom.asc())
-            .all()
-        )
+        base_query = _cours_annee_query(ecole_courante.id, annee_consultee.id if annee_consultee else None)
+
+        if search:
+            pat = f"%{search}%"
+            base_query = base_query.outerjoin(Professeur, Professeur.id == Cours.professeur_id).filter(
+                db.or_(
+                    Cours.nom.ilike(pat),
+                    Classe.nom.ilike(pat),
+                    Classe.niveau.ilike(pat),
+                    Professeur.nom.ilike(pat),
+                    Professeur.prenom.ilike(pat)
+                )
+            )
+        if classe_id:
+            c_val = Classe.query.filter_by(id=classe_id, ecole_id=ecole_courante.id).first()
+            if not c_val:
+                base_query = base_query.filter(db.false())
+            else:
+                base_query = base_query.filter(Cours.classe_id == classe_id)
+        if niveau:
+            base_query = base_query.filter(Classe.niveau == niveau)
+        if professeur_id:
+            base_query = base_query.filter(Cours.professeur_id == professeur_id)
+        if affectation == 'avec_prof':
+            base_query = base_query.filter(Cours.professeur_id.isnot(None))
+        elif affectation == 'sans_prof':
+            base_query = base_query.filter(Cours.professeur_id.is_(None))
+
+        tous_cours = base_query.order_by(Classe.nom.asc(), Cours.nom.asc()).all()
         form.professeur_id.choices = _professeur_choices(professeurs)
         form.classe_id.choices = [
             (classe.id, f"{classe.nom} ({classe.niveau})")
@@ -162,17 +192,37 @@ def cours():
         if not professeur:
             flash("Profil enseignant introuvable pour cette ecole.", "danger")
             return redirect(url_for('main.index'))
-        mes_cours = (
+        prof_query = (
             _cours_annee_query(ecole_courante.id, annee_consultee.id if annee_consultee else None)
             .filter(Cours.professeur_id == professeur.id)
-            .order_by(Classe.nom.asc(), Cours.nom.asc())
-            .all()
         )
+        if search:
+            pat = f"%{search}%"
+            prof_query = prof_query.filter(
+                db.or_(
+                    Cours.nom.ilike(pat),
+                    Classe.nom.ilike(pat),
+                    Classe.niveau.ilike(pat)
+                )
+            )
+        if classe_id:
+            prof_query = prof_query.filter(Cours.classe_id == classe_id)
+        if niveau:
+            prof_query = prof_query.filter(Classe.niveau == niveau)
+
+        mes_cours = prof_query.order_by(Classe.nom.asc(), Cours.nom.asc()).all()
         notes_total = sum(len(c.notes) for c in mes_cours if hasattr(c, 'notes'))
         cours_total = len(mes_cours)
         professeurs_actifs = 1
         cours_json = [cours_to_dict(c) for c in mes_cours]
         cours_source = mes_cours
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
+        return jsonify({
+            'success': True,
+            'total': cours_total,
+            'cours': cours_json
+        })
 
     return render_template(
         'cours.html',
@@ -185,6 +235,11 @@ def cours():
         ecole_nom=ecole_courante.nom if ecole_courante else "Systeme",
         annee_consultee=annee_consultee,
         professeurs=professeurs,
+        search=search,
+        classe_id=classe_id,
+        niveau=niveau,
+        professeur_id=professeur_id,
+        affectation=affectation,
         cours_sans_professeur=sum(1 for c in cours_source if not c.professeur_id),
         affectations_modifiables=bool(
             annee_consultee
@@ -230,7 +285,7 @@ def ajouter_cours():
     annee_consultee = get_annee_consultee(ecole_courante.id)
     form = CoursForm()
 
-    # Choix restreints Ã  l'Ã©cole courante
+    # Choix restreints ? l'école courante
     form.professeur_id.choices = _professeur_choices(_professeurs_affectables(ecole_courante.id))
     form.classe_id.choices = [
         (c.id, f"{c.nom} ({c.niveau})") 
@@ -246,7 +301,7 @@ def ajouter_cours():
 
     if form.validate_on_submit():
         try:
-            # VÃ©rification stricte dans l'Ã©cole courante
+            # Vérification stricte dans l'école courante
             prof = Professeur.query.filter_by(id=form.professeur_id.data, ecole_id=ecole_courante.id).first() if form.professeur_id.data else None
             classe, classe_error = valider_classe_pour_nouveau_cours(ecole_courante.id, form.classe_id.data)
 
@@ -263,7 +318,7 @@ def ajouter_cours():
                 ecole_id=ecole_courante.id
             ).first()
             if doublon:
-                flash("Un cours avec ce nom existe dÃ©jÃ  pour cette classe.", "danger")
+                flash("Un cours avec ce nom existe d?j? pour cette classe.", "danger")
                 return redirect(url_for('main.cours'))
 
             nouveau_cours = Cours(
@@ -280,7 +335,7 @@ def ajouter_cours():
 
             current_app.log_correction(
                 action="ajout",
-                description=f"Cours ajoutÃ© : {nouveau_cours.nom}",
+                description=f"Cours ajouté : {nouveau_cours.nom}",
                 ecole_id=ecole_courante.id,
                 cible_type="cours",
                 cible_id=nouveau_cours.id,
@@ -298,7 +353,7 @@ def ajouter_cours():
 
         except IntegrityError as e:
             db.session.rollback()
-            flash("Erreur dâ€™intÃ©gritÃ© (doublon possible).", "danger")
+            flash("Erreur d’intégrité (doublon possible).", "danger")
             current_app.logger.error(f"IntegrityError cours: {e}")
 
         except Exception as e:
@@ -359,7 +414,7 @@ def modifier_cours(id):
         else:
             classe, classe_error = valider_classe_pour_nouveau_cours(ecole_courante.id, form.classe_id.data)
         if not professeur or not classe:
-            flash("Le professeur ou la classe n'appartient pas Ã  votre Ã©cole.", "danger")
+            flash("Le professeur ou la classe n'appartient pas ? votre école.", "danger")
             return redirect(url_for('main.modifier_cours', id=cours.id))
         if classe_error:
             flash(classe_error, "danger")
@@ -371,7 +426,7 @@ def modifier_cours(id):
         cours.professeur_id = professeur.id
         cours.classe_id = classe.id
         db.session.commit()
-        flash("Cours modifiÃ© avec succÃ¨s.", "success")
+        flash("Cours modifié avec succès.", "success")
         return redirect(url_for('main.cours_details', id=cours.id))
 
     return render_template('modifier_cours.html', form=form, cours=cours)
@@ -431,12 +486,12 @@ def import_notes_excel(id):
     else:
         annee = get_annee_active(cours.ecole_id)
         if not annee:
-            flash("Aucune annÃ©e scolaire active n'est disponible pour ce cours.", "danger")
+            flash("Aucune année scolaire active n'est disponible pour ce cours.", "danger")
             return redirect(url_for('main.cours_details', id=id))
 
     file = request.files.get("file")
     if not file or file.filename == '':
-        flash("Aucun fichier sÃ©lectionnÃ©.", "warning")
+        flash("Aucun fichier sélectionné.", "warning")
         return redirect(url_for('main.cours_details', id=id))
 
     if not file.filename.lower().endswith((".xlsx", ".xls", ".csv")):
@@ -453,19 +508,19 @@ def import_notes_excel(id):
         # Normalisation des noms de colonnes
         df.columns = [unidecode(c).lower().strip() for c in df.columns]
 
-        # Colonnes acceptÃ©es
+        # Colonnes acceptées
         required_cols = [
             ["nom", "prenom", "classe", "note"],
             ["eleve", "classe", "note"],
             ["eleve id", "note"]
         ]
         if not any(all(col in df.columns for col in cols) for cols in required_cols):
-            flash("Format de fichier incorrect. VÃ©rifiez les colonnes.", "danger")
+            flash("Format de fichier incorrect. Vérifiez les colonnes.", "danger")
             return redirect(url_for('main.cours_details', id=id))
 
         notes_importees, erreurs = 0, []
 
-        # PrÃ©chargement des Ã©lÃ¨ves de la mÃªme Ã©cole
+        # Préchargement des élèves de la même école
         eleves_dict = {e.id: e for e in Eleve.query.filter_by(ecole_id=current_user.ecole_id).all()}
 
         # Parcours du fichier
@@ -480,7 +535,7 @@ def import_notes_excel(id):
                     if eleve:
                         nom, prenom = eleve.nom, eleve.prenom
 
-                # Recherche par nom/prÃ©nom
+                # Recherche par nom/prénom
                 elif "nom" in df.columns and "prenom" in df.columns:
                     nom = str(row["nom"]).strip()
                     prenom = str(row["prenom"]).strip()
@@ -493,7 +548,7 @@ def import_notes_excel(id):
                         None
                     )
 
-                # Recherche par colonne unique "Ã©lÃ¨ve"
+                # Recherche par colonne unique "élève"
                 else:
                     nom_complet = str(row["eleve"]).strip()
                     parties = nom_complet.split()
@@ -509,14 +564,14 @@ def import_notes_excel(id):
                         )
 
                 if not eleve:
-                    erreurs.append(f"Ligne {index+2}: Ã‰lÃ¨ve non trouvÃ© ({prenom or '?'} {nom or '?'})")
+                    erreurs.append(f"Ligne {index+2}: Élève non trouvé ({prenom or ''} {nom or ''})")
                     continue
 
                 if eleve.ecole_id != cours.ecole_id:
-                    erreurs.append(f"Ligne {index+2}: Ã‰lÃ¨ve associÃ© Ã  une autre Ã©cole")
+                    erreurs.append(f"Ligne {index+2}: Élève associé ? une autre école")
                     continue
 
-                # VÃ©rification de la note
+                # Vérification de la note
                 try:
                     note_valeur = float(row["note"])
                     if not (0 <= note_valeur <= 20):
@@ -526,12 +581,12 @@ def import_notes_excel(id):
                     erreurs.append(f"Ligne {index+2}: Format de note invalide ({row['note']})")
                     continue
 
-                # Ajout / mise Ã  jour
+                # Ajout / mise ? jour
                 note = Note.query.filter_by(cours_id=id, eleve_id=eleve.id, ecole_id=cours.ecole_id).first()
                 if note:
                     if note.annee_id and note.annee_id != annee.id:
                         erreurs.append(
-                            f"Ligne {index+2}: Note existante associÃ©e Ã  une autre annÃ©e scolaire"
+                            f"Ligne {index+2}: Note existante associée ? une autre année scolaire"
                         )
                         continue
                     note.valeur = note_valeur
@@ -561,9 +616,9 @@ def import_notes_excel(id):
 
         # Feedback utilisateur
         if notes_importees:
-            flash(f"{notes_importees} notes importÃ©es avec succÃ¨s.", "success")
+            flash(f"{notes_importees} notes importées avec succès.", "success")
         if erreurs:
-            flash(f"{len(erreurs)} lignes ignorÃ©es car invalides.", "warning")
+            flash(f"{len(erreurs)} lignes ignorées car invalides.", "warning")
 
     except Exception as e:
         db.session.rollback()
@@ -575,25 +630,25 @@ def import_notes_excel(id):
 @main.route('/imports/telecharger/<filename>')
 @login_required
 def telecharger_import(filename):
-    """TÃ©lÃ©charger le fichier d'erreurs d'import"""
+    """Télécharger le fichier d'erreurs d'import"""
 
     from werkzeug.utils import secure_filename
     import os
     from flask import send_from_directory, abort, current_app
 
-    # Nom de fichier sÃ©curisÃ©
+    # Nom de fichier sécurisé
     safe_filename = secure_filename(filename)
 
-    # VÃ©rification stricte du nom pour Ã©viter les fichiers non autorisÃ©s
+    # Vérification stricte du nom pour éviter les fichiers non autorisés
     if not safe_filename.startswith('errors_import_') or not safe_filename.endswith('.csv'):
-        abort(404, "Fichier non autorisÃ©")
+        abort(404, "Fichier non autorisé")
 
     imports_dir = os.path.join(current_app.root_path, "static", "imports")
     file_path = os.path.join(imports_dir, safe_filename)
 
-    # VÃ©rification que le fichier existe bien
+    # Vérification que le fichier existe bien
     if not os.path.isfile(file_path):
-        abort(404, "Fichier non trouvÃ©")
+        abort(404, "Fichier non trouvé")
 
     return send_from_directory(imports_dir, safe_filename, as_attachment=True)
 
@@ -609,10 +664,10 @@ def modele_import_notes(id):
     if not can_manage_cours(cours):
         abort(403)
 
-    colonnes = ['Nom', 'PrÃ©nom', 'Classe', 'Note', 'Coefficient', 'Type Ã©valuation']
+    colonnes = ['Nom', 'Prénom', 'Classe', 'Note', 'Coefficient', 'Type évaluation']
     df = pd.DataFrame(columns=colonnes)
 
-    # --- GÃ©nÃ©ration CSV ---
+    # --- Génération CSV ---
     if format_fichier == 'csv':
         output = BytesIO()
         df.to_csv(output, index=False, sep=',', encoding='utf-8-sig')
@@ -624,10 +679,10 @@ def modele_import_notes(id):
             mimetype='text/csv'
         )
 
-    # --- GÃ©nÃ©ration Excel ---
+    # --- Génération Excel ---
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        # Deux feuilles identiques pour donner un choix Ã  lâ€™utilisateur
+        # Deux feuilles identiques pour donner un choix ? l’utilisateur
         df.to_excel(writer, sheet_name='Format Standard', index=False)
         df.to_excel(writer, sheet_name='Format Alternatif', index=False)
 
@@ -659,7 +714,7 @@ def modele_import_notes(id):
 @login_required
 @role_required('admin', 'professeur')
 def imports_historique():
-    """Affichage de l'historique des imports filtrÃ© par Ã©cole"""
+    """Affichage de l'historique des imports filtré par école"""
     historiques = (
         HistoriqueImport.query
         .join(HistoriqueImport.utilisateur)
@@ -673,13 +728,13 @@ def imports_historique():
 @login_required
 @role_required('admin')
 def supprimer_cours(id):
-    # âœ… SÃ©curisation multi-Ã©coles
+    # âœ… Sécurisation multi-écoles
     cours = filtre_par_ecole(Cours.query, Cours).filter_by(id=id).first_or_404()
 
     try:
-        # VÃ©rifier s'il y a des notes ou absences associÃ©es
+        # Vérifier s'il y a des notes ou absences associées
         if cours.notes or cours.absences:
-            flash("Impossible de supprimer ce cours car il a des donnÃ©es associÃ©es.", "danger")
+            flash("Impossible de supprimer ce cours car il a des données associées.", "danger")
             return redirect(url_for('main.cours'))
 
         ancienne_valeur = f"Cours: {cours.nom} (Prof: {cours.professeur_id}, Classe: {cours.classe_id})"
@@ -690,7 +745,7 @@ def supprimer_cours(id):
         # âœ… Journalisation
         current_app.log_correction(
             action="suppression_cours",
-            description=f"Cours supprimÃ© : {cours.nom}",
+            description=f"Cours supprimé : {cours.nom}",
             ecole_id=cours.ecole_id,
             cible_type="cours",
             cible_id=id,
@@ -699,7 +754,7 @@ def supprimer_cours(id):
             niveau="info"
         )
 
-        flash("Cours supprimÃ© avec succÃ¨s.", "success")
+        flash("Cours supprimé avec succès.", "success")
         return redirect(url_for('main.cours'))
 
     except Exception as e:

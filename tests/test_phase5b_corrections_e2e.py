@@ -320,6 +320,30 @@ class Phase5BCorrectionsE2ETestCase(unittest.TestCase):
         self.assertEqual(note_en_base.valeur, 16.5)
         self.assertEqual(note_en_base.coefficient, 2.0)
 
+    # =========================================================================
+    # TEST SUPPORT : Bouton flottant déplaçable présent pour utilisateur connecté
+    # =========================================================================
+    def test_bouton_flottant_support_deplacable_present(self):
+        """Vérifie que le widget flottant déplaçable de support est inclus dans base.html pour l'admin."""
+        client = self.login_as(self.admin)
+        response = client.get("/")
+        self.assertEqual(response.status_code, 200)
+
+        html = response.data.decode("utf-8")
+        self.assertIn('id="klasoraSupportTriggerBtn"', html)
+        self.assertIn('class="klasora-floating-support-btn"', html)
+        self.assertIn('id="klasoraSupportModalContainer"', html)
+        self.assertIn('Support', html)
+
+    def test_bouton_flottant_support_absent_si_non_connecte(self):
+        """Vérifie que le widget de support n'est pas affiché pour un visiteur non connecté."""
+        client = self.app.test_client()
+        response = client.get("/login")
+        self.assertEqual(response.status_code, 200)
+
+        html = response.data.decode("utf-8")
+        self.assertNotIn('id="klasoraSupportTriggerBtn"', html)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -83,7 +83,7 @@ def ensure_ecole_consistency(obj, ecole_id=None):
     
     if obj.ecole_id != target_ecole_id:
         current_app.logger.warning(
-            f"Correction ecole_id: {obj.__class__.__name__} ID={getattr(obj, 'id', '?')} "
+            f"Correction ecole_id: {obj.__class__.__name__} ID={getattr(obj, 'id', '')} "
             f"({obj.ecole_id} -> {target_ecole_id})"
         )
         obj.ecole_id = target_ecole_id
@@ -242,8 +242,22 @@ def creer_ou_activer_annee_scolaire(ecole_id: int, nom: str, date_debut, date_fi
     if not nom or not date_debut or not date_fin:
         return None, "Veuillez renseigner tous les champs obligatoires de l'année scolaire."
 
+    import re
+    match = re.match(r'^(\d{4})-(\d{4})$', nom)
+    if not match or int(match.group(2)) != int(match.group(1)) + 1:
+        return None, "L'année scolaire doit être de la forme AAAA-AAAA avec deux années consécutives."
+
+    debut_annee = int(match.group(1))
+    fin_annee = int(match.group(2))
+
     if date_fin <= date_debut:
         return None, "La date de fin doit être postérieure à la date de début."
+
+    if date_debut.year != debut_annee:
+        return None, f"La date de début doit être dans l'année {debut_annee}."
+
+    if date_fin.year != fin_annee:
+        return None, f"La date de fin doit être dans l'année {fin_annee}."
 
     try:
         # Désactiver toute autre année active pour cette école
@@ -678,7 +692,7 @@ def add_and_commit(obj, db_session) -> bool:
         db_session.add(obj)
         db_session.commit()
         current_app.logger.info(
-            f"Objet {obj.__class__.__name__} (ID={getattr(obj, 'id', '?')}) ajouté avec succès."
+            f"Objet {obj.__class__.__name__} (ID={getattr(obj, 'id', '')}) ajouté avec succès."
         )
         return True
 
@@ -812,7 +826,7 @@ def allowed_file(filename, allowed_extensions=None) -> bool:
 
 def validate_sort_param(sort_param: str, allowed_fields: list[str], default: str = "id") -> str:
     """
-    Valide un paramètre de tri provenant d'une requête (ex: ?sort=nom).
+    Valide un paramètre de tri provenant d'une requête (ex: sort=nom).
     
     Args:
         sort_param (str): Le paramètre reçu de la requête (ex: "nom" ou "-nom")

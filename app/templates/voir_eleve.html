@@ -80,7 +80,7 @@
                         </a>
                         {% endif %}
                         {% if eleve.email_parent or (eleve.parent and eleve.parent.email) %}
-                        <a href="mailto:{{ eleve.email_parent or eleve.parent.email }}?subject=Dossier%20Scolaire%20-%20{{ eleve.prenom }}%20{{ eleve.nom }}" class="btn btn-sm btn-light text-dark fw-semibold">
+                        <a href="mailto:{{ eleve.email_parent or eleve.parent.email }}subject=Dossier%20Scolaire%20-%20{{ eleve.prenom }}%20{{ eleve.nom }}" class="btn btn-sm btn-light text-dark fw-semibold">
                             <i class="fas fa-envelope text-primary me-1"></i>Email parent
                         </a>
                         {% endif %}
@@ -610,7 +610,7 @@
                                     <strong class="text-dark">{{ 'Masculin (M)' if eleve.genre == 'M' else 'Féminin (F)' if eleve.genre == 'F' else eleve.genre }}</strong>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between px-0 py-2">
-                                    <span class="text-muted">Âge :</span>
+                                    <span class="text-muted">?ge :</span>
                                     <strong class="text-dark">{% if age %}{{ age }} ans{% else %}N/A{% endif %}</strong>
                                 </li>
                             </ul>

@@ -48,10 +48,15 @@
                 <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllAccordions" title="Déplier ou replier tous les élèves">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
-                {% if current_user.role in ['admin', 'professeur'] and form and notes_modifiables %}
-                <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseFormNote" aria-expanded="false" aria-controls="collapseFormNote" id="btnToggleAddNote">
-                    <i class="fas fa-plus-circle me-2"></i>Nouvelle note
+                {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
+                <a href="{{ url_for('main.saisie_notes_classe') }}" class="btn btn-success shadow-sm" id="btnSaisieNotesClasse" title="Saisie rapide des notes par classe entière">
+                    <i class="fas fa-table-list me-2"></i>Saisie par classe
+                </a>
+                {% if form %}
+                <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseFormNote" aria-expanded="false" aria-controls="collapseFormNote" id="btnToggleAddNote" title="Saisie individuelle d'une note">
+                    <i class="fas fa-plus-circle me-2"></i>Saisie individuelle
                 </button>
+                {% endif %}
                 {% endif %}
                 {% if current_user.role == 'admin' %}
                 <a href="{{ url_for('main.export_notes_excel') }}" class="btn btn-outline-success shadow-sm" title="Exporter toutes les notes vers Excel">
@@ -156,12 +161,8 @@
                                 {{ form.periode(class="form-select", id="periode", required=true) }}
                             {% else %}
                                 <select name="periode" id="periode" class="form-select" required>
-                                    <option value="Trimestre 1">Trimestre 1</option>
-                                    <option value="Trimestre 2">Trimestre 2</option>
-                                    <option value="Trimestre 3">Trimestre 3</option>
-                                    <option value="Semestre 1">Semestre 1</option>
+                                    <option value="Semestre 1" selected>Semestre 1</option>
                                     <option value="Semestre 2">Semestre 2</option>
-                                    <option value="Annuelle">Annuelle</option>
                                 </select>
                             {% endif %}
                         </div>
@@ -184,75 +185,73 @@
     <div class="course-toolbar-card">
         <div class="row g-2 align-items-center">
             <!-- Recherche rapide -->
-            <div class="col-12 col-md-4 col-lg-3">
+            <div class="col-12 col-md-3">
                 <div class="course-search-box">
                     <i class="fas fa-search search-icon"></i>
-                    <input type="text" id="studentSearchInput" class="form-control" placeholder="Rechercher élève, classe, matière..." autocomplete="off">
+                    <input type="text" id="studentSearchInput" class="form-control" placeholder="Rechercher élève, matière..." value="{{ search }}" autocomplete="off">
                     <button type="button" id="studentSearchClear" class="clear-btn" title="Effacer la recherche">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- Filtre par classe -->
-            <div class="col-6 col-md-3 col-lg-2">
-                <select id="filterClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Toutes les classes</option>
-                    {% set classes_list = [] %}
-                    {% for note in notes %}
-                        {% if note.eleve and note.eleve.classe and note.eleve.classe.nom not in classes_list %}
-                            {% set _ = classes_list.append(note.eleve.classe.nom) %}
-                        {% endif %}
-                    {% endfor %}
-                    {% for cl in classes_list|sort %}
-                        <option value="{{ cl }}">{{ cl }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <!-- Filtre par matière -->
-            <div class="col-6 col-md-3 col-lg-2">
-                <select id="filterCoursSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Toutes les matières</option>
-                    {% for c in tous_les_cours %}
-                    <option value="{{ c.nom }}">{{ c.nom }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <!-- Filtre par période -->
+            <!-- Filtre par niveau -->
             <div class="col-6 col-md-2 col-lg-2">
+                <select id="filterNiveauSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Tous niveaux</option>
+                    {% for niv in niveaux_annee %}
+                    <option value="{{ niv.nom }}" {% if niveau_id|string == niv.nom|string or niveau_id|string == niv.id|string %}selected{% endif %}>{{ niv.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtre par classe -->
+            <div class="col-6 col-md-2 col-lg-2">
+                <select id="filterClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Toutes classes</option>
+                    {% for cl in classes %}
+                    <option value="{{ cl.nom }}" data-id="{{ cl.id }}" data-niveau="{{ cl.niveau or '' }}" {% if classe_id == cl.id or (request.args.get('classe') == cl.nom) %}selected{% endif %}>{{ cl.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtre par matière / cours -->
+            <div class="col-6 col-md-2 col-lg-2">
+                <select id="filterCoursSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Toutes matières</option>
+                    {% for c in tous_les_cours %}
+                    <option value="{{ c.nom }}" data-id="{{ c.id }}" data-classe-id="{{ c.classe_id }}" data-classe-nom="{{ c.classe.nom if c.classe else '' }}" {% if cours_id == c.id or (request.args.get('cours') == c.nom) %}selected{% endif %}>{{ c.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtre par période (Semestres) -->
+            <div class="col-6 col-md-2 col-lg-1">
                 <select id="filterPeriodeSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Toutes périodes</option>
-                    <option value="Trimestre 1">Trimestre 1</option>
-                    <option value="Trimestre 2">Trimestre 2</option>
-                    <option value="Trimestre 3">Trimestre 3</option>
-                    <option value="Semestre 1">Semestre 1</option>
-                    <option value="Semestre 2">Semestre 2</option>
-                    <option value="Annuelle">Annuelle</option>
+                    <option value="">Périodes</option>
+                    <option value="Semestre 1" {% if periode == 'Semestre 1' %}selected{% endif %}>Semestre 1</option>
+                    <option value="Semestre 2" {% if periode == 'Semestre 2' %}selected{% endif %}>Semestre 2</option>
+                </select>
+            </div>
+
+            <!-- Filtre par type d'évaluation -->
+            <div class="col-6 col-md-2 col-lg-1">
+                <select id="filterTypeEvalSelect" class="form-select form-select-sm" style="min-height: 42px;">
+                    <option value="">Types</option>
+                    <option value="Devoir" {% if type_evaluation == 'Devoir' %}selected{% endif %}>Devoir</option>
+                    <option value="Interrogation" {% if type_evaluation == 'Interrogation' %}selected{% endif %}>Interrogation</option>
+                    <option value="Composition" {% if type_evaluation == 'Composition' %}selected{% endif %}>Composition</option>
                 </select>
             </div>
 
             <!-- Tri des élèves -->
-            <div class="col-6 col-md-2 col-lg-2">
+            <div class="col-6 col-md-2 col-lg-1">
                 <select id="sortStudentsSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="nom-asc">Élève (A &rarr; Z)</option>
-                    <option value="nom-desc">Élève (Z &rarr; A)</option>
+                    <option value="nom-asc">A &rarr; Z</option>
+                    <option value="nom-desc">Z &rarr; A</option>
                     <option value="moyenne-desc">Moyenne &darr;</option>
                     <option value="moyenne-asc">Moyenne &uarr;</option>
-                    <option value="notes-desc">Nombre de notes &darr;</option>
-                </select>
-            </div>
-
-            <!-- Nombre par page -->
-            <div class="col-12 col-lg-auto ms-auto d-flex align-items-center justify-content-end gap-2">
-                <span class="small text-muted d-none d-sm-inline">Élèves / page :</span>
-                <select id="pageSizeSelect" class="form-select form-select-sm" style="width: auto; min-height: 42px;" title="Nombre d'élèves par page">
-                    <option value="10">10</option>
-                    <option value="20" selected>20</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                    <option value="99999">Tous</option>
+                    <option value="notes-desc">Notes &darr;</option>
                 </select>
             </div>
         </div>
@@ -279,22 +278,36 @@
             {% set student_notes_count = group.list|length %}
 
             <!-- Calcul moyenne de l'élève -->
-            {% set ns = namespace(val=0, coeff=0, matieres=[]) %}
+            {% set ns = namespace(val=0, coeff=0, matieres=[], types=[], periodes=[]) %}
             {% for n in group.list %}
                 {% set ns.val = ns.val + (n.valeur * (n.coefficient or 1)) %}
                 {% set ns.coeff = ns.coeff + (n.coefficient or 1) %}
                 {% if n.cours and n.cours.nom not in ns.matieres %}
                     {% set _ = ns.matieres.append(n.cours.nom) %}
                 {% endif %}
+                {% if n.type_evaluation and n.type_evaluation not in ns.types %}
+                    {% set _ = ns.types.append(n.type_evaluation) %}
+                {% endif %}
+                {% if n.periode and n.periode not in ns.periodes %}
+                    {% set _ = ns.periodes.append(n.periode) %}
+                {% endif %}
             {% endfor %}
             {% set student_avg = (ns.val / ns.coeff)|round(2) if ns.coeff > 0 else 0 %}
             {% set matieres_str = ns.matieres|join(' ') %}
+            {% set types_str = ns.types|join(' ') %}
+            {% set periodes_str = ns.periodes|join(' ') %}
+            {% set classe_obj = (first_note.inscription.classe if first_note.inscription else (first_note.cours.classe if first_note.cours else None)) %}
+            {% set niveau_nom = (classe_obj.niveau if classe_obj else '') %}
 
             <article class="student-note-card"
                      data-id="{{ eleve.id }}"
                      data-nom="{{ eleve_full }}"
                      data-classe="{{ classe_nom }}"
+                     data-classe-id="{{ classe_obj.id if classe_obj else '' }}"
+                     data-niveau="{{ niveau_nom }}"
                      data-matieres="{{ matieres_str }}"
+                     data-types="{{ types_str }}"
+                     data-periodes="{{ periodes_str }}"
                      data-notes-count="{{ student_notes_count }}"
                      data-moyenne="{{ student_avg }}">
 
@@ -409,7 +422,7 @@
                                             <a href="{{ url_for('main.modifier_note', note_id=note.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier la note">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-                                            <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette note pour {{ eleve_full }} ?');">
+                                            <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette note pour {{ eleve_full }} ');">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer la note">
                                                     <i class="fas fa-trash"></i>
@@ -465,7 +478,7 @@
                                     <a href="{{ url_for('main.modifier_note', note_id=note.id) }}" class="btn btn-outline-primary btn-sm" title="Modifier">
                                         <i class="fas fa-edit me-1"></i>Modifier
                                     </a>
-                                    <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette note ?');">
+                                    <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette note ');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
                                             <i class="fas fa-trash me-1"></i>Supprimer
@@ -652,9 +665,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Éléments DOM liste & filtres
     const searchInput = document.getElementById('studentSearchInput');
     const searchClear = document.getElementById('studentSearchClear');
+    const filterNiveau = document.getElementById('filterNiveauSelect');
     const filterClasse = document.getElementById('filterClasseSelect');
     const filterCours = document.getElementById('filterCoursSelect');
     const filterPeriode = document.getElementById('filterPeriodeSelect');
+    const filterTypeEval = document.getElementById('filterTypeEvalSelect');
     const sortSelect = document.getElementById('sortStudentsSelect');
     const pageSizeSelect = document.getElementById('pageSizeSelect');
     const filterStats = document.getElementById('studentFilterStats');
@@ -665,6 +680,49 @@ document.addEventListener('DOMContentLoaded', function() {
     const paginationBar = document.getElementById('studentPaginationBar');
     const paginationList = document.getElementById('paginationList');
     const pageInfoText = document.getElementById('pageInfoText');
+
+    // Sauvegarder les options complètes pour filtrage dépendant
+    const allClasseOptions = filterClasse ? Array.from(filterClasse.querySelectorAll('option')) : [];
+    const allCoursOptions = filterCours ? Array.from(filterCours.querySelectorAll('option')) : [];
+
+    function updateDependentClassesAndCourses() {
+        const selectedNiveau = filterNiveau ? filterNiveau.value.trim() : '';
+        const currentClasse = filterClasse ? filterClasse.value : '';
+
+        if (filterClasse) {
+            filterClasse.innerHTML = '';
+            allClasseOptions.forEach(opt => {
+                if (!opt.value) {
+                    filterClasse.appendChild(opt.cloneNode(true));
+                } else {
+                    const optNiveau = opt.dataset.niveau || '';
+                    if (!selectedNiveau || optNiveau === selectedNiveau) {
+                        filterClasse.appendChild(opt.cloneNode(true));
+                    }
+                }
+            });
+            const stillExists = Array.from(filterClasse.options).some(o => o.value === currentClasse);
+            filterClasse.value = stillExists ? currentClasse : '';
+        }
+
+        const selectedClasseNow = filterClasse ? filterClasse.value : '';
+        if (filterCours) {
+            const currentCours = filterCours.value;
+            filterCours.innerHTML = '';
+            allCoursOptions.forEach(opt => {
+                if (!opt.value) {
+                    filterCours.appendChild(opt.cloneNode(true));
+                } else {
+                    const optClasseNom = opt.dataset.classeNom || '';
+                    if (!selectedClasseNow || optClasseNom === selectedClasseNow) {
+                        filterCours.appendChild(opt.cloneNode(true));
+                    }
+                }
+            });
+            const coursExists = Array.from(filterCours.options).some(o => o.value === currentCours);
+            filterCours.value = coursExists ? currentCours : '';
+        }
+    }
 
     // Bouton tout déplier / tout replier
     const btnToggleAll = document.getElementById('btnToggleAllAccordions');
@@ -683,19 +741,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // État courant
     let currentPage = 1;
-    let pageSize = parseInt(pageSizeSelect.value, 10) || 20;
+    let pageSize = parseInt(pageSizeSelect ? pageSizeSelect.value : 20, 10) || 20;
 
     // Filtrage et Tri des élèves
     function getFilteredAndSortedStudents() {
         const query = normalizeStr(searchInput ? searchInput.value.trim() : '');
+        const selectedNiveau = normalizeStr(filterNiveau ? filterNiveau.value.trim() : '');
         const selectedClasse = filterClasse ? filterClasse.value.trim() : '';
         const selectedCours = filterCours ? normalizeStr(filterCours.value.trim()) : '';
+        const selectedPeriode = filterPeriode ? filterPeriode.value.trim() : '';
+        const selectedType = filterTypeEval ? filterTypeEval.value.trim() : '';
         const sortMode = sortSelect ? sortSelect.value : 'nom-asc';
+
+        // Synchroniser l'URL sans recharger
+        const params = new URLSearchParams();
+        if (query) params.set('search', query);
+        if (selectedNiveau) params.set('niveau', filterNiveau.value);
+        if (selectedClasse) params.set('classe', selectedClasse);
+        if (selectedCours) params.set('cours', filterCours.value);
+        if (selectedPeriode) params.set('periode', selectedPeriode);
+        if (selectedType) params.set('type_evaluation', selectedType);
+        const cleanUrl = `${window.location.pathname}${params.toString() ? '' + params.toString() : ''}`;
+        window.history.replaceState({}, '', cleanUrl);
 
         let matched = studentCards.filter(function(card) {
             const nom = normalizeStr(card.dataset.nom);
             const classe = normalizeStr(card.dataset.classe);
+            const niveau = normalizeStr(card.dataset.niveau || '');
             const matieres = normalizeStr(card.dataset.matieres);
+            const types = card.dataset.types || '';
+            const periodes = card.dataset.periodes || '';
 
             // Recherche texte
             if (query) {
@@ -705,6 +780,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!textMatch) return false;
             }
 
+            // Filtre niveau
+            if (selectedNiveau && niveau !== selectedNiveau) {
+                return false;
+            }
+
             // Filtre classe
             if (selectedClasse && card.dataset.classe !== selectedClasse) {
                 return false;
@@ -712,6 +792,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Filtre matière
             if (selectedCours && !matieres.includes(selectedCours)) {
+                return false;
+            }
+
+            // Filtre période (Semestre 1 / Semestre 2)
+            if (selectedPeriode && !periodes.includes(selectedPeriode)) {
+                return false;
+            }
+
+            // Filtre type d'évaluation (Devoir / Interrogation / Composition)
+            if (selectedType && !types.includes(selectedType)) {
                 return false;
             }
 
@@ -749,8 +839,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Bouton réinitialiser
         const isFiltered = (searchInput && searchInput.value.trim().length > 0) ||
+                           (filterNiveau && filterNiveau.value !== '') ||
                            (filterClasse && filterClasse.value !== '') ||
                            (filterCours && filterCours.value !== '') ||
+                           (filterPeriode && filterPeriode.value !== '') ||
+                           (filterTypeEval && filterTypeEval.value !== '') ||
                            (sortSelect && sortSelect.value !== 'nom-asc');
 
         if (btnReset) {
@@ -895,29 +988,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Synchronisation de l'aria-expanded sur les headers lors de collapse individuel
-    document.querySelectorAll('.student-note-content').forEach(collapseEl => {
-        collapseEl.addEventListener('show.bs.collapse', function() {
-            const card = this.closest('.student-note-card');
-            if (card) {
-                const header = card.querySelector('.student-note-header');
-                if (header) header.setAttribute('aria-expanded', 'true');
-            }
-        });
-        collapseEl.addEventListener('hide.bs.collapse', function() {
-            const card = this.closest('.student-note-card');
-            if (card) {
-                const header = card.querySelector('.student-note-header');
-                if (header) header.setAttribute('aria-expanded', 'false');
-            }
-        });
-    });
-
     // Réinitialisation des filtres
     function resetFilters() {
         if (searchInput) searchInput.value = '';
+        if (filterNiveau) filterNiveau.value = '';
+        updateDependentClassesAndCourses();
         if (filterClasse) filterClasse.value = '';
         if (filterCours) filterCours.value = '';
+        if (filterPeriode) filterPeriode.value = '';
+        if (filterTypeEval) filterTypeEval.value = '';
         if (sortSelect) sortSelect.value = 'nom-asc';
         currentPage = 1;
         render();
@@ -940,21 +1019,36 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    if (filterClasse) filterClasse.addEventListener('change', () => { currentPage = 1; render(); });
-    if (filterCours) filterCours.addEventListener('change', () => { currentPage = 1; render(); });
-    if (sortSelect) sortSelect.addEventListener('change', () => { currentPage = 1; render(); });
-    if (pageSizeSelect) {
-        pageSizeSelect.addEventListener('change', function() {
-            pageSize = parseInt(this.value, 10) || 20;
+    if (filterNiveau) {
+        filterNiveau.addEventListener('change', () => {
+            updateDependentClassesAndCourses();
             currentPage = 1;
             render();
         });
     }
 
+    if (filterClasse) {
+        filterClasse.addEventListener('change', () => {
+            updateDependentClassesAndCourses();
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (filterCours) filterCours.addEventListener('change', () => { currentPage = 1; render(); });
+    if (filterPeriode) filterPeriode.addEventListener('change', () => { currentPage = 1; render(); });
+    if (filterTypeEval) filterTypeEval.addEventListener('change', () => { currentPage = 1; render(); });
+    if (sortSelect) sortSelect.addEventListener('change', () => { currentPage = 1; render(); });
+    if (pageSizeSelect) pageSizeSelect.addEventListener('change', function() {
+        pageSize = parseInt(this.value, 10) || 20;
+        currentPage = 1;
+        render();
+    });
+
     if (btnReset) btnReset.addEventListener('click', resetFilters);
     if (btnResetEmpty) btnResetEmpty.addEventListener('click', resetFilters);
 
-    // Rendu initial
+    // Initialisation
     render();
 });
 </script>

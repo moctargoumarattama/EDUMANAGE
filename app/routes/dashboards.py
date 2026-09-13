@@ -62,7 +62,7 @@ def parent_dashboard():
     enfants = enrichir_enfants_parent_annuel(enfants_pagination.items) if enfants_pagination else []
 
     if not enfants:
-        flash("Aucun Ã©lÃ¨ve n'est associÃ© Ã  votre compte parent", "warning")
+        flash("Aucun élève n'est associé ? votre compte parent", "warning")
         return render_template('parent_dashboard.html', enfants=[], pagination=enfants_pagination, annee_consultee=annee_consultee)
 
     return render_template('parent_dashboard.html', enfants=enfants, pagination=enfants_pagination, annee_consultee=annee_consultee)
@@ -164,11 +164,18 @@ def onboarding():
 
         # Étape 1 : Création / activation de l'année scolaire
         if action == 'creer_annee':
-            nom = request.form.get('nom', '').strip()
+            from app.services.annees_scolaires import construire_nom_annee, valider_dates_annee
+
+            annee_court = request.form.get('annee_debut_court', '').strip()
             date_debut_str = request.form.get('date_debut', '').strip()
             date_fin_str = request.form.get('date_fin', '').strip()
 
-            if not nom or not date_debut_str or not date_fin_str:
+            nom, debut_annee, fin_annee, err_nom = construire_nom_annee(annee_court)
+            if err_nom:
+                flash(err_nom, "danger")
+                return redirect(url_for('main.onboarding'))
+
+            if not date_debut_str or not date_fin_str:
                 flash("Veuillez renseigner tous les champs obligatoires de l'année scolaire.", "danger")
                 return redirect(url_for('main.onboarding'))
 
@@ -177,6 +184,11 @@ def onboarding():
                 dt_fin = datetime.strptime(date_fin_str, '%Y-%m-%d').date()
             except (ValueError, TypeError):
                 flash("Format de date invalide (AAAA-MM-JJ).", "danger")
+                return redirect(url_for('main.onboarding'))
+
+            ok_dates, err_dates = valider_dates_annee(dt_debut, dt_fin, debut_annee, fin_annee)
+            if not ok_dates:
+                flash(err_dates, "danger")
                 return redirect(url_for('main.onboarding'))
 
             annee, error_msg = creer_ou_activer_annee_scolaire(ecole.id, nom, dt_debut, dt_fin)

@@ -13,7 +13,7 @@ consommer ce contexte.
 3. GET /classes/add -> utilise la même année ;
 4. POST /classes/add -> crée la classe dans cette année ;
 5. POST /classes/add -> NE modifie pas annee_consultee ;
-6. ?annee_id=<autre> -> ne change pas le contexte ;
+6. annee_id=<autre> -> ne change pas le contexte ;
 7. aucune année en session -> fallback sur année active ;
 8. ne jamais fallback sur "dernière non archivée" ;
 9. archivee toujours bloquée ;
@@ -299,18 +299,18 @@ class TestWorkflowAnneePlanifiee(unittest.TestCase):
         self.assertEqual(session_after, self.annee_planifiee.id)
 
     # -------------------------------------------------------------
-    # 6. ?annee_id=<autre> -> ne change pas le contexte
+    # 6. annee_id=<autre> -> ne change pas le contexte
     # -------------------------------------------------------------
     def test_06_query_param_annee_id_ne_change_pas_le_contexte(self):
         client = self.login_as(self.admin_a)
         client.post(f"/annees/{self.annee_planifiee.id}/consulter")
 
-        # Requêtes avec un query param parasite ?annee_id=...
-        resp_classes = client.get(f"/classes?annee_id={self.annee_active.id}")
+        # Requêtes avec un query param parasite annee_id=...
+        resp_classes = client.get(f"/classesannee_id={self.annee_active.id}")
         self.assertEqual(resp_classes.status_code, 200)
         self.assertEqual(self.get_session_year_id(client), self.annee_planifiee.id)
 
-        resp_add = client.get(f"/classes/add?annee_id={self.annee_archivee.id}")
+        resp_add = client.get(f"/classes/addannee_id={self.annee_archivee.id}")
         self.assertEqual(resp_add.status_code, 200)
         # Le contexte affiché reste l'année consultée en session
         self.assertIn(self.annee_planifiee.nom.encode("utf-8"), resp_add.data)

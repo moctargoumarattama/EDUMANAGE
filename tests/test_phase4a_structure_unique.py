@@ -367,7 +367,7 @@ class Phase4AStructureUniqueTestCase(unittest.TestCase):
 
         # Utilisateur a pour année consultée A1, mais demande explicitement annee_id=A2
         client = self._client_as(self.admin_a, self.annee_a1)
-        resp = client.get(f"/api/niveaux?annee_id={self.annee_a2.id}")
+        resp = client.get(f"/api/niveauxannee_id={self.annee_a2.id}")
         self.assertEqual(resp.status_code, 200)
         data = resp.get_json()
         self.assertEqual(len(data), 1)
@@ -376,7 +376,7 @@ class Phase4AStructureUniqueTestCase(unittest.TestCase):
     def test_16_api_niveaux_isolation_ecole_interdite(self):
         # Admin A tente d'accéder à l'année de l'École B
         client = self._client_as(self.admin_a, self.annee_a1)
-        resp = client.get(f"/api/niveaux?annee_id={self.annee_b1.id}")
+        resp = client.get(f"/api/niveauxannee_id={self.annee_b1.id}")
         self.assertEqual(resp.status_code, 403)
 
     # ---------------------------------------------------------
@@ -420,13 +420,13 @@ class Phase4AStructureUniqueTestCase(unittest.TestCase):
         client = self._client_as(self.admin_a, self.annee_a1)
 
         # Filtre par nom de niveau '6e'
-        resp = client.get("/classes?niveau=6e")
+        resp = client.get("/classesniveau=6e")
         self.assertEqual(resp.status_code, 200)
         self.assertIn(b"6e A", resp.data)
         self.assertNotIn(b"5e A", resp.data)
 
         # Filtre par niveau_id
-        resp2 = client.get(f"/classes?niveau={n_5e.id}")
+        resp2 = client.get(f"/classesniveau={n_5e.id}")
         self.assertEqual(resp2.status_code, 200)
         self.assertIn(b"5e A", resp2.data)
         self.assertNotIn(b"6e A", resp2.data)

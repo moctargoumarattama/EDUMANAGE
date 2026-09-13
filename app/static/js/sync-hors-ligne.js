@@ -32,7 +32,7 @@
         elements.connectionText.textContent = online ? 'En ligne' : 'Hors ligne';
         elements.connectionIcon.className = online ? 'sync-status-icon is-online' : 'sync-status-icon is-offline';
         elements.connectionIcon.innerHTML = online
-            ? '<i class="fas fa-wifi"></i>'
+             '<i class="fas fa-wifi"></i>'
             : '<i class="fas fa-plug-circle-xmark"></i>';
         return online;
     }
@@ -84,7 +84,7 @@
             `;
         }
 
-        const forceBtn = canArbitrate ? `
+        const forceBtn = canArbitrate  `
             <button type="button" class="btn btn-sm btn-outline-danger btn-resolve-conflict" data-op-id="${item.client_op_id}" data-action="force">
                 <i class="fas fa-gavel me-1"></i> Arbitrer / Imposer ma version
             </button>
@@ -190,7 +190,7 @@
 
     async function clearAll() {
         if (!window.offlineManager) return;
-        if (!window.confirm('Vider toutes les données en attente ?')) return;
+        if (!window.confirm('Vider toutes les données en attente ')) return;
         await window.offlineManager.clearAll();
         setAlert('File de synchronisation vidée.', 'success');
         await refresh();
@@ -246,7 +246,7 @@
 
                     button.disabled = true;
                     if (action === 'force') {
-                        if (!window.confirm('Confirmer l\'arbitrage ? Votre version écrasera la version existante sur le serveur.')) {
+                        if (!window.confirm('Confirmer l\'arbitrage  Votre version écrasera la version existante sur le serveur.')) {
                             button.disabled = false;
                             return;
                         }

@@ -1,7 +1,7 @@
 import io
 import pandas as pd
 from datetime import datetime
-from flask import abort, flash, redirect, render_template, send_file, url_for, current_app
+from flask import abort, flash, redirect, render_template, request, send_file, url_for, current_app
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
@@ -26,6 +26,7 @@ from app.services.notes_annuelles import (
     MESSAGE_ANNEE_PLANIFIEE,
     calculer_statistiques_notes,
     creer_note,
+    get_classes_notes,
     get_cours_annee,
     get_cours_choices_notes,
     get_eleves_choices_notes,
@@ -33,9 +34,11 @@ from app.services.notes_annuelles import (
     get_notes_annee,
     modifier_note as service_modifier_note,
     notes_modifiables,
+    saisir_notes_classe as service_saisir_notes_classe,
     statut_annee_notes,
     supprimer_note as service_supprimer_note,
 )
+
 
 
 @main.route('/notes', methods=['GET', 'POST'])
@@ -104,7 +107,79 @@ def notes():
         user=current_user,
     )
 
-    stats = calculer_statistiques_notes(toutes_notes)
+    # ------------------- Filtres de recherche temps réel (Phase 5F) -------------------
+    search = (request.args.get('search') or request.args.get('q') or '').strip()
+    classe_id = request.args.get('classe_id', type=int)
+    cours_id = request.args.get('cours_id', type=int)
+    eleve_id = request.args.get('eleve_id', type=int)
+    niveau_param = (request.args.get('niveau') or request.args.get('niveau_id') or '').strip()
+    periode = (request.args.get('periode') or '').strip()
+    type_evaluation = (request.args.get('type_evaluation') or '').strip()
+
+    notes_filtrees = toutes_notes
+    if periode:
+        notes_filtrees = [n for n in notes_filtrees if (n.periode or '').strip().lower() == periode.lower()]
+    if type_evaluation:
+        notes_filtrees = [n for n in notes_filtrees if (n.type_evaluation or '').strip().lower() == type_evaluation.lower()]
+    if cours_id:
+        notes_filtrees = [n for n in notes_filtrees if n.cours_id == cours_id]
+    if eleve_id:
+        notes_filtrees = [n for n in notes_filtrees if n.eleve_id == eleve_id]
+    if classe_id:
+        def note_match_classe(n):
+            if n.inscription and n.inscription.classe_id == classe_id:
+                return True
+            if n.cours and n.cours.classe_id == classe_id:
+                return True
+            if n.eleve and n.eleve.classe_id == classe_id:
+                return True
+            return False
+        notes_filtrees = [n for n in notes_filtrees if note_match_classe(n)]
+    if niveau_param:
+        def note_match_niveau(n):
+            cl = (n.inscription.classe if n.inscription else None) or (n.cours.classe if n.cours else None) or (n.eleve.classe if n.eleve else None)
+            if not cl:
+                return False
+            if str(niveau_param).isdigit():
+                return getattr(cl, 'niveau_id', None) == int(niveau_param) or str(cl.niveau) == str(niveau_param)
+            return str(cl.niveau or '').strip().lower() == niveau_param.lower()
+        notes_filtrees = [n for n in notes_filtrees if note_match_niveau(n)]
+    if search:
+        s_lower = search.lower()
+        def note_match_search(n):
+            nom_eleve = f"{n.eleve.prenom} {n.eleve.nom}".lower() if n.eleve else ""
+            nom_cours = n.cours.nom.lower() if n.cours else ""
+            matricule = (n.eleve.code_parent or "").lower() if n.eleve else ""
+            return s_lower in nom_eleve or s_lower in nom_cours or s_lower in matricule
+        notes_filtrees = [n for n in notes_filtrees if note_match_search(n)]
+
+    stats = calculer_statistiques_notes(notes_filtrees)
+
+    from app.services.structure_annuelle import get_niveaux_annee
+    niveaux_annee = get_niveaux_annee(ecole_id, annee_consultee.id) if annee_consultee else []
+    classes_list = get_classes_notes(ecole_id, annee_consultee, user=current_user)
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
+        return jsonify({
+            'total': len(notes_filtrees),
+            'moyenne_generale': stats["moyenne_generale"],
+            'taux_reussite': stats["taux_reussite"],
+            'notes': [
+                {
+                    'id': n.id,
+                    'valeur': n.valeur,
+                    'coefficient': n.coefficient,
+                    'type_evaluation': n.type_evaluation,
+                    'periode': n.periode,
+                    'eleve_id': n.eleve_id,
+                    'eleve_nom': f"{n.eleve.prenom} {n.eleve.nom}" if n.eleve else "",
+                    'cours_id': n.cours_id,
+                    'cours_nom': n.cours.nom if n.cours else "",
+                    'classe_id': (n.inscription.classe_id if n.inscription else (n.cours.classe_id if n.cours else None)),
+                    'classe_nom': (n.inscription.classe.nom if (n.inscription and n.inscription.classe) else (n.cours.classe.nom if (n.cours and n.cours.classe) else "Sans classe")),
+                } for n in notes_filtrees
+            ]
+        })
 
     # Inscriptions pour accordéons / structure annuelle
     inscriptions = get_inscriptions_notes(ecole_id, annee_consultee, user=current_user)
@@ -123,13 +198,22 @@ def notes():
     return render_template(
         'notes.html',
         form=form if peut_modifier else None,
-        notes=toutes_notes,
+        notes=notes_filtrees,
         moyenne_generale=stats["moyenne_generale"],
         taux_reussite=stats["taux_reussite"],
         matieres_evaluees=stats["matieres_evaluees"],
         eleves=eleves_uniques,
         inscriptions=inscriptions,
         tous_les_cours=tous_les_cours,
+        classes=classes_list,
+        niveaux_annee=niveaux_annee,
+        classe_id=classe_id,
+        cours_id=cours_id,
+        eleve_id=eleve_id,
+        niveau_id=niveau_param,
+        periode=periode,
+        type_evaluation=type_evaluation,
+        search=search,
         eleve_classe_map=eleve_classe_map,
         annee_active=annee_consultee,
         annee_consultee=annee_consultee,
@@ -179,6 +263,96 @@ def export_notes_excel():
         as_attachment=True,
         download_name=f"liste_notes{suffix}.xlsx",
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+
+
+@main.route('/notes/saisie_classe', methods=['GET', 'POST'], endpoint='saisie_notes_classe')
+@login_required
+@role_required('admin', 'professeur')
+def saisie_notes_classe():
+    """Saisie rapide des notes par classe entière (Phase 5C)."""
+    ecole_id = current_user.ecole_id
+    annee_consultee = get_annee_consultee(ecole_id)
+    message_annee = statut_annee_notes(annee_consultee)
+    peut_modifier = notes_modifiables(annee_consultee, current_user)
+
+    if request.method == 'POST':
+        if not peut_modifier:
+            if annee_consultee and annee_consultee.statut == 'archivee':
+                flash(MESSAGE_ANNEE_ARCHIVEE, "warning")
+            elif annee_consultee and annee_consultee.statut == 'planifiee':
+                flash(MESSAGE_ANNEE_PLANIFIEE, "warning")
+            else:
+                flash("Action non autorisée pour cette année scolaire.", "danger")
+            return redirect(url_for('main.notes'))
+
+        classe_id = request.form.get('classe_id', type=int)
+        cours_id = request.form.get('cours_id', type=int)
+        periode = request.form.get('periode', 'Semestre 1')
+        type_evaluation = request.form.get('type_evaluation', 'Devoir')
+        coefficient = request.form.get('coefficient', 1.0, type=float)
+
+        notes_dict = {}
+        for key, val in request.form.items():
+            if key.startswith('note_'):
+                eleve_id_raw = key[5:]
+                if eleve_id_raw.isdigit():
+                    notes_dict[int(eleve_id_raw)] = val
+
+        nb_notes, err = service_saisir_notes_classe(
+            ecole_id=ecole_id,
+            annee=annee_consultee,
+            user=current_user,
+            classe_id=classe_id,
+            cours_id=cours_id,
+            notes_dict=notes_dict,
+            periode=periode,
+            type_evaluation=type_evaluation,
+            coefficient=coefficient,
+            date_evaluation=datetime.utcnow(),
+        )
+
+        if err:
+            flash(err, "danger")
+            return redirect(url_for('main.saisie_notes_classe', classe_id=classe_id, cours_id=cours_id))
+        else:
+            flash(f"{nb_notes} note(s) enregistrée(s) avec succès pour la classe.", "success")
+            return redirect(url_for('main.notes'))
+
+    # GET: Préparation de la grille
+    classes = get_classes_notes(ecole_id, annee_consultee, user=current_user)
+
+    selected_classe_id = request.args.get('classe_id', type=int)
+    valides_classe_ids = [c.id for c in classes]
+    if selected_classe_id not in valides_classe_ids:
+        selected_classe_id = valides_classe_ids[0] if valides_classe_ids else None
+
+    cours_disponibles = []
+    if selected_classe_id:
+        cours_disponibles = get_cours_annee(ecole_id, annee_consultee, user=current_user, classe_id=selected_classe_id)
+
+    selected_cours_id = request.args.get('cours_id', type=int)
+    valides_cours_ids = [c.id for c in cours_disponibles]
+    if selected_cours_id not in valides_cours_ids:
+        selected_cours_id = valides_cours_ids[0] if valides_cours_ids else None
+
+    inscriptions = []
+    if selected_classe_id:
+        inscriptions = get_inscriptions_notes(ecole_id, annee_consultee, user=current_user, classe_id=selected_classe_id)
+
+    tous_les_cours = get_cours_annee(ecole_id, annee_consultee, user=current_user)
+
+    return render_template(
+        'saisie_notes_classe.html',
+        classes=classes,
+        cours_disponibles=cours_disponibles,
+        tous_les_cours=tous_les_cours,
+        inscriptions=inscriptions,
+        selected_classe_id=selected_classe_id,
+        selected_cours_id=selected_cours_id,
+        annee_consultee=annee_consultee,
+        notes_modifiables=peut_modifier,
+        message_annee=message_annee,
     )
 
 

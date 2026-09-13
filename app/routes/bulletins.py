@@ -1,5 +1,5 @@
 from collections import defaultdict
-from flask import request
+from flask import request, jsonify
 from . import main
 from .common import (
     AnneeScolaire,
@@ -156,7 +156,7 @@ def bulletin_eleve(id=None, inscription_id=None):
         periode_active = PeriodeBulletin.query.filter_by(ecole_id=ecole_id, annee_id=annee.id, periode_active=True).first()
         if not periode_active:
             periode_active = PeriodeBulletin.query.filter_by(ecole_id=ecole_id, annee_id=annee.id, publie=True).first()
-        periode_demandee = periode_active.nom if periode_active else "Trimestre 1"
+        periode_demandee = periode_active.nom if periode_active else "Semestre 1"
 
     # Calcul des données du bulletin strictement depuis Inscription et ses Notes
     data, err = calculer_bulletin_data(ecole_id, annee, inscription, periode=periode_demandee)
@@ -184,6 +184,10 @@ def bulletin_eleve(id=None, inscription_id=None):
             rang=data['rang'],
             rang_total=data['rang_total'],
             appreciation_generale=data['appreciation'],
+            disciplines=data.get('disciplines'),
+            total_coefficients=data.get('total_coefficients'),
+            total_points=data.get('total_points'),
+            stats_classe=data.get('stats_classe'),
         )
 
         filename = f"bulletin_{eleve.prenom}_{eleve.nom}_{annee_nom}_{periode_demandee.replace(' ', '_')}.pdf"
@@ -280,6 +284,20 @@ def bulletins():
             publie=True
         ).first()
 
+    # Filtres de recherche
+    search = (request.args.get('search') or request.args.get('q') or '').strip().lower()
+    classe_id = request.args.get('classe_id', type=int) or request.args.get('classe', type=int)
+    mention_filtre = (request.args.get('mention') or '').strip().lower()
+    statut_bulletin = (request.args.get('statut_bulletin') or request.args.get('generation') or '').strip().lower()
+
+    # Bulletins existants en DB pour cette école et année
+    bulletins_existants = {
+        b.inscription_id: b for b in Bulletin.query.filter_by(
+            ecole_id=ecole_id,
+            annee_scolaire_id=annee.id
+        ).all()
+    }
+
     # Récupération optimisée des notes liées à ces inscriptions
     notes_all = (
         Note.query.options(joinedload(Note.cours))
@@ -295,6 +313,18 @@ def bulletins():
     eleves_avec_moyennes = []
     for ins in inscriptions:
         eleve = ins.eleve
+        has_bulletin = (ins.id in bulletins_existants)
+
+        # Filtre sur la classe
+        if classe_id and ins.classe_id != classe_id:
+            continue
+
+        # Filtre sur génération de bulletin
+        if statut_bulletin in ('non_genere', 'non-genere') and has_bulletin:
+            continue
+        if statut_bulletin in ('genere', 'valide') and not has_bulletin:
+            continue
+
         student_notes = notes_par_inscription.get(ins.id, [])
         if student_notes:
             total_pondere = sum((n.valeur or 0) * (n.coefficient or 1) for n in student_notes)
@@ -330,6 +360,17 @@ def bulletins():
             appreciation_code = 'non-evalue'
             badge_class = 'badge-mention-non-evalue bg-secondary text-white'
 
+        if mention_filtre and appreciation_code != mention_filtre:
+            continue
+
+        if search:
+            eleve_nom = f"{eleve.prenom} {eleve.nom}".lower() if eleve else ""
+            matricule = str(eleve.id if eleve else "")
+            code_p = (getattr(eleve, 'code_parent', '') or '').lower() if eleve else ""
+            classe_nom = (ins.classe.nom if ins.classe else "").lower()
+            if search not in eleve_nom and search not in matricule and search not in code_p and search not in classe_nom:
+                continue
+
         eleves_avec_moyennes.append({
             'inscription': ins,
             'eleve': eleve,
@@ -341,6 +382,8 @@ def bulletins():
             'appreciation_code': appreciation_code,
             'badge_class': badge_class,
             'notes': student_notes,
+            'bulletin_genere': has_bulletin,
+            'bulletin_id': bulletins_existants[ins.id].id if has_bulletin else None,
             'rang_classe': None,
             'rang_classe_total': 0
         })
@@ -405,6 +448,26 @@ def bulletins():
         moyenne_generale = 0
         meilleure_moyenne = 0
         taux_reussite = 0
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
+        return jsonify({
+            'success': True,
+            'total': len(eleves_avec_moyennes),
+            'eleves': [
+                {
+                    'eleve_id': it['eleve'].id,
+                    'nom': f"{it['eleve'].prenom} {it['eleve'].nom}",
+                    'classe_id': it['classe'].id if it['classe'] else None,
+                    'classe_nom': it['classe'].nom if it['classe'] else '',
+                    'moyenne': it['moyenne'],
+                    'appreciation': it['appreciation'],
+                    'appreciation_code': it['appreciation_code'],
+                    'bulletin_genere': it['bulletin_genere'],
+                    'notes_count': it['notes_count']
+                }
+                for it in eleves_avec_moyennes
+            ]
+        })
 
     return render_template(
         'bulletins.html',

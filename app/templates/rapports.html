@@ -670,21 +670,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function syncUrl() {
+        const params = new URLSearchParams(window.location.search);
+        if (searchInput && searchInput.value.trim()) params.set('q', searchInput.value.trim()); else params.delete('q');
+        if (selectFilter && selectFilter.value !== 'all') params.set('classe', selectFilter.value); else params.delete('classe');
+        const newUrl = window.location.pathname + (params.toString() ? '' + params.toString() : '');
+        window.history.replaceState({}, '', newUrl);
+    }
+
+    let searchDebounce = null;
     if (searchInput) {
-        searchInput.addEventListener('input', applyFilters);
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(() => {
+                applyFilters();
+                syncUrl();
+            }, 300);
+        });
     }
 
     if (btnClearSearch) {
         btnClearSearch.addEventListener('click', () => {
             searchInput.value = '';
             applyFilters();
+            syncUrl();
             searchInput.focus();
         });
     }
 
     if (selectFilter) {
-        selectFilter.addEventListener('change', applyFilters);
+        selectFilter.addEventListener('change', () => {
+            applyFilters();
+            syncUrl();
+        });
     }
+
+    // Initialisation depuis les URL params
+    const initParams = new URLSearchParams(window.location.search);
+    if (initParams.has('q') && searchInput) searchInput.value = initParams.get('q');
+    if (initParams.has('classe') && selectFilter) selectFilter.value = initParams.get('classe');
+    if (initParams.has('q') || initParams.has('classe')) applyFilters();
 
     // ------------------------------------------------------------------------
     // Boutons Déplier / Replier tout

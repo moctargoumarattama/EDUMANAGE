@@ -137,7 +137,7 @@ def set_ecole_courante(ecole_id):
         session['ecole_courante'] = {'id': ecole.id, 'nom': ecole.nom}
         session['ecole_nom'] = ecole.nom
         g.ecole_courante = ecole
-        current_app.logger.info(f"Super-admin {getattr(current_user, 'email', '?')} a sélectionné l'école {ecole.nom}")
+        current_app.logger.info(f"Super-admin {getattr(current_user, 'email', '')} a sélectionné l'école {ecole.nom}")
         return True
     return False
 
@@ -310,7 +310,7 @@ def ecole_access_required(model_class, id_param_name='id', ecole_field='ecole_id
             if not check_ecole_access(model_class, object_id, ecole_field):
                 try:
                     current_app.logger.warning(
-                        f"Tentative d'accès non autorisé: {getattr(current_user, 'email', '?')} "
+                        f"Tentative d'accès non autorisé: {getattr(current_user, 'email', '')} "
                         f"vers {model_class.__name__} ID={object_id}"
                     )
                 except Exception as e:
@@ -499,7 +499,7 @@ def before_request_handler():
         if current_app.config.get('LOG_ALL_ACCESS', False):
             try:
                 current_app.logger.debug(
-                    f"Accès: {getattr(current_user, 'email', 'anonymous')} ({getattr(current_user, 'role', '?')}) "
+                    f"Accès: {getattr(current_user, 'email', 'anonymous')} ({getattr(current_user, 'role', '')}) "
                     f"-> {request.endpoint} [École: {get_ecole_id()}]"
                 )
             except Exception as e:

@@ -3,8 +3,6 @@
 {% block title %}Recherche - KLASORA{% endblock %}
 
 {% block content %}
-
-{% if current_user.role != 'parent' %}
 <div class="row mb-4">
     <div class="col-12">
         <div class="card border-0 shadow-lg">
@@ -14,18 +12,17 @@
                 </h5>
             </div>
             <div class="card-body">
-                <form action="{{ url_for('main.recherche') }}" method="GET">
+                <form action="{{ url_for('main.recherche') }}" method="GET" id="global-search-form">
                     <div class="input-group input-group-lg">
-                        <input type="text" name="q" class="form-control form-control-lg" 
-                               placeholder="Rechercher élèves, professeurs, cours..." 
+                        <input type="text" name="q" class="form-control form-control-lg" id="global-search-input"
+                               placeholder="Rechercher élèves, professeurs, cours..."
                                value="{{ request.args.get('q', '') }}"
                                aria-label="Recherche">
                         <button class="btn btn-primary" type="submit">
                             <i class="fas fa-search me-1"></i> Rechercher
                         </button>
                     </div>
-                    
-                    <div class="row mt-3">
+                    <div class="row mt-3 g-2">
                         <div class="col-md-3">
                             <select class="form-select" name="type">
                                 <option value="all" {% if request.args.get('type') == 'all' %}selected{% endif %}>Tous les types</option>
@@ -73,14 +70,67 @@
                                     <div class="flex-grow-1">
                                         <h6 class="mb-0">{{ eleve.prenom }} {{ eleve.nom }}</h6>
                                         <small class="text-muted">{{ eleve.classe }}</small>
+                                        {% if current_user.role == 'super_admin' and eleve.ecole %}
+                                        <div><small class="text-muted">{{ eleve.ecole }}</small></div>
+                                        {% endif %}
                                     </div>
                                     <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-sm btn-outline-primary">Voir</a>
                                 </div>
+
+                                {% if eleve.historique %}
+                                <div class="mt-3 border-top pt-3">
+                                    <div class="small fw-semibold text-muted mb-2">Historique scolaire</div>
+                                    <div class="d-flex flex-column gap-2">
+                                        {% for parcours in eleve.historique %}
+                                        <div class="rounded bg-light p-2">
+                                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                                <span class="badge bg-primary-subtle text-primary">{{ parcours.annee }}</span>
+                                                <span class="fw-semibold">{{ parcours.classe }}</span>
+                                                <span class="badge bg-secondary-subtle text-secondary">{{ parcours.statut }}</span>
+                                                {% if parcours.annee_statut %}
+                                                <span class="badge bg-light text-dark border">{{ parcours.annee_statut }}</span>
+                                                {% endif %}
+                                            </div>
+                                            {% if parcours.bulletins %}
+                                            <div class="mt-2 d-flex flex-wrap gap-2">
+                                                {% for bulletin in parcours.bulletins %}
+                                                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.bulletin_eleve', id=bulletin.id) }}">
+                                                    <i class="fas fa-file-alt me-1"></i> Voir bulletin {{ bulletin.periode }}
+                                                </a>
+                                                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.bulletin_eleve', id=bulletin.id) }}">
+                                                    <i class="fas fa-download me-1"></i> Télécharger PDF
+                                                </a>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
+
+                {% if pagination and pagination.pages > 1 %}
+                <nav class="mt-3" aria-label="Pagination recherche historique">
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('main.recherche', q=request.args.get('q'), type=request.args.get('type', 'all'), classe=request.args.get('classe'), per_page=request.args.get('per_page', 10), page=pagination.prev_num) }}">Précédent</a>
+                        </li>
+                        {% endif %}
+                        <li class="page-item disabled"><span class="page-link">{{ pagination.page }} / {{ pagination.pages }}</span></li>
+                        {% if pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('main.recherche', q=request.args.get('q'), type=request.args.get('type', 'all'), classe=request.args.get('classe'), per_page=request.args.get('per_page', 10), page=pagination.next_num) }}">Suivant</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
                 {% endif %}
 
                 {% if results.professeurs %}
@@ -141,12 +191,25 @@
     <p class="text-muted">Aucun élément ne correspond à votre recherche "{{ request.args.get('q') }}"</p>
 </div>
 {% endif %}
-{% else %}
-<div class="text-center py-5">
-    <i class="fas fa-ban fa-4x text-danger mb-3"></i>
-    <h5 class="text-muted">Accès restreint</h5>
-    <p class="text-muted">Les parents n'ont pas accès à la recherche avancée.</p>
-</div>
-{% endif %}
+{% endblock %}
 
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('global-search-form');
+    const input = document.getElementById('global-search-input');
+    if (!form || !input) return;
+
+    let timer = null;
+    input.addEventListener('input', function () {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(function () {
+            if (input.value.trim().length >= 2) {
+                form.submit();
+            }
+        }, 300);
+    });
+});
+</script>
 {% endblock %}

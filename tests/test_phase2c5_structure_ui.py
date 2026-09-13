@@ -327,19 +327,19 @@ class Phase2C5StructureUITestCase(unittest.TestCase):
         db.session.commit()
         client = self.login_as(self.admin)
 
-        response = client.get(f"/classes/add?annee_id={self.target.id}&niveau_id={self.n6.id}")
+        response = client.get(f"/classes/addannee_id={self.target.id}&niveau_id={self.n6.id}")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Section", response.data)
         self.assertIn(b"6e", response.data)
         self.assertNotIn(b"5e</option>", response.data)
         self.assertNotIn(b"Nom de la classe", response.data)
 
-        response = client.get(f"/classes/add?annee_id={self.target.id}&niveau_id={deuxnde.id}")
+        response = client.get(f"/classes/addannee_id={self.target.id}&niveau_id={deuxnde.id}")
         self.assertEqual(response.status_code, 200)
         self.assertIn("Série".encode(), response.data)
 
         response = client.post(
-            f"/classes/add?annee_id={self.target.id}",
+            f"/classes/addannee_id={self.target.id}",
             data={
                 "nom": "Classe Pirate",
                 "niveau_id": self.n5.id,

@@ -24,7 +24,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto+Slab:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2family=Poppins:wght@300;400;500;600;700&family=Roboto+Slab:wght@300;400;500;600&display=swap" rel="stylesheet">
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=config.VERSION) }}">
@@ -858,7 +858,7 @@
                                             {% elif category == 'warning' %}fa-exclamation-triangle 
                                             {% else %}fa-info-circle{% endif %} 
                                             me-2 fs-5"></i>
-                                        <div class="fw-medium">{{ message }}</div>
+                                        <div class="fw-medium">{{ message|safe }}</div>
                                     </div>
                                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                                 </div>
@@ -893,7 +893,7 @@
                     <a href="{{ url_for('main.aide') }}"><i class="fas fa-question-circle me-1"></i>Aide</a>
                 </nav>
 
-                <div class="footer-contact">
+                <div class="footer-contact d-none d-md-flex">
                     <a href="mailto:moctargoumarattama@gmail.com" class="footer-mail-link" title="Envoyer un e-mail">
                         <i class="fas fa-envelope"></i>
                         <span>moctargoumarattama@gmail.com</span>
@@ -1024,6 +1024,7 @@
     <!-- Composants Modals & Toasts PWA & Hors-ligne -->
     {% include 'components/pwa_install_modal.html' %}
     {% include 'components/logout_warning_modal.html' %}
+    {% include 'components/support_modal.html' %}
 
     <!-- Scripts frontend communs -->
     <script src="{{ url_for('static', filename='js/main.js', v=config.VERSION) }}"></script>
@@ -1031,6 +1032,7 @@
     <script src="{{ url_for('static', filename='js/db.js', v=config.VERSION) }}"></script>
     <script src="{{ url_for('static', filename='js/offline-manager.js', v=config.VERSION) }}"></script>
     <script src="{{ url_for('static', filename='js/offline-forms.js', v=config.VERSION) }}"></script>
+    <script src="{{ url_for('static', filename='js/live-filters.js', v=config.VERSION) }}"></script>
     {% if current_user.is_authenticated and current_user.role == 'admin' %}
     <script src="{{ url_for('static', filename='js/onboarding.js', v=config.VERSION) }}"></script>
     {% endif %}

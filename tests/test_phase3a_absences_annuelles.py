@@ -138,7 +138,7 @@ class Phase3AAbsencesAnnuellesTestCase(unittest.TestCase):
         client = self._client_as(self.admin, self.archivee)
         recorded, receiver = self._capture_templates()
         try:
-            response = client.get(f"/absences?annee_id={self.active.id}")
+            response = client.get(f"/absencesannee_id={self.active.id}")
             self.assertEqual(response.status_code, 200)
             context = recorded[-1][1]
             self.assertEqual(context["annee_consultee"].id, self.archivee.id)

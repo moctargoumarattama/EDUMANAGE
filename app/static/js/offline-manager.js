@@ -252,7 +252,7 @@ class OfflineManager {
             let errorCount = 0;
             let lastMessage = '';
 
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
             // Traitement par lots de 50 pour éviter les saturations et sécuriser la progression
             for (let i = 0; i < pendingData.length; i += BATCH_SIZE) {

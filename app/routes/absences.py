@@ -32,8 +32,9 @@ from .common import (
     send_file,
     url_for,
 )
-import pandas as pd
+from flask import jsonify
 from app.services.annees_scolaires import get_annee_consultee
+from app.services.structure_annuelle import get_niveaux_annee
 from app.services.absences_annuelles import (
     absences_modifiables,
     get_absences_annee,
@@ -122,14 +123,88 @@ L'equipe pedagogique"""
 
     absences_list = get_absences_annee(ecole_id, annee_consultee, current_user)
 
-    total = len(absences_list)
+    search = (request.args.get('search') or request.args.get('q') or '').strip().lower()
+    classe_id = request.args.get('classe_id', type=int) or request.args.get('classe', type=int)
+    niveau_param = (request.args.get('niveau') or request.args.get('niveau_id') or '').strip()
+    date_debut_str = request.args.get('date_debut')
+    date_fin_str = request.args.get('date_fin')
+    justifiee_param = request.args.get('justifiee')
+
+    # Filtrage
+    filtrees = []
+    for a in absences_list:
+        if classe_id:
+            c = getattr(a, 'annee_classe', None)
+            if not c or c.id != classe_id:
+                continue
+        if niveau_param:
+            c = getattr(a, 'annee_classe', None)
+            if not c:
+                continue
+            if str(niveau_param).isdigit():
+                if getattr(c, 'niveau_id', None) != int(niveau_param) and str(c.niveau) != str(niveau_param):
+                    continue
+            elif str(c.niveau or '').strip().lower() != niveau_param.lower():
+                continue
+        if search:
+            eleve_str = f"{a.eleve.prenom} {a.eleve.nom}".lower() if a.eleve else ""
+            matricule = (getattr(a.eleve, 'code_parent', '') or '').lower() if a.eleve else ""
+            cours_str = (a.cours.nom if a.cours else "").lower()
+            motif_str = (a.motif or "").lower()
+            if search not in eleve_str and search not in matricule and search not in cours_str and search not in motif_str:
+                continue
+        if justifiee_param in ('1', 'true', 'yes', 'justifiee'):
+            if not a.justifiee:
+                continue
+        elif justifiee_param in ('0', 'false', 'no', 'non-justifiee'):
+            if a.justifiee:
+                continue
+        if date_debut_str:
+            try:
+                d_deb = datetime.strptime(date_debut_str, '%Y-%m-%d').date()
+                if a.date_absence and a.date_absence < d_deb:
+                    continue
+            except ValueError:
+                pass
+        if date_fin_str:
+            try:
+                d_fin = datetime.strptime(date_fin_str, '%Y-%m-%d').date()
+                if a.date_absence and a.date_absence > d_fin:
+                    continue
+            except ValueError:
+                pass
+        filtrees.append(a)
+
+    total = len(filtrees)
     start = (page - 1) * per_page
     end = start + per_page
-    absences_paginated = absences_list[start:end]
+    absences_paginated = filtrees[start:end]
 
-    absences_justifiees = sum(1 for a in absences_list if a.justifiee)
+    absences_justifiees = sum(1 for a in filtrees if a.justifiee)
     absences_non_justifiees = total - absences_justifiees
     show_form = can_mutate
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
+        return jsonify({
+            'success': True,
+            'total': total,
+            'absences': [
+                {
+                    'id': a.id,
+                    'eleve_id': a.eleve_id,
+                    'eleve_nom': f"{a.eleve.prenom} {a.eleve.nom}" if a.eleve else "",
+                    'classe_nom': a.annee_classe.nom if getattr(a, 'annee_classe', None) else "",
+                    'cours_nom': a.cours.nom if a.cours else "",
+                    'date': a.date_absence.strftime('%Y-%m-%d') if a.date_absence else "",
+                    'motif': a.motif or "",
+                    'justifiee': bool(a.justifiee)
+                }
+                for a in absences_paginated
+            ]
+        })
+
+    niveaux_annee = get_niveaux_annee(ecole_id, annee_consultee.id) if (ecole_id and annee_consultee) else []
+    classes = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_consultee.id).order_by(Classe.nom).all() if (ecole_id and annee_consultee) else []
 
     return render_template(
         'absences.html',
@@ -141,9 +216,17 @@ L'equipe pedagogique"""
         page=page,
         per_page=per_page,
         total=total,
+        classes=classes,
+        niveaux_annee=niveaux_annee,
         annee_consultee=annee_consultee,
         can_mutate=can_mutate,
         message_annee=message_annee,
+        search=search,
+        classe_id=classe_id,
+        niveau=niveau_param,
+        date_debut=date_debut_str,
+        date_fin=date_fin_str,
+        justifiee=justifiee_param
     )
 @main.route('/absences/export_excel')
 @login_required

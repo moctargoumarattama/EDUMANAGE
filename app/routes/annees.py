@@ -19,7 +19,14 @@ from .common import (
     url_for,
 )
 from app.services.classes_annuelles import preparer_structure_annee, classe_est_ouverte
-from app.services.annees_scolaires import get_annee_consultee, set_annee_consultee
+from app.services.annees_scolaires import (
+    get_annee_consultee,
+    set_annee_consultee,
+    construire_nom_annee,
+    valider_dates_annee,
+    valider_unicite_annee,
+    MESSAGE_ANNEE_ARCHIVEE_MODIF,
+)
 from app.services.structure_annuelle import get_niveaux_candidats_annuels
 from app.models import Classe, Cours, Eleve, Inscription
 from app.services.niveaux_annuels import (
@@ -50,6 +57,11 @@ from app.services.activation_annee import (
 
 def _current_ecole_id_for_annees():
     return current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
+
+
+def _annee_saisie_depuis_form():
+    debut = request.form.get('annee_debut_court', '').strip()
+    return debut
 
 
 @main.route('/annees', methods=['GET', 'POST'])
@@ -90,7 +102,7 @@ def gestion_annees():
                 flash("Action non autorisée pour cette école.", "danger")
 
         elif action == 'ajouter':
-            nom = request.form.get('nom')
+            annee_court = _annee_saisie_depuis_form()
             date_debut_str = request.form.get('date_debut')
             date_fin_str = request.form.get('date_fin')
             ecole_id = request.form.get('ecole_id')
@@ -100,7 +112,12 @@ def gestion_annees():
                 if not ecole_id and len(ecoles) == 1:
                     ecole_id = ecoles[0].id
 
-                if not (nom and date_debut_str and date_fin_str and ecole_id):
+                nom, debut_annee, fin_annee, err_nom = construire_nom_annee(annee_court)
+                if err_nom:
+                    flash(err_nom, "danger")
+                    return redirect(url_for('main.gestion_annees'))
+
+                if not (date_debut_str and date_fin_str and ecole_id):
                     flash("Tous les champs sont obligatoires.", "danger")
                     return redirect(url_for('main.gestion_annees'))
 
@@ -112,21 +129,96 @@ def gestion_annees():
                 date_debut = datetime.strptime(date_debut_str, "%Y-%m-%d").date()
                 date_fin = datetime.strptime(date_fin_str, "%Y-%m-%d").date()
 
+                ok_dates, err_dates = valider_dates_annee(date_debut, date_fin, debut_annee, fin_annee)
+                if not ok_dates:
+                    flash(err_dates, "danger")
+                    return redirect(url_for('main.gestion_annees'))
+
+                ok_unicite, err_unicite = valider_unicite_annee(ecole_id, nom)
+                if not ok_unicite:
+                    flash(err_unicite, "danger")
+                    return redirect(url_for('main.gestion_annees'))
+
                 nouvelle_annee = AnneeScolaire(
                     nom=nom,
                     date_debut=date_debut,
                     date_fin=date_fin,
                     statut='planifiee',
-                    ecole_id=ecole_id  # ✅ Jamais None
+                    ecole_id=ecole_id
                 )
                 db.session.add(nouvelle_annee)
                 db.session.commit()
                 flash(f"Nouvelle année {nom} ajoutée.", "success")
 
+            except ValueError:
+                flash("Format de date invalide (AAAA-MM-JJ).", "danger")
+                return redirect(url_for('main.gestion_annees'))
             except Exception as e:
                 db.session.rollback()
                 current_app.logger.exception(f"Erreur lors de l'ajout de l'année : {e}")
                 flash("Une erreur est survenue lors de l'ajout de l'année.", "danger")
+
+        elif action == 'modifier':
+            annee_id = request.form.get('annee_id')
+            annee_court = _annee_saisie_depuis_form()
+            date_debut_str = request.form.get('date_debut')
+            date_fin_str = request.form.get('date_fin')
+
+            if not annee_id:
+                flash("Année non spécifiée.", "danger")
+                return redirect(url_for('main.gestion_annees'))
+
+            try:
+                annee_id = int(annee_id)
+            except (ValueError, TypeError):
+                flash("Identifiant d'année invalide.", "danger")
+                return redirect(url_for('main.gestion_annees'))
+
+            annee = AnneeScolaire.query.get(annee_id)
+            if not annee or annee.ecole_id not in [e.id for e in ecoles]:
+                flash("Année introuvable ou accès non autorisé.", "danger")
+                return redirect(url_for('main.gestion_annees'))
+
+            if annee.statut == 'archivee':
+                flash(MESSAGE_ANNEE_ARCHIVEE_MODIF, "warning")
+                return redirect(url_for('main.gestion_annees'))
+
+            nom, debut_annee, fin_annee, err_nom = construire_nom_annee(annee_court)
+            if err_nom:
+                flash(err_nom, "danger")
+                return redirect(url_for('main.gestion_annees'))
+
+            if not (date_debut_str and date_fin_str):
+                flash("Tous les champs sont obligatoires.", "danger")
+                return redirect(url_for('main.gestion_annees'))
+
+            try:
+                date_debut = datetime.strptime(date_debut_str, "%Y-%m-%d").date()
+                date_fin = datetime.strptime(date_fin_str, "%Y-%m-%d").date()
+            except ValueError:
+                flash("Format de date invalide (AAAA-MM-JJ).", "danger")
+                return redirect(url_for('main.gestion_annees'))
+
+            ok_dates, err_dates = valider_dates_annee(date_debut, date_fin, debut_annee, fin_annee)
+            if not ok_dates:
+                flash(err_dates, "danger")
+                return redirect(url_for('main.gestion_annees'))
+
+            ok_unicite, err_unicite = valider_unicite_annee(annee.ecole_id, nom, annee_id_exclure=annee.id)
+            if not ok_unicite:
+                flash(err_unicite, "danger")
+                return redirect(url_for('main.gestion_annees'))
+
+            try:
+                annee.nom = nom
+                annee.date_debut = date_debut
+                annee.date_fin = date_fin
+                db.session.commit()
+                flash(f"L'année scolaire {nom} a été modifiée avec succès.", "success")
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.exception(f"Erreur lors de la modification de l'année : {e}")
+                flash("Une erreur est survenue lors de la modification de l'année.", "danger")
 
         from app.utils import get_school_setup_state
         if current_user.role == 'admin' and current_user.ecole_id and not get_school_setup_state(current_user.ecole_id)['setup_complete']:
@@ -154,6 +246,73 @@ def gestion_annees():
         source_active_par_ecole=source_active_par_ecole,
         sources_passage_par_cible=sources_passage_par_cible,
     )
+
+
+@main.route('/annees/<int:annee_id>/modifier', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def modifier_annee(annee_id):
+    csrf_form = CSRFForm()
+    if not csrf_form.validate_on_submit():
+        flash("Session expirée ou jeton CSRF invalide.", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    if current_user.role == 'super_admin':
+        ecoles = get_ecole_filter_query(Ecole).all()
+    else:
+        ecoles = [current_user.ecole]
+
+    annee = AnneeScolaire.query.get_or_404(annee_id)
+    if annee.ecole_id not in [e.id for e in ecoles]:
+        flash("Action non autorisée pour cette école.", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    if annee.statut == 'archivee':
+        flash(MESSAGE_ANNEE_ARCHIVEE_MODIF, "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    annee_court = _annee_saisie_depuis_form()
+    date_debut_str = request.form.get('date_debut')
+    date_fin_str = request.form.get('date_fin')
+
+    nom, debut_annee, fin_annee, err_nom = construire_nom_annee(annee_court)
+    if err_nom:
+        flash(err_nom, "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    if not (date_debut_str and date_fin_str):
+        flash("Tous les champs sont obligatoires.", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    try:
+        date_debut = datetime.strptime(date_debut_str, "%Y-%m-%d").date()
+        date_fin = datetime.strptime(date_fin_str, "%Y-%m-%d").date()
+    except ValueError:
+        flash("Format de date invalide (AAAA-MM-JJ).", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    ok_dates, err_dates = valider_dates_annee(date_debut, date_fin, debut_annee, fin_annee)
+    if not ok_dates:
+        flash(err_dates, "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    ok_unicite, err_unicite = valider_unicite_annee(annee.ecole_id, nom, annee_id_exclure=annee.id)
+    if not ok_unicite:
+        flash(err_unicite, "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    try:
+        annee.nom = nom
+        annee.date_debut = date_debut
+        annee.date_fin = date_fin
+        db.session.commit()
+        flash(f"L'année scolaire {nom} a été modifiée avec succès.", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"Erreur lors de la modification de l'année : {e}")
+        flash("Une erreur est survenue lors de la modification de l'année.", "danger")
+
+    return redirect(url_for('main.gestion_annees'))
 
 
 @main.route('/annees/<int:annee_id>/consulter', methods=['POST'])
@@ -469,7 +628,7 @@ def passage_annee(source_id, cible_id):
         flash(error, "danger")
         return redirect(url_for('main.gestion_annees'))
 
-    # Structure cible utilisable ?
+    # Structure cible utilisable 
     niveaux_cible_actifs = get_niveaux_annuels_actifs(ecole_id, cible_id)
     classes_ouvertes_cible_count = Classe.query.filter_by(
         ecole_id=ecole_id,
@@ -833,5 +992,3 @@ def passage_masse_confirmer(source_id, cible_id):
         rapport=rapport,
         csrf_form=csrf_form,
     )
-
-

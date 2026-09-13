@@ -54,12 +54,18 @@ def eleves():
     page = request.args.get('page', 1, type=int)
     per_page = 50
     classe_id = request.args.get('classe_id', type=int)
-    search = (request.args.get('search') or '').strip()
+    search = (request.args.get('search') or request.args.get('q') or '').strip()
+    niveau_param = request.args.get('niveau_id') or request.args.get('niveau') or ''
+    genre = (request.args.get('genre') or '').strip().upper()
+    statut = (request.args.get('statut') or '').strip()
     ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
     if not ecole_id:
         abort(403)
     annee_consultee = get_annee_consultee(ecole_id)
     annees_ecole = get_annees_ecole(ecole_id)
+
+    from app.services.structure_annuelle import get_niveaux_annee
+    niveaux_annee = get_niveaux_annee(ecole_id, annee_consultee.id) if annee_consultee else []
 
     # ---------------- Base query avec relations pour éviter N+1 ----------------
     base_query = Eleve.query.options(
@@ -103,16 +109,51 @@ def eleves():
     else:
         abort(403)
 
-    # Récupération de tous les élèves accessibles
-    all_eleves = all_eleves_query.all()
-
-    # Query pour la pagination rétrocompatible
+    # Application des filtres de recherche multi-critères
     eleves_query = all_eleves_query
+
+    # Sécurité prof : vérification si la classe demandée lui est bien assignée
     if classe_id:
-        eleves_query = eleves_query.filter(Inscription.classe_id == classe_id)
+        if current_user.role == 'professeur':
+            professeur_id = getattr(current_user.professeur_rel, 'id', None)
+            prof_classe_ids = [row[0] for row in db.session.query(professeur_classes.c.classe_id).filter(professeur_classes.c.professeur_id == professeur_id).all()]
+            own_classes = [c.id for c in Classe.query.filter_by(professeur_id=professeur_id, ecole_id=ecole_id).all()]
+            if classe_id not in prof_classe_ids and classe_id not in own_classes:
+                eleves_query = eleves_query.filter(db.false())
+            else:
+                eleves_query = eleves_query.filter(Inscription.classe_id == classe_id)
+        else:
+            eleves_query = eleves_query.filter(Inscription.classe_id == classe_id)
+
+    if niveau_param:
+        # Jointure Classe si pas déjà jointe
+        if current_user.role != 'professeur':
+            eleves_query = eleves_query.join(Classe, Classe.id == Inscription.classe_id)
+        if str(niveau_param).isdigit():
+            eleves_query = eleves_query.filter(db.or_(Classe.niveau_id == int(niveau_param), Classe.niveau == str(niveau_param)))
+        else:
+            eleves_query = eleves_query.filter(Classe.niveau == str(niveau_param))
+
+    if genre:
+        eleves_query = eleves_query.filter(db.func.upper(Eleve.genre) == genre)
+
+    if statut:
+        eleves_query = eleves_query.filter(db.or_(Inscription.statut.ilike(f"%{statut}%"), Eleve.statut.ilike(f"%{statut}%")))
+
     if search:
         like = f"%{search}%"
-        eleves_query = eleves_query.filter(db.or_(Eleve.nom.ilike(like), Eleve.prenom.ilike(like)))
+        eleves_query = eleves_query.filter(
+            db.or_(
+                Eleve.nom.ilike(like),
+                Eleve.prenom.ilike(like),
+                Eleve.code_parent.ilike(like),
+                Eleve.contact_parent.ilike(like)
+            )
+        )
+
+    # Récupération des élèves filtrés
+    has_filters = bool(search or classe_id or niveau_param or genre or statut)
+    all_eleves = eleves_query.all() if has_filters else all_eleves_query.all()
     eleves_pagination = eleves_query.paginate(page=page, per_page=per_page, error_out=False)
 
     # Classes autorisées
@@ -200,6 +241,25 @@ def eleves():
         'total_sans_classe': total_sans_classe
     }
 
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
+        return jsonify({
+            'total': total_eleves,
+            'page': page,
+            'eleves': [
+                {
+                    'id': e.id,
+                    'nom': e.nom,
+                    'prenom': e.prenom,
+                    'genre': e.genre,
+                    'code_parent': e.code_parent,
+                    'contact_parent': e.contact_parent,
+                    'classe_id': inscription_par_eleve[e.id].classe_id if e.id in inscription_par_eleve else e.classe_id,
+                    'classe_nom': (inscription_par_eleve[e.id].classe.nom if (e.id in inscription_par_eleve and inscription_par_eleve[e.id].classe) else 'Sans classe'),
+                    'parent': f"{e.parent.prenom} {e.parent.nom}" if e.parent else (e.contact_parent or 'Non assigné')
+                } for e in all_eleves
+            ]
+        })
+
     return render_template(
         'eleves.html',
         classes=classes,
@@ -212,6 +272,10 @@ def eleves():
         total_sans_classe=total_sans_classe,
         classe_id=classe_id,
         search=search,
+        niveau_id=niveau_param,
+        genre=genre,
+        statut=statut,
+        niveaux_annee=niveaux_annee,
         eleves=eleves_pagination,
         all_eleves=all_eleves,
         annee_consultee=annee_consultee,
@@ -425,17 +489,20 @@ def ajouter_eleve():
 @role_required('admin', 'professeur')
 @ecole_required
 def api_eleves_par_classe(classe_id):
-    """Retourne la liste des élèves d'une classe filtrée par école et année active (JSON)"""
-
-    ecole_id = current_user.ecole_id
+    """Retourne la liste des élèves d'une classe filtrée par école et année consultée (JSON)"""
+    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
     if not ecole_id:
         return jsonify({'eleves': []}), 403
-
-    annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
 
     classe = Classe.query.filter_by(id=classe_id, ecole_id=ecole_id).first()
     if not classe:
         return jsonify({'eleves': []}), 404
+
+    annee_consultee = get_annee_consultee(ecole_id)
+    annee = annee_consultee or AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
+    if not annee or (annee_consultee and classe.annee_scolaire_id != annee_consultee.id):
+        return jsonify({'eleves': []}), 200
+
     if current_user.role == 'professeur':
         professeur = getattr(current_user, 'professeur_rel', None)
         professeur_id = getattr(professeur, 'id', None)
@@ -451,17 +518,17 @@ def api_eleves_par_classe(classe_id):
         )
         if not is_assigned:
             return jsonify({'eleves': []}), 403
+
     inscriptions_query = (
         Inscription.query
         .join(Eleve, Eleve.id == Inscription.eleve_id)
         .filter(
             Inscription.ecole_id == ecole_id,
             Inscription.classe_id == classe_id,
+            Inscription.annee_scolaire_id == annee.id,
             Eleve.ecole_id == ecole_id,
         )
     )
-    if annee_active:
-        inscriptions_query = inscriptions_query.filter(Inscription.annee_scolaire_id == annee_active.id)
     inscriptions = inscriptions_query.order_by(Eleve.nom, Eleve.prenom).all()
     return jsonify({'eleves': [
         {
@@ -470,7 +537,7 @@ def api_eleves_par_classe(classe_id):
             'prenom': inscription.eleve.prenom,
             'telephone': inscription.eleve.contact_parent or '-',
             'classe': inscription.classe.nom if inscription.classe else "Sans classe",
-            'parent': f"{inscription.eleve.parent.prenom} {inscription.eleve.parent.nom}" if inscription.eleve.parent else "Non assignÃ©"
+            'parent': f"{inscription.eleve.parent.prenom} {inscription.eleve.parent.nom}" if inscription.eleve.parent else "Non assigné"
         }
         for inscription in inscriptions
         if inscription.eleve
@@ -776,7 +843,7 @@ def voir_eleve(eleve_id):
     echeancier = [{'mois': m, 'paye': (m in mois_payes_set)} for m in mois_scolaires]
     mois_impayes_list = [m for m in mois_scolaires if m not in mois_payes_set]
 
-    # 4. Âge calculé
+    # 4. ?ge calculé
     age = None
     if eleve.date_naissance:
         today = datetime.now().date()

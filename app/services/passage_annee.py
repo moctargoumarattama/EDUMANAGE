@@ -219,7 +219,7 @@ def preparer_passage_eleve(ecole_id, eleve_id, annee_source_id, annee_cible_id, 
         "blocage": None,
     }
 
-    # --- Décision valide ?
+    # --- Décision valide 
     if decision not in TOUTES_DECISIONS:
         result["blocage"] = f"Décision inconnue : '{decision}'."
         return result
@@ -387,7 +387,7 @@ def executer_passage_eleve(
                 f"({niveau_cible.nom}) pour la décision '{decision}'."
             )
 
-        # Niveau cible actif dans AnneeNiveauConfig ?
+        # Niveau cible actif dans AnneeNiveauConfig 
         if niveau_cible and not niveau_actif_pour_annee(
             ecole_id, annee_cible.id, niveau_cible.id
         ):
@@ -422,12 +422,12 @@ def executer_passage_eleve(
                         "(ex. Terminale)."
                     )
 
-    # --- Inscription cible déjà existante ?
+    # --- Inscription cible déjà existante 
     inscription_cible_existante = get_inscription(eleve, annee_cible)
 
     if inscription_cible_existante:
         if decision in DECISIONS_AVEC_CIBLE:
-            # Idempotence : même classe ?
+            # Idempotence : même classe 
             if inscription_cible_existante.classe_id == classe_cible_id:
                 return {
                     "ok": True,
@@ -644,7 +644,7 @@ def preparer_passage_masse(
             })
             continue
 
-        # Inscription cible déjà existante ?
+        # Inscription cible déjà existante 
         insc_cible_existante = prep.get("inscription_cible_existante")
 
         if decision in DECISIONS_AVEC_CIBLE:

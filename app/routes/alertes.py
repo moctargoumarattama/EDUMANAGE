@@ -162,6 +162,35 @@ def alertes():
     if annee.statut not in ('archivee', 'planifiee'):
         notifier_alertes([a for a in alertes_actives if a["type"] in ["danger", "warning"]])
 
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
+        return jsonify({
+            'classes_alertes': [
+                {
+                    'id': str(grp['id']),
+                    'nom': grp['nom'],
+                    'niveau': grp['niveau'],
+                    'effectif': grp['effectif'],
+                    'nb_actives': grp['nb_actives'],
+                    'nb_traitees': grp['nb_traitees'],
+                    'nb_paiements': grp['nb_paiements'],
+                    'nb_absences': grp['nb_absences'],
+                    'nb_notes': grp['nb_notes'],
+                    'alertes': [
+                        {
+                            'id': a['id'],
+                            'titre': a.get('titre', ''),
+                            'description': a.get('description', ''),
+                            'type': a.get('type', 'info'),
+                            'source': a.get('source', ''),
+                            'traitee': a.get('traitee', False),
+                            'date': a.get('date').strftime('%d/%m/%Y %H:%M') if isinstance(a.get('date'), datetime) else str(a.get('date', ''))
+                        } for a in grp['alertes']
+                    ]
+                } for grp in classes_alertes
+            ],
+            'stats': stats
+        })
+
     return render_template(
         'alertes.html',
         alertes=all_alertes,

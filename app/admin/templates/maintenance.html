@@ -46,12 +46,12 @@
             <div class="col-md-5">
                 {% if maint_status.active %}
                     <input type="hidden" name="active" value="0">
-                    <button type="submit" class="btn btn-success w-100 fw-semibold" onclick="return confirm('Désactiver le mode maintenance ?');">
+                    <button type="submit" class="btn btn-success w-100 fw-semibold" onclick="return confirm('Désactiver le mode maintenance ');">
                         <i class="fas fa-globe me-1"></i>Désactiver
                     </button>
                 {% else %}
                     <input type="hidden" name="active" value="1">
-                    <button type="submit" class="btn btn-danger w-100 fw-semibold" onclick="return confirm('Activer le mode maintenance ?');">
+                    <button type="submit" class="btn btn-danger w-100 fw-semibold" onclick="return confirm('Activer le mode maintenance ');">
                         <i class="fas fa-ban me-1"></i>Activer
                     </button>
                 {% endif %}
@@ -118,8 +118,8 @@
                         <td>{{ b.date_formatted }}</td>
                         <td class="text-end">
                             <a href="{{ url_for('admin.download_backup', filename=b.filename) }}" class="btn btn-outline-primary btn-sm me-1" title="Télécharger"><i class="fas fa-download"></i> Télécharger</a>
-                            <a href="{{ url_for('admin.restore', filename=b.filename) }}" class="btn btn-outline-warning btn-sm me-1" title="Restaurer" onclick="return confirm('Restaurer cette sauvegarde ?');"><i class="fas fa-undo"></i> Restaurer</a>
-                            <a href="{{ url_for('admin.delete_backup', filename=b.filename) }}" class="btn btn-outline-danger btn-sm" title="Supprimer" onclick="return confirm('Supprimer cette sauvegarde ?');"><i class="fas fa-trash"></i></a>
+                            <a href="{{ url_for('admin.restore', filename=b.filename) }}" class="btn btn-outline-warning btn-sm me-1" title="Restaurer" onclick="return confirm('Restaurer cette sauvegarde ');"><i class="fas fa-undo"></i> Restaurer</a>
+                            <a href="{{ url_for('admin.delete_backup', filename=b.filename) }}" class="btn btn-outline-danger btn-sm" title="Supprimer" onclick="return confirm('Supprimer cette sauvegarde ');"><i class="fas fa-trash"></i></a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -143,8 +143,8 @@
                 </div>
                 <div class="maintenance-backup-actions">
                     <a href="{{ url_for('admin.download_backup', filename=b.filename) }}" class="btn btn-outline-primary btn-sm" title="Télécharger"><i class="fas fa-download"></i><span>Télécharger</span></a>
-                    <a href="{{ url_for('admin.restore', filename=b.filename) }}" class="btn btn-outline-warning btn-sm" title="Restaurer" onclick="return confirm('Restaurer cette sauvegarde ?');"><i class="fas fa-undo"></i><span>Restaurer</span></a>
-                    <a href="{{ url_for('admin.delete_backup', filename=b.filename) }}" class="btn btn-outline-danger btn-sm" title="Supprimer" onclick="return confirm('Supprimer cette sauvegarde ?');"><i class="fas fa-trash"></i><span>Supprimer</span></a>
+                    <a href="{{ url_for('admin.restore', filename=b.filename) }}" class="btn btn-outline-warning btn-sm" title="Restaurer" onclick="return confirm('Restaurer cette sauvegarde ');"><i class="fas fa-undo"></i><span>Restaurer</span></a>
+                    <a href="{{ url_for('admin.delete_backup', filename=b.filename) }}" class="btn btn-outline-danger btn-sm" title="Supprimer" onclick="return confirm('Supprimer cette sauvegarde ');"><i class="fas fa-trash"></i><span>Supprimer</span></a>
                 </div>
             </article>
             {% endfor %}
@@ -194,7 +194,7 @@
 
             <div class="d-flex justify-content-between align-items-center gap-2">
                 <span class="small text-muted">Orphelins</span>
-                <a href="{{ url_for('admin.clean') }}" class="btn btn-outline-warning btn-sm" onclick="return confirm('Nettoyer les données orphelines ?');"><i class="fas fa-broom me-1"></i>Nettoyer</a>
+                <a href="{{ url_for('admin.clean') }}" class="btn btn-outline-warning btn-sm" onclick="return confirm('Nettoyer les données orphelines ');"><i class="fas fa-broom me-1"></i>Nettoyer</a>
             </div>
         </div>
     </div>
@@ -215,7 +215,7 @@
 
             <form action="{{ url_for('admin.purge_cache_route') }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-warning w-100 fw-semibold" onclick="return confirm('Purger le cache ?');"><i class="fas fa-trash-alt me-1"></i>Purger</button>
+                <button type="submit" class="btn btn-warning w-100 fw-semibold" onclick="return confirm('Purger le cache ');"><i class="fas fa-trash-alt me-1"></i>Purger</button>
             </form>
         </div>
     </div>

@@ -25,10 +25,11 @@ from .common import (
     send_file,
     url_for,
 )
+from flask import jsonify
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-import pandas as pd
 from app.services.annees_scolaires import get_annee_consultee
+from app.services.structure_annuelle import get_niveaux_annee
 from app.services.paiements_annuels import (
     get_inscriptions_paiements,
     get_finances_inscription,
@@ -52,8 +53,14 @@ def paiements():
     page_paiements = request.args.get('page_paiements', 1, type=int)
     per_page_eleves = 50
     per_page_paiements = 20
-    classe_id = request.args.get('classe', type=int)
-    recherche = request.args.get('recherche', '', type=str)
+    classe_id = request.args.get('classe', type=int) or request.args.get('classe_id', type=int)
+    recherche = (request.args.get('recherche') or request.args.get('search') or '').strip()
+    statut_solde = (request.args.get('statut_solde') or request.args.get('statut') or '').strip().lower()
+    reste_a_payer = request.args.get('reste_a_payer')
+    niveau_param = (request.args.get('niveau') or request.args.get('niveau_id') or '').strip()
+
+    from app.services.structure_annuelle import get_niveaux_annee
+    niveaux_annee = get_niveaux_annee(current_user.ecole_id, annee.id) if annee else []
 
     # Récupérer toutes les inscriptions de l'année scolaire consultée
     inscriptions_annee = get_inscriptions_paiements(current_user.ecole_id, annee, current_user)
@@ -108,16 +115,41 @@ def paiements():
         Classe
     ).all()
 
-    # Inscriptions filtrées par classe ou recherche pour l'affichage accordéon
-    inscriptions_filtrees = inscriptions_annee
-    if classe_id:
-        inscriptions_filtrees = [ins for ins in inscriptions_filtrees if ins.classe_id == classe_id]
-    if recherche:
-        r_lower = recherche.lower()
-        inscriptions_filtrees = [
-            ins for ins in inscriptions_filtrees
-            if ins.eleve and (r_lower in ins.eleve.nom.lower() or r_lower in ins.eleve.prenom.lower())
-        ]
+    # Inscriptions filtrées par classe, niveau, statut financier ou recherche
+    inscriptions_filtrees = []
+    for ins in inscriptions_annee:
+        fin = get_finances_inscription(ins)
+        if classe_id and ins.classe_id != classe_id:
+            continue
+        if niveau_param:
+            cl = ins.classe
+            if not cl:
+                continue
+            if str(niveau_param).isdigit():
+                if getattr(cl, 'niveau_id', None) != int(niveau_param) and str(cl.niveau) != str(niveau_param):
+                    continue
+            elif str(cl.niveau or '').strip().lower() != niveau_param.lower():
+                continue
+        if recherche:
+            r_lower = recherche.lower()
+            nom_eleve = f"{ins.eleve.prenom} {ins.eleve.nom}".lower() if ins.eleve else ""
+            matricule = (ins.eleve.code_parent or "").lower() if ins.eleve else ""
+            refs_paiements = " ".join((p.reference or "").lower() for p in (ins.paiements or []))
+            if r_lower not in nom_eleve and r_lower not in matricule and r_lower not in refs_paiements:
+                continue
+        if statut_solde:
+            if statut_solde == 'complet' and fin['statut_solde'] != 'complet':
+                continue
+            elif statut_solde == 'partiel' and fin['statut_solde'] != 'partiel':
+                continue
+            elif statut_solde == 'aucun' and fin['statut_solde'] != 'aucun':
+                continue
+            elif statut_solde in ('reste_a_payer', 'impaye') and fin['reste_a_payer'] <= 0:
+                continue
+        if reste_a_payer and str(reste_a_payer).lower() in ('1', 'true', 'yes', 'on') and fin['reste_a_payer'] <= 0:
+            continue
+
+        inscriptions_filtrees.append(ins)
 
     # Données enrichies par élève / inscription
     paiements_par_eleve = {}
@@ -210,6 +242,28 @@ def paiements():
     )
 
     all_eleves = [ins.eleve for ins in inscriptions_filtrees if ins.eleve]
+    niveaux = get_niveaux_annee(current_user.ecole_id, annee.id) if annee else []
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
+        return jsonify({
+            'success': True,
+            'count': len(inscriptions_filtrees),
+            'inscriptions': [
+                {
+                    'id': ins.id,
+                    'eleve_id': ins.eleve_id,
+                    'eleve_nom': f"{ins.eleve.prenom} {ins.eleve.nom}" if ins.eleve else "",
+                    'classe_id': ins.classe_id,
+                    'classe_nom': ins.classe.nom if ins.classe else "",
+                    'frais_annuels': paiements_par_eleve.get(ins.eleve_id, {}).get('frais_annuels', 0),
+                    'total_paye': paiements_par_eleve.get(ins.eleve_id, {}).get('total_paye', 0),
+                    'reste_a_payer': paiements_par_eleve.get(ins.eleve_id, {}).get('reste_a_payer', 0),
+                    'statut_solde': 'complet' if paiements_par_eleve.get(ins.eleve_id, {}).get('reste_a_payer', 0) <= 0 else ('partiel' if paiements_par_eleve.get(ins.eleve_id, {}).get('total_paye', 0) > 0 else 'aucun')
+                }
+                for ins in inscriptions_filtrees if ins.eleve
+            ],
+            'stats': stats
+        })
 
     return render_template(
         "paiements.html",
@@ -224,6 +278,7 @@ def paiements():
         classe_finances=classe_finances,
         stats=stats,
         classes=classes,
+        niveaux=niveaux,
         classe_id=classe_id,
         recherche=recherche,
         annee_consultee=annee,

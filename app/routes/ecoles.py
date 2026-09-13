@@ -27,25 +27,25 @@ from .common import (
 @main.route('/choisir-ecole')
 @login_required
 def choisir_ecole():
-    """Afficher automatiquement les Ã©coles accessibles et leurs journaux/problÃ¨mes"""
+    """Afficher automatiquement les écoles accessibles et leurs journaux/problèmes"""
     
-    # Pour un admin normal : rÃ©cupÃ©rer son Ã©cole et ses Ã©coles gÃ©rÃ©es
+    # Pour un admin normal : récupérer son école et ses écoles gérées
     if current_user.role != "super_admin":
         ecoles = []
         if current_user.ecole:
             ecoles.append(current_user.ecole)
         if getattr(current_user, 'ecoles_gerees', None):
             ecoles.extend(current_user.ecoles_gerees)
-        # Ã©liminer doublons
+        # éliminer doublons
         ecoles = list({e.id: e for e in ecoles}.values())
     
-    # Pour super-admin : toutes les Ã©coles
+    # Pour super-admin : toutes les écoles
     else:
         ecoles = get_ecole_filter_query(Ecole).all()
     
-    # PrÃ©parer les donnÃ©es de journaux et problÃ¨mes pour chaque Ã©cole
+    # Préparer les données de journaux et problèmes pour chaque école
     for ecole in ecoles:
-        # journaux_correction et problemes doivent Ãªtre des relations SQLAlchemy
+        # journaux_correction et problemes doivent être des relations SQLAlchemy
         ecole.journaux_correction = getattr(ecole, 'journaux_correction', [])
         ecole.problemes = getattr(ecole, 'problemes', [])
 
@@ -158,7 +158,7 @@ def ajouter_ecole():
 @main.route('/api/ecoles')
 @login_required
 def api_ecoles():
-    """API pour rÃ©cupÃ©rer les Ã©coles accessibles"""
+    """API pour récupérer les écoles accessibles"""
     try:
         if current_user.role == 'super_admin':
             ecoles = get_ecole_filter_query(Ecole).all()
@@ -168,25 +168,25 @@ def api_ecoles():
                 ecoles.append(current_user.ecole)
             if getattr(current_user, 'ecoles_gerees', None):
                 ecoles.extend(current_user.ecoles_gerees)
-            # Ã©liminer doublons
+            # éliminer doublons
             ecoles = list({e.id: e for e in ecoles}.values())
 
         return jsonify([{'id': e.id, 'nom': e.nom} for e in ecoles])
     except Exception as e:
-        current_app.logger.error(f"Erreur API Ã©coles : {e}")
+        current_app.logger.error(f"Erreur API écoles : {e}")
         return jsonify([]), 500
 
 @main.route('/admin/ecoles/<int:ecole_id>/assigner', methods=['POST'])
 @login_required
 @role_required('super_admin')
 def assigner_ecole(ecole_id):
-    """Assigner une Ã©cole Ã  un gestionnaire"""
+    """Assigner une école ? un gestionnaire"""
     try:
         utilisateur_id = int(request.form.get('utilisateur_id'))
         utilisateur = Utilisateur.query.get_or_404(utilisateur_id)
         ecole = Ecole.query.get_or_404(ecole_id)
 
-        # Supprimer association existante si nÃ©cessaire
+        # Supprimer association existante si nécessaire
         db.session.execute(
             gestion_ecole.delete().where(
                 (gestion_ecole.c.utilisateur_id == utilisateur_id) &
@@ -202,11 +202,11 @@ def assigner_ecole(ecole_id):
             )
         )
         db.session.commit()
-        flash(f"Ã‰cole '{ecole.nom}' assignÃ©e Ã  {utilisateur.prenom} {utilisateur.nom}", "success")
+        flash(f"École '{ecole.nom}' assignée ? {utilisateur.prenom} {utilisateur.nom}", "success")
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erreur assignation Ã©cole : {e}")
-        flash("Erreur lors de l'assignation de l'Ã©cole.", "danger")
+        current_app.logger.error(f"Erreur assignation école : {e}")
+        flash("Erreur lors de l'assignation de l'école.", "danger")
     return redirect(request.referrer or url_for('main.gestion_ecoles'))
 
 @main.route('/admin/utilisateur/<int:user_id>/ecoles', methods=['GET', 'POST'])
@@ -229,7 +229,7 @@ def gerer_ecoles_utilisateur(user_id):
                 nb_eleves = Eleve.query.filter_by(ecole_id=ecole_id).count()
                 if nb_eleves > 0:
                     ecole = Ecole.query.get(ecole_id)
-                    erreurs.append(f"L'Ã©cole '{ecole.nom}' contient encore {nb_eleves} Ã©lÃ¨ves et ne peut pas Ãªtre retirÃ©e.")
+                    erreurs.append(f"L'école '{ecole.nom}' contient encore {nb_eleves} élèves et ne peut pas être retirée.")
 
             if erreurs:
                 for err in erreurs:
@@ -247,12 +247,12 @@ def gerer_ecoles_utilisateur(user_id):
                 ))
 
             db.session.commit()
-            flash("Ã‰coles assignÃ©es avec succÃ¨s", "success")
+            flash("Écoles assignées avec succès", "success")
             return redirect(url_for('main.gestion_utilisateurs'))
 
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Erreur gestion Ã©coles utilisateur : {e}")
+            current_app.logger.error(f"Erreur gestion écoles utilisateur : {e}")
             flash(f"Erreur : {str(e)}", "danger")
 
     # Statistiques globales
