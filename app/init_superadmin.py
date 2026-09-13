@@ -1,10 +1,11 @@
-﻿import logging
+import os
+import logging
 from werkzeug.security import generate_password_hash
 
 logger = logging.getLogger(__name__)
 
-SUPERADMIN_EMAIL = 'moctargoumarattama@gmail.com'
-SUPERADMIN_PASSWORD = 'Alkaline0702'
+SUPERADMIN_EMAIL = os.getenv('SUPERADMIN_EMAIL', 'moctargoumarattama@gmail.com')
+SUPERADMIN_PASSWORD = os.getenv('SUPERADMIN_PASSWORD', 'Alkaline0702')
 
 
 def ensure_canonical_superadmin(db_session=None):

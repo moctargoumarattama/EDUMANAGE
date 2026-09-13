@@ -49,6 +49,12 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
         db.session.add_all([self.source, self.target, self.archivee, self.annee_b])
         db.session.commit()
 
+        from app.services.structure_annuelle import sauvegarder_structure_annee
+        sauvegarder_structure_annee(self.ecole_a.id, self.source.id, [self.n6.id])
+        sauvegarder_structure_annee(self.ecole_a.id, self.target.id, [self.n6.id])
+        sauvegarder_structure_annee(self.ecole_b.id, self.annee_b.id, [self.n6.id])
+        db.session.commit()
+
         self.classe_source, error = creer_classe_depuis_niveau(self.ecole_a.id, self.source.id, self.n6.id, section="A", capacite=30)
         self.assertIsNone(error)
         self.classe_archivee = Classe(

@@ -301,44 +301,71 @@ def supprimer_professeur_route(id):
 @login_required
 @role_required('admin')
 def assigner_classes_professeur(id):
+    from app.services.annees_scolaires import get_annee_consultee
+
     professeur = Professeur.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
 
-    # âœ… VÃ©rification multi-Ã©cole
+    # Vérification multi-école
     if professeur.ecole_id != current_user.ecole_id:
-        flash("AccÃ¨s refusÃ© : ce professeur appartient Ã  une autre Ã©cole", "danger")
+        flash("Accès refusé : ce professeur appartient à une autre école", "danger")
         return redirect(url_for("main.professeurs"))
 
+    annee_consultee = get_annee_consultee(current_user.ecole_id)
+    if not annee_consultee:
+        flash("Aucune année scolaire configurée pour votre établissement.", "warning")
+        return redirect(url_for("main.professeurs"))
+
+    est_archivee = (annee_consultee.statut == 'archivee')
+
+    # Classes de l'école dans l'année consultée UNIQUEMENT
+    classes_ecole = Classe.query.filter_by(
+        ecole_id=current_user.ecole_id,
+        annee_scolaire_id=annee_consultee.id
+    ).order_by(Classe.nom.asc()).all()
+    classes_ecole_ids = {c.id for c in classes_ecole}
+
+    # Classes actuellement assignées dans l'année consultée
+    classes_assignees_annee = [
+        c for c in professeur.classes_assignees.all()
+        if c.annee_scolaire_id == annee_consultee.id
+    ]
+
     form = AssignerClassesForm()
-
-    # Classes de l'Ã©cole et annÃ©e scolaire active
-    classes_ecole = Classe.query.join(AnneeScolaire).filter(
-        AnneeScolaire.ecole_id == current_user.ecole_id,
-        AnneeScolaire.statut == "active"
-    ).all()
-
     form.classes.choices = [(c.id, f"{c.nom} - {c.niveau}") for c in classes_ecole]
 
     if form.validate_on_submit():
-        try:
-            # Supprimer anciennes assignations
-            db.session.execute(
-                professeur_classes.delete().where(
-                    professeur_classes.c.professeur_id == professeur.id
-                )
-            )
+        if est_archivee:
+            flash("L'année scolaire consultée est archivée : modification des affectations impossible (lecture seule).", "warning")
+            return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
 
-            # Ajouter nouvelles classes
+        try:
+            # Sécurité : vérifier que toutes les classes soumises appartiennent à l'année consultée
             for classe_id in form.classes.data:
-                classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first()
-                if classe:  # âœ… SÃ©curitÃ© en plus
-                    db.session.execute(
-                        professeur_classes.insert().values(
-                            professeur_id=professeur.id,
-                            classe_id=classe_id,
-                            ecole_id=classe.ecole_id,
-                            date_assignation=datetime.utcnow()
+                if classe_id not in classes_ecole_ids:
+                    flash("Accès refusé : une ou plusieurs classes sélectionnées n'appartiennent pas à l'année consultée.", "danger")
+                    return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
+
+            # Supprimer UNIQUEMENT les anciennes assignations de l'année consultée
+            if classes_ecole_ids:
+                db.session.execute(
+                    professeur_classes.delete().where(
+                        db.and_(
+                            professeur_classes.c.professeur_id == professeur.id,
+                            professeur_classes.c.classe_id.in_(classes_ecole_ids)
                         )
                     )
+                )
+
+            # Ajouter nouvelles classes de l'année consultée
+            for classe_id in form.classes.data:
+                db.session.execute(
+                    professeur_classes.insert().values(
+                        professeur_id=professeur.id,
+                        classe_id=classe_id,
+                        ecole_id=current_user.ecole_id,
+                        date_assignation=datetime.utcnow()
+                    )
+                )
 
             db.session.commit()
             db.session.refresh(professeur)
@@ -346,16 +373,16 @@ def assigner_classes_professeur(id):
             # Journalisation
             current_app.log_correction(
                 action="modification",
-                description=f"Assignation classes pour {professeur.prenom} {professeur.nom}",
+                description=f"Assignation classes ({annee_consultee.nom}) pour {professeur.prenom} {professeur.nom}",
                 ecole_id=professeur.ecole_id,
                 cible_type="professeur",
                 cible_id=professeur.id,
                 ancienne_valeur=None,
-                nouvelle_valeur=f"Classes: {[c.nom for c in professeur.classes_assignees]}",
+                nouvelle_valeur=f"Classes: {[c.nom for c in classes_assignees_annee]}",
                 niveau="info"
             )
 
-            flash(f"Classes assignÃ©es avec succÃ¨s Ã  {professeur.prenom} {professeur.nom}", "success")
+            flash(f"Classes assignées avec succès pour l'année {annee_consultee.nom} à {professeur.prenom} {professeur.nom}.", "success")
             return redirect(url_for('main.professeur_details', id=professeur.id))
 
         except Exception as e:
@@ -363,13 +390,17 @@ def assigner_classes_professeur(id):
             flash("Erreur lors de l'assignation des classes", "danger")
             current_app.logger.error(f"Erreur assignation classes: {e}")
 
-    form.classes.data = [c.id for c in professeur.classes_assignees.all()]
+    if request.method == 'GET':
+        form.classes.data = [c.id for c in classes_assignees_annee]
 
     return render_template(
         'assigner_classes.html',
         form=form,
         professeur=professeur,
-        classes_ecole=classes_ecole
+        classes_ecole=classes_ecole,
+        classes_assignees_annee=classes_assignees_annee,
+        annee_consultee=annee_consultee,
+        est_archivee=est_archivee,
     )
 
 @main.route("/mes_classes")

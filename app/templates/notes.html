@@ -29,6 +29,22 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
+                {% if annee_consultee %}
+                <div class="d-flex align-items-center gap-2">
+                    <span class="small fw-semibold text-muted">Année :</span>
+                    <span class="badge bg-light text-dark border">
+                        {{ annee_consultee.nom }}
+                        {% if annee_consultee.statut == 'active' %}
+                        <span class="badge bg-success ms-1">ACTIVE</span>
+                        {% elif annee_consultee.statut == 'planifiee' %}
+                        <span class="badge bg-info text-dark ms-1">PLANIFIÉE</span>
+                        {% elif annee_consultee.statut == 'archivee' %}
+                        <span class="badge bg-secondary ms-1">ARCHIVÉE</span>
+                        {% endif %}
+                    </span>
+                    <a href="{{ url_for('main.gestion_annees') }}" class="small text-decoration-none">Changer</a>
+                </div>
+                {% endif %}
                 <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllAccordions" title="Déplier ou replier tous les élèves">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
@@ -47,9 +63,13 @@
     </section>
 
     <!-- Message de statut d'année scolaire -->
-    {% if message_annee %}
-    <div class="alert {% if annee_consultee and annee_consultee.statut == 'archivee' %}alert-warning{% else %}alert-info{% endif %} border-0 shadow-sm rounded-4 mb-4" role="alert">
-        <i class="fas {% if annee_consultee and annee_consultee.statut == 'archivee' %}fa-lock{% else %}fa-info-circle{% endif %} me-2"></i>{{ message_annee }}
+    {% if annee_consultee and annee_consultee.statut == 'archivee' %}
+    <div class="alert alert-warning border-0 shadow-sm rounded-4 mb-4" role="alert">
+        <i class="fas fa-lock me-2"></i>Vous consultez l'année archivée <strong>{{ annee_consultee.nom }}</strong>. Les notes sont en lecture seule (consultation historique).
+    </div>
+    {% elif message_annee %}
+    <div class="alert alert-info border-0 shadow-sm rounded-4 mb-4" role="alert">
+        <i class="fas fa-info-circle me-2"></i>{{ message_annee }}
     </div>
     {% endif %}
 
@@ -85,14 +105,26 @@
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
-                            {{ form.eleve_id(class="form-select", id="eleve_id", required=true) }}
+                            <select class="form-select" id="eleve_id" name="eleve_id" required>
+                                <option value="">-- Choisir un élève --</option>
+                                {% for choice_val, choice_label in form.eleve_id.choices %}
+                                    {% if choice_val != 0 %}
+                                    <option value="{{ choice_val }}" data-classe-id="{{ (eleve_classe_map or {}).get(choice_val, '') }}" {% if form.eleve_id.data|string == choice_val|string %}selected{% endif %}>{{ choice_label }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
                             <div class="invalid-feedback">Veuillez sélectionner un élève.</div>
                         </div>
 
                         <!-- Sélection Cours -->
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold" for="cours_id">Matière / Cours <span class="text-danger">*</span></label>
-                            {{ form.cours_id(class="form-select", id="cours_id", required=true) }}
+                            <select class="form-select" id="cours_id" name="cours_id" required>
+                                <option value="">-- Choisir un cours --</option>
+                                {% for c in tous_les_cours %}
+                                    <option value="{{ c.id }}" data-classe-id="{{ c.classe_id }}" {% if form.cours_id.data|string == c.id|string %}selected{% endif %}>{{ c.nom }} ({{ c.classe.nom if c.classe else 'Sans classe' }})</option>
+                                {% endfor %}
+                            </select>
                             <div class="invalid-feedback">Veuillez sélectionner un cours.</div>
                         </div>
 
@@ -470,8 +502,8 @@
             <i class="fas fa-clipboard-list"></i>
         </div>
         <h2 class="h4 fw-bold text-dark">Aucune note enregistrée</h2>
-        <p class="text-muted mb-3">Aucune évaluation n'a encore été enregistrée pour cette année scolaire.</p>
-        {% if current_user.role in ['admin', 'professeur'] and form %}
+        <p class="text-muted mb-3">Aucune évaluation n'a encore été enregistrée pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong>.</p>
+        {% if current_user.role in ['admin', 'professeur'] and form and notes_modifiables %}
         <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#collapseFormNote">
             <i class="fas fa-plus-circle me-2"></i>Ajouter la première note
         </button>
@@ -496,7 +528,128 @@
 <!-- Contrôleur JavaScript réactif pour la gestion des notes par élève -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Éléments DOM
+    // Normalisation de texte (insensible casse et accents)
+    function normalizeStr(str) {
+        if (!str) return '';
+        return str.toString().toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+    }
+
+    // Formulaire d'ajout - Recherche et filtrage dynamique élève -> cours
+    const rechercheEleveForm = document.getElementById('rechercheEleveForm');
+    const btnEffacerRechercheForm = document.getElementById('btnEffacerRechercheForm');
+    const selectEleveForm = document.getElementById('eleve_id');
+    const selectCoursForm = document.getElementById('cours_id');
+
+    if (rechercheEleveForm && selectEleveForm) {
+        rechercheEleveForm.addEventListener('input', function() {
+            const terme = normalizeStr(this.value.trim());
+            const options = selectEleveForm.options;
+            for (let i = 0; i < options.length; i++) {
+                if (!options[i].value) continue;
+                const optText = normalizeStr(options[i].text);
+                options[i].style.display = optText.includes(terme) ? '' : 'none';
+            }
+        });
+
+        if (btnEffacerRechercheForm) {
+            btnEffacerRechercheForm.addEventListener('click', function() {
+                rechercheEleveForm.value = '';
+                const options = selectEleveForm.options;
+                for (let i = 0; i < options.length; i++) {
+                    options[i].style.display = '';
+                }
+                rechercheEleveForm.focus();
+            });
+        }
+    }
+
+    if (selectEleveForm && selectCoursForm) {
+        // Mémoriser tous les cours disponibles avec leur classeId
+        const allCours = [];
+        for (let i = 0; i < selectCoursForm.options.length; i++) {
+            const opt = selectCoursForm.options[i];
+            if (opt.value && opt.value !== '0' && opt.dataset.classeId) {
+                allCours.push({
+                    value: opt.value,
+                    text: opt.textContent.trim(),
+                    classeId: String(opt.dataset.classeId)
+                });
+            }
+        }
+
+        const initialSelectedCours = selectCoursForm.value;
+
+        function filtrerCoursParEleve(preserveValue) {
+            const selectedEleveOpt = selectEleveForm.options[selectEleveForm.selectedIndex];
+            const eleveId = selectEleveForm.value;
+            const classeId = selectedEleveOpt ? selectedEleveOpt.dataset.classeId : null;
+            const targetVal = preserveValue !== undefined ? preserveValue : selectCoursForm.value;
+
+            selectCoursForm.innerHTML = '';
+
+            if (!eleveId || eleveId === '0') {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = "Choisissez d'abord un élève";
+                selectCoursForm.appendChild(opt);
+                selectCoursForm.disabled = true;
+                return;
+            }
+
+            if (!classeId) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = "Aucun cours (élève sans classe)";
+                selectCoursForm.appendChild(opt);
+                selectCoursForm.disabled = true;
+                return;
+            }
+
+            selectCoursForm.disabled = false;
+            const filteredCours = allCours.filter(c => c.classeId === String(classeId));
+
+            if (filteredCours.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = "Aucun cours disponible pour cette classe";
+                selectCoursForm.appendChild(opt);
+                return;
+            }
+
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = "-- Choisir un cours --";
+            selectCoursForm.appendChild(placeholder);
+
+            let hasSelected = false;
+            filteredCours.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.value;
+                opt.textContent = c.text;
+                opt.dataset.classeId = c.classeId;
+                if (String(c.value) === String(targetVal)) {
+                    opt.selected = true;
+                    hasSelected = true;
+                }
+                selectCoursForm.appendChild(opt);
+            });
+
+            if (!hasSelected) {
+                selectCoursForm.value = '';
+            }
+        }
+
+        selectEleveForm.addEventListener('change', function() {
+            filtrerCoursParEleve('');
+        });
+
+        // Initialisation immédiate (gère élève pré-sélectionné)
+        filtrerCoursParEleve(initialSelectedCours);
+    }
+
+    // Éléments DOM liste & filtres
     const searchInput = document.getElementById('studentSearchInput');
     const searchClear = document.getElementById('studentSearchClear');
     const filterClasse = document.getElementById('filterClasseSelect');
@@ -519,11 +672,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const textToggleAll = document.getElementById('textToggleAll');
     let allExpanded = false;
 
-    // Formulaire d'ajout
-    const rechercheEleveForm = document.getElementById('rechercheEleveForm');
-    const btnEffacerRechercheForm = document.getElementById('btnEffacerRechercheForm');
-    const selectEleveForm = document.getElementById('eleve_id');
-
     // Cartes des élèves
     const studentCards = Array.from(document.querySelectorAll('.student-note-card'));
     const totalStudents = studentCards.length;
@@ -536,37 +684,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // État courant
     let currentPage = 1;
     let pageSize = parseInt(pageSizeSelect.value, 10) || 20;
-
-    // Recherche d'élève dans le formulaire
-    if (rechercheEleveForm && selectEleveForm) {
-        rechercheEleveForm.addEventListener('input', function() {
-            const terme = normalizeStr(this.value.trim());
-            const options = selectEleveForm.options;
-            for (let i = 0; i < options.length; i++) {
-                const optText = normalizeStr(options[i].text);
-                options[i].style.display = optText.includes(terme) ? '' : 'none';
-            }
-        });
-
-        if (btnEffacerRechercheForm) {
-            btnEffacerRechercheForm.addEventListener('click', function() {
-                rechercheEleveForm.value = '';
-                const options = selectEleveForm.options;
-                for (let i = 0; i < options.length; i++) {
-                    options[i].style.display = '';
-                }
-                rechercheEleveForm.focus();
-            });
-        }
-    }
-
-    // Normalisation de texte (insensible casse et accents)
-    function normalizeStr(str) {
-        if (!str) return '';
-        return str.toString().toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '');
-    }
 
     // Filtrage et Tri des élèves
     function getFilteredAndSortedStudents() {

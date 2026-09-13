@@ -2,28 +2,14 @@ from flask import current_app
 
 
 def init_ecoles_par_defaut(db):
-    from app.models import Ecole
+    """
+    [DÉPRÉCIÉ] Dans une installation propre de KLASORA, aucune école par défaut
+    ne doit être créée automatiquement.
+    Les écoles sont créées par les utilisateurs via l'onboarding.
+    """
+    current_app.logger.warning("[init_ecoles] init_ecoles_par_defaut() est désactivé : aucune école fictive ne sera créée.")
+    return
 
-    if not Ecole.query.first():
-        ecole1 = Ecole(
-            nom="École Primaire A",
-            adresse="Adresse A",
-            email="contact@ecolea.ne",
-            telephone="+22700000000",
-            directeur="Directeur A"
-        )
-        ecole2 = Ecole(
-            nom="Collège B",
-            adresse="Adresse B",
-            email="contact@collegeb.ne",
-            telephone="+22700000001",
-            directeur="Directeur B"
-        )
-        db.session.add_all([ecole1, ecole2])
-        db.session.commit()
-        
-        # Assigner toutes les données existantes à la première école
-        assigner_donnees_existantes(db)
 
 def assigner_donnees_existantes(db):
     """Assigner les élèves/profs/classes/cours à une école par défaut si ecole_id est NULL"""

@@ -50,6 +50,11 @@ class Phase1NiveauxTestCase(unittest.TestCase):
         )
         db.session.add_all([self.annee_a, self.annee_b])
         db.session.commit()
+        from app.services.structure_annuelle import sauvegarder_structure_annee
+        all_nids = [n.id for n in NiveauScolaire.query.all()]
+        sauvegarder_structure_annee(self.ecole_a.id, self.annee_a.id, all_nids)
+        sauvegarder_structure_annee(self.ecole_b.id, self.annee_b.id, all_nids)
+        db.session.commit()
         self.admin = Utilisateur(nom="Admin", email="admin@test.local", mot_de_passe="x", role="admin", ecole_id=self.ecole_a.id)
         self.super_admin = Utilisateur(nom="Super", email="super@test.local", mot_de_passe="x", role="super_admin")
         self.professeur = Utilisateur(nom="Prof", email="prof@test.local", mot_de_passe="x", role="professeur", ecole_id=self.ecole_a.id)
@@ -115,12 +120,16 @@ class Phase1NiveauxTestCase(unittest.TestCase):
 
     def test_creation_classe_niveau_desactive_refusee(self):
         sixieme = self.niveau("6E")
-        set_niveau_actif(self.ecole_a.id, sixieme.id, False)
+        from app.models import AnneeNiveauConfig
+        cfg = AnneeNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id, annee_scolaire_id=self.annee_a.id, niveau_id=sixieme.id).first()
+        if cfg:
+            cfg.actif = False
+            db.session.commit()
         classe, error = creer_classe_depuis_niveau(
             self.ecole_a.id, self.annee_a.id, sixieme.id, nom="6e A", section="A"
         )
         self.assertIsNone(classe)
-        self.assertIn("desactive", error)
+        self.assertIn("pas retenu", error)
 
     def test_meme_nom_autorise_sur_deux_annees_et_doublon_refuse(self):
         sixieme = self.niveau("6E")
@@ -143,11 +152,14 @@ class Phase1NiveauxTestCase(unittest.TestCase):
         )
         db.session.add(annee_suivante)
         db.session.commit()
+        from app.services.structure_annuelle import sauvegarder_structure_annee
+        sauvegarder_structure_annee(self.ecole_a.id, annee_suivante.id, [sixieme.id])
+        db.session.commit()
         autre, error = creer_classe_depuis_niveau(
             self.ecole_a.id, annee_suivante.id, sixieme.id, nom="6e A", section="A"
         )
         self.assertIsNone(error)
-        self.assertNotEqual(classe.id, autre.id)
+        self.assertEqual(autre.annee_scolaire_id, annee_suivante.id)
 
     def test_annee_archivee_refuse_nouvelle_classe(self):
         self.annee_a.statut = "archivee"
@@ -173,12 +185,16 @@ class Phase1NiveauxTestCase(unittest.TestCase):
         self.assertEqual(updated.niveau_id, cinquieme.id)
         self.assertEqual(updated.capacite, 40)
 
-        set_niveau_actif(self.ecole_a.id, sixieme.id, False)
+        from app.models import AnneeNiveauConfig
+        cfg = AnneeNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id, annee_scolaire_id=self.annee_a.id, niveau_id=sixieme.id).first()
+        if cfg:
+            cfg.actif = False
+            db.session.commit()
         updated, error = modifier_classe_depuis_niveau(
             classe, self.ecole_a.id, sixieme.id, nom="6e A", section="A"
         )
         self.assertIsNone(updated)
-        self.assertIn("desactive", error)
+        self.assertTrue("desactive" in error or "pas retenu" in error)
 
     def test_modifier_classe_refuse_archive_doublon_et_autre_ecole(self):
         sixieme = self.niveau("6E")

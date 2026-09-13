@@ -154,7 +154,7 @@ def alertes():
         else:
             grp['nb_traitees'] += 1
 
-    classes_alertes = list(classes_dict.values())
+    classes_alertes = [grp for grp in classes_dict.values() if grp['alertes']]
     if sans_classe_group['alertes']:
         classes_alertes.append(sans_classe_group)
 

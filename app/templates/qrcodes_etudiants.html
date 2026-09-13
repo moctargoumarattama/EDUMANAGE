@@ -33,6 +33,11 @@
         </div>
     </div>
 
+    <div class="alert alert-info border-0 shadow-sm rounded-3 mb-4 d-print-none">
+        <i class="fas fa-info-circle me-2"></i>
+        Les badges et QR codes sont générés sur la base des inscriptions de l'<strong>année scolaire active ({{ annee_active.nom if annee_active else 'Aucune' }})</strong>.
+    </div>
+
     {% if qrcodes_par_classe %}
         <div class="qr-class-nav d-print-none">
             {% for classe in qrcodes_par_classe.keys() %}
@@ -69,7 +74,7 @@
                 <i class="fas fa-qrcode"></i>
             </div>
             <h2 class="empty-state-title">Aucun QR Code disponible</h2>
-            <p class="empty-state-text">Aucun élève n'est disponible pour votre périmètre.</p>
+            <p class="empty-state-text">Aucun élève n'est inscrit dans une classe pour l'année scolaire active ({{ annee_active.nom if annee_active else 'aucune année active' }}).</p>
         </div>
     {% endif %}
 </div>

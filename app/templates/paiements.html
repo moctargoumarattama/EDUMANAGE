@@ -19,6 +19,21 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
+                {% if annee_consultee %}
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-light text-dark border px-3 py-2">
+                        <i class="fas fa-calendar-alt me-1 text-primary"></i>Année : {{ annee_consultee.nom }}
+                        {% if annee_consultee.statut == 'archivee' %}
+                        <span class="badge bg-secondary ms-1">ARCHIVÉE</span>
+                        {% elif annee_consultee.statut == 'planifiee' %}
+                        <span class="badge bg-info text-dark ms-1">PLANIFIÉE</span>
+                        {% else %}
+                        <span class="badge bg-success ms-1">ACTIVE</span>
+                        {% endif %}
+                    </span>
+                    <a href="{{ url_for('main.gestion_annees') }}" class="small text-decoration-none">Changer</a>
+                </div>
+                {% endif %}
                 <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllPayments" title="Déplier ou replier toutes les classes">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
@@ -615,6 +630,21 @@
                     {% endfor %}
                 </div>
             </article>
+        {% else %}
+            <div class="card border-0 shadow-sm text-center py-5 my-4">
+                <div class="card-body">
+                    <i class="fas fa-money-check-alt text-muted fa-4x mb-3 opacity-50"></i>
+                    <h4 class="fw-bold text-gray-800 mb-2">Aucune classe pour cette année</h4>
+                    <p class="text-muted mx-auto mb-3" style="max-width: 480px;">
+                        Aucune classe n'est configurée pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong>.
+                    </p>
+                    {% if current_user.role == 'admin' %}
+                    <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i>Créer une première classe
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
         {% endif %}
     </div>
 

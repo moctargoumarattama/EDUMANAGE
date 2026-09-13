@@ -1,7 +1,6 @@
 from app import db
 from app.models import AnneeScolaire, Classe, Inscription
-from app.services.niveaux import niveau_peut_etre_utilise
-from app.services.niveaux_annuels import niveau_actif_pour_annee
+from app.services.structure_annuelle import niveau_est_dans_structure
 
 
 STATUT_CLASSE_OUVERTE = "ouverte"
@@ -92,10 +91,7 @@ def preparer_structure_classes(ecole_id, annee_cible_id, source_annee_id=None, s
     result = {"created": [], "existing": [], "skipped": [], "source_to_target": {}, "source": source, "target": annee_cible}
 
     for source_classe in _source_classes_autorisees(ecole_id, source.id):
-        if source_classe.niveau_id and (
-            not niveau_peut_etre_utilise(ecole_id, source_classe.niveau_id)
-            or not niveau_actif_pour_annee(ecole_id, annee_cible.id, source_classe.niveau_id)
-        ):
+        if not source_classe.niveau_id or not niveau_est_dans_structure(ecole_id, annee_cible.id, source_classe.niveau_id):
             result["skipped"].append(source_classe)
             continue
 

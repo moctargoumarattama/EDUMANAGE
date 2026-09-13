@@ -17,11 +17,32 @@
         </ol>
     </nav>
 
+    <!-- Print Header -->
+    <div class="d-none d-print-block mb-3 text-center border-bottom pb-2">
+        <h2 class="h4 fw-bold mb-1">{{ current_user.ecole.nom if current_user.ecole else 'KLASORA' }}</h2>
+        <p class="mb-0 text-muted small">Rapport & Statistiques — Année scolaire : {{ annee_consultee.nom if annee_consultee else '' }}</p>
+    </div>
+
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 pb-2 border-bottom">
         <div>
-            <h1 class="h3 fw-bold text-gray-900 mb-1">
-                <i class="fas fa-chart-pie text-primary me-2"></i>Rapports & Statistiques par Classe
-            </h1>
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                <h1 class="h3 fw-bold text-gray-900 mb-0">
+                    <i class="fas fa-chart-pie text-primary me-2"></i>Rapports & Statistiques par Classe
+                </h1>
+                {% if annee_consultee %}
+                <span class="badge bg-light text-dark border">
+                    <i class="fas fa-calendar-alt me-1 text-primary"></i>{{ annee_consultee.nom }}
+                    {% if annee_consultee.statut == 'active' %}
+                    <span class="badge bg-success ms-1">ACTIVE</span>
+                    {% elif annee_consultee.statut == 'planifiee' %}
+                    <span class="badge bg-info text-dark ms-1">PLANIFIÉE</span>
+                    {% elif annee_consultee.statut == 'archivee' %}
+                    <span class="badge bg-secondary ms-1">ARCHIVÉE</span>
+                    {% endif %}
+                </span>
+                <a href="{{ url_for('main.gestion_annees') }}" class="small text-decoration-none">Changer</a>
+                {% endif %}
+            </div>
             <p class="text-muted small mb-0">
                 Vue d'ensemble analytique des performances académiques et analyse comparative de l'assiduité par classe.
             </p>
@@ -308,7 +329,7 @@
                 <!-- En-tête de la classe cliquable pour ouvrir/fermer -->
                 <div class="rapport-class-header" data-bs-toggle="collapse" 
                      data-bs-target="#collapse-class-{{ c.id }}" 
-                     aria-expanded="true">
+                     aria-expanded="false">
                     <div class="d-flex align-items-center gap-3 min-w-0 flex-grow-1">
                         <div class="rapport-class-avatar {% if c.is_most_absent %}is-most-absent{% endif %}">
                             {{ c.nom[:2] | upper }}
@@ -354,7 +375,7 @@
                 </div>
 
                 <!-- Corps de la classe avec détails analytiques -->
-                <div class="collapse show" id="collapse-class-{{ c.id }}">
+                <div class="collapse" id="collapse-class-{{ c.id }}">
                     <div class="rapport-class-body">
                         <!-- Mini KPIs de la classe -->
                         <div class="rapport-mini-stats">

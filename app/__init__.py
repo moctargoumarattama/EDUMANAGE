@@ -113,15 +113,17 @@ def create_app(config_class=Config):
         app.after_request(after_request_handler)
 
         # -------------------
-        # Context Processor pour année active & configuration école
+        # Context Processor pour année active, consultée & configuration école
         # -------------------
         @app.context_processor
         def inject_annee_active():
             from .utils import get_annee_active, get_school_setup_state
             from .middleware import get_ecole_courante
+            from app.services.annees_scolaires import get_annee_consultee
             from flask_login import current_user
 
             annee_active = None
+            annee_consultee = None
             setup_state = None
             ecole = get_ecole_courante()
 
@@ -129,10 +131,12 @@ def create_app(config_class=Config):
                 pass
             elif ecole:
                 annee_active = get_annee_active(ecole.id)
+                annee_consultee = get_annee_consultee(ecole.id)
                 if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'role', None) == 'admin':
                     setup_state = get_school_setup_state(ecole.id)
             elif getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'ecole', None):
                 annee_active = get_annee_active(current_user.ecole.id)
+                annee_consultee = get_annee_consultee(current_user.ecole.id)
                 if getattr(current_user, 'role', None) == 'admin':
                     setup_state = get_school_setup_state(current_user.ecole.id)
 
@@ -146,6 +150,7 @@ def create_app(config_class=Config):
 
             return dict(
                 annee_active=annee_active,
+                annee_consultee=annee_consultee,
                 school_setup_state=setup_state,
                 ADMIN_TOUR_VERSION=ADMIN_TOUR_VERSION,
                 SUPPORT_WHATSAPP_NUMBER=app.config.get('SUPPORT_WHATSAPP_NUMBER', '212770010264'),
@@ -181,8 +186,16 @@ def create_app(config_class=Config):
         db.session.add(correction)
         db.session.commit()
 
+    app.log_correction = log_correction
+
+    # Enregistrement des commandes CLI
+
+    from .cli import register_cli_commands
+    register_cli_commands(app)
+
     # Support du reverse proxy (Nginx) pour la transmission de l'IP réelle et du protocole
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
     return app
+

@@ -1,4 +1,4 @@
-from flask import flash, redirect, url_for, current_app, request, jsonify, g
+from flask import abort, flash, redirect, url_for, current_app, request, jsonify, g
 from flask_login import current_user
 from functools import wraps
 from app.models import Eleve
@@ -253,8 +253,7 @@ def role_required(*roles):
                 )
                 if request.is_json or request.path.startswith('/api/'):
                     return jsonify({"error": message}), 403
-                flash(message, "danger")
-                return redirect(url_for('main.index'))
+                abort(403)
 
             return f(*args, **kwargs)
         return decorated_function

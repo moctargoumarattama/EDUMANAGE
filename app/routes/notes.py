@@ -118,6 +118,7 @@ def notes():
             eleves_uniques.append(ins.eleve)
 
     tous_les_cours = get_cours_annee(ecole_id, annee_consultee, user=current_user)
+    eleve_classe_map = {ins.eleve_id: ins.classe_id for ins in inscriptions if ins.eleve_id and ins.classe_id}
 
     return render_template(
         'notes.html',
@@ -129,6 +130,7 @@ def notes():
         eleves=eleves_uniques,
         inscriptions=inscriptions,
         tous_les_cours=tous_les_cours,
+        eleve_classe_map=eleve_classe_map,
         annee_active=annee_consultee,
         annee_consultee=annee_consultee,
         message_annee=message_annee,

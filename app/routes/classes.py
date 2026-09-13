@@ -68,6 +68,39 @@ def api_classes():
 
     return jsonify([{'id': c.id, 'nom': c.nom} for c in classes])
 
+
+@main.route('/api/niveaux')
+@login_required
+@role_required('admin', 'professeur')
+@ecole_required
+def api_niveaux():
+    """Retourne la liste des niveaux scolaires actifs pour l'année consultée ou spécifiée (JSON)"""
+    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
+    if not ecole_id:
+        return jsonify([]), 403
+
+    annee_id = request.args.get('annee_id', type=int)
+    if annee_id:
+        annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
+        if not annee:
+            return jsonify([]), 403
+    else:
+        annee = get_annee_consultee(ecole_id)
+
+    if not annee:
+        return jsonify([])
+
+    from app.services.structure_annuelle import get_niveaux_annee
+    niveaux = get_niveaux_annee(ecole_id, annee.id)
+    return jsonify([{
+        'id': n.id,
+        'nom': n.nom,
+        'code': n.code,
+        'cycle': n.cycle,
+        'ordre': n.ordre
+    } for n in niveaux])
+
+
 @main.route("/classes")
 @login_required
 def liste_classes():
@@ -87,6 +120,9 @@ def liste_classes():
 
     annee_consultee = get_annee_consultee(ecole_id)
     base_query = get_classes_annee(ecole_id, annee_consultee.id) if annee_consultee else Classe.query.filter_by(ecole_id=ecole_id).filter(db.false())
+
+    from app.services.structure_annuelle import get_niveaux_annee, niveau_est_dans_structure
+    niveaux_annee = get_niveaux_annee(ecole_id, annee_consultee.id) if annee_consultee else []
 
     if current_user.role == 'professeur':
         professeur = current_user.get_professeur()
@@ -108,7 +144,10 @@ def liste_classes():
         base_query = base_query.filter(Classe.nom.ilike(f'%{search}%'))
 
     if niveau:
-        base_query = base_query.filter(Classe.niveau == niveau)
+        if str(niveau).isdigit():
+            base_query = base_query.filter(db.or_(Classe.niveau_id == int(niveau), Classe.niveau == str(niveau)))
+        else:
+            base_query = base_query.filter(Classe.niveau == niveau)
 
     # Appliquer le tri
     if sort_by == 'effectif':
@@ -142,6 +181,7 @@ def liste_classes():
             'niveau': niveau,
             'sort': sort_by
         },
+        niveaux_annee=niveaux_annee,
         annee_consultee=annee_consultee,
         start_item=start_item,
         end_item=end_item
@@ -196,6 +236,11 @@ def ajouter_classe():
 
     if form.validate_on_submit():
         try:
+            from app.services.structure_annuelle import niveau_est_dans_structure
+            if not niveau_est_dans_structure(current_user.ecole_id, annee_cible.id, form.niveau_id.data):
+                flash("Le niveau sélectionné n'est pas configuré pour cette année scolaire.", "danger")
+                return redirect(url_for("main.ajouter_classe"))
+
             prof_id = form.professeur_principal_id.data if (form.professeur_principal_id.data and form.professeur_principal_id.data > 0) else None
             capacite_val = form.capacite.data or form.effectif.data or 35
             classe, error_msg = creer_classe_depuis_niveau(

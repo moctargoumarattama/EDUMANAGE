@@ -134,7 +134,10 @@ def onboarding():
         get_school_setup_state,
         creer_ou_activer_annee_scolaire,
     )
-    from app.services.niveaux import configurer_niveaux_ecole, get_niveau_options_grouped
+    from app.services.structure_annuelle import (
+        sauvegarder_structure_annee,
+        get_niveaux_catalogue_grouped_for_onboarding,
+    )
 
     ecole = current_user.ecole
     if not ecole:
@@ -190,9 +193,15 @@ def onboarding():
                 flash("Veuillez d'abord configurer une année scolaire active.", "warning")
                 return redirect(url_for('main.onboarding'))
 
-            configs, error_msg = configurer_niveaux_ecole(
+            niveau_ids = request.form.getlist('niveau_ids')
+            if not niveau_ids:
+                flash("Veuillez sélectionner au moins un niveau scolaire.", "danger")
+                return redirect(url_for('main.onboarding'))
+
+            res, error_msg = sauvegarder_structure_annee(
                 ecole_id=ecole.id,
-                niveau_ids=request.form.getlist('niveau_ids')
+                annee_scolaire_id=active_year.id,
+                niveau_ids=niveau_ids
             )
             if error_msg:
                 flash(error_msg, "danger")
@@ -203,7 +212,7 @@ def onboarding():
             flash("Configuration pedagogique enregistree avec succes.", "success")
             return redirect(url_for('main.onboarding', step='complete'))
 
-    niveau_configs_grouped = get_niveau_options_grouped(ecole.id)
+    niveau_configs_grouped = get_niveaux_catalogue_grouped_for_onboarding(ecole.id, active_year.id if active_year else None)
 
     return render_template(
         'onboarding.html',

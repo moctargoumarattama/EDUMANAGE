@@ -21,11 +21,38 @@
                 <i class="fas fa-{% if current_user.role == 'super_admin' %}crown text-warning{% else %}school text-info{% endif %} me-1"></i>
                 {% if current_user.role == 'super_admin' %}Plateforme Globale{% elif ecole_courante %}{{ ecole_courante.nom }}{% elif current_user.is_authenticated and current_user.ecole %}{{ current_user.ecole.nom }}{% elif session.get('ecole_courante') %}{{ session.ecole_courante.nom }}{% elif session.get('ecole_nom') %}{{ session.ecole_nom }}{% elif current_user.is_authenticated and current_user.ecoles_gerees and current_user.ecoles_gerees.first() %}{{ current_user.ecoles_gerees.first().nom }}{% else %}KLASORA{% endif %}
             </span>
+            {% if annee_consultee %}
+            <a href="{{ url_for('main.gestion_annees') }}" class="hero-chip text-decoration-none" title="Année scolaire consultée">
+                <i class="fas fa-calendar-alt me-1 {% if annee_consultee.statut == 'active' %}text-success{% elif annee_consultee.statut == 'planifiee' %}text-warning{% else %}text-secondary{% endif %}"></i>
+                <span>Année : {{ annee_consultee.nom }}</span>
+                <span class="badge {% if annee_consultee.statut == 'active' %}bg-success{% elif annee_consultee.statut == 'planifiee' %}bg-warning text-dark{% else %}bg-secondary{% endif %} ms-1" style="font-size: 0.72rem;">
+                    {% if annee_consultee.statut == 'active' %}ACTIVE{% elif annee_consultee.statut == 'planifiee' %}PLANIFIÉE{% else %}ARCHIVÉE{% endif %}
+                </span>
+            </a>
+            {% endif %}
             <span class="hero-chip live">
                 <span class="live-dot"></span>En ligne
             </span>
         </div>
     </section>
+
+    {% if annee_consultee and annee_active and annee_consultee.id != annee_active.id and current_user.role in ['admin', 'super_admin'] %}
+    <div class="alert {% if annee_consultee.statut == 'archivee' %}alert-secondary{% else %}alert-warning{% endif %} d-flex align-items-center justify-content-between flex-wrap gap-2 shadow-sm rounded-4 mb-4" role="alert">
+        <div class="d-flex align-items-center gap-2">
+            <i class="fas {% if annee_consultee.statut == 'archivee' %}fa-archive text-secondary{% else %}fa-calendar-plus text-warning{% endif %} fa-lg"></i>
+            <div>
+                <strong>Année consultée : {{ annee_consultee.nom }} ({% if annee_consultee.statut == 'archivee' %}Archivée — Lecture seule{% else %}Planifiée — Préparation{% endif %})</strong>
+                <span class="text-muted d-block small">L'année opérationnelle en cours est <strong>{{ annee_active.nom }} (Active)</strong>.</span>
+            </div>
+        </div>
+        <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee_active.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-success">
+                <i class="fas fa-undo me-1"></i>Revenir à l'année active ({{ annee_active.nom }})
+            </button>
+        </form>
+    </div>
+    {% endif %}
 
     {% if current_user.role in ['admin', 'super_admin'] %}
     <div class="mobile-welcome-toast" data-mobile-welcome-toast data-role="{{ current_user.role }}" aria-live="polite">

@@ -254,15 +254,7 @@ class ClasseForm(FlaskForm):
     nom = StringField("Nom de la classe", validators=[DataRequired()])
     niveau_id = SelectField("Niveau", coerce=int, validators=[DataRequired(message="Veuillez choisir un niveau.")])
     section = StringField("Section", validators=[Optional()])
-    niveau = SelectField("Niveau", choices=[
-        ("6eme", "6ème"), 
-        ("5eme", "5ème"), 
-        ("4eme", "4ème"), 
-        ("3eme", "3ème"),
-        ("2nde", "2nde"),
-        ("1ere", "1ère"),
-        ("terminale", "Terminale")
-    ], validators=[DataRequired()])
+    niveau = SelectField("Niveau", choices=[], validators=[Optional()])
     # Capacité maximale définie par l'administrateur
     capacite = IntegerField("Capacité maximale d'élèves", default=35, validators=[DataRequired(message="Veuillez spécifier la capacité maximale."), NumberRange(min=1, max=500, message="La capacité doit être comprise entre 1 et 500 élèves.")])
     effectif = IntegerField("Nombre d'élèves", validators=[Optional()])
@@ -274,7 +266,7 @@ class ClasseForm(FlaskForm):
 
     submit = SubmitField("Enregistrer")
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, annee_scolaire_id=None, **kwargs):
         super().__init__(*args, **kwargs)
         ecole = get_ecole_courante()
         if ecole:
@@ -288,15 +280,24 @@ class ClasseForm(FlaskForm):
             from app.models import AnneeScolaire
             annees_query = AnneeScolaire.query.filter_by(ecole_id=ecole.id).order_by(AnneeScolaire.id.desc())
             self.annee_scolaire_id.choices = [(0, "---")] + [(a.id, a.nom) for a in annees_query.all()]
-            from app.services.niveaux import get_niveaux_actifs
-            niveaux_actifs = get_niveaux_actifs(ecole.id)
-            self.niveau_id.choices = [(n.id, n.nom) for n in niveaux_actifs]
-            self.niveau.choices = [(n.nom, n.nom) for n in niveaux_actifs]
 
-            # Pré-sélection année active
-            annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole.id, statut='active').first()
-            if annee_active:
-                self.annee_scolaire_id.data = annee_active.id
+            target_annee = None
+            if annee_scolaire_id:
+                target_annee = AnneeScolaire.query.filter_by(id=annee_scolaire_id, ecole_id=ecole.id).first()
+            if not target_annee:
+                from app.utils import get_annee_consultee
+                target_annee = get_annee_consultee(ecole.id)
+            if not target_annee:
+                target_annee = AnneeScolaire.query.filter_by(ecole_id=ecole.id, statut='active').first()
+
+            from app.services.structure_annuelle import get_niveaux_annee
+            niveaux_annee = get_niveaux_annee(ecole.id, target_annee.id) if target_annee else []
+            self.niveau_id.choices = [(n.id, n.nom) for n in niveaux_annee]
+            self.niveau.choices = [(n.nom, n.nom) for n in niveaux_annee]
+
+            # Pré-sélection année
+            if target_annee:
+                self.annee_scolaire_id.data = target_annee.id
 
         else:
             self.professeur_principal_id.choices = [(0, "--- Aucun ---")]

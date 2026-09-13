@@ -539,6 +539,7 @@ def before_request_handler():
                         'main.logout',
                         'main.choisir_ecole',
                         'main.creer_support_ticket',
+                        'main.structure_annee',
                     }
                     current_ep = request.endpoint or ''
                     if not setup_state.get('setup_complete', False):
@@ -558,6 +559,7 @@ def before_request_handler():
                         'main.logout',
                         'main.choisir_ecole',
                         'main.creer_support_ticket',
+                        'main.structure_annee',
                     }
                     current_ep = request.endpoint or ''
                     if current_ep not in allowed_endpoints and not current_ep.startswith('static') and current_ep != 'admin.static' and not request.path.startswith('/static/'):

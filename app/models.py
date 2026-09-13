@@ -383,7 +383,12 @@ class Professeur(db.Model):
         lazy='dynamic'
     )
 
+    @property
+    def classes(self):
+        return self.classes_assignees.all()
+
     def __repr__(self):
+
         return f'<Professeur {self.prenom} {self.nom}>'
 
     @staticmethod

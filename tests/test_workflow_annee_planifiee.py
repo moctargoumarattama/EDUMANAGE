@@ -28,6 +28,7 @@ from datetime import date
 from app import create_app, db
 from app.config import Config
 from app.models import (
+    AnneeNiveauConfig,
     AnneeScolaire,
     Classe,
     Ecole,
@@ -127,6 +128,15 @@ class TestWorkflowAnneePlanifiee(unittest.TestCase):
             self.annee_b_planifiee,
         ])
         db.session.flush()
+
+        from app.services.structure_annuelle import sauvegarder_structure_annee
+        sauvegarder_structure_annee(self.ecole_a.id, self.annee_active.id, [n.id for n in niveaux])
+        sauvegarder_structure_annee(self.ecole_a.id, self.annee_planifiee.id, [n.id for n in niveaux])
+        sauvegarder_structure_annee(self.ecole_b.id, self.annee_b_active.id, [n.id for n in niveaux])
+        sauvegarder_structure_annee(self.ecole_b.id, self.annee_b_planifiee.id, [n.id for n in niveaux])
+        for n in niveaux:
+            db.session.add(AnneeNiveauConfig(ecole_id=self.ecole_a.id, annee_scolaire_id=self.annee_archivee.id, niveau_id=n.id, actif=True))
+        db.session.commit()
 
         # Utilisateurs admin
         self.admin_a = Utilisateur(

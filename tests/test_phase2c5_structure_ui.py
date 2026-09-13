@@ -58,6 +58,11 @@ class Phase2C5StructureUITestCase(unittest.TestCase):
         db.session.add_all([self.source, self.target, self.archivee, self.annee_b])
         db.session.commit()
 
+        from app.services.structure_annuelle import sauvegarder_structure_annee
+        sauvegarder_structure_annee(self.ecole_a.id, self.source.id, [self.n6.id, self.n5.id, self.nci.id])
+        db.session.add(AnneeNiveauConfig(ecole_id=self.ecole_a.id, annee_scolaire_id=self.archivee.id, niveau_id=self.n6.id, actif=True))
+        db.session.commit()
+
         self.classe_6a, error = creer_classe_depuis_niveau(self.ecole_a.id, self.source.id, self.n6.id, nom="6e A", section="A", capacite=40)
         self.assertIsNone(error)
         self.classe_6b, error = creer_classe_depuis_niveau(self.ecole_a.id, self.source.id, self.n6.id, nom="6e B", section="B", capacite=35)
@@ -156,6 +161,9 @@ class Phase2C5StructureUITestCase(unittest.TestCase):
 
     def test_ouvrir_fermer_classe_et_archivee_lecture_seule(self):
         client = self.login_as(self.admin)
+        from app.services.structure_annuelle import sauvegarder_structure_annee
+        sauvegarder_structure_annee(self.ecole_a.id, self.target.id, [self.n6.id])
+        db.session.commit()
         client.post(f"/annees/{self.target.id}/preparer-structure", data={"_redirect_to_structure": "1"})
         classe = Classe.query.filter_by(ecole_id=self.ecole_a.id, annee_scolaire_id=self.target.id, nom="6e A").first()
 
@@ -222,6 +230,10 @@ class Phase2C5StructureUITestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Classe.query.filter_by(ecole_id=empty_school.id, annee_scolaire_id=annee.id).count(), 0)
 
+        from app.services.structure_annuelle import sauvegarder_structure_annee
+        sauvegarder_structure_annee(empty_school.id, annee.id, [n6.id])
+        db.session.commit()
+
         with client.session_transaction() as session:
             session["annee_consultee"] = {str(empty_school.id): annee.id}
         response = client.post(
@@ -244,6 +256,9 @@ class Phase2C5StructureUITestCase(unittest.TestCase):
     def test_normalisation_noms_primaire_college_lycee_et_nom_post_ignore(self):
         levels = {code: NiveauScolaire.query.filter_by(code=code).first() for code in ["CM2", "6E", "2NDE", "1ERE", "TERMINALE"]}
         set_niveau_actif(self.ecole_a.id, levels["CM2"].id, True)
+        from app.services.structure_annuelle import sauvegarder_structure_annee
+        sauvegarder_structure_annee(self.ecole_a.id, self.target.id, [lvl.id for lvl in levels.values()])
+        db.session.commit()
 
         cases = [
             ("CM2", "B", "CM2 B"),
@@ -265,6 +280,10 @@ class Phase2C5StructureUITestCase(unittest.TestCase):
             self.assertEqual(classe.nom, expected_name)
 
     def test_sections_invalides_doublons_annee_ecole_et_inactifs(self):
+        from app.services.structure_annuelle import sauvegarder_structure_annee
+        sauvegarder_structure_annee(self.ecole_a.id, self.target.id, [self.n6.id])
+        db.session.commit()
+
         for invalid in ["AA", "A1", "1", "Bleu", "Serie A", " A "]:
             classe, error = creer_classe_depuis_niveau(self.ecole_a.id, self.target.id, self.n6.id, section=invalid)
             self.assertIsNone(classe)
@@ -283,6 +302,10 @@ class Phase2C5StructureUITestCase(unittest.TestCase):
         next_year = AnneeScolaire(nom="2027-2028", date_debut=date(2027, 9, 1), date_fin=date(2028, 7, 31), statut="planifiee", ecole_id=self.ecole_a.id)
         db.session.add(next_year)
         db.session.commit()
+        sauvegarder_structure_annee(self.ecole_a.id, next_year.id, [self.n6.id])
+        sauvegarder_structure_annee(self.ecole_b.id, self.annee_b.id, [self.n6.id])
+        db.session.commit()
+
         other_year, error = creer_classe_depuis_niveau(self.ecole_a.id, next_year.id, self.n6.id, section="A")
         self.assertIsNone(error)
         self.assertNotEqual(classe_a.id, other_year.id)
@@ -294,11 +317,14 @@ class Phase2C5StructureUITestCase(unittest.TestCase):
         set_niveau_actif(self.ecole_a.id, self.n5.id, False)
         inactive, error = creer_classe_depuis_niveau(self.ecole_a.id, self.target.id, self.n5.id, section="C")
         self.assertIsNone(inactive)
-        self.assertIn("desactive", error)
+        self.assertTrue("desactive" in error or "pas retenu" in error)
 
     def test_formulaire_niveaux_actifs_libelles_section_serie_et_post_forge(self):
         deuxnde = NiveauScolaire.query.filter_by(code="2NDE").first()
         set_niveau_actif(self.ecole_a.id, self.n5.id, False)
+        from app.services.structure_annuelle import sauvegarder_structure_annee
+        sauvegarder_structure_annee(self.ecole_a.id, self.target.id, [self.n6.id, deuxnde.id])
+        db.session.commit()
         client = self.login_as(self.admin)
 
         response = client.get(f"/classes/add?annee_id={self.target.id}&niveau_id={self.n6.id}")

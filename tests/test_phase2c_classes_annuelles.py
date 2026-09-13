@@ -64,6 +64,13 @@ class Phase2CClassesAnnuellesTestCase(unittest.TestCase):
         db.session.add_all([self.annee_source, self.annee_cible, self.annee_b])
         db.session.commit()
 
+        from app.services.structure_annuelle import sauvegarder_structure_annee
+        college_nids = [self.sixieme.id, self.cinquieme.id, self.quatrieme.id, self.troisieme.id]
+        sauvegarder_structure_annee(self.ecole_a.id, self.annee_source.id, college_nids)
+        sauvegarder_structure_annee(self.ecole_a.id, self.annee_cible.id, college_nids)
+        sauvegarder_structure_annee(self.ecole_b.id, self.annee_b.id, college_nids)
+        db.session.commit()
+
         for niveau, nom, section in [
             (self.sixieme, "6e A", "A"),
             (self.sixieme, "6e B", "B"),
@@ -154,7 +161,11 @@ class Phase2CClassesAnnuellesTestCase(unittest.TestCase):
         self.assertIn("introuvable", error)
 
     def test_niveaux_desactives_non_copies(self):
-        set_niveau_actif(self.ecole_a.id, self.sixieme.id, False)
+        from app.models import AnneeNiveauConfig
+        cfg = AnneeNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id, annee_scolaire_id=self.annee_cible.id, niveau_id=self.sixieme.id).first()
+        if cfg:
+            cfg.actif = False
+            db.session.commit()
         result, error = preparer_structure_classes(self.ecole_a.id, self.annee_cible.id, self.annee_source.id)
         self.assertIsNone(error)
         self.assertEqual({c.nom for c in result["created"]}, {"5e A", "4e A", "3e A"})

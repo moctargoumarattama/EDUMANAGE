@@ -199,7 +199,7 @@
                 <!-- En-tête de la classe (cliquable pour déplier/replier) -->
                 <div class="class-alert-header" data-bs-toggle="collapse" 
                      data-bs-target="#collapse-class-{{ grp.id }}" 
-                     aria-expanded="{{ 'true' if grp.nb_actives > 0 else 'false' }}">
+                     aria-expanded="false">
                     <div class="d-flex align-items-center gap-3 min-w-0 flex-grow-1">
                         <div class="class-alert-avatar {% if grp.has_danger %}danger{% elif grp.has_warning %}warning{% elif grp.nb_actives > 0 %}info{% else %}clean{% endif %}">
                             {% if grp.classe and grp.classe.nom %}
@@ -261,7 +261,7 @@
                 </div>
 
                 <!-- Corps avec la liste des alertes de la classe -->
-                <div class="collapse {% if grp.nb_actives > 0 %}show{% endif %}" id="collapse-class-{{ grp.id }}">
+                <div class="collapse" id="collapse-class-{{ grp.id }}">
                     <div class="class-alert-body">
                         {% if grp.alertes %}
                         <div class="alerts-group-list">

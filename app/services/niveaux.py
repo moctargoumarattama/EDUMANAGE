@@ -211,10 +211,8 @@ def creer_classe_depuis_niveau(ecole_id, annee_scolaire_id, niveau_id, nom=None,
     niveau = db.session.get(NiveauScolaire, niveau_id) if niveau_id else None
     if not niveau:
         return None, "Veuillez choisir un niveau scolaire valide."
-    if not niveau_peut_etre_utilise(ecole_id, niveau.id):
-        return None, f"Le niveau {niveau.nom} est desactive pour cet etablissement."
-    from app.services.niveaux_annuels import niveau_actif_pour_annee
-    if not niveau_actif_pour_annee(ecole_id, annee.id, niveau.id):
+    from app.services.structure_annuelle import niveau_est_dans_structure
+    if not niveau_est_dans_structure(ecole_id, annee.id, niveau.id):
         return None, f"Le niveau {niveau.nom} n'est pas retenu pour cette annee scolaire."
 
     section, error = normaliser_section_classe(section)
@@ -274,10 +272,8 @@ def modifier_classe_depuis_niveau(classe, ecole_id, niveau_id, nom=None, section
     niveau = db.session.get(NiveauScolaire, niveau_id) if niveau_id else None
     if not niveau:
         return None, "Veuillez choisir un niveau scolaire valide."
-    if not niveau_peut_etre_utilise(ecole_id, niveau.id):
-        return None, f"Le niveau {niveau.nom} est desactive pour cet etablissement."
-    from app.services.niveaux_annuels import niveau_actif_pour_annee
-    if not niveau_actif_pour_annee(ecole_id, annee.id, niveau.id):
+    from app.services.structure_annuelle import niveau_est_dans_structure
+    if not niveau_est_dans_structure(ecole_id, annee.id, niveau.id):
         return None, f"Le niveau {niveau.nom} n'est pas retenu pour cette annee scolaire."
 
     section, error = normaliser_section_classe(section)

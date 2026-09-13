@@ -136,7 +136,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
             setup_complete: bool
             current_step: 'year' | 'class' | 'complete'
     """
-    from app.models import AnneeScolaire, Classe, EcoleNiveauConfig, NiveauScolaire
+    from app.models import AnneeNiveauConfig, AnneeScolaire, Classe, NiveauScolaire
     from app.middleware import get_ecole_id
 
     target_ecole_id = ecole_id or get_ecole_id()
@@ -177,15 +177,14 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
             'current_step': 'year'
         }
     else:
-        # 2. Vérification d'au moins une classe pour cette année active et cette école (requête d'existence efficace / indexable)
+        # 2. Vérification de la configuration pédagogique pour l'année active (AnneeNiveauConfig uniquement)
         has_pedagogie = (
-            EcoleNiveauConfig.query
-            .join(NiveauScolaire, NiveauScolaire.id == EcoleNiveauConfig.niveau_id)
-            .filter(
-                EcoleNiveauConfig.ecole_id == target_ecole_id,
-                EcoleNiveauConfig.actif.is_(True),
+            AnneeNiveauConfig.query
+            .filter_by(
+                ecole_id=target_ecole_id,
+                annee_scolaire_id=active_year.id,
+                actif=True,
             )
-            .with_entities(EcoleNiveauConfig.id)
             .first()
             is not None
         )
@@ -194,7 +193,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
             annee_scolaire_id=active_year.id
         ).with_entities(Classe.id).first() is not None
 
-        if not has_pedagogie and not has_class:
+        if not has_pedagogie:
             result = {
                 'has_active_year': True,
                 'active_year': active_year,
@@ -208,7 +207,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
                 'has_active_year': True,
                 'active_year': active_year,
                 'has_class': has_class,
-                'has_pedagogie': has_pedagogie,
+                'has_pedagogie': True,
                 'setup_complete': True,
                 'current_step': 'complete'
             }
@@ -293,7 +292,7 @@ def creer_classe_scolaire(ecole_id: int, annee_scolaire_id: int, nom: str, nivea
     """
     from app.models import Classe, AnneeScolaire, NiveauScolaire
     from app import db
-    from app.services.niveaux import creer_classe_depuis_niveau, get_niveaux_actifs, infer_niveau_from_classe_name
+    from app.services.niveaux import creer_classe_depuis_niveau, infer_niveau_from_classe_name
 
     nom = (nom or '').strip()
     niveau = (niveau or '').strip()
@@ -309,57 +308,27 @@ def creer_classe_scolaire(ecole_id: int, annee_scolaire_id: int, nom: str, nivea
     if annee.statut == 'archivee':
         return None, "Impossible de creer une classe dans une annee scolaire archivee."
 
-    niveaux_actifs = get_niveaux_actifs(ecole_id)
+    from app.services.structure_annuelle import get_niveaux_annee
+    niveaux_annee = get_niveaux_annee(ecole_id, annee_scolaire_id)
     niveau_key = infer_niveau_from_classe_name(niveau) or infer_niveau_from_classe_name(nom)
-    niveau_obj = next((n for n in niveaux_actifs if n.code == niveau_key or n.nom == niveau), None)
+    niveau_obj = next((n for n in niveaux_annee if n.code == niveau_key or n.nom.lower() == (niveau or '').lower()), None)
     if not niveau_obj:
-        niveau_obj = NiveauScolaire.query.filter_by(nom=niveau).first()
-    if niveau_obj:
-        return creer_classe_depuis_niveau(
-            ecole_id=ecole_id,
-            annee_scolaire_id=annee_scolaire_id,
-            niveau_id=niveau_obj.id,
-            nom=nom,
-            section=None,
-            salle=salle,
-            capacite=capacite,
-        )
+        niveau_obj = NiveauScolaire.query.filter(
+            db.or_(NiveauScolaire.nom.ilike(niveau), NiveauScolaire.code.ilike(niveau_key or niveau))
+        ).first()
 
-    try:
-        capacite = int(capacite)
-        if capacite <= 0:
-            capacite = 35
-    except (ValueError, TypeError):
-        capacite = 35
+    if not niveau_obj:
+        return None, "Niveau scolaire invalide ou non reconnu."
 
-    existing = Classe.query.filter_by(
-        nom=nom,
+    return creer_classe_depuis_niveau(
+        ecole_id=ecole_id,
         annee_scolaire_id=annee_scolaire_id,
-        ecole_id=ecole_id
-    ).first()
-    if existing:
-        return None, "Une classe avec ce nom existe déjà pour cette année scolaire."
-
-    try:
-        classe = Classe(
-            nom=nom,
-            niveau=niveau,
-            salle=salle,
-            capacite=capacite,
-            effectif=0,
-            annee_scolaire_id=annee_scolaire_id,
-            ecole_id=ecole_id
-        )
-        db.session.add(classe)
-        db.session.commit()
-        if hasattr(g, '_school_setup_cache'):
-            g._school_setup_cache.pop(ecole_id, None)
-
-        return classe, None
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.exception(f"Erreur création classe : {e}")
-        return None, "Une erreur est survenue lors de la création de la classe."
+        niveau_id=niveau_obj.id,
+        nom=nom,
+        section=None,
+        salle=salle,
+        capacite=capacite,
+    )
 
 
 def get_or_create_annee_active(ecole_id=None) -> 'AnneeScolaire':

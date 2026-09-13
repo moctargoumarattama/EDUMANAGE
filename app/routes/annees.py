@@ -20,7 +20,7 @@ from .common import (
 )
 from app.services.classes_annuelles import preparer_structure_annee, classe_est_ouverte
 from app.services.annees_scolaires import get_annee_consultee, set_annee_consultee
-from app.services.niveaux import get_niveaux_actifs
+from app.services.structure_annuelle import get_niveaux_candidats_annuels
 from app.models import Classe, Cours, Eleve, Inscription
 from app.services.niveaux_annuels import (
     get_selection_annuelle,
@@ -352,7 +352,7 @@ def structure_annee(annee_id):
 
     annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first_or_404()
     csrf_form = CSRFForm()
-    niveaux_actifs = get_niveaux_actifs(ecole_id)
+    niveaux_actifs = get_niveaux_candidats_annuels(ecole_id)
 
     if request.method == 'POST':
         if annee.statut == "archivee":

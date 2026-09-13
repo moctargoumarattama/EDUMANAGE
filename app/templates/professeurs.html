@@ -6,8 +6,15 @@
 <div class="container py-4">
     <div class="page-header mb-4">
         <div>
-            <h1 class="page-title">Professeurs</h1>
-            <p class="text-muted mb-0">Consultez et gÃ©rez les professeurs de votre Ã©tablissement.</p>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <h1 class="page-title mb-0">Professeurs</h1>
+                {% if annee_consultee %}
+                <span class="badge bg-light text-dark border">
+                    <i class="fas fa-calendar-alt me-1 text-muted"></i>Année : {{ annee_consultee.nom }}
+                </span>
+                {% endif %}
+            </div>
+            <p class="text-muted mb-0">Consultez et gérez les professeurs de votre établissement et leurs affectations par classe.</p>
         </div>
         <a href="{{ url_for('main.ajouter_professeur') }}" class="btn btn-primary">
             <i class="fas fa-plus me-2"></i>Ajouter
@@ -58,18 +65,18 @@
             </div>
 
             <div class="teacher-card-actions">
-                <a href="{{ url_for('main.professeur_details', id=prof.id) }}" class="btn btn-sm btn-outline-primary">
+                <a href="{{ url_for('main.professeur_details', id=prof.id) }}" class="btn btn-sm btn-outline-primary" title="Voir les détails">
                     <i class="fas fa-eye me-1"></i>Voir
                 </a>
-                <a href="{{ url_for('main.assigner_classes_professeur', id=prof.id) }}" class="btn btn-sm btn-outline-info">
-                    <i class="fas fa-chalkboard me-1"></i>Classes
+                <a href="{{ url_for('main.assigner_classes_professeur', id=prof.id) }}" class="btn btn-sm btn-outline-info" title="Affecter ce professeur aux classes de l'année consultée">
+                    <i class="fas fa-chalkboard-teacher me-1"></i>Affecter aux classes
                 </a>
-                <a href="{{ url_for('main.modifier_professeur', id=prof.id) }}" class="btn btn-sm btn-outline-warning">
+                <a href="{{ url_for('main.modifier_professeur', id=prof.id) }}" class="btn btn-sm btn-outline-warning" title="Modifier le professeur">
                     <i class="fas fa-edit me-1"></i>Modifier
                 </a>
                 <form action="{{ url_for('main.supprimer_professeur', id=prof.id) }}" method="POST" data-klasora-form data-remove-target="#prof-card-{{ prof.id }}" data-confirm="Supprimer ce professeur ?" data-loading="Suppression...">
                     {{ delete_form.hidden_tag() }}
-                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer ce professeur">
                         <i class="fas fa-trash me-1"></i>Supprimer
                     </button>
                 </form>

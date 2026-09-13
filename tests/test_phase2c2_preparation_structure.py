@@ -53,6 +53,13 @@ class Phase2C2PreparationStructureTestCase(unittest.TestCase):
         db.session.add_all([self.source, self.target, self.target_b])
         db.session.commit()
 
+        from app.services.structure_annuelle import sauvegarder_structure_annee
+        college_nids = [self.n6.id, self.n5.id, self.n4.id, self.n3.id]
+        sauvegarder_structure_annee(self.ecole_a.id, self.source.id, college_nids + [self.nci.id])
+        sauvegarder_structure_annee(self.ecole_a.id, self.target.id, college_nids)
+        sauvegarder_structure_annee(self.ecole_b.id, self.target_b.id, college_nids)
+        db.session.commit()
+
         self.classes_source = {}
         for niveau, nom, section in [
             (self.n6, "6e A", "A"),

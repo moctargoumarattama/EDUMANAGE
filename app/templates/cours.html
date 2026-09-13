@@ -541,13 +541,13 @@
                                         {% if c.professeur %}
                                             <span class="text-dark"><i class="fas fa-user-tie text-muted me-1"></i>{{ c.professeur.prenom }} {{ c.professeur.nom }}</span>
                                         {% else %}
-                                            <span class="text-muted fst-italic">Non assignÃƒÂ©</span>
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Non assigné</span>
                                         {% endif %}
                                     </td>
                                     {% endif %}
                                     <td>
                                         <span class="text-muted small text-truncate d-inline-block" style="max-width: 250px;">
-                                            {{ c.description or "Ã¢â‚¬â€" }}
+                                            {{ c.description or "Ã¢â‚¬â€ " }}
                                         </span>
                                     </td>
                                     <td class="text-center">
@@ -643,11 +643,11 @@
         <div class="empty-state-icon text-muted mb-3" style="font-size: 3.5rem;">
             <i class="fas fa-book-open"></i>
         </div>
-        <h2 class="h4 fw-bold text-dark">Aucun cours enregistrÃƒÂ©</h2>
-        <p class="text-muted mb-3">Votre ÃƒÂ©tablissement n'a pas encore de cours ou de matiÃƒÂ¨res enregistrÃƒÂ©es.</p>
+        <h2 class="h4 fw-bold text-dark">Aucun cours configuré</h2>
+        <p class="text-muted mb-3">Aucun cours n'est configuré pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong>.</p>
         {% if form and current_user.role in ['admin', 'super_admin'] and affectations_modifiables %}
         <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours">
-            <i class="fas fa-plus-circle me-2"></i>CrÃƒÂ©er le premier cours
+            <i class="fas fa-plus-circle me-2"></i>Créer le premier cours
         </button>
         {% endif %}
     </div>

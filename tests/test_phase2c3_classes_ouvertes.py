@@ -52,6 +52,14 @@ class Phase2C3ClassesOuvertesTestCase(unittest.TestCase):
         db.session.add_all([self.active, self.planifiee, self.archivee, self.annee_b])
         db.session.commit()
 
+        from app.services.structure_annuelle import sauvegarder_structure_annee
+        all_nids = [self.n6.id, self.n5.id]
+        sauvegarder_structure_annee(self.ecole_a.id, self.active.id, all_nids)
+        sauvegarder_structure_annee(self.ecole_a.id, self.planifiee.id, all_nids)
+        sauvegarder_structure_annee(self.ecole_a.id, self.archivee.id, all_nids)
+        sauvegarder_structure_annee(self.ecole_b.id, self.annee_b.id, all_nids)
+        db.session.commit()
+
         self.classe_active, error = creer_classe_depuis_niveau(self.ecole_a.id, self.active.id, self.n6.id, nom="6e A", section="A")
         self.assertIsNone(error)
         self.classe_planifiee, error = creer_classe_depuis_niveau(self.ecole_a.id, self.planifiee.id, self.n6.id, nom="6e A", section="A")
@@ -253,7 +261,11 @@ class Phase2C3ClassesOuvertesTestCase(unittest.TestCase):
         ]
         self.assertEqual(noms_active, ["6e A"])
 
-        set_niveau_actif(self.ecole_a.id, self.n5.id, False)
+        from app.models import AnneeNiveauConfig
+        cfg = AnneeNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id, annee_scolaire_id=self.planifiee.id, niveau_id=self.n5.id).first()
+        if cfg:
+            cfg.actif = False
+            db.session.commit()
         noms = [
             c.nom for c in get_classes_ouvertes_annee(self.ecole_a.id, self.planifiee.id)
             .order_by(Classe.nom).all()

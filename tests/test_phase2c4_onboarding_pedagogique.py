@@ -3,8 +3,19 @@ from datetime import date
 
 from app import create_app, db
 from app.config import Config
-from app.models import AnneeScolaire, Classe, Cours, Ecole, EcoleNiveauConfig, Inscription, NiveauScolaire, Utilisateur
-from app.services.niveaux import ensure_standard_niveaux, get_niveau_options_grouped
+from app.models import (
+    AnneeNiveauConfig,
+    AnneeScolaire,
+    Classe,
+    Cours,
+    Ecole,
+    EcoleNiveauConfig,
+    Inscription,
+    NiveauScolaire,
+    Utilisateur,
+)
+from app.services.niveaux import ensure_standard_niveaux
+from app.services.structure_annuelle import get_niveaux_catalogue_grouped_for_onboarding
 from app.utils import get_school_setup_state
 
 
@@ -43,6 +54,8 @@ class Phase2C4OnboardingPedagogiqueTestCase(unittest.TestCase):
         with client.session_transaction() as session:
             session["_user_id"] = str(user.id)
             session["_fresh"] = True
+            session["role"] = user.role
+            session["ecole_id"] = user.ecole_id
         return client
 
     def create_active_year(self, ecole=None):
@@ -77,15 +90,15 @@ class Phase2C4OnboardingPedagogiqueTestCase(unittest.TestCase):
         state = get_school_setup_state(self.ecole_a.id, force_refresh=True)
         self.assertFalse(state["setup_complete"])
         self.assertEqual(state["current_step"], "pedagogie")
-        self.assertEqual(EcoleNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id).count(), 0)
+        self.assertEqual(AnneeNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id).count(), 0)
 
         response = self.login_as(self.admin).get("/onboarding")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"configurer_pedagogie", response.data)
-        self.assertEqual(EcoleNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id).count(), 0)
+        self.assertEqual(AnneeNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id).count(), 0)
 
     def test_selection_college_persiste_uniquement_niveaux_choisis_et_termine_sans_classe(self):
-        self.create_active_year()
+        annee = self.create_active_year()
         client = self.login_as(self.admin)
         selected = self.niveau_ids(["6E", "5E", "4E"])
         response = client.post("/onboarding", data={
@@ -96,11 +109,11 @@ class Phase2C4OnboardingPedagogiqueTestCase(unittest.TestCase):
 
         actifs = {
             config.niveau.code
-            for config in EcoleNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id, actif=True).all()
+            for config in AnneeNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id, annee_scolaire_id=annee.id, actif=True).all()
         }
         self.assertEqual(actifs, {"6E", "5E", "4E"})
         self.assertNotIn("3E", actifs)
-        self.assertFalse(EcoleNiveauConfig.query.join(NiveauScolaire).filter(EcoleNiveauConfig.ecole_id == self.ecole_a.id, NiveauScolaire.cycle == "primaire", EcoleNiveauConfig.actif.is_(True)).first())
+        self.assertFalse(AnneeNiveauConfig.query.join(NiveauScolaire).filter(AnneeNiveauConfig.ecole_id == self.ecole_a.id, NiveauScolaire.cycle == "primaire", AnneeNiveauConfig.actif.is_(True)).first())
         self.assertEqual(Classe.query.filter_by(ecole_id=self.ecole_a.id).count(), 0)
         self.assertEqual(Cours.query.filter_by(ecole_id=self.ecole_a.id).count(), 0)
         self.assertEqual(Inscription.query.filter_by(ecole_id=self.ecole_a.id).count(), 0)
@@ -113,27 +126,27 @@ class Phase2C4OnboardingPedagogiqueTestCase(unittest.TestCase):
         self.create_active_year()
         response = self.login_as(self.admin).post("/onboarding", data={"action": "configurer_pedagogie"})
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(EcoleNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id).count(), 0)
+        self.assertEqual(AnneeNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id).count(), 0)
         self.assertFalse(get_school_setup_state(self.ecole_a.id, force_refresh=True)["setup_complete"])
 
     def test_multi_ecoles_et_prechargement_config_existante(self):
-        self.create_active_year(self.ecole_a)
-        self.create_active_year(self.ecole_b)
+        annee_a = self.create_active_year(self.ecole_a)
+        annee_b = self.create_active_year(self.ecole_b)
         sixieme_id = self.niveau_ids(["6E"])[0]
         ci_id = self.niveau_ids(["CI"])[0]
-        db.session.add(EcoleNiveauConfig(ecole_id=self.ecole_b.id, niveau_id=ci_id, actif=True))
+        db.session.add(AnneeNiveauConfig(ecole_id=self.ecole_b.id, annee_scolaire_id=annee_b.id, niveau_id=ci_id, actif=True))
         db.session.commit()
 
         self.login_as(self.admin).post("/onboarding", data={
             "action": "configurer_pedagogie",
             "niveau_ids": [str(sixieme_id)],
         })
-        actifs_a = {config.niveau.code for config in EcoleNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id, actif=True).all()}
-        actifs_b = {config.niveau.code for config in EcoleNiveauConfig.query.filter_by(ecole_id=self.ecole_b.id, actif=True).all()}
+        actifs_a = {config.niveau.code for config in AnneeNiveauConfig.query.filter_by(ecole_id=self.ecole_a.id, annee_scolaire_id=annee_a.id, actif=True).all()}
+        actifs_b = {config.niveau.code for config in AnneeNiveauConfig.query.filter_by(ecole_id=self.ecole_b.id, annee_scolaire_id=annee_b.id, actif=True).all()}
         self.assertEqual(actifs_a, {"6E"})
         self.assertEqual(actifs_b, {"CI"})
 
-        options = get_niveau_options_grouped(self.ecole_b.id)
+        options = get_niveaux_catalogue_grouped_for_onboarding(self.ecole_b.id, annee_b.id)
         self.assertTrue(next(item for item in options["primaire"] if item.niveau.code == "CI").actif)
 
     def test_professeur_parent_refuses(self):
@@ -144,14 +157,14 @@ class Phase2C4OnboardingPedagogiqueTestCase(unittest.TestCase):
     def test_ancienne_ecole_avec_classe_continue_sans_exiger_classe_pour_nouvelle(self):
         annee = self.create_active_year()
         niveau_id = self.niveau_ids(["6E"])[0]
-        db.session.add(EcoleNiveauConfig(ecole_id=self.ecole_a.id, niveau_id=niveau_id, actif=True))
+        db.session.add(AnneeNiveauConfig(ecole_id=self.ecole_a.id, annee_scolaire_id=annee.id, niveau_id=niveau_id, actif=True))
         db.session.add(Classe(nom="6e A", niveau="6e", niveau_id=niveau_id, annee_scolaire_id=annee.id, ecole_id=self.ecole_a.id))
         db.session.commit()
 
         state = get_school_setup_state(self.ecole_a.id, force_refresh=True)
         self.assertTrue(state["setup_complete"])
         response = self.login_as(self.admin).get("/")
-        self.assertNotEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
 
 
 if __name__ == "__main__":

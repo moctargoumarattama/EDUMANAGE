@@ -153,6 +153,17 @@
 
     <!-- Liste des classes (Accordéons) -->
     <div class="class-bulletin-list" id="bulletinsContainer">
+        {% if not classes and not eleves_sans_classe %}
+        <div class="card border-0 shadow-sm text-center py-5">
+            <div class="card-body">
+                <i class="fas fa-file-invoice text-muted fa-4x mb-3 opacity-50"></i>
+                <h4 class="fw-bold text-gray-800 mb-2">Aucun bulletin disponible</h4>
+                <p class="text-muted mx-auto mb-3" style="max-width: 480px;">
+                    Aucune classe ni aucun élève inscrit pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong>.
+                </p>
+            </div>
+        </div>
+        {% endif %}
         {% for classe in classes %}
         {% set c_items = eleves_par_classe.get(classe.id, []) %}
         {% set c_stats = classe_stats.get(classe.id, {}) %}

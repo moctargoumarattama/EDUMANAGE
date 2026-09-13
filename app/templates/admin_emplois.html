@@ -583,6 +583,21 @@
                     </div>
                 </div>
             </article>
+        {% else %}
+            <div class="card border-0 shadow-sm text-center py-5 my-4">
+                <div class="card-body">
+                    <i class="fas fa-calendar-times text-muted fa-4x mb-3 opacity-50"></i>
+                    <h4 class="fw-bold text-gray-800 mb-2">Aucune classe pour cette année</h4>
+                    <p class="text-muted mx-auto mb-3" style="max-width: 480px;">
+                        Aucune classe n'est disponible pour planifier des emplois du temps pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong>.
+                    </p>
+                    {% if current_user.role in ('admin', 'super_admin') %}
+                    <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i>Créer une première classe
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
         {% endif %}
     </div>
 

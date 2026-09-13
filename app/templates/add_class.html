@@ -32,6 +32,20 @@
                 </div>
 
                 <div class="form-card-body">
+                    {% if not niveaux_form %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-layer-group text-warning fa-4x mb-3 opacity-75"></i>
+                        <h4 class="fw-bold mb-2">Aucun niveau n'est configuré pour cette année.</h4>
+                        <p class="text-muted mx-auto mb-4" style="max-width: 520px;">
+                            Pour créer des classes dans l'année {{ annee_active.nom if annee_active else '' }}, vous devez d'abord définir les niveaux scolaires dans votre structure annuelle.
+                        </p>
+                        {% if annee_active %}
+                        <a href="{{ url_for('main.structure_annee', annee_id=annee_active.id) }}" class="btn btn-primary px-4 py-2 shadow-sm rounded-3">
+                            <i class="fas fa-layer-group me-2"></i>Configurer la structure annuelle
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% else %}
                     <form method="POST" action="{{ url_for('main.ajouter_classe', niveau_id=selected_niveau_id) }}" class="needs-validation" novalidate>
                         {{ form.hidden_tag() }}
 
@@ -67,17 +81,11 @@
                                 <div>
                                     {{ form.niveau_id.label(class="form-label fw-medium") }}
                                     <select class="form-select" id="{{ form.niveau_id.id }}" name="{{ form.niveau_id.name }}" required>
-                                        {% if niveaux_form %}
-                                            {% for niveau in niveaux_form %}
-                                            <option value="{{ niveau.id }}" data-cycle="{{ niveau.cycle }}"{% if (form.niveau_id.data and form.niveau_id.data|string == niveau.id|string) or (not form.niveau_id.data and selected_niveau_id and selected_niveau_id|string == niveau.id|string) %} selected{% endif %}>
-                                                {{ niveau.nom }}
-                                            </option>
-                                            {% endfor %}
-                                        {% else %}
-                                            {% for val, label in form.niveau_id.choices %}
-                                            <option value="{{ val }}"{% if form.niveau_id.data and form.niveau_id.data|string == val|string %} selected{% endif %}>{{ label }}</option>
-                                            {% endfor %}
-                                        {% endif %}
+                                        {% for niveau in niveaux_form %}
+                                        <option value="{{ niveau.id }}" data-cycle="{{ niveau.cycle }}"{% if (form.niveau_id.data and form.niveau_id.data|string == niveau.id|string) or (not form.niveau_id.data and selected_niveau_id and selected_niveau_id|string == niveau.id|string) %} selected{% endif %}>
+                                            {{ niveau.nom }}
+                                        </option>
+                                        {% endfor %}
                                     </select>
                                     {% for error in form.niveau_id.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
@@ -87,6 +95,7 @@
                                 <div>
                                     <label for="{{ form.section.id }}" class="form-label fw-medium" id="sectionLabel">Section</label>
                                     {{ form.section(class="form-control", placeholder="Ex : A", maxlength="1", pattern="[A-Za-zÀ-ÖØ-öø-ÿ]", autocomplete="off") }}
+                                    <div class="form-text text-muted small">Créez A, B, C... selon vos besoins.</div>
                                     {% for error in form.section.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
                                     {% endfor %}
@@ -123,6 +132,7 @@
                             </button>
                         </div>
                     </form>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -151,7 +161,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     niveauSelect.addEventListener('change', updateSectionLabel);
-    niveauSelect.addEventListener('input', updateSectionLabel);
     updateSectionLabel();
 });
 </script>

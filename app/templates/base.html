@@ -549,6 +549,7 @@
                                     <i class="fas fa-layer-group me-1"></i>Scolarité
                                 </a>
                                 <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{{ url_for('main.liste_classes') }}"><i class="fas fa-chalkboard me-2"></i>Classes</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.cours') }}"><i class="fas fa-book me-2"></i>Cours</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.notes') }}"><i class="fas fa-edit me-2"></i>Notes</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.absences') }}"><i class="fas fa-calendar-times me-2"></i>Absences</a></li>
@@ -568,10 +569,15 @@
                             </li>
 
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ('main.config_email',) }}" href="#" role="button" data-bs-toggle="dropdown">
+                                <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ('main.config_email', 'main.gestion_annees') }}" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-cog me-1"></i>Paramètres
                                 </a>
                                 <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ url_for('main.gestion_annees') }}">
+                                            <span><i class="fas fa-calendar-alt me-2 text-primary"></i>Années scolaires & Structure</span>
+                                        </a>
+                                    </li>
                                     <li>
                                         <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ url_for('main.config_email') }}">
                                             <span><i class="fas fa-envelope me-2 text-primary"></i>E-mail de l'établissement</span>
@@ -677,15 +683,24 @@
                     </li>
                     {% endif %}
 
-                    <!-- Indicateur de synchronisation hors-ligne pour Professeur & Admin -->
-                    {% if current_user.is_authenticated and current_user.role in ['professeur', 'admin'] %}
+                    <!-- Indicateur Année scolaire consultée -->
+                    {% if current_user.is_authenticated and annee_consultee %}
                     <li class="nav-item me-2 d-flex align-items-center">
-                        <div id="klasoraSyncStatusBadge" class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-2 d-flex align-items-center" style="font-size: 0.78rem; cursor: pointer; user-select: none;" title="Cliquez pour forcer la synchronisation">
-                            <span id="klasoraSyncIndicatorDot" class="me-2" style="width: 8px; height: 8px; border-radius: 50%; background-color: #28a745; display: inline-block;"></span>
-                            <span id="klasoraSyncStatusText">En ligne</span>
-                        </div>
+                        {% if current_user.role in ['admin', 'super_admin'] %}
+                        <a href="{{ url_for('main.gestion_annees') }}" class="badge rounded-pill text-decoration-none px-3 py-2 d-flex align-items-center gap-1 shadow-sm {% if annee_consultee.statut == 'active' %}bg-success text-white{% elif annee_consultee.statut == 'planifiee' %}bg-warning text-dark{% else %}bg-secondary text-white{% endif %}" title="Année consultée : {{ annee_consultee.nom }} (cliquez pour changer)" style="font-size: 0.8rem;">
+                            <i class="fas fa-calendar-alt me-1"></i>
+                            <span class="fw-bold">{{ annee_consultee.nom }}</span>
+                            <span class="opacity-75 ms-1">({% if annee_consultee.statut == 'active' %}Active{% elif annee_consultee.statut == 'planifiee' %}Planifiée{% else %}Archivée{% endif %})</span>
+                        </a>
+                        {% else %}
+                        <span class="badge rounded-pill px-3 py-2 d-flex align-items-center gap-1 shadow-sm {% if annee_consultee.statut == 'active' %}bg-success text-white{% elif annee_consultee.statut == 'planifiee' %}bg-warning text-dark{% else %}bg-secondary text-white{% endif %}" style="font-size: 0.8rem;">
+                            <i class="fas fa-calendar-alt me-1"></i>
+                            <span class="fw-bold">{{ annee_consultee.nom }}</span>
+                        </span>
+                        {% endif %}
                     </li>
                     {% endif %}
+
 {% if current_user.is_authenticated %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
