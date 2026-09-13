@@ -4,27 +4,77 @@ from .common import (
     current_user,
     datetime,
     envoyer_email,
+    flash,
     jsonify,
     login_required,
+    redirect,
     render_template,
     request,
     role_required,
     session,
+    url_for,
 )
+from app.authorization import can_access_class, check_parent_access
 from app.services import PER_PAGE_ALERTES, generer_alertes_automatiques, notifier_alertes
+from app.services.annees_scolaires import get_annee_consultee
 
 
 @main.route('/alertes')
 @login_required
-@role_required('admin')
+@role_required('admin', 'professeur', 'parent')
 def alertes():
-    # Classes de l'école active
-    classes = Classe.query.filter_by(ecole_id=current_user.ecole_id).order_by(Classe.nom.asc()).all()
+    ecole_id = getattr(current_user, 'ecole_id', None)
+    if not ecole_id:
+        flash("Aucune école associée à cet utilisateur.", "danger")
+        return redirect(url_for('main.index'))
+
+    # Ancrage annuel strict : année consultée
+    annee = get_annee_consultee(ecole_id)
+    if not annee:
+        flash("Aucune année scolaire active ou configurée.", "warning")
+        return render_template(
+            'alertes.html',
+            alertes=[],
+            classes=[],
+            classes_alertes=[],
+            stats={
+                "alertes_urgentes": 0,
+                "alertes_importantes": 0,
+                "alertes_info": 0,
+                "alertes_system": 0,
+                "alertes_traitees": 0,
+                "alertes_total": 0,
+                "alertes_actives": 0,
+                "total_paiements": 0,
+                "total_absences": 0,
+                "total_notes": 0,
+                "montant_retard_total": 0,
+                "montant_retard_total_str": "0 FCFA"
+            },
+            annee_consultee=None
+        )
+
+    # Classes de l'école pour l'année consultée
+    classes_query = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id).order_by(Classe.nom.asc())
+
+    # Génération des alertes scolaires pour l'année consultée
+    all_alertes = generer_alertes_automatiques(ecole_id=ecole_id, annee=annee)
+
+    # Filtrage selon le rôle
+    if current_user.role == 'professeur':
+        classes = [c for c in classes_query.all() if can_access_class(c)]
+        classes_ids = {c.id for c in classes}
+        all_alertes = [a for a in all_alertes if a.get('classe_id') in classes_ids]
+    elif current_user.role == 'parent':
+        all_alertes = [a for a in all_alertes if a.get('eleve_id') and check_parent_access(a['eleve_id'])]
+        eleves_classes_ids = {a.get('classe_id') for a in all_alertes if a.get('classe_id')}
+        classes = Classe.query.filter(Classe.id.in_(eleves_classes_ids)).order_by(Classe.nom.asc()).all() if eleves_classes_ids else []
+    else:
+        # Admin : toutes les classes de l'année consultée
+        classes = classes_query.all()
 
     # Suivi des alertes traitées via session
     alertes_traitees_ids = set(session.get('alertes_traitees', []))
-
-    all_alertes = generer_alertes_automatiques()
     for a in all_alertes:
         a['traitee'] = a['id'] in alertes_traitees_ids
 
@@ -108,22 +158,42 @@ def alertes():
     if sans_classe_group['alertes']:
         classes_alertes.append(sans_classe_group)
 
-    # Notifications en arrière-plan pour les alertes urgentes non traitées
-    notifier_alertes([a for a in alertes_actives if a["type"] in ["danger", "warning"]])
+    # Notifications : uniquement pour une année active (pas d'envoi en archivee ou planifiee)
+    if annee.statut not in ('archivee', 'planifiee'):
+        notifier_alertes([a for a in alertes_actives if a["type"] in ["danger", "warning"]])
 
     return render_template(
         'alertes.html',
         alertes=all_alertes,
         classes=classes,
         classes_alertes=classes_alertes,
-        stats=stats
+        stats=stats,
+        annee_consultee=annee
     )
 
 
 @main.route('/api/alertes', methods=['GET'])
 @login_required
+@role_required('admin', 'professeur', 'parent')
 def api_alertes():
-    alertes = generer_alertes_automatiques(limit=50)
+    ecole_id = getattr(current_user, 'ecole_id', None)
+    if not ecole_id:
+        return jsonify({'alertes': []})
+
+    annee = get_annee_consultee(ecole_id)
+    if not annee:
+        return jsonify({'alertes': []})
+
+    alertes = generer_alertes_automatiques(ecole_id=ecole_id, annee=annee, limit=50)
+
+    # Filtrage selon le rôle
+    if current_user.role == 'professeur':
+        classes_prof = [c for c in Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id).all() if can_access_class(c)]
+        classes_ids = {c.id for c in classes_prof}
+        alertes = [a for a in alertes if a.get('classe_id') in classes_ids]
+    elif current_user.role == 'parent':
+        alertes = [a for a in alertes if a.get('eleve_id') and check_parent_access(a['eleve_id'])]
+
     alertes_traitees_ids = set(session.get('alertes_traitees', []))
     for a in alertes:
         a['traitee'] = a['id'] in alertes_traitees_ids
@@ -134,15 +204,26 @@ def api_alertes():
 
 @main.route('/api/alertes/<string:alert_id>/read', methods=['POST'])
 @login_required
+@role_required('admin', 'professeur', 'parent')
 def marquer_alerte_lue(alert_id):
     traitees = set(session.get('alertes_traitees', []))
     data = request.get_json(silent=True) or {}
     action = data.get('action', 'toggle')
 
+    ecole_id = getattr(current_user, 'ecole_id', None)
+    annee = get_annee_consultee(ecole_id) if ecole_id else None
+
     if alert_id == 'all':
-        all_alertes = generer_alertes_automatiques()
-        for a in all_alertes:
-            traitees.add(a['id'])
+        if ecole_id and annee:
+            all_alertes = generer_alertes_automatiques(ecole_id=ecole_id, annee=annee)
+            if current_user.role == 'professeur':
+                classes_prof = [c for c in Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id).all() if can_access_class(c)]
+                classes_ids = {c.id for c in classes_prof}
+                all_alertes = [a for a in all_alertes if a.get('classe_id') in classes_ids]
+            elif current_user.role == 'parent':
+                all_alertes = [a for a in all_alertes if a.get('eleve_id') and check_parent_access(a['eleve_id'])]
+            for a in all_alertes:
+                traitees.add(a['id'])
         msg = "Toutes les alertes ont été marquées comme traitées"
         is_traitee = True
     elif action == 'untreat' or (action == 'toggle' and alert_id in traitees):

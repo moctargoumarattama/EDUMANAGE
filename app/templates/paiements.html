@@ -22,15 +22,37 @@
                 <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllPayments" title="Déplier ou replier toutes les classes">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
+                {% if not annee_consultee or annee_consultee.statut == 'active' %}
                 <button type="button" class="btn btn-success shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseNouveauPaiement" aria-expanded="false" aria-controls="collapseNouveauPaiement" id="btnToggleAddPayment">
                     <i class="fas fa-plus-circle me-2"></i>Nouveau paiement
                 </button>
+                {% endif %}
                 <a href="{{ url_for('main.export_paiements_excel') }}" class="btn btn-outline-primary shadow-sm" title="Exporter les paiements au format Excel">
                     <i class="fas fa-file-excel me-2"></i>Exporter Excel
                 </a>
             </div>
         </div>
     </section>
+
+    {% if annee_consultee %}
+        {% if annee_consultee.statut == 'archivee' %}
+            <div class="alert alert-secondary d-flex align-items-center gap-2 mb-4 shadow-sm border-secondary border-opacity-25">
+                <i class="fas fa-archive fa-lg text-secondary"></i>
+                <div>
+                    <strong>Année scolaire {{ annee_consultee.nom }} archivée :</strong>
+                    Cette année est consultée en lecture seule stricte. Aucun versement ne peut être ajouté, modifié ou supprimé.
+                </div>
+            </div>
+        {% elif annee_consultee.statut == 'planifiee' %}
+            <div class="alert alert-info d-flex align-items-center gap-2 mb-4 shadow-sm border-info border-opacity-25">
+                <i class="fas fa-calendar-alt fa-lg text-info"></i>
+                <div>
+                    <strong>Année scolaire {{ annee_consultee.nom }} en préparation :</strong>
+                    Les paiements pourront être enregistrés lorsque cette année sera active.
+                </div>
+            </div>
+        {% endif %}
+    {% endif %}
 
     <!-- Cartes statistiques récapitulatives -->
     <div class="stat-grid mb-4">
@@ -65,6 +87,7 @@
     </div>
 
     <!-- Formulaire d'ajout de paiement rétractable -->
+    {% if not annee_consultee or annee_consultee.statut == 'active' %}
     <div class="collapse mb-4" id="collapseNouveauPaiement">
         <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
             <div class="card-header bg-success text-white py-3 px-4 d-flex justify-content-between align-items-center">
@@ -113,6 +136,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- Barre d'outils : recherche, filtres et tri -->
     <div class="course-toolbar-card mb-4">
@@ -204,7 +228,7 @@
                     {% if full_name not in ns.eleves_names %}
                         {% set _ = ns.eleves_names.append(full_name) %}
                     {% endif %}
-                    {% for p in el.paiements %}
+                    {% for p in (el.annee_paiements if el.annee_paiements is defined else el.paiements) %}
                         {% if p.reference and p.reference not in ns.refs %}
                             {% set _ = ns.refs.append(p.reference) %}
                         {% endif %}
@@ -315,7 +339,7 @@
                                 {% set el_reste = p_data.get('reste_a_payer', 0) %}
                                 {% set el_frais = p_data.get('frais_annuels', el.frais_annuels or 0) %}
                                 {% set el_pct = p_data.get('pourcentage_paye', 0) %}
-                                {% set el_paiements = el.paiements %}
+                                {% set el_paiements = el.annee_paiements if el.annee_paiements is defined else (p_data.get('inscription').paiements if p_data.get('inscription') else el.paiements) %}
 
                                 {% set el_statut = 'complet' if el_reste <= 0 else ('partiel' if el_paye > 0 else 'aucun') %}
                                 {% set el_search = el.prenom ~ ' ' ~ el.nom ~ ' ' ~ (el.classe.nom if el.classe else '') %}
@@ -374,13 +398,16 @@
                                             </div>
 
                                             <!-- Bouton ajout versement pré-rempli -->
+                                            {% if not annee_consultee or annee_consultee.statut == 'active' %}
                                             <button type="button"
                                                     class="btn btn-sm btn-outline-success btn-quick-pay"
+                                                    data-quick-pay
                                                     data-eleve-id="{{ el.id }}"
                                                     data-eleve-nom="{{ el.prenom }} {{ el.nom }}"
                                                     title="Enregistrer un versement pour {{ el.prenom }} {{ el.nom }}">
                                                 <i class="fas fa-plus me-1"></i>Payer
                                             </button>
+                                            {% endif %}
                                         </div>
                                     </div>
 
@@ -435,6 +462,7 @@
                                                                        aria-label="PDF">
                                                                         <i class="fas fa-file-pdf"></i>
                                                                     </a>
+                                                                    {% if not annee_consultee or annee_consultee.statut == 'active' %}
                                                                     <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}"
                                                                           method="POST"
                                                                           class="d-inline js-confirm-form"
@@ -447,6 +475,7 @@
                                                                             <i class="fas fa-trash-alt"></i>
                                                                         </button>
                                                                     </form>
+                                                                    {% endif %}
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -479,12 +508,14 @@
                                                         <a href="{{ url_for('main.generer_recu_pdf', id=p.id) }}" class="btn btn-sm btn-outline-primary">
                                                             <i class="fas fa-file-pdf me-1"></i>PDF
                                                         </a>
+                                                        {% if not annee_consultee or annee_consultee.statut == 'active' %}
                                                         <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}" method="POST" class="js-confirm-form" data-confirm="Supprimer ce versement ?">
                                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                             <button type="submit" class="btn btn-sm btn-outline-danger">
                                                                 <i class="fas fa-trash-alt me-1"></i>Supprimer
                                                             </button>
                                                         </form>
+                                                        {% endif %}
                                                     </div>
                                                 </div>
                                             {% endfor %}
@@ -916,7 +947,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Pré-remplissage du formulaire lors du clic sur "Payer" pour un élève spécifique
-    document.querySelectorAll('.btn-quick-pay').forEach(btn => {
+    document.querySelectorAll('[data-quick-pay]').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.stopPropagation();
             const eleveId = this.dataset.eleveId;

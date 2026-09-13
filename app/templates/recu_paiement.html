@@ -36,6 +36,12 @@
                                         <th>Date du paiement:</th>
                                         <td>{{ paiement.date_paiement.strftime('%d/%m/%Y à %H:%M') }}</td>
                                     </tr>
+                                    {% if paiement.inscription and paiement.inscription.annee_scolaire %}
+                                    <tr>
+                                        <th>Année scolaire:</th>
+                                        <td class="fw-bold">{{ paiement.inscription.annee_scolaire.nom }}</td>
+                                    </tr>
+                                    {% endif %}
                                     <tr>
                                         <th>Mois payé:</th>
                                         <td class="fw-bold">{{ paiement.mois }} {{ paiement.annee }}</td>
@@ -76,7 +82,7 @@
                                     </tr>
                                     <tr>
                                         <th>Classe:</th>
-                                        <td>{{ paiement.eleve.classe.nom if paiement.eleve.classe else "Sans classe" }}</td>
+                                        <td>{{ paiement.inscription.classe.nom if (paiement.inscription and paiement.inscription.classe) else (paiement.eleve.classe.nom if (paiement.eleve and paiement.eleve.classe) else "Sans classe") }}</td>
                                     </tr>
                                     <tr>
                                         <th>Date de naissance:</th>

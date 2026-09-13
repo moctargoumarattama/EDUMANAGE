@@ -29,6 +29,12 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
+                {% if annee_consultee %}
+                <span class="badge bg-light text-dark border shadow-sm px-3 py-2">
+                    <i class="fas fa-calendar-alt me-1 text-primary"></i>{{ annee_consultee.nom }}
+                    {% if annee_consultee.statut == 'archivee' %}<span class="text-muted ms-1">Archivee</span>{% elif annee_consultee.statut == 'planifiee' %}<span class="text-muted ms-1">Planifiee</span>{% else %}<span class="text-success ms-1">Active</span>{% endif %}
+                </span>
+                {% endif %}
                 <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllClassAbsences" title="Déplier ou replier toutes les classes">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
@@ -37,7 +43,7 @@
                     <i class="fas fa-plus-circle me-2"></i>Nouvelle absence
                 </button>
                 {% endif %}
-                {% if current_user.role in ['admin', 'professeur'] %}
+                {% if can_mutate %}
                 <a href="{{ url_for('main.export_absences_excel') }}" class="btn btn-outline-success shadow-sm" title="Exporter les absences vers Excel">
                     <i class="fas fa-file-excel me-2"></i>Exporter Excel
                 </a>
@@ -45,6 +51,18 @@
             </div>
         </div>
     </section>
+
+    {% if message_annee %}
+    <div class="alert alert-info border-0 shadow-sm rounded-4 mb-3" role="alert">
+        <i class="fas fa-info-circle me-2"></i>{{ message_annee }}
+    </div>
+    {% endif %}
+
+    {% if annee_consultee and annee_consultee.statut == 'archivee' %}
+    <div class="alert alert-warning border-0 shadow-sm rounded-4 mb-3" role="alert">
+        <i class="fas fa-lock me-2"></i>Vous consultez une annee archivee : {{ annee_consultee.nom }}
+    </div>
+    {% endif %}
 
     <!-- Formulaire d'ajout (admin/professeur, rétractable) -->
     {% if show_form %}
@@ -124,7 +142,7 @@
     {% set absences_avec_classe = [] %}
     {% set absences_sans_classe = [] %}
     {% for a in absences %}
-        {% if a.eleve and a.eleve.classe %}
+        {% if a.eleve and a.annee_classe %}
             {% set _ = absences_avec_classe.append(a) %}
         {% else %}
             {% set _ = absences_sans_classe.append(a) %}
@@ -151,8 +169,8 @@
                     <option value="">Toutes les classes</option>
                     {% set classes_list = [] %}
                     {% for a in absences_avec_classe %}
-                        {% if a.eleve.classe.nom not in classes_list %}
-                            {% set _ = classes_list.append(a.eleve.classe.nom) %}
+                        {% if a.annee_classe.nom not in classes_list %}
+                            {% set _ = classes_list.append(a.annee_classe.nom) %}
                         {% endif %}
                     {% endfor %}
                     {% for cl in classes_list|sort %}
@@ -207,8 +225,8 @@
 
     <!-- LISTE DES CLASSES ET LEURS ÉLÈVES ABSENTS (ACCORDÉON) -->
     <div id="classAbsenceList" class="class-absence-list">
-        {% for class_group in absences_avec_classe|groupby('eleve.classe.id') %}
-            {% set classe = class_group.list[0].eleve.classe %}
+        {% for class_group in absences_avec_classe|groupby('annee_classe.id') %}
+            {% set classe = class_group.list[0].annee_classe %}
             {% set classe_absences = class_group.list %}
             {% set total_classe_abs = classe_absences|length %}
             {% set just_classe_count = classe_absences|selectattr('justifiee')|list|length %}
@@ -353,7 +371,7 @@
                                             <th>Cours / Matière</th>
                                             <th style="width: 150px;">Statut</th>
                                             <th>Motif / Justification</th>
-                                            {% if current_user.role in ['admin', 'professeur'] %}
+                                            {% if can_mutate %}
                                             <th class="text-end pe-4" style="width: 120px;">Actions</th>
                                             {% endif %}
                                         </tr>
@@ -391,7 +409,7 @@
                                                     {{ a.motif or "Aucun motif renseigné" }}
                                                 </span>
                                             </td>
-                                            {% if current_user.role in ['admin', 'professeur'] %}
+                                            {% if can_mutate %}
                                             <td class="text-end pe-4">
                                                 <div class="d-inline-flex gap-1">
                                                     <a href="{{ url_for('main.edit_absence', absence_id=a.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier l'absence">
@@ -444,7 +462,7 @@
                                     </div>
                                     {% endif %}
 
-                                    {% if current_user.role in ['admin', 'professeur'] %}
+                                    {% if can_mutate %}
                                     <div class="class-student-mini-actions">
                                         <a href="{{ url_for('main.edit_absence', absence_id=a.id) }}" class="btn btn-outline-primary btn-sm" title="Modifier">
                                             <i class="fas fa-edit me-1"></i>Modifier
@@ -520,7 +538,7 @@
                                     <th>Cours</th>
                                     <th>Statut</th>
                                     <th>Motif</th>
-                                    {% if current_user.role in ['admin', 'professeur'] %}
+                                    {% if can_mutate %}
                                     <th class="text-end pe-4">Actions</th>
                                     {% endif %}
                                 </tr>
@@ -536,8 +554,8 @@
                                             {{ "Justifiée" if a.justifiee else "Non justifiée" }}
                                         </span>
                                     </td>
-                                    <td>{{ a.motif or "—" }}</td>
-                                    {% if current_user.role in ['admin', 'professeur'] %}
+                                    <td>{{ a.motif or "-" }}</td>
+                                    {% if can_mutate %}
                                     <td class="text-end pe-4">
                                         <form action="{{ url_for('main.delete_absence', absence_id=a.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer ?');">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>

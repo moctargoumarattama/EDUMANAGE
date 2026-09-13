@@ -83,7 +83,7 @@ def gestion_annees():
         annee_id = request.form.get('annee_id')
 
         if action == 'activer' and annee_id:
-            annee = db.session.get(AnneeScolaire, int(annee_id))
+            annee = AnneeScolaire.query.get(int(annee_id))
             if annee and annee.ecole_id in [e.id for e in ecoles]:
                 return redirect(url_for('main.activation_annee_confirmation', annee_id=annee.id))
             else:

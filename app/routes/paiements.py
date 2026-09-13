@@ -2,6 +2,7 @@ from . import main
 from .common import (
     Classe,
     Eleve,
+    Inscription,
     Paiement,
     PaiementForm,
     ajouter_ecole_id,
@@ -24,15 +25,28 @@ from .common import (
     send_file,
     url_for,
 )
-from reportlab.lib.pagesizes import A4, letter
+from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 import pandas as pd
+from app.services.annees_scolaires import get_annee_consultee
+from app.services.paiements_annuels import (
+    get_inscriptions_paiements,
+    get_finances_inscription,
+    get_paiements_annee,
+    enregistrer_paiement,
+    supprimer_paiement_securise,
+)
 
 
 @main.route('/paiements', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
 def paiements():
+    annee = get_annee_consultee(current_user.ecole_id)
+    if not annee:
+        flash("Aucune année scolaire configurée pour cet établissement.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
     form = PaiementForm()
     page_eleves = request.args.get('page', 1, type=int)
     page_paiements = request.args.get('page_paiements', 1, type=int)
@@ -41,23 +55,46 @@ def paiements():
     classe_id = request.args.get('classe', type=int)
     recherche = request.args.get('recherche', '', type=str)
 
-    # --- TRAITEMENT DU POST ---
+    # Récupérer toutes les inscriptions de l'année scolaire consultée
+    inscriptions_annee = get_inscriptions_paiements(current_user.ecole_id, annee, current_user)
+
+    # Remplir les choix du formulaire d'encaissement avec les élèves inscrits dans l'année consultée
+    form.eleve_id.choices = [
+        (
+            ins.eleve_id,
+            f"{ins.eleve.prenom} {ins.eleve.nom} ({ins.classe.nom if ins.classe else 'Sans classe'})"
+        )
+        for ins in inscriptions_annee if ins.eleve
+    ]
+
+    # --- TRAITEMENT DU POST (ENCAISSEMENT) ---
     if form.validate_on_submit():
+        if annee.statut == 'archivee':
+            flash("L'année scolaire est archivée : les paiements sont en lecture seule stricte.", "danger")
+            return redirect(url_for('main.paiements'))
+        if annee.statut == 'planifiee':
+            flash("Les paiements pourront être enregistrés lorsque cette année sera active.", "warning")
+            return redirect(url_for('main.paiements'))
+        if annee.statut != 'active':
+            flash("Seule l'année active autorise l'encaissement de paiements.", "danger")
+            return redirect(url_for('main.paiements'))
+
+        paiement, error = enregistrer_paiement(
+            ecole_id=current_user.ecole_id,
+            annee=annee,
+            user=current_user,
+            eleve_id=form.eleve_id.data,
+            montant=form.montant.data,
+            mois=form.mois.data,
+            annee_civile=form.annee.data,
+            mode_paiement=form.mode_paiement.data,
+            reference=form.reference.data
+        )
+        if error:
+            flash(error, "danger")
+            return redirect(url_for('main.paiements'))
+
         try:
-            eleve = filtre_par_ecole(Eleve.query, Eleve).filter_by(id=form.eleve_id.data).first()
-            if not eleve:
-                flash("Eleve invalide pour votre ecole.", "danger")
-                return redirect(url_for('main.paiements'))
-            paiement = Paiement(
-                eleve_id=form.eleve_id.data,
-                montant=form.montant.data,
-                mois=form.mois.data,
-                annee=form.annee.data,
-                mode_paiement=form.mode_paiement.data,
-                reference=form.reference.data
-            )
-            ajouter_ecole_id(paiement)
-            db.session.add(paiement)
             db.session.commit()
             flash("Paiement enregistré avec succès !", "success")
             return redirect(url_for('main.paiements'))
@@ -65,91 +102,88 @@ def paiements():
             db.session.rollback()
             flash(f"Erreur lors de l'enregistrement du paiement: {e}", "danger")
 
-    # --- QUERY DE BASE POUR LES ÉLÈVES ---
-    query_base = filtre_par_ecole(Eleve.query.outerjoin(Classe), Eleve)
+    # Classes de l'année consultée
+    classes = filtre_par_ecole(
+        Classe.query.filter_by(annee_scolaire_id=annee.id).order_by(Classe.nom),
+        Classe
+    ).all()
+
+    # Inscriptions filtrées par classe ou recherche pour l'affichage accordéon
+    inscriptions_filtrees = inscriptions_annee
     if classe_id:
-        query_base = query_base.filter(Eleve.classe_id == classe_id)
+        inscriptions_filtrees = [ins for ins in inscriptions_filtrees if ins.classe_id == classe_id]
     if recherche:
-        query_base = query_base.filter(
-            (Eleve.nom.ilike(f"%{recherche}%")) | (Eleve.prenom.ilike(f"%{recherche}%"))
-        )
+        r_lower = recherche.lower()
+        inscriptions_filtrees = [
+            ins for ins in inscriptions_filtrees
+            if ins.eleve and (r_lower in ins.eleve.nom.lower() or r_lower in ins.eleve.prenom.lower())
+        ]
 
-    # --- TOUS LES ÉLÈVES POUR L'ORGANISATION PAR CLASSE ---
-    ClasseAlias = aliased(Classe)
-    all_eleves = query_base.outerjoin(ClasseAlias, Eleve.classe_id == ClasseAlias.id)\
-                           .order_by(ClasseAlias.nom, Eleve.nom).all()
+    # Données enrichies par élève / inscription
+    paiements_par_eleve = {}
+    eleves_par_classe = {c.id: [] for c in classes}
+    eleves_sans_classe = []
 
-    eleves_pagination = query_base.outerjoin(ClasseAlias, Eleve.classe_id == ClasseAlias.id)\
-                                  .order_by(ClasseAlias.nom, Eleve.nom)\
-                                  .paginate(page=page_eleves, per_page=per_page_eleves, error_out=False)
-    eleves = eleves_pagination.items
-
-    # --- STATISTIQUES RÉELLES (SUR TOUS LES ÉLÈVES DE L'ÉCOLE) ---
-    eleve_ids = [e.id for e in all_eleves]
-    paiements_totaux = db.session.query(
-        Paiement.eleve_id,
-        func.sum(Paiement.montant).label('total_paye')
-    ).filter(Paiement.eleve_id.in_(eleve_ids)).group_by(Paiement.eleve_id).all() if eleve_ids else []
-    paiements_dict = {p.eleve_id: p.total_paye for p in paiements_totaux}
-
-    total_frais = sum((e.frais_annuels or 0) for e in all_eleves)
-    total_recouvre = sum(paiements_dict.values())
-    total_reste = max(0, total_frais - total_recouvre)
-
+    total_frais = 0.0
+    total_recouvre = 0.0
     stats = {
-        'total_eleves': len(all_eleves),
+        'total_eleves': len(inscriptions_annee),
         'complet': 0,
         'partiel': 0,
         'aucun': 0,
-        'total_frais': total_frais,
-        'total_recouvre': total_recouvre,
-        'total_reste': total_reste,
-        'taux_recouvrement': round((total_recouvre / total_frais) * 100, 1) if total_frais > 0 else 0
+        'total_frais': 0.0,
+        'total_recouvre': 0.0,
+        'total_reste': 0.0,
+        'taux_recouvrement': 0.0
     }
-    for e in all_eleves:
-        total_paye = paiements_dict.get(e.id, 0)
-        reste = max((e.frais_annuels or 0) - total_paye, 0)
-        if reste <= 0:
+
+    # Calcul global des statistiques sur toutes les inscriptions de l'année consultée
+    for ins in inscriptions_annee:
+        fin = get_finances_inscription(ins)
+        total_frais += fin['frais_annuels']
+        total_recouvre += fin['total_paye']
+        if fin['statut_solde'] == 'complet':
             stats['complet'] += 1
-        elif total_paye == 0:
-            stats['aucun'] += 1
-        else:
+        elif fin['statut_solde'] == 'partiel':
             stats['partiel'] += 1
+        else:
+            stats['aucun'] += 1
 
-    # --- Données enrichies pour chaque élève ---
-    paiements_par_eleve = {}
-    for e in all_eleves:
-        total_paye = paiements_dict.get(e.id, 0)
-        frais = e.frais_annuels or 0
-        reste = max(frais - total_paye, 0)
+    stats['total_frais'] = total_frais
+    stats['total_recouvre'] = total_recouvre
+    stats['total_reste'] = max(0.0, total_frais - total_recouvre)
+    stats['taux_recouvrement'] = round((total_recouvre / total_frais) * 100, 1) if total_frais > 0 else 0.0
+
+    # Données par élève filtré
+    for ins in inscriptions_filtrees:
+        fin = get_finances_inscription(ins)
+        e = ins.eleve
+        if not e:
+            continue
+        # Classe historique de l'année consultée
+        e.annee_classe = ins.classe
+        e.annee_paiements = ins.paiements
         paiements_par_eleve[e.id] = {
-            'total_paye': total_paye,
-            'reste_a_payer': reste,
-            'frais_annuels': frais,
+            'total_paye': fin['total_paye'],
+            'reste_a_payer': fin['reste_a_payer'],
+            'frais_annuels': fin['frais_annuels'],
             'eleve': e,
-            'pourcentage_paye': round((total_paye / frais) * 100, 1) if frais > 0 else 0
+            'inscription': ins,
+            'pourcentage_paye': fin['pourcentage_paye']
         }
-
-    # --- CLASSES ET REGROUPEMENT DES ÉLÈVES ---
-    classes = filtre_par_ecole(Classe.query.order_by(Classe.nom), Classe).all()
-    eleves_par_classe = {c.id: [] for c in classes}
-    eleves_sans_classe = []
-    for e in all_eleves:
-        if e.classe_id and e.classe_id in eleves_par_classe:
-            eleves_par_classe[e.classe_id].append(e)
-        elif e.classe:
-            eleves_par_classe.setdefault(e.classe.id, []).append(e)
+        if ins.classe_id and ins.classe_id in eleves_par_classe:
+            eleves_par_classe[ins.classe_id].append(e)
         else:
             eleves_sans_classe.append(e)
 
-    # --- STATISTIQUES FINANCIÈRES PAR CLASSE ---
+    # Statistiques par classe pour l'année consultée
     classe_finances = {}
     for c in classes:
         c_eleves = eleves_par_classe.get(c.id, [])
-        c_frais = sum((e.frais_annuels or 0) for e in c_eleves)
-        c_paye = sum(paiements_dict.get(e.id, 0) for e in c_eleves)
-        c_reste = max(0, c_frais - c_paye)
-        c_taux = round((c_paye / c_frais) * 100, 1) if c_frais > 0 else 0
+        c_frais = sum(paiements_par_eleve[e.id]['frais_annuels'] for e in c_eleves if e.id in paiements_par_eleve)
+        c_paye = sum(paiements_par_eleve[e.id]['total_paye'] for e in c_eleves if e.id in paiements_par_eleve)
+        c_reste = max(0.0, c_frais - c_paye)
+        c_taux = round((c_paye / c_frais) * 100, 1) if c_frais > 0 else 0.0
         classe_finances[c.id] = {
             'eleves_count': len(c_eleves),
             'total_frais': c_frais,
@@ -158,21 +192,31 @@ def paiements():
             'taux_recouvrement': c_taux
         }
 
-    # --- PAGINATION DES PAIEMENTS ---
-    query_paiements = filtre_par_ecole(
-        Paiement.query.order_by(Paiement.date_paiement.desc(), Paiement.annee.desc(), Paiement.mois.desc()),
-        Paiement
-    )
+    # Pagination des paiements pour l'année consultée
+    ins_ids = [ins.id for ins in inscriptions_annee]
+    if ins_ids:
+        query_paiements = (
+            Paiement.query.filter(
+                Paiement.ecole_id == current_user.ecole_id,
+                Paiement.inscription_id.in_(ins_ids)
+            )
+            .order_by(Paiement.date_paiement.desc(), Paiement.id.desc())
+        )
+    else:
+        query_paiements = Paiement.query.filter(Paiement.id == -1)
+
     paiements_pagination = query_paiements.paginate(
         page=page_paiements, per_page=per_page_paiements, error_out=False
     )
+
+    all_eleves = [ins.eleve for ins in inscriptions_filtrees if ins.eleve]
 
     return render_template(
         "paiements.html",
         form=form,
         paiements_pagination=paiements_pagination,
         paiements_par_eleve=paiements_par_eleve,
-        eleves_pagination=eleves_pagination,
+        eleves_pagination=None,
         all_eleves=all_eleves,
         eleves=all_eleves,
         eleves_par_classe=eleves_par_classe,
@@ -181,33 +225,48 @@ def paiements():
         stats=stats,
         classes=classes,
         classe_id=classe_id,
-        recherche=recherche
+        recherche=recherche,
+        annee_consultee=annee,
     )
+
 
 @main.route('/parent/paiements')
 @login_required
 @role_required('parent')
 def paiements_parent():
-    paiements = []
-    for enfant in filtre_par_ecole(current_user.enfants, Eleve):
-        paiements.extend(
-            filtre_par_ecole(
-                Paiement.query.filter_by(eleve_id=enfant.id)
-                .order_by(Paiement.annee.desc(), Paiement.mois.desc()),
-                Paiement
-            ).all()
-        )
-    
-    # Calcul du montant total
-    total_amount = sum(p.montant for p in paiements) if paiements else 0
+    annee = get_annee_consultee(current_user.ecole_id)
+    if not annee:
+        return render_template("paiements_parent.html", paiements=[], total_amount=0)
 
-    return render_template("paiements_parent.html", paiements=paiements, total_amount=total_amount)
+    inscriptions = get_inscriptions_paiements(current_user.ecole_id, annee, current_user)
+    ins_ids = [ins.id for ins in inscriptions]
+
+    if ins_ids:
+        paiements = (
+            Paiement.query.options(
+                joinedload(Paiement.inscription).joinedload(Inscription.classe),
+                joinedload(Paiement.eleve),
+            )
+            .filter(
+                Paiement.ecole_id == current_user.ecole_id,
+                Paiement.inscription_id.in_(ins_ids)
+            )
+            .order_by(Paiement.date_paiement.desc(), Paiement.id.desc())
+            .all()
+        )
+    else:
+        paiements = []
+
+    total_amount = sum(p.montant for p in paiements if p.montant)
+    return render_template("paiements_parent.html", paiements=paiements, total_amount=total_amount, annee_consultee=annee)
+
 
 @main.route('/paiement/<int:id>/recu')
+@main.route('/paiements/<int:id>')
+@main.route('/paiements/<int:id>/recu')
 @login_required
 @role_required('admin', 'parent')
 def recu_paiement(id):
-    # Récupère la query filtrée par école puis l'objet
     paiement = filtre_par_ecole(Paiement.query, Paiement).filter_by(id=id).first_or_404()
 
     if current_user.role == 'parent' and not check_parent_access(paiement.eleve_id):
@@ -216,7 +275,9 @@ def recu_paiement(id):
 
     return render_template('recu_paiement.html', paiement=paiement, now=datetime.now())
 
+
 @main.route('/paiement/<int:id>/pdf')
+@main.route('/paiements/<int:id>/pdf')
 @login_required
 @role_required('admin', 'parent')
 def generer_recu_pdf(id):
@@ -238,6 +299,17 @@ def generer_recu_pdf(id):
         adresse_ecole = "Non renseignée"
         contact_ecole = "-"
 
+    # Classe et année scolaire historiques depuis Inscription
+    classe_nom = "Sans classe"
+    annee_scolaire_nom = ""
+    if paiement.inscription:
+        if paiement.inscription.classe:
+            classe_nom = paiement.inscription.classe.nom
+        if paiement.inscription.annee_scolaire:
+            annee_scolaire_nom = paiement.inscription.annee_scolaire.nom
+    elif eleve and eleve.classe:
+        classe_nom = eleve.classe.nom
+
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
@@ -258,11 +330,14 @@ def generer_recu_pdf(id):
     p.setFont("Helvetica", 12)
     p.drawString(100, y, f"Référence: {paiement.id:06d}")
     y -= 25
-    p.drawString(100, y, f"Date: {paiement.date_paiement.strftime('%d/%m/%Y %H:%M')}")
+    p.drawString(100, y, f"Date: {paiement.date_paiement.strftime('%d/%m/%Y %H:%M') if paiement.date_paiement else '-'}")
+    if annee_scolaire_nom:
+        y -= 25
+        p.drawString(100, y, f"Année scolaire: {annee_scolaire_nom}")
     y -= 25
-    p.drawString(100, y, f"Élève: {eleve.prenom} {eleve.nom}")
+    p.drawString(100, y, f"Élève: {eleve.prenom if eleve else ''} {eleve.nom if eleve else ''}")
     y -= 25
-    p.drawString(100, y, f"Classe: {eleve.classe.nom if eleve.classe else 'Sans classe'}")
+    p.drawString(100, y, f"Classe: {classe_nom}")
     y -= 25
     p.drawString(100, y, f"Mois payé: {paiement.mois} {paiement.annee}")
     y -= 25
@@ -294,28 +369,55 @@ def generer_recu_pdf(id):
         mimetype='application/pdf'
     )
 
+
 @main.route('/paiements/export_excel')
+@main.route('/paiements/export/excel')
 @login_required
 @role_required('admin')
 def export_paiements_excel():
-    # Récupère tous les paiements filtrés par école avec eager loading élève/classe
-    paiements = filtre_par_ecole(
-        Paiement.query.options(
-            joinedload(Paiement.eleve).joinedload(Eleve.classe)
-        ).join(Eleve).order_by(Paiement.date_paiement.desc()),
-        Paiement
-    ).all()
+    annee = get_annee_consultee(current_user.ecole_id)
+    if not annee:
+        flash("Aucune année scolaire configurée.", "warning")
+        return redirect(url_for('main.paiements'))
+
+    inscriptions = get_inscriptions_paiements(current_user.ecole_id, annee, current_user)
+    ins_ids = [ins.id for ins in inscriptions]
+
+    if ins_ids:
+        paiements = (
+            Paiement.query.options(
+                joinedload(Paiement.inscription).joinedload(Inscription.classe),
+                joinedload(Paiement.inscription).joinedload(Inscription.annee_scolaire),
+                joinedload(Paiement.eleve),
+            )
+            .filter(
+                Paiement.ecole_id == current_user.ecole_id,
+                Paiement.inscription_id.in_(ins_ids)
+            )
+            .order_by(Paiement.date_paiement.desc(), Paiement.id.desc())
+            .all()
+        )
+    else:
+        paiements = []
 
     data = {
-        'Date': [p.date_paiement.strftime('%d/%m/%Y') for p in paiements],
-        'Élève': [f"{p.eleve.prenom} {p.eleve.nom}" for p in paiements],
-        'Classe': [p.eleve.classe.nom if p.eleve.classe else 'Sans classe' for p in paiements],
+        'Date': [p.date_paiement.strftime('%d/%m/%Y') if p.date_paiement else '' for p in paiements],
+        'Élève': [f"{p.eleve.prenom} {p.eleve.nom}" if p.eleve else '' for p in paiements],
+        'Classe': [
+            p.inscription.classe.nom if (p.inscription and p.inscription.classe)
+            else (p.eleve.classe.nom if (p.eleve and p.eleve.classe) else 'Sans classe')
+            for p in paiements
+        ],
+        'Année Scolaire': [
+            p.inscription.annee_scolaire.nom if (p.inscription and p.inscription.annee_scolaire) else ''
+            for p in paiements
+        ],
         'Mois': [p.mois for p in paiements],
         'Année': [p.annee for p in paiements],
         'Montant': [p.montant for p in paiements],
         'Mode': [p.mode_paiement for p in paiements],
         'Statut': [p.statut for p in paiements],
-        'Référence': [p.reference for p in paiements]
+        'Référence': [p.reference or '' for p in paiements]
     }
 
     df = pd.DataFrame(data)
@@ -327,24 +429,35 @@ def export_paiements_excel():
     return send_file(
         output,
         as_attachment=True,
-        download_name="liste_paiements.xlsx",
+        download_name=f"liste_paiements_{annee.nom}.xlsx",
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 
+
 @main.route('/paiement/<int:id>/supprimer', methods=['POST'])
+@main.route('/paiements/<int:id>/supprimer', methods=['POST'])
 @login_required
 @role_required('admin')
 def supprimer_paiement(id):
+    annee = get_annee_consultee(current_user.ecole_id)
+    if not annee or annee.statut == 'archivee':
+        flash("L'année scolaire est archivée : suppression de paiement interdite (lecture seule).", "danger")
+        return redirect(url_for('main.paiements'))
+    if annee.statut == 'planifiee':
+        flash("Opération non autorisée sur une année planifiée.", "danger")
+        return redirect(url_for('main.paiements'))
+
+    paiement = filtre_par_ecole(Paiement.query, Paiement).filter_by(id=id).first_or_404()
+
+    if paiement.inscription and paiement.inscription.annee_scolaire_id != annee.id:
+        flash("Ce paiement n'appartient pas à l'année scolaire consultée.", "danger")
+        return redirect(url_for('main.paiements'))
+
     try:
-        # ✅ Sécurisation multi-écoles
-        paiement = filtre_par_ecole(Paiement.query, Paiement).filter_by(id=id).first_or_404()
-
         ancienne_valeur = f"Paiement ID {paiement.id} (Élève: {paiement.eleve_id}, Montant: {paiement.montant})"
-
         db.session.delete(paiement)
         db.session.commit()
 
-        # ✅ Journalisation
         current_app.log_correction(
             action="suppression_paiement",
             description=f"Paiement supprimé ID {paiement.id}",
@@ -355,11 +468,10 @@ def supprimer_paiement(id):
             nouvelle_valeur=None,
             niveau="info"
         )
-
         flash("Paiement supprimé avec succès.", "success")
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur suppression paiement {id}: {e}")
         flash(f"Erreur lors de la suppression: {str(e)}", "danger")
-    
+
     return redirect(url_for('main.paiements'))

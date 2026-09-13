@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emploi du temps - {{ donnees.classe_nom }} ({{ donnees.annee_scolaire_nom }})</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #fff; color: #333; }
+        .print-header { border-bottom: 2px solid #0d6efd; padding-bottom: 1rem; margin-bottom: 1.5rem; }
+        .print-table th { background-color: #f8f9fa; color: #495057; }
+        @media print {
+            .no-print { display: none !important; }
+            body { padding: 0; }
+        }
+    </style>
+</head>
+<body class="p-4">
+    <div class="container-fluid">
+        <div class="no-print mb-3 d-flex justify-content-between align-items-center">
+            <a href="{{ url_for('main.admin_emplois') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i>Retour aux emplois du temps
+            </a>
+            <button onclick="window.print()" class="btn btn-primary btn-sm">
+                <i class="fas fa-print me-1"></i>Imprimer
+            </button>
+        </div>
+
+        <div class="print-header d-flex justify-content-between align-items-center">
+            <div>
+                <h3 class="mb-1 text-primary fw-bold">{{ donnees.ecole_nom }}</h3>
+                <h4 class="mb-0 text-dark">Emploi du temps — Classe : <strong>{{ donnees.classe_nom }}</strong></h4>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-primary fs-6 mb-1">Année scolaire : {{ donnees.annee_scolaire_nom }}</span>
+                {% if donnees.classe_niveau %}<div class="text-muted small">Niveau : {{ donnees.classe_niveau }}</div>{% endif %}
+                {% if donnees.classe_salle %}<div class="text-muted small">Salle principale : {{ donnees.classe_salle }}</div>{% endif %}
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped align-middle print-table">
+                <thead>
+                    <tr>
+                        <th style="width: 15%;">Jour</th>
+                        <th style="width: 20%;">Horaire</th>
+                        <th style="width: 30%;">Matière / Cours</th>
+                        <th style="width: 25%;">Enseignant</th>
+                        <th style="width: 10%;">Salle</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in donnees.creneaux %}
+                    <tr>
+                        <td class="fw-bold">{{ c.jour }}</td>
+                        <td>{{ c.heure_debut }} - {{ c.heure_fin }}</td>
+                        <td class="fw-semibold text-primary">{{ c.cours_nom or 'Cours' }}</td>
+                        <td>{{ c.professeur_nom or '-' }}</td>
+                        <td>{{ c.salle or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            Aucun créneau d'emploi du temps enregistré pour cette classe dans l'année scolaire {{ donnees.annee_scolaire_nom }}.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-4 pt-3 border-top d-flex justify-content-between text-muted small">
+            <span>Document officiel généré par KLASORA</span>
+            <span>Date d'impression : {{ now.strftime('%d/%m/%Y à %H:%M') }}</span>
+        </div>
+    </div>
+</body>
+</html>
+

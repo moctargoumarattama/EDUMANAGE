@@ -65,11 +65,13 @@ def _sync_classe_active(eleve, annee, classe):
         eleve.classe_id = classe.id
 
 
-def creer_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id, statut="inscrit", sync_active=True):
+def creer_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id, statut="inscrit", sync_active=True, frais_annuels=None, allow_archived=False):
     if statut not in STATUTS_INSCRIPTION:
         return None, "Statut d'inscription invalide."
 
-    eleve, annee, classe, error = _validate_inscription_context(ecole_id, eleve_id, annee_scolaire_id, classe_id)
+    eleve, annee, classe, error = _validate_inscription_context(
+        ecole_id, eleve_id, annee_scolaire_id, classe_id, allow_archived=allow_archived
+    )
     if error:
         return None, error
 
@@ -81,6 +83,11 @@ def creer_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id,
     if existing:
         return None, "Une inscription existe deja pour cet eleve et cette annee scolaire."
 
+    # Règle Phase 3B :
+    # Si frais_annuels est fourni -> utiliser cette valeur
+    # Sinon -> snapshot de Eleve.frais_annuels (ou fallback 150000.0)
+    montant_frais = frais_annuels if frais_annuels is not None else getattr(eleve, "frais_annuels", 150000.0)
+
     inscription = Inscription(
         ecole_id=ecole_id,
         eleve_id=eleve.id,
@@ -88,6 +95,7 @@ def creer_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id,
         classe_id=classe.id,
         cours_id=None,
         statut=statut,
+        frais_annuels=montant_frais,
         date_inscription=datetime.utcnow(),
     )
     db.session.add(inscription)
@@ -97,7 +105,7 @@ def creer_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id,
     return inscription, None
 
 
-def modifier_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id, statut=None, sync_active=True):
+def modifier_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id, statut=None, sync_active=True, frais_annuels=None):
     eleve, annee, classe, error = _validate_inscription_context(ecole_id, eleve_id, annee_scolaire_id, classe_id)
     if error:
         return None, error
@@ -115,12 +123,15 @@ def modifier_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_
             classe_id=classe.id,
             statut=statut or "inscrit",
             sync_active=sync_active,
+            frais_annuels=frais_annuels,
         )
 
     if statut is not None:
         if statut not in STATUTS_INSCRIPTION:
             return None, "Statut d'inscription invalide."
         inscription.statut = statut
+    if frais_annuels is not None:
+        inscription.frais_annuels = frais_annuels
     inscription.classe_id = classe.id
     inscription.updated_at = datetime.utcnow()
     if sync_active:

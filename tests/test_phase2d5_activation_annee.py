@@ -98,6 +98,14 @@ class TestPhase2D5ActivationAnnee(unittest.TestCase):
         db.session.add_all([self.admin_a, self.super_admin, self.prof, self.parent_user])
         db.session.flush()
 
+        # Enseignant Professeur A
+        self.enseignant = Professeur(
+            nom="Dupont", prenom="Jean", email="dupont@test.com",
+            ecole_id=self.ecole_a.id, specialite="Maths",
+            utilisateur_id=self.prof.id
+        )
+        db.session.add(self.enseignant)
+
         # Années scolaires École A
         self.annee_active = AnneeScolaire(
             nom="2025-2026", date_debut=date(2025, 9, 1),
@@ -487,7 +495,7 @@ class TestPhase2D5ActivationAnnee(unittest.TestCase):
     def test_31_eleve_avec_inscription_nouvelle_annee_recoit_classe_id(self):
         """31. Élève avec inscription dans nouvelle année voit son classe_id synchronisé."""
         c_cible = self._preparer_annee_planifiee_valide()
-        el = Eleve(nom="Bah", prenom="Alpha", ecole_id=self.ecole_a.id, classe_id=None)
+        el = Eleve(nom="Bah", prenom="Alpha", date_naissance=date(2012, 1, 1), ecole_id=self.ecole_a.id, classe_id=None)
         db.session.add(el)
         db.session.flush()
 
@@ -515,7 +523,7 @@ class TestPhase2D5ActivationAnnee(unittest.TestCase):
         db.session.add(c_anc)
         db.session.flush()
 
-        el = Eleve(nom="Diallo", prenom="Oumar", ecole_id=self.ecole_a.id, classe_id=c_anc.id)
+        el = Eleve(nom="Diallo", prenom="Oumar", date_naissance=date(2012, 1, 1), ecole_id=self.ecole_a.id, classe_id=c_anc.id)
         db.session.add(el)
         db.session.commit()
 
@@ -536,7 +544,7 @@ class TestPhase2D5ActivationAnnee(unittest.TestCase):
         db.session.add(c_src)
         db.session.flush()
 
-        el = Eleve(nom="Barry", prenom="Ibrahima", ecole_id=self.ecole_a.id, classe_id=c_src.id)
+        el = Eleve(nom="Barry", prenom="Ibrahima", date_naissance=date(2012, 1, 1), ecole_id=self.ecole_a.id, classe_id=c_src.id)
         db.session.add(el)
         db.session.flush()
 
@@ -574,7 +582,7 @@ class TestPhase2D5ActivationAnnee(unittest.TestCase):
         db.session.add(c_src)
         db.session.flush()
 
-        el = Eleve(nom="Camara", prenom="Salif", ecole_id=self.ecole_a.id, classe_id=c_src.id)
+        el = Eleve(nom="Camara", prenom="Salif", date_naissance=date(2012, 1, 1), ecole_id=self.ecole_a.id, classe_id=c_src.id)
         db.session.add(el)
         db.session.flush()
 
@@ -603,15 +611,15 @@ class TestPhase2D5ActivationAnnee(unittest.TestCase):
     def test_35_eleve_diplome_classe_id_devient_none(self):
         """35. Élève ayant fait l'objet d'une décision 'diplome' -> classe_id = None."""
         c_cible = self._preparer_annee_planifiee_valide()
-        niv_6e = NiveauScolaire.query.filter_by(code="6E").first()
+        niv_tle = NiveauScolaire.query.filter_by(code="TERMINALE").first()
         c_src = Classe(
-            nom="6e Source", niveau_id=niv_6e.id, ecole_id=self.ecole_a.id,
+            nom="Terminale Source", niveau_id=niv_tle.id, ecole_id=self.ecole_a.id,
             annee_scolaire_id=self.annee_active.id, statut="ouverte"
         )
         db.session.add(c_src)
         db.session.flush()
 
-        el = Eleve(nom="Sy", prenom="Mariam", ecole_id=self.ecole_a.id, classe_id=c_src.id)
+        el = Eleve(nom="Sy", prenom="Mariam", date_naissance=date(2012, 1, 1), ecole_id=self.ecole_a.id, classe_id=c_src.id)
         db.session.add(el)
         db.session.flush()
 
@@ -647,7 +655,7 @@ class TestPhase2D5ActivationAnnee(unittest.TestCase):
         db.session.add(c_src)
         db.session.flush()
 
-        el = Eleve(nom="Kone", prenom="Bakary", ecole_id=self.ecole_a.id, classe_id=c_src.id)
+        el = Eleve(nom="Kone", prenom="Bakary", date_naissance=date(2012, 1, 1), ecole_id=self.ecole_a.id, classe_id=c_src.id)
         db.session.add(el)
         db.session.flush()
 
@@ -962,6 +970,156 @@ class TestPhase2D5ActivationAnnee(unittest.TestCase):
             eleve_id=fatou.id, annee_scolaire_id=self.annee_planifiee.id
         ).first()
         self.assertIsNone(inscr_fatou_cible, "Fatou ne doit avoir aucune inscription dans la nouvelle année active")
+
+
+
+class TestPhase2D5MigratedSchemaDatabase(unittest.TestCase):
+    """
+    Test de validation sur base de données SQLite migrée via Alembic.
+    Couvre précisément le comportement réel de la contrainte classe_id nullable
+    avec SQLite foreign keys activées (PRAGMA foreign_keys = ON).
+    """
+
+    def setUp(self):
+        import os
+        import tempfile
+        from flask_migrate import upgrade as flask_migrate_upgrade
+
+        self.temp_dir = tempfile.mkdtemp()
+        self.temp_db_path = os.path.join(self.temp_dir, "migrated_activation_test.db")
+
+        class MigratedSchemaConfig(Config):
+            TESTING = True
+            WTF_CSRF_ENABLED = False
+            SQLALCHEMY_DATABASE_URI = f"sqlite:///{self.temp_db_path}"
+
+        self.app = create_app(MigratedSchemaConfig)
+        self.ctx = self.app.app_context()
+        self.ctx.push()
+
+        # Application de l'ensemble des migrations Alembic
+        flask_migrate_upgrade(directory="migrations")
+
+        # Activer explicitement les contraintes de clés étrangères SQLite
+        db.session.execute(db.text("PRAGMA foreign_keys = ON;"))
+        db.session.commit()
+
+    def tearDown(self):
+        import shutil
+
+        db.session.remove()
+        db.engine.dispose()
+        self.ctx.pop()
+        try:
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+    def test_47_activation_reelle_base_migree_classe_id_null(self):
+        """
+        Vérifie qu'après migration Alembic 28cd4856f1c5 :
+        1. Le schéma SQLite réel a Eleve.classe_id notnull = 0 (nullable).
+        2. La clé étrangère reste ON DELETE RESTRICT.
+        3. L'index composite ix_eleve_ecole_classe est bien présent.
+        4. Une activation annuelle avec des élèves sortants/transférés synchronise
+           Eleve.classe_id = NULL et le commit réussit sans IntegrityError.
+        5. La valeur NULL est bien persistée et lisible en SQL brut.
+        """
+        # 1. Vérification PRAGMA table_info
+        cols = db.session.execute(db.text("PRAGMA table_info(eleve)")).fetchall()
+        classe_id_col = next(c for c in cols if c[1] == "classe_id")
+        self.assertEqual(classe_id_col[3], 0, "classe_id doit être nullable (notnull=0)")
+
+        # 2. Vérification PRAGMA foreign_key_list
+        fks = db.session.execute(db.text("PRAGMA foreign_key_list(eleve)")).fetchall()
+        classe_id_fk = next(fk for fk in fks if fk[3] == "classe_id")
+        self.assertEqual(classe_id_fk[6].upper(), "RESTRICT", "FK classe_id doit rester ON DELETE RESTRICT")
+
+        # 3. Données de test
+        ensure_standard_niveaux(commit=False)
+        ecole = Ecole(nom="École Test Migrée", statut="actif")
+        db.session.add(ecole)
+        db.session.flush()
+        ensure_ecole_niveau_configs(ecole.id, default_active=True, commit=False)
+
+        annee_src = AnneeScolaire(
+            nom="2025-2026", date_debut=date(2025, 9, 1),
+            date_fin=date(2026, 6, 30), statut="active", ecole_id=ecole.id
+        )
+        annee_dst = AnneeScolaire(
+            nom="2026-2027", date_debut=date(2026, 9, 1),
+            date_fin=date(2027, 6, 30), statut="planifiee", ecole_id=ecole.id
+        )
+        db.session.add_all([annee_src, annee_dst])
+        db.session.flush()
+
+        niv_6e = NiveauScolaire.query.filter_by(code="6E").first()
+        niv_5e = NiveauScolaire.query.filter_by(code="5E").first()
+        sauvegarder_selection_annuelle(ecole.id, annee_dst.id, [niv_5e.id])
+
+        classe_src = Classe(nom="6e A", niveau_id=niv_6e.id, annee_scolaire_id=annee_src.id, ecole_id=ecole.id, statut="ouverte")
+        classe_dst = Classe(nom="5e A", niveau_id=niv_5e.id, annee_scolaire_id=annee_dst.id, ecole_id=ecole.id, statut="ouverte")
+        db.session.add_all([classe_src, classe_dst])
+        db.session.flush()
+
+        # 3 élèves :
+        # e_promu : passe en 5e
+        # e_sorti : sort de l'école (classe_id doit devenir NULL)
+        # e_transfere : transféré (classe_id doit devenir NULL)
+        e_promu = Eleve(nom="DIOP", prenom="Moussa", date_naissance=date(2012, 1, 1), ecole_id=ecole.id, classe_id=classe_src.id, code_parent="CODE_P1")
+        e_sorti = Eleve(nom="FALL", prenom="Awa", date_naissance=date(2012, 2, 2), ecole_id=ecole.id, classe_id=classe_src.id, code_parent="CODE_P2")
+        e_transfere = Eleve(nom="SOW", prenom="Ibra", date_naissance=date(2012, 3, 3), ecole_id=ecole.id, classe_id=classe_src.id, code_parent="CODE_P3")
+        db.session.add_all([e_promu, e_sorti, e_transfere])
+        db.session.flush()
+
+        creer_inscription_annuelle(ecole.id, e_promu.id, annee_src.id, classe_src.id)
+        creer_inscription_annuelle(ecole.id, e_sorti.id, annee_src.id, classe_src.id)
+        creer_inscription_annuelle(ecole.id, e_transfere.id, annee_src.id, classe_src.id)
+        db.session.commit()
+
+        # Décisions de passage
+        _, err1 = executer_passage_eleve(
+            ecole_id=ecole.id, eleve_id=e_promu.id,
+            annee_source_id=annee_src.id, annee_cible_id=annee_dst.id,
+            decision="passage", classe_cible_id=classe_dst.id
+        )
+        self.assertIsNone(err1)
+
+        _, err2 = executer_passage_eleve(
+            ecole_id=ecole.id, eleve_id=e_sorti.id,
+            annee_source_id=annee_src.id, annee_cible_id=annee_dst.id,
+            decision="sortie", motif_sortie="Fin d'études"
+        )
+        self.assertIsNone(err2)
+
+        _, err3 = executer_passage_eleve(
+            ecole_id=ecole.id, eleve_id=e_transfere.id,
+            annee_source_id=annee_src.id, annee_cible_id=annee_dst.id,
+            decision="transfert", motif_sortie="Déménagement"
+        )
+        self.assertIsNone(err3)
+        db.session.commit()
+
+        # Activation annuelle
+        succes, msg, details = activer_annee_scolaire(ecole.id, annee_dst.id)
+        self.assertTrue(succes, f"L'activation a échoué: {msg}")
+
+        # Commit final réel
+        db.session.commit()
+
+        # 4. Vérification SQL brute
+        rows = db.session.execute(
+            db.text("SELECT id, nom, classe_id FROM eleve WHERE ecole_id = :ecole_id ORDER BY id"),
+            {"ecole_id": ecole.id}
+        ).fetchall()
+
+        self.assertEqual(len(rows), 3)
+        # e_promu -> classe_dst
+        self.assertEqual(rows[0][2], classe_dst.id)
+        # e_sorti -> NULL
+        self.assertIsNone(rows[1][2], "L'élève sorti doit avoir classe_id NULL en base réelle")
+        # e_transfere -> NULL
+        self.assertIsNone(rows[2][2], "L'élève transféré doit avoir classe_id NULL en base réelle")
 
 
 if __name__ == "__main__":

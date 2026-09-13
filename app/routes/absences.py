@@ -11,6 +11,7 @@ from .common import (
     Classe,
     Cours,
     Eleve,
+    Inscription,
     Presence,
     ajouter_ecole_id,
     current_app,
@@ -32,6 +33,24 @@ from .common import (
     url_for,
 )
 import pandas as pd
+from app.services.annees_scolaires import get_annee_consultee
+from app.services.absences_annuelles import (
+    absences_modifiables,
+    get_absences_annee,
+    get_cours_choices_absences,
+    get_eleves_choices_absences,
+    statut_annee_absences,
+    verifier_mutation_absence,
+)
+
+
+def _ecole_id_courante():
+    return getattr(current_user, "ecole_id", None)
+
+
+def _remplir_choix_absence(form, ecole_id, annee):
+    form.eleve_id.choices = get_eleves_choices_absences(ecole_id, annee, current_user)
+    form.cours_id.choices = get_cours_choices_absences(ecole_id, annee, current_user)
 
 
 @main.route('/absences', methods=['GET', 'POST'])
@@ -41,65 +60,29 @@ def absences():
     form = AbsenceForm()
     page = request.args.get('page', 1, type=int)
     per_page = 50
+    ecole_id = _ecole_id_courante()
+    annee_consultee = get_annee_consultee(ecole_id)
+    can_mutate = absences_modifiables(annee_consultee, current_user)
+    message_annee = statut_annee_absences(annee_consultee)
 
-    # --- Fonction utilitaire pour transformer Query en liste ---
-    def to_list(query_or_list):
-        if hasattr(query_or_list, 'all'):
-            return query_or_list.all()
-        return list(query_or_list)
+    _remplir_choix_absence(form, ecole_id, annee_consultee)
 
-    # --- Choix des élèves selon le rôle ---
-    if current_user.role == 'parent':
-        enfants = to_list(filtre_par_ecole(current_user.enfants, Eleve))
-        form.eleve_id.choices = [
-            (e.id, f"{e.prenom} {e.nom} - {e.classe.nom if e.classe else 'Sans classe'}")
-            for e in enfants
-        ]
-        form.eleve_id.render_kw = {'disabled': True} if len(enfants) == 1 else {}
-    elif current_user.role == 'professeur':
-        professeur = getattr(current_user, 'professeur_rel', None)
-        classe_ids = [c.id for c in professeur.classes_assignees.all()] if professeur else []
-        enfants = (
-            filtre_par_ecole(Eleve.query.options(selectinload(Eleve.classe)), Eleve)
-            .filter(Eleve.classe_id.in_(classe_ids))
-            .all()
-        ) if classe_ids else []
-        enfants.sort(key=lambda e: ((e.classe.nom if e.classe else ""), e.nom))
-        form.eleve_id.choices = [
-            (e.id, f"{e.prenom} {e.nom} - {e.classe.nom if e.classe else 'Sans classe'}")
-            for e in enfants
-        ]
-    else:
-        enfants_query = filtre_par_ecole(
-            Eleve.query.options(selectinload(Eleve.classe)), Eleve
-        )
-        enfants = to_list(enfants_query)
-        # --- Tri par nom de classe et nom de l'élève en Python (compatible SQLite) ---
-        enfants.sort(key=lambda e: ((e.classe.nom if e.classe else ""), e.nom))
-        form.eleve_id.choices = [
-            (e.id, f"{e.prenom} {e.nom} - {e.classe.nom if e.classe else 'Sans classe'}")
-            for e in enfants
-        ]
-
-    # --- Choix des cours ---
-    cours_query = filtre_par_ecole(Cours.query.order_by(Cours.nom), Cours)
-    if current_user.role == 'professeur':
-        professeur = getattr(current_user, 'professeur_rel', None)
-        cours_query = cours_query.filter(Cours.professeur_id == professeur.id) if professeur else cours_query.filter(False)
-    cours_list = to_list(cours_query)
-    form.cours_id.choices = [(c.id, c.nom) for c in cours_list]
-
-    # --- Gestion du formulaire POST ---
     if form.validate_on_submit():
-        if current_user.role == 'parent':
-            flash("Vous n'êtes pas autorisé à déclarer des absences.", "danger")
+        if not can_mutate:
+            flash(message_annee or "Les absences ne peuvent pas etre modifiees pour cette annee.", "warning")
             return redirect(url_for('main.absences'))
 
         try:
-            eleve = filtre_par_ecole(Eleve.query.filter_by(id=form.eleve_id.data), Eleve).first()
-            cours = filtre_par_ecole(Cours.query.filter_by(id=form.cours_id.data), Cours).first()
-            if not can_access_eleve(eleve) or (cours and not can_manage_cours(cours)):
-                flash("AccÃ¨s non autorisÃ© pour cet Ã©lÃ¨ve ou ce cours.", "danger")
+            eleve, cours, _inscription, error = verifier_mutation_absence(
+                ecole_id,
+                annee_consultee,
+                current_user,
+                form.eleve_id.data,
+                form.cours_id.data,
+                form.date_absence.data,
+            )
+            if error:
+                flash(error, "danger")
                 return redirect(url_for('main.absences'))
 
             nouvelle_absence = Absence(
@@ -107,29 +90,29 @@ def absences():
                 motif=form.motif.data,
                 justifiee=form.justifiee.data,
                 eleve_id=form.eleve_id.data,
-                cours_id=form.cours_id.data
+                cours_id=form.cours_id.data,
+                ecole_id=ecole_id,
+                inscription_id=_inscription.id if _inscription else None,
             )
-            ajouter_ecole_id(nouvelle_absence)
             db.session.add(nouvelle_absence)
             db.session.commit()
 
-            # --- Notification email ---
             if eleve and eleve.email_parent and cours:
                 sujet = f"Absence de {eleve.prenom} {eleve.nom}"
                 message = f"""Bonjour,
-Nous vous informons que {eleve.prenom} {eleve.nom} a été absent(e) le {form.date_absence.data.strftime('%d/%m/%Y')}.
+Nous vous informons que {eleve.prenom} {eleve.nom} a ete absent(e) le {form.date_absence.data.strftime('%d/%m/%Y')}.
 Motif: {form.motif.data}
 Cours: {cours.nom}
-Statut: {'Justifiée' if form.justifiee.data else 'Non justifiée'}
+Statut: {'Justifiee' if form.justifiee.data else 'Non justifiee'}
 
 Cordialement,
-L'équipe pédagogique"""
+L'equipe pedagogique"""
                 try:
                     envoyer_email(eleve.email_parent, sujet, message)
                 except Exception as e:
                     current_app.logger.error(f"Erreur envoi email absence: {e}")
 
-            flash('Absence enregistrée avec succès', 'success')
+            flash('Absence enregistree avec succes', 'success')
             return redirect(url_for('main.absences'))
 
         except Exception as e:
@@ -137,38 +120,16 @@ L'équipe pédagogique"""
             flash("Erreur lors de l'enregistrement de l'absence.", "danger")
             current_app.logger.error(f"Erreur ajout absence: {e}")
 
-    # --- Filtrage et tri des absences ---
-    if current_user.role == 'parent':
-        enfants_ids = [e.id for e in enfants]
-        absences_query = filtre_par_ecole(
-            Absence.query.filter(Absence.eleve_id.in_(enfants_ids))
-                         .options(selectinload(Absence.eleve).selectinload(Eleve.classe)), Absence
-        )
-    elif current_user.role == 'professeur':
-        eleve_ids = [e.id for e in enfants]
-        absences_query = filtre_par_ecole(
-            Absence.query.filter(Absence.eleve_id.in_(eleve_ids))
-                         .options(selectinload(Absence.eleve).selectinload(Eleve.classe)), Absence
-        )
-    else:
-        absences_query = filtre_par_ecole(
-            Absence.query.options(selectinload(Absence.eleve).selectinload(Eleve.classe)), Absence
-        )
+    absences_list = get_absences_annee(ecole_id, annee_consultee, current_user)
 
-    absences_list = to_list(absences_query)
-    # Tri en Python par classe puis nom élève
-    absences_list.sort(key=lambda a: ((a.eleve.classe.nom if a.eleve.classe else ""), a.eleve.nom, a.date_absence), reverse=True)
-
-    # --- Pagination manuelle pour SQLite (compatible) ---
     total = len(absences_list)
     start = (page - 1) * per_page
     end = start + per_page
     absences_paginated = absences_list[start:end]
 
-    # --- Statistiques ---
     absences_justifiees = sum(1 for a in absences_list if a.justifiee)
     absences_non_justifiees = total - absences_justifiees
-    show_form = current_user.role in ['admin', 'professeur']
+    show_form = can_mutate
 
     return render_template(
         'absences.html',
@@ -179,115 +140,125 @@ L'équipe pédagogique"""
         show_form=show_form,
         page=page,
         per_page=per_page,
-        total=total
+        total=total,
+        annee_consultee=annee_consultee,
+        can_mutate=can_mutate,
+        message_annee=message_annee,
     )
-
 @main.route('/absences/export_excel')
 @login_required
 @role_required('admin')
 def export_absences_excel():
-    absences = filtre_par_ecole(
-        Absence.query.options(selectinload(Absence.eleve).selectinload(Eleve.classe)), Absence
-    ).all()
-    
+    ecole_id = _ecole_id_courante()
+    annee_consultee = get_annee_consultee(ecole_id)
+    absences = get_absences_annee(ecole_id, annee_consultee, current_user)
+
     data = {
         'Date': [a.date_absence.strftime('%d/%m/%Y') for a in absences],
-        'Élève': [f"{a.eleve.prenom} {a.eleve.nom}" for a in absences],
-        'Classe': [a.eleve.classe.nom if a.eleve.classe else 'Sans classe' for a in absences],
+        'Eleve': [f"{a.eleve.prenom} {a.eleve.nom}" for a in absences],
+        'Classe': [a.annee_classe.nom if getattr(a, 'annee_classe', None) else 'Sans classe' for a in absences],
         'Motif': [a.motif for a in absences],
-        'Justifiée': ['Oui' if a.justifiee else 'Non' for a in absences]
+        'Justifiee': ['Oui' if a.justifiee else 'Non' for a in absences],
+        'Annee scolaire': [annee_consultee.nom if annee_consultee else '' for _ in absences],
     }
-    
+
     df = pd.DataFrame(data)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name='Absences', index=False)
     output.seek(0)
-    
+
+    suffix = f"_{annee_consultee.nom}" if annee_consultee else ""
     return send_file(
         output,
         as_attachment=True,
-        download_name="liste_absences.xlsx",
+        download_name=f"liste_absences{suffix}.xlsx",
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-
 @main.route('/absences/edit/<int:absence_id>', methods=['GET', 'POST'])
 @login_required
 @role_required('admin', 'professeur')
 def edit_absence(absence_id):
     absence = Absence.query.get_or_404(absence_id)
-    if not can_manage_absence(absence) or current_user.role == 'parent':
+    ecole_id = _ecole_id_courante()
+    annee_consultee = get_annee_consultee(ecole_id)
+    if absence.ecole_id != ecole_id:
         abort(403)
-    form = AbsenceForm(obj=absence)
-    
-    # Remplir les choix des élèves
-    if current_user.role == 'parent':
-        enfants = Eleve.query.filter_by(parent_id=current_user.id).all()
-        form.eleve_id.choices = [
-            (e.id, f"{e.prenom} {e.nom} - {e.classe.nom if e.classe else 'Sans classe'}")
-            for e in enfants
-        ]
-        form.eleve_id.render_kw = {'disabled': True} if len(enfants) == 1 else {}
-    elif current_user.role == 'professeur':
-        professeur = getattr(current_user, 'professeur_rel', None)
-        classe_ids = [c.id for c in professeur.classes_assignees.all()] if professeur else []
-        eleves = filtre_par_ecole(Eleve.query.join(Classe, isouter=True), Eleve).filter(Eleve.classe_id.in_(classe_ids)).order_by(Classe.nom, Eleve.nom).all() if classe_ids else []
-        form.eleve_id.choices = [
-            (e.id, f"{e.prenom} {e.nom} - {e.classe.nom if e.classe else 'Sans classe'}")
-            for e in eleves
-        ]
-    else:
-        eleves = filtre_par_ecole(Eleve.query.join(Classe, isouter=True), Eleve).order_by(Classe.nom, Eleve.nom).all()
-        form.eleve_id.choices = [
-            (e.id, f"{e.prenom} {e.nom} - {e.classe.nom if e.classe else 'Sans classe'}")
-            for e in eleves
-        ]
-    
-    # Remplir les choix des cours
-    cours_query = filtre_par_ecole(Cours.query.order_by(Cours.nom), Cours)
-    if current_user.role == 'professeur':
-        professeur = getattr(current_user, 'professeur_rel', None)
-        cours_query = cours_query.filter(Cours.professeur_id == professeur.id) if professeur else cours_query.filter(False)
-    form.cours_id.choices = [(c.id, c.nom) for c in cours_query.all()]
 
-    # Mettre à jour la sélection actuelle
+    _eleve, _cours, _inscription, access_error = verifier_mutation_absence(
+        ecole_id,
+        annee_consultee,
+        current_user,
+        absence.eleve_id,
+        absence.cours_id,
+        absence.date_absence,
+        absence=absence,
+    )
+    if access_error:
+        flash(access_error, "warning")
+        return redirect(url_for('main.absences'))
+
+    form = AbsenceForm(obj=absence)
+    _remplir_choix_absence(form, ecole_id, annee_consultee)
     form.eleve_id.data = absence.eleve_id
     form.cours_id.data = absence.cours_id
 
     if form.validate_on_submit():
-        eleve = filtre_par_ecole(Eleve.query.filter_by(id=form.eleve_id.data), Eleve).first()
-        cours = filtre_par_ecole(Cours.query.filter_by(id=form.cours_id.data), Cours).first()
-        if not can_access_eleve(eleve) or (cours and not can_manage_cours(cours)):
-            abort(403)
-        absence.eleve_id = form.eleve_id.data
-        absence.cours_id = form.cours_id.data
+        eleve, cours, _inscription, error = verifier_mutation_absence(
+            ecole_id,
+            annee_consultee,
+            current_user,
+            form.eleve_id.data,
+            form.cours_id.data,
+            form.date_absence.data,
+            absence=absence,
+        )
+        if error:
+            flash(error, "danger")
+            return redirect(url_for('main.absences'))
+
+        absence.eleve_id = eleve.id
+        absence.cours_id = cours.id if cours else None
         absence.date_absence = form.date_absence.data
         absence.motif = form.motif.data
         absence.justifiee = form.justifiee.data
 
         db.session.commit()
-        flash("Absence mise à jour avec succès.", "success")
+        flash("Absence mise a jour avec succes.", "success")
         return redirect(url_for('main.absences'))
-    
-    return render_template('edit_absence.html', form=form)
+
+    return render_template('edit_absence.html', form=form, annee_consultee=annee_consultee)
+
 
 @main.route('/absences/delete/<int:absence_id>', methods=['POST'])
 @login_required
 @role_required('admin', 'professeur')
 def delete_absence(absence_id):
     absence = Absence.query.get_or_404(absence_id)
-    if not can_manage_absence(absence) or current_user.role == 'parent':
-        abort(403)
+    ecole_id = _ecole_id_courante()
+    annee_consultee = get_annee_consultee(ecole_id)
+    _eleve, _cours, _inscription, access_error = verifier_mutation_absence(
+        ecole_id,
+        annee_consultee,
+        current_user,
+        absence.eleve_id,
+        absence.cours_id,
+        absence.date_absence,
+        absence=absence,
+    )
+    if access_error:
+        flash(access_error, "warning")
+        return redirect(url_for('main.absences'))
+
     try:
         db.session.delete(absence)
         db.session.commit()
-        flash("Absence supprimée avec succès.", "success")
+        flash("Absence supprimee avec succes.", "success")
     except Exception as e:
         db.session.rollback()
         flash(f"Erreur lors de la suppression: {str(e)}", "danger")
-    
-    return redirect(url_for('main.absences'))
 
+    return redirect(url_for('main.absences'))
 @main.route("/presence", methods=["GET", "POST"])
 @login_required
 @role_required("professeur")
@@ -393,8 +364,14 @@ def presence():
     # -----------------------------
     historique = []
     if classe_id:
+        eleve_ids_classe = [
+            row[0]
+            for row in db.session.query(Inscription.eleve_id)
+            .filter_by(classe_id=classe_id)
+            .all()
+        ]
         historique = Presence.query.join(Eleve)\
-            .filter(Eleve.classe_id == classe_id)\
+            .filter(Presence.eleve_id.in_(eleve_ids_classe))\
             .filter(Presence.date == date_selectionnee)\
             .all()
 

@@ -12,7 +12,21 @@
                     <i class="fas fa-calendar-alt" aria-hidden="true"></i>
                 </div>
                 <div>
-                    <h1 class="page-title">Emplois du Temps par Classe</h1>
+                    <h1 class="page-title d-flex align-items-center flex-wrap gap-2">
+                        <span>Emplois du Temps par Classe</span>
+                        {% if annee_consultee %}
+                            <span class="text-muted fw-normal fs-5">— {{ annee_consultee.nom }}</span>
+                            {% if annee_consultee.statut == 'active' %}
+                                <span class="badge bg-success fs-6">ACTIVE</span>
+                            {% elif annee_consultee.statut == 'planifiee' %}
+                                <span class="badge bg-warning text-dark fs-6">PLANIFIÉE</span>
+                                <small class="text-muted fs-6 fw-normal">(Préparation de l'emploi du temps)</small>
+                            {% elif annee_consultee.statut == 'archivee' %}
+                                <span class="badge bg-secondary fs-6">ARCHIVÉE</span>
+                                <small class="text-muted fs-6 fw-normal">(Lecture seule)</small>
+                            {% endif %}
+                        {% endif %}
+                    </h1>
                     <p class="page-subtitle d-none d-md-block">
                         Consultez, organisez et planifiez les créneaux horaires de chaque classe.
                     </p>
@@ -22,12 +36,25 @@
                 <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllSchedule" title="Déplier ou replier toutes les classes">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
+                {% if peut_modifier and current_user.role in ('admin', 'super_admin') %}
                 <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary shadow-sm" id="btnAddEmploi">
                     <i class="fas fa-plus-circle me-2"></i>Nouveau créneau
                 </a>
+                {% endif %}
             </div>
         </div>
     </section>
+
+    <!-- Alerte statut année scolaire -->
+    {% if statut_warning %}
+    <div class="alert {% if annee_consultee and annee_consultee.statut == 'archivee' %}alert-info{% else %}alert-warning{% endif %} d-flex align-items-center mb-4 shadow-sm" role="alert" style="border-radius: 0.8rem;">
+        <i class="fas fa-info-circle fa-2x me-3 {% if annee_consultee and annee_consultee.statut == 'archivee' %}text-info{% else %}text-warning{% endif %}"></i>
+        <div>
+            <h5 class="alert-heading mb-1 fw-bold">Information sur l'année scolaire</h5>
+            <p class="mb-0">{{ statut_warning }}</p>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Cartes statistiques récapitulatives -->
     <div class="stat-grid mb-4">
@@ -247,12 +274,22 @@
                                 </span>
                             {% endif %}
 
+                            {% if peut_modifier and current_user.role in ('admin', 'super_admin') %}
                             <!-- Bouton d'ajout rapide pour cette classe -->
                             <a href="{{ url_for('main.ajouter_emploi', classe_id=c.id) }}"
                                class="btn btn-sm btn-outline-primary d-none d-lg-inline-flex"
                                onclick="event.stopPropagation();"
                                title="Ajouter un créneau pour {{ c.nom }}">
                                 <i class="fas fa-plus me-1"></i>Créneau
+                            </a>
+                            {% endif %}
+
+                            <!-- Bouton d'impression pour cette classe -->
+                            <a href="{{ url_for('main.imprimer_classe', classe_id=c.id) }}"
+                               class="btn btn-sm btn-outline-secondary d-none d-sm-inline-flex"
+                               onclick="event.stopPropagation();"
+                               title="Imprimer l'emploi du temps de {{ c.nom }}" target="_blank">
+                                <i class="fas fa-print me-1"></i>Imprimer
                             </a>
 
                             <!-- Chevron rotatif -->
@@ -271,9 +308,11 @@
                                 </div>
                                 <h6 class="text-muted fw-bold mb-1">Aucun créneau planifié</h6>
                                 <p class="text-muted small mb-3">Cette classe n'a pas encore d'emploi du temps enregistré.</p>
+                                {% if peut_modifier and current_user.role in ('admin', 'super_admin') %}
                                 <a href="{{ url_for('main.ajouter_emploi', classe_id=c.id) }}" class="btn btn-sm btn-primary">
                                     <i class="fas fa-plus-circle me-1"></i>Planifier un premier créneau
                                 </a>
+                                {% endif %}
                             </div>
                         {% else %}
                             <!-- TABLEAU DES CRÉNEAUX (DESKTOP >= 768px) -->
@@ -339,6 +378,7 @@
                                                 </td>
                                                 <td class="text-end">
                                                     <div class="d-inline-flex align-items-center gap-1">
+                                                        {% if peut_modifier and current_user.role in ('admin', 'super_admin') %}
                                                         <a href="{{ url_for('main.modifier_emploi', id=e.id) }}"
                                                            class="btn btn-sm btn-outline-primary"
                                                            title="Modifier ce créneau"
@@ -351,6 +391,9 @@
                                                                 <i class="fas fa-trash-alt"></i>
                                                             </button>
                                                         </form>
+                                                        {% else %}
+                                                        <span class="badge bg-light text-muted border" style="font-size: 0.75rem;">Lecture seule</span>
+                                                        {% endif %}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -399,6 +442,7 @@
                                         </div>
 
                                         <div class="class-schedule-mini-actions">
+                                            {% if peut_modifier and current_user.role in ('admin', 'super_admin') %}
                                             <a href="{{ url_for('main.modifier_emploi', id=e.id) }}"
                                                class="btn btn-outline-primary"
                                                title="Modifier ce créneau">
@@ -410,6 +454,9 @@
                                                     <i class="fas fa-trash-alt me-1"></i>Supprimer
                                                 </button>
                                             </form>
+                                            {% else %}
+                                            <span class="badge bg-light text-muted border p-2 w-100 text-center">Lecture seule</span>
+                                            {% endif %}
                                         </div>
                                     </div>
                                 {% endfor %}

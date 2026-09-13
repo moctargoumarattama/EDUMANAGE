@@ -20,6 +20,18 @@
                     <i class="fas fa-check me-1"></i>À jour
                 </span>
                 {% endif %}
+                {% if annee_consultee %}
+                <span class="badge bg-primary rounded-pill px-2 py-1 small">
+                    <i class="fas fa-calendar-alt me-1"></i>{{ annee_consultee.nom }}
+                    {% if annee_consultee.statut == 'active' %}
+                    <span class="badge bg-success ms-1">Active</span>
+                    {% elif annee_consultee.statut == 'archivee' %}
+                    <span class="badge bg-secondary ms-1">Archivée</span>
+                    {% elif annee_consultee.statut == 'planifiee' %}
+                    <span class="badge bg-info ms-1">Planifiée</span>
+                    {% endif %}
+                </span>
+                {% endif %}
             </div>
             <p class="text-muted mb-0 small">
                 Surveillance continue : retards de paiement, absences non justifiées et difficultés académiques par classe.
@@ -34,6 +46,16 @@
             </a>
         </div>
     </div>
+
+    {% if annee_consultee and annee_consultee.statut == 'archivee' %}
+    <div class="alert alert-secondary py-2 px-3 small mb-3">
+        <i class="fas fa-archive me-1"></i><strong>Année archivée :</strong> Consultation historique des alertes en lecture seule. Aucune notification opérationnelle n'est envoyée.
+    </div>
+    {% elif annee_consultee and annee_consultee.statut == 'planifiee' %}
+    <div class="alert alert-info py-2 px-3 small mb-3">
+        <i class="fas fa-clock me-1"></i><strong>Année planifiée :</strong> Cette année scolaire n'a pas encore débuté. Aucun événement ou alerte active.
+    </div>
+    {% endif %}
 
     <!-- 4 Cartes d'Indicateurs Clés (KPIs cliquables pour filtrer) -->
     <div class="row g-3 mb-4">

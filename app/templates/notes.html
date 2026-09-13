@@ -32,7 +32,7 @@
                 <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllAccordions" title="Déplier ou replier tous les élèves">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
-                {% if current_user.role in ['admin', 'professeur'] and form %}
+                {% if current_user.role in ['admin', 'professeur'] and form and notes_modifiables %}
                 <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseFormNote" aria-expanded="false" aria-controls="collapseFormNote" id="btnToggleAddNote">
                     <i class="fas fa-plus-circle me-2"></i>Nouvelle note
                 </button>
@@ -46,8 +46,15 @@
         </div>
     </section>
 
+    <!-- Message de statut d'année scolaire -->
+    {% if message_annee %}
+    <div class="alert {% if annee_consultee and annee_consultee.statut == 'archivee' %}alert-warning{% else %}alert-info{% endif %} border-0 shadow-sm rounded-4 mb-4" role="alert">
+        <i class="fas {% if annee_consultee and annee_consultee.statut == 'archivee' %}fa-lock{% else %}fa-info-circle{% endif %} me-2"></i>{{ message_annee }}
+    </div>
+    {% endif %}
+
     <!-- Formulaire d'ajout (admin/professeur, rétractable) -->
-    {% if current_user.role in ['admin', 'professeur'] and form %}
+    {% if current_user.role in ['admin', 'professeur'] and form and notes_modifiables %}
     <div class="collapse mb-4" id="collapseFormNote">
         <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
             <div class="card-header bg-primary text-white py-3 px-4 d-flex justify-content-between align-items-center">
@@ -235,7 +242,8 @@
         {% for group in notes|selectattr('eleve')|groupby('eleve.id') %}
             {% set eleve = group.list[0].eleve %}
             {% set eleve_full = (eleve.prenom ~ ' ' ~ eleve.nom) %}
-            {% set classe_nom = (eleve.classe.nom if eleve.classe else 'Sans classe') %}
+            {% set first_note = group.list[0] %}
+            {% set classe_nom = (first_note.inscription.classe.nom if (first_note.inscription and first_note.inscription.classe) else (first_note.cours.classe.nom if (first_note.cours and first_note.cours.classe) else (eleve.classe.nom if eleve.classe else 'Sans classe'))) %}
             {% set student_notes_count = group.list|length %}
 
             <!-- Calcul moyenne de l'élève -->
@@ -363,7 +371,7 @@
                                     <td>
                                         <span class="text-muted small">{{ date_str }}</span>
                                     </td>
-                                    {% if current_user.role in ['admin', 'professeur'] %}
+                                    {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
                                     <td class="text-end pe-4">
                                         <div class="d-inline-flex gap-1">
                                             <a href="{{ url_for('main.modifier_note', note_id=note.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier la note">
@@ -419,7 +427,7 @@
                                 <span class="text-muted ms-auto" style="font-size: 0.76rem;">{{ date_str }}</span>
                             </div>
 
-                            {% if current_user.role in ['admin', 'professeur'] %}
+                            {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
                             <div class="student-eval-card-bottom">
                                 <div class="student-eval-card-actions">
                                     <a href="{{ url_for('main.modifier_note', note_id=note.id) }}" class="btn btn-outline-primary btn-sm" title="Modifier">

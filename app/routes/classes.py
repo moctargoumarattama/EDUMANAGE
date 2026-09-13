@@ -153,14 +153,16 @@ def liste_classes():
 def ajouter_classe():
     from app.models import AnneeScolaire, Professeur, Classe, NiveauScolaire
 
+    # Résolution de l'année cible : paramètre explicite > année consultée > année active > dernière année non archivée
     annee_cible = get_annee_consultee(current_user.ecole_id)
-    if not annee_cible:
-        flash("Veuillez d'abord configurer ou activer une année scolaire pour votre établissement avant d'ajouter une classe.", "warning")
-        return redirect(url_for("main.gestion_annees"))
 
-    if annee_cible.statut == "archivee":
+    if annee_cible and annee_cible.statut == "archivee":
         flash("Impossible de creer une classe dans une annee archivee.", "warning")
         return redirect(url_for("main.liste_classes"))
+
+    if not annee_cible:
+        flash("Veuillez d'abord configurer une année scolaire pour votre établissement avant d'ajouter une classe.", "warning")
+        return redirect(url_for("main.gestion_annees"))
 
     selected_niveau_id = request.args.get("niveau_id", type=int)
     form = ClasseForm()
@@ -253,10 +255,18 @@ def detail_classe(classe_id):
             abort(403)
     else:
         classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first_or_404()
-    from app.models import Absence, Note, Cours, Eleve, Professeur
+    from app.models import Absence, Note, Cours, Eleve, Professeur, Inscription
 
     # 1. Liste des élèves réels de la classe
-    eleves = Eleve.query.filter_by(classe_id=classe.id, ecole_id=classe.ecole_id).order_by(Eleve.nom.asc(), Eleve.prenom.asc()).all()
+    inscriptions = (
+        Inscription.query
+        .filter_by(classe_id=classe.id, ecole_id=classe.ecole_id, annee_scolaire_id=classe.annee_scolaire_id)
+        .join(Eleve, Eleve.id == Inscription.eleve_id)
+        .order_by(Eleve.nom.asc(), Eleve.prenom.asc())
+        .all()
+    )
+    eleves = [inscription.eleve for inscription in inscriptions if inscription.eleve]
+    inscription_ids = [inscription.id for inscription in inscriptions]
     total_eleves = len(eleves)
     capacite = classe.capacite or classe.capacite_max or 35
     taux_remplissage = round((total_eleves / capacite) * 100) if capacite > 0 else 0
@@ -267,15 +277,16 @@ def detail_classe(classe_id):
 
     # 3. Statistiques réelles des absences
     eleve_ids = [e.id for e in eleves]
-    total_absences = Absence.query.filter(Absence.eleve_id.in_(eleve_ids)).count() if eleve_ids else 0
-    absences_justifiees = Absence.query.filter(Absence.eleve_id.in_(eleve_ids), Absence.justifiee == True).count() if eleve_ids else 0
+    total_absences = Absence.query.filter(Absence.inscription_id.in_(inscription_ids)).count() if inscription_ids else 0
+    absences_justifiees = Absence.query.filter(Absence.inscription_id.in_(inscription_ids), Absence.justifiee == True).count() if inscription_ids else 0
     absences_non_justifiees = total_absences - absences_justifiees
 
     # 4. Données détaillées par élève
     eleves_details = []
     for e in eleves:
-        nb_abs = Absence.query.filter_by(eleve_id=e.id).count()
-        notes_e = [n.valeur for n in (e.notes or []) if n.valeur is not None]
+        inscription = next((i for i in inscriptions if i.eleve_id == e.id), None)
+        nb_abs = Absence.query.filter_by(inscription_id=inscription.id).count() if inscription else 0
+        notes_e = [n.valeur for n in (inscription.notes or []) if n.valeur is not None] if inscription else []
         moyenne_e = round(sum(notes_e) / len(notes_e), 2) if notes_e else None
 
         parent_nom = f"{e.parent.prenom or ''} {e.parent.nom}".strip() if e.parent else (e.contact_parent or "Non renseigné")
@@ -300,7 +311,7 @@ def detail_classe(classe_id):
     cours_classe = Cours.query.filter_by(classe_id=classe.id).all()
     matieres_stats = []
     for c in cours_classe:
-        notes_cours = Note.query.filter(Note.cours_id == c.id, Note.eleve_id.in_(eleve_ids)).all() if eleve_ids else []
+        notes_cours = Note.query.filter(Note.cours_id == c.id, Note.inscription_id.in_(inscription_ids)).all() if inscription_ids else []
         notes_vals = [n.valeur for n in notes_cours if n.valeur is not None]
         avg = round(sum(notes_vals) / len(notes_vals), 2) if notes_vals else None
         matieres_stats.append({
@@ -313,7 +324,7 @@ def detail_classe(classe_id):
         })
 
     # Moyenne générale de la classe
-    all_notes = Note.query.filter(Note.eleve_id.in_(eleve_ids)).all() if eleve_ids else []
+    all_notes = Note.query.filter(Note.inscription_id.in_(inscription_ids)).all() if inscription_ids else []
     all_notes_vals = [n.valeur for n in all_notes if n.valeur is not None]
     moyenne_generale_classe = round(sum(all_notes_vals) / len(all_notes_vals), 2) if all_notes_vals else None
 

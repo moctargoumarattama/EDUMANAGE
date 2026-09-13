@@ -23,7 +23,12 @@
                         </div>
                         <div>
                             <h2 class="form-header-title">Modifier l'évaluation</h2>
-                            <p class="form-header-subtitle">Mise à jour de la note et des paramètres du coefficient</p>
+                            <p class="form-header-subtitle">
+                                Année scolaire : <span class="badge bg-primary">{{ annee_note.nom if annee_note else 'Année active' }}</span>
+                                {% if note.inscription and note.inscription.classe %}
+                                <span class="badge bg-secondary ms-1">{{ note.inscription.classe.nom }}</span>
+                                {% endif %}
+                            </p>
                         </div>
                     </div>
                 </div>

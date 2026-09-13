@@ -108,137 +108,210 @@ def get_statistics(classes):
     }
 
 
-def generer_alertes_automatiques(limit=None):
+def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
+    """
+    Génère les alertes scolaires pour une école et une année scolaire donnée.
+    Respecte l'ancrage annuel strict : Inscription -> Année consultée.
+    """
+    from app.utils import get_annee_consultee
+    from app.models import AnneeScolaire
+
+    if ecole_id is None:
+        ecole_id = getattr(current_user, 'ecole_id', None)
+
+    if not ecole_id:
+        return []
+
+    if annee is None:
+        annee = get_annee_consultee(ecole_id)
+
+    if not annee:
+        return []
+
+    # Année planifiée : préparation uniquement, aucune alerte d'absence, note ou impayé
+    if annee.statut == 'planifiee':
+        return []
+
     alertes = []
     maintenant = datetime.now()
     mois_courant = maintenant.month
-    annee_courante = maintenant.year
     mois_noms = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
                  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 
-    eleves = get_ecole_filter_query(Eleve).all()
+    is_archivee = (annee.statut == 'archivee')
 
-    # 1. Alertes Notes (Difficultés académiques)
-    for eleve in eleves:
-        classe_nom = eleve.classe.nom if eleve.classe else "Sans classe"
-        notes = Note.query.filter_by(eleve_id=eleve.id).all()
+    # Inscriptions de l'année consultée pour cette école
+    inscriptions = (
+        Inscription.query
+        .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
+        .options(
+            db.joinedload(Inscription.eleve),
+            db.joinedload(Inscription.classe),
+            db.joinedload(Inscription.notes),
+            db.joinedload(Inscription.absences),
+            db.joinedload(Inscription.paiements),
+        )
+        .all()
+    )
+
+    def _safe_url_eleve(eleve_id):
+        try:
+            return url_for('main.voir_eleve', eleve_id=eleve_id)
+        except RuntimeError:
+            return f"/eleve/{eleve_id}"
+
+    for ins in inscriptions:
+        eleve = ins.eleve
+        if not eleve:
+            continue
+
+        classe_nom = ins.classe.nom if ins.classe else "Sans classe"
+        classe_id = ins.classe_id
+
+        # 1. Alertes Notes (Difficultés académiques de l'année consultée)
+        notes = [n for n in ins.notes if n.valeur is not None]
         if notes:
-            total_pondere = sum((n.valeur or 0) * (n.coefficient or 1) for n in notes)
-            total_coefficients = sum((n.coefficient or 1) for n in notes)
+            total_pondere = sum(n.valeur * (n.coefficient or 1.0) for n in notes)
+            total_coefficients = sum((n.coefficient or 1.0) for n in notes)
             moyenne = round(total_pondere / total_coefficients, 2) if total_coefficients > 0 else 0
             if moyenne < 10:
                 type_alerte = 'danger' if moyenne < 8 else 'warning'
                 priorite = 3 if moyenne < 8 else 2
                 alertes.append({
-                    'id': f'note-{eleve.id}',
+                    'id': f'note-{ins.id}',
                     'type': type_alerte,
                     'titre': 'Difficulté académique',
                     'message': f"{eleve.prenom} {eleve.nom} ({classe_nom}) a une moyenne générale de {moyenne}/20.",
                     'date': maintenant,
                     'source': 'Notes',
-                    'lien': url_for('main.voir_eleve', eleve_id=eleve.id),
+                    'lien': _safe_url_eleve(eleve.id),
                     'eleve_id': eleve.id,
+                    'inscription_id': ins.id,
                     'eleve_nom': f"{eleve.prenom} {eleve.nom}",
-                    'classe_id': eleve.classe_id,
+                    'classe_id': classe_id,
                     'classe_nom': classe_nom,
                     'contact_parent': eleve.contact_parent or eleve.telephone or '',
                     'email_parent': eleve.email_parent or eleve.email or '',
                     'priorite': priorite,
                     'valeur_cle': f"{moyenne}/20",
-                    'notifie': False
+                    'notifie': False,
+                    'historique': is_archivee,
                 })
 
-    # 2. Alertes Absences (Absences répétées non justifiées)
-    absences = db.session.query(
-        Absence.eleve_id,
-        func.count(Absence.id).label('total_absences')
-    ).filter_by(justifiee=False).group_by(Absence.eleve_id).all()
-
-    for absence in absences:
-        if absence.total_absences >= 3:
-            eleve = Eleve.query.get(absence.eleve_id)
-            if not eleve:
-                continue
-            classe_nom = eleve.classe.nom if eleve.classe else "Sans classe"
-            type_alerte = 'danger' if absence.total_absences >= 5 else 'warning'
-            priorite = 3 if absence.total_absences >= 5 else 2
+        # 2. Alertes Absences (Absences répétées non justifiées de l'année consultée)
+        absences_injustifiees = [a for a in ins.absences if not a.justifiee]
+        total_absences = len(absences_injustifiees)
+        if total_absences >= 3:
+            type_alerte = 'danger' if total_absences >= 5 else 'warning'
+            priorite = 3 if total_absences >= 5 else 2
             alertes.append({
-                'id': f'absence-{eleve.id}',
+                'id': f'absence-{ins.id}',
                 'type': type_alerte,
                 'titre': 'Absences répétées non justifiées',
-                'message': f"{eleve.prenom} {eleve.nom} ({classe_nom}) compte {absence.total_absences} absence(s) non justifiée(s).",
+                'message': f"{eleve.prenom} {eleve.nom} ({classe_nom}) compte {total_absences} absence(s) non justifiée(s).",
                 'date': maintenant,
                 'source': 'Absences',
-                'lien': url_for('main.voir_eleve', eleve_id=eleve.id),
+                'lien': _safe_url_eleve(eleve.id),
                 'eleve_id': eleve.id,
+                'inscription_id': ins.id,
                 'eleve_nom': f"{eleve.prenom} {eleve.nom}",
-                'classe_id': eleve.classe_id,
+                'classe_id': classe_id,
                 'classe_nom': classe_nom,
                 'contact_parent': eleve.contact_parent or eleve.telephone or '',
                 'email_parent': eleve.email_parent or eleve.email or '',
                 'priorite': priorite,
-                'valeur_cle': f"{absence.total_absences} absence(s)",
-                'notifie': False
+                'valeur_cle': f"{total_absences} absence(s)",
+                'notifie': False,
+                'historique': is_archivee,
             })
 
-    # 3. Alertes Paiements (Retards de scolarité)
-    for eleve in eleves:
-        paiements_eleve = Paiement.query.filter_by(eleve_id=eleve.id, annee=annee_courante).all()
-        mois_payes = [p.mois for p in paiements_eleve]
-        mois_manquants = [mois_noms[m-1] for m in range(1, mois_courant) if mois_noms[m-1] not in mois_payes]
+        # 3. Alertes Paiements (Retards de scolarité de l'année consultée)
+        frais_annuels = float(ins.frais_annuels if ins.frais_annuels is not None else (eleve.frais_annuels or 150000.0))
+        paiements_valides = [p for p in ins.paiements if p.statut != 'rejete']
+        total_paye = sum(float(p.montant or 0) for p in paiements_valides)
+        mois_payes = [p.mois for p in paiements_valides if p.mois]
 
-        if mois_manquants:
-            classe_nom = eleve.classe.nom if eleve.classe else "Sans classe"
-            frais_mensuels = (eleve.frais_annuels or 150000.0) / 10
-            montant_du = round(frais_mensuels * len(mois_manquants))
+        if is_archivee:
+            if total_paye < frais_annuels:
+                montant_du = round(frais_annuels - total_paye)
+                alertes.append({
+                    'id': f'paiement-{ins.id}',
+                    'type': 'warning',
+                    'titre': 'Retard de paiement de scolarité',
+                    'message': f"{eleve.prenom} {eleve.nom} ({classe_nom}) a un impayé de scolarité ({montant_du:,.0f} FCFA).",
+                    'date': maintenant,
+                    'source': 'Paiements',
+                    'lien': _safe_url_eleve(eleve.id),
+                    'eleve_id': eleve.id,
+                    'inscription_id': ins.id,
+                    'eleve_nom': f"{eleve.prenom} {eleve.nom}",
+                    'classe_id': classe_id,
+                    'classe_nom': classe_nom,
+                    'contact_parent': eleve.contact_parent or eleve.telephone or '',
+                    'email_parent': eleve.email_parent or eleve.email or '',
+                    'priorite': 2,
+                    'valeur_cle': f"{montant_du:,.0f} F",
+                    'details': {
+                        'mois_manquants': [],
+                        'nombre_mois_manquants': 1,
+                        'montant_total_du': montant_du
+                    },
+                    'notifie': False,
+                    'historique': True,
+                })
+        else:
+            mois_manquants = [mois_noms[m-1] for m in range(1, mois_courant) if mois_noms[m-1] not in mois_payes]
+            if mois_manquants and total_paye < frais_annuels:
+                frais_mensuels = frais_annuels / 10
+                montant_du = round(min(frais_annuels - total_paye, frais_mensuels * len(mois_manquants)))
+                if montant_du > 0:
+                    if len(mois_manquants) >= 3:
+                        type_alerte = 'danger'
+                        priorite = 3
+                    elif len(mois_manquants) == 2:
+                        type_alerte = 'warning'
+                        priorite = 2
+                    else:
+                        type_alerte = 'info'
+                        priorite = 1
 
-            if len(mois_manquants) >= 3:
-                type_alerte = 'danger'
-                priorite = 3
-            elif len(mois_manquants) == 2:
-                type_alerte = 'warning'
-                priorite = 2
-            else:
-                type_alerte = 'info'
-                priorite = 1
+                    if len(mois_manquants) == 1:
+                        mois_texte = f"le mois de {mois_manquants[0]}"
+                    elif len(mois_manquants) <= 3:
+                        mois_texte = f"les mois de {', '.join(mois_manquants)}"
+                    else:
+                        mois_texte = f"{len(mois_manquants)} mois ({mois_manquants[0]} à {mois_manquants[-1]})"
 
-            if len(mois_manquants) == 1:
-                mois_texte = f"le mois de {mois_manquants[0]}"
-            elif len(mois_manquants) <= 3:
-                mois_texte = f"les mois de {', '.join(mois_manquants)}"
-            else:
-                mois_texte = f"{len(mois_manquants)} mois ({mois_manquants[0]} à {mois_manquants[-1]})"
-
-            message = f"{eleve.prenom} {eleve.nom} ({classe_nom}) a un retard de scolarité pour {mois_texte} ({montant_du:,.0f} FCFA)."
-
-            alertes.append({
-                'id': f'paiement-{eleve.id}',
-                'type': type_alerte,
-                'titre': 'Retard de paiement de scolarité',
-                'message': message,
-                'date': maintenant,
-                'source': 'Paiements',
-                'lien': url_for('main.voir_eleve', eleve_id=eleve.id),
-                'eleve_id': eleve.id,
-                'eleve_nom': f"{eleve.prenom} {eleve.nom}",
-                'classe_id': eleve.classe_id,
-                'classe_nom': classe_nom,
-                'contact_parent': eleve.contact_parent or eleve.telephone or '',
-                'email_parent': eleve.email_parent or eleve.email or '',
-                'priorite': priorite,
-                'valeur_cle': f"{len(mois_manquants)} mois ({montant_du:,.0f} F)",
-                'details': {
-                    'mois_manquants': mois_manquants,
-                    'nombre_mois_manquants': len(mois_manquants),
-                    'montant_total_du': montant_du
-                },
-                'notifie': False
-            })
+                    alertes.append({
+                        'id': f'paiement-{ins.id}',
+                        'type': type_alerte,
+                        'titre': 'Retard de paiement de scolarité',
+                        'message': f"{eleve.prenom} {eleve.nom} ({classe_nom}) a un retard de scolarité pour {mois_texte} ({montant_du:,.0f} FCFA).",
+                        'date': maintenant,
+                        'source': 'Paiements',
+                        'lien': _safe_url_eleve(eleve.id),
+                        'eleve_id': eleve.id,
+                        'inscription_id': ins.id,
+                        'eleve_nom': f"{eleve.prenom} {eleve.nom}",
+                        'classe_id': classe_id,
+                        'classe_nom': classe_nom,
+                        'contact_parent': eleve.contact_parent or eleve.telephone or '',
+                        'email_parent': eleve.email_parent or eleve.email or '',
+                        'priorite': priorite,
+                        'valeur_cle': f"{len(mois_manquants)} mois ({montant_du:,.0f} F)",
+                        'details': {
+                            'mois_manquants': mois_manquants,
+                            'nombre_mois_manquants': len(mois_manquants),
+                            'montant_total_du': montant_du
+                        },
+                        'notifie': False,
+                        'historique': False,
+                    })
 
     alertes.sort(key=lambda x: (-x['priorite'], x['date']))
 
     if limit:
-        alertes = alertes[:limit]
+        return alertes[:limit]
 
     return alertes
 
@@ -284,7 +357,13 @@ def generer_bulletin_pdf(
     logo_path=None,
     nom_ecole=None,
     adresse_ecole=None,
-    contact_ecole=None
+    contact_ecole=None,
+    classe_nom=None,
+    annee_scolaire_nom=None,
+    periode_nom=None,
+    rang=None,
+    rang_total=None,
+    appreciation_generale=None,
 ):
     import io
 
@@ -305,8 +384,8 @@ def generer_bulletin_pdf(
 
     title_style = ParagraphStyle(
         'Title', parent=styles['Heading1'],
-        fontSize=20, textColor=colors.HexColor('#1A5276'),
-        spaceAfter=20, alignment=1, fontName='Helvetica-Bold'
+        fontSize=18, textColor=colors.HexColor('#1A5276'),
+        spaceAfter=15, alignment=1, fontName='Helvetica-Bold'
     )
     subtitle_style = ParagraphStyle(
         'Subtitle', parent=styles['Heading2'],
@@ -331,7 +410,11 @@ def generer_bulletin_pdf(
 
     logo_cell = Image(logo_path, width=80, height=80) if logo_path and os.path.exists(logo_path) else Paragraph("", styles['Normal'])
     school_info = Paragraph(f"<b>{nom_ecole}</b><br/><font size='10'>{adresse_ecole}<br/>{contact_ecole}</font>", header_style)
-    title = Paragraph("<b>BULLETIN SCOLAIRE</b>", title_style)
+    
+    title_text = "<b>BULLETIN SCOLAIRE</b>"
+    if annee_scolaire_nom:
+        title_text += f"<br/><font size='11' color='#5D6D7E'>{annee_scolaire_nom}</font>"
+    title = Paragraph(title_text, title_style)
 
     header_data = [[logo_cell, school_info, title]]
     header_table = Table(header_data, colWidths=[80, 230, 180])
@@ -343,15 +426,27 @@ def generer_bulletin_pdf(
     elements.append(header_table)
     elements.append(Spacer(1, 10))
     elements.append(Paragraph("<hr width='100%' color='#3498DB' size='2'/>", styles['Normal']))
-    elements.append(Spacer(1, 20))
+    elements.append(Spacer(1, 15))
 
+    classe_affichee = classe_nom or (eleve.classe.nom if (eleve and eleve.classe) else "Non renseignee")
     student_info = [
         ['INFORMATIONS ELEVE', '', ''],
-        ['Nom et Prenom', f"{eleve.nom} {eleve.prenom}", ''],
-        ['Classe', eleve.classe.nom if eleve.classe else "Non renseignee", ''],
-        ['Date de Naissance', eleve.date_naissance.strftime('%d/%m/%Y') if eleve.date_naissance else "Non renseignee", ''],
-        ['Date d edition', datetime.now().strftime('%d/%m/%Y %H:%M'), '']
+        ['Nom et Prenom', f"{eleve.nom} {eleve.prenom}" if eleve else "-", ''],
+        ['Classe', classe_affichee, ''],
     ]
+    if annee_scolaire_nom:
+        student_info.append(['Annee Scolaire', annee_scolaire_nom, ''])
+    if periode_nom:
+        student_info.append(['Periode', periode_nom, ''])
+    if rang:
+        rang_str = f"{rang}e sur {rang_total}" if rang_total else f"{rang}e"
+        student_info.append(['Rang', rang_str, ''])
+
+    student_info.extend([
+        ['Date de Naissance', eleve.date_naissance.strftime('%d/%m/%Y') if (eleve and eleve.date_naissance) else "Non renseignee", ''],
+        ['Date d edition', datetime.now().strftime('%d/%m/%Y %H:%M'), '']
+    ])
+
     student_table = Table(student_info, colWidths=[150, 220, 120])
     student_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2980B9')),
@@ -362,7 +457,7 @@ def generer_bulletin_pdf(
         ('ROWBACKGROUNDS', (1, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9F9')])
     ]))
     elements.append(student_table)
-    elements.append(Spacer(1, 25))
+    elements.append(Spacer(1, 20))
 
     elements.append(Paragraph("RESULTATS SCOLAIRES", subtitle_style))
 
@@ -411,9 +506,12 @@ def generer_bulletin_pdf(
     elements.append(table)
     elements.append(Spacer(1, 30))
 
+    obs_text = appreciation_generale if appreciation_generale else (
+        f"Moyenne generale : {moyenne_generale:.2f} - {'Tres bon travail' if moyenne_generale >= 12 else 'Satisfaisant' if moyenne_generale >= 10 else 'Doit faire des efforts'}"
+    )
     signature_data = [
         ['OBSERVATIONS GENERALES:', ''],
-        [Paragraph(f"<i>Moyenne generale : {moyenne_generale:.2f} - {'Tres bon travail' if moyenne_generale >= 12 else 'Satisfaisant' if moyenne_generale >= 10 else 'Doit faire des efforts'}</i>", styles['Italic']), ''],
+        [Paragraph(f"<i>{obs_text}</i>", styles['Italic']), ''],
         ['', 'Le Directeur'],
         ['', '_________________________']
     ]

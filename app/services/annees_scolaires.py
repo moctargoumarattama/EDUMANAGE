@@ -42,14 +42,27 @@ def _get_session_map():
 
 
 def _get_session_annee_id(ecole_id):
-    key = _ecole_key(ecole_id)
-    if not key:
-        return None
-    value = _get_session_map().get(key)
     try:
-        return int(value)
-    except (TypeError, ValueError):
+        raw = session.get(SESSION_KEY)
+    except RuntimeError:
         return None
+
+    if isinstance(raw, dict):
+        key = _ecole_key(ecole_id)
+        if key and key in raw:
+            try:
+                return int(raw[key])
+            except (TypeError, ValueError):
+                return None
+        return None
+
+    if isinstance(raw, (int, str)):
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return None
+
+    return None
 
 
 def set_annee_consultee(ecole_id, annee_id):

@@ -34,7 +34,7 @@
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center position-relative gap-3">
                     <div class="text-white">
                         <h2 class="mb-1 fw-bold"><i class="fas fa-file-pdf me-2"></i>Bulletins Scolaires</h2>
-                        <p class="mb-0 opacity-75">Résultats académiques et bulletins officiels organisés par classe</p>
+                        <p class="mb-0 opacity-75">Résultats académiques et bulletins officiels organisés par classe {% if annee_consultee %}— <strong>{{ annee_consultee.nom }}</strong>{% endif %}</p>
                     </div>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                         <button type="button" class="btn btn-light btn-sm fw-bold shadow-sm" id="btnToggleAllClasses">
@@ -52,6 +52,20 @@
             </div>
         </div>
     </div>
+
+    {% if statut_warning %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert {% if annee_consultee and annee_consultee.statut == 'archivee' %}alert-info{% else %}alert-warning{% endif %} d-flex align-items-center shadow-sm border-0" role="alert" style="border-radius: 1rem;">
+                <i class="fas fa-info-circle fa-2x me-3 {% if annee_consultee and annee_consultee.statut == 'archivee' %}text-info{% else %}text-warning{% endif %}"></i>
+                <div>
+                    <h5 class="alert-heading mb-1 fw-bold">Information sur l'année scolaire</h5>
+                    <p class="mb-0">{{ statut_warning }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Barre d'outils et de filtres temps réel -->
     <div class="card course-toolbar-card border-0 shadow-sm mb-4">
@@ -288,7 +302,7 @@
                                         </span>
                                     </td>
                                     <td class="text-end pe-3">
-                                        <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" 
+                                        <a href="{{ url_for('main.bulletin_eleve', id=eleve.id, inscription_id=item.inscription.id if item.inscription else None) }}" 
                                            class="btn btn-sm btn-primary fw-bold" 
                                            target="_blank" 
                                            rel="noopener"
@@ -363,7 +377,7 @@
                             </div>
 
                             <div class="bulletin-student-mini-actions pt-2 border-top">
-                                <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" 
+                                <a href="{{ url_for('main.bulletin_eleve', id=eleve.id, inscription_id=item.inscription.id if item.inscription else None) }}" 
                                    class="btn btn-primary btn-sm fw-bold w-100" 
                                    target="_blank" 
                                    rel="noopener"
@@ -456,7 +470,7 @@
                                         <span class="badge bg-light text-dark border">{{ item.notes_count }} note(s)</span>
                                     </td>
                                     <td class="text-end pe-3">
-                                        <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" class="btn btn-sm btn-outline-primary fw-bold" target="_blank" rel="noopener">
+                                        <a href="{{ url_for('main.bulletin_eleve', id=eleve.id, inscription_id=item.inscription.id if item.inscription else None) }}" class="btn btn-sm btn-outline-primary fw-bold" target="_blank" rel="noopener">
                                             <i class="fas fa-file-pdf me-1"></i>Bulletin
                                         </a>
                                     </td>

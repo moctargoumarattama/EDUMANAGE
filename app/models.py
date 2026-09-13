@@ -610,6 +610,12 @@ class Note(db.Model):
     eleve_id = db.Column(db.Integer, db.ForeignKey('eleve.id'), nullable=False)
     cours_id = db.Column(db.Integer, db.ForeignKey('cours.id'), nullable=False)
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'))
+    inscription_id = db.Column(
+        db.Integer,
+        db.ForeignKey('inscriptions.id', ondelete='RESTRICT'),
+        nullable=True,
+        index=True
+    )
 
     sync_version = db.Column(db.Integer, default=1, nullable=False, server_default='1')
     last_by_admin = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
@@ -619,6 +625,8 @@ class Note(db.Model):
         db.Index('ix_note_ecole_eleve', 'ecole_id', 'eleve_id'),
         db.Index('ix_note_cours_eleve', 'cours_id', 'eleve_id'),
     )
+
+    inscription = db.relationship('Inscription', backref=db.backref('notes', lazy=True))
 
     def __repr__(self):
         return f'<Note {self.valeur} (élève {self.eleve_id})>'
@@ -634,6 +642,7 @@ class Note(db.Model):
             "eleve_id": self.eleve_id,
             "cours_id": self.cours_id,
             "ecole_id": self.ecole_id,
+            "inscription_id": self.inscription_id,
             "sync_version": self.sync_version or 1,
             "last_by_admin": bool(self.last_by_admin),
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
@@ -655,10 +664,18 @@ class Paiement(db.Model):
     reference = db.Column(db.String(100))
     eleve_id = db.Column(db.Integer, db.ForeignKey('eleve.id'), nullable=False)
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'))
+    inscription_id = db.Column(
+        db.Integer,
+        db.ForeignKey('inscriptions.id', ondelete='RESTRICT'),
+        nullable=True,
+        index=True
+    )
 
     __table_args__ = (
         db.Index('ix_paiement_ecole_statut', 'ecole_id', 'statut'),
     )
+
+    inscription = db.relationship('Inscription', backref=db.backref('paiements', lazy=True))
 
     def statut_paiement(self):
         mois_num = {
@@ -685,7 +702,8 @@ class Paiement(db.Model):
             "statut": self.statut,
             "reference": self.reference,
             "eleve_id": self.eleve_id,
-            "ecole_id": self.ecole_id
+            "ecole_id": self.ecole_id,
+            "inscription_id": self.inscription_id
         }
 
 # -----------------------
@@ -702,6 +720,12 @@ class Absence(db.Model):
     eleve_id = db.Column(db.Integer, db.ForeignKey('eleve.id'), nullable=False)
     cours_id = db.Column(db.Integer, db.ForeignKey('cours.id'))
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'))
+    inscription_id = db.Column(
+        db.Integer,
+        db.ForeignKey('inscriptions.id', ondelete='RESTRICT'),
+        nullable=True,
+        index=True
+    )
 
     sync_version = db.Column(db.Integer, default=1, nullable=False, server_default='1')
     last_by_admin = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
@@ -710,6 +734,8 @@ class Absence(db.Model):
     __table_args__ = (
         db.Index('ix_absence_ecole_eleve', 'ecole_id', 'eleve_id'),
     )
+
+    inscription = db.relationship('Inscription', backref=db.backref('absences', lazy=True))
 
     def __repr__(self):
         return f'<Absence {self.date_absence} - élève {self.eleve_id}>'
@@ -723,6 +749,7 @@ class Absence(db.Model):
             "eleve_id": self.eleve_id,
             "cours_id": self.cours_id,
             "ecole_id": self.ecole_id,
+            "inscription_id": self.inscription_id,
             "sync_version": self.sync_version or 1,
             "last_by_admin": bool(self.last_by_admin),
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
@@ -774,28 +801,71 @@ class Bulletin(db.Model):
     __tablename__ = 'bulletin'
 
     id = db.Column(db.Integer, primary_key=True)
-    eleve_id = db.Column(db.Integer, db.ForeignKey('eleve.id'), nullable=False)
-    ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'), nullable=False)  # <- Ajouté
-    matiere = db.Column(db.String(100), nullable=False)
-    note = db.Column(db.Float, nullable=False)
-    annee = db.Column(db.String(10), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    eleve = db.relationship('Eleve', backref='bulletins')
-    ecole = db.relationship('Ecole', backref='bulletins')  # <- Relation pour filtrage facile
+    # Ancrage annuel central (source de vérité)
+    inscription_id = db.Column(
+        db.Integer,
+        db.ForeignKey('inscriptions.id', ondelete='RESTRICT'),
+        nullable=True,
+        index=True
+    )
+
+    # Liaisons d'intégrité et de compatibilité
+    eleve_id = db.Column(db.Integer, db.ForeignKey('eleve.id', ondelete='CASCADE'), nullable=False, index=True)
+    ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id', ondelete='CASCADE'), nullable=False, index=True)
+    classe_id = db.Column(db.Integer, db.ForeignKey('classe.id', ondelete='RESTRICT'), nullable=True, index=True)
+    annee_scolaire_id = db.Column(db.Integer, db.ForeignKey('annee_scolaire.id', ondelete='RESTRICT'), nullable=True, index=True)
+
+    # Données académiques du bulletin
+    periode = db.Column(db.String(50), nullable=True, default="Trimestre 1")
+    moyenne_generale = db.Column(db.Float, nullable=True)
+    rang = db.Column(db.Integer, nullable=True)
+    rang_total = db.Column(db.Integer, nullable=True)
+    appreciation_generale = db.Column(db.String(255), nullable=True)
+    statut = db.Column(db.String(20), nullable=False, default='valide')
+
+    # Champs historiques / rétrocompatibilité
+    matiere = db.Column(db.String(100), nullable=True)
+    note = db.Column(db.Float, nullable=True)
+    annee = db.Column(db.String(20), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relations ORM
+    inscription = db.relationship('Inscription', backref=db.backref('bulletins', lazy=True))
+    eleve = db.relationship('Eleve', backref=db.backref('bulletins', lazy=True))
+    ecole = db.relationship('Ecole', backref=db.backref('bulletins', lazy=True))
+    classe = db.relationship('Classe', backref=db.backref('bulletins', lazy=True))
+    annee_scolaire = db.relationship('AnneeScolaire', backref=db.backref('bulletins', lazy=True))
+
+    __table_args__ = (
+        db.Index('ix_bulletin_inscription_periode', 'inscription_id', 'periode'),
+        db.Index('ix_bulletin_ecole_annee', 'ecole_id', 'annee_scolaire_id'),
+    )
 
     def __repr__(self):
-        return f'<Bulletin {self.id} - Eleve {self.eleve_id}>'
+        return f'<Bulletin {self.id} - Inscription {self.inscription_id} - {self.periode}>'
 
     def to_dict(self):
         return {
             "id": self.id,
+            "inscription_id": self.inscription_id,
             "eleve_id": self.eleve_id,
-            "ecole_id": self.ecole_id,  # <- Inclure ecole_id
+            "ecole_id": self.ecole_id,
+            "classe_id": self.classe_id,
+            "annee_scolaire_id": self.annee_scolaire_id,
+            "periode": self.periode,
+            "moyenne_generale": self.moyenne_generale,
+            "rang": self.rang,
+            "rang_total": self.rang_total,
+            "appreciation_generale": self.appreciation_generale,
+            "statut": self.statut,
             "matiere": self.matiere,
             "note": self.note,
             "annee": self.annee,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
 # -----------------------
@@ -817,6 +887,14 @@ class EmploiTemps(db.Model):
     cours = db.relationship('Cours', back_populates='emplois_du_temps')
     classe = db.relationship('Classe', back_populates='emplois')
 
+    @property
+    def annee_scolaire(self):
+        return self.classe.annee_scolaire if self.classe else None
+
+    @property
+    def annee_scolaire_id(self):
+        return self.classe.annee_scolaire_id if self.classe else None
+
     def __repr__(self):
         return f'<EmploiTemps {self.jour} {self.heure_debut}-{self.heure_fin}>'
 
@@ -824,12 +902,17 @@ class EmploiTemps(db.Model):
         return {
             "id": self.id,
             "professeur_id": self.professeur_id,
+            "professeur_nom": f"{self.professeur.prenom} {self.professeur.nom}" if self.professeur else None,
             "jour": self.jour,
             "heure_debut": self.heure_debut.isoformat() if self.heure_debut else None,
             "heure_fin": self.heure_fin.isoformat() if self.heure_fin else None,
             "cours_id": self.cours_id,
+            "cours_nom": self.cours.nom if self.cours else None,
             "classe_id": self.classe_id,
-            "salle": self.salle
+            "classe_nom": self.classe.nom if self.classe else None,
+            "annee_scolaire_id": self.annee_scolaire_id,
+            "salle": self.salle,
+            "ecole_id": self.ecole_id,
         }
 
 # -----------------------
@@ -1048,6 +1131,7 @@ class Inscription(db.Model):
     annee_scolaire = db.relationship('AnneeScolaire', back_populates='inscriptions')
 
     statut = db.Column(db.String(20), nullable=False, default='inscrit')
+    frais_annuels = db.Column(db.Float, nullable=True)
     date_inscription = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     date_sortie = db.Column(db.DateTime, nullable=True)
     motif_sortie = db.Column(db.String(255), nullable=True)
@@ -1076,6 +1160,7 @@ class Inscription(db.Model):
             "cours_id": self.cours_id,
             "annee_scolaire_id": self.annee_scolaire_id,
             "statut": self.statut,
+            "frais_annuels": self.frais_annuels,
             "date_inscription": self.date_inscription.isoformat() if self.date_inscription else None,
             "date_sortie": self.date_sortie.isoformat() if self.date_sortie else None,
             "motif_sortie": self.motif_sortie,

@@ -899,6 +899,7 @@ def preload_relations(query, *relations):
 
 # Import des fonctions du middleware pour compatibilité
 from app.middleware import get_ecole_id, filtre_par_ecole, check_ecole_access
+from app.services.annees_scolaires import get_annee_consultee
 
 
 

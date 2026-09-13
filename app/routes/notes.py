@@ -1,12 +1,13 @@
+import io
+import pandas as pd
+from datetime import datetime
+from flask import abort, flash, redirect, render_template, send_file, url_for, current_app
+from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload
+
 from . import main
 from .common import (
     AnneeScolaire,
-    abort,
-    can_access_cours,
-    can_access_eleve,
-    can_access_note,
-    can_manage_cours,
-    can_manage_note,
     Classe,
     Cours,
     Eleve,
@@ -14,25 +15,27 @@ from .common import (
     Note,
     NoteForm,
     Professeur,
-    current_app,
-    current_user,
-    datetime,
+    can_manage_note,
     db,
-    envoyer_email,
-    filtre_par_ecole,
-    flash,
     get_ecole_courante,
-    io,
-    joinedload,
-    login_required,
-    redirect,
-    render_template,
     role_required,
-    send_file,
-    url_for,
 )
-import pandas as pd
-from app.utils import get_annee_active
+from app.services.annees_scolaires import get_annee_consultee
+from app.services.notes_annuelles import (
+    MESSAGE_ANNEE_ARCHIVEE,
+    MESSAGE_ANNEE_PLANIFIEE,
+    calculer_statistiques_notes,
+    creer_note,
+    get_cours_annee,
+    get_cours_choices_notes,
+    get_eleves_choices_notes,
+    get_inscriptions_notes,
+    get_notes_annee,
+    modifier_note as service_modifier_note,
+    notes_modifiables,
+    statut_annee_notes,
+    supprimer_note as service_supprimer_note,
+)
 
 
 @main.route('/notes', methods=['GET', 'POST'])
@@ -40,244 +43,142 @@ from app.utils import get_annee_active
 @role_required('admin', 'professeur', 'parent')
 def notes():
     form = NoteForm()
-    ecole_courante = get_ecole_courante()
+    ecole_id = current_user.ecole_id
 
-    # ------------------- Récupération de l'année active -------------------
-    annee_active = get_annee_active(current_user.ecole_id)
+    # ------------------- Contexte annuel unique (Règle 2C-5D) -------------------
+    annee_consultee = get_annee_consultee(ecole_id)
+    message_annee = statut_annee_notes(annee_consultee)
+    peut_modifier = notes_modifiables(annee_consultee, current_user)
 
-    # ------------------- Gestion des élèves selon rôle -------------------
-    if current_user.role == 'parent':
-        enfants = filtre_par_ecole(Eleve.query.filter_by(parent_id=current_user.id), Eleve).all()
-        eleves = enfants
-        form.eleve_id.choices = [
-            (e.id, f"{e.prenom} {e.nom} - {e.classe.nom if e.classe else 'Sans classe'}")
-            for e in enfants
-        ]
-        form.eleve_id.render_kw = {'disabled': True} if len(enfants) == 1 else {}
+    # ------------------- Choix élèves et cours -------------------
+    if annee_consultee:
+        eleve_choices = get_eleves_choices_notes(ecole_id, annee_consultee, user=current_user)
+        form.eleve_id.choices = eleve_choices or [(0, "--- Aucun élève disponible ---")]
 
-    elif current_user.role == 'professeur':
-        professeur = filtre_par_ecole(Professeur.query.filter_by(utilisateur_id=current_user.id), Professeur).first()
-        if professeur:
-            cours_prof = filtre_par_ecole(Cours.query.filter_by(professeur_id=professeur.id), Cours).all()
-            cours_ids = [c.id for c in cours_prof]
-            eleves = (
-                filtre_par_ecole(Eleve.query.join(Inscription), Eleve)
-                .filter(Inscription.cours_id.in_(cours_ids)).all()
-            )
-            form.eleve_id.choices = [
-                (e.id, f"{e.prenom} {e.nom} - {e.classe.nom if e.classe else 'Sans classe'}")
-                for e in eleves
-            ]
-            form.cours_id.choices = [(c.id, c.nom) for c in cours_prof]
-        else:
-            eleves = []
-            form.eleve_id.choices = []
-            form.cours_id.choices = []
-            flash("Aucun professeur n'est associé à votre compte.", "warning")
+        cours_choices = get_cours_choices_notes(ecole_id, annee_consultee, user=current_user)
+        form.cours_id.choices = cours_choices or [(0, "--- Aucun cours disponible ---")]
 
-    else:  # admin
-        eleves = filtre_par_ecole(Eleve.query.outerjoin(Classe).order_by(Classe.nom, Eleve.nom), Eleve).all()
-        form.eleve_id.choices = [(e.id, f"{e.prenom} {e.nom} - {e.classe.nom if e.classe else 'Sans classe'}") for e in eleves]
-        form.cours_id.choices = [(c.id, c.nom) for c in filtre_par_ecole(Cours.query.order_by(Cours.nom), Cours).all()]
-
-    # ------------------- Pré-remplissage année scolaire -------------------
-    if hasattr(form, 'annee_id'):
-        annees = AnneeScolaire.query.filter_by(ecole_id=current_user.ecole_id).order_by(AnneeScolaire.nom.desc()).all()
-        form.annee_id.choices = [(a.id, a.nom) for a in annees]
-        if annee_active:
-            form.annee_id.data = annee_active.id
-        elif annees:
-            form.annee_id.data = annees[0].id
-
-    # ------------------- Ajout d'une note -------------------
-    if form.validate_on_submit():
-        if current_user.role == 'parent':
-            flash("Vous n'êtes pas autorisé à ajouter des notes.", "danger")
-            return redirect(url_for('main.notes'))
-
-        cours = filtre_par_ecole(Cours.query.filter_by(id=form.cours_id.data), Cours).first()
-        if not cours:
-            flash("Cours introuvable pour cette école.", "danger")
-            return redirect(url_for('main.notes'))
-
-        eleve = filtre_par_ecole(Eleve.query.filter_by(id=form.eleve_id.data), Eleve).first()
-        if not eleve or not can_access_eleve(eleve) or not can_manage_cours(cours):
-            flash("Acces non autorise pour cet eleve ou ce cours.", "danger")
-            return redirect(url_for('main.notes'))
-        if cours.classe_id and eleve.classe_id != cours.classe_id:
-            flash("Cet eleve n'appartient pas a la classe de ce cours.", "danger")
-            return redirect(url_for('main.notes'))
-
-        if cours.classe_id:
-            annee = cours.classe.annee_scolaire if cours.classe else None
-            if not annee or annee.ecole_id != cours.ecole_id:
-                flash("La classe de ce cours n'est associée à aucune année scolaire valide.", "danger")
-                return redirect(url_for('main.notes'))
-        else:
-            annee = get_annee_active(cours.ecole_id)
-            if not annee:
-                flash("Aucune année scolaire active n'est disponible pour ce cours.", "danger")
-                return redirect(url_for('main.notes'))
-
-        annee_id = annee.id
-
-        # Vérifier le droit de l'enseignant sur le cours
-        if current_user.role == 'professeur':
-            professeur = filtre_par_ecole(Professeur.query.filter_by(utilisateur_id=current_user.id), Professeur).first()
-            if not cours or cours.professeur_id != professeur.id:
-                flash("Vous ne pouvez pas ajouter de notes pour ce cours.", "danger")
-                return redirect(url_for('main.notes'))
-
-        # Création et sauvegarde
-        try:
-            nouvelle_note = Note(
-                valeur=form.valeur.data,
-                coefficient=form.coefficient.data,
-                type_evaluation=form.type_evaluation.data,
-                periode=form.periode.data,
-                eleve_id=form.eleve_id.data,
-                cours_id=form.cours_id.data,
-                date_evaluation=datetime.utcnow(),
-                ecole_id=current_user.ecole_id,
-                annee_id=annee_id
-            )
-            db.session.add(nouvelle_note)
-            db.session.commit()
-
-            # Journalisation JSON pour SQLite
-            import json
-            current_app.log_correction(
-                action="ajout",
-                description=f"Note ajoutée pour l'élève {nouvelle_note.eleve_id} en cours {nouvelle_note.cours_id}",
-                ecole_id=nouvelle_note.ecole_id,
-                cible_type="note",
-                cible_id=nouvelle_note.id,
-                ancienne_valeur=None,
-                nouvelle_valeur=json.dumps({
-                    "valeur": nouvelle_note.valeur,
-                    "coefficient": nouvelle_note.coefficient,
-                    "type_evaluation": nouvelle_note.type_evaluation,
-                    "periode": nouvelle_note.periode,
-                    "eleve_id": nouvelle_note.eleve_id,
-                    "cours_id": nouvelle_note.cours_id
-                }),
-                niveau="info"
-            )
-
-            # Notification email
-            eleve = filtre_par_ecole(Eleve.query.filter_by(id=form.eleve_id.data), Eleve).first()
-            cours = filtre_par_ecole(Cours.query.filter_by(id=form.cours_id.data), Cours).first()
-            if eleve and eleve.email_parent and cours:
-                sujet = f"Nouvelle note en {cours.nom}"
-                message = f"""Bonjour,
-
-Une nouvelle note a été ajoutée pour {eleve.prenom} {eleve.nom} en {cours.nom}:
-- Note: {form.valeur.data}/20
-- Type: {form.type_evaluation.data}
-- Coefficient: {form.coefficient.data}
-- Période: {form.periode.data}
-
-Connectez-vous au portail parent pour plus de détails.
-
-Cordialement,
-L'équipe pédagogique"""
-                try:
-                    envoyer_email(eleve.email_parent, sujet, message)
-                except Exception as e:
-                    current_app.logger.error(f"Erreur envoi email note: {e}")
-
-            flash('Note ajoutée avec succès', 'success')
-            return redirect(url_for('main.notes'))
-
-        except Exception as e:
-            db.session.rollback()
-            flash("Erreur lors de l'ajout de la note.", "danger")
-            current_app.logger.error(f"Erreur ajout note: {e}")
-
-    # ------------------- Filtrage affichage notes selon année -------------------
-    if current_user.role == 'parent':
-        enfants_ids = [e.id for e in filtre_par_ecole(Eleve.query.filter_by(parent_id=current_user.id), Eleve).all()]
-        query_notes = Note.query.filter(Note.eleve_id.in_(enfants_ids))
-        if annee_active:
-            query_notes = query_notes.filter_by(annee_id=annee_active.id)
-        toutes_notes = filtre_par_ecole(query_notes.order_by(Note.date_evaluation.desc()), Note).all()
-
-    elif current_user.role == 'professeur':
-        professeur = filtre_par_ecole(Professeur.query.filter_by(utilisateur_id=current_user.id), Professeur).first()
-        if professeur:
-            cours_ids = [c.id for c in filtre_par_ecole(Cours.query.filter_by(professeur_id=professeur.id), Cours).all()]
-            query_notes = Note.query.filter(Note.cours_id.in_(cours_ids))
-            if annee_active:
-                query_notes = query_notes.filter_by(annee_id=annee_active.id)
-            toutes_notes = filtre_par_ecole(query_notes.order_by(Note.date_evaluation.desc()), Note).all()
-        else:
-            toutes_notes = []
-
-    else:  # admin
-        query_notes = Note.query
-        if annee_active:
-            query_notes = query_notes.filter_by(annee_id=annee_active.id)
-        toutes_notes = filtre_par_ecole(query_notes.order_by(Note.date_evaluation.desc()), Note).all()
-
-    # ------------------- Statistiques -------------------
-    if toutes_notes:
-        total_pondere = sum(n.valeur * n.coefficient for n in toutes_notes)
-        total_coefficients = sum(n.coefficient for n in toutes_notes)
-        moyenne_generale = round(total_pondere / total_coefficients, 2) if total_coefficients else 0
-        notes_reussites = sum(1 for n in toutes_notes if n.valeur >= 10)
-        taux_reussite = round((notes_reussites / len(toutes_notes)) * 100, 1)
-        matieres_evaluees = len(set(n.cours_id for n in toutes_notes))
+        if hasattr(form, 'annee_id'):
+            form.annee_id.choices = [(annee_consultee.id, annee_consultee.nom)]
+            form.annee_id.data = annee_consultee.id
     else:
-        moyenne_generale = taux_reussite = matieres_evaluees = 0
+        form.eleve_id.choices = [(0, "--- Aucun élève disponible ---")]
+        form.cours_id.choices = [(0, "--- Aucun cours disponible ---")]
+        if hasattr(form, 'annee_id'):
+            form.annee_id.choices = [(0, "--- Aucune année disponible ---")]
+
+    # ------------------- Ajout d'une note (POST) -------------------
+    if form.validate_on_submit():
+        if not peut_modifier:
+            if annee_consultee and annee_consultee.statut == 'archivee':
+                flash(MESSAGE_ANNEE_ARCHIVEE, "warning")
+            elif annee_consultee and annee_consultee.statut == 'planifiee':
+                flash(MESSAGE_ANNEE_PLANIFIEE, "warning")
+            else:
+                flash("Action non autorisée pour cette année scolaire.", "danger")
+            return redirect(url_for('main.notes'))
+
+        nouvelle_note, err = creer_note(
+            ecole_id=ecole_id,
+            annee=annee_consultee,
+            user=current_user,
+            eleve_id=form.eleve_id.data,
+            cours_id=form.cours_id.data,
+            valeur=form.valeur.data,
+            coefficient=form.coefficient.data,
+            type_evaluation=form.type_evaluation.data,
+            periode=form.periode.data,
+            date_evaluation=datetime.utcnow(),
+        )
+
+        if err:
+            flash(err, "danger")
+        else:
+            flash("Note ajoutée avec succès", "success")
+        return redirect(url_for('main.notes'))
+
+    # ------------------- Récupération des notes et statistiques -------------------
+    toutes_notes = get_notes_annee(
+        ecole_id=ecole_id,
+        annee=annee_consultee,
+        user=current_user,
+    )
+
+    stats = calculer_statistiques_notes(toutes_notes)
+
+    # Inscriptions pour accordéons / structure annuelle
+    inscriptions = get_inscriptions_notes(ecole_id, annee_consultee, user=current_user)
+
+    # Extraction des élèves uniques pour compatibilité templates
+    eleves_uniques = []
+    seen_eleves = set()
+    for ins in inscriptions:
+        if ins.eleve and ins.eleve.id not in seen_eleves:
+            seen_eleves.add(ins.eleve.id)
+            eleves_uniques.append(ins.eleve)
+
+    tous_les_cours = get_cours_annee(ecole_id, annee_consultee, user=current_user)
 
     return render_template(
         'notes.html',
-        form=form,
+        form=form if peut_modifier else None,
         notes=toutes_notes,
-        moyenne_generale=moyenne_generale,
-        taux_reussite=taux_reussite,
-        matieres_evaluees=matieres_evaluees,
-        eleves=eleves,
-        tous_les_cours=filtre_par_ecole(Cours.query.order_by(Cours.nom), Cours).all(),
-        annee_active=annee_active
+        moyenne_generale=stats["moyenne_generale"],
+        taux_reussite=stats["taux_reussite"],
+        matieres_evaluees=stats["matieres_evaluees"],
+        eleves=eleves_uniques,
+        inscriptions=inscriptions,
+        tous_les_cours=tous_les_cours,
+        annee_active=annee_consultee,
+        annee_consultee=annee_consultee,
+        message_annee=message_annee,
+        notes_modifiables=peut_modifier,
     )
+
 
 @main.route('/notes/export_excel')
 @login_required
 @role_required('admin')
 def export_notes_excel():
-    """Export Excel de toutes les notes avec jointures élèves/cours"""
-    notes = filtre_par_ecole(
-        Note.query.options(
-            joinedload(Note.eleve).joinedload(Eleve.classe),
-            joinedload(Note.cours)
-        ).join(Eleve).join(Cours).order_by(Note.date_evaluation.desc()),
-        Note
-    ).all()
-    
+    """Export Excel de toutes les notes avec jointures élèves/cours pour l'année consultée."""
+    ecole_id = current_user.ecole_id
+    annee_consultee = get_annee_consultee(ecole_id)
+
+    notes = get_notes_annee(
+        ecole_id=ecole_id,
+        annee=annee_consultee,
+        user=current_user,
+    )
+
     data = {
-        'Date': [n.date_evaluation.strftime('%d/%m/%Y') for n in notes],
-        'Élève': [f"{n.eleve.prenom} {n.eleve.nom}" for n in notes],
-        'Classe': [n.eleve.classe.nom if n.eleve.classe else 'Sans classe' for n in notes],
-        'Cours': [n.cours.nom for n in notes],
+        'Date': [n.date_evaluation.strftime('%d/%m/%Y') if n.date_evaluation else '' for n in notes],
+        'Élève': [f"{n.eleve.prenom} {n.eleve.nom}" if n.eleve else '' for n in notes],
+        'Classe': [
+            n.inscription.classe.nom if (n.inscription and n.inscription.classe)
+            else (n.cours.classe.nom if (n.cours and n.cours.classe) else 'Sans classe')
+            for n in notes
+        ],
+        'Cours': [n.cours.nom if n.cours else '' for n in notes],
         'Note': [n.valeur for n in notes],
         'Coefficient': [n.coefficient for n in notes],
-        'Type': [n.type_evaluation for n in notes]
+        'Type': [n.type_evaluation for n in notes],
+        'Période': [n.periode for n in notes],
     }
-    
+
     df = pd.DataFrame(data)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name='Notes', index=False)
-    
+
     output.seek(0)
-    
+    suffix = f"_{annee_consultee.nom.replace('/', '-')}" if annee_consultee else ""
     return send_file(
         output,
         as_attachment=True,
-        download_name="liste_notes.xlsx",
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        download_name=f"liste_notes{suffix}.xlsx",
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
+
 
 @main.route('/note/<int:note_id>/modifier', methods=['GET', 'POST'])
 @login_required
@@ -287,70 +188,107 @@ def modifier_note(note_id):
     if not can_manage_note(note):
         abort(403)
 
-    # --- Récupérer l'école courante ---
-    ecole = get_ecole_courante()
+    ecole_id = current_user.ecole_id
+    if note.ecole_id != ecole_id:
+        abort(403)
 
-    # --- Vérification de l'année active de l'école ---
-    annee_active = AnneeScolaire.query.filter_by(id=note.annee_id, ecole_id=ecole.id, statut='active').first()
-    if not annee_active:
-        flash("Vous ne pouvez modifier une note que pour une année scolaire active de votre école.", "warning")
+    # Récupérer l'année scolaire de la note
+    annee_note = note.annee
+    if not annee_note and note.inscription:
+        annee_note = note.inscription.annee_scolaire
+    if not annee_note and note.annee_id:
+        annee_note = AnneeScolaire.query.get(note.annee_id)
+
+    # Contrôle de cycle de vie annuel
+    if not annee_note or annee_note.statut != 'active':
+        if annee_note and annee_note.statut == 'archivee':
+            flash(MESSAGE_ANNEE_ARCHIVEE, "warning")
+        elif annee_note and annee_note.statut == 'planifiee':
+            flash(MESSAGE_ANNEE_PLANIFIEE, "warning")
+        else:
+            flash("Vous ne pouvez modifier une note que pour une année scolaire active.", "warning")
         return redirect(url_for('main.notes'))
 
-    # --- Vérification permissions enseignants ---
+    # Permissions professeurs
     if current_user.role == 'professeur':
-        professeur = Professeur.query.filter_by(utilisateur_id=current_user.id).first()
+        professeur = getattr(current_user, 'professeur_rel', None)
+        if not professeur:
+            professeur = Professeur.query.filter_by(
+                utilisateur_id=current_user.id,
+                ecole_id=ecole_id
+            ).first()
         if not professeur or (note.cours and note.cours.professeur_id != professeur.id):
             abort(403)
 
     form = NoteForm(obj=note)
 
-    # --- Forcer l'année existante pour l'élève et le cours ---
-    if form.eleve_id.data is None:
-        form.eleve_id.data = note.eleve_id
-    if form.cours_id.data is None:
-        form.cours_id.data = note.cours_id
-    if form.annee_id.data is None:
-        form.annee_id.data = note.annee_id
+    # Choix limités à l'année de la note
+    eleve_choices = get_eleves_choices_notes(ecole_id, annee_note, user=current_user)
+    form.eleve_id.choices = eleve_choices or [(note.eleve_id, f"{note.eleve.prenom} {note.eleve.nom}" if note.eleve else "Élève")]
 
-    # --- Soumission formulaire ---
+    cours_choices = get_cours_choices_notes(ecole_id, annee_note, user=current_user)
+    form.cours_id.choices = cours_choices or [(note.cours_id, note.cours.nom if note.cours else "Cours")]
+
+    if hasattr(form, 'annee_id'):
+        form.annee_id.choices = [(annee_note.id, annee_note.nom)]
+        form.annee_id.data = annee_note.id
+
     if form.validate_on_submit():
-        if current_user.role == 'professeur':
-            cours = Cours.query.get(form.cours_id.data)
-            if not cours or cours.professeur_id != professeur.id:
-                abort(403)
+        _, err = service_modifier_note(
+            ecole_id=ecole_id,
+            annee=annee_note,
+            user=current_user,
+            note_id=note.id,
+            valeur=form.valeur.data,
+            coefficient=form.coefficient.data,
+            type_evaluation=form.type_evaluation.data,
+            periode=form.periode.data,
+            eleve_id=form.eleve_id.data,
+            cours_id=form.cours_id.data,
+        )
 
-        # Mise à jour
-        eleve = filtre_par_ecole(Eleve.query.filter_by(id=form.eleve_id.data), Eleve).first()
-        cours = filtre_par_ecole(Cours.query.filter_by(id=form.cours_id.data), Cours).first()
-        if not eleve or not cours or not can_access_eleve(eleve) or not can_manage_cours(cours):
-            abort(403)
-        if cours.classe_id and eleve.classe_id != cours.classe_id:
-            flash("Cet eleve n'appartient pas a la classe de ce cours.", "danger")
+        if err:
+            flash(err, "danger")
+        else:
+            flash("Note modifiée avec succès", "success")
             return redirect(url_for('main.notes'))
 
-        note.valeur = form.valeur.data
-        note.coefficient = form.coefficient.data
-        note.type_evaluation = form.type_evaluation.data
-        note.periode = form.periode.data
-        note.eleve_id = form.eleve_id.data
-        note.cours_id = form.cours_id.data
-        note.annee_id = form.annee_id.data
+    return render_template(
+        'modifier_note.html',
+        form=form,
+        note=note,
+        annee_note=annee_note,
+    )
 
-        db.session.commit()
-        flash("Note modifiée avec succès", "success")
-        return redirect(url_for('main.notes'))
-
-    return render_template('modifier_note.html', form=form, note=note)
 
 @main.route('/notes/supprimer/<int:note_id>', methods=['POST'])
 @login_required
 @role_required('admin', 'professeur')
 def supprimer_note(note_id):
-    # Récupérer la note et la supprimer
     note = Note.query.get_or_404(note_id)
     if not can_manage_note(note):
         abort(403)
-    db.session.delete(note)
-    db.session.commit()
-    flash("Note supprimée avec succès.", "success")
+
+    ecole_id = current_user.ecole_id
+    if note.ecole_id != ecole_id:
+        abort(403)
+
+    annee_note = note.annee
+    if not annee_note and note.inscription:
+        annee_note = note.inscription.annee_scolaire
+    if not annee_note and note.annee_id:
+        annee_note = AnneeScolaire.query.get(note.annee_id)
+
+    succes, err = service_supprimer_note(
+        ecole_id=ecole_id,
+        annee=annee_note,
+        user=current_user,
+        note_id=note.id,
+    )
+
+    if not succes:
+        flash(err or "Erreur lors de la suppression de la note.", "danger")
+    else:
+        flash("Note supprimée avec succès.", "success")
+
     return redirect(url_for('main.notes'))

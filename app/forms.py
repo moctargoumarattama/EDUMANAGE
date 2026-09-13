@@ -173,12 +173,12 @@ class NoteForm(FlaskForm):
         # --- Élèves ---
         if ecole:
             eleves_query = filtre_par_ecole(Eleve.query, Eleve)
-            eleves_choices = [(e.id, f"{e.prenom} {e.nom} - {e.classe.nom}") for e in eleves_query.order_by(Eleve.nom).all()]
+            eleves_choices = [(e.id, f"{e.prenom} {e.nom} - {e.classe.nom if e.classe else 'Sans classe'}") for e in eleves_query.order_by(Eleve.nom).all()]
             self.eleve_id.choices = eleves_choices or [(0, "--- Aucun élève disponible ---")]
 
             # --- Cours ---
             cours_query = filtre_par_ecole(Cours.query, Cours)
-            cours_choices = [(c.id, f"{c.nom} ({c.classe.nom})") for c in cours_query.order_by(Cours.nom).all()]
+            cours_choices = [(c.id, f"{c.nom} ({c.classe.nom if c.classe else 'Sans classe'})") for c in cours_query.order_by(Cours.nom).all()]
             self.cours_id.choices = cours_choices or [(0, "--- Aucun cours disponible ---")]
 
             # --- Années scolaires ---
@@ -204,7 +204,9 @@ class PaiementForm(FlaskForm):
     ], validators=[DataRequired()])
     annee = IntegerField('Année', default=datetime.now().year, validators=[DataRequired()])
     mode_paiement = SelectField('Mode de paiement', choices=[
-        ('espèces', 'Espèces'), ('mobile_money', 'Mobile Money'), ('virement', 'Virement bancaire')
+        ('espèces', 'Espèces'), ('Espèces', 'Espèces'),
+        ('mobile_money', 'Mobile Money'), ('Mobile Money', 'Mobile Money'),
+        ('virement', 'Virement bancaire'), ('Virement bancaire', 'Virement bancaire')
     ], validators=[DataRequired()])
     reference = StringField('Référence', validators=[Optional()])
     submit = SubmitField('Enregistrer le paiement')
@@ -337,19 +339,28 @@ class AjouterEmploiForm(FlaskForm):
     submit = SubmitField("Ajouter")
 
     def __init__(self, *args, **kwargs):
+        annee = kwargs.pop('annee', None)
         super().__init__(*args, **kwargs)
         ecole = get_ecole_courante()
         
-        # Classes filtrées par école
+        # Classes et cours filtrés par école et année consultée
         if ecole:
+            if not annee:
+                from app.utils import get_annee_consultee
+                annee = get_annee_consultee(ecole.id)
+
             classes_query = filtre_par_ecole(Classe.query, Classe)
+            if annee:
+                classes_query = classes_query.filter_by(annee_scolaire_id=annee.id)
             self.classe_id.choices = [(c.id, f"{c.nom} ({c.niveau})") for c in classes_query.order_by(Classe.nom).all()]
             
             profs_query = filtre_par_ecole(Professeur.query, Professeur)
             self.professeur_id.choices = [(p.id, f"{p.prenom} {p.nom}") for p in profs_query.order_by(Professeur.nom).all()]
             
             cours_query = filtre_par_ecole(Cours.query, Cours)
-            self.cours_id.choices = [(c.id, c.nom) for c in cours_query.order_by(Cours.nom).all()]
+            if annee:
+                cours_query = cours_query.join(Classe, Cours.classe_id == Classe.id).filter(Classe.annee_scolaire_id == annee.id)
+            self.cours_id.choices = [(c.id, f"{c.nom} ({c.classe.nom})" if c.classe else c.nom) for c in cours_query.order_by(Cours.nom).all()]
         else:
             self.classe_id.choices = []
             self.professeur_id.choices = []

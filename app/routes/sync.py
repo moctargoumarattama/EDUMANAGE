@@ -29,6 +29,12 @@ from .common import (
     role_required,
     send_from_directory,
 )
+from app.services.annees_scolaires import get_annee_consultee
+from app.services.absences_annuelles import (
+    resolve_annee_absence,
+    statut_annee_absences,
+    verifier_mutation_absence,
+)
 
 
 def _get_sync_eleve_cours(eleve_id, cours_id):
@@ -63,6 +69,13 @@ def _can_sync_school_item(eleve, cours):
 
 
 def _process_note_item(item, client_op_id):
+    if isinstance(item.get('data'), dict):
+        merged = dict(item['data'])
+        for k in ('client_op_id', 'type', 'force', 'base_version'):
+            if k in item and k not in merged:
+                merged[k] = item[k]
+        item = merged
+
     required_fields = ['eleve_id', 'cours_id', 'valeur', 'date_evaluation']
     missing = [f for f in required_fields if item.get(f) is None or str(item.get(f)).strip() == '']
     if missing:
@@ -110,8 +123,20 @@ def _process_note_item(item, client_op_id):
     elif current_user.role != 'admin':
         return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Rôle non autorisé'}
 
-    if cours.classe_id and eleve.classe_id != cours.classe_id:
-        return {'client_op_id': client_op_id, 'status': 'error', 'message': 'L\'élève n\'appartient pas à la classe de ce cours'}
+    inscription = None
+    if cours.classe_id:
+        classe = cours.classe
+        annee_id = classe.annee_scolaire_id if classe else None
+        ins_q = Inscription.query.filter_by(
+            eleve_id=eleve.id,
+            classe_id=cours.classe_id,
+            ecole_id=eleve.ecole_id
+        )
+        if annee_id:
+            ins_q = ins_q.filter_by(annee_scolaire_id=annee_id)
+        inscription = ins_q.first()
+        if not inscription:
+            return {'client_op_id': client_op_id, 'status': 'error', 'message': 'L\'élève n\'est pas inscrit dans la classe de ce cours'}
 
     type_eval = str(item.get('type_evaluation') or 'Devoir')
     periode = str(item.get('periode') or '')
@@ -143,6 +168,10 @@ def _process_note_item(item, client_op_id):
             base_version = None
 
     if existing_note:
+        if not existing_note.inscription_id and inscription:
+            existing_note.inscription_id = inscription.id
+        if not existing_note.annee_id and inscription:
+            existing_note.annee_id = inscription.annee_scolaire_id
         current_version = existing_note.sync_version or 1
 
         # 1. Arbitrage forcé (Réservé exclusivement à l'Admin)
@@ -284,6 +313,8 @@ def _process_note_item(item, client_op_id):
         cours_id=cours.id,
         date_evaluation=date_eval,
         ecole_id=eleve.ecole_id,
+        annee_id=inscription.annee_scolaire_id if inscription else (cours.classe.annee_scolaire_id if (cours and cours.classe) else None),
+        inscription_id=inscription.id if inscription else None,
         sync_version=1,
         last_by_admin=is_admin
     )
@@ -326,23 +357,24 @@ def _process_absence_item(item, client_op_id):
     else:
         return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Date d\'absence invalide'}
 
-    eleve, cours = _get_sync_eleve_cours(item.get('eleve_id'), item.get('cours_id'))
-    if not eleve:
-        return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Élève introuvable'}
+    annee_consultee = get_annee_consultee(current_user.ecole_id)
+    if not annee_consultee or annee_consultee.statut != 'active':
+        return {
+            'client_op_id': client_op_id,
+            'status': 'forbidden',
+            'message': statut_annee_absences(annee_consultee) or "Aucune année active disponible pour les absences."
+        }
 
-    if eleve.ecole_id != current_user.ecole_id or (cours and cours.ecole_id != current_user.ecole_id):
-        return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Accès non autorisé pour cette école'}
-
-    if current_user.role == 'professeur':
-        professeur = getattr(current_user, 'professeur_rel', None)
-        if not professeur:
-            return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Profil professeur introuvable'}
-        if not can_access_eleve(eleve):
-            return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Élève non autorisé pour ce professeur'}
-        if cours and cours.professeur_id != professeur.id:
-            return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Cours non autorisé pour ce professeur'}
-    elif current_user.role != 'admin':
-        return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Rôle non autorisé'}
+    eleve, cours, _inscription, annual_error = verifier_mutation_absence(
+        current_user.ecole_id,
+        annee_consultee,
+        current_user,
+        item.get('eleve_id'),
+        item.get('cours_id'),
+        date_abs,
+    )
+    if annual_error:
+        return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': annual_error}
 
     motif = item.get('motif') or ''
     justifiee = bool(item.get('justifiee', False))
@@ -362,6 +394,15 @@ def _process_absence_item(item, client_op_id):
             date_absence=date_abs,
             ecole_id=eleve.ecole_id
         ).first()
+
+    if existing_absence:
+        existing_annee = resolve_annee_absence(existing_absence)
+        if not existing_annee or existing_annee.id != annee_consultee.id:
+            return {
+                'client_op_id': client_op_id,
+                'status': 'forbidden',
+                'message': "Cette absence n'appartient pas à l'année active consultée."
+            }
 
     is_admin = (current_user.role == 'admin')
     is_force = (item.get('force') is True)
@@ -508,6 +549,7 @@ def _process_absence_item(item, client_op_id):
         eleve_id=eleve.id,
         cours_id=cours.id if cours else None,
         ecole_id=eleve.ecole_id,
+        inscription_id=_inscription.id if _inscription else None,
         sync_version=1,
         last_by_admin=is_admin
     )

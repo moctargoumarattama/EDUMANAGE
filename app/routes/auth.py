@@ -62,22 +62,21 @@ def index():
 
     elif current_user.role == 'admin':
         from app.utils import get_school_setup_state
+        from app.services.annees_scolaires import get_annee_consultee
+        from app.services.statistiques_annuelles import get_dashboard_admin_annuel
         setup_state = get_school_setup_state(current_user.ecole_id)
         if not setup_state.get('setup_complete', False):
             return redirect(url_for('main.onboarding'))
 
         ecole_id = current_user.ecole_id  # ✅ Filtrage multi-écoles
-        stats = {
-            'total_eleves': Eleve.query.filter_by(ecole_id=ecole_id).count(),
-            'total_professeurs': Professeur.query.filter_by(ecole_id=ecole_id).count(),
-            'total_cours': Cours.query.filter_by(ecole_id=ecole_id).count(),
-            'paiements_attente': Paiement.query.filter_by(ecole_id=ecole_id, statut='en attente').count(),
-            'eleves_nouveaux': Eleve.query.filter(
-                Eleve.ecole_id==ecole_id,
-                Eleve.date_inscription >= datetime.utcnow().replace(day=1)
-            ).count()
-        }
-        return render_template('index.html', stats=stats, school_setup_state=setup_state)
+        annee_consultee = get_annee_consultee(ecole_id)
+        stats = get_dashboard_admin_annuel(ecole_id, annee_consultee)
+        return render_template(
+            'index.html',
+            stats=stats,
+            school_setup_state=setup_state,
+            annee_consultee=annee_consultee
+        )
 
     # -----------------------------
     # PROFESSEUR

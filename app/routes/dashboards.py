@@ -48,49 +48,33 @@ def dashboard():
 @role_required('parent')
 def parent_dashboard():
     """Tableau de bord parent avec pagination pour enfants et notes"""
+    from app.services.annees_scolaires import get_annee_consultee
+    from app.services.statistiques_annuelles import (
+        enrichir_enfants_parent_annuel,
+        get_parent_enfants_query,
+    )
 
-    # Pagination
     page = request.args.get('page', 1, type=int)
-    per_page = 10  # Nombre d'enfants par page, ajustable
-
-    # Récupération paginée des enfants avec filtre école et relations chargées
-    enfants_query = filtre_par_ecole(
-        Eleve.query.options(
-            db.joinedload(Eleve.classe),         # Classe de l'élève
-            db.selectinload(Eleve.notes),        # Notes
-            db.selectinload(Eleve.absences),     # Absences
-            db.selectinload(Eleve.paiements)     # Paiements
-        ).filter_by(parent_id=current_user.id),
-        Eleve
-    ).order_by(Eleve.nom, Eleve.prenom)
-
-    enfants_pagination = enfants_query.paginate(page=page, per_page=per_page, error_out=False)
-    enfants = enfants_pagination.items
+    per_page = 10
+    annee_consultee = get_annee_consultee(current_user.ecole_id)
+    enfants_query = get_parent_enfants_query(current_user.ecole_id, annee_consultee, current_user.id) if annee_consultee else None
+    enfants_pagination = enfants_query.paginate(page=page, per_page=per_page, error_out=False) if enfants_query else None
+    enfants = enrichir_enfants_parent_annuel(enfants_pagination.items) if enfants_pagination else []
 
     if not enfants:
-        flash("Aucun élève n'est associé à votre compte parent", "warning")
-        return render_template('parent_dashboard.html', enfants=[], pagination=enfants_pagination)
+        flash("Aucun Ã©lÃ¨ve n'est associÃ© Ã  votre compte parent", "warning")
+        return render_template('parent_dashboard.html', enfants=[], pagination=enfants_pagination, annee_consultee=annee_consultee)
 
-    # Calcul des statistiques pour chaque enfant
-    for enfant in enfants:
-        notes = enfant.notes
-        absences = len(enfant.absences)
-        paiements = len(enfant.paiements)
+    return render_template('parent_dashboard.html', enfants=enfants, pagination=enfants_pagination, annee_consultee=annee_consultee)
 
-        total_pondere = sum(n.valeur * n.coefficient for n in notes)
-        total_coefficients = sum(n.coefficient for n in notes)
-        enfant.moyenne = round(total_pondere / total_coefficients, 2) if total_coefficients > 0 else 0
-        enfant.total_notes = len(notes)
-        enfant.total_absences = absences
-        enfant.total_paiements = paiements
-
-    return render_template('parent_dashboard.html', enfants=enfants, pagination=enfants_pagination)
 
 
 @main.route('/professeur/dashboard')
 @login_required
 @role_required('professeur')
 def professeur_dashboard():
+    from app.services.annees_scolaires import get_annee_consultee
+    from app.services.statistiques_annuelles import get_professeur_dashboard_annuel
     """Tableau de bord professeur avec données personnalisées"""
     professeur = Professeur.query.filter_by(utilisateur_id=current_user.id).first()
 
@@ -98,22 +82,13 @@ def professeur_dashboard():
         flash("Profil professeur non trouvé. Contactez l'administrateur.", "warning")
         return redirect(url_for('main.logout'))
 
-    mes_cours = Cours.query.filter_by(professeur_id=professeur.id).all()
-
-    emplois = EmploiTemps.query.filter_by(professeur_id=professeur.id).order_by(
-        EmploiTemps.jour, EmploiTemps.heure_debut
-    ).all()
-
-    stats = {
-        'total_eleves': len(set([note.eleve_id for cours in mes_cours for note in cours.notes])),
-        'total_cours': len(mes_cours),
-        'moyenne_generale': db.session.query(func.avg(Note.valeur)).filter(
-            Note.cours_id.in_([c.id for c in mes_cours])
-        ).scalar() or 0
-    }
-
-    cours_ids = [c.id for c in mes_cours]
-    dernieres_notes = Note.query.filter(Note.cours_id.in_(cours_ids)).order_by(Note.date_evaluation.desc()).limit(5).all()
+    from app.services.emploi_temps_annuel import get_creneaux_annee
+    annee_consultee = get_annee_consultee(current_user.ecole_id)
+    donnees_professeur = get_professeur_dashboard_annuel(current_user.ecole_id, annee_consultee, professeur.id)
+    mes_cours = donnees_professeur["mes_cours"]
+    stats = donnees_professeur["stats"]
+    dernieres_notes = donnees_professeur["dernieres_notes"]
+    emplois = get_creneaux_annee(current_user.ecole_id, annee_consultee, professeur_id=professeur.id) if annee_consultee else []
 
     now = datetime.now()
     aujourdhui = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
@@ -124,6 +99,7 @@ def professeur_dashboard():
         mes_cours=mes_cours,
         dernieres_notes=dernieres_notes,
         emplois=emplois,
+        annee_consultee=annee_consultee,
         now=now,
         aujourdhui=aujourdhui
     )
@@ -140,9 +116,10 @@ def professeur_home():
         flash("Profil professeur non trouvé", "danger")
         return redirect(url_for('main.logout'))
 
-    emplois = EmploiTemps.query.filter_by(professeur_id=professeur.id).order_by(
-        EmploiTemps.jour, EmploiTemps.heure_debut
-    ).all()
+    from app.utils import get_annee_consultee
+    from app.services.emploi_temps_annuel import get_creneaux_annee
+    annee_consultee = get_annee_consultee(current_user.ecole_id)
+    emplois = get_creneaux_annee(current_user.ecole_id, annee_consultee, professeur_id=professeur.id) if annee_consultee else []
 
     return render_template('professeur_home.html', emplois=emplois)
 

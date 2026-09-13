@@ -451,26 +451,30 @@ def api_eleves_par_classe(classe_id):
         )
         if not is_assigned:
             return jsonify({'eleves': []}), 403
-    query = Eleve.query.filter(Eleve.classe_id == classe_id, Eleve.ecole_id == ecole_id)
+    inscriptions_query = (
+        Inscription.query
+        .join(Eleve, Eleve.id == Inscription.eleve_id)
+        .filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.classe_id == classe_id,
+            Eleve.ecole_id == ecole_id,
+        )
+    )
     if annee_active:
-        query = query.join(Classe).filter(Classe.annee_scolaire_id == annee_active.id)
-
-    # --- Récupération des élèves ---
-    eleves = query.order_by(Eleve.nom, Eleve.prenom).all()
-
-    # --- Construction du JSON CORRIGÉ ---
-    eleves_list = [
+        inscriptions_query = inscriptions_query.filter(Inscription.annee_scolaire_id == annee_active.id)
+    inscriptions = inscriptions_query.order_by(Eleve.nom, Eleve.prenom).all()
+    return jsonify({'eleves': [
         {
-            'id': e.id,
-            'nom': e.nom,
-            'prenom': e.prenom,
-            'telephone': e.contact_parent or '-',  # ← CORRECTION ICI : utiliser contact_parent au lieu de telephone
-            'classe': e.classe.nom if e.classe else "Sans classe",
-            'parent': f"{e.parent.prenom} {e.parent.nom}" if e.parent else "Non assigné"
-        } for e in eleves
-    ]
-
-    return jsonify({'eleves': eleves_list})
+            'id': inscription.eleve.id,
+            'nom': inscription.eleve.nom,
+            'prenom': inscription.eleve.prenom,
+            'telephone': inscription.eleve.contact_parent or '-',
+            'classe': inscription.classe.nom if inscription.classe else "Sans classe",
+            'parent': f"{inscription.eleve.parent.prenom} {inscription.eleve.parent.nom}" if inscription.eleve.parent else "Non assignÃ©"
+        }
+        for inscription in inscriptions
+        if inscription.eleve
+    ]})
 
 @main.route('/eleve/<int:id>/export_notes_pdf') 
 @login_required
@@ -528,6 +532,15 @@ def export_notes_eleve_pdf(id):
         statut="active"
     ).first()
     annee_text = annee_active.nom if annee_active else "N/A"
+    inscription_active = (
+        Inscription.query.filter_by(
+            ecole_id=eleve.ecole_id,
+            eleve_id=eleve.id,
+            annee_scolaire_id=annee_active.id,
+        ).first()
+        if annee_active else None
+    )
+    classe_pdf = inscription_active.classe if inscription_active else None
     elements.append(Paragraph(f"<b>Année scolaire :</b> {annee_text}", styles['Normal']))
     elements.append(Spacer(1, 10))
 
@@ -535,7 +548,7 @@ def export_notes_eleve_pdf(id):
     premiere_annee = str(eleve.annee_premiere_ecole) if eleve.annee_premiere_ecole else "N/A"
     info_text = f"""
     <b>Élève :</b> {eleve.prenom} {eleve.nom}<br/>
-    <b>Classe :</b> {eleve.classe.nom if eleve.classe else 'Non assignée'}<br/>
+    <b>Classe :</b> {classe_pdf.nom if classe_pdf else 'Non assignée'}<br/>
     <b>Date de naissance :</b> {eleve.date_naissance.strftime('%d/%m/%Y') if eleve.date_naissance else 'Non renseignée'}<br/>
     <b>Parent :</b> {eleve.parent.nom if eleve.parent else 'N/A'}<br/>
     <b>1ère année dans l'école :</b> {premiere_annee}<br/>
@@ -545,7 +558,10 @@ def export_notes_eleve_pdf(id):
     elements.append(Spacer(1, 20))
 
     # Notes filtrées par année active
-    notes = [n for n in eleve.notes if not annee_active or n.annee_id == annee_active.id]
+    notes = (
+        Note.query.filter_by(inscription_id=inscription_active.id, ecole_id=eleve.ecole_id).all()
+        if inscription_active else []
+    )
     notes = sorted(notes, key=lambda n: (n.cours.nom if n.cours else "", n.date_evaluation))
 
     # Création d'un tableau unique
