@@ -456,6 +456,7 @@ def log_action(module, action, level="INFO", user_id=None, details=None):
             db.session.add(log_entry)
             db.session.commit()
         except Exception as db_error:
+            db.session.rollback()
             current_app.logger.warning(f"Impossible d'Ã©crire dans la table log: {db_error}")
             
     except Exception as e:

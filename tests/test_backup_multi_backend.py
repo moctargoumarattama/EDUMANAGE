@@ -6,10 +6,12 @@ from unittest.mock import patch
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
+from sqlalchemy import text
 from sqlalchemy.pool import StaticPool
 
 from app import create_app, db
 from app.admin import scripts as backup_scripts
+from app.models import Ecole
 
 
 class BackupTestConfig:
@@ -68,6 +70,50 @@ class BackupMultiBackendSQLiteTestCase(unittest.TestCase):
                 backup_scripts.create_backup()
         backups = [f for f in os.listdir(self.backup_dir) if f.startswith("backup_") and f.endswith(".db")]
         self.assertLessEqual(len(backups), 2)
+
+
+class AdminLogActionBestEffortTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.db_path = os.path.join(self.tmp.name, "log.db")
+        BackupTestConfig.SQLALCHEMY_DATABASE_URI = f"sqlite:///{self.db_path}"
+        BackupTestConfig.SQLALCHEMY_ENGINE_OPTIONS = {
+            "poolclass": StaticPool,
+            "connect_args": {"check_same_thread": False},
+        }
+        self.app = create_app(BackupTestConfig)
+        self.ctx = self.app.app_context()
+        self.ctx.push()
+        db.create_all()
+
+    def tearDown(self):
+        db.session.remove()
+        db.engine.dispose()
+        self.ctx.pop()
+        self.tmp.cleanup()
+
+    def test_log_action_rolls_back_when_log_commit_fails(self):
+        with patch.object(db.session, "commit", side_effect=RuntimeError("log commit failed")):
+            with patch.object(db.session, "rollback", wraps=db.session.rollback) as rollback:
+                backup_scripts.log_action("TEST", "commit impossible")
+                self.assertTrue(rollback.called)
+
+        ecole = Ecole(nom="Ecole apres rollback")
+        db.session.add(ecole)
+        db.session.commit()
+        self.assertEqual(Ecole.query.count(), 1)
+
+    def test_log_action_table_absent_does_not_poison_session(self):
+        db.session.execute(text("DROP TABLE log"))
+        db.session.commit()
+
+        backup_scripts.log_action("TEST", "table log absente")
+
+        ecole = Ecole(nom="Ecole apres table absente")
+        db.session.add(ecole)
+        db.session.commit()
+        self.assertEqual(Ecole.query.count(), 1)
 
 
 class BackupMultiBackendPostgreSQLTestCase(unittest.TestCase):
