@@ -1,4 +1,5 @@
 import os
+from urllib.parse import urlsplit
 
 
 class ConfigError(RuntimeError):
@@ -10,6 +11,33 @@ def _env_bool(name, default=False):
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def normalize_database_url(url):
+    """Return a SQLAlchemy-compatible database URL without rebuilding secrets."""
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url[len("postgres://"):]
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url[len("postgresql://"):]
+    return url
+
+
+def get_database_dialect(url):
+    return urlsplit(url).scheme.split("+", 1)[0] or "sqlite"
+
+
+def get_engine_options(database_url):
+    dialect = get_database_dialect(database_url)
+    if dialect == "sqlite":
+        return {"connect_args": {"timeout": 30}}
+    if dialect == "postgresql":
+        return {
+            "pool_pre_ping": True,
+            "pool_recycle": 1800,
+            "pool_size": int(os.environ.get("DB_POOL_SIZE", "5")),
+            "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", "5")),
+        }
+    return {"pool_pre_ping": True}
 
 
 class Config:
@@ -28,9 +56,9 @@ class Config:
     REMEMBER_COOKIE_SAMESITE = "Lax"
 
     # Base de donnees
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///ecole.db")
+    SQLALCHEMY_DATABASE_URI = normalize_database_url(os.environ.get("DATABASE_URL", "sqlite:///ecole.db"))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {"connect_args": {"timeout": 30}}
+    SQLALCHEMY_ENGINE_OPTIONS = get_engine_options(SQLALCHEMY_DATABASE_URI)
 
     # Protection anti-abus
     RATELIMIT_HEADERS_ENABLED = True

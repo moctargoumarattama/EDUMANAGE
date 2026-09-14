@@ -5,6 +5,8 @@ from logging.handlers import RotatingFileHandler
 import os
 from werkzeug.security import generate_password_hash
 from datetime import datetime
+from sqlalchemy import inspect
+from sqlalchemy.exc import NoInspectionAvailable
 from .config import get_config
 from dotenv import load_dotenv
 import threading
@@ -164,11 +166,9 @@ def create_app(config_class=None):
             )
 
         # Assurer la présence permanente du super administrateur
-        try:
+        if _table_exists(db.engine, "utilisateur"):
             from .init_superadmin import ensure_canonical_superadmin
             ensure_canonical_superadmin()
-        except Exception:
-            pass
     # -------------------
     # Fonction utilitaire pour journaliser les actions
     # -------------------
@@ -211,4 +211,11 @@ def create_app(config_class=None):
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
     return app
+
+
+def _table_exists(engine, table_name):
+    try:
+        return inspect(engine).has_table(table_name)
+    except NoInspectionAvailable:
+        return False
 

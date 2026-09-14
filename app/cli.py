@@ -2,12 +2,17 @@ import click
 from flask.cli import with_appcontext
 from pathlib import Path
 import shutil
+from sqlalchemy import text
 
 
 def _sqlite_path_from_uri(uri):
     if not uri or not uri.startswith("sqlite:///"):
         return None
     return Path(uri.replace("sqlite:///", "", 1))
+
+
+def _database_dialect(uri):
+    return uri.split(":", 1)[0].split("+", 1)[0] if uri else "sqlite"
 
 
 def _path_size(path):
@@ -54,11 +59,19 @@ def register_cli_commands(app):
     @app.cli.command("system-health")
     def system_health_command():
         """Affiche un etat runtime leger sans modifier la base."""
+        from app.extensions import db
+
         root = Path(app.root_path).parent
         disk = shutil.disk_usage(root)
-        sqlite_path = _sqlite_path_from_uri(app.config.get("SQLALCHEMY_DATABASE_URI", ""))
+        db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        dialect = _database_dialect(db_uri)
         click.echo(f"disk_free_mb={disk.free // (1024 * 1024)}")
-        click.echo(f"sqlite_size_mb={_path_size(sqlite_path) // (1024 * 1024) if sqlite_path else 0}")
+        if dialect == "postgresql":
+            size = db.session.execute(text("SELECT pg_database_size(current_database())")).scalar() or 0
+            click.echo(f"postgres_size_mb={int(size) // (1024 * 1024)}")
+        else:
+            sqlite_path = _sqlite_path_from_uri(db_uri)
+            click.echo(f"sqlite_size_mb={_path_size(sqlite_path) // (1024 * 1024) if sqlite_path else 0}")
         click.echo(f"backups_size_mb={_dir_size(root / 'backups') // (1024 * 1024)}")
         click.echo(f"uploads_size_mb={_dir_size(root / 'app' / 'static' / 'ecoles') // (1024 * 1024)}")
 
