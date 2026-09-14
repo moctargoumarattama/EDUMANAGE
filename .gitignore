@@ -33,6 +33,10 @@ backup/
 app/static/qrcache/
 qrcache/
 
+# Uploads runtime
+uploads/
+app/static/ecoles/
+
 # Tests & Couverture
 .pytest_cache/
 .coverage

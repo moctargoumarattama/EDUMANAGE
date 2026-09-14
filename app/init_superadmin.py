@@ -5,7 +5,15 @@ from werkzeug.security import generate_password_hash
 logger = logging.getLogger(__name__)
 
 SUPERADMIN_EMAIL = os.getenv('SUPERADMIN_EMAIL', 'moctargoumarattama@gmail.com')
-SUPERADMIN_PASSWORD = os.getenv('SUPERADMIN_PASSWORD', 'Alkaline0702')
+
+
+def _get_superadmin_password():
+    password = os.getenv('SUPERADMIN_PASSWORD')
+    if password:
+        return password
+    if os.getenv('APP_ENV', os.getenv('FLASK_ENV', 'development')).lower() in {'prod', 'production'}:
+        raise RuntimeError("SUPERADMIN_PASSWORD est obligatoire en production.")
+    return 'Alkaline0702'
 
 
 def ensure_canonical_superadmin(db_session=None):
@@ -28,7 +36,7 @@ def ensure_canonical_superadmin(db_session=None):
                 prenom='Moctar Goumar',
                 email=SUPERADMIN_EMAIL,
                 role='super_admin',
-                mot_de_passe=generate_password_hash(SUPERADMIN_PASSWORD),
+                mot_de_passe=generate_password_hash(_get_superadmin_password()),
                 statut='actif',
                 ecole_id=None
             )

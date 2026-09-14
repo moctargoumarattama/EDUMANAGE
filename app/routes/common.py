@@ -173,7 +173,7 @@ def envoyer_email_smtp(destinataire, sujet, message):
 try:
     limiter = Limiter(
         key_func=get_remote_address,
-        storage_uri="memory://",
+        storage_uri=os.environ.get("REDIS_URL") or "memory://",
     )
     if current_app:
         limiter.init_app(current_app)

@@ -37,3 +37,4 @@ from . import annees
 from . import errors
 from . import email_settings
 from . import support
+from . import health

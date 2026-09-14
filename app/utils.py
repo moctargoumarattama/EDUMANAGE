@@ -891,7 +891,9 @@ def log_action(user_id, action, details=None):
     """Enregistre une action utilisateur dans les logs"""
     try:
         log = Log(
-            user_id=user_id,
+            utilisateur_id=user_id,
+            level="INFO",
+            module="utils",
             action=action,
             details=details,
             timestamp=datetime.utcnow()

@@ -1,5 +1,25 @@
 import click
 from flask.cli import with_appcontext
+from pathlib import Path
+import shutil
+
+
+def _sqlite_path_from_uri(uri):
+    if not uri or not uri.startswith("sqlite:///"):
+        return None
+    return Path(uri.replace("sqlite:///", "", 1))
+
+
+def _path_size(path):
+    if not path or not path.exists() or not path.is_file():
+        return 0
+    return path.stat().st_size
+
+
+def _dir_size(path):
+    if not path.exists() or not path.is_dir():
+        return 0
+    return sum(p.stat().st_size for p in path.rglob("*") if p.is_file())
 
 
 def register_cli_commands(app):
@@ -31,6 +51,16 @@ def register_cli_commands(app):
         from app.admin.scripts import run_daily_automatic_backups
         res = run_daily_automatic_backups()
         click.echo(f"[KLASORA] Sauvegarde terminée : {res['success']} réussie(s), {res['skipped']} déjà faite(s) aujourd'hui, {res['failed']} échouée(s).")
+    @app.cli.command("system-health")
+    def system_health_command():
+        """Affiche un etat runtime leger sans modifier la base."""
+        root = Path(app.root_path).parent
+        disk = shutil.disk_usage(root)
+        sqlite_path = _sqlite_path_from_uri(app.config.get("SQLALCHEMY_DATABASE_URI", ""))
+        click.echo(f"disk_free_mb={disk.free // (1024 * 1024)}")
+        click.echo(f"sqlite_size_mb={_path_size(sqlite_path) // (1024 * 1024) if sqlite_path else 0}")
+        click.echo(f"backups_size_mb={_dir_size(root / 'backups') // (1024 * 1024)}")
+        click.echo(f"uploads_size_mb={_dir_size(root / 'app' / 'static' / 'ecoles') // (1024 * 1024)}")
 
 
 def _execute_technical_init(quiet=False):
@@ -66,4 +96,3 @@ def _execute_technical_init(quiet=False):
         else:
             click.echo(f"  [i] Données métier détectées : {nb_ecoles} écoles, {nb_classes} classes, {nb_eleves} élèves, {nb_profs} professeurs.")
         click.echo("[KLASORA] Initialisation technique terminée avec succès.")
-

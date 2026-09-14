@@ -16,3 +16,8 @@ def access_denied(e):
 def server_error(e):
     """Gestionnaire d'erreur 500 - Erreur serveur interne"""
     return render_template('500.html'), 500
+
+
+@main.errorhandler(413)
+def payload_too_large(e):
+    return render_template('413.html'), 413

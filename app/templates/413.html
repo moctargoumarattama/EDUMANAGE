@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5 text-center">
+    <h1>413</h1>
+    <p>Le fichier envoyé est trop volumineux.</p>
+    <a href="{{ url_for('main.index') }}" class="btn btn-primary">Retour à l'accueil</a>
+</div>
+{% endblock %}

@@ -5,7 +5,7 @@ from logging.handlers import RotatingFileHandler
 import os
 from werkzeug.security import generate_password_hash
 from datetime import datetime
-from .config import Config
+from .config import get_config
 from dotenv import load_dotenv
 import threading
 
@@ -56,8 +56,11 @@ def setup_logging(app):
 # -------------------
 # Création de l'application
 # -------------------
-def create_app(config_class=Config):
+def create_app(config_class=None):
     app = Flask(__name__)
+    config_class = config_class or get_config()
+    if hasattr(config_class, "validate"):
+        config_class.validate()
     app.config.from_object(config_class)
 
     # Initialisation des extensions
@@ -203,8 +206,9 @@ def create_app(config_class=Config):
     register_cli_commands(app)
 
     # Support du reverse proxy (Nginx) pour la transmission de l'IP réelle et du protocole
-    from werkzeug.middleware.proxy_fix import ProxyFix
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+    if app.config.get("USE_PROXY_FIX"):
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
     return app
 
