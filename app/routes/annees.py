@@ -53,6 +53,7 @@ from app.services.activation_annee import (
     preparer_activation_annee,
     activer_annee_scolaire,
 )
+from app.services.semestres import configurer_semestres_annee, get_semestres_annee
 
 
 def _current_ecole_id_for_annees():
@@ -236,6 +237,7 @@ def gestion_annees():
         src = determiner_source_passage_pour_cible(a, annees)
         if src:
             sources_passage_par_cible[a.id] = src
+    semestres_par_annee = {a.id: get_semestres_annee(a.ecole_id, a.id) for a in annees}
 
     return render_template(
         'gestion_annees.html',
@@ -245,7 +247,42 @@ def gestion_annees():
         annee_consultee=annee_consultee,
         source_active_par_ecole=source_active_par_ecole,
         sources_passage_par_cible=sources_passage_par_cible,
+        semestres_par_annee=semestres_par_annee,
     )
+
+
+@main.route('/annees/<int:annee_id>/semestres', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def configurer_semestres(annee_id):
+    csrf_form = CSRFForm()
+    if not csrf_form.validate_on_submit():
+        flash("Session expirée ou jeton CSRF invalide.", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    if current_user.role == 'super_admin':
+        ecoles = get_ecole_filter_query(Ecole).all()
+    else:
+        ecoles = [current_user.ecole]
+
+    annee = AnneeScolaire.query.get_or_404(annee_id)
+    if annee.ecole_id not in [e.id for e in ecoles]:
+        flash("Action non autorisée pour cette école.", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    fin_semestre_1_str = request.form.get('fin_semestre_1')
+    try:
+        fin_semestre_1 = datetime.strptime(fin_semestre_1_str, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        flash("Date de fin du Semestre 1 invalide.", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    _periodes, err = configurer_semestres_annee(annee.ecole_id, annee.id, fin_semestre_1)
+    if err:
+        flash(err, "danger")
+    else:
+        flash("Calendrier des semestres enregistré.", "success")
+    return redirect(url_for('main.gestion_annees'))
 
 
 @main.route('/annees/<int:annee_id>/modifier', methods=['POST'])

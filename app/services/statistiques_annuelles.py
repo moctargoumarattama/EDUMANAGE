@@ -17,6 +17,9 @@ from app.models import (
     Utilisateur,
     db,
 )
+from app.services.bulletins_annuels import calculer_bulletin_data
+from app.services.notes_annuelles import SEMESTRE_1, SEMESTRE_2
+from app.services.paiements_annuels import get_finances_inscription
 
 
 def _empty_admin_stats():
@@ -273,8 +276,16 @@ def get_rapports_annuels(ecole_id, annee):
     total_absences_ecole = 0
     total_absences_justifiees_ecole = 0
     total_absences_non_justifiees_ecole = 0
-    all_notes_ecole = []
     total_eleves_ecole = 0
+    moyennes_ecole = []
+    finances_ecole = {
+        "frais_attendus": 0.0,
+        "total_encaisse": 0.0,
+        "reste_a_payer": 0.0,
+        "eleves_non_payes": 0,
+        "paiements_partiels": 0,
+        "eleves_soldes": 0,
+    }
 
     for classe in classes:
         classe_inscriptions = inscriptions_par_classe.get(classe.id, [])
@@ -288,24 +299,37 @@ def get_rapports_annuels(ecole_id, annee):
         justifiees_classe = 0
         non_justifiees_classe = 0
         eleves_stats = []
-        notes_classe = []
+        moyennes_classe = []
+        finances_classe = {
+            "frais_attendus": 0.0,
+            "total_encaisse": 0.0,
+            "reste_a_payer": 0.0,
+            "eleves_non_payes": 0,
+            "paiements_partiels": 0,
+            "eleves_soldes": 0,
+        }
 
         for inscription in classe_inscriptions:
             eleve = inscription.eleve
             if not eleve:
                 continue
             absences = getattr(inscription, "absences", []) or []
-            notes = getattr(inscription, "notes", []) or []
             nb_abs = len(absences)
             nb_just = sum(1 for a in absences if a.justifiee)
             nb_non_just = nb_abs - nb_just
             total_absences_classe += nb_abs
             justifiees_classe += nb_just
             non_justifiees_classe += nb_non_just
-            notes_classe.extend(notes)
-            all_notes_ecole.extend(notes)
 
-            moyenne_eleve = _moyenne_notes(notes)
+            moyenne_eleve = _moyenne_inscription_bulletins(ecole_id, annee, inscription)
+            if moyenne_eleve is not None:
+                moyennes_classe.append(moyenne_eleve)
+                moyennes_ecole.append(moyenne_eleve)
+
+            finances = get_finances_inscription(inscription)
+            _ajouter_finances(finances_classe, finances)
+            _ajouter_finances(finances_ecole, finances)
+
             eleves_stats.append({
                 "eleve": eleve,
                 "id": eleve.id,
@@ -322,7 +346,7 @@ def get_rapports_annuels(ecole_id, annee):
         total_absences_justifiees_ecole += justifiees_classe
         total_absences_non_justifiees_ecole += non_justifiees_classe
 
-        moyenne_classe = _moyenne_notes(notes_classe)
+        moyenne_classe = _moyenne_liste(moyennes_classe)
         taux_absenteisme = round(total_absences_classe / effectif, 1) if effectif > 0 else 0.0
         top_absents = sorted(
             [s for s in eleves_stats if s["nb_absences"] > 0],
@@ -346,6 +370,7 @@ def get_rapports_annuels(ecole_id, annee):
             "non_justifiees": non_justifiees_classe,
             "taux_absenteisme": taux_absenteisme,
             "moyenne": moyenne_classe,
+            "finances": finances_classe,
             "top_absents": top_absents,
             "meilleur_eleve": max(eleves_avec_notes, key=lambda x: x["moyenne"]) if eleves_avec_notes else None,
             "is_most_absent": False,
@@ -354,7 +379,7 @@ def get_rapports_annuels(ecole_id, annee):
     classe_plus_absente = _mark_classe_plus_absente(classes_data)
     classe_plus_assidue = _classe_plus_assidue(classes_data)
     classe_meilleure_moyenne = _classe_meilleure_moyenne(classes_data)
-    moyenne_generale_ecole = _moyenne_notes(all_notes_ecole)
+    moyenne_generale_ecole = _moyenne_liste(moyennes_ecole)
     total_professeurs = Utilisateur.query.filter_by(role="professeur", ecole_id=ecole_id).count()
 
     statistiques = {
@@ -365,6 +390,12 @@ def get_rapports_annuels(ecole_id, annee):
         "absences_justifiees": total_absences_justifiees_ecole,
         "absences_non_justifiees": total_absences_non_justifiees_ecole,
         "moyenne_generale": moyenne_generale_ecole,
+        "finances": finances_ecole,
+        "frais_attendus": finances_ecole["frais_attendus"],
+        "total_encaisse": finances_ecole["total_encaisse"],
+        "reste_a_payer": finances_ecole["reste_a_payer"],
+        "eleves_non_payes": finances_ecole["eleves_non_payes"],
+        "paiements_partiels": finances_ecole["paiements_partiels"],
         "taux_justification": round((total_absences_justifiees_ecole / total_absences_ecole) * 100, 1)
         if total_absences_ecole > 0
         else 100.0,
@@ -415,6 +446,34 @@ def _moyenne_notes(notes):
     total_pondere = sum(n.valeur * (n.coefficient or 1.0) for n in notes)
     total_coeffs = sum(n.coefficient or 1.0 for n in notes)
     return round(total_pondere / total_coeffs, 2) if total_coeffs > 0 else 0.0
+
+
+def _moyenne_liste(valeurs):
+    valeurs_valides = [v for v in valeurs if v is not None]
+    if not valeurs_valides:
+        return None
+    return round(sum(valeurs_valides) / len(valeurs_valides), 2)
+
+
+def _moyenne_inscription_bulletins(ecole_id, annee, inscription):
+    moyennes = []
+    for periode in (SEMESTRE_1, SEMESTRE_2):
+        data, err = calculer_bulletin_data(ecole_id, annee, inscription, periode=periode)
+        if not err and data and data.get("moyenne_generale") is not None:
+            moyennes.append(data["moyenne_generale"])
+    return _moyenne_liste(moyennes)
+
+
+def _ajouter_finances(total, finances):
+    total["frais_attendus"] += finances["frais_annuels"]
+    total["total_encaisse"] += finances["total_paye"]
+    total["reste_a_payer"] += finances["reste_a_payer"]
+    if finances["statut_solde"] == "aucun":
+        total["eleves_non_payes"] += 1
+    elif finances["statut_solde"] == "partiel":
+        total["paiements_partiels"] += 1
+    elif finances["statut_solde"] == "complet":
+        total["eleves_soldes"] += 1
 
 
 def _mark_classe_plus_absente(classes_data):

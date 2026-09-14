@@ -12,6 +12,7 @@ from .common import (
     Paiement,
     Professeur,
     Utilisateur,
+    BytesIO,
     current_user,
     datetime,
     db,
@@ -24,6 +25,7 @@ from .common import (
     render_template,
     request,
     role_required,
+    send_file,
     session,
     timedelta,
     url_for,
@@ -242,6 +244,131 @@ def rapports():
         annee_consultee=annee_consultee,
         role=current_user.role
     )
+
+
+def _rapport_export_rows(donnees):
+    rows = []
+    for c in donnees["classes_data"]:
+        finances = c.get("finances", {})
+        rows.append({
+            "Classe": c["nom"],
+            "Niveau": c.get("niveau") or "",
+            "Effectif": c["effectif"],
+            "Garçons": c["garcons"],
+            "Filles": c["filles"],
+            "Moyenne": c["moyenne"],
+            "Absences": c["total_absences"],
+            "Absences justifiées": c["justifiees"],
+            "Absences injustifiées": c["non_justifiees"],
+            "Frais attendus": finances.get("frais_attendus", 0.0),
+            "Total encaissé": finances.get("total_encaisse", 0.0),
+            "Reste à payer": finances.get("reste_a_payer", 0.0),
+            "Élèves non payés": finances.get("eleves_non_payes", 0),
+            "Paiements partiels": finances.get("paiements_partiels", 0),
+        })
+    return rows
+
+
+@main.route('/rapports/export_excel')
+@login_required
+@role_required('admin')
+def export_rapports_excel():
+    import pandas as pd
+
+    ecole_id = current_user.ecole_id
+    annee_consultee = get_annee_consultee(ecole_id)
+    donnees = get_rapports_annuels(ecole_id, annee_consultee)
+    stats = donnees["statistiques"]
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        pd.DataFrame(_rapport_export_rows(donnees)).to_excel(writer, sheet_name='Classes', index=False)
+        pd.DataFrame([{
+            "École": current_user.ecole.nom if current_user.ecole else "",
+            "Année": annee_consultee.nom if annee_consultee else "",
+            "Total élèves": stats["total_eleves"],
+            "Classes": stats["total_classes"],
+            "Absences": stats["total_absences"],
+            "Moyenne générale": stats["moyenne_generale"],
+            "Frais attendus": stats.get("frais_attendus", 0.0),
+            "Total encaissé": stats.get("total_encaisse", 0.0),
+            "Reste à payer": stats.get("reste_a_payer", 0.0),
+            "Date génération": datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+        }]).to_excel(writer, sheet_name='Synthèse', index=False)
+    output.seek(0)
+
+    suffix = f"_{annee_consultee.nom}" if annee_consultee else ""
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=f"rapports_statistiques{suffix}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@main.route('/rapports/export_pdf')
+@login_required
+@role_required('admin')
+def export_rapports_pdf():
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet
+
+    ecole_id = current_user.ecole_id
+    annee_consultee = get_annee_consultee(ecole_id)
+    donnees = get_rapports_annuels(ecole_id, annee_consultee)
+    stats = donnees["statistiques"]
+    rows = _rapport_export_rows(donnees)
+
+    output = BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=A4, leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
+    styles = getSampleStyleSheet()
+    elements = [
+        Paragraph("Rapports & Statistiques", styles["Title"]),
+        Paragraph(f"École : {current_user.ecole.nom if current_user.ecole else '-'}", styles["Normal"]),
+        Paragraph(f"Année : {annee_consultee.nom if annee_consultee else '-'}", styles["Normal"]),
+        Paragraph(f"Date génération : {datetime.utcnow().strftime('%d/%m/%Y %H:%M')}", styles["Normal"]),
+        Spacer(1, 12),
+        Paragraph(
+            f"Élèves : {stats['total_eleves']} | Classes : {stats['total_classes']} | "
+            f"Absences : {stats['total_absences']} | Moyenne : {stats['moyenne_generale'] or '-'} | "
+            f"Encaissé : {stats.get('total_encaisse', 0.0):,.0f} | Reste : {stats.get('reste_a_payer', 0.0):,.0f}",
+            styles["Normal"],
+        ),
+        Spacer(1, 12),
+    ]
+    table_data = [["Classe", "Eff.", "Moy.", "Abs.", "Encaissé", "Reste"]]
+    for row in rows:
+        table_data.append([
+            row["Classe"],
+            row["Effectif"],
+            row["Moyenne"] if row["Moyenne"] is not None else "-",
+            row["Absences"],
+            f"{row['Total encaissé']:,.0f}",
+            f"{row['Reste à payer']:,.0f}",
+        ])
+    table = Table(table_data, repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2563eb")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#d1d5db")),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+    ]))
+    elements.append(table)
+    doc.build(elements)
+    output.seek(0)
+
+    suffix = f"_{annee_consultee.nom}" if annee_consultee else ""
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=f"rapports_statistiques{suffix}.pdf",
+        mimetype="application/pdf",
+    )
+
+
 @main.route('/notifications')
 @login_required
 def notifications():

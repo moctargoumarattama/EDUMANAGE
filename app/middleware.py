@@ -505,13 +505,17 @@ def before_request_handler():
             except Exception as e:
                 current_app.logger.debug(f"Impossible d'écrire le log d'accès: {e}")
 
-        # 3️⃣-bis Vérification école bloquée / suspendue pour les sessions actives
+        # 3️⃣-bis Vérification école bloquée / suspendue / maintenance pour les sessions actives
         if getattr(current_user, 'role', None) != 'super_admin' and getattr(current_user, 'ecole', None):
             ecole = current_user.ecole
-            if ecole.statut in ('bloque', 'suspendu'):
+            if ecole.statut in ('bloque', 'suspendu', 'maintenance'):
                 allowed_eps = {'main.logout', 'main.login'}
                 current_ep = request.endpoint or ''
                 if current_ep not in allowed_eps and not current_ep.startswith('static') and current_ep != 'admin.static' and not request.path.startswith('/static/'):
+                    if ecole.statut == 'maintenance':
+                        m_msg = ecole.motif_blocage or f"L'établissement '{ecole.nom}' est actuellement en maintenance."
+                        return render_template('maintenance_client.html', maintenance_message=m_msg), 503
+
                     from flask_login import logout_user
                     if current_user.role == 'admin':
                         motif = f" Motif : {ecole.motif_blocage}." if ecole.motif_blocage else ""

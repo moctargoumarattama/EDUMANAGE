@@ -17,6 +17,21 @@ def register_cli_commands(app):
         """Alias pour init-system."""
         _execute_technical_init(quiet=quiet)
 
+    @app.cli.command("backup-schools-daily")
+    def backup_schools_daily_command():
+        """Exécute la sauvegarde automatique quotidienne pour toutes les écoles (rétention 3 jours)."""
+        from app.admin.scripts import run_daily_automatic_backups
+        click.echo("[KLASORA] Démarrage de la sauvegarde automatique quotidienne des écoles...")
+        res = run_daily_automatic_backups()
+        click.echo(f"[KLASORA] Sauvegarde terminée : {res['success']} réussie(s), {res['skipped']} déjà faite(s) aujourd'hui, {res['failed']} échouée(s).")
+
+    @app.cli.command("backup-daily")
+    def backup_daily_command():
+        """Alias pour backup-schools-daily."""
+        from app.admin.scripts import run_daily_automatic_backups
+        res = run_daily_automatic_backups()
+        click.echo(f"[KLASORA] Sauvegarde terminée : {res['success']} réussie(s), {res['skipped']} déjà faite(s) aujourd'hui, {res['failed']} échouée(s).")
+
 
 def _execute_technical_init(quiet=False):
     from app.services.niveaux import ensure_standard_niveaux

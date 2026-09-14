@@ -490,3 +490,83 @@ def toggle_ecole_status(ecole_id):
 
     return jsonify({'success': True, 'new_status': ecole.statut})
 
+
+@main.route('/profil-ecole', methods=['GET', 'POST'])
+@login_required
+def profil_ecole():
+    """Gestion du profil et de l'identité visuelle de l'établissement par son administrateur"""
+    from werkzeug.utils import secure_filename
+    import os
+
+    ecole = getattr(current_user, 'ecole', None)
+    if not ecole and getattr(current_user, 'ecole_id', None):
+        ecole = Ecole.query.get(current_user.ecole_id)
+    if not ecole:
+        flash("Aucun établissement associé à votre compte.", "warning")
+        return redirect(url_for('main.index'))
+
+    if request.method == 'POST':
+        try:
+            nom = request.form.get('nom', '').strip()
+            adresse = request.form.get('adresse', '').strip()
+            telephone = request.form.get('telephone', '').strip()
+            email = request.form.get('email', '').strip()
+            directeur = request.form.get('directeur', '').strip()
+            ville = request.form.get('ville', '').strip()
+
+            if nom:
+                ecole.nom = nom
+            ecole.adresse = adresse or None
+            ecole.telephone = telephone or None
+            if current_user.role == 'super_admin':
+                ecole.email = email or None
+            ecole.directeur = directeur or None
+            if hasattr(ecole, 'ville'):
+                ecole.ville = ville or None
+
+            school_dir = os.path.join(current_app.static_folder, 'ecoles', str(ecole.id))
+            os.makedirs(school_dir, exist_ok=True)
+
+            allowed_extensions = {'png', 'jpg', 'jpeg', 'webp'}
+            def allowed_file(filename):
+                return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
+            if 'logo' in request.files:
+                file = request.files['logo']
+                if file and file.filename and allowed_file(file.filename):
+                    filename = f"logo_{secure_filename(file.filename)}"
+                    save_path = os.path.join(school_dir, filename)
+                    file.save(save_path)
+                    rel_path = f"ecoles/{ecole.id}/{filename}"
+                    ecole.logo_path = rel_path
+                    ecole.logo = filename
+
+            if 'signature' in request.files:
+                file = request.files['signature']
+                if file and file.filename and allowed_file(file.filename):
+                    filename = f"signature_{secure_filename(file.filename)}"
+                    save_path = os.path.join(school_dir, filename)
+                    file.save(save_path)
+                    if hasattr(ecole, 'signature_path'):
+                        ecole.signature_path = f"ecoles/{ecole.id}/{filename}"
+
+            if 'cachet' in request.files:
+                file = request.files['cachet']
+                if file and file.filename and allowed_file(file.filename):
+                    filename = f"cachet_{secure_filename(file.filename)}"
+                    save_path = os.path.join(school_dir, filename)
+                    file.save(save_path)
+                    if hasattr(ecole, 'cachet_path'):
+                        ecole.cachet_path = f"ecoles/{ecole.id}/{filename}"
+
+            db.session.commit()
+            flash("Identité et profil de l'établissement mis à jour avec succès ✅", "success")
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Erreur mise à jour profil école : {e}")
+            flash("Erreur lors de la mise à jour du profil de l'établissement.", "danger")
+
+        return redirect(url_for('main.profil_ecole'))
+
+    return render_template('profil_ecole.html', ecole=ecole)
+

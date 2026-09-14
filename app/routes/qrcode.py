@@ -27,7 +27,7 @@ def generer_qrcode_eleve(id):
     if eleve.ecole_id != current_user.ecole_id:
         abort(403)
 
-    # Résoudre la classe via l'inscription de l'année active
+    # Résoudre la classe via l'inscription de l'année active (indépendamment de annee_consultee)
     annee_active = AnneeScolaire.query.filter_by(ecole_id=current_user.ecole_id, statut='active').first()
     ins = Inscription.query.filter_by(
         ecole_id=current_user.ecole_id,
@@ -35,24 +35,19 @@ def generer_qrcode_eleve(id):
         annee_scolaire_id=annee_active.id
     ).first() if annee_active else None
 
-    if not ins or not ins.classe:
-        abort(404)
-    classe_nom = ins.classe.nom
+    classe_nom = ins.classe.nom if (ins and ins.classe) else "Aucune inscription active"
+    annee_nom = annee_active.nom if annee_active else "Aucune"
+    statut_ins = ins.statut if ins else "Non inscrit"
 
     cache_path = get_qr_cache_path(eleve)
 
-    # → Si existe → renvoyer directement
-    if os.path.exists(cache_path):
-        return send_file(cache_path, mimetype='image/png',
-                         download_name=f"qrcode_{eleve.prenom}_{eleve.nom}.png")
-
-    # Sinon générer
+    # Données minimales publiques (aucune donnée financière ou contact sensible)
     data = (
         f"ÉLÈVE: {eleve.prenom} {eleve.nom}\n"
+        f"ÉTABLISSEMENT: {eleve.ecole.nom if eleve.ecole else ''}\n"
+        f"ANNÉE SCOLAIRE: {annee_nom}\n"
         f"CLASSE: {classe_nom}\n"
-        f"DATE NAISSANCE: {eleve.date_naissance.strftime('%d/%m/%Y') if eleve.date_naissance else 'Non renseignée'}\n"
-        f"TÉLÉPHONE: {eleve.telephone or 'Non renseigné'}\n"
-        f"EMAIL: {eleve.email or 'Non renseigné'}\n"
+        f"STATUT: {statut_ins}\n"
     )
 
     qr = qrcode.QRCode(
@@ -68,6 +63,30 @@ def generer_qrcode_eleve(id):
 
     return send_file(cache_path, mimetype='image/png',
                      download_name=f"qrcode_{eleve.prenom}_{eleve.nom}.png")
+
+
+@main.route('/api/qr/info/<int:eleve_id>')
+def api_qr_info(eleve_id):
+    """Endpoint public minimal de résolution QR code."""
+    eleve = Eleve.query.get_or_404(eleve_id)
+    ecole_id = eleve.ecole_id
+
+    # Toujours résoudre selon l'année ACTIVE
+    annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut='active').first()
+    ins = Inscription.query.filter_by(
+        ecole_id=ecole_id,
+        eleve_id=eleve.id,
+        annee_scolaire_id=annee_active.id
+    ).first() if annee_active else None
+
+    return {
+        'eleve_id': eleve.id,
+        'nom': f"{eleve.prenom} {eleve.nom}",
+        'ecole': eleve.ecole.nom if eleve.ecole else '',
+        'annee_scolaire': annee_active.nom if annee_active else None,
+        'classe': ins.classe.nom if (ins and ins.classe) else 'Aucune inscription active',
+        'statut': ins.statut if ins else 'Non inscrit',
+    }
 
 
 @main.route('/qrcodes_etudiants')

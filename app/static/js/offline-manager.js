@@ -71,6 +71,15 @@ class OfflineManager {
         return false;
     }
 
+    isParent() {
+        if (typeof window !== 'undefined') {
+            if (window.KLASORA_USER && window.KLASORA_USER.role === 'parent') return true;
+            const contextEl = document.getElementById('klasoraUserContext');
+            if (contextEl && contextEl.getAttribute('data-user-role') === 'parent') return true;
+        }
+        return false;
+    }
+
     /**
      * Précharger les données d'administration hors-ligne
      */
@@ -147,33 +156,115 @@ class OfflineManager {
     }
 
     /**
+     * Précharger les données de consultation hors-ligne du parent
+     */
+    async preloadParentData(force = false) {
+        const cacheKey = offlineDB.getParentCacheKey();
+
+        if (!this.isOnline && !force) {
+            return await offlineDB.getCachedData(cacheKey);
+        }
+
+        try {
+            console.log(`📥 Chargement des données hors-ligne du parent (${cacheKey})...`);
+            const response = await fetch('/api/parent/offline-data', {
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    await offlineDB.cacheData(cacheKey, data, 1440); // 24h
+                    console.log(`✅ Données parent préchargées (${data.enfants ? data.enfants.length : 0} enfants)`);
+                    this.emit('parent-data-loaded', data);
+                    return data;
+                }
+            } else if (response.status === 401) {
+                console.warn('⚠️ Session expirée lors du chargement des données parent');
+                this.emit('sync-auth-required');
+            } else if (response.status === 403) {
+                console.warn('⛔ Accès refusé (403) aux données parent');
+            }
+        } catch (e) {
+            console.warn('⚠️ Impossible de rafraîchir les données parent (mode hors-ligne):', e.message);
+        }
+
+        return await offlineDB.getCachedData(cacheKey);
+    }
+
+    /**
+     * Teste la connectivité réelle du serveur KLASORA
+     */
+    async checkServerConnectivity() {
+        if (!navigator.onLine) {
+            console.log('[SYNC UI] navigator.onLine est false');
+            return false;
+        }
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            const response = await fetch('/api/connectivity', {
+                cache: 'no-store',
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (!response.ok) {
+                console.log('[SYNC UI] Réponse reçue status non-OK:', response.status);
+                return false;
+            }
+            const data = await response.json();
+            console.log('[SYNC UI] Réponse reçue:', data);
+            const isOnline = !!(data && data.online === true);
+            console.log('[SYNC UI] online=true ?', isOnline);
+            return isOnline;
+        } catch (error) {
+            console.log('[SYNC UI] Erreur/Timeout fetch /api/connectivity:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Met à jour le statut en ligne de manière asynchrone
+     */
+    async updateOnlineStatus() {
+        const wasOnline = this.isOnline;
+        this.isOnline = await this.checkServerConnectivity();
+        if (this.isOnline !== wasOnline) {
+            if (this.isOnline) {
+                console.log('✅ Serveur KLASORA accessible');
+                this.retryDelay = 5000;
+                this.emit('online');
+                this.syncWhenOnline();
+                if (this.isTeacher()) this.preloadTeacherData();
+                if (this.isAdmin()) this.preloadAdminData();
+                if (this.isParent()) this.preloadParentData();
+            } else {
+                console.log('⚠️ Serveur inaccessible ou coupure réseau');
+                this.emit('offline');
+            }
+        }
+        this.emit('status-checked');
+        return this.isOnline;
+    }
+
+    /**
      * Configurer les écouteurs d'événements
      */
     setupEventListeners() {
         window.addEventListener('online', () => {
-            console.log('🌐 Connexion rétablie');
-            this.isOnline = true;
-            this.retryDelay = 5000;
-            this.emit('online');
-            this.syncWhenOnline();
-            if (this.isTeacher()) {
-                this.preloadTeacherData();
-            }
-            if (this.isAdmin()) {
-                this.preloadAdminData();
-            }
+            console.log('🌐 navigator.onLine = true, vérification serveur...');
+            this.updateOnlineStatus();
         });
 
         window.addEventListener('offline', () => {
-            console.log('📡 Connexion perdue');
+            console.log('📶 Connexion perdue (navigator.onLine = false)');
             this.isOnline = false;
             this.emit('offline');
         });
 
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden && navigator.onLine) {
-                this.isOnline = true;
-                this.syncWhenOnline();
+                this.updateOnlineStatus();
             }
         });
 
@@ -453,6 +544,18 @@ class OfflineManager {
             console.log('🧹 Cache administration purgé avec succès (pendingSync préservé)');
         } catch (e) {
             console.warn('⚠️ Erreur nettoyage cache administration logout:', e);
+        }
+    }
+
+    /**
+     * Purge globale de toutes les données privées lors de la déconnexion
+     */
+    async cleanAllUserDataOnLogout() {
+        try {
+            await offlineDB.clearAllUserPrivateData();
+            console.log('🧹 Données privées de l\'utilisateur purgées au logout');
+        } catch (e) {
+            console.warn('⚠️ Erreur nettoyage données privées logout:', e);
         }
     }
 

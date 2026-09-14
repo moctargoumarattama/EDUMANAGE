@@ -1,5 +1,5 @@
 // static/service-worker.js - KLASORA PWA Service Worker
-const CACHE_VERSION = 'klasora-static-v5';
+const CACHE_VERSION = 'klasora-static-v6';
 const OFFLINE_URL = '/offline';
 
 // Ressources publiques et statiques génériques autorisées en cache
@@ -90,6 +90,12 @@ self.addEventListener('fetch', event => {
     // Network-First strict sans timeout artificiel, avec retry anti-rebond Flask
     if (request.mode === 'navigate') {
         event.respondWith(handleNavigation(request));
+        return;
+    }
+
+    // 2.5 Endpoint de connectivité (jamais en cache, réseau direct)
+    if (url.pathname === '/api/connectivity') {
+        event.respondWith(fetch(request));
         return;
     }
 

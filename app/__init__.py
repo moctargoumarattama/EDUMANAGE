@@ -83,6 +83,8 @@ def create_app(config_class=Config):
             NiveauScolaire, EcoleNiveauConfig
         )
 
+
+
         # user_loader
         @login_manager.user_loader
         def load_user(user_id):
@@ -169,13 +171,20 @@ def create_app(config_class=Config):
     # -------------------
     def log_correction(action, description, ecole_id, cible_type=None, cible_id=None, ancienne_valeur=None, nouvelle_valeur=None, niveau="info"):
         from .models import JournalCorrection
-        from flask_login import current_user
+
+        user_id = None
+        try:
+            from flask_login import current_user
+            if current_user and getattr(current_user, 'is_authenticated', False):
+                user_id = current_user.id
+        except Exception:
+            pass
 
         correction = JournalCorrection(
             action=action,
             description=description,
             ecole_id=ecole_id,
-            user_id=current_user.id if current_user.is_authenticated else None,
+            user_id=user_id,
             cible_type=cible_type,
             cible_id=cible_id,
             ancienne_valeur=ancienne_valeur,

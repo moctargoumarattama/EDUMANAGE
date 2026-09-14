@@ -196,9 +196,147 @@
                 } catch (err) {
                     console.error('Erreur enregistrement absence hors-ligne:', err);
                     alert('Erreur de sauvegarde locale: ' + err.message);
+    // 4b. Interception du formulaire des Élèves (Création & Modification)
+    function setupElevesOffline() {
+        const path = window.location.pathname;
+
+        // Formulaire d'ajout élève
+        if (path.includes('/ajouter_eleve') || path.includes('/eleves/ajouter') || path.includes('/eleve/creer')) {
+            const form = document.querySelector('form');
+            if (!form) return;
+
+            form.addEventListener('submit', async function (e) {
+                if (!navigator.onLine) {
+                    e.preventDefault();
+
+                    const nomInput = form.querySelector('input[name="nom"]');
+                    const prenomInput = form.querySelector('input[name="prenom"]');
+                    if (!nomInput || !prenomInput || !nomInput.value.trim() || !prenomInput.value.trim()) {
+                        alert('Le nom et le prénom sont obligatoires.');
+                        return;
+                    }
+
+                    const local_student_uuid = (typeof generateUUID === 'function') ? generateUUID() : 'local-' + Date.now();
+                    const classeSelect = form.querySelector('select[name="classe_id"]');
+                    const classe_id = (classeSelect && classeSelect.value) ? parseInt(classeSelect.value, 10) : null;
+
+                    const payload = {
+                        local_student_uuid: local_student_uuid,
+                        nom: nomInput.value.trim(),
+                        prenom: prenomInput.value.trim(),
+                        date_naissance: form.querySelector('input[name="date_naissance"]') ? form.querySelector('input[name="date_naissance"]').value : null,
+                        genre: form.querySelector('select[name="genre"]') ? form.querySelector('select[name="genre"]').value : 'M',
+                        adresse: form.querySelector('input[name="adresse"]') ? form.querySelector('input[name="adresse"]').value : '',
+                        telephone: form.querySelector('input[name="telephone"]') ? form.querySelector('input[name="telephone"]').value : '',
+                        contact_parent: form.querySelector('input[name="contact_parent"]') ? form.querySelector('input[name="contact_parent"]').value : '',
+                        email_parent: form.querySelector('input[name="email_parent"]') ? form.querySelector('input[name="email_parent"]').value : '',
+                        frais_annuels: form.querySelector('input[name="frais_annuels"]') ? parseFloat(form.querySelector('input[name="frais_annuels"]').value) : 150000.0,
+                        classe_id: classe_id
+                    };
+
+                    try {
+                        await offlineManager.addToSync('eleve_creation', payload);
+
+                        if (classe_id) {
+                            await offlineManager.addToSync('inscription', {
+                                local_student_uuid: local_student_uuid,
+                                classe_id: classe_id,
+                                frais_annuels: payload.frais_annuels
+                            });
+                        }
+
+                        showNotification(`✅ Élève <strong>${payload.prenom} ${payload.nom}</strong> créé localement sur cet appareil !<br><small class="text-muted">🟠 En attente de synchronisation dès le retour d'Internet.</small>`, 'warning');
+
+                        form.reset();
+                        updateSyncBadge();
+
+                    } catch (err) {
+                        console.error('Erreur enregistrement élève hors-ligne:', err);
+                        alert('Erreur de sauvegarde locale: ' + err.message);
+                    }
                 }
             }
         });
+            });
+        }
+
+        // Formulaire de modification élève
+        if (path.includes('/modifier_eleve') || path.includes('/eleves/modifier') || path.includes('/eleve/editer')) {
+            const form = document.querySelector('form');
+            if (!form) return;
+
+            form.addEventListener('submit', async function (e) {
+                if (!navigator.onLine) {
+                    e.preventDefault();
+
+                    const eleveIdInput = form.querySelector('input[name="eleve_id"], input[name="id"]');
+                    const eleveId = eleveIdInput ? parseInt(eleveIdInput.value, 10) : null;
+                    const nomInput = form.querySelector('input[name="nom"]');
+                    const prenomInput = form.querySelector('input[name="prenom"]');
+                    const baseVersionVal = form.querySelector('input[name="base_version"], input[name="sync_version"]');
+
+                    if (!eleveId || !nomInput || !prenomInput) {
+                        alert('Données d\'élève incomplètes pour la modification.');
+                        return;
+                    }
+
+                    const payload = {
+                        eleve_id: eleveId,
+                        nom: nomInput.value.trim(),
+                        prenom: prenomInput.value.trim(),
+                        genre: form.querySelector('select[name="genre"]') ? form.querySelector('select[name="genre"]').value : 'M',
+                        adresse: form.querySelector('input[name="adresse"]') ? form.querySelector('input[name="adresse"]').value : '',
+                        telephone: form.querySelector('input[name="telephone"]') ? form.querySelector('input[name="telephone"]').value : '',
+                        contact_parent: form.querySelector('input[name="contact_parent"]') ? form.querySelector('input[name="contact_parent"]').value : '',
+                        email_parent: form.querySelector('input[name="email_parent"]') ? form.querySelector('input[name="email_parent"]').value : ''
+                    };
+                    if (baseVersionVal && baseVersionVal.value) {
+                        payload.base_version = parseInt(baseVersionVal.value, 10);
+                    }
+
+                    try {
+                        await offlineManager.addToSync('eleve_modification', payload);
+                        showNotification(`✅ Modifications pour <strong>${payload.prenom} ${payload.nom}</strong> enregistrées sur cet appareil !<br><small class="text-muted">🟠 En attente de synchronisation.</small>`, 'warning');
+                        updateSyncBadge();
+                    } catch (err) {
+                        console.error('Erreur modification élève hors-ligne:', err);
+                        alert('Erreur de sauvegarde locale: ' + err.message);
+                    }
+                }
+            });
+        }
+    }
+
+    // 4c. Verrouillage strict des opérations réservées Internet Obligatoire (ONLINE ONLY)
+    function setupOnlineOnlyRestrictions() {
+        const path = window.location.pathname;
+        const onlineOnlyKeywords = [
+            '/paiement',
+            '/paiements',
+            '/annees-scolaires',
+            '/annee_scolaire',
+            '/niveaux',
+            '/utilisateurs',
+            '/utilisateur',
+            '/super_admin',
+            '/backup',
+            '/restore'
+        ];
+
+        const isOnlineOnlyPage = onlineOnlyKeywords.some(kw => path.includes(kw));
+
+        if (isOnlineOnlyPage) {
+            const forms = document.querySelectorAll('form');
+            forms.forEach(f => {
+                f.addEventListener('submit', function (e) {
+                    if (!navigator.onLine) {
+                        e.preventDefault();
+                        showNotification('⛔ <strong>Connexion Internet requise</strong> pour cette opération (Finances / Structure / Sécurité en ligne uniquement).', 'danger');
+                        alert('Connexion Internet requise pour cette opération.');
+                    }
+                });
+            });
+        }
     }
 
     // 5. Remplissage des formulaires si la page a été chargée hors-ligne
@@ -316,6 +454,8 @@
         updateSyncBadge();
         setupNotesOffline();
         setupAbsencesOffline();
+        setupElevesOffline();
+        setupOnlineOnlyRestrictions();
         setupLogoutProtection();
         populateOfflineOptions();
 

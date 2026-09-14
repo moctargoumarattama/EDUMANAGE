@@ -185,6 +185,9 @@ class Ecole(db.Model):
     motif_blocage = db.Column(db.String(300))
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     logo_path = db.Column(db.String(200))  # <-- champ existant
+    signature_path = db.Column(db.String(200))
+    cachet_path = db.Column(db.String(200))
+    ville = db.Column(db.String(100))
 
     # Relations
     utilisateurs = db.relationship(
@@ -228,7 +231,10 @@ class Ecole(db.Model):
             "statut": self.statut,
             "motif_blocage": self.motif_blocage,
             "date_creation": self.date_creation.isoformat() if self.date_creation else None,
-            "logo_path": self.logo_path
+            "logo_path": self.logo_path,
+            "signature_path": getattr(self, 'signature_path', None),
+            "cachet_path": getattr(self, 'cachet_path', None),
+            "ville": getattr(self, 'ville', None)
         }
 
 # -----------------------
@@ -552,7 +558,10 @@ class Eleve(db.Model):
     @staticmethod
     def generer_code_parent(length=8):
         lettres_chiffres = string.ascii_uppercase + string.digits
-        return ''.join(random.choices(lettres_chiffres, k=length))
+        while True:
+            code = ''.join(random.choices(lettres_chiffres, k=length))
+            if not Eleve.query.filter_by(code_parent=code).first():
+                return code
 
     def total_paye(self):
         return sum(p.montant for p in self.paiements)
@@ -1274,6 +1283,8 @@ class PeriodeBulletin(db.Model):
     nom = db.Column(db.String(50), nullable=False)   # Exemple : "Trimestre 1", "Semestre 1"
     annee_id = db.Column(db.Integer, db.ForeignKey('annee_scolaire.id'), nullable=False)
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'), nullable=False)
+    date_debut = db.Column(db.Date, nullable=True)
+    date_fin = db.Column(db.Date, nullable=True)
     publie = db.Column(db.Boolean, default=False)    # False = désactivé, True = activé
     date_publication = db.Column(db.DateTime)        # Quand admin clique sur "Publier"
     periode_active = db.Column(db.Boolean, default=False)  # Période actuellement active

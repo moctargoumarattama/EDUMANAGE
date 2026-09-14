@@ -29,6 +29,7 @@ from .scripts import (
     create_missing_tables,
     create_complete_backup,
     create_school_backup,
+    inspect_school_backup,
     restore_school_backup,
     get_school_backups,
     init_annees_scolaires,
@@ -313,16 +314,27 @@ def backup_school():
         get_school_backups=get_school_backups
     )
 
-# --- Restauration par école ---
-@admin_bp.route('/admin/restore_school/<filename>')
+# --- Restauration par école avec confirmation forte ---
+@admin_bp.route('/admin/restore_school/<filename>', methods=['GET', 'POST'])
 def restore_school(filename):
-    """Restauration d'une sauvegarde d'école spécifique"""
+    """Restauration d'une sauvegarde d'école spécifique avec prévisualisation et confirmation forte"""
+    if request.method == 'POST':
+        confirmation = request.form.get('confirmation_code', '').strip()
+        target_ecole_id = request.form.get('ecole_id', type=int)
+        try:
+            restore_school_backup(filename, target_ecole_id=target_ecole_id, confirmation_code=confirmation)
+            flash(f"Restauration réussie depuis {filename} !", "success")
+        except Exception as e:
+            flash(f"Erreur lors de la restauration: {str(e)}", "danger")
+        return redirect(url_for('admin.maintenance_page'))
+
+    # GET: Prévisualisation
     try:
-        result = restore_school_backup(filename)
-        flash(f"Restauration réussie: {result}", "success")
+        metadata, data = inspect_school_backup(filename)
+        return render_template('admin/preview_restore.html', filename=filename, metadata=metadata, counts=metadata.get('counts', {}))
     except Exception as e:
-        flash(f"Erreur lors de la restauration: {str(e)}", "error")
-    return redirect(url_for('admin.backup_page'))
+        flash(f"Erreur lors de l'inspection de la sauvegarde : {str(e)}", "danger")
+        return redirect(url_for('admin.maintenance_page'))
 
 
 # --- Support Technique KLASORA (Super Admin) ---

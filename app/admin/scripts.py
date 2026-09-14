@@ -4,7 +4,7 @@ import os
 import shutil
 import sqlite3
 import subprocess
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time
 from app import db
 from app.models import Log, ParametreSysteme
 import json
@@ -439,86 +439,417 @@ def create_complete_backup():
         log_action("ERREUR", f"Erreur sauvegarde complète: {str(e)}", level="ERROR")
         raise e
 
-def create_school_backup(ecole_id):
-    """Sauvegarde des données d'une école spécifique"""
+def _serialize_instance(obj):
+    if not obj:
+        return None
+    d = {}
+    for col in obj.__table__.columns:
+        val = getattr(obj, col.name)
+        if isinstance(val, (datetime, date, time)):
+            val = val.isoformat()
+        d[col.name] = val
+    return d
+
+
+def _compute_backup_checksum(data_dict):
+    import hashlib
+    raw = json.dumps(data_dict, sort_keys=True, ensure_ascii=False).encode('utf-8')
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _deserialize_row(model_class, row_dict):
+    from sqlalchemy import Date, DateTime, Time
+    kwargs = {}
+    for col in model_class.__table__.columns:
+        name = col.name
+        if name in row_dict:
+            val = row_dict[name]
+            if val is not None:
+                if isinstance(col.type, Time):
+                    if isinstance(val, str):
+                        try:
+                            val = time.fromisoformat(val)
+                        except ValueError:
+                            pass
+                elif isinstance(col.type, (Date, DateTime)):
+                    if isinstance(val, str):
+                        try:
+                            if 'T' in val or ' ' in val:
+                                val = datetime.fromisoformat(val)
+                            else:
+                                val = date.fromisoformat(val)
+                        except ValueError:
+                            pass
+            kwargs[name] = val
+    return model_class(**kwargs)
+
+
+def cleanup_old_automatic_backups(ecole_id, keep=3):
+    """
+    Conserve les `keep` plus récentes sauvegardes automatiques d'une école
+    et supprime les plus anciennes sauvegardes automatiques de cette même école.
+    Ne touche PAS aux sauvegardes manuelles, safety_restore ou aux autres écoles.
+    """
+    auto_backups = []
+    if not os.path.exists(BACKUP_DIR):
+        return 0
+
+    for file in os.listdir(BACKUP_DIR):
+        if file.startswith(f"school_{ecole_id}_") and file.endswith(".json"):
+            file_path = os.path.join(BACKUP_DIR, file)
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    metadata = json.load(f).get("metadata", {})
+                if metadata.get("ecole_id") == ecole_id and metadata.get("backup_type") == "automatic":
+                    created_at_raw = metadata.get("created_at") or metadata.get("timestamp")
+                    try:
+                        ts = datetime.fromisoformat(created_at_raw)
+                    except (ValueError, TypeError):
+                        ts = datetime.fromtimestamp(os.path.getmtime(file_path))
+                    auto_backups.append({
+                        "file": file,
+                        "file_path": file_path,
+                        "created_at": ts
+                    })
+            except Exception:
+                continue
+
+    auto_backups.sort(key=lambda x: x["created_at"], reverse=True)
+
+    deleted_count = 0
+    if len(auto_backups) > keep:
+        for b in auto_backups[keep:]:
+            try:
+                os.remove(b["file_path"])
+                deleted_count += 1
+                log_action("BACKUP_AUTO_CLEANUP", f"Ancienne sauvegarde automatique supprimée pour l'école ID={ecole_id}: {b['file']}")
+            except OSError as e:
+                current_app.logger.warning(f"Impossible de supprimer {b['file_path']}: {e}")
+
+    return deleted_count
+
+
+def run_daily_automatic_backups():
+    """
+    Exécute la sauvegarde automatique quotidienne pour toutes les écoles
+    (y compris suspendues et en maintenance).
+    Exécution isolée par école : l'échec d'une école ne bloque pas les autres.
+    """
+    from app.models import Ecole
+    ecoles = Ecole.query.all()
+    results = {'success': 0, 'failed': 0, 'skipped': 0, 'details': []}
+
+    log_action("BACKUP_AUTO_START", f"Début de la sauvegarde automatique quotidienne pour {len(ecoles)} école(s).")
+
+    for ecole in ecoles:
+        try:
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            already_done = False
+            for file in os.listdir(BACKUP_DIR):
+                if file.startswith(f"school_{ecole.id}_") and file.endswith(".json"):
+                    fpath = os.path.join(BACKUP_DIR, file)
+                    try:
+                        with open(fpath, 'r', encoding='utf-8') as f:
+                            meta = json.load(f).get('metadata', {})
+                        if (meta.get('ecole_id') == ecole.id and
+                            meta.get('backup_type') == 'automatic' and
+                            str(meta.get('created_at', '')).startswith(today_str)):
+                            already_done = True
+                            break
+                    except Exception:
+                        continue
+
+            if already_done:
+                results['skipped'] += 1
+                results['details'].append({'ecole_id': ecole.id, 'ecole_nom': ecole.nom, 'status': 'skipped'})
+                log_action("BACKUP_AUTO_SKIPPED", f"Sauvegarde automatique déjà effectuée aujourd'hui pour l'école '{ecole.nom}' (ID={ecole.id})")
+                continue
+
+            backup_file = create_school_backup(ecole.id, backup_type="automatic")
+            results['success'] += 1
+            results['details'].append({'ecole_id': ecole.id, 'ecole_nom': ecole.nom, 'status': 'success', 'file': os.path.basename(backup_file)})
+            log_action("BACKUP_AUTO_SUCCESS", f"Sauvegarde automatique réussie pour l'école '{ecole.nom}' (ID={ecole.id})")
+        except Exception as e:
+            results['failed'] += 1
+            results['details'].append({'ecole_id': ecole.id, 'ecole_nom': ecole.nom, 'status': 'failed', 'error': str(e)})
+            log_action("BACKUP_AUTO_FAILED", f"Échec sauvegarde automatique pour l'école '{ecole.nom}' (ID={ecole.id}): {e}", level="ERROR")
+
+    log_action("BACKUP_AUTO_END", f"Sauvegarde automatique terminée: {results['success']} réussie(s), {results['skipped']} ignorée(s), {results['failed']} échouée(s).")
+    return results
+
+
+def create_school_backup(ecole_id, backup_type="manual"):
+    """Sauvegarde complète et sécurisée des données d'une école spécifique"""
+    from app.models import (
+        Ecole, Utilisateur, Professeur, AnneeScolaire, AnneeNiveauConfig,
+        EcoleNiveauConfig, Classe, Eleve, Inscription, Cours, Note, Absence,
+        Paiement, Bulletin, EmploiTemps, PeriodeBulletin, Presence, Alerte,
+        ArchiveNote, ArchiveAbsence, EcoleGoogleMailConfig, JournalCorrection,
+        SyncOperationLog, SupportTicket, HistoriqueImport, professeur_classes
+    )
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+
+    # Si sauvegarde automatique, vérifier l'idempotence quotidienne pour cette école
+    if backup_type == "automatic" and os.path.exists(BACKUP_DIR):
+        for file in os.listdir(BACKUP_DIR):
+            if file.startswith(f"school_{ecole_id}_") and file.endswith(".json"):
+                fpath = os.path.join(BACKUP_DIR, file)
+                try:
+                    with open(fpath, 'r', encoding='utf-8') as f:
+                        meta = json.load(f).get('metadata', {})
+                    if (meta.get('ecole_id') == ecole_id and
+                        meta.get('backup_type') == 'automatic' and
+                        str(meta.get('created_at', '')).startswith(today_str)):
+                        log_action("BACKUP_AUTO_SKIP", f"Sauvegarde automatique déjà existante aujourd'hui pour l'école ID={ecole_id}")
+                        return fpath
+                except Exception:
+                    continue
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     ecole = Ecole.query.get(ecole_id)
-    
     if not ecole:
-        raise Exception("École non trouvée")
-    
-    backup_file = os.path.join(BACKUP_DIR, f"school_{ecole.id}_{timestamp}.json")
-    
-    backup_data = {
-        'metadata': {
-            'type': 'school',
-            'ecole_id': ecole.id,
-            'ecole_nom': ecole.nom,
-            'timestamp': timestamp,
-            'version': '1.0'
-        },
-        'data': {
-            'ecole': ecole.to_dict()
-        }
-    }
-    
-    try:
-        classes = Classe.query.filter_by(ecole_id=ecole_id).all()
-        backup_data['data']['classes'] = [classe.to_dict() for classe in classes]
-        
-        classe_ids = [classe.id for classe in classes]
-        eleves = Eleve.query.filter(Eleve.classe_id.in_(classe_ids)).all()
-        backup_data['data']['eleves'] = [eleve.to_dict() for eleve in eleves]
-        
-        eleve_ids = [eleve.id for eleve in eleves]
-        notes = Note.query.filter(Note.eleve_id.in_(eleve_ids)).all()
-        backup_data['data']['notes'] = [note.to_dict() for note in notes]
-        
-        absences = Absence.query.filter(Absence.eleve_id.in_(eleve_ids)).all()
-        backup_data['data']['absences'] = [absence.to_dict() for absence in absences]
-        
-        with open(backup_file, 'w', encoding='utf-8') as f:
-            json.dump(backup_data, f, indent=2, ensure_ascii=False)
-        
-        log_action("SAUVEGARDE", f"Sauvegarde école {ecole.nom} créée: {backup_file}")
-        return backup_file
-        
-    except Exception as e:
-        log_action("ERREUR", f"Erreur sauvegarde école: {str(e)}", level="ERROR")
-        raise e
+        raise ValueError("École non trouvée")
 
-def restore_school_backup(filename):
-    """Restauration d'une sauvegarde d'école"""
+    user_ids_subq = db.session.query(Utilisateur.id).filter_by(ecole_id=ecole_id)
+    eleve_ids_subq = db.session.query(Eleve.id).filter_by(ecole_id=ecole_id)
+
+    prof_classes_raw = db.session.execute(
+        professeur_classes.select().where(professeur_classes.c.ecole_id == ecole_id)
+    ).all()
+    prof_classes_data = []
+    for r in prof_classes_raw:
+        row_dict = dict(r._mapping) if hasattr(r, '_mapping') else dict(r)
+        if isinstance(row_dict.get('date_assignation'), (datetime, date, time)):
+            row_dict['date_assignation'] = row_dict['date_assignation'].isoformat()
+        prof_classes_data.append(row_dict)
+
+    data = {
+        'ecole': _serialize_instance(ecole),
+        'ecole_niveau_configs': [_serialize_instance(c) for c in EcoleNiveauConfig.query.filter_by(ecole_id=ecole_id).all()],
+        'utilisateurs': [_serialize_instance(u) for u in Utilisateur.query.filter_by(ecole_id=ecole_id).filter(Utilisateur.role != 'super_admin').all()],
+        'professeurs': [_serialize_instance(p) for p in Professeur.query.filter_by(ecole_id=ecole_id).all()],
+        'annees_scolaires': [_serialize_instance(a) for a in AnneeScolaire.query.filter_by(ecole_id=ecole_id).all()],
+        'annee_niveau_configs': [_serialize_instance(c) for c in AnneeNiveauConfig.query.filter_by(ecole_id=ecole_id).all()],
+        'periodes_bulletin': [_serialize_instance(pb) for pb in PeriodeBulletin.query.filter_by(ecole_id=ecole_id).all()],
+        'classes': [_serialize_instance(c) for c in Classe.query.filter_by(ecole_id=ecole_id).all()],
+        'eleves': [_serialize_instance(e) for e in Eleve.query.filter_by(ecole_id=ecole_id).all()],
+        'inscriptions': [_serialize_instance(i) for i in Inscription.query.filter_by(ecole_id=ecole_id).all()],
+        'cours': [_serialize_instance(c) for c in Cours.query.filter_by(ecole_id=ecole_id).all()],
+        'emplois_temps': [_serialize_instance(et) for et in EmploiTemps.query.filter((EmploiTemps.ecole_id == ecole_id) | (EmploiTemps.classe_id.in_(db.session.query(Classe.id).filter_by(ecole_id=ecole_id)))).all()],
+        'professeur_classes': prof_classes_data,
+        'notes': [_serialize_instance(n) for n in Note.query.filter_by(ecole_id=ecole_id).all()],
+        'absences': [_serialize_instance(a) for a in Absence.query.filter_by(ecole_id=ecole_id).all()],
+        'presences': [_serialize_instance(p) for p in Presence.query.join(Eleve).filter(Eleve.ecole_id == ecole_id).all()],
+        'paiements': [_serialize_instance(p) for p in Paiement.query.filter_by(ecole_id=ecole_id).all()],
+        'bulletins': [_serialize_instance(b) for b in Bulletin.query.filter_by(ecole_id=ecole_id).all()],
+        'archive_notes': [_serialize_instance(an) for an in ArchiveNote.query.filter(ArchiveNote.eleve_id.in_(eleve_ids_subq)).all()],
+        'archive_absences': [_serialize_instance(aa) for aa in ArchiveAbsence.query.filter(ArchiveAbsence.eleve_id.in_(eleve_ids_subq)).all()],
+        'alertes': [_serialize_instance(a) for a in Alerte.query.filter((Alerte.eleve_id.in_(eleve_ids_subq)) | (Alerte.utilisateur_id.in_(user_ids_subq))).all()],
+        'ecole_google_mail_configs': [_serialize_instance(g) for g in EcoleGoogleMailConfig.query.filter_by(ecole_id=ecole_id).all()],
+        'journal_corrections': [_serialize_instance(j) for j in JournalCorrection.query.filter_by(ecole_id=ecole_id).all()],
+        'sync_operation_logs': [_serialize_instance(s) for s in SyncOperationLog.query.filter_by(ecole_id=ecole_id).all()],
+        'support_tickets': [_serialize_instance(st) for st in SupportTicket.query.filter_by(ecole_id=ecole_id).all()],
+        'historique_imports': [_serialize_instance(hi) for hi in HistoriqueImport.query.filter(HistoriqueImport.utilisateur_id.in_(user_ids_subq)).all()],
+    }
+
+    counts = {k: len(v) if isinstance(v, list) else (1 if v else 0) for k, v in data.items()}
+    checksum = _compute_backup_checksum(data)
+
+    metadata = {
+        'type': 'school',
+        'backup_type': backup_type,
+        'version': '2.0',
+        'ecole_id': ecole.id,
+        'ecole_nom': ecole.nom,
+        'timestamp': timestamp,
+        'created_at': datetime.now().isoformat(),
+        'counts': counts,
+        'checksum': checksum,
+    }
+
+    backup_data = {
+        'metadata': metadata,
+        'data': data,
+    }
+
+    backup_file = os.path.join(BACKUP_DIR, f"school_{ecole.id}_{timestamp}_{backup_type}.json")
+    with open(backup_file, 'w', encoding='utf-8') as f:
+        json.dump(backup_data, f, indent=2, ensure_ascii=False)
+
+    log_action("SAUVEGARDE", f"Sauvegarde ({backup_type}) école '{ecole.nom}' (ID={ecole.id}) créée avec succès: {os.path.basename(backup_file)}")
+
+    if backup_type == "automatic":
+        cleanup_old_automatic_backups(ecole_id, keep=3)
+
+    return backup_file
+
+
+def inspect_school_backup(filename):
+    """Vérifie la validité, l'intégrité et lit les métadonnées d'une sauvegarde d'école."""
     backup_file = os.path.join(BACKUP_DIR, filename)
-    
     if not os.path.exists(backup_file):
-        raise Exception("Fichier de sauvegarde introuvable")
-    
+        raise ValueError("Fichier de sauvegarde introuvable")
+
     try:
         with open(backup_file, 'r', encoding='utf-8') as f:
             backup_data = json.load(f)
-        
-        if backup_data['metadata']['type'] != 'school':
-            raise Exception("Ce n'est pas une sauvegarde d'école")
-        
-        ecole_data = backup_data['data']['ecole']
-        existing_ecole = Ecole.query.get(ecole_data['id'])
-        
-        if existing_ecole:
-            for key, value in ecole_data.items():
-                if hasattr(existing_ecole, key) and key != 'id':
-                    setattr(existing_ecole, key, value)
-        else:
-            new_ecole = Ecole(**ecole_data)
-            db.session.add(new_ecole)
-        
+    except Exception as e:
+        raise ValueError(f"Fichier de sauvegarde illisible ou invalide : {e}")
+
+    metadata = backup_data.get('metadata', {})
+    data = backup_data.get('data', {})
+
+    if metadata.get('type') != 'school' or not data:
+        raise ValueError("Type de sauvegarde invalide (sauvegarde d'école requise)")
+
+    expected_checksum = metadata.get('checksum')
+    if expected_checksum:
+        actual_checksum = _compute_backup_checksum(data)
+        if expected_checksum != actual_checksum:
+            raise ValueError("RESTORE REFUSÉ : Fichier de sauvegarde corrompu ou altéré (checksum invalide).")
+
+    return metadata, data
+
+
+def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None):
+    """
+    Restaure une école depuis sa sauvegarde avec contrôle d'intégrité,
+    sauvegarde automatique de sécurité préalable et confirmation forte.
+    """
+    from app.models import (
+        Ecole, Utilisateur, Professeur, AnneeScolaire, AnneeNiveauConfig,
+        EcoleNiveauConfig, Classe, Eleve, Inscription, Cours, Note, Absence,
+        Paiement, Bulletin, EmploiTemps, PeriodeBulletin, Presence, Alerte,
+        ArchiveNote, ArchiveAbsence, EcoleGoogleMailConfig, JournalCorrection,
+        SyncOperationLog, SupportTicket, HistoriqueImport, professeur_classes
+    )
+    metadata, data = inspect_school_backup(filename)
+    ecole_id = metadata.get('ecole_id')
+    ecole_nom = metadata.get('ecole_nom', '')
+
+    if target_ecole_id and ecole_id != target_ecole_id:
+        raise ValueError(f"RESTORE REFUSÉ : La sauvegarde appartient à l'école ID #{ecole_id} ('{ecole_nom}'), pas à l'école ID #{target_ecole_id}.")
+
+    if confirmation_code is not None:
+        code_valid = (
+            str(confirmation_code).strip().upper() == "RESTAURER" or
+            str(confirmation_code).strip().lower() == ecole_nom.lower()
+        )
+        if not code_valid:
+            raise ValueError("RESTORE REFUSÉ : Code de confirmation incorrect. Saisissez 'RESTAURER' ou le nom de l'école.")
+
+    target_ecole = Ecole.query.get(ecole_id)
+    if not target_ecole:
+        raise ValueError(f"École cible (ID #{ecole_id}) introuvable.")
+
+    # Sauvegarde automatique de sécurité avant la restauration (type safety_restore, hors rotation automatic)
+    try:
+        safety_file = create_school_backup(ecole_id, backup_type="safety_restore")
+        log_action("SAUVEGARDE_SECURITE", f"Sauvegarde de sécurité créée avant restauration: {os.path.basename(safety_file)}")
+    except Exception as e:
+        raise ValueError(f"Échec de la sauvegarde de sécurité préalable : {e}. Restauration annulée par sécurité.")
+
+    try:
+        # Suppression des données existantes de l'école dans l'ordre inverse des FK
+        db.session.execute(professeur_classes.delete().where(professeur_classes.c.ecole_id == ecole_id))
+
+        user_ids_subq = db.session.query(Utilisateur.id).filter_by(ecole_id=ecole_id)
+        eleve_ids_subq = db.session.query(Eleve.id).filter_by(ecole_id=ecole_id)
+        classe_ids_subq = db.session.query(Classe.id).filter_by(ecole_id=ecole_id)
+
+        SyncOperationLog.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        JournalCorrection.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        SupportTicket.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        EcoleGoogleMailConfig.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+
+        Alerte.query.filter((Alerte.eleve_id.in_(eleve_ids_subq)) | (Alerte.utilisateur_id.in_(user_ids_subq))).delete(synchronize_session=False)
+        Presence.query.filter(Presence.eleve_id.in_(eleve_ids_subq)).delete(synchronize_session=False)
+        ArchiveNote.query.filter(ArchiveNote.eleve_id.in_(eleve_ids_subq)).delete(synchronize_session=False)
+        ArchiveAbsence.query.filter(ArchiveAbsence.eleve_id.in_(eleve_ids_subq)).delete(synchronize_session=False)
+        HistoriqueImport.query.filter(HistoriqueImport.utilisateur_id.in_(user_ids_subq)).delete(synchronize_session=False)
+
+        Bulletin.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        Paiement.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        Absence.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        Note.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+
+        EmploiTemps.query.filter((EmploiTemps.ecole_id == ecole_id) | (EmploiTemps.classe_id.in_(classe_ids_subq))).delete(synchronize_session=False)
+        Cours.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+
+        Inscription.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        Eleve.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        Classe.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+
+        PeriodeBulletin.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        AnneeNiveauConfig.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        AnneeScolaire.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        EcoleNiveauConfig.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+
+        Professeur.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        Utilisateur.query.filter_by(ecole_id=ecole_id).filter(Utilisateur.role != 'super_admin').delete(synchronize_session=False)
+
+        # Réinsertion des données sauvegardées
+        model_mapping = [
+            (Utilisateur, data.get('utilisateurs', [])),
+            (Professeur, data.get('professeurs', [])),
+            (EcoleNiveauConfig, data.get('ecole_niveau_configs', [])),
+            (AnneeScolaire, data.get('annees_scolaires', [])),
+            (AnneeNiveauConfig, data.get('annee_niveau_configs', [])),
+            (PeriodeBulletin, data.get('periodes_bulletin', [])),
+            (Classe, data.get('classes', [])),
+            (Eleve, data.get('eleves', [])),
+            (Inscription, data.get('inscriptions', [])),
+            (Cours, data.get('cours', [])),
+            (EmploiTemps, data.get('emplois_temps', [])),
+            (Note, data.get('notes', [])),
+            (Absence, data.get('absences', [])),
+            (Presence, data.get('presences', [])),
+            (Paiement, data.get('paiements', [])),
+            (Bulletin, data.get('bulletins', [])),
+            (ArchiveNote, data.get('archive_notes', [])),
+            (ArchiveAbsence, data.get('archive_absences', [])),
+            (Alerte, data.get('alertes', [])),
+            (EcoleGoogleMailConfig, data.get('ecole_google_mail_configs', [])),
+            (JournalCorrection, data.get('journal_corrections', [])),
+            (SyncOperationLog, data.get('sync_operation_logs', [])),
+            (SupportTicket, data.get('support_tickets', [])),
+            (HistoriqueImport, data.get('historique_imports', [])),
+        ]
+
+        for model_cls, rows in model_mapping:
+            for r in rows:
+                obj = _deserialize_row(model_cls, r)
+                db.session.add(obj)
+
+        for pc in data.get('professeur_classes', []):
+            date_assign = pc.get('date_assignation')
+            if date_assign and isinstance(date_assign, str):
+                try:
+                    date_assign = datetime.fromisoformat(date_assign)
+                except ValueError:
+                    date_assign = None
+            db.session.execute(professeur_classes.insert().values(
+                professeur_id=pc['professeur_id'],
+                classe_id=pc['classe_id'],
+                date_assignation=date_assign or datetime.utcnow(),
+                ecole_id=pc['ecole_id']
+            ))
+
+        if data.get('ecole'):
+            ec = _deserialize_row(Ecole, data['ecole'])
+            existing = Ecole.query.get(ecole_id)
+            if existing:
+                for col in Ecole.__table__.columns:
+                    if col.name != 'id':
+                        setattr(existing, col.name, getattr(ec, col.name))
+
         db.session.commit()
-        log_action("RESTAURATION", f"Restauration école depuis: {filename}")
-        return f"École {ecole_data['nom']} restaurée avec succès"
-        
+        log_action("RESTAURATION", f"Restauration de l'école '{ecole_nom}' (ID={ecole_id}) réussie depuis {filename}")
+        return True
     except Exception as e:
         db.session.rollback()
-        log_action("ERREUR", f"Erreur restauration école: {str(e)}", level="ERROR")
+        log_action("ERREUR_RESTAURATION", f"Échec restauration école {ecole_id} : {e}", level="ERROR")
         raise e
 
 def get_school_backups(ecole_id):
@@ -532,20 +863,27 @@ def get_school_backups(ecole_id):
                 with open(file_path, 'r', encoding='utf-8') as f:
                     metadata = json.load(f).get('metadata', {})
 
-                ts_raw = metadata.get('timestamp')
+                ts_raw = metadata.get('created_at') or metadata.get('timestamp')
                 try:
                     ts_obj = datetime.fromisoformat(ts_raw) if ts_raw else None
                 except ValueError:
                     ts_obj = None
 
                 ts_display = ts_obj.strftime('%d/%m/%Y %H:%M:%S') if ts_obj else "Inconnu"
+                b_type = metadata.get('backup_type', 'manual')
+                b_label = 'Automatique' if b_type == 'automatic' else ('Sécurité Restore' if b_type == 'safety_restore' else 'Manuel')
+                badge_class = 'bg-success' if b_type == 'automatic' else ('bg-warning text-dark' if b_type == 'safety_restore' else 'bg-primary')
 
                 backups.append({
                     'filename': file,
                     'ecole_nom': metadata.get('ecole_nom', 'Inconnu'),
+                    'backup_type': b_type,
+                    'backup_type_label': b_label,
+                    'badge_class': badge_class,
                     'timestamp': ts_display,
                     'timestamp_sort': ts_obj or datetime.min,
-                    'size': os.path.getsize(file_path)
+                    'size': os.path.getsize(file_path),
+                    'size_kb': round(os.path.getsize(file_path) / 1024, 1),
                 })
             except (OSError, ValueError) as e:
                 current_app.logger.warning(f"Backup ignoré car illisible ({file_path}): {e}")
@@ -639,9 +977,8 @@ def check_and_run_daily_backup():
         target_m = int(parts[1]) if len(parts) > 1 else 0
 
         if (now.hour > target_h) or (now.hour == target_h and now.minute >= target_m):
-            create_backup()
+            run_daily_automatic_backups()
             set_param('auto_backup_last_date', today_str, 'Dernière exécution sauvegarde auto')
-            log_action("AUTO_BACKUP", f"Sauvegarde automatique quotidienne exécutée pour le {today_str}")
             return True
     except Exception as e:
         current_app.logger.error(f"Erreur check_and_run_daily_backup: {e}")
@@ -731,14 +1068,32 @@ def get_all_backups_list():
             stat = os.stat(fpath)
             dt = datetime.fromtimestamp(stat.st_mtime)
             is_school = fname.startswith('school_')
+            b_type = 'manual'
+            ecole_nom = None
+            if fname.endswith('.json'):
+                try:
+                    with open(fpath, 'r', encoding='utf-8') as f:
+                        meta = json.load(f).get('metadata', {})
+                    b_type = meta.get('backup_type', 'manual')
+                    ecole_nom = meta.get('ecole_nom')
+                except Exception:
+                    pass
+
+            b_label = 'Automatique' if b_type == 'automatic' else ('Sécurité Restore' if b_type == 'safety_restore' else 'Manuel')
+            type_display = f"École ({b_label})" if is_school else "Complète"
+            badge_class = 'bg-success' if b_type == 'automatic' else ('bg-info' if is_school else 'bg-primary')
+
             backups.append({
                 'filename': fname,
+                'ecole_nom': ecole_nom,
+                'backup_type': b_type,
+                'backup_type_label': b_label,
                 'size_kb': round(stat.st_size / 1024, 1),
                 'size_mb': round(stat.st_size / (1024 * 1024), 2),
                 'date_formatted': dt.strftime('%d/%m/%Y à %H:%M:%S'),
                 'mtime': stat.st_mtime,
-                'type': 'École' if is_school else 'Complète',
-                'badge_class': 'bg-info' if is_school else 'bg-primary'
+                'type': type_display,
+                'badge_class': badge_class
             })
     backups.sort(key=lambda x: x['mtime'], reverse=True)
     return backups

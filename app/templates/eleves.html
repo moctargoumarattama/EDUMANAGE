@@ -24,6 +24,12 @@
             <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-sm btn-success fw-semibold">
                 <i class="fas fa-plus me-1"></i>Ajouter un élève
             </a>
+            <a href="{{ url_for('main.import_excel_form') }}" class="btn btn-sm btn-outline-primary fw-semibold">
+                <i class="fas fa-file-import me-1"></i>Importer Excel
+            </a>
+            <a href="{{ url_for('main.modele_excel_eleves') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-download me-1"></i>Modèle Excel
+            </a>
             {% endif %}
             {% if current_user.role == 'admin' %}
             <a href="{{ url_for('main.export_eleves_excel') }}" class="btn btn-sm btn-outline-success">

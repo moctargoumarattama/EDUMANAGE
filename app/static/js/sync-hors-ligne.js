@@ -10,7 +10,7 @@
     }
 
     function setAlert(message, type) {
-        const alert = elements.alert;
+        const alert = elements.alert || get('syncAlert');
         if (!alert) return;
         alert.className = `alert alert-${type}`;
         alert.innerHTML = message;
@@ -27,13 +27,66 @@
         return labels[type] || 'Élément';
     }
 
-    function updateConnection() {
-        const online = window.offlineManager ? window.offlineManager.isOnline : navigator.onLine;
-        elements.connectionText.textContent = online ? 'En ligne' : 'Hors ligne';
-        elements.connectionIcon.className = online ? 'sync-status-icon is-online' : 'sync-status-icon is-offline';
-        elements.connectionIcon.innerHTML = online
-             '<i class="fas fa-wifi"></i>'
-            : '<i class="fas fa-plug-circle-xmark"></i>';
+    async function updateConnection() {
+        const connText = elements.connectionText || get('connectionText');
+        const connIcon = elements.connectionIcon || get('connectionIcon');
+
+        console.log('[SYNC UI] Éléments DOM trouvés:', {
+            connectionText: !!connText,
+            connectionIcon: !!connIcon
+        });
+
+        let online = false;
+        try {
+            if (connText) connText.textContent = 'Vérification...';
+            if (window.offlineManager && typeof window.offlineManager.updateOnlineStatus === 'function') {
+                online = await window.offlineManager.updateOnlineStatus();
+            } else if (window.offlineManager && typeof window.offlineManager.checkServerConnectivity === 'function') {
+                online = await window.offlineManager.checkServerConnectivity();
+                window.offlineManager.isOnline = online;
+            } else {
+                if (navigator.onLine) {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 4000);
+                        const res = await fetch('/api/connectivity', { cache: 'no-store', signal: controller.signal });
+                        clearTimeout(timeoutId);
+                        if (res.ok) {
+                            const data = await res.json();
+                            console.log('[SYNC UI] Réponse reçue (direct fetch):', data);
+                            online = !!(data && data.online === true);
+                        } else {
+                            console.log('[SYNC UI] Direct fetch status non-OK:', res.status);
+                            online = false;
+                        }
+                    } catch (e) {
+                        console.log('[SYNC UI] Erreur fetch direct:', e);
+                        online = false;
+                    }
+                } else {
+                    console.log('[SYNC UI] navigator.onLine est false');
+                    online = false;
+                }
+            }
+        } catch (err) {
+            console.error('[SYNC UI] Exception dans updateConnection:', err);
+            online = false;
+        }
+
+        const textToApply = online ? 'En ligne' : 'Hors ligne';
+        console.log('[SYNC UI] online=true ?', online);
+        console.log('[SYNC UI] Texte appliqué:', textToApply);
+
+        if (connText) {
+            connText.textContent = textToApply;
+        }
+        if (connIcon) {
+            connIcon.className = online ? 'sync-status-icon is-online' : 'sync-status-icon is-offline';
+            connIcon.innerHTML = online
+                ? '<i class="fas fa-wifi"></i>'
+                : '<i class="fas fa-plug-circle-xmark"></i>';
+        }
+
         return online;
     }
 
@@ -84,7 +137,7 @@
             `;
         }
 
-        const forceBtn = canArbitrate  `
+        const forceBtn = canArbitrate ? `
             <button type="button" class="btn btn-sm btn-outline-danger btn-resolve-conflict" data-op-id="${item.client_op_id}" data-action="force">
                 <i class="fas fa-gavel me-1"></i> Arbitrer / Imposer ma version
             </button>
@@ -117,21 +170,23 @@
     }
 
     async function refresh() {
+        console.log('[SYNC UI] Exécution de refresh()...');
+        const online = await updateConnection();
+
         if (!window.offlineManager || !window.offlineDB) return;
 
-        const online = updateConnection();
         const allItems = await window.offlineDB.getAllOwnedUnresolved();
 
         const conflicts = allItems.filter(i => i.status === 'conflict');
         const syncable = allItems.filter(i => i.status === 'pending' || i.status === 'error');
 
-        elements.pendingCount.textContent = syncable.length;
-        elements.totalBadge.textContent = syncable.length;
+        if (elements.pendingCount) elements.pendingCount.textContent = syncable.length;
+        if (elements.totalBadge) elements.totalBadge.textContent = syncable.length;
         if (elements.conflictsMetricCount) elements.conflictsMetricCount.textContent = conflicts.length;
         if (elements.conflictsSectionCount) elements.conflictsSectionCount.textContent = conflicts.length;
-        elements.lastSync.textContent = lastSyncTime;
-        elements.syncButton.disabled = !online || syncable.length === 0 || window.offlineManager.syncInProgress;
-        elements.clearAllBtn.disabled = allItems.length === 0;
+        if (elements.lastSync) elements.lastSync.textContent = lastSyncTime;
+        if (elements.syncButton) elements.syncButton.disabled = !online || syncable.length === 0 || window.offlineManager.syncInProgress;
+        if (elements.clearAllBtn) elements.clearAllBtn.disabled = allItems.length === 0;
 
         // Affichage de la section Conflits
         if (elements.conflictsSection) {
@@ -149,32 +204,34 @@
         }
 
         // Affichage de la liste des opérations en attente de synchronisation
-        if (syncable.length === 0) {
-            elements.list.innerHTML = `
-                <div class="sync-empty">
-                    <i class="fas fa-check-circle text-success"></i>
-                    <span>Aucune donnée en attente de synchronisation.</span>
-                </div>
-            `;
-            return;
-        }
+        if (elements.list) {
+            if (syncable.length === 0) {
+                elements.list.innerHTML = `
+                    <div class="sync-empty">
+                        <i class="fas fa-check-circle text-success"></i>
+                        <span>Aucune donnée en attente de synchronisation.</span>
+                    </div>
+                `;
+                return;
+            }
 
-        elements.list.innerHTML = syncable.map((item) => `
-            <article class="sync-item">
-                <div>
-                    <strong>${formatType(item.type)}</strong>
-                    <small>${new Date(item.timestamp || item.created_at || Date.now()).toLocaleString('fr-FR')}</small>
-                </div>
-                <button type="button" class="btn btn-sm btn-light sync-delete" data-id="${item.id}" title="Retirer">
-                    <i class="fas fa-trash text-danger"></i>
-                </button>
-            </article>
-        `).join('');
+            elements.list.innerHTML = syncable.map((item) => `
+                <article class="sync-item">
+                    <div>
+                        <strong>${formatType(item.type)}</strong>
+                        <small>${new Date(item.timestamp || item.created_at || Date.now()).toLocaleString('fr-FR')}</small>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-light sync-delete" data-id="${item.id}" title="Retirer">
+                        <i class="fas fa-trash text-danger"></i>
+                    </button>
+                </article>
+            `).join('');
+        }
     }
 
     async function syncNow() {
         if (!window.offlineManager) return;
-        elements.syncButton.disabled = true;
+        if (elements.syncButton) elements.syncButton.disabled = true;
         const result = await window.offlineManager.sync(true);
 
         if (result.success) {
@@ -190,7 +247,7 @@
 
     async function clearAll() {
         if (!window.offlineManager) return;
-        if (!window.confirm('Vider toutes les données en attente ')) return;
+        if (!window.confirm('Vider toutes les données en attente ?')) return;
         await window.offlineManager.clearAll();
         setAlert('File de synchronisation vidée.', 'success');
         await refresh();
@@ -199,6 +256,8 @@
     async function init() {
         if (initialized) return;
         initialized = true;
+
+        console.log('[SYNC UI] Initialisation du module Sync Hors-Ligne...');
 
         elements.alert = get('syncAlert');
         elements.connectionText = get('connectionText');
@@ -214,27 +273,36 @@
         elements.clearAllBtn = get('clearAllBtn');
         elements.list = get('offlineDataContainer');
 
+        // Mettre à jour immédiatement l'état affiché
+        await updateConnection();
+
         try {
-            await window.offlineManager.init();
-            window.offlineManager.on('online', refresh);
-            window.offlineManager.on('offline', refresh);
-            window.offlineManager.on('sync-start', refresh);
-            window.offlineManager.on('sync-success', refresh);
-            window.offlineManager.on('sync-error', refresh);
-            window.offlineManager.on('sync-conflict', refresh);
-            window.offlineManager.on('conflict-resolved', refresh);
-            window.offlineManager.on('data-deleted', refresh);
-            window.offlineManager.on('data-cleared', refresh);
+            if (window.offlineManager && typeof window.offlineManager.init === 'function') {
+                await window.offlineManager.init();
+                window.offlineManager.on('online', refresh);
+                window.offlineManager.on('offline', refresh);
+                window.offlineManager.on('sync-start', refresh);
+                window.offlineManager.on('sync-success', refresh);
+                window.offlineManager.on('sync-error', refresh);
+                window.offlineManager.on('sync-conflict', refresh);
+                window.offlineManager.on('conflict-resolved', refresh);
+                window.offlineManager.on('data-deleted', refresh);
+                window.offlineManager.on('data-cleared', refresh);
+            }
 
-            elements.syncButton.addEventListener('click', syncNow);
-            elements.clearAllBtn.addEventListener('click', clearAll);
+            if (elements.syncButton) elements.syncButton.addEventListener('click', syncNow);
+            if (elements.clearAllBtn) elements.clearAllBtn.addEventListener('click', clearAll);
 
-            elements.list.addEventListener('click', async (event) => {
-                const button = event.target.closest('.sync-delete');
-                if (!button) return;
-                await window.offlineManager.deletePending(Number(button.dataset.id));
-                await refresh();
-            });
+            if (elements.list) {
+                elements.list.addEventListener('click', async (event) => {
+                    const button = event.target.closest('.sync-delete');
+                    if (!button) return;
+                    if (window.offlineManager) {
+                        await window.offlineManager.deletePending(Number(button.dataset.id));
+                    }
+                    await refresh();
+                });
+            }
 
             if (elements.conflictsContainer) {
                 elements.conflictsContainer.addEventListener('click', async (event) => {
@@ -246,18 +314,20 @@
 
                     button.disabled = true;
                     if (action === 'force') {
-                        if (!window.confirm('Confirmer l\'arbitrage  Votre version écrasera la version existante sur le serveur.')) {
+                        if (!window.confirm('Confirmer l\'arbitrage ? Votre version écrasera la version existante sur le serveur.')) {
                             button.disabled = false;
                             return;
                         }
                     }
 
                     try {
-                        const res = await window.offlineManager.resolveConflict(opId, action);
-                        if (res && res.success) {
-                            setAlert(res.message || 'Conflit résolu.', 'success');
-                        } else {
-                            setAlert(res.message || 'Erreur lors de la résolution du conflit.', 'danger');
+                        if (window.offlineManager) {
+                            const res = await window.offlineManager.resolveConflict(opId, action);
+                            if (res && res.success) {
+                                setAlert(res.message || 'Conflit résolu.', 'success');
+                            } else {
+                                setAlert(res.message || 'Erreur lors de la résolution du conflit.', 'danger');
+                            }
                         }
                     } catch (err) {
                         setAlert('Erreur lors de la résolution: ' + err.message, 'danger');
@@ -268,10 +338,17 @@
 
             await refresh();
         } catch (error) {
+            console.error('[SYNC UI] Erreur lors de l’init:', error);
             setAlert("La synchronisation hors-ligne n'a pas pu démarrer.", 'danger');
-            elements.list.innerHTML = '<div class="sync-empty"><span>Service indisponible.</span></div>';
+            if (elements.list) {
+                elements.list.innerHTML = '<div class="sync-empty"><span>Service indisponible.</span></div>';
+            }
         }
     }
 
-    document.addEventListener('DOMContentLoaded', init);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
 }());

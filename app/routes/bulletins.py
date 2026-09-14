@@ -1,6 +1,7 @@
 from collections import defaultdict
 from flask import request, jsonify
 from . import main
+import os
 from .common import (
     AnneeScolaire,
     Classe,
@@ -174,7 +175,7 @@ def bulletin_eleve(id=None, inscription_id=None):
             notes_par_cours=data['notes_par_cours'],
             moyennes_par_cours=data['moyennes_par_cours'],
             moyenne_generale=data['moyenne_generale'],
-            logo_path=ecole.logo_path if ecole and ecole.logo_path else None,
+            logo_path=os.path.join(current_app.static_folder, ecole.logo_path) if ecole and ecole.logo_path else None,
             nom_ecole=ecole.nom if ecole else "École non renseignée",
             adresse_ecole=ecole.adresse if ecole else "-",
             contact_ecole=f"Tél: {ecole.telephone or '-'} - Email: {ecole.email or '-'}" if ecole else "-",
@@ -188,6 +189,7 @@ def bulletin_eleve(id=None, inscription_id=None):
             total_coefficients=data.get('total_coefficients'),
             total_points=data.get('total_points'),
             stats_classe=data.get('stats_classe'),
+            nb_absences=data.get('nb_absences'),
         )
 
         filename = f"bulletin_{eleve.prenom}_{eleve.nom}_{annee_nom}_{periode_demandee.replace(' ', '_')}.pdf"
@@ -526,8 +528,49 @@ def toggle_periode(id):
     periode.publie = not periode.publie
     if periode.publie:
         periode.date_publication = datetime.utcnow()
+        action_name = "BULLETIN_PUBLIE"
+        desc = f"Publication du bulletin {periode.nom}"
+    else:
+        action_name = "BULLETIN_REOUVERT"
+        desc = f"Réouverture administrative du bulletin {periode.nom}"
+
+    journal = JournalCorrection(
+        action=action_name,
+        description=desc,
+        ecole_id=current_user.ecole_id,
+        user_id=current_user.id,
+        cible_type="periode_bulletin",
+        cible_id=periode.id,
+        niveau="info"
+    )
+    db.session.add(journal)
     db.session.commit()
-    flash(f"Période {periode.nom} {'activée' if periode.publie else 'désactivée'} avec succès.", "success")
+
+    flash(f"Période {periode.nom} {'publiée' if periode.publie else 'réouverte'} avec succès.", "success")
+    return redirect(url_for('main.gestion_periodes'))
+
+
+@main.route('/reouvrir_periode/<int:id>', methods=['GET', 'POST'])
+@login_required
+@role_required('admin')
+def reouvrir_periode(id):
+    """Réouverture administrative explicite d'un bulletin / semestre."""
+    periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
+    periode.publie = False
+
+    journal = JournalCorrection(
+        action="BULLETIN_REOUVERT",
+        description=f"Réouverture administrative explicite du bulletin {periode.nom}",
+        ecole_id=current_user.ecole_id,
+        user_id=current_user.id,
+        cible_type="periode_bulletin",
+        cible_id=periode.id,
+        niveau="warning"
+    )
+    db.session.add(journal)
+    db.session.commit()
+
+    flash(f"Bulletin/Période {periode.nom} réouvert(e) avec succès. Les notes du semestre peuvent à présent être corrigées.", "warning")
     return redirect(url_for('main.gestion_periodes'))
 
 

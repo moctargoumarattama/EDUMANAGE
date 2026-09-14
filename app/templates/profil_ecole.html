@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Identité de l'établissement — KLASORA{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between py-3">
+                    <h4 class="mb-0 fs-5"><i class="fas fa-school me-2"></i> Identité & Visuel de l'Établissement</h4>
+                    <span class="badge bg-light text-primary fs-6">{{ ecole.nom }}</span>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('main.profil_ecole') }}" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label for="nom" class="form-label fw-bold">Nom de l'école *</label>
+                                <input type="text" class="form-control" id="nom" name="nom" value="{{ ecole.nom }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="directeur" class="form-label fw-bold">Nom du Directeur / Chef d'Établissement</label>
+                                <input type="text" class="form-control" id="directeur" name="directeur" value="{{ ecole.directeur or '' }}" placeholder="Ex: M. Amadou Diallo">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="email" class="form-label fw-bold">Email de contact</label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ ecole.email or '' }}" {% if current_user.role != 'super_admin' %}readonly{% endif %}>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="telephone" class="form-label fw-bold">Téléphone</label>
+                                <input type="text" class="form-control" id="telephone" name="telephone" value="{{ ecole.telephone or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="ville" class="form-label fw-bold">Ville</label>
+                                <input type="text" class="form-control" id="ville" name="ville" value="{{ ecole.ville or '' }}" placeholder="Ex: Niamey">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="adresse" class="form-label fw-bold">Adresse physique</label>
+                                <input type="text" class="form-control" id="adresse" name="adresse" value="{{ ecole.adresse or '' }}">
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <h5 class="text-secondary mb-3"><i class="fas fa-file-image me-2"></i> Éléments Visuels & Documents Officiels</h5>
+                        <div class="row g-4">
+                            <!-- Logo -->
+                            <div class="col-md-4 text-center">
+                                <div class="p-3 border rounded bg-light h-100 d-flex flex-column align-items-center justify-content-between">
+                                    <h6>Logo École</h6>
+                                    {% if ecole.logo_path %}
+                                        <img src="{{ url_for('static', filename=ecole.logo_path) }}" alt="Logo" class="img-thumbnail mb-2" style="max-height: 100px;">
+                                    {% else %}
+                                        <div class="my-3 text-muted"><i class="fas fa-school fa-3x"></i></div>
+                                    {% endif %}
+                                    <input type="file" class="form-control form-control-sm mt-2" name="logo" accept="image/*">
+                                </div>
+                            </div>
+                            <!-- Signature -->
+                            <div class="col-md-4 text-center">
+                                <div class="p-3 border rounded bg-light h-100 d-flex flex-column align-items-center justify-content-between">
+                                    <h6>Signature du Directeur</h6>
+                                    {% if ecole.signature_path %}
+                                        <img src="{{ url_for('static', filename=ecole.signature_path) }}" alt="Signature" class="img-thumbnail mb-2" style="max-height: 100px;">
+                                    {% else %}
+                                        <div class="my-3 text-muted"><i class="fas fa-file-signature fa-3x"></i></div>
+                                    {% endif %}
+                                    <input type="file" class="form-control form-control-sm mt-2" name="signature" accept="image/*">
+                                </div>
+                            </div>
+                            <!-- Cachet -->
+                            <div class="col-md-4 text-center">
+                                <div class="p-3 border rounded bg-light h-100 d-flex flex-column align-items-center justify-content-between">
+                                    <h6>Cachet Officiel</h6>
+                                    {% if ecole.cachet_path %}
+                                        <img src="{{ url_for('static', filename=ecole.cachet_path) }}" alt="Cachet" class="img-thumbnail mb-2" style="max-height: 100px;">
+                                    {% else %}
+                                        <div class="my-3 text-muted"><i class="fas fa-stamp fa-3x"></i></div>
+                                    {% endif %}
+                                    <input type="file" class="form-control form-control-sm mt-2" name="cachet" accept="image/*">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 text-end">
+                            <button type="submit" class="btn btn-primary px-4"><i class="fas fa-save me-2"></i> Enregistrer les modifications</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

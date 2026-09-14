@@ -36,6 +36,9 @@ from app.services.absences_annuelles import (
     verifier_mutation_absence,
 )
 
+@main.route('/api/connectivity', methods=['GET'])
+def api_connectivity():
+    return jsonify({"online": True}), 200
 
 def _get_sync_eleve_cours(eleve_id, cours_id):
     try:
@@ -568,69 +571,333 @@ def _process_absence_item(item, client_op_id):
     return {'client_op_id': client_op_id, 'status': 'synced', 'message': 'Absence enregistrée avec succès', 'entity_id': absence.id, 'sync_version': 1, 'last_by_admin': absence.last_by_admin}
 
 
-def _process_paiement_item(item, client_op_id):
+def _process_eleve_creation_item(item, client_op_id, local_uuid_to_id=None):
+    if isinstance(item.get('data'), dict):
+        merged = dict(item['data'])
+        for k in ('client_op_id', 'type', 'force', 'base_version', 'local_student_uuid'):
+            if k in item and k not in merged:
+                merged[k] = item[k]
+        item = merged
+
     if current_user.role != 'admin':
-        return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Seul un administrateur peut enregistrer des paiements'}
+        return {
+            'client_op_id': client_op_id,
+            'status': 'forbidden',
+            'message': 'Seul un administrateur peut créer des élèves hors ligne'
+        }
 
-    required_fields = ['eleve_id', 'montant', 'mois', 'annee']
-    missing = [f for f in required_fields if item.get(f) is None or str(item.get(f)).strip() == '']
-    if missing:
-        return {'client_op_id': client_op_id, 'status': 'error', 'message': f'Champs manquants: {missing}'}
+    nom = (item.get('nom') or '').strip()
+    prenom = (item.get('prenom') or '').strip()
+    if not nom or not prenom:
+        return {
+            'client_op_id': client_op_id,
+            'status': 'error',
+            'message': 'Le nom et le prénom de l\'élève sont obligatoires'
+        }
 
-    eleve = Eleve.query.get(item.get('eleve_id'))
-    if not eleve or eleve.ecole_id != current_user.ecole_id:
-        return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Élève non trouvé ou non autorisé'}
+    date_naiss_raw = item.get('date_naissance')
+    date_naiss = None
+    if isinstance(date_naiss_raw, str) and date_naiss_raw.strip():
+        try:
+            date_naiss = datetime.strptime(date_naiss_raw[:10], '%Y-%m-%d').date()
+        except ValueError:
+            return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Format de date de naissance invalide'}
+    elif isinstance(date_naiss_raw, (date, datetime)):
+        date_naiss = date_naiss_raw if isinstance(date_naiss_raw, date) else date_naiss_raw.date()
+    else:
+        date_naiss = date(2010, 1, 1)
+
+    genre = item.get('genre', 'M')
+    if genre not in ('M', 'F'):
+        genre = 'M'
+
+    classe_id = item.get('classe_id')
+    if classe_id:
+        try:
+            classe_id = int(classe_id)
+            cl = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first()
+            if not cl:
+                classe_id = None
+        except (ValueError, TypeError):
+            classe_id = None
 
     try:
-        montant = float(item.get('montant'))
-        mois = int(item.get('mois'))
-        annee = int(item.get('annee'))
+        frais_annuels = float(item.get('frais_annuels', 150000.0) or 150000.0)
     except (ValueError, TypeError):
-        return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Données numériques de paiement invalides'}
+        frais_annuels = 150000.0
 
-    reference = item.get('reference')
-    existing = Paiement.query.filter_by(
-        eleve_id=eleve.id,
-        mois=mois,
-        annee=annee,
-        reference=reference,
-        ecole_id=eleve.ecole_id
-    ).first()
+    code_p = None
+    try:
+        code_p = Eleve.generer_code_parent()
+    except Exception:
+        code_p = f"P{uuid.uuid4().hex[:7].upper()}"
 
-    if existing:
-        log = SyncOperationLog(
-            client_op_id=client_op_id,
-            ecole_id=current_user.ecole_id,
-            user_id=current_user.id,
-            entity_type='paiement',
-            entity_id=existing.id,
-            status='already_processed'
-        )
-        db.session.add(log)
-        return {'client_op_id': client_op_id, 'status': 'already_processed', 'message': 'Paiement déjà enregistré', 'entity_id': existing.id}
-
-    paiement = Paiement(
-        montant=montant,
-        mois=mois,
-        annee=annee,
-        mode_paiement=item.get('mode_paiement'),
-        reference=reference,
-        eleve_id=eleve.id,
-        ecole_id=eleve.ecole_id
+    eleve = Eleve(
+        nom=nom,
+        prenom=prenom,
+        date_naissance=date_naiss,
+        lieu_naissance=item.get('lieu_naissance', '') or '',
+        adresse=item.get('adresse', '') or '',
+        telephone=item.get('telephone', '') or '',
+        contact_parent=item.get('contact_parent', '') or '',
+        email=item.get('email', '') or '',
+        email_parent=item.get('email_parent', '') or '',
+        genre=genre,
+        frais_annuels=frais_annuels,
+        code_parent=code_p,
+        statut='actif',
+        ecole_id=current_user.ecole_id,
+        classe_id=classe_id
     )
-    db.session.add(paiement)
+    db.session.add(eleve)
+    db.session.flush()
+
+    local_student_uuid = item.get('local_student_uuid')
+    if local_student_uuid and local_uuid_to_id is not None:
+        local_uuid_to_id[str(local_student_uuid)] = eleve.id
+
+    log = SyncOperationLog(
+        client_op_id=client_op_id,
+        ecole_id=current_user.ecole_id,
+        user_id=current_user.id,
+        entity_type='eleve',
+        entity_id=eleve.id,
+        status='synced'
+    )
+    db.session.add(log)
+
+    return {
+        'client_op_id': client_op_id,
+        'status': 'synced',
+        'message': 'Élève créé avec succès',
+        'entity_id': eleve.id,
+        'eleve_id': eleve.id,
+        'local_student_uuid': local_student_uuid,
+        'nom': eleve.nom,
+        'prenom': eleve.prenom
+    }
+
+
+def _process_eleve_modification_item(item, client_op_id, local_uuid_to_id=None):
+    if isinstance(item.get('data'), dict):
+        merged = dict(item['data'])
+        for k in ('client_op_id', 'type', 'force', 'base_version', 'local_student_uuid'):
+            if k in item and k not in merged:
+                merged[k] = item[k]
+        item = merged
+
+    if current_user.role != 'admin':
+        return {
+            'client_op_id': client_op_id,
+            'status': 'forbidden',
+            'message': 'Seul un administrateur peut modifier des élèves hors ligne'
+        }
+
+    raw_id = item.get('eleve_id') or item.get('id')
+    if raw_id and str(raw_id) in (local_uuid_to_id or {}):
+        raw_id = local_uuid_to_id[str(raw_id)]
+
+    try:
+        eleve_id = int(raw_id)
+    except (ValueError, TypeError):
+        return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Identifiant élève invalide'}
+
+    eleve = Eleve.query.filter_by(id=eleve_id, ecole_id=current_user.ecole_id).first()
+    if not eleve:
+        return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Élève introuvable pour cette école'}
+
+    current_version = SyncOperationLog.query.filter_by(
+        entity_type='eleve',
+        entity_id=eleve.id,
+        ecole_id=current_user.ecole_id,
+        status='synced'
+    ).count() + 1
+
+    is_admin = (current_user.role == 'admin')
+    is_force = (item.get('force') is True)
+    base_version = item.get('base_version')
+    if base_version is not None:
+        try:
+            base_version = int(base_version)
+        except (ValueError, TypeError):
+            base_version = None
+
+    if base_version is not None and base_version != current_version and not is_force:
+        return {
+            'client_op_id': client_op_id,
+            'status': 'conflict',
+            'reason': 'version_conflict',
+            'message': f"Conflit de version: l'élève sur le serveur est à la version {current_version} alors que votre modification repose sur la version {base_version}.",
+            'entity_id': eleve.id,
+            'server_version': current_version,
+            'base_version': base_version,
+            'can_arbitrate': is_admin
+        }
+
+    if 'nom' in item and item['nom']:
+        eleve.nom = str(item['nom']).strip()
+    if 'prenom' in item and item['prenom']:
+        eleve.prenom = str(item['prenom']).strip()
+    if 'genre' in item and item['genre'] in ('M', 'F'):
+        eleve.genre = item['genre']
+    if 'adresse' in item:
+        eleve.adresse = item['adresse'] or ''
+    if 'telephone' in item:
+        eleve.telephone = item['telephone'] or ''
+    if 'contact_parent' in item:
+        eleve.contact_parent = item['contact_parent'] or ''
+    if 'email_parent' in item:
+        eleve.email_parent = item['email_parent'] or ''
+    if 'lieu_naissance' in item:
+        eleve.lieu_naissance = item['lieu_naissance'] or ''
+
+    eleve.updated_at = datetime.utcnow()
     db.session.flush()
 
     log = SyncOperationLog(
         client_op_id=client_op_id,
         ecole_id=current_user.ecole_id,
         user_id=current_user.id,
-        entity_type='paiement',
-        entity_id=paiement.id,
+        entity_type='eleve',
+        entity_id=eleve.id,
         status='synced'
     )
     db.session.add(log)
-    return {'client_op_id': client_op_id, 'status': 'synced', 'message': 'Paiement synchronisé avec succès', 'entity_id': paiement.id}
+
+    return {
+        'client_op_id': client_op_id,
+        'status': 'synced',
+        'message': 'Élève mis à jour avec succès',
+        'entity_id': eleve.id,
+        'sync_version': current_version + 1
+    }
+
+
+def _process_inscription_item(item, client_op_id, local_uuid_to_id=None):
+    if isinstance(item.get('data'), dict):
+        merged = dict(item['data'])
+        for k in ('client_op_id', 'type', 'force', 'base_version', 'local_student_uuid'):
+            if k in item and k not in merged:
+                merged[k] = item[k]
+        item = merged
+
+    if current_user.role != 'admin':
+        return {
+            'client_op_id': client_op_id,
+            'status': 'forbidden',
+            'message': 'Seul un administrateur peut enregistrer des inscriptions'
+        }
+
+    local_student_uuid = item.get('local_student_uuid')
+    raw_eleve_id = item.get('eleve_id')
+
+    if local_student_uuid and str(local_student_uuid) in (local_uuid_to_id or {}):
+        raw_eleve_id = local_uuid_to_id[str(local_student_uuid)]
+    elif raw_eleve_id and str(raw_eleve_id) in (local_uuid_to_id or {}):
+        raw_eleve_id = local_uuid_to_id[str(raw_eleve_id)]
+
+    try:
+        eleve_id = int(raw_eleve_id)
+    except (ValueError, TypeError):
+        return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Identifiant élève invalide ou non réconcilié'}
+
+    eleve = Eleve.query.filter_by(id=eleve_id, ecole_id=current_user.ecole_id).first()
+    if not eleve:
+        return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Élève introuvable pour cette école'}
+
+    try:
+        classe_id = int(item.get('classe_id'))
+    except (ValueError, TypeError):
+        return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Identifiant classe invalide'}
+
+    classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first()
+    if not classe:
+        return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Classe introuvable pour cette école'}
+
+    annee_id = item.get('annee_scolaire_id') or item.get('annee_id')
+    annee = None
+    if annee_id:
+        try:
+            annee = AnneeScolaire.query.filter_by(id=int(annee_id), ecole_id=current_user.ecole_id).first()
+        except (ValueError, TypeError):
+            pass
+    if not annee:
+        annee = get_annee_consultee(current_user.ecole_id)
+    if not annee:
+        return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Aucune année scolaire active pour cette école'}
+
+    existing_insc = Inscription.query.filter_by(
+        ecole_id=current_user.ecole_id,
+        annee_scolaire_id=annee.id,
+        eleve_id=eleve.id
+    ).first()
+
+    if existing_insc:
+        log = SyncOperationLog(
+            client_op_id=client_op_id,
+            ecole_id=current_user.ecole_id,
+            user_id=current_user.id,
+            entity_type='inscription',
+            entity_id=existing_insc.id,
+            status='already_processed'
+        )
+        db.session.add(log)
+        return {
+            'client_op_id': client_op_id,
+            'status': 'already_processed',
+            'message': 'Élève déjà inscrit pour cette année scolaire',
+            'entity_id': existing_insc.id,
+            'eleve_id': eleve.id,
+            'local_student_uuid': local_student_uuid
+        }
+
+    try:
+        frais = float(item.get('frais_annuels', eleve.frais_annuels or 150000.0) or 150000.0)
+    except (ValueError, TypeError):
+        frais = 150000.0
+
+    inscription = Inscription(
+        ecole_id=current_user.ecole_id,
+        eleve_id=eleve.id,
+        classe_id=classe.id,
+        annee_scolaire_id=annee.id,
+        frais_annuels=frais,
+        statut='inscrit'
+    )
+    db.session.add(inscription)
+
+    if annee.statut == 'active':
+        eleve.classe_id = classe.id
+
+    db.session.flush()
+
+    log = SyncOperationLog(
+        client_op_id=client_op_id,
+        ecole_id=current_user.ecole_id,
+        user_id=current_user.id,
+        entity_type='inscription',
+        entity_id=inscription.id,
+        status='synced'
+    )
+    db.session.add(log)
+
+    return {
+        'client_op_id': client_op_id,
+        'status': 'synced',
+        'message': 'Inscription enregistrée avec succès',
+        'entity_id': inscription.id,
+        'eleve_id': eleve.id,
+        'local_student_uuid': local_student_uuid
+    }
+
+
+def _process_paiement_item(item, client_op_id):
+    # Règle stricte Phase 5P BIS: Paiements = connexion serveur obligatoire (ONLINE ONLY)
+    return {
+        'client_op_id': client_op_id,
+        'status': 'forbidden',
+        'message': 'Connexion Internet requise pour les paiements (opérations financières en ligne uniquement).'
+    }
 
 
 @main.route("/sync-hors-ligne")
@@ -647,6 +914,12 @@ def sync_hors_ligne():
 def api_sync():
     """API pour synchroniser les opérations hors ligne avec idempotence et audit"""
     try:
+        if current_user.role == 'parent':
+            return jsonify({
+                'success': False,
+                'message': 'Accès refusé : les comptes parents disposent uniquement d\'un accès en lecture seule hors ligne.'
+            }), 403
+
         if not request.is_json:
             return jsonify({
                 'success': False, 
@@ -673,8 +946,26 @@ def api_sync():
 
         current_app.logger.info(f"Sync hors ligne: {len(data)} élément(s) reçus pour user {current_user.id}")
 
+        # Ordonnancement topologique des dépendances : Élèves d'abord, puis inscriptions, puis notes/absences
+        def _get_item_priority(it):
+            if not isinstance(it, dict):
+                return 99
+            t = it.get('type')
+            if t in ('eleve', 'eleve_creation'):
+                return 1
+            if t == 'eleve_modification':
+                return 2
+            if t in ('inscription', 'inscription_annuelle'):
+                return 3
+            if t in ('note', 'absence', 'test'):
+                return 4
+            return 5
+
+        data = sorted(data, key=_get_item_priority)
+
         results = []
         processed_count = 0
+        local_uuid_to_id = {}
 
         for index, item in enumerate(data):
             if not isinstance(item, dict):
@@ -720,26 +1011,60 @@ def api_sync():
                     })
                     continue
 
+                if existing_log.entity_type == 'eleve':
+                    local_uuid = item.get('local_student_uuid')
+                    if local_uuid:
+                        local_uuid_to_id[str(local_uuid)] = existing_log.entity_id
+
                 current_app.logger.info(f"Opération {client_op_id} déjà traitée pour user {current_user.id} (statut: {existing_log.status})")
                 results.append({
                     'client_op_id': client_op_id,
                     'status': 'already_processed',
                     'message': 'Opération déjà synchronisée précédemment',
-                    'entity_id': existing_log.entity_id
+                    'entity_id': existing_log.entity_id,
+                    'local_student_uuid': item.get('local_student_uuid')
                 })
                 processed_count += 1
                 continue
+
+            # Réconciliation des identifiants temporaires locaux
+            if str(item.get('eleve_id')) in local_uuid_to_id:
+                item['eleve_id'] = local_uuid_to_id[str(item.get('eleve_id'))]
+            if item.get('local_student_uuid') and str(item.get('local_student_uuid')) in local_uuid_to_id and not item.get('eleve_id'):
+                item['eleve_id'] = local_uuid_to_id[str(item.get('local_student_uuid'))]
+
+            if isinstance(item.get('data'), dict):
+                d = item['data']
+                if str(d.get('eleve_id')) in local_uuid_to_id:
+                    d['eleve_id'] = local_uuid_to_id[str(d.get('eleve_id'))]
+                if d.get('local_student_uuid') and str(d.get('local_student_uuid')) in local_uuid_to_id and not d.get('eleve_id'):
+                    d['eleve_id'] = local_uuid_to_id[str(d.get('local_student_uuid'))]
 
             item_type = item.get('type')
 
             try:
                 with db.session.begin_nested():
-                    if item_type == 'note':
+                    if item_type in ('eleve', 'eleve_creation'):
+                        if item.get('action') == 'update' or (item.get('eleve_id') and not item.get('local_student_uuid') and not item.get('is_creation')):
+                            res = _process_eleve_modification_item(item, client_op_id, local_uuid_to_id)
+                        else:
+                            res = _process_eleve_creation_item(item, client_op_id, local_uuid_to_id)
+                    elif item_type == 'eleve_modification':
+                        res = _process_eleve_modification_item(item, client_op_id, local_uuid_to_id)
+                    elif item_type in ('inscription', 'inscription_annuelle'):
+                        res = _process_inscription_item(item, client_op_id, local_uuid_to_id)
+                    elif item_type == 'note':
                         res = _process_note_item(item, client_op_id)
                     elif item_type == 'absence':
                         res = _process_absence_item(item, client_op_id)
                     elif item_type == 'paiement':
                         res = _process_paiement_item(item, client_op_id)
+                    elif item_type in ('annee', 'annee_scolaire', 'classe', 'structure', 'utilisateur', 'user', 'permission', 'backup', 'restore', 'parametres'):
+                        res = {
+                            'client_op_id': client_op_id,
+                            'status': 'forbidden',
+                            'message': 'Connexion Internet requise pour cette opération.'
+                        }
                     elif item_type == 'test':
                         res = {'client_op_id': client_op_id, 'status': 'synced', 'message': 'Test synchronisé'}
                     else:
@@ -1024,6 +1349,72 @@ def api_admin_offline_data():
         return jsonify({
             'success': False,
             'message': "Une erreur interne est survenue lors de la récupération des données administrateur."
+        }), 500
+
+
+@main.route('/api/parent/offline-data', methods=['GET'])
+@login_required
+@role_required('parent')
+def api_parent_offline_data():
+    """
+    Fournit les données indispensables au travail / consultation hors-ligne du parent:
+    - Ses propres enfants uniquement
+    - Leurs classes, cours, notes et absences
+    """
+    try:
+        ecole_id = current_user.ecole_id
+        enfants = Eleve.query.filter_by(parent_id=current_user.id, ecole_id=ecole_id).all()
+
+        enfants_data = []
+        for e in enfants:
+            enfants_data.append({
+                'id': e.id,
+                'nom': e.nom,
+                'prenom': e.prenom,
+                'classe_nom': e.classe.nom if e.classe else None,
+                'classe_id': e.classe_id,
+                'notes': [
+                    {
+                        'id': n.id,
+                        'cours_nom': n.cours.nom if n.cours else None,
+                        'valeur': n.valeur,
+                        'coefficient': n.coefficient,
+                        'type_evaluation': n.type_evaluation,
+                        'periode': n.periode,
+                        'date_evaluation': n.date_evaluation.isoformat() if n.date_evaluation else None
+                    }
+                    for n in e.notes
+                ],
+                'absences': [
+                    {
+                        'id': a.id,
+                        'date_absence': a.date_absence.isoformat() if a.date_absence else None,
+                        'motif': a.motif,
+                        'justifiee': a.justifiee
+                    }
+                    for a in e.absences
+                ]
+            })
+
+        response = jsonify({
+            'success': True,
+            'timestamp': datetime.utcnow().isoformat(),
+            'user': {
+                'id': current_user.id,
+                'nom': current_user.nom,
+                'role': 'parent',
+                'ecole_id': ecole_id
+            },
+            'enfants': enfants_data
+        })
+        response.headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate'
+        return response, 200
+
+    except Exception as e:
+        current_app.logger.exception("Erreur récupération données hors-ligne parent")
+        return jsonify({
+            'success': False,
+            'message': "Une erreur interne est survenue lors de la récupération des données parent."
         }), 500
 
 

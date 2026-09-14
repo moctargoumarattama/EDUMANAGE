@@ -127,6 +127,7 @@
         </div>
 
         <!-- Bilan Scolarité / Frais -->
+        {% if current_user.role != 'professeur' %}
         <div class="col-6 col-lg-3">
             <div class="card border-0 shadow-sm h-100 p-3 bg-white">
                 <div class="d-flex align-items-center justify-content-between mb-2">
@@ -145,6 +146,7 @@
                 <div class="text-muted small mt-1 text-end">{{ pourcentage_paye }}% réglé</div>
             </div>
         </div>
+        {% endif %}
 
         <!-- Bilan Assiduité / Absences -->
         <div class="col-6 col-lg-3">
@@ -245,11 +247,13 @@
                 <i class="fas fa-calendar-times me-2 text-warning"></i>2. Assiduité & Absences ({{ total_absences }})
             </button>
         </li>
+        {% if current_user.role != 'professeur' %}
         <li class="nav-item" role="presentation">
             <button class="nav-link fw-semibold" id="paiements-tab" data-bs-toggle="tab" data-bs-target="#paiementsTabPane" type="button" role="tab">
                 <i class="fas fa-money-bill-wave me-2 text-success"></i>3. Frais & Paiements ({{ paiements|length }})
             </button>
         </li>
+        {% endif %}
         <li class="nav-item" role="presentation">
             <button class="nav-link fw-semibold" id="infos-tab" data-bs-toggle="tab" data-bs-target="#infosTabPane" type="button" role="tab">
                 <i class="fas fa-user-circle me-2 text-info"></i>4. Fiche Signalétique Complète
@@ -458,6 +462,7 @@
         <!-- ================================================================= -->
         <!-- ONGLET 3 : FRAIS & HISTORIQUE DES PAIEMENTS DE SCOLARITÉ -->
         <!-- ================================================================= -->
+        {% if current_user.role != 'professeur' %}
         <div class="tab-pane fade" id="paiementsTabPane" role="tabpanel">
             <!-- Échéancier Visuel des Mois Scolaires -->
             <div class="card border-0 shadow-sm mb-4">
@@ -574,6 +579,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <!-- ================================================================= -->
         <!-- ONGLET 4 : FICHE SIGNALÉTIQUE ADMINISTRATIVE COMPLÈTE -->

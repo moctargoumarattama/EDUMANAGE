@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Prévisualisation Import Élèves - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 px-md-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <h1 class="h4 mb-0 fw-bold text-gray-800">
+                <i class="fas fa-file-excel text-success me-2"></i>Prévisualisation de l'Import Élèves
+            </h1>
+            <p class="text-muted mb-0 small">
+                Année cible : <strong>{{ annee_consultee.nom }}</strong> ({{ annee_consultee.statut | capitalize }})
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('main.eleves') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Annuler
+            </a>
+        </div>
+    </div>
+
+    {% if not data.is_importable %}
+    <div class="alert alert-danger shadow-sm mb-4" role="alert">
+        <h5 class="alert-heading fw-bold"><i class="fas fa-exclamation-triangle me-2"></i>Importation Impossible</h5>
+        <p class="mb-0">{{ data.erreur_globale or "Aucune donnée valide n'a pu être extraite." }}</p>
+    </div>
+    {% else %}
+
+    <!-- Statut des Lignes Analysees -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 bg-white text-center">
+                <div class="h3 fw-bold text-dark mb-0">{{ data.total_lignes }}</div>
+                <div class="text-muted small">Lignes détectées</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 bg-white text-center">
+                <div class="h3 fw-bold text-success mb-0">{{ data.valides }}</div>
+                <div class="text-muted small">Lignes valides à importer</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 bg-white text-center">
+                <div class="h3 fw-bold text-warning mb-0">{{ data.avertissements }}</div>
+                <div class="text-muted small">Avertissements / Doublons</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 bg-white text-center">
+                <div class="h3 fw-bold text-danger mb-0">{{ data.erreurs }}</div>
+                <div class="text-muted small">Erreurs (Lignes ignorées)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau de Previsualisation -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+            <h5 class="h6 fw-bold mb-0 text-primary">
+                <i class="fas fa-list-check me-2"></i>Détail des lignes analysées
+            </h5>
+            <span class="badge bg-light text-dark border">{{ data.total_lignes }} ligne(s)</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small sticky-top">
+                        <tr>
+                            <th style="width: 50px;">Ligne</th>
+                            <th>Nom & Prénom</th>
+                            <th>Genre</th>
+                            <th>Date naiss.</th>
+                            <th>Classe</th>
+                            <th>Action prévue</th>
+                            <th>Statut / Remarques</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in data.lignes %}
+                        <tr class="{% if item.status == 'error' %}table-danger{% elif item.status == 'warning' %}table-warning{% endif %}">
+                            <td class="fw-bold text-muted small text-center">{{ item.row_idx }}</td>
+                            <td class="fw-semibold">
+                                {{ item.nom }} {{ item.prenom }}
+                                {% if item.telephone_parent %}
+                                <br><small class="text-muted"><i class="fas fa-phone me-1"></i>{{ item.telephone_parent }}</small>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-light text-dark border">{{ item.genre }}</span></td>
+                            <td class="small">{{ item.date_naissance or '-' }}</td>
+                            <td>
+                                {% if item.classe_nom %}
+                                <span class="badge {% if item.classe_id %}bg-primary-subtle text-primary border border-primary-subtle{% else %}bg-danger-subtle text-danger border border-danger-subtle{% endif %}">
+                                    {{ item.classe_nom }}
+                                </span>
+                                {% else %}
+                                <span class="text-danger small">Non spécifiée</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.action == 'Nouveau' %}
+                                <span class="badge bg-success"><i class="fas fa-user-plus me-1"></i>Création Élève</span>
+                                {% elif item.action == 'Réinscription' %}
+                                <span class="badge bg-info"><i class="fas fa-redo me-1"></i>Réinscription</span>
+                                {% elif 'Doublon' in item.action %}
+                                <span class="badge bg-warning text-dark"><i class="fas fa-copy me-1"></i>Création (Doublon)</span>
+                                {% else %}
+                                <span class="badge bg-secondary"><i class="fas fa-ban me-1"></i>Ignoré</span>
+                                {% endif %}
+                            </td>
+                            <td class="small">
+                                {% if item.errors %}
+                                {% for err in item.errors %}
+                                <div class="text-danger fw-semibold"><i class="fas fa-circle-exclamation me-1"></i>{{ err }}</div>
+                                {% endfor %}
+                                {% endif %}
+                                {% if item.warnings %}
+                                {% for warn in item.warnings %}
+                                <div class="text-dark"><i class="fas fa-triangle-exclamation me-1 text-warning"></i>{{ warn }}</div>
+                                {% endfor %}
+                                {% endif %}
+                                {% if not item.errors and not item.warnings %}
+                                <span class="text-success fw-semibold"><i class="fas fa-check-circle me-1"></i>Ligne valide</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-light border-top py-3 d-flex justify-content-between align-items-center">
+            <span class="text-muted small">
+                Seules les <strong>{{ data.valides }}</strong> ligne(s) valides seront importées dans l'année consultée.
+            </span>
+            <form action="{{ url_for('main.import_excel_confirm') }}" method="POST">
+                <input type="hidden" name="token" value="{{ import_token }}">
+                <button type="submit" class="btn btn-success fw-semibold" {% if data.valides == 0 %}disabled{% endif %}>
+                    <i class="fas fa-check me-1"></i>Confirmer l'importation ({{ data.valides }} élève(s))
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

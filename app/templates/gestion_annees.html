@@ -111,12 +111,13 @@
                             <th>Début</th>
                             <th>Fin</th>
                             <th>Statut</th>
+                            <th>Semestres</th>
                             <th class="text-end">Action</th>
                         </tr>
                     </thead>
                     <tbody id="anneesTableBody">
                         <tr id="emptyAnneesRow" class="d-none">
-                            <td colspan="6" class="text-center py-4 text-muted">
+                            <td colspan="7" class="text-center py-4 text-muted">
                                 <i class="fas fa-search fa-2x mb-2 d-block"></i>
                                 Aucune année ne correspond aux critères de recherche.
                             </td>
@@ -137,6 +138,27 @@
                                     <span class="badge bg-warning text-dark">PLANIFIÉE (Préparation)</span>
                                 {% else %}
                                     <span class="badge bg-secondary">ARCHIVÉE (Lecture seule)</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% set periodes = semestres_par_annee.get(annee.id, []) if semestres_par_annee else [] %}
+                                {% set ns = namespace(s1=None, s2=None) %}
+                                {% for periode in periodes %}
+                                    {% if periode.nom == 'Semestre 1' %}{% set ns.s1 = periode %}{% endif %}
+                                    {% if periode.nom == 'Semestre 2' %}{% set ns.s2 = periode %}{% endif %}
+                                {% endfor %}
+                                <div class="small text-muted mb-2">
+                                    <div>S1 : {{ ns.s1.date_debut.strftime('%d/%m/%Y') if ns.s1 and ns.s1.date_debut else '-' }} -> {{ ns.s1.date_fin.strftime('%d/%m/%Y') if ns.s1 and ns.s1.date_fin else '-' }}</div>
+                                    <div>S2 : {{ ns.s2.date_debut.strftime('%d/%m/%Y') if ns.s2 and ns.s2.date_debut else '-' }} -> {{ ns.s2.date_fin.strftime('%d/%m/%Y') if ns.s2 and ns.s2.date_fin else '-' }}</div>
+                                </div>
+                                {% if annee.statut != 'archivee' %}
+                                <form method="POST" action="{{ url_for('main.configurer_semestres', annee_id=annee.id) }}" class="d-flex gap-2 align-items-center">
+                                    {{ csrf_form.hidden_tag() }}
+                                    <input type="date" name="fin_semestre_1" class="form-control form-control-sm" value="{{ ns.s1.date_fin.strftime('%Y-%m-%d') if ns.s1 and ns.s1.date_fin else '' }}" required>
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">Enregistrer</button>
+                                </form>
+                                {% else %}
+                                    <span class="badge bg-light text-muted border">Lecture seule</span>
                                 {% endif %}
                             </td>
                             <td class="text-end">
@@ -195,6 +217,23 @@
                 <span><strong>Début</strong>{{ annee.date_debut.strftime('%d/%m/%Y') }}</span>
                 <span><strong>Fin</strong>{{ annee.date_fin.strftime('%d/%m/%Y') }}</span>
             </div>
+            {% set periodes = semestres_par_annee.get(annee.id, []) if semestres_par_annee else [] %}
+            {% set ns = namespace(s1=None, s2=None) %}
+            {% for periode in periodes %}
+                {% if periode.nom == 'Semestre 1' %}{% set ns.s1 = periode %}{% endif %}
+                {% if periode.nom == 'Semestre 2' %}{% set ns.s2 = periode %}{% endif %}
+            {% endfor %}
+            <div class="small text-muted">
+                <div>S1 : {{ ns.s1.date_debut.strftime('%d/%m/%Y') if ns.s1 and ns.s1.date_debut else '-' }} -> {{ ns.s1.date_fin.strftime('%d/%m/%Y') if ns.s1 and ns.s1.date_fin else '-' }}</div>
+                <div>S2 : {{ ns.s2.date_debut.strftime('%d/%m/%Y') if ns.s2 and ns.s2.date_debut else '-' }} -> {{ ns.s2.date_fin.strftime('%d/%m/%Y') if ns.s2 and ns.s2.date_fin else '-' }}</div>
+            </div>
+            {% if annee.statut != 'archivee' %}
+            <form method="POST" action="{{ url_for('main.configurer_semestres', annee_id=annee.id) }}" class="d-grid gap-2">
+                {{ csrf_form.hidden_tag() }}
+                <input type="date" name="fin_semestre_1" class="form-control form-control-sm" value="{{ ns.s1.date_fin.strftime('%Y-%m-%d') if ns.s1 and ns.s1.date_fin else '' }}" required>
+                <button type="submit" class="btn btn-sm btn-outline-primary">Enregistrer semestres</button>
+            </form>
+            {% endif %}
             <div class="academic-card-actions">
                 {% if annee_consultee and annee.id == annee_consultee.id %}
                     <span class="badge bg-primary text-white"><i class="fas fa-eye me-1"></i>Consultée</span>

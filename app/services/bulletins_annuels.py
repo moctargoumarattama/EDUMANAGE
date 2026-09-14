@@ -40,6 +40,7 @@ from app.services.notes_annuelles import (
     calculer_moyenne_generale_semestre,
     calculer_moyenne_annuelle,
 )
+from app.services.semestres import compter_absences_semestre, compter_retards_semestre
 
 
 MESSAGE_ANNEE_PLANIFIEE = "Les bulletins pourront être générés lorsque cette année sera active."
@@ -246,6 +247,8 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None):
         inscription.id,
         periode=target_periode
     )
+    nb_absences = compter_absences_semestre(ecole_id, annee.id, inscription.id, target_periode)
+    nb_retards = compter_retards_semestre(ecole_id, annee.id, inscription.id, target_periode)
 
     data = {
         'inscription': inscription,
@@ -267,6 +270,9 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None):
         'rang_total': rang_total,
         'effectif_classe': stats_classe.get('effectif_classe', 0) if stats_classe else 0,
         'stats_classe': stats_classe,
+        'nb_absences': nb_absences,
+        'nb_retards': nb_retards,
+        'calendrier_semestres_configure': nb_absences is not None,
         'appreciation': appreciation,
         'appreciation_code': appreciation_code,
         'badge_class': badge_class,
@@ -490,4 +496,3 @@ def supprimer_bulletin(ecole_id, annee, user, bulletin_id):
     db.session.delete(bulletin)
     db.session.commit()
     return True, None
-

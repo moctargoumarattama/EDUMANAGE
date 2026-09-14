@@ -368,6 +368,7 @@ def generer_bulletin_pdf(
     total_coefficients=None,
     total_points=None,
     stats_classe=None,
+    nb_absences=None,
 ):
     import io
     import os
@@ -587,6 +588,11 @@ def generer_bulletin_pdf(
 
     elements.append(table)
     elements.append(Spacer(1, 20))
+
+    if nb_absences is not None:
+        abs_para = Paragraph(f"<b>Absences du semestre :</b> {nb_absences}", styles['Normal'])
+        elements.append(abs_para)
+        elements.append(Spacer(1, 10))
 
     if moyenne_generale is not None:
         obs_text = appreciation_generale if appreciation_generale else (

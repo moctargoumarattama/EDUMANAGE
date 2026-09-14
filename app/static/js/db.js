@@ -153,6 +153,16 @@ class OfflineDB {
     }
 
     /**
+     * Générateur centralisé de la clé de cache des données parent
+     * Format: parent_offline_data:<ecole_id>:<user_id>
+     */
+    getParentCacheKey(ecoleId = null, userId = null) {
+        const eId = ecoleId !== null ? ecoleId : this.getCurrentEcoleId();
+        const uId = userId !== null ? userId : this.getCurrentUserId();
+        return `parent_offline_data:${eId || 'no_ecole'}:${uId || 'no_user'}`;
+    }
+
+    /**
      * Ajouter une donnée en attente de synchronisation
      * Génère client_op_id de manière unique et immuable dès la création
      */
@@ -635,6 +645,41 @@ class OfflineDB {
                 reject(request.error);
             };
         });
+    }
+
+    /**
+     * Purge les données en cache pour le parent (téléphone partagé)
+     * NE TOUCHE JAMAIS au store pendingSync !
+     */
+    async clearParentOfflineData(ecoleId = null, userId = null) {
+        if (!this.db) await this.init();
+        const key = this.getParentCacheKey(ecoleId, userId);
+
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(['cachedData'], 'readwrite');
+            const store = tx.objectStore('cachedData');
+            const request = store.delete(key);
+
+            request.onsuccess = () => {
+                console.log(`🧹 Cache parent purgé (${key}), pendingSync préservé.`);
+                resolve(true);
+            };
+
+            request.onerror = () => {
+                console.warn(`⚠️ Échec suppression cache ${key}:`, request.error);
+                reject(request.error);
+            };
+        });
+    }
+
+    /**
+     * Purge globale de toutes les données privées de l'utilisateur actif lors du logout
+     */
+    async clearAllUserPrivateData(ecoleId = null, userId = null) {
+        await this.clearTeacherOfflineData(ecoleId, userId);
+        await this.clearAdminOfflineData(ecoleId, userId);
+        await this.clearParentOfflineData(ecoleId, userId);
+        return true;
     }
 }
 

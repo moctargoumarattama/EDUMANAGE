@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Prévisualisation de la Restauration - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card border-danger shadow-sm">
+        <div class="card-header bg-danger text-white py-3">
+            <h4 class="mb-0 fw-bold">
+                <i class="fas fa-exclamation-triangle me-2"></i>Prévisualisation & Confirmation de Restauration
+            </h4>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-warning border border-warning" role="alert">
+                <h5 class="alert-heading fw-bold"><i class="fas fa-shield-alt me-2"></i>Attention : Action Critique</h5>
+                <p class="mb-0">
+                    La restauration remplacera toutes les données de l'établissement par le contenu de cette sauvegarde. Une sauvegarde de sécurité automatique sera créée avant toute modification.
+                </p>
+            </div>
+
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="card bg-light border-0 p-3">
+                        <h6 class="fw-bold text-primary">Métadonnées de la sauvegarde</h6>
+                        <ul class="list-unstyled mb-0 small">
+                            <li><strong>Fichier :</strong> {{ filename }}</li>
+                            <li><strong>École cible :</strong> {{ metadata.ecole_nom }} (ID #{{ metadata.ecole_id }})</li>
+                            <li><strong>Date du backup :</strong> {{ metadata.created_at or metadata.timestamp }}</li>
+                            <li><strong>Checksum d'intégrité :</strong> <span class="font-monospace text-muted">{{ metadata.checksum[:16] if metadata.checksum else 'N/A' }}...</span></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-light border-0 p-3">
+                        <h6 class="fw-bold text-primary">Contenu à restaurer</h6>
+                        <div class="row g-2 text-center">
+                            <div class="col-4">
+                                <div class="p-2 bg-white rounded border">
+                                    <div class="fw-bold text-dark fs-5">{{ counts.eleves or 0 }}</div>
+                                    <div class="text-muted small">Élèves</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 bg-white rounded border">
+                                    <div class="fw-bold text-dark fs-5">{{ counts.classes or 0 }}</div>
+                                    <div class="text-muted small">Classes</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 bg-white rounded border">
+                                    <div class="fw-bold text-dark fs-5">{{ counts.inscriptions or 0 }}</div>
+                                    <div class="text-muted small">Inscriptions</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 bg-white rounded border">
+                                    <div class="fw-bold text-dark fs-5">{{ counts.cours or 0 }}</div>
+                                    <div class="text-muted small">Cours</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 bg-white rounded border">
+                                    <div class="fw-bold text-dark fs-5">{{ counts.notes or 0 }}</div>
+                                    <div class="text-muted small">Notes</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 bg-white rounded border">
+                                    <div class="fw-bold text-dark fs-5">{{ counts.paiements or 0 }}</div>
+                                    <div class="text-muted small">Paiements</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 bg-white rounded border">
+                                    <div class="fw-bold text-dark fs-5">{{ counts.bulletins or 0 }}</div>
+                                    <div class="text-muted small">Bulletins</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 bg-white rounded border">
+                                    <div class="fw-bold text-dark fs-5">{{ counts.emplois_temps or 0 }}</div>
+                                    <div class="text-muted small">Emplois du temps</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="p-2 bg-white rounded border">
+                                    <div class="fw-bold text-dark fs-5">{{ counts.periodes_bulletin or 0 }}</div>
+                                    <div class="text-muted small">Périodes</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulaire de confirmation forte (POST) -->
+            <form action="{{ url_for('admin.restore_school', filename=filename) }}" method="POST" class="border-top pt-4">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                <input type="hidden" name="ecole_id" value="{{ metadata.ecole_id }}">
+                
+                <div class="mb-3">
+                    <label for="confirmation_code" class="form-label fw-bold text-danger">
+                        Pour confirmer la restauration, tapez "RESTAURER" ou le nom exact de l'école (<strong>{{ metadata.ecole_nom }}</strong>) :
+                    </label>
+                    <input type="text" class="form-control form-control-lg border-danger" id="confirmation_code" name="confirmation_code" placeholder="RESTAURER" required autocomplete="off">
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('admin.maintenance_page') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Annuler
+                    </a>
+                    <button type="submit" class="btn btn-danger btn-lg fw-bold">
+                        <i class="fas fa-check-circle me-1"></i>Confirmer la restauration
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

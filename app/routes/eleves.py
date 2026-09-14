@@ -43,7 +43,16 @@ from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 import pandas as pd
+import uuid
 from app.services import check_ecole_access
+from app.services.import_eleves_service import (
+    generer_modele_excel_eleves,
+    previsualiser_import_excel,
+    executer_import_excel,
+    stocker_preview_import,
+    recuperer_preview_import,
+    supprimer_preview_import,
+)
 
 
 @main.route('/eleves')
@@ -363,6 +372,13 @@ def ajouter_eleve():
                     flash("❌ Cet email est déjà utilisé par un autre parent.", "danger")
                     return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
                                            annee_active=annee_active, classes=classes)
+
+                # Vérifier si code_parent saisi est unique
+                if code_parent_saisi:
+                    if Eleve.query.filter_by(code_parent=code_parent_saisi).first():
+                        flash("Ce code parent est déjà utilisé par un autre élève.", "danger")
+                        return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
+                                               annee_active=annee_active, classes=classes)
 
                 code_parent = code_parent_saisi or Eleve.generer_code_parent()
                 parent_utilisateur = Utilisateur(
@@ -748,7 +764,106 @@ def export_eleves_excel():
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 
-@main.route('/voir_eleve/<int:eleve_id>')  # Au lieu de '/eleve/<int:eleve_id>'
+@main.route('/eleves/modele_excel')
+@login_required
+@role_required('admin')
+def modele_excel_eleves():
+    """Téléchargement du modèle Excel d'importation d'élèves."""
+    buffer = generer_modele_excel_eleves()
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name="modele_import_eleves.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+@main.route('/eleves/import', methods=['GET', 'POST'])
+@login_required
+@role_required('admin')
+def import_excel_form():
+    """Prévisualisation et validation de l'import Excel."""
+    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
+    if not ecole_id:
+        abort(403)
+    
+    annee_consultee = get_annee_consultee(ecole_id)
+    if not annee_consultee:
+        flash("Veuillez configurer une année scolaire active ou planifiée.", "warning")
+        return redirect(url_for('main.eleves'))
+        
+    if request.method == 'POST':
+        file = request.files.get('file')
+        if not file or not file.filename:
+            flash("Veuillez sélectionner un fichier Excel (.xlsx).", "danger")
+            return redirect(url_for('main.eleves'))
+            
+        ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+        if ext != 'xlsx':
+            flash("Format non pris en charge. Veuillez utiliser un fichier modèle Excel (.xlsx).", "danger")
+            return redirect(url_for('main.eleves'))
+            
+        res = previsualiser_import_excel(file.stream, ecole_id, annee_consultee)
+        if not res['is_importable'] and res.get('erreur_globale'):
+            flash(res['erreur_globale'], "danger")
+            return redirect(url_for('main.eleves'))
+            
+        token = str(uuid.uuid4())
+        # Stockage temporaire serveur hors session cookie
+        stocker_preview_import(token, {
+            'user_id': current_user.id,
+            'ecole_id': ecole_id,
+            'annee_id': annee_consultee.id,
+            'lignes': res['lignes']
+        })
+        session['import_token'] = token
+        return render_template('import_eleves_preview.html', data=res, annee_consultee=annee_consultee, import_token=token)
+
+    return redirect(url_for('main.eleves'))
+
+@main.route('/eleves/import_confirm', methods=['POST'])
+@login_required
+@role_required('admin')
+def import_excel_confirm():
+    """Exécution effective de l'importation après prévisualisation."""
+    token = request.form.get('token') or session.get('import_token')
+    if not token:
+        flash("La session d'importation a expiré. Veuillez téléverser à nouveau le fichier.", "warning")
+        return redirect(url_for('main.eleves'))
+        
+    cached = recuperer_preview_import(token)
+    if not cached:
+        flash("La session d'importation a expiré. Veuillez téléverser à nouveau le fichier.", "warning")
+        session.pop('import_token', None)
+        return redirect(url_for('main.eleves'))
+        
+    ecole_id = cached['ecole_id']
+    if current_user.role != 'super_admin' and current_user.ecole_id != ecole_id:
+        supprimer_preview_import(token)
+        session.pop('import_token', None)
+        abort(403)
+        
+    annee_consultee = get_annee_consultee(ecole_id)
+    if not annee_consultee or annee_consultee.statut == "archivee":
+        flash("Importation impossible dans une année scolaire archivée.", "danger")
+        supprimer_preview_import(token)
+        session.pop('import_token', None)
+        return redirect(url_for('main.eleves'))
+        
+    lignes = cached['lignes']
+    succes, msg, crees, reinscrits, ignores = executer_import_excel(lignes, ecole_id, annee_consultee)
+    
+    supprimer_preview_import(token)
+    session.pop('import_token', None)
+    
+    if succes:
+        flash(f"✅ {msg} ({crees} créé(s), {reinscrits} réinscrit(s), {ignores} ignoré(s)).", "success")
+    else:
+        flash(f"❌ {msg}", "danger")
+        
+    return redirect(url_for('main.eleves'))
+
+@main.route('/voir_eleve/<int:eleve_id>')
+@main.route('/eleve/<int:eleve_id>')
 @login_required
 @role_required('admin', 'professeur', 'parent')
 @parent_access_required
@@ -832,16 +947,25 @@ def voir_eleve(eleve_id):
     absences_justifiees = total_absences - absences_injustifiees
 
     # 3. Paiements & Scolarité de l'année
-    paiements = sorted(eleve.paiements, key=lambda p: p.date_paiement or datetime.min, reverse=True)
-    total_frais = float(eleve.frais_annuels or 150000.0)
-    total_paye = float(sum(p.montant or 0 for p in paiements))
-    reste_a_payer = max(0.0, total_frais - total_paye)
-    pourcentage_paye = round((total_paye / total_frais) * 100, 1) if total_frais > 0 else 0.0
+    if current_user.role == 'professeur':
+        paiements = []
+        total_frais = 0.0
+        total_paye = 0.0
+        reste_a_payer = 0.0
+        pourcentage_paye = 0.0
+        echeancier = []
+        mois_impayes_list = []
+    else:
+        paiements = sorted(eleve.paiements, key=lambda p: p.date_paiement or datetime.min, reverse=True)
+        total_frais = float(eleve.frais_annuels or 150000.0)
+        total_paye = float(sum(p.montant or 0 for p in paiements))
+        reste_a_payer = max(0.0, total_frais - total_paye)
+        pourcentage_paye = round((total_paye / total_frais) * 100, 1) if total_frais > 0 else 0.0
 
-    mois_scolaires = ['Octobre', 'Novembre', 'Décembre', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin']
-    mois_payes_set = set(p.mois for p in paiements if p.mois)
-    echeancier = [{'mois': m, 'paye': (m in mois_payes_set)} for m in mois_scolaires]
-    mois_impayes_list = [m for m in mois_scolaires if m not in mois_payes_set]
+        mois_scolaires = ['Octobre', 'Novembre', 'Décembre', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin']
+        mois_payes_set = set(p.mois for p in paiements if p.mois)
+        echeancier = [{'mois': m, 'paye': (m in mois_payes_set)} for m in mois_scolaires]
+        mois_impayes_list = [m for m in mois_scolaires if m not in mois_payes_set]
 
     # 4. ?ge calculé
     age = None

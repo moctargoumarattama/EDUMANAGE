@@ -529,6 +529,23 @@ def valider_mutation_note(
             None,
         )
 
+    # Verrouillage Bulletin Publié (Requirement 18, 21)
+    from app.models import PeriodeBulletin
+    periode_publiee = PeriodeBulletin.query.filter_by(
+        ecole_id=ecole_id,
+        annee_id=annee.id,
+        nom=target_periode,
+        publie=True
+    ).first()
+    if periode_publiee:
+        return (
+            False,
+            f"Le bulletin pour {target_periode} est actuellement publié. Les notes sont verrouillées. Une réouverture administrative est nécessaire.",
+            None,
+            None,
+            None,
+        )
+
     try:
         valeur_num = float(valeur)
         if valeur_num < 0 or valeur_num > 20:
@@ -774,7 +791,7 @@ def modifier_note(
         if hasattr(current_app, "log_correction"):
             try:
                 current_app.log_correction(
-                    action="modification",
+                    action="NOTE_MODIFIEE_APRES_REOUVERTURE",
                     description=f"Note {note.id} modifiée pour l'élève {eleve.id}",
                     ecole_id=ecole_id,
                     cible_type="note",
@@ -819,6 +836,17 @@ def supprimer_note(ecole_id, annee, user, note_id):
     note = Note.query.filter_by(id=note_id, ecole_id=ecole_id).first()
     if not note:
         return False, "Note introuvable."
+
+    from app.models import PeriodeBulletin
+    if note.periode:
+        periode_publiee = PeriodeBulletin.query.filter_by(
+            ecole_id=ecole_id,
+            annee_id=annee.id,
+            nom=note.periode,
+            publie=True
+        ).first()
+        if periode_publiee:
+            return False, f"Le bulletin pour {note.periode} est actuellement publié. Les notes sont verrouillées."
 
     role = getattr(user, "role", None)
     if role == "professeur":

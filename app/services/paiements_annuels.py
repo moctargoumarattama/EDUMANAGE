@@ -178,6 +178,10 @@ def valider_mutation_paiement(ecole_id, annee, user, eleve_id, montant):
     if not inscription:
         return None, "L'élève n'est pas inscrit dans cette année scolaire (aucune inscription active)."
 
+    finances = get_finances_inscription(inscription)
+    if montant_float > finances["reste_a_payer"] + 0.01:
+        return None, f"Le montant ({montant_float:,.0f} FCFA) dépasse le reste à payer ({finances['reste_a_payer']:,.0f} FCFA)."
+
     return inscription, None
 
 
@@ -200,6 +204,24 @@ def enregistrer_paiement(ecole_id, annee, user, eleve_id, montant, mois, annee_c
         date_paiement=datetime.utcnow(),
     )
     db.session.add(paiement)
+    db.session.flush()
+
+    try:
+        from flask import current_app
+        if hasattr(current_app, "log_correction"):
+            current_app.log_correction(
+                action="PAIEMENT_CREE",
+                description=f"Nouveau paiement enregistré de {montant} FCFA",
+                ecole_id=ecole_id,
+                cible_type="paiement",
+                cible_id=paiement.id,
+                ancienne_valeur=None,
+                nouvelle_valeur=f"Montant: {montant}, Élève: {eleve_id}, Inscription: {inscription.id}",
+                niveau="info"
+            )
+    except Exception:
+        pass
+
     return paiement, None
 
 
@@ -231,8 +253,26 @@ def supprimer_paiement_securise(arg1, arg2, arg3, user):
     if paiement.inscription and paiement.inscription.annee_scolaire_id != annee.id:
         return False, "Ce paiement n'appartient pas à l'année scolaire en cours."
 
+    ancienne_valeur = f"Paiement ID {paiement.id} (Élève: {paiement.eleve_id}, Montant: {paiement.montant}, Inscription: {paiement.inscription_id})"
     db.session.delete(paiement)
     db.session.commit()
+
+    try:
+        from flask import current_app
+        if hasattr(current_app, "log_correction"):
+            current_app.log_correction(
+                action="PAIEMENT_SUPPRIME",
+                description=f"Suppression du paiement ID {paiement_id}",
+                ecole_id=ecole_id,
+                cible_type="paiement",
+                cible_id=paiement_id,
+                ancienne_valeur=ancienne_valeur,
+                nouvelle_valeur=None,
+                niveau="info"
+            )
+    except Exception:
+        pass
+
     return True, None
 
 

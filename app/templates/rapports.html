@@ -51,6 +51,12 @@
             <button type="button" class="btn btn-sm btn-outline-secondary js-print-page" title="Imprimer ce rapport">
                 <i class="fas fa-print me-1"></i>Imprimer
             </button>
+            <a href="{{ url_for('main.export_rapports_pdf') }}" class="btn btn-sm btn-outline-danger">
+                <i class="fas fa-file-pdf me-1"></i>PDF
+            </a>
+            <a href="{{ url_for('main.export_rapports_excel') }}" class="btn btn-sm btn-outline-success">
+                <i class="fas fa-file-excel me-1"></i>Excel
+            </a>
             <a href="{{ url_for('main.liste_classes') }}" class="btn btn-sm btn-outline-primary">
                 <i class="fas fa-chalkboard me-1"></i>Gestion des Classes
             </a>
