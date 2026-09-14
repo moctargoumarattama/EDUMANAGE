@@ -3,6 +3,7 @@ Routes pour la configuration et la gestion de Gmail par École via OAuth 2.0.
 """
 
 import secrets
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from flask import (
     current_app,
     flash,
@@ -26,6 +27,45 @@ from app.services.google_mail import (
     revoke_and_disconnect_school_gmail,
     send_school_email,
 )
+
+GOOGLE_OAUTH_STATE_SALT = "google-mail-oauth-state"
+GOOGLE_OAUTH_STATE_MAX_AGE = 600
+
+
+class GoogleOAuthStateError(ValueError):
+    pass
+
+
+def _state_serializer():
+    return URLSafeTimedSerializer(current_app.config["SECRET_KEY"], salt=GOOGLE_OAUTH_STATE_SALT)
+
+
+def generate_google_oauth_state(user_id, ecole_id):
+    payload = {
+        "user_id": int(user_id),
+        "ecole_id": int(ecole_id),
+        "nonce": secrets.token_urlsafe(24),
+    }
+    return _state_serializer().dumps(payload)
+
+
+def validate_google_oauth_state(state, user_id, ecole_id, max_age=GOOGLE_OAUTH_STATE_MAX_AGE):
+    if not state:
+        raise GoogleOAuthStateError("state_absent")
+    try:
+        payload = _state_serializer().loads(state, max_age=max_age)
+    except SignatureExpired as exc:
+        raise GoogleOAuthStateError("state_expire") from exc
+    except BadSignature as exc:
+        raise GoogleOAuthStateError("state_invalide") from exc
+
+    if int(payload.get("user_id", 0)) != int(user_id):
+        raise GoogleOAuthStateError("user_invalide")
+    if int(payload.get("ecole_id", 0)) != int(ecole_id):
+        raise GoogleOAuthStateError("ecole_invalide")
+    if not payload.get("nonce"):
+        raise GoogleOAuthStateError("nonce_absent")
+    return payload
 
 
 def check_school_admin_access():
@@ -84,7 +124,7 @@ def google_mail_connect():
     if not ok:
         return redirect_resp
 
-    state = secrets.token_urlsafe(32)
+    state = generate_google_oauth_state(current_user.id, current_user.ecole_id)
     session["google_oauth_state"] = state
     session["google_oauth_ecole_id"] = current_user.ecole_id
 
@@ -123,10 +163,12 @@ def google_mail_callback():
         return redirect(url_for("main.config_email"))
 
     received_state = request.args.get("state")
-    expected_state = session.pop("google_oauth_state", None)
-    expected_ecole_id = session.pop("google_oauth_ecole_id", None)
+    session.pop("google_oauth_state", None)
+    session.pop("google_oauth_ecole_id", None)
 
-    if not received_state or received_state != expected_state or expected_ecole_id != current_user.ecole_id:
+    try:
+        validate_google_oauth_state(received_state, current_user.id, current_user.ecole_id)
+    except GoogleOAuthStateError:
         current_app.logger.warning("Échec validation anti-CSRF callback Google OAuth.")
         flash("La vérification de sécurité (CSRF) a échoué. Veuillez recommencer la connexion.", "danger")
         return redirect(url_for("main.config_email"))
