@@ -1,8 +1,11 @@
 import os
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
+from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.pool import StaticPool
 
 from app import create_app, db
@@ -67,10 +70,43 @@ class BackupMultiBackendSQLiteTestCase(unittest.TestCase):
         self.assertLessEqual(len(backups), 2)
 
 
-@unittest.skipUnless(os.environ.get("TEST_POSTGRES_DATABASE_URL"), "TEST_POSTGRES_DATABASE_URL non defini")
 class BackupMultiBackendPostgreSQLTestCase(unittest.TestCase):
-    def test_postgresql_backup_requires_real_vps_validation(self):
-        self.skipTest("A lancer sur VPS avec pg_dump et TEST_POSTGRES_DATABASE_URL.")
+    def _fake_postgresql_engine(self, url):
+        return SimpleNamespace(
+            url=make_url(url),
+            dialect=SimpleNamespace(name="postgresql"),
+        )
+
+    def test_postgresql_backend_keeps_real_password_only_in_env(self):
+        # This test protects against str(db.engine.url), which redacts passwords.
+        special_password = "p@ss:w/or?d#2026"
+        engine = self._fake_postgresql_engine(
+            "postgresql+psycopg://klasora_app:p%40ss%3Aw%2For%3Fd%232026@127.0.0.1:5432/klasora"
+        )
+        with patch.object(backup_scripts, "db", SimpleNamespace(engine=engine)):
+            backend = backup_scripts.PostgreSQLBackupBackend()
+            self.assertEqual(backend._pg_env()["PGPASSWORD"], special_password)
+            args = backend._connection_args()
+            self.assertNotIn(special_password, args)
+            self.assertNotIn(engine.url.render_as_string(hide_password=False), args)
+
+    def test_postgresql_backend_detection(self):
+        engine = self._fake_postgresql_engine("postgresql+psycopg://user:pass@127.0.0.1:5432/klasora")
+        with patch.object(backup_scripts, "db", SimpleNamespace(engine=engine)):
+            backend = backup_scripts.get_database_backup_backend()
+            self.assertIsInstance(backend, backup_scripts.PostgreSQLBackupBackend)
+
+
+@unittest.skipUnless(os.environ.get("TEST_POSTGRES_DATABASE_URL"), "TEST_POSTGRES_DATABASE_URL non defini")
+class BackupMultiBackendPostgreSQLRealTestCase(unittest.TestCase):
+    def test_postgresql_backend_detection_with_real_url(self):
+        engine = create_engine(os.environ["TEST_POSTGRES_DATABASE_URL"])
+        try:
+            with patch.object(backup_scripts, "db", SimpleNamespace(engine=engine)):
+                backend = backup_scripts.get_database_backup_backend()
+                self.assertIsInstance(backend, backup_scripts.PostgreSQLBackupBackend)
+        finally:
+            engine.dispose()
 
 
 if __name__ == "__main__":

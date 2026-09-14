@@ -11,7 +11,6 @@ from app.models import Log, ParametreSysteme
 import json
 from app.models import Note, Absence, Ecole, Classe, Eleve, Professeur, Utilisateur, AnneeScolaire
 from sqlalchemy import text
-from sqlalchemy.engine.url import make_url
 
 
 # --- Configuration ---
@@ -141,7 +140,7 @@ class PostgreSQLBackupBackend(DatabaseBackupBackend):
     name = "postgresql"
 
     def __init__(self):
-        self.url = make_url(str(db.engine.url))
+        self.url = db.engine.url
 
     def _pg_env(self):
         env = os.environ.copy()
