@@ -564,6 +564,7 @@
                                     <i class="fas fa-briefcase me-1"></i>Suivi
                                 </a>
                                 <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{{ url_for('main.point_du_jour') }}"><i class="fas fa-clipboard-check me-2"></i>Point du jour</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.paiements') }}"><i class="fas fa-money-bill-wave me-2"></i>Paiements</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.bulletins') }}"><i class="fas fa-file-pdf me-2"></i>Bulletins</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.alertes') }}"><i class="fas fa-bell me-2"></i>Alertes</a></li>
@@ -835,6 +836,7 @@
             </div>
         </div>
     </nav>
+    <div class="mobile-menu-overlay" data-mobile-menu-close aria-hidden="true"></div>
     {% endif %}
 
     <main class="main-content">
@@ -973,7 +975,8 @@
             // Gestion des menus collapibles dans le dropdown
             const collapseToggles = document.querySelectorAll('[data-bs-toggle="collapse"]');
             collapseToggles.forEach(toggle => {
-                const target = document.querySelector(toggle.getAttribute('href'));
+                const selector = toggle.getAttribute('href') || toggle.getAttribute('data-bs-target');
+                const target = selector ? document.querySelector(selector) : null;
                 const chevron = toggle.querySelector('.fa-chevron-down');
                 
                 if (target && chevron) {
@@ -986,7 +989,7 @@
                 }
             });
 
-            // Fermer le dropdown quand on clique sur un lien
+            // Fermer le dropdown utilisateur quand on clique sur un lien
             const dropdownLinks = document.querySelectorAll('.dropdown-menu a:not([data-bs-toggle])');
             dropdownLinks.forEach(link => {
                 link.addEventListener('click', () => {
@@ -996,6 +999,55 @@
                     }
                 });
             });
+
+            // Menu mobile : fermeture fluide par lien, clic extérieur, overlay, Escape ou action de page
+            const navbarCollapse = document.getElementById('navbarNav');
+            const navbarToggler = document.querySelector('.navbar-toggler');
+            const mobileOverlay = document.querySelector('.mobile-menu-overlay');
+
+            function isMobileMenuOpen() {
+                return navbarCollapse && navbarCollapse.classList.contains('show');
+            }
+
+            function closeMobileMenu() {
+                if (!isMobileMenuOpen() || typeof bootstrap === 'undefined') return;
+                const instance = bootstrap.Collapse.getOrCreateInstance(navbarCollapse, { toggle: false });
+                instance.hide();
+            }
+
+            if (navbarCollapse && mobileOverlay) {
+                navbarCollapse.addEventListener('show.bs.collapse', () => {
+                    document.body.classList.add('mobile-menu-open');
+                });
+                navbarCollapse.addEventListener('hidden.bs.collapse', () => {
+                    document.body.classList.remove('mobile-menu-open');
+                });
+
+                mobileOverlay.addEventListener('click', closeMobileMenu);
+
+                navbarCollapse.querySelectorAll('a[href]:not([data-bs-toggle])').forEach(link => {
+                    link.addEventListener('click', () => {
+                        if (window.innerWidth < 992) {
+                            closeMobileMenu();
+                        }
+                    });
+                });
+
+                document.addEventListener('click', event => {
+                    if (!isMobileMenuOpen() || window.innerWidth >= 992) return;
+                    const target = event.target;
+                    if (navbarCollapse.contains(target) || (navbarToggler && navbarToggler.contains(target))) return;
+                    closeMobileMenu();
+                });
+
+                document.addEventListener('keydown', event => {
+                    if (event.key === 'Escape') {
+                        closeMobileMenu();
+                    }
+                });
+
+                window.addEventListener('beforeunload', closeMobileMenu);
+            }
         });
     </script>
     

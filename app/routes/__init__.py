@@ -38,3 +38,4 @@ from . import errors
 from . import email_settings
 from . import support
 from . import health
+from . import point_jour

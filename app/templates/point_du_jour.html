@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Point du jour - KLASORA{% endblock %}
+
+{% block content %}
+<div class="daily-wrap py-3 py-lg-4">
+    <header class="mb-3">
+        <h1 class="h3 fw-bold mb-1">Point du jour</h1>
+        <div class="text-muted">
+            {{ today.strftime('%d/%m/%Y') }}
+            {% if annee_active %} · Année active : <strong>{{ annee_active.nom }}</strong>{% endif %}
+        </div>
+    </header>
+
+    <a class="daily-card daily-card-single mb-3" href="{{ url_for('main.absences') }}">
+        <span class="daily-icon bg-primary"><i class="fas fa-user-times"></i></span>
+        <span>
+            <strong>{{ counters.absences }}</strong>
+            <small>Absences aujourd'hui</small>
+        </span>
+    </a>
+
+    <div class="row g-3">
+        <div class="col-12 col-lg-5">
+            <section class="daily-panel">
+                <h2><i class="fas fa-triangle-exclamation text-warning me-2"></i>À traiter</h2>
+                <div class="daily-list">
+                    {% for item in todo_items %}
+                    <a href="{{ item.url }}" class="daily-list-item">
+                        <span><i class="fas fa-exclamation-triangle text-warning me-2"></i>{{ item.count }} {{ item.label }}</span>
+                    </a>
+                    {% else %}
+                    <div class="daily-empty text-success">
+                        <i class="fas fa-check-circle me-2"></i>Rien à traiter aujourd'hui
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+        <div class="col-12 col-lg-7">
+            <section class="daily-panel">
+                <h2><i class="fas fa-clock-rotate-left text-primary me-2"></i>Activité du jour</h2>
+                <div class="daily-list">
+                    {% for event in events %}
+                    <a href="{{ event.url }}" class="daily-list-item daily-event">
+                        {% if event.show_time %}
+                        <time>{{ event.time.strftime('%H:%M') if event.time else '' }}</time>
+                        {% endif %}
+                        <span>
+                            <strong>{{ event.display_title }}</strong>
+                            <small>{{ event.detail }}{% if event.meta %} — {{ event.meta }}{% endif %}</small>
+                        </span>
+                    </a>
+                    {% else %}
+                    <div class="daily-empty">Aucune activité enregistrée aujourd'hui.</div>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+<style>
+.daily-card,
+.daily-panel {
+    background: #fff;
+    border: 1px solid #e8edf5;
+    border-radius: 12px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.07);
+}
+.daily-card {
+    display: inline-flex;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.85rem 1rem;
+    color: #172033;
+    text-decoration: none;
+}
+.daily-card-single {
+    min-width: 260px;
+}
+.daily-card strong {
+    display: block;
+    font-size: 1.65rem;
+    line-height: 1;
+}
+.daily-card small {
+    color: #64748b;
+    font-weight: 700;
+}
+.daily-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex: 0 0 auto;
+}
+.daily-panel {
+    padding: 1rem;
+    min-height: 100%;
+}
+.daily-panel h2 {
+    font-size: 1.05rem;
+    font-weight: 800;
+    margin-bottom: 0.8rem;
+}
+.daily-list {
+    display: grid;
+    gap: 0.55rem;
+}
+.daily-list-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #172033;
+    text-decoration: none;
+}
+.daily-event time {
+    min-width: 44px;
+    font-weight: 800;
+    color: #2563eb;
+}
+.daily-event small {
+    display: block;
+    color: #64748b;
+}
+.daily-empty {
+    padding: 1rem;
+    color: #64748b;
+    background: #f8fafc;
+    border-radius: 10px;
+}
+@media (max-width: 768px) {
+    .daily-card {
+        display: flex;
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
