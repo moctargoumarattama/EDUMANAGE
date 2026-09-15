@@ -152,13 +152,14 @@ def qrcodes_etudiants():
 
     inscriptions = ins_query.order_by(Inscription.classe_id, Eleve.nom, Eleve.prenom).all()
 
-    qrcodes_par_classe = defaultdict(list)
+    qrcodes_par_classe = {}
 
     for ins in inscriptions:
         e = ins.eleve
         if not e:
             continue
-        classe_nom = ins.classe.nom if ins.classe else 'Sans classe'
+        classe_obj = ins.classe
+        classe_nom = classe_obj.nom if classe_obj else 'Sans classe'
 
         cache_path = get_qr_cache_path(e)
 
@@ -172,7 +173,16 @@ def qrcodes_etudiants():
         with open(cache_path, "rb") as f:
             img_data = base64.b64encode(f.read()).decode()
 
-        qrcodes_par_classe[classe_nom].append({
+        if classe_nom not in qrcodes_par_classe:
+            qrcodes_par_classe[classe_nom] = {
+                'classe': classe_obj,
+                'classe_nom': classe_nom,
+                'classe_id': classe_obj.id if classe_obj else 0,
+                'classe_niveau': getattr(classe_obj, 'niveau', None) if classe_obj else None,
+                'qrcodes': []
+            }
+
+        qrcodes_par_classe[classe_nom]['qrcodes'].append({
             'eleve': e,
             'qr': img_data,
             'inscription': ins,
