@@ -1157,12 +1157,7 @@ def api_professeur_offline_data():
             if c.classe:
                 classes_map[c.classe.id] = c.classe
 
-        # 3. Classes assignées directement
-        assigned = professeur.classes_assignees.all() if hasattr(professeur, 'classes_assignees') else []
-        for cl in assigned:
-            if cl.ecole_id == ecole_id:
-                classes_map[cl.id] = cl
-
+        # 3. Classes accessibles : uniquement via les cours actifs du professeur
         classes_data = [
             {
                 'id': cl.id,

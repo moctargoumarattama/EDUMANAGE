@@ -466,7 +466,10 @@ def log_action(module, action, level="INFO", user_id=None, details=None):
 # --- Statistiques systÃ¨me ---
 def get_system_stats():
     stats = {}
-    backups = [f for f in os.listdir(BACKUP_DIR) if f.startswith('backup_') and f.endswith('.db')]
+    backups = [
+        f for f in os.listdir(BACKUP_DIR)
+        if f.endswith(('.db', '.dump', '.json'))
+    ]
     stats['last_backup'] = max(backups, key=lambda f: os.path.getctime(os.path.join(BACKUP_DIR, f))) if backups else None
 
     try:
@@ -477,22 +480,15 @@ def get_system_stats():
         stats['disk_usage'] = "N/A"
 
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT sqlite_version()")
-        version = cursor.fetchone()
-        stats['db_version'] = version[0] if version else "N/A"
-        
-        cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table'")
-        stats['table_count'] = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        tables = cursor.fetchall()
-        stats['tables'] = [table[0] for table in tables]
-        
-        conn.close()
-    except sqlite3.Error as e:
-        current_app.logger.warning(f"Impossible de lire les statistiques SQLite: {e}")
+        health = get_database_health()
+        backend = health.get('backend') or db.engine.dialect.name
+        stats['db_backend'] = 'PostgreSQL' if backend == 'postgresql' else 'SQLite' if backend == 'sqlite' else backend
+        stats['db_version'] = health.get('db_version', 'N/A')
+        stats['table_count'] = health.get('table_count', 'N/A')
+        stats['tables'] = health.get('tables', [])
+    except Exception as e:
+        current_app.logger.warning(f"Impossible de lire les statistiques base de donnees: {e}")
+        stats['db_backend'] = db.engine.dialect.name
         stats['db_version'] = "N/A"
         stats['table_count'] = "N/A"
         stats['tables'] = []

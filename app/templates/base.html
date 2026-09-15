@@ -873,7 +873,7 @@
     <footer class="app-footer">
         <div class="container">
             <div class="footer-compact">
-                <div class="footer-brand">
+                <div class="footer-brand d-none d-md-block">
                     <div class="footer-brand-title">
                         <img src="{{ url_for('static', filename='img/logo-klasora.png') }}" alt="KLASORA" class="footer-logo-img">
                         <h5>KLASORA</h5>
@@ -1029,7 +1029,7 @@
     <script src="{{ url_for('static', filename='js/offline-forms.js', v=config.VERSION) }}"></script>
     <script src="{{ url_for('static', filename='js/live-filters.js', v=config.VERSION) }}"></script>
     {% if current_user.is_authenticated and current_user.role == 'admin' %}
-    <script src="{{ url_for('static', filename='js/onboarding.js', v=config.VERSION) }}"></script>
+    <script src="{{ url_for('static', filename='js/onboarding.js', v=config.VERSION ~ '-tour2') }}"></script>
     {% endif %}
     
     <!-- Scripts spécifiques aux pages -->

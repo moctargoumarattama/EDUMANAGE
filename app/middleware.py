@@ -587,7 +587,11 @@ def after_request_handler(response):
         path = request.path if request else ''
 
         # 1. Service Worker : STRICTEMENT JAMAIS EN CACHE (pour mises à jour instantanées)
-        if path in ('/service-worker.js', '/static/service-worker.js'):
+        if path == '/login':
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        elif path in ('/service-worker.js', '/static/service-worker.js'):
             response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '0'

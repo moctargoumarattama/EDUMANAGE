@@ -29,6 +29,7 @@ from .common import (
 )
 from app.services import check_ecole_access
 from app.services.annees_scolaires import get_annee_consultee
+from app.services.classes_annuelles import classe_est_ouverte
 
 
 @main.route('/professeurs')
@@ -369,123 +370,142 @@ def supprimer_professeur_route(id):
 @login_required
 @role_required('admin')
 def assigner_classes_professeur(id):
-    from app.services.annees_scolaires import get_annee_consultee
-
     professeur = Professeur.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
 
-    # Vérification multi-école
     if professeur.ecole_id != current_user.ecole_id:
-        flash("Accès refusé : ce professeur appartient à une autre école", "danger")
+        flash("Acces refuse : ce professeur appartient a une autre ecole", "danger")
         return redirect(url_for("main.professeurs"))
 
     annee_consultee = get_annee_consultee(current_user.ecole_id)
     if not annee_consultee:
-        flash("Aucune année scolaire configurée pour votre établissement.", "warning")
+        flash("Aucune annee scolaire configuree pour votre etablissement.", "warning")
         return redirect(url_for("main.professeurs"))
 
-    est_archivee = (annee_consultee.statut == 'archivee')
+    est_archivee = annee_consultee.statut == "archivee"
+    professeurs_ecole = (
+        Professeur.query
+        .filter_by(ecole_id=current_user.ecole_id)
+        .order_by(Professeur.nom.asc(), Professeur.prenom.asc())
+        .all()
+    )
+    cours_annee = (
+        Cours.query
+        .join(Classe, Classe.id == Cours.classe_id)
+        .options(joinedload(Cours.classe), joinedload(Cours.professeur))
+        .filter(
+            Cours.ecole_id == current_user.ecole_id,
+            Classe.ecole_id == current_user.ecole_id,
+            Classe.annee_scolaire_id == annee_consultee.id,
+        )
+        .order_by(Classe.nom.asc(), Cours.nom.asc())
+        .all()
+    )
 
-    # Classes de l'école dans l'année consultée UNIQUEMENT
-    classes_ecole = Classe.query.filter_by(
-        ecole_id=current_user.ecole_id,
-        annee_scolaire_id=annee_consultee.id
-    ).order_by(Classe.nom.asc()).all()
-    classes_ecole_ids = {c.id for c in classes_ecole}
-
-    # Classes actuellement assignées dans l'année consultée
-    classes_assignees_annee = [
-        c for c in professeur.classes_assignees.all()
-        if c.annee_scolaire_id == annee_consultee.id
-    ]
-
-    form = AssignerClassesForm()
-    form.classes.choices = [(c.id, f"{c.nom} - {c.niveau}") for c in classes_ecole]
-
-    if form.validate_on_submit():
+    if request.method == "POST":
         if est_archivee:
-            flash("L'année scolaire consultée est archivée : modification des affectations impossible (lecture seule).", "warning")
+            flash("L'annee scolaire consultee est archivee : modification des affectations impossible.", "warning")
             return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
 
         try:
-            # Sécurité : vérifier que toutes les classes soumises appartiennent à l'année consultée
-            for classe_id in form.classes.data:
-                if classe_id not in classes_ecole_ids:
-                    flash("Accès refusé : une ou plusieurs classes sélectionnées n'appartiennent pas à l'année consultée.", "danger")
+            action = (request.form.get("action") or "assign").strip()
+            cours_id = request.form.get("cours_id", type=int)
+            cours = next((item for item in cours_annee if item.id == cours_id), None)
+            if not cours:
+                flash("Cours invalide pour cette annee scolaire.", "danger")
+                return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
+            if not cours.classe or not classe_est_ouverte(cours.classe):
+                flash("Impossible de modifier une affectation dans une classe fermee.", "warning")
+                return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
+
+            ancienne_valeur = cours.professeur_id
+            if action == "remove":
+                if cours.professeur_id != professeur.id:
+                    flash("Ce cours n'est pas affecte a ce professeur.", "warning")
                     return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
-
-            # Supprimer UNIQUEMENT les anciennes assignations de l'année consultée
-            if classes_ecole_ids:
-                db.session.execute(
-                    professeur_classes.delete().where(
-                        db.and_(
-                            professeur_classes.c.professeur_id == professeur.id,
-                            professeur_classes.c.classe_id.in_(classes_ecole_ids)
-                        )
-                    )
-                )
-
-            # Ajouter nouvelles classes de l'année consultée
-            for classe_id in form.classes.data:
-                db.session.execute(
-                    professeur_classes.insert().values(
-                        professeur_id=professeur.id,
-                        classe_id=classe_id,
-                        ecole_id=current_user.ecole_id,
-                        date_assignation=datetime.utcnow()
-                    )
-                )
+                cours.professeur_id = None
+                message = "Affectation retiree. Les notes, absences et bulletins existants sont conserves."
+            elif action == "change":
+                nouveau_prof_id = request.form.get("nouveau_professeur_id", type=int)
+                nouveau_prof = Professeur.query.filter_by(id=nouveau_prof_id, ecole_id=current_user.ecole_id).first()
+                if not nouveau_prof:
+                    flash("Nouveau professeur invalide pour cet etablissement.", "danger")
+                    return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
+                cours.professeur_id = nouveau_prof.id
+                message = f"Professeur change pour {cours.nom} - {cours.classe.nom}."
+            else:
+                cours.professeur_id = professeur.id
+                message = f"{professeur.prenom} {professeur.nom} affecte a {cours.nom} - {cours.classe.nom}."
 
             db.session.commit()
-            db.session.refresh(professeur)
-
-            # Journalisation
             current_app.log_correction(
                 action="modification",
-                description=f"Assignation classes ({annee_consultee.nom}) pour {professeur.prenom} {professeur.nom}",
+                description=f"Affectation enseignement {cours.nom} - {cours.classe.nom} ({annee_consultee.nom})",
                 ecole_id=professeur.ecole_id,
-                cible_type="professeur",
-                cible_id=professeur.id,
-                ancienne_valeur=None,
-                nouvelle_valeur=f"Classes: {[c.nom for c in classes_assignees_annee]}",
-                niveau="info"
+                cible_type="cours",
+                cible_id=cours.id,
+                ancienne_valeur=str(ancienne_valeur),
+                nouvelle_valeur=str(cours.professeur_id),
+                niveau="info",
             )
-
-            flash(f"Classes assignées avec succès pour l'année {annee_consultee.nom} à {professeur.prenom} {professeur.nom}.", "success")
-            return redirect(url_for('main.professeur_details', id=professeur.id))
-
+            flash(message, "success")
+            return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
         except Exception as e:
             db.session.rollback()
-            flash("Erreur lors de l'assignation des classes", "danger")
-            current_app.logger.error(f"Erreur assignation classes: {e}")
+            flash("Erreur lors de l'affectation de l'enseignement", "danger")
+            current_app.logger.error(f"Erreur affectation enseignement: {e}")
 
-    if request.method == 'GET':
-        form.classes.data = [c.id for c in classes_assignees_annee]
+    cours_professeur = [cours for cours in cours_annee if cours.professeur_id == professeur.id]
+    cours_disponibles = [cours for cours in cours_annee if cours.professeur_id in (None, professeur.id)]
 
     return render_template(
         'assigner_classes.html',
-        form=form,
         professeur=professeur,
-        classes_ecole=classes_ecole,
-        classes_assignees_annee=classes_assignees_annee,
+        professeurs=professeurs_ecole,
+        cours_annee=cours_annee,
+        cours_professeur=cours_professeur,
+        cours_disponibles=cours_disponibles,
         annee_consultee=annee_consultee,
         est_archivee=est_archivee,
     )
 
 @main.route("/mes_classes")
 @login_required
-@role_required('professeur')  # seulement pour consultation
+@role_required('professeur')
 def mes_classes():
-    # Récupération de l'objet Professeur lié ? l'utilisateur
     prof = current_user.professeur_rel
     if not prof:
         flash("Aucune information de professeur trouvée.", "warning")
         return redirect(url_for('main.index'))
 
-    # Récupérer uniquement les classes assignées au professeur
-    try:
-        classes = prof.classes_assignees.all()  # si lazy='dynamic'
-    except AttributeError:
-        classes = prof.classes_assignees  # si lazy='select'
+    annee_consultee = get_annee_consultee(current_user.ecole_id)
+    if not annee_consultee:
+        return render_template("mes_classes.html", classes=[])
+
+    classe_ids = [
+        row.classe_id
+        for row in Cours.query.with_entities(Cours.classe_id)
+        .join(Classe, Classe.id == Cours.classe_id)
+        .filter(
+            Cours.professeur_id == prof.id,
+            Cours.ecole_id == current_user.ecole_id,
+            Cours.classe_id.isnot(None),
+            Classe.ecole_id == current_user.ecole_id,
+            Classe.annee_scolaire_id == annee_consultee.id,
+        )
+        .distinct()
+        .all()
+    ]
+    classes = (
+        Classe.query.filter(
+            Classe.ecole_id == current_user.ecole_id,
+            Classe.annee_scolaire_id == annee_consultee.id,
+            Classe.id.in_(classe_ids),
+        )
+        .order_by(Classe.nom.asc())
+        .all()
+        if classe_ids
+        else []
+    )
 
     return render_template("mes_classes.html", classes=classes)
 
@@ -529,12 +549,7 @@ def mes_enseignements():
         if cours.classe_id:
             cours_par_classe.setdefault(cours.classe_id, []).append(cours)
 
-    classes_assignees_ids = [
-        c.id for c in professeur.classes_assignees
-        .filter(Classe.ecole_id == ecole_id, Classe.annee_scolaire_id == annee_consultee.id)
-        .all()
-    ]
-    classe_ids = sorted(set(classes_assignees_ids) | set(cours_par_classe.keys()))
+    classe_ids = sorted(set(cours_par_classe.keys()))
 
     classes = (
         Classe.query

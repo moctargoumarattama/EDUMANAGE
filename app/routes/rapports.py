@@ -476,16 +476,12 @@ def recherche():
         type_recherche = type_recherche if type_recherche in {'all', 'eleves', 'cours'} else 'all'
         professeur = Professeur.query.filter_by(utilisateur_id=current_user.id).first()
         if professeur:
-            assigned_ids = {
-                classe.id for classe in professeur.classes_assignees.filter_by(ecole_id=ecole_id).all()
-            }
-            cours_class_ids = {
+            classe_ids_prof = {
                 row.classe_id
                 for row in Cours.query.with_entities(Cours.classe_id)
                 .filter(Cours.ecole_id == ecole_id, Cours.professeur_id == professeur.id, Cours.classe_id.isnot(None))
                 .all()
             }
-            classe_ids_prof = assigned_ids | cours_class_ids
         else:
             classe_ids_prof = set()
         classes_query = classes_query.filter(Classe.id.in_(classe_ids_prof)) if classe_ids_prof else classes_query.filter(db.false())

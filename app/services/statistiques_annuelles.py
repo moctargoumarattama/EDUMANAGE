@@ -73,15 +73,17 @@ def get_dashboard_admin_annuel(ecole_id, annee):
         if classe_ids
         else 0
     )
-    stats["paiements_attente"] = (
-        Paiement.query.filter(
-            Paiement.ecole_id == ecole_id,
-            Paiement.inscription_id.in_(inscription_ids),
-            Paiement.statut == "en attente",
-        ).count()
-        if inscription_ids
-        else 0
-    )
+    nb_impayes = 0
+    if inscription_ids:
+        inscriptions = Inscription.query.filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee_id
+        ).options(joinedload(Inscription.paiements), joinedload(Inscription.eleve)).all()
+        for ins in inscriptions:
+            fin = get_finances_inscription(ins)
+            if fin.get("reste_a_payer", 0) > 0:
+                nb_impayes += 1
+    stats["paiements_attente"] = nb_impayes
     stats["eleves_nouveaux"] = Inscription.query.filter(
         Inscription.ecole_id == ecole_id,
         Inscription.annee_scolaire_id == annee_id,

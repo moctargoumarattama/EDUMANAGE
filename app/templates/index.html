@@ -99,7 +99,7 @@
             <div class="home-stat-card">
                 <span class="home-stat-icon" style="background: linear-gradient(135deg, #6366f1, #4338ca); color: white;"><i class="fas fa-database"></i></span>
                 <div class="home-stat-info">
-                    <strong class="home-stat-value home-stat-value-compact">SQLite {{ stats.db_version }}</strong>
+                    <strong class="home-stat-value home-stat-value-compact">{{ stats.db_backend }} {{ stats.db_version }}</strong>
                     <small>{{ stats.table_count }} tables actives</small>
                 </div>
             </div>
@@ -197,7 +197,7 @@
                 <span class="home-stat-icon payments"><i class="fas fa-money-bill-wave"></i></span>
                 <div class="home-stat-info">
                     <strong>{{ stats.paiements_attente }}</strong>
-                    <small>Paiements en attente</small>
+                    <small>Élèves en impayé</small>
                 </div>
                 <i class="fas fa-arrow-right home-card-arrow"></i>
             </a>

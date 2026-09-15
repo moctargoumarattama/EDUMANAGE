@@ -700,42 +700,52 @@ def export_notes_eleve_pdf(id):
 @login_required
 @role_required('admin')
 def export_eleves_excel():
-    # Année scolaire active
-    annee_active = AnneeScolaire.query.filter_by(
-        statut="active",
-        ecole_id=current_user.ecole_id if current_user.role == "admin" else None
-    ).first()
+    ecole_id = current_user.ecole_id if current_user.role == "admin" else session.get("ecole_id")
+    annee_consultee = get_annee_consultee(ecole_id)
 
-    # Filtrage selon rôle et année
-    if current_user.role == 'super-admin':
-        eleves = get_ecole_filter_query(Eleve).options(joinedload(Eleve.classe)).all()
+    if annee_consultee:
+        inscriptions = (
+            Inscription.query
+            .options(joinedload(Inscription.eleve), joinedload(Inscription.classe))
+            .join(Eleve, Eleve.id == Inscription.eleve_id)
+            .join(Classe, Classe.id == Inscription.classe_id, isouter=True)
+            .filter(
+                Inscription.ecole_id == ecole_id,
+                Inscription.annee_scolaire_id == annee_consultee.id,
+                Eleve.ecole_id == ecole_id,
+            )
+            .order_by(Classe.nom.asc(), Eleve.nom.asc(), Eleve.prenom.asc())
+            .all()
+        )
+        eleves_rows = [(ins.eleve, ins.classe) for ins in inscriptions if ins.eleve]
     else:
-        eleves = Eleve.query.options(joinedload(Eleve.classe)).filter_by(ecole_id=current_user.ecole_id).all()
-
-    # Filtrer seulement élèves inscrits dans l'année active
-    if annee_active:
-        eleves = [e for e in eleves if e.date_inscription.year <= int(annee_active.nom.split('-')[0])]
+        eleves = (
+            Eleve.query
+            .options(joinedload(Eleve.classe))
+            .filter_by(ecole_id=ecole_id)
+            .order_by(Eleve.nom.asc(), Eleve.prenom.asc())
+            .all()
+        )
+        eleves_rows = [(e, e.classe) for e in eleves]
 
     data = {
-        'ID': [e.id for e in eleves],
-        'Nom': [e.nom for e in eleves],
-        'Prénom': [e.prenom for e in eleves],
-        'Date de naissance': [e.date_naissance.strftime('%d/%m/%Y') if e.date_naissance else '' for e in eleves],
-        'Classe': [e.classe.nom if e.classe else "Non assignée" for e in eleves],
-        'Téléphone': [e.telephone for e in eleves],
-        'Email': [e.email for e in eleves],
-        'Téléphone parent': [e.contact_parent for e in eleves],
-        'Email parent': [e.email_parent for e in eleves],
-        'Date inscription': [e.date_inscription.strftime('%d/%m/%Y') for e in eleves]
+        'ID': [e.id for e, _classe in eleves_rows],
+        'Nom': [e.nom for e, _classe in eleves_rows],
+        'Prenom': [e.prenom for e, _classe in eleves_rows],
+        'Date de naissance': [e.date_naissance.strftime('%d/%m/%Y') if e.date_naissance else '' for e, _classe in eleves_rows],
+        'Classe': [classe.nom if classe else "Non assignee" for _e, classe in eleves_rows],
+        'Telephone parent': [e.contact_parent for e, _classe in eleves_rows],
+        'Email parent': [e.email_parent for e, _classe in eleves_rows],
+        'Date inscription': [e.date_inscription.strftime('%d/%m/%Y') if e.date_inscription else '' for e, _classe in eleves_rows],
+        'Annee scolaire': [annee_consultee.nom if annee_consultee else '' for _e, _classe in eleves_rows],
     }
 
     df = pd.DataFrame(data)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name='Élèves', index=False)
+        df.to_excel(writer, sheet_name='Eleves', index=False)
 
-        # Mise en forme Excel : largeur automatique et en-têtes en gras
-        ws = writer.sheets['Élèves']
+        ws = writer.sheets['Eleves']
         for col in ws.columns:
             max_length = 0
             column = col[0].column_letter
@@ -743,20 +753,14 @@ def export_eleves_excel():
                 try:
                     if cell.value:
                         max_length = max(max_length, len(str(cell.value)))
-                except (TypeError, ValueError) as e:
-                    current_app.logger.debug(f"Impossible d'ajuster la largeur Excel eleves: {e}")
-            adjusted_width = max_length + 2
-            ws.column_dimensions[column].width = adjusted_width
+                except Exception:
+                    pass
+            ws.column_dimensions[column].width = max_length + 2
+
         for cell in ws[1]:
             cell.font = cell.font.copy(bold=True)
 
-
-
     output.seek(0)
-
-    # Log de l'export
-    current_app.logger.info(f"Export Excel élèves par {current_user.id} ({current_user.role})")
-
     return send_file(
         output,
         as_attachment=True,
@@ -818,7 +822,7 @@ def import_excel_form():
         session['import_token'] = token
         return render_template('import_eleves_preview.html', data=res, annee_consultee=annee_consultee, import_token=token)
 
-    return redirect(url_for('main.eleves'))
+    return render_template('import_eleves.html', annee_consultee=annee_consultee)
 
 @main.route('/eleves/import_confirm', methods=['POST'])
 @login_required

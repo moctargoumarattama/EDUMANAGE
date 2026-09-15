@@ -88,18 +88,18 @@ def get_inscriptions_bulletins(ecole_id, annee, user):
     elif user.role == 'professeur':
         professeur = getattr(user, 'professeur_rel', None)
         if professeur:
-            # Classes assignées au professeur
-            classes_assignees_ids = [c.id for c in professeur.classes_assignees.filter_by(ecole_id=ecole_id).all()]
-            # Ou classes où le professeur dispense un cours dans cette école et cette année
             classes_cours_ids = [
-                c.id for c in Classe.query.join(Cours)
+                row.classe_id for row in Cours.query.with_entities(Cours.classe_id)
+                .join(Classe, Classe.id == Cours.classe_id)
                 .filter(
                     Cours.professeur_id == professeur.id,
                     Cours.ecole_id == ecole_id,
-                    Classe.annee_scolaire_id == annee.id
+                    Cours.classe_id.isnot(None),
+                    Classe.ecole_id == ecole_id,
+                    Classe.annee_scolaire_id == annee.id,
                 ).all()
             ]
-            allowed_class_ids = set(classes_assignees_ids + classes_cours_ids)
+            allowed_class_ids = set(classes_cours_ids)
             if allowed_class_ids:
                 q = q.filter(Inscription.classe_id.in_(allowed_class_ids))
             else:

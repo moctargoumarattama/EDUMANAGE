@@ -78,6 +78,29 @@ def create_app(config_class=None):
     # Logging
     setup_logging(app)
 
+    from flask_wtf.csrf import CSRFError
+
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(error):
+        from flask import flash, jsonify, redirect, request, url_for
+
+        app.logger.info("CSRF invalide sur %s: %s", request.path, getattr(error, "description", ""))
+        if request.path == "/login":
+            flash("Votre session de connexion a expiré. Veuillez réessayer.", "warning")
+            response = redirect(url_for("main.login"))
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+            return response
+        if request.path.startswith("/api/") or request.is_json:
+            return jsonify({
+                "success": False,
+                "error": "csrf_expired",
+                "message": "Session expirée. Rechargez la page puis réessayez."
+            }), 400
+        flash("Session expirée. Rechargez la page puis réessayez.", "warning")
+        return redirect(request.referrer or url_for("main.login"))
+
     # Import des modèles (APRES initialisation de db)
     with app.app_context():
         from .models import (

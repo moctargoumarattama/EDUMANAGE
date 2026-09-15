@@ -54,6 +54,7 @@ def index():
         stats = {
             'total_ecoles': Ecole.query.count(),
             'disk_usage': sys_stats.get('disk_usage', 'N/A'),
+            'db_backend': sys_stats.get('db_backend', 'Base'),
             'db_version': sys_stats.get('db_version', 'N/A'),
             'last_backup': sys_stats.get('last_backup'),
             'table_count': sys_stats.get('table_count', 'N/A'),

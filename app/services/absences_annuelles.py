@@ -19,10 +19,19 @@ def _professeur_classe_ids(user, annee_id=None):
     professeur = _professeur(user)
     if not professeur:
         return set()
-    query = professeur.classes_assignees
+    query = (
+        Cours.query.with_entities(Cours.classe_id)
+        .join(Classe, Classe.id == Cours.classe_id)
+        .filter(
+            Cours.professeur_id == professeur.id,
+            Cours.ecole_id == professeur.ecole_id,
+            Cours.classe_id.isnot(None),
+            Classe.ecole_id == professeur.ecole_id,
+        )
+    )
     if annee_id:
         query = query.filter(Classe.annee_scolaire_id == annee_id)
-    return {classe.id for classe in query.all()}
+    return {row.classe_id for row in query.all()}
 
 
 def _parent_enfant_ids(user):
