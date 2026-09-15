@@ -1,10 +1,11 @@
 // static/service-worker.js - KLASORA PWA Service Worker
-const CACHE_VERSION = 'klasora-static-v6';
+const CACHE_VERSION = 'klasora-static-v7';
+const PAGE_CACHE = 'klasora-pages-v7';
 const OFFLINE_URL = '/offline';
 
-// Ressources publiques et statiques génériques autorisées en cache
 const PRECACHE_ASSETS = [
-    '/offline',
+    OFFLINE_URL,
+    '/manifest.json',
     '/static/manifest.json',
     '/static/css/style.css',
     '/static/js/db.js',
@@ -21,87 +22,138 @@ const PRECACHE_ASSETS = [
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];
 
-// Installation du Service Worker
+const BYPASS_NAVIGATION_CACHE = [
+    '/login',
+    '/logout',
+    '/google/',
+    '/api/',
+    '/service-worker.js'
+];
+
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_VERSION)
-            .then(cache => {
-                return cache.addAll(PRECACHE_ASSETS.map(url => new Request(url, { cache: 'reload' })))
-                    .catch(err => {
-                        console.warn('[SW] Pré-cache partiel:', err);
-                    });
+            .then(cache => cache.addAll(PRECACHE_ASSETS.map(url => new Request(url, { cache: 'reload' }))))
+            .catch(err => {
+                console.warn('[SW] Pre-cache partiel:', err);
             })
             .then(() => self.skipWaiting())
     );
 });
 
-// Activation et nettoyage des anciens caches (ex: klasora-static-v4)
 self.addEventListener('activate', event => {
+    const allowedCaches = new Set([CACHE_VERSION, PAGE_CACHE]);
     event.waitUntil(
-        caches.keys().then(cacheNames => {
-            return Promise.all(
+        caches.keys()
+            .then(cacheNames => Promise.all(
                 cacheNames.map(cacheName => {
-                    if (cacheName !== CACHE_VERSION) {
+                    if (!allowedCaches.has(cacheName)) {
                         console.log('[SW] Suppression ancien cache:', cacheName);
                         return caches.delete(cacheName);
                     }
+                    return Promise.resolve();
                 })
-            );
-        }).then(() => self.clients.claim())
+            ))
+            .then(() => self.clients.claim())
     );
 });
 
-// Gestionnaire de navigation HTML : Network-First sans timeout artificiel
-// Tente fetch(request) normalement (les réponses lentes ou HTTP 4xx/5xx sont rendues telles quelles).
-// Si fetch échoue (rejet réseau), fait une seconde tentative après 800ms pour absorber un reload Flask temporaire.
-// Uniquement si la 2ème tentative échoue également, bascule sur OFFLINE_URL.
+function isHtmlNavigation(request) {
+    return request.mode === 'navigate' ||
+        (request.method === 'GET' && (request.headers.get('accept') || '').includes('text/html'));
+}
+
+function shouldCacheNavigation(url) {
+    if (url.origin !== self.location.origin) return false;
+    return !BYPASS_NAVIGATION_CACHE.some(prefix => url.pathname.startsWith(prefix));
+}
+
+function isHtmlResponse(response) {
+    const contentType = response.headers.get('content-type') || '';
+    return response.ok && contentType.includes('text/html');
+}
+
+async function offlineFallback() {
+    const offlineResponse = await caches.match(OFFLINE_URL);
+    if (offlineResponse) return offlineResponse;
+
+    return new Response(
+        '<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hors connexion</title><body><h1>Vous etes hors connexion</h1><p>Connexion Internet requise pour vous authentifier.</p></body></html>',
+        { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+    );
+}
+
+async function clearUserCaches() {
+    await caches.delete(PAGE_CACHE);
+}
+
+// Network-first pour HTML, avec cache runtime des pages deja visitees.
 async function handleNavigation(request) {
+    const url = new URL(request.url);
+
+    if (url.pathname === '/logout') {
+        await clearUserCaches();
+    }
+
     try {
-        return await fetch(request);
+        const networkResponse = await fetch(request);
+
+        if (shouldCacheNavigation(url) && isHtmlResponse(networkResponse)) {
+            const cache = await caches.open(PAGE_CACHE);
+            await cache.put(request, networkResponse.clone());
+        }
+
+        return networkResponse;
     } catch (firstError) {
-        // Pause de 800ms pour laisser le temps à un redémarrage temporaire de Flask
         await new Promise(resolve => setTimeout(resolve, 800));
+
         try {
-            return await fetch(request);
-        } catch (secondError) {
-            const offlineResponse = await caches.match(OFFLINE_URL);
-            if (offlineResponse) {
-                return offlineResponse;
+            const retryResponse = await fetch(request);
+
+            if (shouldCacheNavigation(url) && isHtmlResponse(retryResponse)) {
+                const cache = await caches.open(PAGE_CACHE);
+                await cache.put(request, retryResponse.clone());
             }
-            return new Response('Hors connexion. Veuillez vérifier votre accès Internet.', {
-                status: 503,
-                headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-            });
+
+            return retryResponse;
+        } catch (secondError) {
+            if (url.pathname === '/login') {
+                return offlineFallback();
+            }
+
+            const cachedResponse = await caches.match(request);
+            if (cachedResponse) return cachedResponse;
+
+            const pageCache = await caches.open(PAGE_CACHE);
+            const cachedByPath = await pageCache.match(url.pathname);
+            if (cachedByPath) return cachedByPath;
+
+            return offlineFallback();
         }
     }
 }
 
-// Interception des requêtes réseau
 self.addEventListener('fetch', event => {
     const { request } = event;
     const url = new URL(request.url);
 
-    // 1. Ignorer les méthodes non-GET (POST, PUT, DELETE, etc.)
     if (request.method !== 'GET') {
         return;
     }
 
-    // 2. Requêtes de navigation HTML (pages de l'application)
-    // Network-First strict sans timeout artificiel, avec retry anti-rebond Flask
-    if (request.mode === 'navigate') {
+    if (isHtmlNavigation(request)) {
         event.respondWith(handleNavigation(request));
         return;
     }
 
-    // 2.5 Endpoint de connectivité (jamais en cache, réseau direct)
     if (url.pathname === '/api/connectivity') {
         event.respondWith(fetch(request));
         return;
     }
 
-    // 3. Assets statiques (CSS, JS, Images, Polices, CDN) -> Cache First avec rafraîchissement
     const isStaticAsset = (
         url.pathname.startsWith('/static/') ||
+        url.pathname === '/manifest.json' ||
         url.host.includes('cdn.jsdelivr.net') ||
         url.host.includes('cdnjs.cloudflare.com') ||
         url.host.includes('fonts.googleapis.com') ||
@@ -112,18 +164,16 @@ self.addEventListener('fetch', event => {
         event.respondWith(
             caches.match(request).then(cachedResponse => {
                 if (cachedResponse) {
-                    // Revalidation silencieuse en arrière-plan
                     fetch(request).then(networkResponse => {
                         if (networkResponse && networkResponse.status === 200) {
                             caches.open(CACHE_VERSION).then(cache => {
                                 cache.put(request, networkResponse);
                             });
                         }
-                    }).catch(() => {/* Hors ligne, ignorer */});
+                    }).catch(() => {});
                     return cachedResponse;
                 }
 
-                // Si non en cache, aller chercher sur le réseau et mettre en cache
                 return fetch(request).then(networkResponse => {
                     if (networkResponse && networkResponse.status === 200) {
                         const responseClone = networkResponse.clone();
@@ -132,24 +182,24 @@ self.addEventListener('fetch', event => {
                         });
                     }
                     return networkResponse;
+                }).catch(() => {
+                    return caches.match(OFFLINE_URL);
                 });
             })
         );
         return;
     }
 
-    // 4. Par défaut : Réseau direct sans cache aveugle (API, endpoints dynamiques)
     event.respondWith(
         fetch(request).catch(() => {
-            return new Response(JSON.stringify({ error: 'Réseau indisponible' }), {
+            return new Response(JSON.stringify({ error: 'Reseau indisponible' }), {
                 status: 503,
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json; charset=utf-8' }
             });
         })
     );
 });
 
-// Écoute des messages du client
 self.addEventListener('message', event => {
     if (!event.data) return;
 
@@ -158,20 +208,11 @@ self.addEventListener('message', event => {
     }
 
     if (event.data.type === 'CLEAR_USER_CACHE') {
-        console.log('[SW] Nettoyage session utilisateur demandé');
-        // Ne conserve que les assets génériques pré-cachés
-        caches.keys().then(keys => {
-            keys.forEach(key => {
-                if (key !== CACHE_VERSION) {
-                    caches.delete(key);
-                }
-            });
-        });
+        console.log('[SW] Nettoyage session utilisateur demande');
+        event.waitUntil(clearUserCaches());
     }
 });
 
-// Synchronisation en arrière-plan sécurisée : notifier les fenêtres clientes actives
-// Ne jamais expédier directement pendingSync depuis le Service Worker sans connaître l'utilisateur actif
 self.addEventListener('sync', event => {
     if (event.tag === 'sync-data') {
         event.waitUntil(notifyClientsToSync());

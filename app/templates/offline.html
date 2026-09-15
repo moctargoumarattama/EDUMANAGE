@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#4361ee">
     <title>Hors connexion - KLASORA</title>
     <link rel="manifest" href="/manifest.json">
@@ -12,162 +12,176 @@
             --primary: #4361ee;
             --primary-dark: #3a0ca3;
             --surface: #ffffff;
-            --bg: #f8f9fc;
-            --text: #2d3748;
-            --text-muted: #718096;
-            --border: #e2e8f0;
+            --bg: #f6f7fb;
+            --text: #172033;
+            --muted: #5f6b7a;
+            --border: #e4e8f0;
         }
+
         * {
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
+
+        html,
         body {
-            background-color: var(--bg);
+            margin: 0;
+            min-height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
             color: var(--text);
+        }
+
+        body {
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 1.5rem;
+            padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
         }
+
         .offline-card {
+            width: min(100%, 430px);
             background: var(--surface);
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(67, 97, 238, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
-            padding: 2.5rem 2rem;
-            max-width: 420px;
-            width: 100%;
-            text-align: center;
             border: 1px solid var(--border);
+            border-radius: 22px;
+            box-shadow: 0 18px 45px rgba(33, 45, 80, 0.12);
+            padding: 26px 22px;
+            text-align: center;
         }
-        .logo-wrap {
-            margin-bottom: 1.5rem;
+
+        .offline-logo {
+            width: 68px;
+            height: 68px;
+            border-radius: 18px;
+            object-fit: cover;
+            margin-bottom: 18px;
+            box-shadow: 0 8px 24px rgba(67, 97, 238, 0.18);
         }
-        .logo-wrap img {
-            width: 72px;
-            height: 72px;
-            border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.15);
-        }
-        .icon-circle {
-            width: 64px;
-            height: 64px;
-            border-radius: 50%;
-            background: #fff5f5;
-            color: #e53e3e;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 1.25rem;
-            font-size: 1.8rem;
-        }
-        h1 {
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: #1a202c;
-            margin-bottom: 0.75rem;
-        }
-        p {
-            font-size: 0.95rem;
-            color: var(--text-muted);
-            line-height: 1.5;
-            margin-bottom: 1.5rem;
-        }
-        .status-badge {
+
+        .offline-kicker {
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.4rem 0.9rem;
-            background: #edf2f7;
-            color: #4a5568;
-            border-radius: 30px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            margin-bottom: 1.5rem;
+            gap: 8px;
+            padding: 7px 12px;
+            margin-bottom: 14px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #3151d3;
+            font-size: 0.82rem;
+            font-weight: 700;
         }
-        .status-dot {
+
+        .offline-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: #e53e3e;
+            background: #e11d48;
         }
-        .status-dot.online {
-            background: #38a169;
+
+        h1 {
+            margin: 0 0 10px;
+            font-size: clamp(1.35rem, 6vw, 1.75rem);
+            line-height: 1.18;
+            font-weight: 800;
         }
-        .btn-retry {
+
+        p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.98rem;
+            line-height: 1.5;
+        }
+
+        .offline-note {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 14px;
+            background: #fff7ed;
+            color: #8a4b0f;
+            font-weight: 650;
+            font-size: 0.92rem;
+        }
+
+        .offline-actions {
+            display: grid;
+            gap: 10px;
+            margin-top: 22px;
+        }
+
+        button,
+        a {
+            min-height: 46px;
+            border-radius: 14px;
+            font: inherit;
+            font-weight: 750;
+            text-decoration: none;
+        }
+
+        button {
+            border: 0;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: #fff;
+            box-shadow: 0 10px 22px rgba(67, 97, 238, 0.24);
+        }
+
+        a {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 100%;
-            padding: 0.85rem 1.5rem;
-            background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
-            color: #ffffff;
-            border: none;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
-            text-decoration: none;
+            border: 1px solid var(--border);
+            color: #24314a;
+            background: #fff;
         }
-        .btn-retry:hover {
-            opacity: 0.95;
-            transform: translateY(-1px);
-        }
-        .btn-retry:active {
-            transform: translateY(1px);
-        }
-        .brand-footer {
-            margin-top: 1.75rem;
-            font-size: 0.8rem;
-            color: #a0aec0;
+
+        .offline-footer {
+            margin-top: 20px;
+            color: #8a94a6;
+            font-size: 0.78rem;
         }
     </style>
 </head>
 <body>
-    <div class="offline-card">
-        <div class="logo-wrap">
-            <img src="/static/img/icons/icon-192x192.png" alt="KLASORA Logo" onerror="this.style.display='none'">
+    <main class="offline-card" aria-label="KLASORA hors connexion">
+        <img class="offline-logo" src="/static/img/icons/icon-192x192.png" alt="KLASORA">
+        <div class="offline-kicker">
+            <span class="offline-dot" id="statusDot"></span>
+            <span id="statusText">Mode hors ligne</span>
         </div>
-        <div class="icon-circle">
-            ⚡
-        </div>
-        <h1>Vous êtes hors connexion</h1>
-        <div class="status-badge" id="connectionBadge">
-            <span class="status-dot" id="statusDot"></span>
-            <span id="statusText">Aucune connexion Internet</span>
-        </div>
+        <h1>Vous etes hors connexion</h1>
         <p>
-            Certaines fonctionnalités de KLASORA nécessitent une connexion active. Vos données sont protégées.
+            Les pages deja ouvertes peuvent rester disponibles. Les donnees non chargees et les actions serveur
+            reprendront quand Internet reviendra.
         </p>
-        <button class="btn-retry" id="retryBtn" onclick="window.location.reload()">
-            🔄 Réessayer la connexion
-        </button>
-        <div class="brand-footer">
-            KLASORA • Plateforme Scolaire
+        <div class="offline-note">
+            Connexion Internet requise pour vous authentifier.
         </div>
-    </div>
+        <div class="offline-actions">
+            <button type="button" onclick="window.location.reload()">Reessayer</button>
+            <a href="/">Retour a l'accueil</a>
+        </div>
+        <div class="offline-footer">KLASORA PWA</div>
+    </main>
 
     <script>
         function updateStatus() {
             var dot = document.getElementById('statusDot');
             var text = document.getElementById('statusText');
             if (navigator.onLine) {
-                if (dot) dot.className = 'status-dot online';
-                if (text) text.textContent = 'Connexion rétablie ! Rechargement...';
-                setTimeout(function() {
+                if (dot) dot.style.background = '#16a34a';
+                if (text) text.textContent = 'Connexion retablie';
+                setTimeout(function () {
                     window.location.reload();
-                }, 800);
+                }, 700);
             } else {
-                if (dot) dot.className = 'status-dot';
-                if (text) text.textContent = 'Aucune connexion Internet';
+                if (dot) dot.style.background = '#e11d48';
+                if (text) text.textContent = 'Mode hors ligne';
             }
         }
+
         window.addEventListener('online', updateStatus);
         window.addEventListener('offline', updateStatus);
+        updateStatus();
     </script>
 </body>
 </html>
