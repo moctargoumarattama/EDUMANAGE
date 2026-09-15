@@ -61,7 +61,13 @@ def _current_ecole_id_for_annees():
 
 
 def _annee_saisie_depuis_form():
-    debut = request.form.get('annee_debut_court', '').strip()
+    debut = request.form.get('annee_scolaire', '').strip()
+    if not debut:
+        debut = request.form.get('annee_debut_court', '').strip()
+    if not debut:
+        date_debut_str = request.form.get('date_debut', '').strip()
+        if date_debut_str and len(date_debut_str) >= 4:
+            debut = date_debut_str[:4]
     return debut
 
 
