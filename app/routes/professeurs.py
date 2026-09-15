@@ -5,6 +5,8 @@ from .common import (
     Classe,
     Cours,
     DeleteForm,
+    Absence,
+    Inscription,
     Professeur,
     ProfesseurForm,
     Utilisateur,
@@ -487,3 +489,115 @@ def mes_classes():
 
     return render_template("mes_classes.html", classes=classes)
 
+
+@main.route("/mes_enseignements")
+@login_required
+@role_required("professeur")
+def mes_enseignements():
+    """Hub professeur : classes et cours autorises pour l'annee consultee."""
+    professeur = current_user.professeur_rel
+    if not professeur:
+        flash("Aucune information de professeur trouvee.", "warning")
+        return redirect(url_for("main.professeur_dashboard"))
+
+    ecole_id = current_user.ecole_id
+    annee_consultee = get_annee_consultee(ecole_id)
+    if not annee_consultee:
+        return render_template(
+            "mes_enseignements.html",
+            classes_data=[],
+            cours_data=[],
+            annee_consultee=None,
+        )
+
+    cours_prof = (
+        Cours.query
+        .join(Classe, Classe.id == Cours.classe_id)
+        .options(joinedload(Cours.classe), joinedload(Cours.notes), joinedload(Cours.absences))
+        .filter(
+            Cours.ecole_id == ecole_id,
+            Cours.professeur_id == professeur.id,
+            Classe.ecole_id == ecole_id,
+            Classe.annee_scolaire_id == annee_consultee.id,
+        )
+        .order_by(Classe.nom.asc(), Cours.nom.asc())
+        .all()
+    )
+
+    cours_par_classe = {}
+    for cours in cours_prof:
+        if cours.classe_id:
+            cours_par_classe.setdefault(cours.classe_id, []).append(cours)
+
+    classes_assignees_ids = [
+        c.id for c in professeur.classes_assignees
+        .filter(Classe.ecole_id == ecole_id, Classe.annee_scolaire_id == annee_consultee.id)
+        .all()
+    ]
+    classe_ids = sorted(set(classes_assignees_ids) | set(cours_par_classe.keys()))
+
+    classes = (
+        Classe.query
+        .options(joinedload(Classe.niveau_scolaire))
+        .filter(
+            Classe.ecole_id == ecole_id,
+            Classe.annee_scolaire_id == annee_consultee.id,
+            Classe.id.in_(classe_ids),
+        )
+        .order_by(Classe.nom.asc())
+        .all()
+        if classe_ids
+        else []
+    )
+
+    effectifs = {
+        row.classe_id: row.total
+        for row in db.session.query(Inscription.classe_id, db.func.count(Inscription.id).label("total"))
+        .filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee_consultee.id,
+            Inscription.classe_id.in_(classe_ids),
+            Inscription.statut == "inscrit",
+        )
+        .group_by(Inscription.classe_id)
+        .all()
+    } if classe_ids else {}
+
+    absences_counts = {
+        row.classe_id: row.total
+        for row in db.session.query(Inscription.classe_id, db.func.count(Absence.id).label("total"))
+        .join(Absence, Absence.inscription_id == Inscription.id)
+        .filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee_consultee.id,
+            Inscription.classe_id.in_(classe_ids),
+            Absence.cours_id.in_([c.id for c in cours_prof]) if cours_prof else db.false(),
+        )
+        .group_by(Inscription.classe_id)
+        .all()
+    } if classe_ids and cours_prof else {}
+
+    classes_data = []
+    for classe in classes:
+        mes_cours_classe = cours_par_classe.get(classe.id, [])
+        classes_data.append({
+            "classe": classe,
+            "effectif": effectifs.get(classe.id, 0),
+            "cours": mes_cours_classe,
+            "absences_count": absences_counts.get(classe.id, 0),
+        })
+
+    cours_data = []
+    for cours in cours_prof:
+        cours_data.append({
+            "cours": cours,
+            "effectif": effectifs.get(cours.classe_id, 0),
+            "notes_count": len(cours.notes) if getattr(cours, "notes", None) is not None else 0,
+        })
+
+    return render_template(
+        "mes_enseignements.html",
+        classes_data=classes_data,
+        cours_data=cours_data,
+        annee_consultee=annee_consultee,
+    )

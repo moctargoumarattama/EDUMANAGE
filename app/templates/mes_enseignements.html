@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% block title %}Mes enseignements - KLASORA{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="page-header-body">
+        <div class="page-title-group">
+            <div class="page-icon">
+                <i class="fas fa-layer-group"></i>
+            </div>
+            <div>
+                <h1 class="page-title">Mes enseignements</h1>
+                <p class="page-subtitle">
+                    Classes et cours qui vous sont affectes{% if annee_consultee %} - {{ annee_consultee.nom }}{% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="teacher-teaching-shell">
+    <ul class="nav nav-pills teacher-tabs" id="teacherTeachingTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="classes-tab" data-bs-toggle="pill" data-bs-target="#classes-pane" type="button" role="tab">
+                <i class="fas fa-users me-2"></i>Classes
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="cours-tab" data-bs-toggle="pill" data-bs-target="#cours-pane" type="button" role="tab">
+                <i class="fas fa-book me-2"></i>Cours
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content mt-3">
+        <div class="tab-pane fade show active" id="classes-pane" role="tabpanel" aria-labelledby="classes-tab">
+            {% if classes_data %}
+            <div class="teacher-card-grid">
+                {% for item in classes_data %}
+                {% set classe = item.classe %}
+                {% set first_cours = item.cours[0] if item.cours else None %}
+                <article class="teacher-card">
+                    <div class="teacher-card-head">
+                        <div>
+                            <h2>{{ classe.nom }}</h2>
+                            <p>{{ classe.niveau_scolaire.nom if classe.niveau_scolaire else classe.niveau or 'Niveau non renseigne' }}{% if classe.section %} - {{ classe.section }}{% endif %}</p>
+                        </div>
+                        <span class="teacher-chip">{{ item.effectif }} eleves</span>
+                    </div>
+
+                    <div class="teacher-metrics">
+                        <span><strong>{{ item.cours|length }}</strong> cours</span>
+                        <span><strong>{{ item.absences_count }}</strong> absences</span>
+                    </div>
+
+                    {% if item.cours %}
+                    <div class="teacher-mini-list">
+                        {% for cours in item.cours %}
+                        <span>{{ cours.nom }}</span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">Aucun cours affecte dans cette classe.</p>
+                    {% endif %}
+
+                    <div class="teacher-actions">
+                        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.detail_classe', classe_id=classe.id) }}">
+                            <i class="fas fa-folder-open me-1"></i>Ouvrir
+                        </a>
+                        {% if first_cours %}
+                        <a class="btn btn-sm btn-primary" href="{{ url_for('main.notes', classe_id=classe.id, cours_id=first_cours.id) }}">
+                            <i class="fas fa-pen me-1"></i>Evaluations
+                        </a>
+                        <a class="btn btn-sm btn-warning" href="{{ url_for('main.faire_appel', classe_id=classe.id, cours_id=first_cours.id) }}">
+                            <i class="fas fa-user-check me-1"></i>Faire l'appel
+                        </a>
+                        {% endif %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state py-5">
+                <i class="fas fa-users text-muted fa-3x mb-3"></i>
+                <h2 class="empty-state-title">Aucune classe affectee</h2>
+                <p class="empty-state-text">Vos classes apparaitront ici apres affectation par l'administration.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="tab-pane fade" id="cours-pane" role="tabpanel" aria-labelledby="cours-tab">
+            {% if cours_data %}
+            <div class="teacher-card-grid">
+                {% for item in cours_data %}
+                {% set cours = item.cours %}
+                <article class="teacher-card">
+                    <div class="teacher-card-head">
+                        <div>
+                            <h2>{{ cours.nom }}</h2>
+                            <p>Classe : {{ cours.classe.nom if cours.classe else 'Non rattache' }}</p>
+                        </div>
+                        <span class="teacher-chip">Coef. {{ cours.coefficient or 1 }}</span>
+                    </div>
+
+                    <div class="teacher-metrics">
+                        <span><strong>{{ item.effectif }}</strong> eleves</span>
+                        <span><strong>{{ item.notes_count }}</strong> evaluations</span>
+                    </div>
+
+                    <div class="teacher-actions">
+                        {% if cours.classe %}
+                        <a class="btn btn-sm btn-primary" href="{{ url_for('main.notes', classe_id=cours.classe.id, cours_id=cours.id) }}">
+                            <i class="fas fa-pen me-1"></i>Gerer les evaluations
+                        </a>
+                        <a class="btn btn-sm btn-warning" href="{{ url_for('main.faire_appel', classe_id=cours.classe.id, cours_id=cours.id) }}">
+                            <i class="fas fa-user-check me-1"></i>Faire l'appel
+                        </a>
+                        {% else %}
+                        <span class="text-muted small">Cours sans classe rattachee.</span>
+                        {% endif %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state py-5">
+                <i class="fas fa-book text-muted fa-3x mb-3"></i>
+                <h2 class="empty-state-title">Aucun cours affecte</h2>
+                <p class="empty-state-text">Vos cours apparaitront ici apres affectation par l'administration.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .teacher-teaching-shell {
+        max-width: 1120px;
+        margin: 0 auto;
+    }
+
+    .teacher-tabs {
+        gap: 0.5rem;
+    }
+
+    .teacher-tabs .nav-link {
+        border-radius: 999px;
+        font-weight: 700;
+        color: #172033;
+        background: #fff;
+        border: 1px solid #dfe6f2;
+        box-shadow: 0 8px 20px rgba(30, 41, 59, 0.08);
+    }
+
+    .teacher-tabs .nav-link:not(.active) {
+        color: #172033 !important;
+        background: #ffffff;
+    }
+
+    .teacher-tabs .nav-link:not(.active) i {
+        color: #4361ee;
+    }
+
+    .teacher-tabs .nav-link.active {
+        background: #4361ee;
+        color: #fff;
+        border-color: #4361ee;
+    }
+
+    .teacher-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1rem;
+    }
+
+    .teacher-card {
+        background: #fff;
+        border: 1px solid #edf0f5;
+        border-radius: 14px;
+        padding: 1rem;
+        box-shadow: 0 10px 24px rgba(30, 41, 59, 0.08);
+        min-width: 0;
+    }
+
+    .teacher-card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .teacher-card h2 {
+        font-size: 1.05rem;
+        font-weight: 800;
+        margin: 0 0 0.25rem;
+        color: #111827;
+    }
+
+    .teacher-card p {
+        margin: 0;
+        color: #5b6475;
+        font-size: 0.9rem;
+    }
+
+    .teacher-chip {
+        flex: 0 0 auto;
+        border-radius: 999px;
+        padding: 0.35rem 0.65rem;
+        background: #eef2ff;
+        color: #3151d3;
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .teacher-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .teacher-metrics span {
+        border-radius: 10px;
+        background: #f8fafc;
+        padding: 0.65rem;
+        color: #364153;
+        font-size: 0.88rem;
+    }
+
+    .teacher-mini-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-bottom: 0.9rem;
+    }
+
+    .teacher-mini-list span {
+        border-radius: 999px;
+        padding: 0.28rem 0.58rem;
+        background: #f1f5f9;
+        color: #334155;
+        font-size: 0.78rem;
+        font-weight: 650;
+    }
+
+    .teacher-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    @media (max-width: 576px) {
+        .teacher-teaching-shell {
+            padding: 0 0.15rem;
+        }
+
+        .teacher-card-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .teacher-actions .btn {
+            flex: 1 1 100%;
+            min-height: 42px;
+        }
+    }
+</style>
+{% endblock %}

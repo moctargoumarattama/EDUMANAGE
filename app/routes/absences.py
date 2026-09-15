@@ -1,4 +1,5 @@
 from . import main
+from types import SimpleNamespace
 from .common import (
     abort,
     Absence,
@@ -38,6 +39,7 @@ from app.services.structure_annuelle import get_niveaux_annee
 from app.services.absences_annuelles import (
     absences_modifiables,
     get_absences_annee,
+    get_classes_absences,
     get_cours_choices_absences,
     get_eleves_choices_absences,
     statut_annee_absences,
@@ -52,6 +54,19 @@ def _ecole_id_courante():
 def _remplir_choix_absence(form, ecole_id, annee):
     form.eleve_id.choices = get_eleves_choices_absences(ecole_id, annee, current_user)
     form.cours_id.choices = get_cours_choices_absences(ecole_id, annee, current_user)
+
+
+def _niveaux_depuis_classes(classes):
+    niveaux_par_id = {}
+    for classe in classes:
+        niveau = getattr(classe, "niveau_scolaire", None)
+        if niveau and niveau.id not in niveaux_par_id:
+            niveaux_par_id[niveau.id] = niveau
+            continue
+        niveau_nom = (getattr(classe, "niveau", None) or "").strip()
+        if niveau_nom and f"legacy:{niveau_nom}" not in niveaux_par_id:
+            niveaux_par_id[f"legacy:{niveau_nom}"] = SimpleNamespace(id=niveau_nom, nom=niveau_nom, ordre=999)
+    return sorted(niveaux_par_id.values(), key=lambda niveau: (niveau.ordre, niveau.nom))
 
 
 @main.route('/absences', methods=['GET', 'POST'])
@@ -203,8 +218,11 @@ L'equipe pedagogique"""
             ]
         })
 
-    niveaux_annee = get_niveaux_annee(ecole_id, annee_consultee.id) if (ecole_id and annee_consultee) else []
-    classes = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_consultee.id).order_by(Classe.nom).all() if (ecole_id and annee_consultee) else []
+    classes = get_classes_absences(ecole_id, annee_consultee, current_user)
+    if current_user.role == "professeur":
+        niveaux_annee = _niveaux_depuis_classes(classes)
+    else:
+        niveaux_annee = get_niveaux_annee(ecole_id, annee_consultee.id) if (ecole_id and annee_consultee) else []
 
     return render_template(
         'absences.html',
@@ -348,3 +366,165 @@ def delete_absence(absence_id):
 def presence():
     flash("KLASORA gère uniquement les absences scolaires.", "info")
     return redirect(url_for("main.absences"))
+
+
+@main.route("/absences/appel", methods=["GET", "POST"])
+@login_required
+@role_required("professeur", "admin")
+def faire_appel():
+    ecole_id = _ecole_id_courante()
+    annee_consultee = get_annee_consultee(ecole_id)
+    can_mutate = absences_modifiables(annee_consultee, current_user)
+    message_annee = statut_annee_absences(annee_consultee)
+
+    classe_id = request.values.get("classe_id", type=int)
+    cours_id = request.values.get("cours_id", type=int)
+    date_appel_str = request.values.get("date_appel") or date.today().isoformat()
+    try:
+        date_appel = datetime.strptime(date_appel_str, "%Y-%m-%d").date()
+    except ValueError:
+        date_appel = date.today()
+
+    if not annee_consultee:
+        flash("Aucune annee scolaire active pour faire l'appel.", "warning")
+        return redirect(url_for("main.absences"))
+
+    cours = None
+    classe = None
+    if cours_id:
+        cours = (
+            Cours.query
+            .join(Classe, Classe.id == Cours.classe_id)
+            .filter(
+                Cours.id == cours_id,
+                Cours.ecole_id == ecole_id,
+                Classe.ecole_id == ecole_id,
+                Classe.annee_scolaire_id == annee_consultee.id,
+            )
+            .first()
+        )
+        if not cours:
+            abort(404)
+        classe = cours.classe
+        classe_id = classe.id if classe else classe_id
+
+    if classe_id and not classe:
+        classe = Classe.query.filter_by(
+            id=classe_id,
+            ecole_id=ecole_id,
+            annee_scolaire_id=annee_consultee.id,
+        ).first_or_404()
+
+    if current_user.role == "professeur":
+        professeur = getattr(current_user, "professeur_rel", None)
+        if not professeur:
+            abort(403)
+        if cours and cours.professeur_id != professeur.id:
+            abort(403)
+        if classe and not cours:
+            cours = Cours.query.filter_by(
+                classe_id=classe.id,
+                professeur_id=professeur.id,
+                ecole_id=ecole_id,
+            ).order_by(Cours.nom.asc()).first()
+            if not cours:
+                abort(403)
+
+    cours_disponibles = []
+    if classe:
+        cours_query = Cours.query.filter_by(classe_id=classe.id, ecole_id=ecole_id)
+        if current_user.role == "professeur":
+            cours_query = cours_query.filter_by(professeur_id=current_user.professeur_rel.id)
+        cours_disponibles = cours_query.order_by(Cours.nom.asc()).all()
+        if not cours and cours_disponibles:
+            cours = cours_disponibles[0]
+            cours_id = cours.id
+
+    if not classe or not cours:
+        flash("Selectionnez une classe et un cours pour faire l'appel.", "warning")
+        return redirect(url_for("main.absences"))
+
+    inscriptions = (
+        Inscription.query
+        .options(selectinload(Inscription.eleve))
+        .filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee_consultee.id,
+            Inscription.classe_id == classe.id,
+            Inscription.statut == "inscrit",
+        )
+        .join(Eleve, Eleve.id == Inscription.eleve_id)
+        .order_by(Eleve.nom.asc(), Eleve.prenom.asc())
+        .all()
+    )
+    inscription_ids = [ins.id for ins in inscriptions]
+
+    absences_existantes = (
+        Absence.query
+        .filter(
+            Absence.ecole_id == ecole_id,
+            Absence.cours_id == cours.id,
+            Absence.date_absence == date_appel,
+            Absence.inscription_id.in_(inscription_ids),
+        )
+        .all()
+        if inscription_ids
+        else []
+    )
+    absences_par_inscription = {a.inscription_id: a for a in absences_existantes}
+
+    if request.method == "POST":
+        if not can_mutate:
+            flash(message_annee or "Les absences ne peuvent pas etre modifiees pour cette annee.", "warning")
+            return redirect(url_for("main.faire_appel", classe_id=classe.id, cours_id=cours.id, date_appel=date_appel.isoformat()))
+
+        absent_ids = {
+            int(raw_id)
+            for raw_id in request.form.getlist("absent_inscription_ids")
+            if raw_id.isdigit()
+        }
+        absent_ids = absent_ids & set(inscription_ids)
+
+        try:
+            for absence in list(absences_existantes):
+                if absence.inscription_id not in absent_ids:
+                    db.session.delete(absence)
+
+            for ins in inscriptions:
+                if ins.id in absent_ids and ins.id not in absences_par_inscription:
+                    db.session.add(Absence(
+                        date_absence=date_appel,
+                        motif="Absence signalee pendant l'appel",
+                        justifiee=False,
+                        eleve_id=ins.eleve_id,
+                        cours_id=cours.id,
+                        ecole_id=ecole_id,
+                        inscription_id=ins.id,
+                    ))
+
+            db.session.commit()
+            flash("Appel enregistre. Aucune presence n'a ete creee.", "success")
+            return redirect(url_for("main.faire_appel", classe_id=classe.id, cours_id=cours.id, date_appel=date_appel.isoformat()))
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.exception("Erreur enregistrement appel professeur: %s", exc)
+            flash("Erreur lors de l'enregistrement de l'appel.", "danger")
+
+    absents_count = len(absences_par_inscription)
+    effectif = len(inscriptions)
+
+    return render_template(
+        "faire_appel.html",
+        classe=classe,
+        cours=cours,
+        cours_disponibles=cours_disponibles,
+        inscriptions=inscriptions,
+        absences_par_inscription=absences_par_inscription,
+        date_appel=date_appel,
+        effectif=effectif,
+        absents_count=absents_count,
+        presents_count=max(effectif - absents_count, 0),
+        annee_consultee=annee_consultee,
+        can_mutate=can_mutate,
+        message_annee=message_annee,
+    )

@@ -167,7 +167,23 @@ def professeur_dashboard():
     emplois = get_creneaux_annee(current_user.ecole_id, annee_consultee, professeur_id=professeur.id) if annee_consultee else []
 
     now = datetime.now()
-    aujourdhui = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+    jours = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+    jour_actuel = jours[now.weekday()]
+    cours_aujourdhui = sorted(
+        [e for e in emplois if getattr(e, "jour", None) == jour_actuel],
+        key=lambda e: e.heure_debut
+    )
+    prochain_cours = next((e for e in cours_aujourdhui if e.heure_fin and e.heure_fin >= now.time()), None)
+    classe_ids = {c.classe_id for c in mes_cours if getattr(c, "classe_id", None)}
+    appel_cible = (
+        prochain_cours
+        or next((e for e in cours_aujourdhui if getattr(e, "classe_id", None) and getattr(e, "cours_id", None)), None)
+        or next((e for e in emplois if getattr(e, "classe_id", None) and getattr(e, "cours_id", None)), None)
+    )
+    if not appel_cible:
+        appel_cible = next((c for c in mes_cours if getattr(c, "classe_id", None) and getattr(c, "id", None)), None)
+    appel_classe_id = getattr(appel_cible, "classe_id", None)
+    appel_cours_id = getattr(appel_cible, "cours_id", None) or getattr(appel_cible, "id", None)
 
     return render_template(
         'professeur_dashboard.html',
@@ -175,9 +191,15 @@ def professeur_dashboard():
         mes_cours=mes_cours,
         dernieres_notes=dernieres_notes,
         emplois=emplois,
+        cours_aujourdhui=cours_aujourdhui,
+        prochain_cours=prochain_cours,
+        appel_cible=appel_cible,
+        appel_classe_id=appel_classe_id,
+        appel_cours_id=appel_cours_id,
+        total_classes=len(classe_ids),
         annee_consultee=annee_consultee,
         now=now,
-        aujourdhui=aujourdhui
+        aujourdhui=jours
     )
 
 
@@ -326,4 +348,3 @@ def api_admin_tour_complete():
         'admin_tour_version': current_user.admin_tour_version,
         'message': 'Visite guidée marquée comme complétée.'
     })
-

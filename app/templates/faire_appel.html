@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}Faire l'appel - KLASORA{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="page-header-body">
+        <div class="page-title-group">
+            <div class="page-icon">
+                <i class="fas fa-user-check"></i>
+            </div>
+            <div>
+                <h1 class="page-title">Faire l'appel</h1>
+                <p class="page-subtitle">{{ classe.nom }} - {{ cours.nom }} - {{ date_appel.strftime('%d/%m/%Y') }}</p>
+            </div>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.absences') }}">
+            <i class="fas fa-arrow-left me-2"></i>Absences
+        </a>
+    </div>
+</section>
+
+{% if message_annee %}
+<div class="alert alert-warning">
+    <i class="fas fa-lock me-2"></i>{{ message_annee }}
+</div>
+{% endif %}
+
+<form method="POST" class="appel-shell" id="appelForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="classe_id" value="{{ classe.id }}">
+    {% if cours_disponibles|length <= 1 %}
+    <input type="hidden" name="cours_id" value="{{ cours.id }}">
+    {% endif %}
+
+    <div class="appel-summary">
+        <div>
+            <span>Effectif</span>
+            <strong id="appelEffectif">{{ effectif }}</strong>
+        </div>
+        <div>
+            <span>Absents</span>
+            <strong id="appelAbsents">{{ absents_count }}</strong>
+        </div>
+        <div>
+            <span>Presents</span>
+            <strong id="appelPresents">{{ presents_count }}</strong>
+        </div>
+    </div>
+
+    <div class="appel-toolbar">
+        <label>
+            Date
+            <input class="form-control" type="date" name="date_appel" value="{{ date_appel.isoformat() }}" onchange="this.form.method='GET'; this.form.submit();">
+        </label>
+        {% if cours_disponibles|length > 1 %}
+        <label>
+            Cours
+            <select class="form-select" name="cours_id" onchange="this.form.method='GET'; this.form.submit();">
+                {% for c in cours_disponibles %}
+                <option value="{{ c.id }}" {% if c.id == cours.id %}selected{% endif %}>{{ c.nom }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        {% endif %}
+    </div>
+
+    <div class="appel-list">
+        {% for ins in inscriptions %}
+        {% set is_absent = ins.id in absences_par_inscription %}
+        <label class="appel-student-card">
+            <input class="form-check-input appel-absent-check" type="checkbox" name="absent_inscription_ids" value="{{ ins.id }}" {% if is_absent %}checked{% endif %} {% if not can_mutate %}disabled{% endif %}>
+            <span>
+                <strong>{{ ins.eleve.prenom }} {{ ins.eleve.nom }}</strong>
+                <small>{{ classe.nom }}</small>
+            </span>
+            <em class="appel-status">{{ 'Absent' if is_absent else 'Present calcule' }}</em>
+        </label>
+        {% else %}
+        <div class="empty-state py-5">
+            <i class="fas fa-user-slash text-muted fa-3x mb-3"></i>
+            <h2 class="empty-state-title">Aucun eleve inscrit</h2>
+            <p class="empty-state-text">Cette classe ne contient aucun eleve inscrit pour l'annee consultee.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if inscriptions and can_mutate %}
+    <div class="appel-actions">
+        <button type="button" class="btn btn-outline-success" id="btnAucunAbsent">
+            <i class="fas fa-check me-2"></i>Aucun absent aujourd'hui
+        </button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i>Enregistrer les absences
+        </button>
+    </div>
+    {% endif %}
+</form>
+
+<style>
+    .appel-shell {
+        max-width: 980px;
+        margin: 0 auto;
+        display: grid;
+        gap: 1rem;
+    }
+
+    .appel-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .appel-summary div,
+    .appel-toolbar,
+    .appel-student-card {
+        background: #fff;
+        border: 1px solid #edf0f5;
+        border-radius: 14px;
+        box-shadow: 0 10px 24px rgba(30, 41, 59, 0.08);
+    }
+
+    .appel-summary div {
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .appel-summary span {
+        display: block;
+        color: #5b6475;
+        font-weight: 700;
+    }
+
+    .appel-summary strong {
+        display: block;
+        font-size: 1.8rem;
+        color: #111827;
+        line-height: 1.1;
+    }
+
+    .appel-toolbar {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+
+    .appel-toolbar label {
+        flex: 1 1 220px;
+        color: #34415c;
+        font-weight: 700;
+    }
+
+    .appel-list {
+        display: grid;
+        gap: 0.65rem;
+    }
+
+    .appel-student-card {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.85rem 1rem;
+        cursor: pointer;
+    }
+
+    .appel-student-card strong {
+        display: block;
+        color: #111827;
+    }
+
+    .appel-student-card small {
+        color: #5b6475;
+    }
+
+    .appel-status {
+        font-style: normal;
+        color: #5b6475;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+
+    .appel-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    @media (max-width: 576px) {
+        .appel-summary {
+            grid-template-columns: 1fr;
+        }
+
+        .appel-student-card {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .appel-status {
+            grid-column: 2;
+        }
+
+        .appel-actions .btn {
+            width: 100%;
+            min-height: 44px;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const effectif = parseInt(document.getElementById('appelEffectif')?.textContent || '0', 10);
+    const absentEl = document.getElementById('appelAbsents');
+    const presentEl = document.getElementById('appelPresents');
+    const checks = Array.from(document.querySelectorAll('.appel-absent-check'));
+    const noneBtn = document.getElementById('btnAucunAbsent');
+
+    function refreshCounts() {
+        const absents = checks.filter((check) => check.checked).length;
+        if (absentEl) absentEl.textContent = absents;
+        if (presentEl) presentEl.textContent = Math.max(effectif - absents, 0);
+        checks.forEach((check) => {
+            const card = check.closest('.appel-student-card');
+            const status = card ? card.querySelector('.appel-status') : null;
+            if (status) status.textContent = check.checked ? 'Absent' : 'Present calcule';
+        });
+    }
+
+    checks.forEach((check) => check.addEventListener('change', refreshCounts));
+    if (noneBtn) {
+        noneBtn.addEventListener('click', function () {
+            checks.forEach((check) => { check.checked = false; });
+            refreshCounts();
+            document.getElementById('appelForm').submit();
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -450,6 +450,11 @@
             </a>
 
             <div class="navbar-mobile-actions">
+                {% if current_user.is_authenticated and current_user.role in ['admin', 'super_admin', 'professeur'] %}
+                <a href="{{ url_for('main.recherche') }}" class="btn btn-outline-light btn-sm nav-icon-button d-lg-none" title="Recherche" aria-label="Recherche">
+                    <i class="fas fa-search"></i>
+                </a>
+                {% endif %}
                 {% if current_user.is_authenticated and current_user.role == 'parent' %}
                 <button id="notif-badge" class="btn btn-outline-light btn-sm nav-icon-button position-relative" type="button" title="Notifications" aria-label="Notifications">
                     <i class="fas fa-bell"></i>
@@ -603,18 +608,13 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('main.liste_classes') }}">
-                                    <i class="fas fa-users me-1"></i>Mes Classes
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('main.cours') }}">
-                                    <i class="fas fa-book me-1"></i>Mes Cours
+                                <a class="nav-link {{ 'active' if request.endpoint == 'main.mes_enseignements' }}" href="{{ url_for('main.mes_enseignements') }}">
+                                    <i class="fas fa-layer-group me-1"></i>Mes enseignements
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('main.notes') }}">
-                                    <i class="fas fa-edit me-1"></i>Notes
+                                    <i class="fas fa-edit me-1"></i>Évaluations
                                 </a>
                             </li>
                             <li class="nav-item">
@@ -624,7 +624,7 @@
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('main.professeur_home') }}">
-                                    <i class="fas fa-calendar-alt me-1"></i>Mon Emploi du temps
+                                    <i class="fas fa-calendar-alt me-1"></i>Emploi du temps
                                 </a>
                             </li>
 

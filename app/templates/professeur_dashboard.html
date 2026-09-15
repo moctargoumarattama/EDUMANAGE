@@ -2,7 +2,7 @@
 {% block title %}Espace Professeur - KLASORA{% endblock %}
 
 {% block content %}
-<section class="page-header">
+<section class="page-header teacher-home-header">
     <div class="page-header-body">
         <div class="page-title-group">
             <div class="page-icon">
@@ -10,48 +10,265 @@
             </div>
             <div>
                 <h1 class="page-title">Bonjour {{ current_user.prenom or current_user.nom }}</h1>
-                <p class="page-subtitle">Votre espace professeur</p>
+                <p class="page-subtitle">
+                    {% if annee_consultee %}{{ annee_consultee.nom }}{% else %}Annee scolaire non configuree{% endif %}
+                </p>
             </div>
         </div>
         <span class="badge bg-primary-subtle text-primary">{{ now.strftime('%d/%m/%Y') }}</span>
     </div>
 </section>
 
-<section class="quick-access-grid teacher-hub-grid">
-    <a class="quick-access-card" href="{{ url_for('main.liste_classes') }}">
-        <span class="quick-access-icon bg-primary text-white"><i class="fas fa-users"></i></span>
-        <span class="quick-access-title">Mes classes</span>
-        <span class="quick-access-text">Voir les classes assignées</span>
-    </a>
+<section class="teacher-home-grid">
+    <article class="teacher-summary-card teacher-today-card">
+        <div class="teacher-section-title">
+            <i class="fas fa-calendar-day text-primary"></i>
+            <h2>Cours d'aujourd'hui</h2>
+        </div>
 
-    <a class="quick-access-card" href="{{ url_for('main.cours') }}">
-        <span class="quick-access-icon bg-info text-white"><i class="fas fa-book"></i></span>
-        <span class="quick-access-title">Mes cours</span>
-        <span class="quick-access-text">{{ stats.total_cours }} cours assignés</span>
-    </a>
+        {% if cours_aujourdhui %}
+        <div class="teacher-today-list">
+            {% for emploi in cours_aujourdhui[:4] %}
+            <div class="teacher-today-item">
+                <div>
+                    <strong>{{ emploi.cours.nom if emploi.cours else 'Cours' }}</strong>
+                    <span>{{ emploi.classe.nom if emploi.classe else 'Classe non renseignee' }}</span>
+                </div>
+                <span class="teacher-time">{{ emploi.heure_debut.strftime('%H:%M') }} - {{ emploi.heure_fin.strftime('%H:%M') }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Aucun cours programme aujourd'hui.</p>
+        {% endif %}
+    </article>
 
-    <a class="quick-access-card" href="{{ url_for('main.notes') }}">
-        <span class="quick-access-icon bg-success text-white"><i class="fas fa-pen"></i></span>
-        <span class="quick-access-title">Notes</span>
-        <span class="quick-access-text">Saisir et consulter les notes</span>
-    </a>
+    <article class="teacher-summary-card">
+        <div class="teacher-section-title">
+            <i class="fas fa-forward text-success"></i>
+            <h2>Prochaine classe</h2>
+        </div>
+        {% if prochain_cours %}
+        <div class="teacher-next-class">
+            <strong>{{ prochain_cours.classe.nom if prochain_cours.classe else 'Classe' }}</strong>
+            <span>{{ prochain_cours.cours.nom if prochain_cours.cours else 'Cours' }}</span>
+            <span>{{ prochain_cours.heure_debut.strftime('%H:%M') }} - {{ prochain_cours.heure_fin.strftime('%H:%M') }}</span>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Aucune autre classe prevue aujourd'hui.</p>
+        {% endif %}
+    </article>
 
-    <a class="quick-access-card" href="{{ url_for('main.absences') }}">
-        <span class="quick-access-icon bg-warning text-white"><i class="fas fa-calendar-times"></i></span>
-        <span class="quick-access-title">Absences</span>
-        <span class="quick-access-text">Gérer les absences autorisées</span>
-    </a>
+    <article class="teacher-summary-card teacher-counts">
+        <div>
+            <span>{{ total_classes }}</span>
+            <p>Classes assignees</p>
+        </div>
+        <div>
+            <span>{{ stats.total_cours }}</span>
+            <p>Cours assignes</p>
+        </div>
+    </article>
 
-    <a class="quick-access-card" href="{{ url_for('main.professeur_home') }}">
-        <span class="quick-access-icon bg-secondary text-white"><i class="fas fa-calendar-alt"></i></span>
-        <span class="quick-access-title">Emploi du temps</span>
-        <span class="quick-access-text">Consulter la semaine</span>
-    </a>
-
-    <a class="quick-access-card" href="{{ url_for('main.recherche') }}">
-        <span class="quick-access-icon bg-dark text-white"><i class="fas fa-search"></i></span>
-        <span class="quick-access-title">Recherche</span>
-        <span class="quick-access-text">Trouver rapidement une information</span>
-    </a>
+    <article class="teacher-summary-card">
+        <div class="teacher-section-title">
+            <i class="fas fa-bolt text-warning"></i>
+            <h2>Actions rapides</h2>
+        </div>
+        <div class="teacher-quick-actions">
+            <a class="btn btn-primary" href="{{ url_for('main.notes') }}">
+                <i class="fas fa-pen me-2"></i>Gerer les evaluations
+            </a>
+            <a class="btn btn-warning" href="{% if appel_classe_id and appel_cours_id %}{{ url_for('main.faire_appel', classe_id=appel_classe_id, cours_id=appel_cours_id) }}{% else %}{{ url_for('main.absences') }}{% endif %}">
+                <i class="fas fa-user-check me-2"></i>Faire l'appel
+            </a>
+        </div>
+    </article>
 </section>
+
+<style>
+    .teacher-home-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.9fr);
+        gap: 1rem;
+        max-width: 1120px;
+        margin: 0 auto;
+    }
+
+    .teacher-summary-card {
+        background: #fff;
+        border: 1px solid #edf0f5;
+        border-radius: 14px;
+        padding: 1rem;
+        box-shadow: 0 10px 24px rgba(30, 41, 59, 0.08);
+        min-width: 0;
+    }
+
+    .teacher-section-title {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .teacher-section-title h2 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+        color: #172033;
+    }
+
+    .teacher-today-list {
+        display: grid;
+        gap: 0.6rem;
+    }
+
+    .teacher-today-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        border-radius: 12px;
+        background: #f8fafc;
+    }
+
+    .teacher-today-item strong,
+    .teacher-next-class strong {
+        display: block;
+        color: #111827;
+    }
+
+    .teacher-today-item span,
+    .teacher-next-class span {
+        display: block;
+        color: #5b6475;
+        font-size: 0.9rem;
+    }
+
+    .teacher-time {
+        flex: 0 0 auto;
+        font-weight: 800;
+        color: #3151d3 !important;
+    }
+
+    .teacher-next-class {
+        display: grid;
+        gap: 0.25rem;
+    }
+
+    .teacher-counts {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+    }
+
+    .teacher-counts div {
+        border-radius: 12px;
+        background: #f8fafc;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .teacher-counts span {
+        display: block;
+        font-size: 1.75rem;
+        font-weight: 900;
+        color: #111827;
+    }
+
+    .teacher-counts p {
+        margin: 0;
+        color: #5b6475;
+        font-weight: 650;
+    }
+
+    .teacher-quick-actions {
+        display: grid;
+        gap: 0.65rem;
+    }
+
+    @media (max-width: 768px) {
+        .teacher-home-header {
+            margin: 0 0 0.45rem !important;
+        }
+
+        .teacher-home-header .page-header-body {
+            padding: 0.45rem 0.65rem;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .teacher-home-header .page-title-group {
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .teacher-home-header .page-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 9px;
+            font-size: 0.85rem;
+        }
+
+        .teacher-home-header .page-title {
+            font-size: 0.95rem;
+            line-height: 1.1;
+            margin-bottom: 0;
+        }
+
+        .teacher-home-header .page-subtitle {
+            font-size: 0.75rem;
+            margin: 0;
+            line-height: 1.05;
+        }
+
+        .teacher-home-header .badge {
+            align-self: flex-start;
+            margin-left: 2.45rem;
+            padding: 0.25rem 0.45rem;
+            font-size: 0.68rem;
+        }
+
+        .teacher-home-grid {
+            grid-template-columns: 1fr;
+            gap: 0.6rem;
+        }
+
+        .teacher-summary-card {
+            padding: 0.85rem;
+            border-radius: 12px;
+        }
+
+        .teacher-counts {
+            gap: 0.55rem;
+        }
+
+        .teacher-counts div {
+            padding: 0.65rem 0.45rem;
+            min-height: 72px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .teacher-counts span {
+            font-size: 1.35rem;
+            line-height: 1;
+            margin-bottom: 0.15rem;
+        }
+
+        .teacher-counts p {
+            font-size: 0.82rem;
+            line-height: 1.2;
+        }
+
+        .teacher-today-item {
+            flex-direction: column;
+        }
+
+        .teacher-quick-actions .btn {
+            min-height: 44px;
+        }
+    }
+</style>
 {% endblock %}
