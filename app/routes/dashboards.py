@@ -47,25 +47,101 @@ def dashboard():
 @login_required
 @role_required('parent')
 def parent_dashboard():
-    """Tableau de bord parent avec pagination pour enfants et notes"""
+    """Vue unique et simplifiée pour l'espace parent"""
+    from datetime import datetime
+    from collections import defaultdict
+    from sqlalchemy.orm import selectinload, joinedload
+    from app.models import Inscription, Eleve, Note, Absence, Paiement
     from app.services.annees_scolaires import get_annee_consultee
-    from app.services.statistiques_annuelles import (
-        enrichir_enfants_parent_annuel,
-        get_parent_enfants_query,
+    from app.services.paiements_annuels import get_finances_inscription
+
+    ecole_id = getattr(current_user, "ecole_id", None)
+    annee_consultee = get_annee_consultee(ecole_id) if ecole_id else None
+
+    if not ecole_id or not annee_consultee:
+        return render_template(
+            'parent_dashboard.html',
+            inscriptions=[],
+            inscription_selectionnee=None,
+            enfant_selectionne=None,
+            annee_consultee=annee_consultee
+        )
+
+    # Récupérer strictly les inscriptions des enfants du parent connecté
+    inscriptions = (
+        Inscription.query
+        .join(Eleve, Eleve.id == Inscription.eleve_id)
+        .options(
+            joinedload(Inscription.eleve),
+            joinedload(Inscription.classe),
+            selectinload(Inscription.notes).joinedload(Note.cours),
+            selectinload(Inscription.absences).joinedload(Absence.cours),
+            selectinload(Inscription.paiements)
+        )
+        .filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee_consultee.id,
+            Eleve.ecole_id == ecole_id,
+            Eleve.parent_id == current_user.id
+        )
+        .order_by(Eleve.nom.asc(), Eleve.prenom.asc())
+        .all()
     )
 
-    page = request.args.get('page', 1, type=int)
-    per_page = 10
-    annee_consultee = get_annee_consultee(current_user.ecole_id)
-    enfants_query = get_parent_enfants_query(current_user.ecole_id, annee_consultee, current_user.id) if annee_consultee else None
-    enfants_pagination = enfants_query.paginate(page=page, per_page=per_page, error_out=False) if enfants_query else None
-    enfants = enrichir_enfants_parent_annuel(enfants_pagination.items) if enfants_pagination else []
+    if not inscriptions:
+        return render_template(
+            'parent_dashboard.html',
+            inscriptions=[],
+            inscription_selectionnee=None,
+            enfant_selectionne=None,
+            annee_consultee=annee_consultee
+        )
 
-    if not enfants:
-        flash("Aucun élève n'est associé ? votre compte parent", "warning")
-        return render_template('parent_dashboard.html', enfants=[], pagination=enfants_pagination, annee_consultee=annee_consultee)
+    # Sélection de l'enfant
+    requested_id = request.args.get('enfant_id', type=int)
+    inscription_selectionnee = None
+    if requested_id:
+        inscription_selectionnee = next((ins for ins in inscriptions if ins.eleve_id == requested_id), None)
 
-    return render_template('parent_dashboard.html', enfants=enfants, pagination=enfants_pagination, annee_consultee=annee_consultee)
+    if not inscription_selectionnee:
+        inscription_selectionnee = inscriptions[0]
+
+    enfant_selectionne = inscription_selectionnee.eleve
+
+    # 1. Notes par matière
+    notes = inscription_selectionnee.notes or []
+    notes_triees = sorted(notes, key=lambda n: n.date_evaluation or datetime.min, reverse=True)
+    notes_par_matiere = defaultdict(list)
+    for n in notes_triees:
+        nom_matiere = n.cours.nom if n.cours else "Matière"
+        notes_par_matiere[nom_matiere].append(n)
+
+    # 2. Absences
+    absences = inscription_selectionnee.absences or []
+    absences_triees = sorted(absences, key=lambda a: a.date_absence or datetime.min, reverse=True)
+    stats_absences = {
+        'total': len(absences),
+        'justifiees': sum(1 for a in absences if a.justifiee),
+        'non_justifiees': sum(1 for a in absences if not a.justifiee)
+    }
+
+    # 3. Paiements
+    finances = get_finances_inscription(inscription_selectionnee)
+    paiements = inscription_selectionnee.paiements or []
+    paiements_triees = sorted(paiements, key=lambda p: p.date_paiement or datetime.min, reverse=True)
+
+    return render_template(
+        'parent_dashboard.html',
+        inscriptions=inscriptions,
+        inscription_selectionnee=inscription_selectionnee,
+        enfant_selectionne=enfant_selectionne,
+        notes_par_matiere=dict(notes_par_matiere),
+        absences=absences_triees,
+        stats_absences=stats_absences,
+        finances=finances,
+        paiements=paiements_triees,
+        annee_consultee=annee_consultee
+    )
 
 
 

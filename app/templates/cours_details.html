@@ -4,72 +4,50 @@
 
 {% block content %}
 <div class="container mt-4">
-    <!-- Carte principale du cours -->
-    <div class="card shadow-lg border-0 rounded-4 overflow-hidden premium-card">
-        <div class="card-header bg-gradient-primary text-white py-4">
-            <div class="d-flex justify-content-between align-items-center">
-                <h2 class="card-title mb-0 display-6 fw-bold">
-                    <i class="fas fa-book-open me-2"></i>{{ cours.nom }}
-                </h2>
-                {% if cours.coefficient %}
-                <span class="badge bg-light text-primary fs-6 p-2 premium-badge">
-                    <i class="fas fa-weight-hanging me-1"></i>Coefficient: {{ cours.coefficient }}
-                </span>
-                {% endif %}
+    <!-- En-tête du cours -->
+    <div class="card shadow-sm border-0 rounded-3 mb-4 premium-card">
+        <div class="card-body p-3 p-md-4">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start mb-3">
+                <div>
+                    <h2 class="card-title mb-1 fw-bold text-primary">
+                        <i class="fas fa-book-open me-2"></i>{{ cours.nom }}
+                    </h2>
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        {% if cours.coefficient %}
+                        <span class="badge bg-light text-primary border p-2">
+                            <i class="fas fa-weight-hanging me-1"></i>Coef: {{ cours.coefficient }}
+                        </span>
+                        {% endif %}
+                        {% if cours.professeur %}
+                        <span class="badge bg-light text-secondary border p-2">
+                            <i class="fas fa-user-tie me-1"></i>Prof: {{ cours.professeur.prenom }} {{ cours.professeur.nom }}
+                        </span>
+                        {% endif %}
+                        <span class="badge bg-light text-info border p-2">
+                            <i class="fas fa-clipboard-list me-1"></i>Notes: {{ notes|length }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="mt-3 mt-md-0 d-flex gap-2">
+                    <a href="{{ url_for('main.cours') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Retour
+                    </a>
+                    {% if current_user.role == 'admin' %}
+                    <a href="{{ url_for('main.modifier_cours', id=cours.id) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-edit me-1"></i>Modifier
+                    </a>
+                    {% endif %}
+                </div>
             </div>
-        </div>
 
-        <div class="card-body p-4">
-            <!-- Description -->
-            <div class="mb-4">
-                <h5 class="text-primary mb-3 premium-section-title">
-                    <i class="fas fa-align-left me-2"></i>Description
-                </h5>
-                <p class="card-text fs-5 text-dark lh-base bg-light p-3 rounded-3 premium-description">
-                    {{ cours.description or "Aucune description disponible" }}
+            {% if cours.description %}
+            <div class="mt-3 pt-3 border-top">
+                <p class="mb-0 text-muted small lh-sm">
+                    <i class="fas fa-info-circle me-1"></i> {{ cours.description }}
                 </p>
             </div>
-
-            <!-- Infos principales -->
-            <div class="row mb-4">
-                {% if cours.professeur %}
-                <div class="col-md-6 mb-3">
-                    <div class="d-flex align-items-center p-3 bg-light rounded-3 h-100 premium-info-card">
-                        <div class="bg-primary text-white rounded-circle p-3 me-3 premium-icon">
-                            <i class="fas fa-user-tie fa-lg"></i>
-                        </div>
-                        <div>
-                            <h6 class="mb-1 text-muted">Professeur</h6>
-                            <p class="mb-0 fs-5 fw-bold text-dark">{{ cours.professeur.prenom }} {{ cours.professeur.nom }}</p>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-
-                <div class="col-md-6 mb-3">
-                    <div class="d-flex align-items-center p-3 bg-light rounded-3 h-100 premium-info-card">
-                        <div class="bg-info text-white rounded-circle p-3 me-3 premium-icon">
-                            <i class="fas fa-clipboard-list fa-lg"></i>
-                        </div>
-                        <div>
-                            <h6 class="mb-1 text-muted">Notes enregistrées</h6>
-                            <p class="mb-0 fs-5 fw-bold text-dark">{{ notes|length }}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Boutons retour -->
-            <div class="d-flex justify-content-between mt-4 pt-3 border-top premium-button-group">
-                <a href="{{ url_for('main.cours') }}" class="btn btn-outline-primary btn-lg rounded-3 px-4 premium-btn">
-                    <i class="fas fa-arrow-left me-2"></i>Retour aux cours
-                </a>
-                {% if current_user.role == 'admin' %}
-                <a href="{{ url_for('main.modifier_cours', id=cours.id) }}" class="btn btn-outline-secondary btn-lg rounded-3 px-4 premium-btn">
-                    <i class="fas fa-edit me-2"></i>Modifier le cours
-                </a>
-                {% endif %}
-            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -85,123 +63,123 @@
     </div>
 
     <div class="card shadow-lg border-0 rounded-4 mb-4 premium-card">
-        <div class="card-header bg-light py-3 premium-card-header">
+        <div class="card-header bg-light py-3 premium-card-header d-flex justify-content-between align-items-center cursor-pointer" data-bs-toggle="collapse" data-bs-target="#collapseNotes" aria-expanded="true" aria-controls="collapseNotes" style="cursor: pointer;">
             <h5 class="mb-0">
                 <i class="fas fa-clipboard-list me-2 text-primary"></i>Notes des élèves
             </h5>
+            <button class="btn btn-sm btn-outline-secondary border-0" type="button">
+                <i class="fas fa-chevron-down"></i>
+            </button>
         </div>
-        <div class="card-body">
-            {% if notes %}
-            <div class="table-responsive">
-                <table class="table table-hover premium-table">
-                    <thead class="table-primary">
-                        <tr>
-                            <th>Nom</th>
-                            <th>Prénom</th>
-                            <th>Classe</th>
-                            <th>Note</th>
-                            <th>Type</th>
-                            <th>Date</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for note in notes %}
-                        <tr class="premium-table-row">
-                            <td>{{ note.eleve.nom }}</td>
-                            <td>{{ note.eleve.prenom }}</td>
-                            <td>{{ note.eleve.classe }}</td>
-                            <td>
-                                <span class="badge bg-{{ 'success' if note.valeur >= 10 else 'danger' }} premium-note-badge">
+        <div id="collapseNotes" class="collapse show">
+            <div class="card-body p-0 p-md-3">
+                {% if notes %}
+                
+                <!-- Vue Bureau (Tableau) -->
+                <div class="table-responsive d-none d-md-block">
+                    <table class="table table-hover premium-table mb-0">
+                        <thead class="table-primary">
+                            <tr>
+                                <th>Nom</th>
+                                <th>Prénom</th>
+                                <th>Classe</th>
+                                <th>Note</th>
+                                <th>Type</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for note in notes %}
+                            <tr class="premium-table-row">
+                                <td>{{ note.eleve.nom }}</td>
+                                <td>{{ note.eleve.prenom }}</td>
+                                <td>{{ note.eleve.classe }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if note.valeur >= 10 else 'danger' }} premium-note-badge">
+                                        {{ note.valeur }}/20
+                                    </span>
+                                </td>
+                                <td>{{ note.type_evaluation or 'Non spécifié' }}</td>
+                                <td>{{ note.date_evaluation.strftime('%d/%m/%Y') if note.date_evaluation else 'N/A' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Vue Mobile (Cartes) -->
+                <div class="d-md-none p-3">
+                    {% for note in notes %}
+                    <div class="card mb-3 border shadow-sm">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0 fw-bold">{{ note.eleve.nom }} {{ note.eleve.prenom }}</h6>
+                                <span class="badge bg-{{ 'success' if note.valeur >= 10 else 'danger' }} px-2 py-1 fs-6">
                                     {{ note.valeur }}/20
                                 </span>
-                            </td>
-                            <td>{{ note.type_evaluation or 'Non spécifié' }}</td>
-                            <td>{{ note.date_evaluation.strftime('%d/%m/%Y') if note.date_evaluation else 'N/A' }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="text-center py-4 premium-empty-state">
-                <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">Aucune note enregistrée</h5>
-                <p class="text-muted">Commencez par importer des notes ou les saisir manuellement.</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Ressources du cours -->
-    <div class="card shadow-lg border-0 rounded-4 mb-4 premium-card">
-        <div class="card-header bg-light py-3 premium-card-header">
-            <h5 class="mb-0">
-                <i class="fas fa-paperclip me-2 text-primary"></i>Ressources du cours
-            </h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <!-- Exercices / anciens examens -->
-                <div class="col-md-4 mb-3">
-                    <div class="card border-0 shadow-sm h-100 premium-resource-card">
-                        <div class="card-body text-center">
-                            <i class="fas fa-tasks text-success fa-3x mb-3 premium-resource-icon"></i>
-                            <h6>Exercices</h6>
-                            <p class="text-muted small">Supports pratiques</p>
-                            <a href="{{ url_for('main.export_notes', id=cours.id) }}" class="btn btn-outline-primary btn-sm premium-btn">
-                                <i class="fas fa-file-excel me-1"></i> Télécharger les notes
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Modèles d'importation -->
-                <div class="col-md-4 mb-3">
-                    <div class="card border-0 shadow-sm h-100 premium-resource-card">
-                        <div class="card-body text-center">
-                            <i class="fas fa-download text-info fa-3x mb-3 premium-resource-icon"></i>
-                            <h6>Modèles</h6>
-                            <p class="text-muted small">Fichiers modèles</p>
-                            <div class="d-flex flex-column gap-2">
-                                <a href="{{ url_for('main.modele_import_notes', id=cours.id) }}" 
-                                   class="btn btn-outline-success btn-sm premium-btn">
-                                    <i class="fas fa-file-excel me-1"></i> Modèle Excel
-                                </a>
-                                <a href="{{ url_for('main.modele_import_notes', id=cours.id, format='csv') }}" 
-                                   class="btn btn-outline-primary btn-sm premium-btn">
-                                    <i class="fas fa-file-csv me-1"></i> Modèle CSV
-                                </a>
+                            </div>
+                            <div class="d-flex justify-content-between text-muted small mt-2">
+                                <span><i class="fas fa-users me-1"></i>{{ note.eleve.classe }}</span>
+                                <span><i class="fas fa-tag me-1"></i>{{ note.type_evaluation or 'N/A' }}</span>
+                            </div>
+                            <div class="text-muted small mt-1">
+                                <span><i class="fas fa-calendar-alt me-1"></i>{{ note.date_evaluation.strftime('%d/%m/%Y') if note.date_evaluation else 'N/A' }}</span>
                             </div>
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
+
+                {% else %}
+                <div class="text-center py-4 premium-empty-state">
+                    <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Aucune note enregistrée</h5>
+                    <p class="text-muted">Commencez par importer des notes ou les saisir manuellement.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
-<div class="d-flex justify-content-end mb-3">
-    <a href="{{ url_for('main.imports_historique') }}" class="btn btn-outline-secondary">
-        <i class="fas fa-history"></i> Historique des imports
-    </a>
-</div>
 
-  <form action="{{ url_for('main.import_notes_excel', id=cours.id) }}" 
-      method="POST" enctype="multipart/form-data" class="premium-form">
-
-    <!-- ✅ Ajout du token CSRF -->
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-    <div class="mb-3">
-        <label for="file" class="form-label premium-form-label">Choisir un fichier Excel/CSV</label>
-        <input type="file" name="file" id="file" class="form-control premium-form-control" required accept=".xlsx,.xls,.csv">
-        <div class="form-text premium-form-text">
-            Format attendu: Colonnes [Nom, Prénom, Classe, Note, Coefficient, Type évaluation]
+    <!-- Zone d'importation des notes -->
+    <div class="card shadow-lg border-0 rounded-4 mb-4 premium-card">
+        <div class="card-header bg-light py-3 premium-card-header d-flex justify-content-between align-items-center flex-wrap">
+            <h5 class="mb-0">
+                <i class="fas fa-file-import me-2 text-primary"></i>Importation des notes
+            </h5>
+            <div class="mt-2 mt-md-0 d-flex gap-2 flex-wrap">
+                <a href="{{ url_for('main.modele_import_notes', id=cours.id) }}" class="btn btn-outline-success btn-sm premium-btn">
+                    <i class="fas fa-file-excel me-1"></i> Modèle Excel
+                </a>
+                <a href="{{ url_for('main.modele_import_notes', id=cours.id, format='csv') }}" class="btn btn-outline-primary btn-sm premium-btn">
+                    <i class="fas fa-file-csv me-1"></i> Modèle CSV
+                </a>
+                <a href="{{ url_for('main.imports_historique') }}" class="btn btn-outline-secondary btn-sm premium-btn">
+                    <i class="fas fa-history me-1"></i> Historique
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('main.import_notes_excel', id=cours.id) }}" method="POST" enctype="multipart/form-data" class="premium-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <div class="row align-items-end">
+                    <div class="col-md-9 mb-3 mb-md-0">
+                        <label for="file" class="form-label premium-form-label">Fichier de notes (Excel/CSV)</label>
+                        <input type="file" name="file" id="file" class="form-control premium-form-control" required accept=".xlsx,.xls,.csv">
+                        <div class="form-text premium-form-text">
+                            <i class="fas fa-info-circle me-1"></i> Format attendu : Colonnes [Nom, Prénom, Classe, Note, Coefficient, Type évaluation]
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary w-100 premium-btn py-2">
+                            <i class="fas fa-upload me-1"></i> Importer
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
-
-    <button type="submit" class="btn btn-primary premium-btn">
-        <i class="fas fa-upload me-1"></i>Importer
-    </button>
-</form>
 {% endif %}
 
 <style>
@@ -326,23 +304,6 @@
     opacity: 1;
 }
 
-.premium-resource-card {
-    transition: all 0.3s ease;
-    border: 1px solid rgba(0, 0, 0, 0.04);
-}
-
-.premium-resource-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.1);
-}
-
-.premium-resource-icon {
-    transition: transform 0.3s ease;
-}
-
-.premium-resource-card:hover .premium-resource-icon {
-    transform: scale(1.1);
-}
 
 .premium-form-label {
     font-weight: 600;

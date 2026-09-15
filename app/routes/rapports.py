@@ -423,7 +423,7 @@ def notifications():
                 notifications.append({
                     'type': 'info',
                     'message': f'{nouvelles_notes} nouvelle(s) note(s) pour {enfant.prenom}',
-                    'lien': url_for('main.portal_parent'),
+                    'lien': url_for('main.voir_eleve', eleve_id=enfant.id),
                     'date': now.strftime("%d/%m/%Y %H:%M"),
                     'priority': 2
                 })
@@ -438,7 +438,7 @@ def notifications():
                 notifications.append({
                     'type': 'warning',
                     'message': f'{absences_non_justifiees} absence(s) non justifiée(s) pour {enfant.prenom}',
-                    'lien': url_for('main.portal_parent'),
+                    'lien': url_for('main.voir_eleve', eleve_id=enfant.id),
                     'date': now.strftime("%d/%m/%Y %H:%M"),
                     'priority': 3
                 })

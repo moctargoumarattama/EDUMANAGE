@@ -1,205 +1,396 @@
 {% extends "base.html" %}
-{% block title %}Dashboard Parent - KLASORA{% endblock %}
+{% block title %}Espace Parent - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <!-- Header avec titre élégant -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="bg-animated p-4 rounded-3 shadow-sm surface-gradient-primary">
-                <h2 class="text-white mb-0">
-                    <i class="fas fa-users me-2"></i>Tableau de Bord Parent
-                </h2>
-                <p class="text-light mb-0 mt-2 opacity-75">Suivi complet de la scolarité de vos enfants</p>
-            </div>
+<style>
+.parent-dashboard-container {
+    max-width: 920px;
+    margin: 0 auto;
+}
+.hero-parent-card {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%);
+    border-radius: 1rem;
+    box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.25);
+}
+.avatar-initials {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #ffffff;
+    color: #1e3a8a;
+    font-weight: 800;
+    font-size: 1.35rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+.card-chic {
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
+    background: #ffffff;
+}
+.badge-note-pass {
+    background-color: #dcfce7;
+    color: #15803d;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 0.35em 0.65em;
+    border-radius: 0.5rem;
+}
+.badge-note-fail {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 0.35em 0.65em;
+    border-radius: 0.5rem;
+}
+.notes-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+.notes-table-container::-webkit-scrollbar {
+    width: 6px;
+}
+.notes-table-container::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 3px;
+}
+.table-compact th {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    background-color: #f8fafc;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+.table-compact td {
+    padding: 0.65rem 0.75rem;
+    vertical-align: middle;
+}
+.filter-chip {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border-radius: 20px;
+    padding: 0.3rem 0.8rem;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+.filter-chip.active {
+    background-color: #2563eb;
+    color: white;
+}
+.filter-chip:not(.active) {
+    background-color: #f1f5f9;
+    color: #475569;
+}
+.filter-chip:not(.active):hover {
+    background-color: #e2e8f0;
+}
+</style>
+
+<div class="container py-3 parent-dashboard-container">
+
+    {% if not inscriptions %}
+    <div class="card card-chic p-4 text-center my-4">
+        <div class="py-4">
+            <i class="fas fa-exclamation-circle fa-3x text-warning mb-3"></i>
+            <h4 class="fw-bold text-dark">Aucun enfant associé</h4>
+            <p class="text-muted mb-0">Aucun élève n'est inscrit sous votre compte pour cette année scolaire.</p>
         </div>
     </div>
-
-    <!-- Contenu principal -->
-    {% if enfants %}
-    <div class="row g-4">
-        {% for enfant in enfants %}
-        <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
-            <div class="card border-0 shadow-lg h-100 student-card rounded-card-lg">
-                <div class="card-header text-white text-center py-4 position-relative surface-gradient-primary">
-                    <div class="position-absolute top-0 end-0 m-3">
-                        <span class="badge bg-light text-dark">{{ enfant.classe }}</span>
-                    </div>
-                    <h4 class="mb-1 fw-bold">{{ enfant.prenom }} {{ enfant.nom }}</h4>
-                    <small class="text-light opacity-90">Élève</small>
-                </div>
-                
-                <div class="card-body p-4">
-                    <!-- Section Moyenne -->
-                    <div class="mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="mb-0 text-muted">
-                                <i class="fas fa-chart-line me-2"></i>Moyenne Générale
-                            </h6>
-                            <span class="badge bg-primary rounded-pill fs-6 px-3 py-2">{{ (enfant.moyenne|default(0))|round(1) }}/20</span>
-                        </div>
-                        <div class="progress progress-soft mb-3">
-                            {% set moyenne_percent = (((enfant.moyenne|default(0)) / 20) * 100)|round %}
-                            <div class="progress-bar bg-gradient-primary" role="progressbar" 
-                                 style="width: {{ moyenne_percent }}%;" 
-                                 aria-valuenow="{{ enfant.moyenne|default(0) }}" aria-valuemin="0" aria-valuemax="20">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Section Absences -->
-                    <div class="mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="mb-0 text-muted">
-                                <i class="fas fa-calendar-times me-2"></i>Absences
-                            </h6>
-                            <span class="badge bg-danger rounded-pill fs-6 px-3 py-2">{{ enfant.total_absences|default(0) }}</span>
-                        </div>
-                        <div class="progress progress-soft mb-3">
-                            {% set max_absences = 20 %}
-                            {% set absence_percent = (((enfant.total_absences|default(0)) / max_absences) * 100)|round %}
-                            <div class="progress-bar bg-gradient-danger" role="progressbar" 
-                                 style="width: {{ absence_percent }}%;" 
-                                 aria-valuenow="{{ enfant.total_absences|default(0) }}" aria-valuemin="0" aria-valuemax="{{ max_absences }}">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Section Paiements -->
-                    <div class="mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="mb-0 text-muted">
-                                <i class="fas fa-receipt me-2"></i>Paiements
-                            </h6>
-                            <span class="badge bg-success rounded-pill fs-6 px-3 py-2">{{ enfant.total_paiements }}/12</span>
-                        </div>
-                        <div class="progress progress-soft mb-3">
-                            {% set max_paiements = 12 %}
-                            {% set paiement_percent = ((enfant.total_paiements / max_paiements) * 100)|round %}
-                            <div class="progress-bar bg-gradient-success" role="progressbar" 
-                                 style="width: {{ paiement_percent }}%;" 
-                                 aria-valuenow="{{ enfant.total_paiements }}" aria-valuemin="0" aria-valuemax="{{ max_paiements }}">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Boutons d'action -->
-                    <div class="d-grid gap-2 mt-4">
-                        <a href="{{ url_for('main.voir_eleve', eleve_id=enfant.id) }}" 
-                           class="btn btn-outline-primary btn-lg rounded-pill py-2">
-                            <i class="fas fa-eye me-2"></i>Profil Complet
-                        </a>
-                        <a href="{{ url_for('main.bulletin_eleve', id=enfant.id) }}" 
-                           class="btn btn-outline-success btn-lg rounded-pill py-2">
-                            <i class="fas fa-file-pdf me-2"></i>Télécharger le Bulletin
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-
-    <!-- Pagination élégante -->
-    {% if pagination %}
-    <nav aria-label="Navigation des pages" class="mt-5">
-        <ul class="pagination justify-content-center">
-            {% if pagination.has_prev %}
-            <li class="page-item">
-                <a class="page-link rounded-pill mx-1 shadow-sm" 
-                   href="{{ url_for('main.parent_dashboard', page=pagination.prev_num )}}">
-                    <i class="fas fa-chevron-left me-2"></i>Précédent
-                </a>
-            </li>
-            {% else %}
-            <li class="page-item disabled">
-                <span class="page-link rounded-pill mx-1">Précédent</span>
-            </li>
-            {% endif %}
-
-            {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-                {% if p %}
-                    {% if p == pagination.page %}
-                        <li class="page-item active">
-                            <span class="page-link rounded-circle mx-1 shadow-sm">{{ p }}</span>
-                        </li>
-                    {% else %}
-                        <li class="page-item">
-                            <a class="page-link rounded-circle mx-1 shadow-sm" 
-                               href="{{ url_for('main.parent_dashboard', page=p) }}">{{ p }}</a>
-                        </li>
-                    {% endif %}
-                {% else %}
-                    <li class="page-item disabled">
-                        <span class="page-link rounded-circle mx-1">…</span>
-                    </li>
-                {% endif %}
-            {% endfor %}
-
-            {% if pagination.has_next %}
-            <li class="page-item">
-                <a class="page-link rounded-pill mx-1 shadow-sm" 
-                   href="{{ url_for('main.parent_dashboard', page=pagination.next_num) }}">
-                    Suivant<i class="fas fa-chevron-right ms-2"></i>
-                </a>
-            </li>
-            {% else %}
-            <li class="page-item disabled">
-                <span class="page-link rounded-pill mx-1">Suivant</span>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
-
     {% else %}
-    <!-- État vide - Aucun enfant -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card border-0 shadow-lg text-center py-5 rounded-card-lg">
-                <div class="card-body py-5">
-                    <div class="empty-state-icon mb-4">
-                        <i class="fas fa-user-slash fa-4x text-muted opacity-50"></i>
-                    </div>
-                    <h3 class="text-muted mb-3">Aucun élève associé</h3>
-                    <p class="text-muted mb-4">Aucun élève n'est actuellement associé à votre compte parent.</p>
-                    <p class="text-muted small mb-4">Veuillez contacter l'administration de l'établissement pour associer un élève à votre compte.</p>
-                    
-                    <div class="d-flex justify-content-center gap-3 mt-4">
-                        <a href="{{ url_for('main.logout') }}" class="btn btn-outline-primary rounded-pill px-4">
-                            <i class="fas fa-sign-out-alt me-2"></i>Se déconnecter
-                        </a>
+
+    <!-- HERO HEADER CARD -->
+    <div class="hero-parent-card text-white p-3 p-md-4 mb-3">
+        <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="avatar-initials">
+                    {{ enfant_selectionne.prenom[:1] | upper }}{{ enfant_selectionne.nom[:1] | upper }}
+                </div>
+                <div>
+                    <h2 class="h3 fw-bold text-white mb-1">{{ enfant_selectionne.prenom }} {{ enfant_selectionne.nom }}</h2>
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <span class="badge bg-white text-primary fw-bold px-2 py-1">
+                            <i class="fas fa-chalkboard-teacher me-1"></i>{{ inscription_selectionnee.classe.nom if inscription_selectionnee.classe else 'Classe N/A' }}
+                        </span>
+                        <span class="badge bg-white bg-opacity-20 text-white px-2 py-1">
+                            <i class="fas fa-calendar-alt me-1"></i>{{ annee_consultee.libelle if annee_consultee else '' }}
+                        </span>
                     </div>
                 </div>
             </div>
+
+            <!-- SÉLECTEUR D'ENFANT & BULLETIN -->
+            <div class="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center">
+                {% if inscriptions|length > 1 %}
+                <div>
+                    <select class="form-select form-select-sm border-0 fw-bold shadow-sm" 
+                            onchange="window.location.href='?enfant_id=' + this.value" 
+                            style="background-color: rgba(255,255,255,0.95); color: #1e3a8a; border-radius: 0.5rem; min-width: 170px;">
+                        {% for ins in inscriptions %}
+                        <option value="{{ ins.eleve.id }}" {% if ins.eleve_id == enfant_selectionne.id %}selected{% endif %}>
+                            {{ ins.eleve.prenom }} {{ ins.eleve.nom }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <a href="{{ url_for('main.bulletin_eleve', id=enfant_selectionne.id) }}" 
+                   class="btn btn-success fw-bold btn-sm rounded-3 shadow-sm d-flex align-items-center justify-content-center px-3 py-2">
+                    <i class="fas fa-file-pdf me-2"></i>Télécharger le Bulletin
+                </a>
+            </div>
         </div>
     </div>
+
+    <!-- SECTION NOTES (COMPACTE ET CHIC) -->
+    <div class="card card-chic mb-4">
+        <div class="card-header bg-white border-0 pt-3 px-3 pb-2 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+            <h5 class="fw-bold mb-0 text-dark d-flex align-items-center h6">
+                <i class="fas fa-book-open text-primary me-2"></i>Notes enregistrées
+            </h5>
+            
+            {% if notes_par_matiere %}
+            <!-- Filtres par matière (Pills) -->
+            <div class="d-flex flex-wrap gap-1" id="subject-filters">
+                <span class="filter-chip active" data-subject="all">Toutes</span>
+                {% for matiere in notes_par_matiere.keys() %}
+                <span class="filter-chip" data-subject="subj-{{ loop.index }}">{{ matiere }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="card-body p-0">
+            {% if notes_par_matiere %}
+            <div class="notes-table-container">
+                <table class="table table-hover table-compact mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-3">Matière</th>
+                            <th>Évaluation</th>
+                            <th>Date</th>
+                            <th class="text-end pe-3">Note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for matiere, notes_list in notes_par_matiere.items() %}
+                            {% set subj_id = 'subj-' ~ loop.index %}
+                            {% for n in notes_list %}
+                            <tr class="note-row" data-subject="{{ subj_id }}">
+                                <td class="ps-3 fw-bold text-primary" style="font-size: 0.9rem;">
+                                    {{ matiere }}
+                                </td>
+                                <td>
+                                    <span class="fw-semibold text-dark" style="font-size: 0.88rem;">
+                                        {{ n.type_evaluation or 'Évaluation' }}
+                                    </span>
+                                </td>
+                                <td class="text-muted small">
+                                    {{ n.date_evaluation.strftime('%d/%m/%Y') if n.date_evaluation else '--' }}
+                                </td>
+                                <td class="text-end pe-3">
+                                    {% if n.valeur is not none %}
+                                        <span class="{% if n.valeur >= 10 %}badge-note-pass{% else %}badge-note-fail{% endif %}">
+                                            {{ "%.1f"|format(n.valeur) }} <small style="font-weight: 500; opacity: 0.8;">/ 20</small>
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted font-monospace">--</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="fas fa-folder-open fa-2x mb-2 text-secondary opacity-50"></i>
+                <p class="mb-0 small">Aucune note n'a encore été saisie pour cet enfant.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- DOUBLE COLONNE : ABSENCES & PAIEMENTS -->
+    <div class="row g-3 mb-4">
+        
+        <!-- ABSENCES -->
+        <div class="col-12 col-md-6">
+            <div class="card card-chic h-100">
+                <div class="card-header bg-white border-0 pt-3 px-3 pb-2 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-dark h6">
+                        <i class="fas fa-calendar-times text-danger me-2"></i>Absences
+                    </h5>
+                    <div class="d-flex gap-1">
+                        <span class="badge bg-success-subtle text-success small fw-bold px-2 py-1">
+                            {{ stats_absences.justifiees }} justifiée{{ 's' if stats_absences.justifiees > 1 else '' }}
+                        </span>
+                        <span class="badge bg-danger-subtle text-danger small fw-bold px-2 py-1">
+                            {{ stats_absences.non_justifiees }} non-justifiée{{ 's' if stats_absences.non_justifiees > 1 else '' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if absences %}
+                    <div style="max-height: 240px; overflow-y: auto;">
+                        <ul class="list-group list-group-flush small">
+                            {% for a in absences %}
+                            <li class="list-group-item px-3 py-2 bg-transparent d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold text-dark">
+                                        {{ a.date_absence.strftime('%d/%m/%Y') if a.date_absence else 'N/A' }}
+                                        {% if a.cours %}<span class="text-muted font-normal ms-1">({{ a.cours.nom }})</span>{% endif %}
+                                    </div>
+                                    {% if a.motif %}
+                                    <div class="text-muted" style="font-size: 0.78rem;">Motif : {{ a.motif }}</div>
+                                    {% endif %}
+                                </div>
+                                <span class="badge {% if a.justifiee %}bg-success{% else %}bg-danger{% endif %} rounded-pill px-2 py-1">
+                                    {{ 'Justifiée' if a.justifiee else 'Non-justifiée' }}
+                                </span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="fas fa-user-check text-success fa-2x mb-2 opacity-50"></i>
+                        <p class="mb-0 small">Aucune absence enregistrée.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- PAIEMENTS -->
+        <div class="col-12 col-md-6">
+            <div class="card card-chic h-100">
+                <div class="card-header bg-white border-0 pt-3 px-3 pb-2 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-dark h6">
+                        <i class="fas fa-wallet text-success me-2"></i>Situation Financière
+                    </h5>
+                    <span class="badge bg-light text-dark fw-bold border">
+                        Payé : {{ "{:,.0f}".format(finances.total_paye).replace(',', ' ') }} F
+                    </span>
+                </div>
+                <div class="card-body p-3">
+                    <div class="p-2 bg-light rounded-3 mb-3 d-flex justify-content-between align-items-center">
+                        <span class="small fw-semibold text-secondary">Reste à régler :</span>
+                        <span class="fw-bold fs-6 {% if finances.reste_a_payer > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ "{:,.0f}".format(finances.reste_a_payer).replace(',', ' ') }} F CFA
+                        </span>
+                    </div>
+
+                    {% if paiements %}
+                    <div class="text-muted small fw-bold mb-2">Derniers versements :</div>
+                    <div style="max-height: 160px; overflow-y: auto;">
+                        <ul class="list-group list-group-flush small">
+                            {% for p in paiements %}
+                            <li class="list-group-item px-0 py-1 bg-transparent d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="fw-bold text-dark">{{ p.mois }} {{ p.annee if p.annee else '' }}</span>
+                                    <span class="text-muted ms-1" style="font-size: 0.75rem;">({{ p.date_paiement.strftime('%d/%m/%Y') if p.date_paiement else '' }})</span>
+                                </div>
+                                <span class="fw-bold text-success">+{{ "{:,.0f}".format(p.montant).replace(',', ' ') }} F</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3 text-muted">
+                        <p class="mb-0 small">Aucun historique de paiement pour l'instant.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
     {% endif %}
+
 </div>
 
-<!-- Container pour les notifications -->
+<!-- Container pour les notifications Toast -->
 <div id="notifications-container" class="notifications-panel"></div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Fonction pour récupérer les notifications
+// Filter Notes Table by Subject
+document.addEventListener('DOMContentLoaded', function() {
+    const filterChips = document.querySelectorAll('.filter-chip');
+    const noteRows = document.querySelectorAll('.note-row');
+
+    filterChips.forEach(chip => {
+        chip.addEventListener('click', function() {
+            filterChips.forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+
+            const selectedSubject = this.getAttribute('data-subject');
+
+            noteRows.forEach(row => {
+                if (selectedSubject === 'all' || row.getAttribute('data-subject') === selectedSubject) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    });
+
+    // Setup Notifications
+    const container = document.getElementById('notifications-container');
+    if (container) {
+        container.style.display = 'none';
+    }
+
+    const notifBtn = document.getElementById('notif-badge');
+    if (notifBtn) {
+        notifBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (container) {
+                const isHidden = container.style.display === 'none' || !container.style.display;
+                container.style.display = isHidden ? 'block' : 'none';
+            }
+        });
+    }
+
+    document.addEventListener('click', function(e) {
+        if (container && !container.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) {
+            container.style.display = 'none';
+        }
+    });
+
+    fetchNotifications();
+    setInterval(fetchNotifications, 30000);
+});
+
 async function fetchNotifications() {
     try {
-        const response = await fetch('/notificationsformat=json');
+        const response = await fetch('/notifications?format=json');
         if (response.ok) {
             const notifications = await response.json();
             updateNotificationBadge(notifications.length);
-            displayNotifications(notifications);
+            renderNotifications(notifications);
         }
     } catch (error) {
-        console.error('Erreur lors de la récupération des notifications:', error);
-        // En cas d'erreur, initialiser avec 0 notifications
+        console.error('Erreur notifications:', error);
         updateNotificationBadge(0);
     }
 }
 
-// Mise à jour du badge de notification
 function updateNotificationBadge(count) {
     const badge = document.getElementById('notif-count');
     if (badge) {
@@ -208,117 +399,57 @@ function updateNotificationBadge(count) {
     }
 }
 
-// Affichage des notifications avec animations
-function displayNotifications(notifications) {
+function renderNotifications(notifications) {
     const container = document.getElementById('notifications-container');
     if (!container) return;
-    
     container.innerHTML = '';
-
-    if (notifications.length === 0) return;
-
-    // Tri par priorité
-    notifications.sort((a, b) => (b.priority || 0) - (a.priority || 0));
-
-    notifications.forEach((notif, index) => {
-        const toast = document.createElement('div');
-        toast.className = `toast mb-3 shadow-lg notification-toast`;
-        toast.setAttribute('role', 'alert');
-        toast.setAttribute('data-bs-autohide', 'false');
-        
-        const alertClass = getBootstrapClass(notif.type);
-        
-        toast.innerHTML = `
-            <div class="toast-header bg-${alertClass} text-white rounded">
-                <strong class="me-auto">
-                    <i class="fas fa-${getNotificationIcon(notif.type)} me-2"></i>
-                    ${notif.title || 'Notification'}
-                </strong>
-                <small>${notif.date ? new Date(notif.date).toLocaleTimeString() : ''}</small>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-            <div class="toast-body">
-                <p class="mb-2">${notif.message}</p>
-                ${notif.lien ? `<a href="${notif.lien}" class="btn btn-${alertClass} btn-sm mt-2">Voir les détails</a>` : ''}
+    
+    if (notifications.length === 0) {
+        container.innerHTML = `
+            <div class="card shadow-lg border-0 rounded-3 p-3 text-center bg-white">
+                <p class="text-muted mb-0 small"><i class="fas fa-bell-slash me-2"></i>Aucune nouvelle notification</p>
             </div>
         `;
-
-        container.appendChild(toast);
-
-        // Initialiser le toast Bootstrap
-        const bsToast = new bootstrap.Toast(toast);
-        bsToast.show();
-    });
-}
-
-// Icônes selon le type de notification
-function getNotificationIcon(type) {
-    const icons = {
-        'info': 'info-circle',
-        'warning': 'exclamation-triangle',
-        'danger': 'exclamation-circle',
-        'success': 'check-circle'
-    };
-    return icons[type] || 'bell';
-}
-
-// Classes Bootstrap selon le type
-function getBootstrapClass(type) {
-    const classes = {
-        'info': 'info',
-        'warning': 'warning',
-        'danger': 'danger',
-        'success': 'success'
-    };
-    return classes[type] || 'secondary';
-}
-
-// Gestionnaire d'événement pour le badge
-document.addEventListener('DOMContentLoaded', function() {
-    const notifBadge = document.getElementById('notif-badge');
-    const container = document.getElementById('notifications-container');
-    
-    if (notifBadge && container) {
-        let isVisible = false;
-        
-        notifBadge.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            if (isVisible) {
-                container.style.display = 'none';
-                isVisible = false;
-            } else {
-                container.style.display = 'block';
-                isVisible = true;
-            }
-        });
-
-        // Fermer les notifications en cliquant ailleurs
-        document.addEventListener('click', function(e) {
-            if (!container.contains(e.target) && !notifBadge.contains(e.target)) {
-                container.style.display = 'none';
-                isVisible = false;
-            }
-        });
+        return;
     }
 
-    // Initialisation des notifications
-    fetchNotifications();
+    const card = document.createElement('div');
+    card.className = 'card border-0 shadow-lg rounded-3 overflow-hidden';
     
-    // Rafraîchissement automatique toutes les 30 secondes
-    setInterval(fetchNotifications, 30000);
+    let listHtml = notifications.map(notif => {
+        const alertClass = notif.type === 'danger' ? 'danger' : (notif.type === 'warning' ? 'warning' : 'info');
+        return `
+            <div class="p-3 border-bottom bg-white">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="badge bg-${alertClass} fw-bold">
+                        <i class="fas fa-bell me-1"></i>${notif.type ? notif.type.toUpperCase() : 'INFO'}
+                    </span>
+                    <small class="text-muted ms-2">${notif.date || ''}</small>
+                </div>
+                <p class="mb-1 text-dark small fw-semibold">${notif.message}</p>
+                ${notif.lien ? `<a href="${notif.lien}" class="btn btn-sm btn-outline-${alertClass} py-0 px-2 mt-1" style="font-size: 0.8rem;">Consulter</a>` : ''}
+            </div>
+        `;
+    }).join('');
 
-    // Effet de hover sur les cartes avec gestion sécurisée
-    document.querySelectorAll('.student-card').forEach(card => {
-        card.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateY(-5px)';
+    card.innerHTML = `
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-2 px-3">
+            <h6 class="mb-0 fw-bold"><i class="fas fa-bell me-2"></i>Notifications</h6>
+            <button type="button" class="btn-close btn-close-white btn-sm" id="close-notif-panel" aria-label="Fermer"></button>
+        </div>
+        <div class="card-body p-0" style="max-height: 350px; overflow-y: auto;">
+            ${listHtml}
+        </div>
+    `;
+
+    container.appendChild(card);
+
+    const closeBtn = card.querySelector('#close-notif-panel');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            container.style.display = 'none';
         });
-        
-        card.addEventListener('mouseleave', function() {
-            this.style.transform = 'translateY(0)';
-        });
-    });
-});
+    }
+}
 </script>
 {% endblock %}

@@ -331,6 +331,7 @@ def calculer_stats_et_classements_classe(ecole_id, classe_id, annee_id, periode=
 
     return {
         "rangs_par_inscription": rangs_par_inscription,
+        "evals_by_ins": evals_by_ins,
         "effectif_total": effectif_total,
         "complets_count": complets_count,
         "provisoires_count": len(provisoires),

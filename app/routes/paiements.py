@@ -289,31 +289,9 @@ def paiements():
 @login_required
 @role_required('parent')
 def paiements_parent():
-    annee = get_annee_consultee(current_user.ecole_id)
-    if not annee:
-        return render_template("paiements_parent.html", paiements=[], total_amount=0)
+    """Route obsolète, redirige vers parent_dashboard car les paiements sont affichés dans voir_eleve"""
+    return redirect(url_for('main.parent_dashboard'))
 
-    inscriptions = get_inscriptions_paiements(current_user.ecole_id, annee, current_user)
-    ins_ids = [ins.id for ins in inscriptions]
-
-    if ins_ids:
-        paiements = (
-            Paiement.query.options(
-                joinedload(Paiement.inscription).joinedload(Inscription.classe),
-                joinedload(Paiement.eleve),
-            )
-            .filter(
-                Paiement.ecole_id == current_user.ecole_id,
-                Paiement.inscription_id.in_(ins_ids)
-            )
-            .order_by(Paiement.date_paiement.desc(), Paiement.id.desc())
-            .all()
-        )
-    else:
-        paiements = []
-
-    total_amount = sum(p.montant for p in paiements if p.montant)
-    return render_template("paiements_parent.html", paiements=paiements, total_amount=total_amount, annee_consultee=annee)
 
 
 @main.route('/paiement/<int:id>/recu')

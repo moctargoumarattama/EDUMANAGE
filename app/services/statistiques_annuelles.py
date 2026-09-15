@@ -162,10 +162,16 @@ def enrichir_enfants_parent_annuel(inscriptions):
         from app.services.evaluations import calculer_completude_inscription
         eval_info = calculer_completude_inscription(inscription.ecole_id, inscription.annee_scolaire_id, inscription)
         enfant.classe = inscription.classe
-        enfant.eval_status = eval_info["status"]
-        enfant.moyenne = eval_info["average"]
+        
         enfant.total_notes = len(notes)
-        enfant.total_absences = len(getattr(inscription, "absences", []) or [])
+        notes_sorted = sorted(notes, key=lambda n: n.date_evaluation or datetime.min, reverse=True)
+        enfant.dernieres_notes = notes_sorted[:3]
+
+        absences = getattr(inscription, "absences", []) or []
+        enfant.total_absences = len(absences)
+        absences_sorted = sorted(absences, key=lambda a: a.date_absence or datetime.min, reverse=True)
+        enfant.dernieres_absences = absences_sorted[:2]
+        
         enfant.total_paiements = len(getattr(inscription, "paiements", []) or [])
         enfants.append(enfant)
     return enfants

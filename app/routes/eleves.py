@@ -868,6 +868,8 @@ def import_excel_confirm():
 @role_required('admin', 'professeur', 'parent')
 @parent_access_required
 def voir_eleve(eleve_id):
+    if getattr(current_user, 'role', None) == 'parent':
+        return redirect(url_for('main.parent_dashboard', enfant_id=eleve_id))
     eleve = Eleve.query.options(
         joinedload(Eleve.notes).joinedload(Note.cours),
         joinedload(Eleve.absences).joinedload(Absence.cours),

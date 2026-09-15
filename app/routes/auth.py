@@ -196,66 +196,8 @@ def login():
 @login_required
 @role_required('parent')
 def portal_parent():
-    """Portail parent sécurisé multi-écoles avec vue consolidée des enfants"""
-    try:
-        # Vérifier que le parent a bien une ecole_id (si la logique le requiert)
-        if not getattr(current_user, "ecole_id", None):
-            flash("Votre compte parent n'est associé à aucune école.", "warning")
-            return redirect(url_for('main.parent_dashboard'))
-
-        # Requête filtrée strictement par parent ET par école (prévenir fuite de données)
-        enfants = (
-            db.session.query(Eleve)
-            .filter(
-                Eleve.parent_id == current_user.id,
-                Eleve.ecole_id == current_user.ecole_id
-            )
-            .options(
-                selectinload(Eleve.notes),
-                selectinload(Eleve.absences),
-                selectinload(Eleve.paiements)
-            )
-            .all()
-        )
-
-        if not enfants:
-            flash("Aucun élève associé à votre compte parent dans votre école", "warning")
-            return redirect(url_for('main.parent_dashboard'))
-
-        # Calculs légers côté application : acceptable si le nombre d'enfants est limité
-        for eleve in enfants:
-            from app.services.evaluations import calculer_completude_inscription
-            from app.services.eleves_annuels import get_inscription_active
-
-            inscription_active = get_inscription_active(eleve)
-            annee_id = inscription_active.annee_scolaire_id if inscription_active else None
-
-            if inscription_active and annee_id:
-                eval_info = calculer_completude_inscription(eleve.ecole_id, annee_id, inscription_active)
-                notes_annee = [n for n in eleve.notes if n.annee_id == annee_id]
-                eleve.moyenne = eval_info["average"]
-                eleve.eval_status = eval_info["status"]
-            else:
-                notes_annee = []
-                eleve.moyenne = None
-                eleve.eval_status = "non_evalue"
-
-            eleve.notes_sorted = sorted(notes_annee, key=lambda n: n.date_evaluation or datetime.min, reverse=True)
-            eleve.absences_sorted = sorted(eleve.absences, key=lambda a: a.date_absence or datetime.min, reverse=True)
-            eleve.paiements_sorted = sorted(eleve.paiements, key=lambda p: p.date_paiement or datetime.min, reverse=True)
-
-            eleve.total_notes = len(notes_annee)
-            eleve.total_absences = len(eleve.absences)
-            eleve.total_paiements = len(eleve.paiements)
-
-        current_app.logger.info(f"Parent id={current_user.id} a accédé au portal_parent depuis {get_remote_address()}")
-
-        return render_template('portal_parent.html', enfants=enfants)
-
-    except Exception as e:
-        current_app.logger.exception(f"Erreur portal_parent pour parent id={current_user.id}")
-        flash("Une erreur est survenue. Veuillez réessayer plus tard.", "danger")
-        return redirect(url_for('main.parent_dashboard'))
+    """Route obsolète, redirige vers parent_dashboard"""
+    return redirect(url_for('main.parent_dashboard'))
 
 @main.route('/logout')
 @login_required

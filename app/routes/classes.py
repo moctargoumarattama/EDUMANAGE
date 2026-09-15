@@ -370,11 +370,13 @@ def detail_classe(classe_id):
         moyenne_e = None
         eval_status = "non_evalue"
         if inscription:
-            for ei in stats["eleves_info"]:
-                if ei["inscription"].id == inscription.id:
-                    moyenne_e = ei["moyenne_raw"]
-                    eval_status = ei["status"]
-                    break
+            ev = stats.get("evals_by_ins", {}).get(inscription.id)
+            if not ev:
+                from app.services.evaluations import calculer_completude_inscription
+                ev = calculer_completude_inscription(current_user.ecole_id, classe.annee_scolaire_id, inscription)
+            if ev:
+                moyenne_e = ev.get("average")
+                eval_status = ev.get("status", "non_evalue")
 
         parent_nom = f"{e.parent.prenom or ''} {e.parent.nom}".strip() if e.parent else (e.contact_parent or "Non renseigné")
         parent_tel = e.parent.telephone if (e.parent and e.parent.telephone) else (e.contact_parent or "Non renseigné")
@@ -399,9 +401,9 @@ def detail_classe(classe_id):
     cours_classe = Cours.query.filter_by(classe_id=classe.id).all()
     matieres_stats = []
     for c in cours_classe:
-        avg = stats["moyennes_par_cours"].get(c.nom)
         notes_cours = Note.query.filter(Note.cours_id == c.id, Note.inscription_id.in_(inscription_ids)).all() if inscription_ids else []
         notes_vals = [n.valeur for n in notes_cours if n.valeur is not None]
+        avg = round(sum(notes_vals) / len(notes_vals), 2) if notes_vals else None
         matieres_stats.append({
             'id': c.id,
             'nom': c.nom,

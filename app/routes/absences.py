@@ -56,7 +56,7 @@ def _remplir_choix_absence(form, ecole_id, annee):
 
 @main.route('/absences', methods=['GET', 'POST'])
 @login_required
-@role_required('admin', 'professeur', 'parent')
+@role_required('admin', 'professeur')
 def absences():
     form = AbsenceForm()
     page = request.args.get('page', 1, type=int)
