@@ -460,14 +460,54 @@ def recherche():
     page = max(request.args.get('page', 1, type=int) or 1, 1)
     per_page = min(max(request.args.get('per_page', 10, type=int) or 10, 1), 30)
 
-    if not terme:
-        return render_template('recherche.html', results=None, pagination=None)
-
     ecole_id = None
     if current_user.role in ['admin', 'professeur', 'parent']:
         ecole_id = current_user.ecole_id
     elif current_user.role == 'super_admin':
         ecole_id = session.get('ecole_id')
+
+    annee_consultee = get_annee_consultee(ecole_id) if ecole_id else None
+    classes_query = Classe.query.filter_by(ecole_id=ecole_id) if ecole_id else Classe.query.filter(db.false())
+    if annee_consultee:
+        classes_query = classes_query.filter(Classe.annee_scolaire_id == annee_consultee.id)
+
+    classe_ids_prof = None
+    if current_user.role == 'professeur':
+        type_recherche = type_recherche if type_recherche in {'all', 'eleves', 'cours'} else 'all'
+        professeur = Professeur.query.filter_by(utilisateur_id=current_user.id).first()
+        if professeur:
+            assigned_ids = {
+                classe.id for classe in professeur.classes_assignees.filter_by(ecole_id=ecole_id).all()
+            }
+            cours_class_ids = {
+                row.classe_id
+                for row in Cours.query.with_entities(Cours.classe_id)
+                .filter(Cours.ecole_id == ecole_id, Cours.professeur_id == professeur.id, Cours.classe_id.isnot(None))
+                .all()
+            }
+            classe_ids_prof = assigned_ids | cours_class_ids
+        else:
+            classe_ids_prof = set()
+        classes_query = classes_query.filter(Classe.id.in_(classe_ids_prof)) if classe_ids_prof else classes_query.filter(db.false())
+    elif current_user.role == 'parent':
+        type_recherche = 'eleves'
+    elif current_user.role not in {'admin', 'super_admin'}:
+        type_recherche = 'all'
+
+    classes_recherche = classes_query.order_by(Classe.nom.asc()).all()
+    classes_recherche_ids = {classe.id for classe in classes_recherche}
+    if classe_id and classe_id not in classes_recherche_ids:
+        classe_id = None
+
+    if not terme:
+        return render_template(
+            'recherche.html',
+            results=None,
+            pagination=None,
+            classes_recherche=classes_recherche,
+            type_recherche=type_recherche,
+            classe_id=classe_id,
+        )
 
     results = {'eleves': [], 'professeurs': [], 'cours': [], 'total': 0}
     pagination = None
@@ -493,10 +533,7 @@ def recherche():
         if classe_id:
             inscription_ids_query = inscription_ids_query.filter(Inscription.classe_id == classe_id)
 
-        classe_ids_prof = None
         if current_user.role == 'professeur':
-            professeur = Professeur.query.filter_by(utilisateur_id=current_user.id).first()
-            classe_ids_prof = [c.id for c in professeur.classes_assignees.all()] if professeur else []
             inscription_ids_query = inscription_ids_query.filter(Inscription.classe_id.in_(classe_ids_prof))
             restricted_to_inscriptions = True
         elif current_user.role == 'parent':
@@ -618,4 +655,12 @@ def recherche():
             results['cours'].append({'id': r.id, 'nom': r.nom, 'description': r.description, 'classe': r.classe})
         results['total'] += len(results['cours'])
 
-    return render_template('recherche.html', results=results, terme=terme, pagination=pagination)
+    return render_template(
+        'recherche.html',
+        results=results,
+        terme=terme,
+        pagination=pagination,
+        classes_recherche=classes_recherche,
+        type_recherche=type_recherche,
+        classe_id=classe_id,
+    )

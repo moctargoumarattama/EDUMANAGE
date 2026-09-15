@@ -15,7 +15,7 @@
                 <form action="{{ url_for('main.recherche') }}" method="GET" id="global-search-form">
                     <div class="input-group input-group-lg">
                         <input type="text" name="q" class="form-control form-control-lg" id="global-search-input"
-                               placeholder="Rechercher élèves, professeurs, cours..."
+                               placeholder="{% if current_user.role == 'professeur' %}Rechercher eleves, cours...{% else %}Rechercher eleves, professeurs, cours...{% endif %}"
                                value="{{ request.args.get('q', '') }}"
                                aria-label="Recherche">
                         <button class="btn btn-primary" type="submit">
@@ -25,17 +25,21 @@
                     <div class="row mt-3 g-2">
                         <div class="col-md-3">
                             <select class="form-select" name="type">
-                                <option value="all" {% if request.args.get('type') == 'all' %}selected{% endif %}>Tous les types</option>
-                                <option value="eleves" {% if request.args.get('type') == 'eleves' %}selected{% endif %}>Élèves</option>
+                                <option value="all" {% if type_recherche == 'all' %}selected{% endif %}>Tous les types</option>
+                                <option value="eleves" {% if type_recherche == 'eleves' %}selected{% endif %}>Eleves</option>
+                                {% if current_user.role == 'admin' %}
                                 <option value="professeurs" {% if request.args.get('type') == 'professeurs' %}selected{% endif %}>Professeurs</option>
-                                <option value="cours" {% if request.args.get('type') == 'cours' %}selected{% endif %}>Cours</option>
+                                {% endif %}
+                                {% if current_user.role in ['admin', 'professeur'] %}
+                                <option value="cours" {% if type_recherche == 'cours' %}selected{% endif %}>Cours</option>
+                                {% endif %}
                             </select>
                         </div>
                         <div class="col-md-3">
                             <select class="form-select" name="classe">
                                 <option value="">Toutes les classes</option>
-                                {% for classe in ['6ème', '5ème', '4ème', '3ème', 'Seconde', 'Première', 'Terminale'] %}
-                                <option value="{{ classe }}" {% if request.args.get('classe') == classe %}selected{% endif %}>{{ classe }}</option>
+                                {% for classe in classes_recherche %}
+                                <option value="{{ classe.id }}" {% if classe_id == classe.id %}selected{% endif %}>{{ classe.nom }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -133,7 +137,7 @@
                 {% endif %}
                 {% endif %}
 
-                {% if results.professeurs %}
+                {% if current_user.role == 'admin' and results.professeurs %}
                 <h6 class="text-muted mb-3 mt-4"><i class="fas fa-chalkboard-teacher me-2"></i> Professeurs ({{ results.professeurs|length }})</h6>
                 <div class="row">
                     {% for prof in results.professeurs %}

@@ -103,6 +103,21 @@ def get_eleves_choices_absences(ecole_id, annee, user):
     ]
 
 
+def get_classes_absences(ecole_id, annee, user):
+    """Retourne les classes visibles dans le module absences selon le role."""
+    if not ecole_id or not annee:
+        return []
+
+    query = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
+    if getattr(user, "role", None) == "professeur":
+        classe_ids = _professeur_classe_ids(user, annee.id)
+        if not classe_ids:
+            return []
+        query = query.filter(Classe.id.in_(classe_ids))
+
+    return query.order_by(Classe.nom.asc()).all()
+
+
 def get_cours_absences(ecole_id, annee, user, classe_ids=None):
     if not ecole_id or not annee:
         return []

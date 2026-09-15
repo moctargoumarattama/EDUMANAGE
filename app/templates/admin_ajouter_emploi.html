@@ -87,3 +87,66 @@
     </div>
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const classeSelect = document.querySelector('select[name="classe_id"]');
+    const coursSelect = document.querySelector('select[name="cours_id"]');
+    const professeurSelect = document.querySelector('select[name="professeur_id"]');
+    const submitBtn = document.querySelector('button[type="submit"], input[type="submit"]');
+
+    function setSubmitEnabled(enabled) {
+        if (submitBtn) submitBtn.disabled = !enabled;
+    }
+
+    async function refreshCoursForClasse() {
+        if (!classeSelect || !coursSelect || !classeSelect.value) return;
+
+        coursSelect.innerHTML = '<option value="">Chargement...</option>';
+        setSubmitEnabled(false);
+
+        try {
+            const response = await fetch(`/api/cours_classe/${classeSelect.value}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const cours = response.ok ? await response.json() : [];
+
+            coursSelect.innerHTML = '';
+            if (!cours.length) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'Aucune matiere pour cette classe';
+                coursSelect.appendChild(opt);
+                setSubmitEnabled(false);
+                return;
+            }
+
+            cours.forEach((item) => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = item.nom;
+                opt.dataset.professeurId = item.professeur_id || '';
+                coursSelect.appendChild(opt);
+            });
+
+            setSubmitEnabled(true);
+            syncProfessorFromCourse();
+        } catch (error) {
+            coursSelect.innerHTML = '<option value="">Erreur de chargement</option>';
+            setSubmitEnabled(false);
+        }
+    }
+
+    function syncProfessorFromCourse() {
+        if (!coursSelect || !professeurSelect) return;
+        const selected = coursSelect.options[coursSelect.selectedIndex];
+        const professeurId = selected ? selected.dataset.professeurId : '';
+        if (professeurId) professeurSelect.value = professeurId;
+    }
+
+    if (classeSelect) classeSelect.addEventListener('change', refreshCoursForClasse);
+    if (coursSelect) coursSelect.addEventListener('change', syncProfessorFromCourse);
+});
+</script>
+{% endblock %}

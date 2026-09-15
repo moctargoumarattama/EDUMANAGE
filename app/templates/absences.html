@@ -41,7 +41,9 @@
                         <span class="badge bg-success ms-1">ACTIVE</span>
                         {% endif %}
                     </span>
+                    {% if current_user.role != 'professeur' %}
                     <a href="{{ url_for('main.gestion_annees') }}" class="small text-decoration-none">Changer</a>
+                    {% endif %}
                 </div>
                 {% endif %}
                 <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllClassAbsences" title="Déplier ou replier toutes les classes">
@@ -52,7 +54,7 @@
                     <i class="fas fa-plus-circle me-2"></i>Nouvelle absence
                 </button>
                 {% endif %}
-                {% if can_mutate %}
+                {% if current_user.role == 'admin' %}
                 <a href="{{ url_for('main.export_absences_excel') }}" class="btn btn-outline-success shadow-sm" title="Exporter les absences vers Excel">
                     <i class="fas fa-file-excel me-2"></i>Exporter Excel
                 </a>
@@ -176,6 +178,7 @@
                 </div>
             </div>
 
+            {% if current_user.role != 'professeur' %}
             <!-- Filtre par niveau -->
             <div class="col-6 col-md-3 col-lg-2">
                 <select id="filterNiveauSelect" class="form-select form-select-sm" style="min-height: 42px;">
@@ -187,22 +190,19 @@
                     {% endif %}
                 </select>
             </div>
+            {% endif %}
 
+            {% if current_user.role != 'professeur' %}
             <!-- Filtre par classe -->
             <div class="col-6 col-md-3 col-lg-2">
                 <select id="filterClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="">Toutes les classes</option>
-                    {% set classes_list = {} %}
-                    {% for a in absences_avec_classe %}
-                        {% if a.annee_classe.nom not in classes_list %}
-                            {% set _ = classes_list.update({a.annee_classe.nom: a.annee_classe.niveau}) %}
-                        {% endif %}
-                    {% endfor %}
-                    {% for cl, niv in classes_list.items()|sort %}
-                        <option value="{{ cl }}" data-niveau="{{ niv or '' }}">{{ cl }}</option>
+                    {% for cl in classes %}
+                        <option value="{{ cl.nom }}" data-niveau="{{ cl.niveau_scolaire.nom if cl.niveau_scolaire else (cl.niveau or '') }}">{{ cl.nom }}</option>
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
 
             <!-- Filtre par statut -->
             <div class="col-6 col-md-2 col-lg-2">
@@ -213,6 +213,7 @@
                 </select>
             </div>
 
+            {% if current_user.role != 'professeur' %}
             <!-- Tri des classes -->
             <div class="col-6 col-md-3 col-lg-2">
                 <select id="sortClassesSelect" class="form-select form-select-sm" style="min-height: 42px;">
@@ -223,6 +224,7 @@
                     <option value="nonjust-desc">Non justifiées &darr;</option>
                 </select>
             </div>
+            {% endif %}
 
             <!-- Nombre de classes par page -->
             <div class="col-12 col-lg-auto ms-auto d-flex align-items-center justify-content-end gap-2">

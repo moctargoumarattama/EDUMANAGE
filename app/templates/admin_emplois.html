@@ -592,8 +592,8 @@
                         Aucune classe n'est disponible pour planifier des emplois du temps pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong>.
                     </p>
                     {% if current_user.role in ('admin', 'super_admin') %}
-                    <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary btn-sm">
-                        <i class="fas fa-plus me-1"></i>Créer une première classe
+                    <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i>Ajouter un creneau
                     </a>
                     {% endif %}
                 </div>

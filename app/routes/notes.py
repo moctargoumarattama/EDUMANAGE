@@ -1,5 +1,6 @@
 import io
 import pandas as pd
+from types import SimpleNamespace
 from datetime import datetime
 from flask import abort, flash, redirect, render_template, request, send_file, url_for, current_app
 from flask_login import current_user, login_required
@@ -39,6 +40,19 @@ from app.services.notes_annuelles import (
     supprimer_note as service_supprimer_note,
 )
 
+
+
+def _niveaux_depuis_classes(classes):
+    niveaux_par_id = {}
+    for classe in classes:
+        niveau = getattr(classe, "niveau_scolaire", None)
+        if niveau and niveau.id not in niveaux_par_id:
+            niveaux_par_id[niveau.id] = niveau
+            continue
+        niveau_nom = (getattr(classe, "niveau", None) or "").strip()
+        if niveau_nom and f"legacy:{niveau_nom}" not in niveaux_par_id:
+            niveaux_par_id[f"legacy:{niveau_nom}"] = SimpleNamespace(id=niveau_nom, nom=niveau_nom, ordre=999)
+    return sorted(niveaux_par_id.values(), key=lambda niveau: (niveau.ordre, niveau.nom))
 
 
 @main.route('/notes', methods=['GET', 'POST'])
@@ -155,9 +169,12 @@ def notes():
 
     stats = calculer_statistiques_notes(notes_filtrees)
 
-    from app.services.structure_annuelle import get_niveaux_annee
-    niveaux_annee = get_niveaux_annee(ecole_id, annee_consultee.id) if annee_consultee else []
     classes_list = get_classes_notes(ecole_id, annee_consultee, user=current_user)
+    if current_user.role == "professeur":
+        niveaux_annee = _niveaux_depuis_classes(classes_list)
+    else:
+        from app.services.structure_annuelle import get_niveaux_annee
+        niveaux_annee = get_niveaux_annee(ecole_id, annee_consultee.id) if annee_consultee else []
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
         return jsonify({

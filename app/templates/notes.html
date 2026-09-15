@@ -42,7 +42,9 @@
                         <span class="badge bg-secondary ms-1">ARCHIVÉE</span>
                         {% endif %}
                     </span>
+                    {% if current_user.role != 'professeur' %}
                     <a href="{{ url_for('main.gestion_annees') }}" class="small text-decoration-none">Changer</a>
+                    {% endif %}
                 </div>
                 {% endif %}
                 <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllAccordions" title="Déplier ou replier tous les élèves">
@@ -195,6 +197,7 @@
                 </div>
             </div>
 
+            {% if current_user.role != 'professeur' %}
             <!-- Filtre par niveau -->
             <div class="col-6 col-md-2 col-lg-2">
                 <select id="filterNiveauSelect" class="form-select form-select-sm" style="min-height: 42px;">
@@ -204,16 +207,19 @@
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
 
+            {% if current_user.role != 'professeur' %}
             <!-- Filtre par classe -->
             <div class="col-6 col-md-2 col-lg-2">
                 <select id="filterClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="">Toutes classes</option>
                     {% for cl in classes %}
-                    <option value="{{ cl.nom }}" data-id="{{ cl.id }}" data-niveau="{{ cl.niveau or '' }}" {% if classe_id == cl.id or (request.args.get('classe') == cl.nom) %}selected{% endif %}>{{ cl.nom }}</option>
+                    <option value="{{ cl.nom }}" data-id="{{ cl.id }}" data-niveau="{{ cl.niveau_scolaire.nom if cl.niveau_scolaire else (cl.niveau or '') }}" {% if classe_id == cl.id or (request.args.get('classe') == cl.nom) %}selected{% endif %}>{{ cl.nom }}</option>
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
 
             <!-- Filtre par matière / cours -->
             <div class="col-6 col-md-2 col-lg-2">
@@ -245,6 +251,7 @@
             </div>
 
             <!-- Tri des élèves -->
+            {% if current_user.role != 'professeur' %}
             <div class="col-6 col-md-2 col-lg-1">
                 <select id="sortStudentsSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="nom-asc">A &rarr; Z</option>
@@ -254,6 +261,7 @@
                     <option value="notes-desc">Notes &darr;</option>
                 </select>
             </div>
+            {% endif %}
         </div>
 
         <!-- Info-bar sous les filtres -->

@@ -1010,7 +1010,7 @@ textarea {
     .klasora-brand {
         flex: 1 1 auto;
         min-width: 0;
-        max-width: calc(100% - 90px);
+        max-width: calc(100% - 138px);
         margin-right: 0.35rem;
         overflow: hidden;
         text-overflow: ellipsis;
