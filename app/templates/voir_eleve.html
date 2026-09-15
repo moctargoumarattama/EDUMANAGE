@@ -118,11 +118,15 @@
         <div class="col-6 col-lg-3">
             <div class="card border-0 shadow-sm h-100 p-3 text-center bg-white">
                 <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small fw-semibold">Moyenne Générale</span>
+                    <span class="text-muted small fw-semibold">
+                        {% if eval_info and eval_info.status == 'provisoire' %}Moy. Provisoire{% elif eval_info and eval_info.status == 'non_evalue' %}Non évalué{% else %}Moyenne Générale{% endif %}
+                    </span>
                     <span class="badge bg-{{ mention_badge }}">{{ mention }}</span>
                 </div>
-                <div class="h3 fw-bold text-primary mb-1">{{ "%.2f"|format(moyenne_generale) }} <small class="fs-6 text-muted">/ 20</small></div>
-                <div class="text-muted small">{{ notes|length }} note{{ 's' if notes|length > 1 else '' }} enregistrée{{ 's' if notes|length > 1 else '' }}</div>
+                <div class="h3 fw-bold text-primary mb-1">{% if eval_info and eval_info.status == 'non_evalue' %}--{% else %}{{ "%.2f"|format(moyenne_generale) }}{% endif %} <small class="fs-6 text-muted">/ 20</small></div>
+                <div class="text-muted small">
+                    {% if eval_info and eval_info.status != 'non_evalue' %}{{ eval_info.evaluated_subjects }} / {{ eval_info.expected_subjects }} matières évaluées{% else %}{{ notes|length }} note{{ 's' if notes|length > 1 else '' }} enregistrée{{ 's' if notes|length > 1 else '' }}{% endif %}
+                </div>
             </div>
         </div>
 

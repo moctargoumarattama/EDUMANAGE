@@ -358,13 +358,23 @@ def detail_classe(classe_id):
     absences_justifiees = Absence.query.filter(Absence.inscription_id.in_(inscription_ids), Absence.justifiee == True).count() if inscription_ids else 0
     absences_non_justifiees = total_absences - absences_justifiees
 
+    from app.services.evaluations import calculer_stats_et_classements_classe
+    stats = calculer_stats_et_classements_classe(current_user.ecole_id, classe.id, classe.annee_scolaire_id)
+
     # 4. Données détaillées par élève
     eleves_details = []
     for e in eleves:
         inscription = next((i for i in inscriptions if i.eleve_id == e.id), None)
         nb_abs = Absence.query.filter_by(inscription_id=inscription.id).count() if inscription else 0
-        notes_e = [n.valeur for n in (inscription.notes or []) if n.valeur is not None] if inscription else []
-        moyenne_e = round(sum(notes_e) / len(notes_e), 2) if notes_e else None
+
+        moyenne_e = None
+        eval_status = "non_evalue"
+        if inscription:
+            for ei in stats["eleves_info"]:
+                if ei["inscription"].id == inscription.id:
+                    moyenne_e = ei["moyenne_raw"]
+                    eval_status = ei["status"]
+                    break
 
         parent_nom = f"{e.parent.prenom or ''} {e.parent.nom}".strip() if e.parent else (e.contact_parent or "Non renseigné")
         parent_tel = e.parent.telephone if (e.parent and e.parent.telephone) else (e.contact_parent or "Non renseigné")
@@ -381,16 +391,17 @@ def detail_classe(classe_id):
             'email_parent': parent_email,
             'statut': e.statut or 'Actif',
             'nb_absences': nb_abs,
-            'moyenne': moyenne_e
+            'moyenne': moyenne_e,
+            'eval_status': eval_status
         })
 
     # 5. Moyennes réelles par matière
     cours_classe = Cours.query.filter_by(classe_id=classe.id).all()
     matieres_stats = []
     for c in cours_classe:
+        avg = stats["moyennes_par_cours"].get(c.nom)
         notes_cours = Note.query.filter(Note.cours_id == c.id, Note.inscription_id.in_(inscription_ids)).all() if inscription_ids else []
         notes_vals = [n.valeur for n in notes_cours if n.valeur is not None]
-        avg = round(sum(notes_vals) / len(notes_vals), 2) if notes_vals else None
         matieres_stats.append({
             'id': c.id,
             'nom': c.nom,
@@ -401,9 +412,7 @@ def detail_classe(classe_id):
         })
 
     # Moyenne générale de la classe
-    all_notes = Note.query.filter(Note.inscription_id.in_(inscription_ids)).all() if inscription_ids else []
-    all_notes_vals = [n.valeur for n in all_notes if n.valeur is not None]
-    moyenne_generale_classe = round(sum(all_notes_vals) / len(all_notes_vals), 2) if all_notes_vals else None
+    moyenne_generale_classe = stats["moyenne_classe_officielle"]
 
     # 6. Professeurs réels intervenants
     profs_intervenants = {}

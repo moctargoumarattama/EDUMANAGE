@@ -159,10 +159,11 @@ def enrichir_enfants_parent_annuel(inscriptions):
         if not enfant:
             continue
         notes = getattr(inscription, "notes", []) or []
-        total_pondere = sum(n.valeur * (n.coefficient or 1.0) for n in notes)
-        total_coefficients = sum(n.coefficient or 1.0 for n in notes)
+        from app.services.evaluations import calculer_completude_inscription
+        eval_info = calculer_completude_inscription(inscription.ecole_id, inscription.annee_scolaire_id, inscription)
         enfant.classe = inscription.classe
-        enfant.moyenne = round(total_pondere / total_coefficients, 2) if total_coefficients > 0 else 0
+        enfant.eval_status = eval_info["status"]
+        enfant.moyenne = eval_info["average"]
         enfant.total_notes = len(notes)
         enfant.total_absences = len(getattr(inscription, "absences", []) or [])
         enfant.total_paiements = len(getattr(inscription, "paiements", []) or [])
@@ -321,7 +322,9 @@ def get_rapports_annuels(ecole_id, annee):
             justifiees_classe += nb_just
             non_justifiees_classe += nb_non_just
 
-            moyenne_eleve = _moyenne_inscription_bulletins(ecole_id, annee, inscription)
+            from app.services.evaluations import calculer_completude_inscription, STATUS_COMPLETE
+            eval_info = calculer_completude_inscription(ecole_id, annee.id, inscription)
+            moyenne_eleve = eval_info["average"] if eval_info["status"] == STATUS_COMPLETE else None
             if moyenne_eleve is not None:
                 moyennes_classe.append(moyenne_eleve)
                 moyennes_ecole.append(moyenne_eleve)
@@ -340,20 +343,22 @@ def get_rapports_annuels(ecole_id, annee):
                 "nb_justifiees": nb_just,
                 "nb_non_justifiees": nb_non_just,
                 "moyenne": moyenne_eleve,
+                "eval_info": eval_info,
             })
 
         total_absences_ecole += total_absences_classe
         total_absences_justifiees_ecole += justifiees_classe
         total_absences_non_justifiees_ecole += non_justifiees_classe
 
-        moyenne_classe = _moyenne_liste(moyennes_classe)
+        from app.services.evaluations import calculer_stats_et_classements_classe
+        stats_c = calculer_stats_et_classements_classe(ecole_id, classe.id, annee.id)
+        moyenne_classe = stats_c["moyenne_classe_officielle"]
         taux_absenteisme = round(total_absences_classe / effectif, 1) if effectif > 0 else 0.0
         top_absents = sorted(
             [s for s in eleves_stats if s["nb_absences"] > 0],
             key=lambda x: x["nb_absences"],
             reverse=True,
         )[:5]
-        eleves_avec_notes = [s for s in eleves_stats if s["moyenne"] is not None]
 
         classes_data.append({
             "id": classe.id,
@@ -372,7 +377,8 @@ def get_rapports_annuels(ecole_id, annee):
             "moyenne": moyenne_classe,
             "finances": finances_classe,
             "top_absents": top_absents,
-            "meilleur_eleve": max(eleves_avec_notes, key=lambda x: x["moyenne"]) if eleves_avec_notes else None,
+            "meilleur_eleve": stats_c["meilleur_eleve_complet"],
+            "taux_reussite": stats_c["taux_reussite"],
             "is_most_absent": False,
         })
 

@@ -42,6 +42,13 @@ from app.services.bulletins_annuels import (
     MESSAGE_ANNEE_PLANIFIEE,
     MESSAGE_ANNEE_ARCHIVEE,
 )
+from app.services.evaluations import (
+    calculer_completude_inscription,
+    calculer_stats_et_classements_classe,
+    STATUS_COMPLETE,
+    STATUS_PROVISOIRE,
+    STATUS_NON_EVALUE,
+)
 
 
 @main.route('/bulletin_eleve/<int:id>')
@@ -311,7 +318,7 @@ def bulletins():
     for n in notes_all:
         notes_par_inscription[n.inscription_id].append(n)
 
-    # Calcul des moyennes et mentions individuelles basées sur Inscription
+    # Calcul des moyennes et mentions individuelles basées sur la complétude des évaluations
     eleves_avec_moyennes = []
     for ins in inscriptions:
         eleve = ins.eleve
@@ -327,40 +334,51 @@ def bulletins():
         if statut_bulletin in ('genere', 'valide') and not has_bulletin:
             continue
 
-        student_notes = notes_par_inscription.get(ins.id, [])
-        if student_notes:
-            total_pondere = sum((n.valeur or 0) * (n.coefficient or 1) for n in student_notes)
-            total_coefficients = sum((n.coefficient or 1) for n in student_notes)
-            moyenne = round(total_pondere / total_coefficients, 2) if total_coefficients > 0 else 0
-        else:
-            moyenne = 0
+        eval_info = calculer_completude_inscription(
+            ecole_id,
+            annee.id,
+            ins,
+            periode=periode_active.nom if periode_active else None
+        )
 
-        # Mention et badge
-        if len(student_notes) > 0:
-            if moyenne >= 16:
-                appreciation = 'Excellent'
-                appreciation_code = 'excellent'
-                badge_class = 'badge-mention-excellent bg-success text-white'
-            elif moyenne >= 14:
-                appreciation = 'Très bien'
-                appreciation_code = 'tres-bien'
-                badge_class = 'badge-mention-tres-bien bg-info text-dark'
-            elif moyenne >= 12:
-                appreciation = 'Bien'
-                appreciation_code = 'bien'
-                badge_class = 'badge-mention-bien bg-primary text-white'
-            elif moyenne >= 10:
-                appreciation = 'Assez bien'
-                appreciation_code = 'assez-bien'
-                badge_class = 'badge-mention-assez-bien bg-warning text-dark'
-            else:
-                appreciation = 'Insuffisant'
-                appreciation_code = 'insuffisant'
-                badge_class = 'badge-mention-insuffisant bg-danger text-white'
-        else:
+        status = eval_info["status"]
+        moyenne = eval_info["average"]
+        student_notes = notes_par_inscription.get(ins.id, [])
+
+        if status == STATUS_NON_EVALUE:
             appreciation = 'Non évalué'
             appreciation_code = 'non-evalue'
             badge_class = 'badge-mention-non-evalue bg-secondary text-white'
+        elif status == STATUS_PROVISOIRE:
+            appreciation = f"Moyenne provisoire ({eval_info['evaluated_subjects']}/{eval_info['expected_subjects']})"
+            appreciation_code = 'provisoire'
+            badge_class = 'bg-warning text-dark'
+        else:
+            if moyenne is not None:
+                if moyenne >= 16:
+                    appreciation = 'Excellent'
+                    appreciation_code = 'excellent'
+                    badge_class = 'badge-mention-excellent bg-success text-white'
+                elif moyenne >= 14:
+                    appreciation = 'Très bien'
+                    appreciation_code = 'tres-bien'
+                    badge_class = 'badge-mention-tres-bien bg-info text-dark'
+                elif moyenne >= 12:
+                    appreciation = 'Bien'
+                    appreciation_code = 'bien'
+                    badge_class = 'badge-mention-bien bg-primary text-white'
+                elif moyenne >= 10:
+                    appreciation = 'Assez bien'
+                    appreciation_code = 'assez-bien'
+                    badge_class = 'badge-mention-assez-bien bg-warning text-dark'
+                else:
+                    appreciation = 'Insuffisant'
+                    appreciation_code = 'insuffisant'
+                    badge_class = 'badge-mention-insuffisant bg-danger text-white'
+            else:
+                appreciation = 'Non évalué'
+                appreciation_code = 'non-evalue'
+                badge_class = 'badge-mention-non-evalue bg-secondary text-white'
 
         if mention_filtre and appreciation_code != mention_filtre:
             continue
@@ -378,8 +396,11 @@ def bulletins():
             'eleve': eleve,
             'classe': ins.classe,
             'annee_scolaire': ins.annee_scolaire,
-            'moyenne': moyenne,
-            'notes_count': len(student_notes),
+            'moyenne': moyenne if moyenne is not None else 0,
+            'moyenne_raw': moyenne,
+            'notes_count': eval_info['evaluated_subjects'],
+            'eval_info': eval_info,
+            'status': status,
             'appreciation': appreciation,
             'appreciation_code': appreciation_code,
             'badge_class': badge_class,
@@ -401,55 +422,56 @@ def bulletins():
         else:
             eleves_sans_classe.append(item)
 
-    # Calcul des rangs au sein de chaque classe annuelle
+    # Calcul des rangs au sein de chaque classe annuelle via le service canonique
     classe_stats = {}
     for c in classes:
         c_items = eleves_par_classe.get(c.id, [])
-        c_evalues = [it for it in c_items if it['notes_count'] > 0]
-        c_non_evalues = [it for it in c_items if it['notes_count'] == 0]
+        c_canon_stats = calculer_stats_et_classements_classe(
+            ecole_id,
+            c.id,
+            annee.id,
+            periode=periode_active.nom if periode_active else None
+        )
+        rangs_map = c_canon_stats['rangs_par_inscription']
 
-        # Tri : évalués par moyenne décroissante, puis non-évalués par nom
-        c_evalues.sort(key=lambda x: x['moyenne'], reverse=True)
-        c_non_evalues.sort(key=lambda x: ((x['eleve'].nom or '').lower(), (x['eleve'].prenom or '').lower()))
+        for item in c_items:
+            ins_id = item['inscription'].id
+            item['rang_classe'] = rangs_map.get(ins_id)
+            item['rang_classe_total'] = c_canon_stats['complets_count']
 
-        for rank, it in enumerate(c_evalues, 1):
-            it['rang_classe'] = rank
-            it['rang_classe_total'] = len(c_evalues)
-        for it in c_non_evalues:
-            it['rang_classe'] = None
-            it['rang_classe_total'] = len(c_evalues)
+        complets_items = [it for it in c_items if it['status'] == STATUS_COMPLETE]
+        provisoires_items = [it for it in c_items if it['status'] == STATUS_PROVISOIRE]
+        non_evalues_items = [it for it in c_items if it['status'] == STATUS_NON_EVALUE]
 
-        eleves_par_classe[c.id] = c_evalues + c_non_evalues
+        complets_items.sort(key=lambda x: x['moyenne_raw'] if x['moyenne_raw'] is not None else -1.0, reverse=True)
+        provisoires_items.sort(key=lambda x: x['moyenne_raw'] if x['moyenne_raw'] is not None else -1.0, reverse=True)
+        non_evalues_items.sort(key=lambda x: ((x['eleve'].nom or '').lower(), (x['eleve'].prenom or '').lower()))
 
-        evalues_count = len(c_evalues)
-        effectif = len(c_items)
-        moyenne_classe = round(sum(it['moyenne'] for it in c_evalues) / evalues_count, 2) if evalues_count > 0 else 0
-        meilleure_moyenne = max((it['moyenne'] for it in c_evalues), default=0)
-        pire_moyenne = min((it['moyenne'] for it in c_evalues), default=0)
-        admis_count = sum(1 for it in c_evalues if it['moyenne'] >= 10)
-        taux_reussite = round((admis_count / evalues_count) * 100, 1) if evalues_count > 0 else 0
+        eleves_par_classe[c.id] = complets_items + provisoires_items + non_evalues_items
 
         classe_stats[c.id] = {
             'classe': c,
-            'effectif': effectif,
-            'evalues_count': evalues_count,
-            'moyenne_classe': moyenne_classe,
-            'meilleure_moyenne': meilleure_moyenne,
-            'pire_moyenne': pire_moyenne,
-            'admis_count': admis_count,
-            'taux_reussite': taux_reussite
+            'effectif': c_canon_stats['effectif_total'],
+            'evalues_count': c_canon_stats['complets_count'] + c_canon_stats['provisoires_count'],
+            'complets_count': c_canon_stats['complets_count'],
+            'provisoires_count': c_canon_stats['provisoires_count'],
+            'moyenne_classe': c_canon_stats['moyenne_classe_officielle'],
+            'meilleure_moyenne': c_canon_stats['plus_forte_moyenne'],
+            'pire_moyenne': c_canon_stats['plus_faible_moyenne'],
+            'taux_reussite': c_canon_stats['taux_reussite']
         }
 
-    # Statistiques globales de l'école
-    evalues_globaux = [e for e in eleves_avec_moyennes if e['notes_count'] > 0]
-    if evalues_globaux:
-        moyenne_generale = round(sum(e['moyenne'] for e in evalues_globaux) / len(evalues_globaux), 2)
-        meilleure_moyenne = max(e['moyenne'] for e in evalues_globaux)
-        taux_reussite = round(sum(1 for e in evalues_globaux if e['moyenne'] >= 10) / len(evalues_globaux) * 100, 1)
+    # Statistiques globales de l'école (uniquement sur élèves complets)
+    complets_globaux = [e for e in eleves_avec_moyennes if e['status'] == STATUS_COMPLETE and e['moyenne_raw'] is not None]
+    if complets_globaux:
+        moyenne_generale = round(sum(e['moyenne_raw'] for e in complets_globaux) / len(complets_globaux), 2)
+        meilleure_moyenne = max(e['moyenne_raw'] for e in complets_globaux)
+        admis_g = sum(1 for e in complets_globaux if e['moyenne_raw'] >= 10)
+        taux_reussite = round((admis_g / len(complets_globaux)) * 100, 1)
     else:
-        moyenne_generale = 0
-        meilleure_moyenne = 0
-        taux_reussite = 0
+        moyenne_generale = None
+        meilleure_moyenne = None
+        taux_reussite = None
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
         return jsonify({

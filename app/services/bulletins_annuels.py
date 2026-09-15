@@ -201,52 +201,76 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None):
         coefficients_par_cours[cours_nom] = cours_coef
         points_par_cours[cours_nom] = pts
 
-    # Matières finalisées pour le calcul de la moyenne générale
-    finalisees = [d for d in disciplines if d['est_finalisee']]
-    if finalisees:
-        total_points = round(sum(d['points'] for d in finalisees), 2)
-        total_coefs = sum(d['coefficient'] for d in finalisees)
-        moyenne_generale = round(total_points / total_coefs, 2) if total_coefs > 0 else None
-    else:
-        total_points = 0.0
-        total_coefs = 0.0
-        moyenne_generale = None
+    # Calcul de complétude canonique via evaluations.py
+    from app.services.evaluations import (
+        calculer_completude_inscription,
+        calculer_stats_et_classements_classe,
+        STATUS_COMPLETE,
+        STATUS_PROVISOIRE,
+        STATUS_NON_EVALUE,
+    )
 
-    # Mention / appréciation globale
-    if moyenne_generale is not None:
-        if moyenne_generale >= 16:
-            appreciation = "Excellent"
-            appreciation_code = "excellent"
-            badge_class = "badge-mention-excellent bg-success text-white"
-        elif moyenne_generale >= 14:
-            appreciation = "Très bien"
-            appreciation_code = "tres-bien"
-            badge_class = "badge-mention-tres-bien bg-info text-dark"
-        elif moyenne_generale >= 12:
-            appreciation = "Bien"
-            appreciation_code = "bien"
-            badge_class = "badge-mention-bien bg-primary text-white"
-        elif moyenne_generale >= 10:
-            appreciation = "Assez bien"
-            appreciation_code = "assez-bien"
-            badge_class = "badge-mention-assez-bien bg-warning text-dark"
+    eval_info = calculer_completude_inscription(ecole_id, annee.id, inscription, periode=target_periode)
+
+    total_points = round(sum(d['points'] for d in disciplines if d['est_finalisee']), 2)
+    total_coefs = sum(d['coefficient'] for d in disciplines if d['est_finalisee'])
+    moyenne_generale = eval_info["average"]
+
+    # Mention / appréciation globale basée sur la complétude
+    if eval_info["status"] == STATUS_COMPLETE:
+        if moyenne_generale is not None:
+            if moyenne_generale >= 16:
+                appreciation = "Excellent"
+                appreciation_code = "excellent"
+                badge_class = "badge-mention-excellent bg-success text-white"
+            elif moyenne_generale >= 14:
+                appreciation = "Très bien"
+                appreciation_code = "tres-bien"
+                badge_class = "badge-mention-tres-bien bg-info text-dark"
+            elif moyenne_generale >= 12:
+                appreciation = "Bien"
+                appreciation_code = "bien"
+                badge_class = "badge-mention-bien bg-primary text-white"
+            elif moyenne_generale >= 10:
+                appreciation = "Assez bien"
+                appreciation_code = "assez-bien"
+                badge_class = "badge-mention-assez-bien bg-warning text-dark"
+            else:
+                appreciation = "Insuffisant"
+                appreciation_code = "insuffisant"
+                badge_class = "badge-mention-insuffisant bg-danger text-white"
         else:
-            appreciation = "Insuffisant"
-            appreciation_code = "insuffisant"
-            badge_class = "badge-mention-insuffisant bg-danger text-white"
+            appreciation = "Non évalué"
+            appreciation_code = "non-evalue"
+            badge_class = "badge-mention-non-evalue bg-secondary text-white"
+    elif eval_info["status"] == STATUS_PROVISOIRE:
+        appreciation = f"En cours ({eval_info['evaluated_subjects']}/{eval_info['expected_subjects']} matières)"
+        appreciation_code = "provisoire"
+        badge_class = "badge-mention-provisoire bg-warning text-dark"
     else:
         appreciation = "Non évalué"
         appreciation_code = "non-evalue"
         badge_class = "badge-mention-non-evalue bg-secondary text-white"
 
-    # Calcul du rang et des statistiques de classe pour le semestre
-    rang, rang_total, stats_classe = _calculer_rang_et_stats_classe(
+    # Calcul du rang et des statistiques de classe pour le semestre via service centralisé
+    stats_classe_raw = calculer_stats_et_classements_classe(
         ecole_id,
         inscription.classe_id,
         inscription.annee_scolaire_id,
-        inscription.id,
         periode=target_periode
     )
+
+    rang = stats_classe_raw["rangs_par_inscription"].get(inscription.id)
+    rang_total = stats_classe_raw["complets_count"]
+    stats_classe = {
+        'effectif_classe': stats_classe_raw['effectif_total'],
+        'evalues_count': stats_classe_raw['complets_count'],
+        'moyenne_classe': stats_classe_raw['moyenne_classe_officielle'],
+        'plus_forte_moyenne': stats_classe_raw['plus_forte_moyenne'],
+        'plus_faible_moyenne': stats_classe_raw['plus_faible_moyenne'],
+        'taux_reussite': stats_classe_raw['taux_reussite'],
+    }
+
     nb_absences = compter_absences_semestre(ecole_id, annee.id, inscription.id, target_periode)
     nb_retards = compter_retards_semestre(ecole_id, annee.id, inscription.id, target_periode)
 
@@ -265,10 +289,14 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None):
         'total_coefficients': total_coefs,
         'total_points': total_points,
         'moyenne_generale': moyenne_generale,
+        'eval_info': eval_info,
+        'statut_completude': eval_info['status'],
+        'est_provisoire': (eval_info['status'] == STATUS_PROVISOIRE),
+        'est_complet': (eval_info['status'] == STATUS_COMPLETE),
         'notes_count': len(notes),
         'rang': rang,
         'rang_total': rang_total,
-        'effectif_classe': stats_classe.get('effectif_classe', 0) if stats_classe else 0,
+        'effectif_classe': stats_classe_raw['effectif_total'],
         'stats_classe': stats_classe,
         'nb_absences': nb_absences,
         'nb_retards': nb_retards,
@@ -281,92 +309,17 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None):
 
 
 def _calculer_rang_et_stats_classe(ecole_id, classe_id, annee_scolaire_id, target_inscription_id, periode=SEMESTRE_1):
-    """
-    Calcule le rang et les statistiques complètes de classe pour un semestre donné
-    parmi tous les élèves inscrits dans la classe et année scolaire.
-    """
-    inscriptions_classe = Inscription.query.filter_by(
-        ecole_id=ecole_id,
-        classe_id=classe_id,
-        annee_scolaire_id=annee_scolaire_id
-    ).all()
-
-    effectif_classe = len(inscriptions_classe)
-    if not inscriptions_classe:
-        return None, 0, {
-            'effectif_classe': 0,
-            'evalues_count': 0,
-            'moyenne_classe': None,
-            'plus_forte_moyenne': None,
-            'plus_faible_moyenne': None,
-        }
-
-    inscr_ids = [ins.id for ins in inscriptions_classe]
-
-    # Récupération de toutes les notes pour ces inscriptions dans le semestre
-    q = Note.query.options(joinedload(Note.cours)).filter(
-        Note.inscription_id.in_(inscr_ids),
-        Note.ecole_id == ecole_id,
-        Note.periode == (periode or SEMESTRE_1),
-    )
-    notes_toutes = q.all()
-
-    notes_par_insc = defaultdict(lambda: defaultdict(list))
-    for n in notes_toutes:
-        notes_par_insc[n.inscription_id][n.cours_id].append(n)
-
-    # Calcul de la moyenne générale semestrielle pour chaque élève inscrit
-    scores = []
-    for ins_id in inscr_ids:
-        cours_notes_map = notes_par_insc.get(ins_id, {})
-        matieres_finalisees = []
-        for c_id, c_notes in cours_notes_map.items():
-            cours = c_notes[0].cours if (c_notes and c_notes[0].cours) else None
-            cours_coef = cours.coefficient if (cours and cours.coefficient) else 1.0
-
-            controles = [n for n in c_notes if n.type_evaluation in TYPES_CONTROLE_CONTINU]
-            comp = next((n for n in c_notes if n.type_evaluation == TYPE_COMPOSITION), None)
-
-            moy_ctrl = calculer_moyenne_controles(controles)
-            n_comp = comp.valeur if comp else None
-            moy_sem = calculer_moyenne_matiere_semestre(moy_ctrl, n_comp)
-
-            if moy_sem is not None:
-                pts = calculer_points_matiere(moy_sem, cours_coef)
-                matieres_finalisees.append({'moyenne': moy_sem, 'coefficient': cours_coef, 'points': pts})
-
-        moy_gen = calculer_moyenne_generale_semestre(matieres_finalisees)
-        if moy_gen is not None:
-            scores.append((ins_id, moy_gen))
-
-    # Trier par moyenne décroissante
-    scores.sort(key=lambda x: x[1], reverse=True)
-    evalues_count = len(scores)
-
-    target_rank = None
-    for rank, (ins_id, moy) in enumerate(scores, 1):
-        if ins_id == target_inscription_id:
-            target_rank = rank
-            break
-
-    if scores:
-        moyenne_classe = round(sum(s[1] for s in scores) / evalues_count, 2)
-        plus_forte_moyenne = max(s[1] for s in scores)
-        plus_faible_moyenne = min(s[1] for s in scores)
-    else:
-        moyenne_classe = None
-        plus_forte_moyenne = None
-        plus_faible_moyenne = None
-
-    stats_classe = {
-        'effectif_classe': effectif_classe,
-        'evalues_count': evalues_count,
-        'moyenne_classe': moyenne_classe,
-        'plus_forte_moyenne': plus_forte_moyenne,
-        'plus_faible_moyenne': plus_faible_moyenne,
+    from app.services.evaluations import calculer_stats_et_classements_classe
+    stats = calculer_stats_et_classements_classe(ecole_id, classe_id, annee_scolaire_id, periode=periode)
+    target_rank = stats["rangs_par_inscription"].get(target_inscription_id)
+    return target_rank, stats["complets_count"], {
+        'effectif_classe': stats["effectif_total"],
+        'evalues_count': stats["complets_count"],
+        'moyenne_classe': stats["moyenne_classe_officielle"],
+        'plus_forte_moyenne': stats["plus_forte_moyenne"],
+        'plus_faible_moyenne': stats["plus_faible_moyenne"],
+        'taux_reussite': stats["taux_reussite"],
     }
-
-    return target_rank, evalues_count, stats_classe
 
 
 def _calculer_rang_classe(ecole_id, classe_id, annee_scolaire_id, target_inscription_id, periode=None):

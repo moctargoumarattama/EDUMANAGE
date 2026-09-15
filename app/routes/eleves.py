@@ -886,10 +886,18 @@ def voir_eleve(eleve_id):
     eleve.parcours_scolaire = parcours_scolaire
     eleve.classe_actuelle = inscription_active.classe if inscription_active else eleve.classe
 
-    notes = sorted(eleve.notes, key=lambda n: n.date_evaluation or datetime.min, reverse=True)
-    total_pondere = sum((n.valeur or 0) * (n.coefficient or 1) for n in notes)
-    total_coefficients = sum((n.coefficient or 1) for n in notes)
-    moyenne_generale = round(total_pondere / total_coefficients, 2) if total_coefficients else 0
+    from app.services.evaluations import calculer_completude_inscription, STATUS_COMPLETE, STATUS_PROVISOIRE
+
+    annee_id = inscription_active.annee_scolaire_id if inscription_active else None
+
+    if inscription_active and annee_id:
+        eval_info = calculer_completude_inscription(eleve.ecole_id, annee_id, inscription_active)
+        notes = sorted([n for n in eleve.notes if n.annee_id == annee_id], key=lambda n: n.date_evaluation or datetime.min, reverse=True)
+    else:
+        eval_info = {"status": "non_evalue", "average": 0, "evaluated_subjects": 0, "expected_subjects": 0}
+        notes = []
+
+    moyenne_generale = eval_info["average"] if eval_info["average"] is not None else 0
 
     matieres_stats = {}
     for n in notes:
@@ -924,7 +932,10 @@ def voir_eleve(eleve_id):
             data['min'] = moy
             data['max'] = moy
 
-    if moyenne_generale >= 16:
+    if eval_info["status"] == "non_evalue":
+        mention = 'Non évalué'
+        mention_badge = 'secondary'
+    elif moyenne_generale >= 16:
         mention = 'Très Bien'
         mention_badge = 'success'
     elif moyenne_generale >= 14:
@@ -979,6 +990,7 @@ def voir_eleve(eleve_id):
                            notes=notes,
                            matieres_stats=matieres_stats,
                            moyennes_par_matiere=moyennes_par_matiere,
+                           eval_info=eval_info,
                            moyenne_generale=moyenne_generale,
                            mention=mention,
                            mention_badge=mention_badge,

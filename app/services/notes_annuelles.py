@@ -401,9 +401,17 @@ def calculer_moyenne_annuelle(moyenne_s1, moyenne_s2):
 
 
 def calculer_moyennes_eleve_annee(inscription_id, ecole_id, annee_id=None, periode=None):
-    """Calcule la moyenne semestrielle ou annuelle et le détail par matière d'une inscription."""
-    if not inscription_id:
-        return {"moyenne": 0.0, "total_coefficients": 0.0, "par_matiere": {}}
+    """Calcule la moyenne semestrielle ou annuelle et la complétude des évaluations d'une inscription."""
+    if not inscription_id or not ecole_id:
+        return {"moyenne": None, "total_coefficients": 0.0, "par_matiere": {}, "eval_info": None}
+
+    inscription = Inscription.query.filter_by(id=inscription_id, ecole_id=ecole_id).first()
+    if not inscription:
+        return {"moyenne": None, "total_coefficients": 0.0, "par_matiere": {}, "eval_info": None}
+
+    annee_id = annee_id or inscription.annee_scolaire_id
+    from app.services.evaluations import calculer_completude_inscription
+    eval_info = calculer_completude_inscription(ecole_id, annee_id, inscription, periode=periode)
 
     query = Note.query.options(joinedload(Note.cours)).filter_by(inscription_id=inscription_id, ecole_id=ecole_id)
     if annee_id:
@@ -413,7 +421,7 @@ def calculer_moyennes_eleve_annee(inscription_id, ecole_id, annee_id=None, perio
     notes = query.all()
 
     if not notes:
-        return {"moyenne": 0.0, "total_coefficients": 0.0, "par_matiere": {}}
+        return {"moyenne": None, "total_coefficients": 0.0, "par_matiere": {}, "eval_info": eval_info}
 
     par_matiere = {}
     for n in notes:
@@ -423,8 +431,6 @@ def calculer_moyennes_eleve_annee(inscription_id, ecole_id, annee_id=None, perio
         par_matiere[c_id]["notes"].append(n)
 
     result_par_matiere = {}
-    matieres_finalisees = []
-
     for c_id, data in par_matiere.items():
         c_notes = data["notes"]
         cours = data["cours"]
@@ -438,13 +444,9 @@ def calculer_moyennes_eleve_annee(inscription_id, ecole_id, annee_id=None, perio
         moy_semestre = calculer_moyenne_matiere_semestre(moy_controles, note_comp)
         pts = calculer_points_matiere(moy_semestre, cours_coef)
 
-        if moy_semestre is not None:
-            matieres_finalisees.append({"moyenne": moy_semestre, "coefficient": cours_coef, "points": pts})
-
-        # Pour compatibilité descendante : si modèle 2 semestres incomplet, calculer aussi moyenne simple
         total_p = sum((n.valeur or 0.0) * (n.coefficient or 1.0) for n in c_notes)
         total_c = sum((n.coefficient or 1.0) for n in c_notes)
-        moy_simple = round(total_p / total_c, 2) if total_c > 0 else 0.0
+        moy_simple = round(total_p / total_c, 2) if total_c > 0 else None
 
         result_par_matiere[c_id] = {
             "moyenne": moy_semestre if moy_semestre is not None else moy_simple,
@@ -457,20 +459,14 @@ def calculer_moyennes_eleve_annee(inscription_id, ecole_id, annee_id=None, perio
             "finalisee": moy_semestre is not None,
         }
 
-    moy_gen = calculer_moyenne_generale_semestre(matieres_finalisees)
-    if moy_gen is None:
-        # Fallback pour compatibilité
-        tot_pondere = sum((n.valeur or 0.0) * (n.coefficient or 1.0) for n in notes)
-        tot_coef = sum(n.coefficient or 1.0 for n in notes)
-        moy_gen = round(tot_pondere / tot_coef, 2) if tot_coef > 0 else 0.0
-        tot_coef_return = tot_coef
-    else:
-        tot_coef_return = sum(m["coefficient"] for m in matieres_finalisees)
-
     return {
-        "moyenne": moy_gen,
-        "total_coefficients": tot_coef_return,
+        "moyenne": eval_info["average"],
+        "total_coefficients": eval_info["evaluated_coefficients"],
         "par_matiere": result_par_matiere,
+        "eval_info": eval_info,
+        "status": eval_info["status"],
+        "est_provisoire": (eval_info["status"] == "provisoire"),
+        "est_complet": (eval_info["status"] == "complete"),
     }
 
 

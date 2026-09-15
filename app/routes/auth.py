@@ -224,15 +224,27 @@ def portal_parent():
 
         # Calculs légers côté application : acceptable si le nombre d'enfants est limité
         for eleve in enfants:
-            eleve.notes_sorted = sorted(eleve.notes, key=lambda n: n.date_evaluation or datetime.min, reverse=True)
+            from app.services.evaluations import calculer_completude_inscription
+            from app.services.eleves_annuels import get_inscription_active
+
+            inscription_active = get_inscription_active(eleve)
+            annee_id = inscription_active.annee_scolaire_id if inscription_active else None
+
+            if inscription_active and annee_id:
+                eval_info = calculer_completude_inscription(eleve.ecole_id, annee_id, inscription_active)
+                notes_annee = [n for n in eleve.notes if n.annee_id == annee_id]
+                eleve.moyenne = eval_info["average"]
+                eleve.eval_status = eval_info["status"]
+            else:
+                notes_annee = []
+                eleve.moyenne = None
+                eleve.eval_status = "non_evalue"
+
+            eleve.notes_sorted = sorted(notes_annee, key=lambda n: n.date_evaluation or datetime.min, reverse=True)
             eleve.absences_sorted = sorted(eleve.absences, key=lambda a: a.date_absence or datetime.min, reverse=True)
             eleve.paiements_sorted = sorted(eleve.paiements, key=lambda p: p.date_paiement or datetime.min, reverse=True)
 
-            total_pondere = sum((n.valeur or 0) * (n.coefficient or 0) for n in eleve.notes)
-            total_coefficients = sum((n.coefficient or 0) for n in eleve.notes)
-            eleve.moyenne = round(total_pondere / total_coefficients, 2) if total_coefficients else 0
-
-            eleve.total_notes = len(eleve.notes)
+            eleve.total_notes = len(notes_annee)
             eleve.total_absences = len(eleve.absences)
             eleve.total_paiements = len(eleve.paiements)
 
