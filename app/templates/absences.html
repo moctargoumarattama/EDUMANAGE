@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Gestion des Absences - KLASORA{% endblock %}
+{% block title %}Suivi des Absences - KLASORA{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-3 px-lg-4 py-4">
@@ -16,14 +16,14 @@
                         {% if current_user.role == 'parent' %}
                             Absences de mon enfant
                         {% else %}
-                            Gestion des Absences par Classe
+                            Suivi des absences
                         {% endif %}
                     </h1>
                     <p class="page-subtitle d-none d-md-block">
                         {% if current_user.role == 'parent' %}
                             Consultez le relevé d'assiduité et les justifications des absences de votre enfant.
                         {% else %}
-                            Consultez les absences des élèves regroupées par classe (dépliez une classe pour voir les élèves absents).
+                            Consultez et suivez les absences des élèves enregistrées par les professeurs, regroupées par classe.
                         {% endif %}
                     </p>
                 </div>
@@ -49,11 +49,6 @@
                 <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllClassAbsences" title="Déplier ou replier toutes les classes">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
-                {% if show_form %}
-                <button type="button" class="btn btn-warning text-white shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseFormAbsence" aria-expanded="false" aria-controls="collapseFormAbsence" id="btnToggleAddAbsence">
-                    <i class="fas fa-plus-circle me-2"></i>Nouvelle absence
-                </button>
-                {% endif %}
                 {% if current_user.role == 'admin' %}
                 <a href="{{ url_for('main.export_absences_excel') }}" class="btn btn-outline-success shadow-sm" title="Exporter les absences vers Excel">
                     <i class="fas fa-file-excel me-2"></i>Exporter Excel
@@ -76,80 +71,6 @@
     {% elif annee_consultee and annee_consultee.statut == 'planifiee' %}
     <div class="alert alert-info border-0 shadow-sm rounded-4 mb-3" role="alert">
         <i class="fas fa-info-circle me-2"></i>Vous consultez l'année planifiée : <strong>{{ annee_consultee.nom }}</strong> (en préparation). La saisie quotidienne sera active lors du lancement de l'année.
-    </div>
-    {% endif %}
-
-    <!-- Formulaire d'ajout (admin/professeur, rétractable) -->
-    {% if show_form %}
-    <div class="collapse mb-4" id="collapseFormAbsence">
-        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
-            <div class="card-header bg-warning text-white py-3 px-4 d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="fas fa-plus-circle fa-lg"></i>
-                    <h5 class="mb-0 fw-bold">Déclarer une absence</h5>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-toggle="collapse" data-bs-target="#collapseFormAbsence" aria-label="Fermer"></button>
-            </div>
-            <div class="card-body p-4 bg-light bg-opacity-50">
-                <form method="POST" action="{{ url_for('main.absences') }}" class="needs-validation" novalidate>
-                    {{ form.hidden_tag() }}
-
-                    <div class="row g-3">
-                        <!-- Sélection Élève -->
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold" for="eleve_id">Élève concerné <span class="text-danger">*</span></label>
-                            <div class="input-group mb-1">
-                                <span class="input-group-text"><i class="fas fa-search text-muted"></i></span>
-                                <input type="text" class="form-control" id="rechercheEleve" placeholder="Filtrer la liste des élèves..." autocomplete="off">
-                                <button class="btn btn-outline-secondary" type="button" id="btnEffacerRecherche" title="Effacer">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                            {{ form.eleve_id(class="form-select", id="eleve_id", required=true) }}
-                            <div class="invalid-feedback">Veuillez sélectionner un élève.</div>
-                        </div>
-
-                        <!-- Sélection Cours -->
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold" for="cours_id">Cours / Matière <span class="text-danger">*</span></label>
-                            {{ form.cours_id(class="form-select", id="cours_id", required=true) }}
-                            <div class="invalid-feedback">Veuillez sélectionner un cours.</div>
-                        </div>
-
-                        <!-- Date de l'absence -->
-                        <div class="col-12 col-sm-6 col-md-4">
-                            <label class="form-label fw-semibold" for="date_absence">Date de l'absence <span class="text-danger">*</span></label>
-                            {{ form.date_absence(class="form-control", id="date_absence", required=true) }}
-                            <div class="invalid-feedback">Veuillez sélectionner une date.</div>
-                        </div>
-
-                        <!-- Motif -->
-                        <div class="col-12 col-sm-6 col-md-5">
-                            <label class="form-label fw-semibold" for="motif">Motif ou justification</label>
-                            {{ form.motif(class="form-control", id="motif", placeholder="Ex: Maladie, rendez-vous médical, transport...") }}
-                        </div>
-
-                        <!-- Statut justifiée -->
-                        <div class="col-12 col-md-3 d-flex align-items-center pt-md-4">
-                            <div class="form-check form-switch ps-0">
-                                <div class="d-flex align-items-center gap-2">
-                                    {{ form.justifiee(class="form-check-input ms-0", id="justifiee", style="width: 2.75rem; height: 1.4rem;") }}
-                                    <label class="form-check-label fw-semibold text-dark" for="justifiee">Absence justifiée</label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Boutons formulaire -->
-                        <div class="col-12 d-flex justify-content-end gap-2 pt-2">
-                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#collapseFormAbsence">Annuler</button>
-                            <button type="submit" class="btn btn-warning text-white px-4">
-                                <i class="fas fa-check me-2"></i>Enregistrer l'absence
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
     </div>
     {% endif %}
 

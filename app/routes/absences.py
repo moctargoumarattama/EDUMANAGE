@@ -1,5 +1,6 @@
 from . import main
 from types import SimpleNamespace
+import pandas as pd
 from .common import (
     abort,
     Absence,
@@ -73,68 +74,16 @@ def _niveaux_depuis_classes(classes):
 @login_required
 @role_required('admin', 'professeur')
 def absences():
-    form = AbsenceForm()
+    if request.method == 'POST':
+        flash("L'enregistrement initial des absences est réservé aux professeurs lors de la prise d'appel.", "warning")
+        return redirect(url_for('main.absences'))
+
     page = request.args.get('page', 1, type=int)
     per_page = 50
     ecole_id = _ecole_id_courante()
     annee_consultee = get_annee_consultee(ecole_id)
     can_mutate = absences_modifiables(annee_consultee, current_user)
     message_annee = statut_annee_absences(annee_consultee)
-
-    _remplir_choix_absence(form, ecole_id, annee_consultee)
-
-    if form.validate_on_submit():
-        if not can_mutate:
-            flash(message_annee or "Les absences ne peuvent pas etre modifiees pour cette annee.", "warning")
-            return redirect(url_for('main.absences'))
-
-        try:
-            eleve, cours, _inscription, error = verifier_mutation_absence(
-                ecole_id,
-                annee_consultee,
-                current_user,
-                form.eleve_id.data,
-                form.cours_id.data,
-                form.date_absence.data,
-            )
-            if error:
-                flash(error, "danger")
-                return redirect(url_for('main.absences'))
-
-            nouvelle_absence = Absence(
-                date_absence=form.date_absence.data,
-                motif=form.motif.data,
-                justifiee=form.justifiee.data,
-                eleve_id=form.eleve_id.data,
-                cours_id=form.cours_id.data,
-                ecole_id=ecole_id,
-                inscription_id=_inscription.id if _inscription else None,
-            )
-            db.session.add(nouvelle_absence)
-            db.session.commit()
-
-            if eleve and eleve.email_parent and cours:
-                sujet = f"Absence de {eleve.prenom} {eleve.nom}"
-                message = f"""Bonjour,
-Nous vous informons que {eleve.prenom} {eleve.nom} a ete absent(e) le {form.date_absence.data.strftime('%d/%m/%Y')}.
-Motif: {form.motif.data}
-Cours: {cours.nom}
-Statut: {'Justifiee' if form.justifiee.data else 'Non justifiee'}
-
-Cordialement,
-L'equipe pedagogique"""
-                try:
-                    envoyer_email(eleve.email_parent, sujet, message)
-                except Exception as e:
-                    current_app.logger.error(f"Erreur envoi email absence: {e}")
-
-            flash('Absence enregistree avec succes', 'success')
-            return redirect(url_for('main.absences'))
-
-        except Exception as e:
-            db.session.rollback()
-            flash("Erreur lors de l'enregistrement de l'absence.", "danger")
-            current_app.logger.error(f"Erreur ajout absence: {e}")
 
     absences_list = get_absences_annee(ecole_id, annee_consultee, current_user)
 
@@ -197,7 +146,7 @@ L'equipe pedagogique"""
 
     absences_justifiees = sum(1 for a in filtrees if a.justifiee)
     absences_non_justifiees = total - absences_justifiees
-    show_form = can_mutate
+    show_form = False
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
         return jsonify({
@@ -226,7 +175,6 @@ L'equipe pedagogique"""
 
     return render_template(
         'absences.html',
-        form=form,
         absences=absences_paginated,
         absences_justifiees=absences_justifiees,
         absences_non_justifiees=absences_non_justifiees,
@@ -246,6 +194,8 @@ L'equipe pedagogique"""
         date_fin=date_fin_str,
         justifiee=justifiee_param
     )
+
+
 @main.route('/absences/export_excel')
 @login_required
 @role_required('admin')
@@ -276,6 +226,8 @@ def export_absences_excel():
         download_name=f"liste_absences{suffix}.xlsx",
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
+
 @main.route('/absences/edit/<int:absence_id>', methods=['GET', 'POST'])
 @login_required
 @role_required('admin', 'professeur')
@@ -360,6 +312,8 @@ def delete_absence(absence_id):
         flash(f"Erreur lors de la suppression: {str(e)}", "danger")
 
     return redirect(url_for('main.absences'))
+
+
 @main.route("/presence", methods=["GET", "POST"])
 @login_required
 @role_required("professeur", "admin")
@@ -370,7 +324,7 @@ def presence():
 
 @main.route("/absences/appel", methods=["GET", "POST"])
 @login_required
-@role_required("professeur", "admin")
+@role_required("professeur")
 def faire_appel():
     ecole_id = _ecole_id_courante()
     annee_consultee = get_annee_consultee(ecole_id)
@@ -415,26 +369,27 @@ def faire_appel():
             annee_scolaire_id=annee_consultee.id,
         ).first_or_404()
 
-    if current_user.role == "professeur":
-        professeur = getattr(current_user, "professeur_rel", None)
-        if not professeur:
+    professeur = getattr(current_user, "professeur_rel", None)
+    if not professeur:
+        abort(403)
+    if cours and cours.professeur_id != professeur.id:
+        abort(403)
+    if classe and not cours:
+        cours = Cours.query.filter_by(
+            classe_id=classe.id,
+            professeur_id=professeur.id,
+            ecole_id=ecole_id,
+        ).order_by(Cours.nom.asc()).first()
+        if not cours:
             abort(403)
-        if cours and cours.professeur_id != professeur.id:
-            abort(403)
-        if classe and not cours:
-            cours = Cours.query.filter_by(
-                classe_id=classe.id,
-                professeur_id=professeur.id,
-                ecole_id=ecole_id,
-            ).order_by(Cours.nom.asc()).first()
-            if not cours:
-                abort(403)
 
     cours_disponibles = []
     if classe:
-        cours_query = Cours.query.filter_by(classe_id=classe.id, ecole_id=ecole_id)
-        if current_user.role == "professeur":
-            cours_query = cours_query.filter_by(professeur_id=current_user.professeur_rel.id)
+        cours_query = Cours.query.filter_by(
+            classe_id=classe.id,
+            ecole_id=ecole_id,
+            professeur_id=professeur.id,
+        )
         cours_disponibles = cours_query.order_by(Cours.nom.asc()).all()
         if not cours and cours_disponibles:
             cours = cours_disponibles[0]
