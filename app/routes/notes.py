@@ -59,7 +59,6 @@ def _niveaux_depuis_classes(classes):
 @login_required
 @role_required('admin', 'professeur', 'parent')
 def notes():
-    form = NoteForm()
     ecole_id = current_user.ecole_id
 
     # ------------------- Contexte annuel unique (Règle 2C-5D) -------------------
@@ -67,8 +66,16 @@ def notes():
     message_annee = statut_annee_notes(annee_consultee)
     peut_modifier = notes_modifiables(annee_consultee, current_user)
 
-    # ------------------- Choix élèves et cours -------------------
-    if annee_consultee:
+    # ------------------- Sécurité backend : Saisie de note réservée aux professeurs -------------------
+    if request.method == 'POST':
+        if current_user.role != 'professeur':
+            flash("La saisie des notes est réservée aux professeurs.", "warning")
+            return redirect(url_for('main.notes'))
+
+    form = NoteForm() if current_user.role == 'professeur' else None
+
+    # ------------------- Choix élèves et cours pour le professeur -------------------
+    if form and annee_consultee:
         eleve_choices = get_eleves_choices_notes(ecole_id, annee_consultee, user=current_user)
         form.eleve_id.choices = eleve_choices or [(0, "--- Aucun élève disponible ---")]
 
@@ -78,14 +85,14 @@ def notes():
         if hasattr(form, 'annee_id'):
             form.annee_id.choices = [(annee_consultee.id, annee_consultee.nom)]
             form.annee_id.data = annee_consultee.id
-    else:
+    elif form:
         form.eleve_id.choices = [(0, "--- Aucun élève disponible ---")]
         form.cours_id.choices = [(0, "--- Aucun cours disponible ---")]
         if hasattr(form, 'annee_id'):
             form.annee_id.choices = [(0, "--- Aucune année disponible ---")]
 
-    # ------------------- Ajout d'une note (POST) -------------------
-    if form.validate_on_submit():
+    # ------------------- Ajout d'une note (POST professeur) -------------------
+    if form and form.validate_on_submit():
         if not peut_modifier:
             if annee_consultee and annee_consultee.statut == 'archivee':
                 flash(MESSAGE_ANNEE_ARCHIVEE, "warning")
@@ -212,7 +219,10 @@ def notes():
 
     tous_les_cours = get_cours_annee(ecole_id, annee_consultee, user=current_user)
     from collections import defaultdict
-    from app.services.evaluations import preparer_dossier_notes_eleve
+    from app.services.evaluations import (
+        calculer_completude_inscription,
+        preparer_dossier_notes_eleve,
+    )
 
     notes_par_eleve = defaultdict(list)
     for n in notes_filtrees:
@@ -224,11 +234,36 @@ def notes():
         for e_id, e_notes in notes_par_eleve.items()
     }
 
+    # Calcul de la complétude pédagogique par élève pour l'année et la période consultées
+    periode_cible = periode if periode else None
+    if not periode_cible and annee_consultee and ecole_id:
+        from app.models import PeriodeBulletin
+        p_active = PeriodeBulletin.query.filter_by(
+            ecole_id=ecole_id,
+            annee_id=annee_consultee.id,
+            periode_active=True
+        ).first()
+        if p_active:
+            periode_cible = p_active.nom
+
+    completude_par_eleve = {}
+    if annee_consultee and ecole_id:
+        for ins in inscriptions:
+            if ins.eleve_id:
+                completude_par_eleve[ins.eleve_id] = calculer_completude_inscription(
+                    ecole_id=ecole_id,
+                    annee_id=annee_consultee.id,
+                    inscription=ins,
+                    periode=periode_cible,
+                    periode_publiee=False,
+                )
+
     return render_template(
         'notes.html',
         form=form if peut_modifier else None,
         notes=notes_filtrees,
         dossiers_notes_par_eleve=dossiers_notes_par_eleve,
+        completude_par_eleve=completude_par_eleve,
         moyenne_generale=stats["moyenne_generale"],
         taux_reussite=stats["taux_reussite"],
         matieres_evaluees=stats["matieres_evaluees"],
@@ -285,8 +320,8 @@ def export_notes_excel():
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name='Notes', index=False)
-
     output.seek(0)
+
     suffix = f"_{annee_consultee.nom.replace('/', '-')}" if annee_consultee else ""
     return send_file(
         output,
@@ -298,7 +333,7 @@ def export_notes_excel():
 
 @main.route('/notes/saisie_classe', methods=['GET', 'POST'], endpoint='saisie_notes_classe')
 @login_required
-@role_required('admin', 'professeur')
+@role_required('professeur')
 def saisie_notes_classe():
     """Saisie rapide des notes par classe entière (Phase 5C)."""
     ecole_id = current_user.ecole_id

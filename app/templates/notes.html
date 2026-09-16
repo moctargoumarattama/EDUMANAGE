@@ -13,14 +13,18 @@
                 </div>
                 <div>
                     <h1 class="page-title">
-                        {% if current_user.role in ['admin', 'professeur'] %}
+                        {% if current_user.role == 'admin' %}
+                            Suivi des évaluations
+                        {% elif current_user.role == 'professeur' %}
                             Évaluations par Élève
                         {% else %}
                             Notes de mon enfant
                         {% endif %}
                     </h1>
                     <p class="page-subtitle d-none d-md-block">
-                        {% if current_user.role in ['admin', 'professeur'] %}
+                        {% if current_user.role == 'admin' %}
+                            Suivi, contrôle de l'avancement et consultation détaillée des évaluations par élève.
+                        {% elif current_user.role == 'professeur' %}
                             Consultez et gérez le dossier d'évaluations complet de chaque élève en un clic.
                         {% else %}
                             Consultez le relevé détaillé des évaluations et notes de votre enfant.
@@ -50,7 +54,7 @@
                 <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllAccordions" title="Déplier ou replier tous les élèves">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
-                {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
+                {% if current_user.role == 'professeur' and notes_modifiables %}
                 <a href="{{ url_for('main.saisie_notes_classe') }}" class="btn btn-success shadow-sm" id="btnSaisieNotesClasse" title="Saisie rapide des notes par classe entière">
                     <i class="fas fa-table-list me-2"></i>Saisie par classe
                 </a>
@@ -80,8 +84,8 @@
     </div>
     {% endif %}
 
-    <!-- Formulaire d'ajout (admin/professeur, rétractable) -->
-    {% if current_user.role in ['admin', 'professeur'] and form and notes_modifiables %}
+    <!-- Formulaire d'ajout (professeur uniquement, rétractable) -->
+    {% if current_user.role == 'professeur' and form and notes_modifiables %}
     <div class="collapse mb-4" id="collapseFormNote">
         <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
             <div class="card-header bg-primary text-white py-3 px-4 d-flex justify-content-between align-items-center">
@@ -343,6 +347,24 @@
                             <i class="fas fa-clipboard-list text-primary me-1"></i>{{ student_notes_count }} note{{ 's' if student_notes_count > 1 else '' }}
                         </span>
 
+                        <!-- Badge indicateur X/Y matières renseignées -->
+                        {% set comp = (completude_par_eleve or {}).get(eleve.id) %}
+                        {% if comp and comp.expected_subjects > 0 %}
+                            {% if comp.evaluated_subjects >= comp.expected_subjects %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.82rem;" title="Toutes les matières obligatoires ont été évaluées">
+                                    <i class="fas fa-check-circle me-1"></i>{{ comp.expected_subjects }}/{{ comp.expected_subjects }} matières renseignées
+                                </span>
+                            {% elif comp.evaluated_subjects > 0 %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size: 0.82rem;" title="Matières évaluées pour cette période">
+                                    <i class="fas fa-clock me-1"></i>{{ comp.evaluated_subjects }}/{{ comp.expected_subjects }} matière{{ 's' if comp.expected_subjects > 1 else '' }} renseignée{{ 's' if comp.evaluated_subjects > 1 else '' }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-muted border" style="font-size: 0.82rem;" title="Aucune matière évaluée pour cette période">
+                                    <i class="fas fa-circle-question me-1 text-muted"></i>0/{{ comp.expected_subjects }} matière{{ 's' if comp.expected_subjects > 1 else '' }} renseignée{{ 's' if comp.expected_subjects > 1 else '' }}
+                                </span>
+                            {% endif %}
+                        {% endif %}
+
                         <!-- Chevron de dépliement -->
                         <span class="student-note-chevron">
                             <i class="fas fa-chevron-down"></i>
@@ -352,6 +374,16 @@
 
                 <!-- Contenu dépliable : notes regroupées par matière avec moyenne de chaque matière -->
                 <div class="collapse student-note-content p-3" id="collapseEleve{{ eleve.id }}">
+                    {% set comp = (completude_par_eleve or {}).get(eleve.id) %}
+                    {% if comp and comp.missing_subjects_names %}
+                    <div class="alert alert-warning-subtle border border-warning-subtle text-dark d-flex align-items-center gap-2 py-2 px-3 mb-3 rounded-3" style="font-size: 0.85rem;">
+                        <i class="fas fa-hourglass-half text-warning"></i>
+                        <div>
+                            <strong>En attente :</strong> {{ comp.missing_subjects_names|join(', ') }}
+                        </div>
+                    </div>
+                    {% endif %}
+
                     {% set eleve_dossier = dossiers_notes_par_eleve.get(eleve.id, []) if dossiers_notes_par_eleve else [] %}
                     {% if eleve_dossier %}
                         <div class="d-flex flex-column gap-3">
@@ -518,7 +550,7 @@
         </div>
         <h2 class="h4 fw-bold text-dark">Aucune note enregistrée</h2>
         <p class="text-muted mb-3">Aucune évaluation n'a encore été enregistrée pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong>.</p>
-        {% if current_user.role in ['admin', 'professeur'] and form and notes_modifiables %}
+        {% if current_user.role == 'professeur' and form and notes_modifiables %}
         <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#collapseFormNote">
             <i class="fas fa-plus-circle me-2"></i>Ajouter la première note
         </button>
