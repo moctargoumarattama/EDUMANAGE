@@ -28,7 +28,7 @@ from .common import (
     send_file,
     url_for,
 )
-from app.models import Bulletin, Inscription
+from app.models import Bulletin, Inscription, JournalCorrection
 from app.services import generer_bulletin_pdf
 from app.services.annees_scolaires import get_annee_consultee
 from app.services.bulletins_annuels import (
@@ -166,8 +166,11 @@ def bulletin_eleve(id=None, inscription_id=None):
             periode_active = PeriodeBulletin.query.filter_by(ecole_id=ecole_id, annee_id=annee.id, publie=True).first()
         periode_demandee = periode_active.nom if periode_active else "Semestre 1"
 
+    p_obj = PeriodeBulletin.query.filter_by(ecole_id=ecole_id, annee_id=annee.id, nom=periode_demandee).first()
+    periode_est_publiee = bool(p_obj and p_obj.publie)
+
     # Calcul des données du bulletin strictement depuis Inscription et ses Notes
-    data, err = calculer_bulletin_data(ecole_id, annee, inscription, periode=periode_demandee)
+    data, err = calculer_bulletin_data(ecole_id, annee, inscription, periode=periode_demandee, periode_publiee=periode_est_publiee)
     if err:
         flash(f"Erreur lors du calcul du bulletin : {err}", "danger")
         return redirect(url_for('main.bulletins'))
@@ -197,6 +200,7 @@ def bulletin_eleve(id=None, inscription_id=None):
             total_points=data.get('total_points'),
             stats_classe=data.get('stats_classe'),
             nb_absences=data.get('nb_absences'),
+            est_provisoire=data.get('est_provisoire', False),
         )
 
         filename = f"bulletin_{eleve.prenom}_{eleve.nom}_{annee_nom}_{periode_demandee.replace(' ', '_')}.pdf"
@@ -293,6 +297,9 @@ def bulletins():
             publie=True
         ).first()
 
+    periode_nom = periode_active.nom if periode_active else "Semestre 1"
+    periode_publiee = bool(periode_active and periode_active.publie)
+
     # Filtres de recherche
     search = (request.args.get('search') or request.args.get('q') or '').strip().lower()
     classe_id = request.args.get('classe_id', type=int) or request.args.get('classe', type=int)
@@ -338,7 +345,8 @@ def bulletins():
             ecole_id,
             annee.id,
             ins,
-            periode=periode_active.nom if periode_active else None
+            periode=periode_nom,
+            periode_publiee=periode_publiee
         )
 
         status = eval_info["status"]
@@ -350,9 +358,9 @@ def bulletins():
             appreciation_code = 'non-evalue'
             badge_class = 'badge-mention-non-evalue bg-secondary text-white'
         elif status == STATUS_PROVISOIRE:
-            appreciation = f"Moyenne provisoire ({eval_info['evaluated_subjects']}/{eval_info['expected_subjects']})"
+            appreciation = 'En attente'
             appreciation_code = 'provisoire'
-            badge_class = 'bg-warning text-dark'
+            badge_class = 'bg-light text-muted border'
         else:
             if moyenne is not None:
                 if moyenne >= 16:
@@ -430,7 +438,8 @@ def bulletins():
             ecole_id,
             c.id,
             annee.id,
-            periode=periode_active.nom if periode_active else None
+            periode=periode_nom,
+            periode_publiee=periode_publiee
         )
         rangs_map = c_canon_stats['rangs_par_inscription']
 
@@ -461,9 +470,9 @@ def bulletins():
             'taux_reussite': c_canon_stats['taux_reussite']
         }
 
-    # Statistiques globales de l'école (uniquement sur élèves complets)
+    # Statistiques globales de l'école (uniquement sur élèves complets et si période publiée)
     complets_globaux = [e for e in eleves_avec_moyennes if e['status'] == STATUS_COMPLETE and e['moyenne_raw'] is not None]
-    if complets_globaux:
+    if complets_globaux and periode_publiee:
         moyenne_generale = round(sum(e['moyenne_raw'] for e in complets_globaux) / len(complets_globaux), 2)
         meilleure_moyenne = max(e['moyenne_raw'] for e in complets_globaux)
         admis_g = sum(1 for e in complets_globaux if e['moyenne_raw'] >= 10)
@@ -508,7 +517,8 @@ def bulletins():
         bulletins_accessibles=bulletins_accessible_pour_parent() or (annee and annee.statut == 'archivee'),
         annee_consultee=annee,
         bulletins_modifiables=est_modifiable,
-        statut_warning=statut_warning
+        statut_warning=statut_warning,
+        periode_publiee=periode_publiee
     )
 
 
@@ -542,19 +552,49 @@ def route_modifier_appreciation(id):
     return redirect(url_for('main.bulletins'))
 
 
-@main.route('/toggle_periode/<int:id>')
+@main.route('/toggle_periode/<int:id>', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
 def toggle_periode(id):
     periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
-    periode.publie = not periode.publie
-    if periode.publie:
+
+    # Si la période n'est pas encore publiée, l'administrateur demande sa publication officielle
+    if not periode.publie:
+        from app.services.evaluations import verifier_eligibilite_publication_periode
+        verif = verifier_eligibilite_publication_periode(periode.ecole_id, periode.annee_id, periode.nom)
+        
+        confirme = (request.args.get('confirmer') == '1' or request.form.get('confirmer') == '1')
+
+        # Si des élèves ont un bulletin incomplet et que l'administrateur n'a pas encore confirmé :
+        if not verif["eligible"] and not confirme:
+            return render_template(
+                'confirmer_publication_periode.html',
+                periode=periode,
+                verif=verif
+            )
+
+        periode.publie = True
         periode.date_publication = datetime.utcnow()
         action_name = "BULLETIN_PUBLIE"
-        desc = f"Publication du bulletin {periode.nom}"
+        desc = f"Publication officielle du bulletin {periode.nom}"
+        niveau = "info"
+
+        if not verif["eligible"]:
+            flash_msg = (
+                f"Période '{periode.nom}' publiée avec avertissement : "
+                f"{verif['total_incomplets']} élève(s) ont un bulletin incomplet et restent en statut provisoire."
+            )
+            flash_cat = "warning"
+        else:
+            flash_msg = f"Période '{periode.nom}' publiée avec succès. Les bulletins complets sont désormais officiels."
+            flash_cat = "success"
     else:
+        periode.publie = False
         action_name = "BULLETIN_REOUVERT"
-        desc = f"Réouverture administrative du bulletin {periode.nom}"
+        desc = f"Dépublication / réouverture administrative du bulletin {periode.nom}"
+        niveau = "warning"
+        flash_msg = f"Période '{periode.nom}' dépubliée. Les bulletins repassent en état provisoire."
+        flash_cat = "warning"
 
     journal = JournalCorrection(
         action=action_name,
@@ -563,12 +603,12 @@ def toggle_periode(id):
         user_id=current_user.id,
         cible_type="periode_bulletin",
         cible_id=periode.id,
-        niveau="info"
+        niveau=niveau
     )
     db.session.add(journal)
     db.session.commit()
 
-    flash(f"Période {periode.nom} {'publiée' if periode.publie else 'réouverte'} avec succès.", "success")
+    flash(flash_msg, flash_cat)
     return redirect(url_for('main.gestion_periodes'))
 
 
@@ -612,7 +652,7 @@ def gestion_periodes():
 @login_required
 @role_required('admin')
 def activer_periode(id):
-    """Rendre une période active (une seule période active à la fois)"""
+    """Rendre une période active (période de travail) sans forcer sa publication officielle."""
     annee = get_annee_consultee(current_user.ecole_id)
     filter_kwargs = {'ecole_id': current_user.ecole_id}
     if annee:
@@ -622,11 +662,10 @@ def activer_periode(id):
     
     periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
     periode.periode_active = True
-    periode.publie = True
-    periode.date_publication = datetime.utcnow()
+    # IMPORTANT : Ne force PAS periode.publie = True (activation != publication)
     
     db.session.commit()
-    flash(f"Période {periode.nom} activée avec succès. Les parents peuvent maintenant accéder aux bulletins.", "success")
+    flash(f"Période '{periode.nom}' définie comme période de travail active.", "success")
     return redirect(url_for('main.gestion_periodes'))
 
 

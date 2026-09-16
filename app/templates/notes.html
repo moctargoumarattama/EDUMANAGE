@@ -256,8 +256,6 @@
                 <select id="sortStudentsSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="nom-asc">A &rarr; Z</option>
                     <option value="nom-desc">Z &rarr; A</option>
-                    <option value="moyenne-desc">Moyenne &darr;</option>
-                    <option value="moyenne-asc">Moyenne &uarr;</option>
                     <option value="notes-desc">Notes &darr;</option>
                 </select>
             </div>
@@ -285,11 +283,9 @@
             {% set classe_nom = (first_note.inscription.classe.nom if (first_note.inscription and first_note.inscription.classe) else (first_note.cours.classe.nom if (first_note.cours and first_note.cours.classe) else (eleve.classe.nom if eleve.classe else 'Sans classe'))) %}
             {% set student_notes_count = group.list|length %}
 
-            <!-- Calcul moyenne de l'élève -->
-            {% set ns = namespace(val=0, coeff=0, matieres=[], types=[], periodes=[]) %}
+            <!-- Filtres pour l'élève -->
+            {% set ns = namespace(matieres=[], types=[], periodes=[]) %}
             {% for n in group.list %}
-                {% set ns.val = ns.val + (n.valeur * (n.coefficient or 1)) %}
-                {% set ns.coeff = ns.coeff + (n.coefficient or 1) %}
                 {% if n.cours and n.cours.nom not in ns.matieres %}
                     {% set _ = ns.matieres.append(n.cours.nom) %}
                 {% endif %}
@@ -300,7 +296,6 @@
                     {% set _ = ns.periodes.append(n.periode) %}
                 {% endif %}
             {% endfor %}
-            {% set student_avg = (ns.val / ns.coeff)|round(2) if ns.coeff > 0 else 0 %}
             {% set matieres_str = ns.matieres|join(' ') %}
             {% set types_str = ns.types|join(' ') %}
             {% set periodes_str = ns.periodes|join(' ') %}
@@ -316,8 +311,7 @@
                      data-matieres="{{ matieres_str }}"
                      data-types="{{ types_str }}"
                      data-periodes="{{ periodes_str }}"
-                     data-notes-count="{{ student_notes_count }}"
-                     data-moyenne="{{ student_avg }}">
+                     data-notes-count="{{ student_notes_count }}">
 
                 <!-- En-tête cliquable pour déplier/replier les notes de l'élève -->
                 <div class="student-note-header"
@@ -349,19 +343,6 @@
                             <i class="fas fa-clipboard-list text-primary me-1"></i>{{ student_notes_count }} note{{ 's' if student_notes_count > 1 else '' }}
                         </span>
 
-                        <!-- Badge moyenne générale -->
-                        {% if student_avg >= 16 %}
-                            <span class="badge bg-success shadow-sm" style="font-size: 0.84rem;">Moyenne : {{ student_avg }}/20</span>
-                        {% elif student_avg >= 14 %}
-                            <span class="badge bg-info text-dark shadow-sm" style="font-size: 0.84rem;">Moyenne : {{ student_avg }}/20</span>
-                        {% elif student_avg >= 12 %}
-                            <span class="badge bg-primary shadow-sm" style="font-size: 0.84rem;">Moyenne : {{ student_avg }}/20</span>
-                        {% elif student_avg >= 10 %}
-                            <span class="badge bg-warning text-dark shadow-sm" style="font-size: 0.84rem;">Moyenne : {{ student_avg }}/20</span>
-                        {% else %}
-                            <span class="badge bg-danger shadow-sm" style="font-size: 0.84rem;">Moyenne : {{ student_avg }}/20</span>
-                        {% endif %}
-
                         <!-- Chevron de dépliement -->
                         <span class="student-note-chevron">
                             <i class="fas fa-chevron-down"></i>
@@ -369,136 +350,149 @@
                     </div>
                 </div>
 
-                <!-- Contenu dépliable : liste de toutes les notes de cet élève -->
-                <div class="collapse student-note-content" id="collapseEleve{{ eleve.id }}">
-
-                    <!-- Tableau sur Desktop -->
-                    <div class="student-eval-table-wrap">
-                        <table class="table student-eval-table align-middle">
-                            <thead>
-                                <tr>
-                                    <th>Matière</th>
-                                    <th>Note</th>
-                                    <th>Coefficient</th>
-                                    <th>Évaluation</th>
-                                    <th>Période</th>
-                                    <th>Date</th>
-                                    {% if current_user.role in ['admin', 'professeur'] %}
-                                    <th class="text-end pe-4">Actions</th>
-                                    {% endif %}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for note in group.list %}
-                                {% set cours_nom = note.cours.nom if note.cours else 'Cours inconnu' %}
-                                {% set date_str = note.date_evaluation.strftime('%d/%m/%Y') if note.date_evaluation else '' %}
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <i class="fas fa-book text-primary opacity-75"></i>
-                                            <span class="fw-semibold text-dark">{{ cours_nom }}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        {% if note.valeur >= 16 %}
-                                            <span class="badge bg-success fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
-                                        {% elif note.valeur >= 14 %}
-                                            <span class="badge bg-info text-dark fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
-                                        {% elif note.valeur >= 12 %}
-                                            <span class="badge bg-primary fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
-                                        {% elif note.valeur >= 10 %}
-                                            <span class="badge bg-warning text-dark fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
+                <!-- Contenu dépliable : notes regroupées par matière avec moyenne de chaque matière -->
+                <div class="collapse student-note-content p-3" id="collapseEleve{{ eleve.id }}">
+                    {% set eleve_dossier = dossiers_notes_par_eleve.get(eleve.id, []) if dossiers_notes_par_eleve else [] %}
+                    {% if eleve_dossier %}
+                        <div class="d-flex flex-column gap-3">
+                            {% for mat in eleve_dossier %}
+                            <div class="border rounded-3 p-3 bg-light bg-opacity-25">
+                                <!-- En-tête Matière -->
+                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2 pb-2 border-bottom">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <i class="fas fa-book text-primary opacity-75"></i>
+                                        <span class="fw-bold text-dark fs-6">{{ mat.cours_nom }}</span>
+                                        <span class="badge bg-light text-muted border">Coeff. x{{ mat.coefficient }}</span>
+                                        <span class="badge bg-white text-muted border">{{ mat.notes_count }} note{{ 's' if mat.notes_count > 1 else '' }}</span>
+                                    </div>
+                                    <div>
+                                        {% if mat.moyenne_matiere is not none %}
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-6 py-1 px-2 fw-semibold">
+                                                Moyenne matière : {{ "%.2f"|format(mat.moyenne_matiere) }}/20
+                                            </span>
                                         {% else %}
-                                            <span class="badge bg-danger fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
+                                            <span class="badge bg-light text-muted border fs-6 py-1 px-2">
+                                                Moyenne matière : En attente
+                                            </span>
                                         {% endif %}
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-light text-muted border">x{{ note.coefficient }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-light text-dark border">{{ note.type_evaluation }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="text-muted small">{{ note.periode or '—' }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="text-muted small">{{ date_str }}</span>
-                                    </td>
-                                    {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
-                                    <td class="text-end pe-4">
-                                        <div class="d-inline-flex gap-1">
-                                            <a href="{{ url_for('main.modifier_note', note_id=note.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier la note">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette note pour {{ eleve_full }} ');">
-                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer la note">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </form>
+                                    </div>
+                                </div>
+
+                                <!-- Tableau sur Desktop -->
+                                <div class="student-eval-table-wrap">
+                                    <table class="table student-eval-table align-middle mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Évaluation</th>
+                                                <th>Note</th>
+                                                <th>Période</th>
+                                                <th>Date</th>
+                                                {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
+                                                <th class="text-end pe-3">Actions</th>
+                                                {% endif %}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for note in mat.notes %}
+                                            {% set date_str = note.date_evaluation.strftime('%d/%m/%Y') if note.date_evaluation else '' %}
+                                            <tr>
+                                                <td>
+                                                    <span class="badge bg-light text-dark border">{{ note.type_evaluation }}</span>
+                                                </td>
+                                                <td>
+                                                    {% if note.valeur >= 16 %}
+                                                        <span class="badge bg-success fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
+                                                    {% elif note.valeur >= 14 %}
+                                                        <span class="badge bg-info text-dark fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
+                                                    {% elif note.valeur >= 12 %}
+                                                        <span class="badge bg-primary fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
+                                                    {% elif note.valeur >= 10 %}
+                                                        <span class="badge bg-warning text-dark fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
+                                                    {% else %}
+                                                        <span class="badge bg-danger fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="text-muted small">{{ note.periode or '—' }}</span>
+                                                </td>
+                                                <td>
+                                                    <span class="text-muted small">{{ date_str }}</span>
+                                                </td>
+                                                {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
+                                                <td class="text-end pe-3">
+                                                    <div class="d-inline-flex gap-1">
+                                                        <a href="{{ url_for('main.modifier_note', note_id=note.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier la note">
+                                                            <i class="fas fa-edit"></i>
+                                                        </a>
+                                                        <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette note pour {{ eleve_full }} ?');">
+                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer la note">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                                {% endif %}
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Cartes sur Mobile (Zéro défilement horizontal) -->
+                                <div class="student-eval-cards">
+                                    {% for note in mat.notes %}
+                                    {% set date_str = note.date_evaluation.strftime('%d/%m/%Y') if note.date_evaluation else '' %}
+                                    <div class="student-eval-card">
+                                        <div class="student-eval-card-top">
+                                            <div class="d-flex align-items-center gap-2 min-w-0">
+                                                <span class="badge bg-light text-dark border">{{ note.type_evaluation }}</span>
+                                                {% if note.periode %}
+                                                <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ note.periode }}</span>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                {% if note.valeur >= 16 %}
+                                                    <span class="badge bg-success fs-6 fw-bold">{{ note.valeur }}/20</span>
+                                                {% elif note.valeur >= 14 %}
+                                                    <span class="badge bg-info text-dark fs-6 fw-bold">{{ note.valeur }}/20</span>
+                                                {% elif note.valeur >= 12 %}
+                                                    <span class="badge bg-primary fs-6 fw-bold">{{ note.valeur }}/20</span>
+                                                {% elif note.valeur >= 10 %}
+                                                    <span class="badge bg-warning text-dark fs-6 fw-bold">{{ note.valeur }}/20</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger fs-6 fw-bold">{{ note.valeur }}/20</span>
+                                                {% endif %}
+                                            </div>
                                         </div>
-                                    </td>
-                                    {% endif %}
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
 
-                    <!-- Cartes sur Mobile (Zéro défilement horizontal) -->
-                    <div class="student-eval-cards">
-                        {% for note in group.list %}
-                        {% set cours_nom = note.cours.nom if note.cours else 'Cours inconnu' %}
-                        {% set date_str = note.date_evaluation.strftime('%d/%m/%Y') if note.date_evaluation else '' %}
-                        <div class="student-eval-card">
-                            <div class="student-eval-card-top">
-                                <div class="d-flex align-items-center gap-2 min-w-0">
-                                    <i class="fas fa-book text-primary"></i>
-                                    <span class="fw-bold text-dark text-truncate">{{ cours_nom }}</span>
-                                </div>
-                                <div>
-                                    {% if note.valeur >= 16 %}
-                                        <span class="badge bg-success fs-6 fw-bold">{{ note.valeur }}/20</span>
-                                    {% elif note.valeur >= 14 %}
-                                        <span class="badge bg-info text-dark fs-6 fw-bold">{{ note.valeur }}/20</span>
-                                    {% elif note.valeur >= 12 %}
-                                        <span class="badge bg-primary fs-6 fw-bold">{{ note.valeur }}/20</span>
-                                    {% elif note.valeur >= 10 %}
-                                        <span class="badge bg-warning text-dark fs-6 fw-bold">{{ note.valeur }}/20</span>
-                                    {% else %}
-                                        <span class="badge bg-danger fs-6 fw-bold">{{ note.valeur }}/20</span>
-                                    {% endif %}
+                                        <div class="d-flex align-items-center justify-content-between text-muted" style="font-size: 0.78rem;">
+                                            <span>Date d'évaluation</span>
+                                            <span>{{ date_str }}</span>
+                                        </div>
+
+                                        {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
+                                        <div class="student-eval-card-bottom">
+                                            <div class="student-eval-card-actions">
+                                                <a href="{{ url_for('main.modifier_note', note_id=note.id) }}" class="btn btn-outline-primary btn-sm" title="Modifier">
+                                                    <i class="fas fa-edit me-1"></i>Modifier
+                                                </a>
+                                                <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette note ?');">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
+                                                        <i class="fas fa-trash me-1"></i>Supprimer
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
                                 </div>
                             </div>
-
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <span class="badge bg-light text-muted border">Coeff. x{{ note.coefficient }}</span>
-                                <span class="badge bg-light text-dark border">{{ note.type_evaluation }}</span>
-                                {% if note.periode %}
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ note.periode }}</span>
-                                {% endif %}
-                                <span class="text-muted ms-auto" style="font-size: 0.76rem;">{{ date_str }}</span>
-                            </div>
-
-                            {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
-                            <div class="student-eval-card-bottom">
-                                <div class="student-eval-card-actions">
-                                    <a href="{{ url_for('main.modifier_note', note_id=note.id) }}" class="btn btn-outline-primary btn-sm" title="Modifier">
-                                        <i class="fas fa-edit me-1"></i>Modifier
-                                    </a>
-                                    <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette note ');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
-                                            <i class="fas fa-trash me-1"></i>Supprimer
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                            {% endif %}
+                            {% endfor %}
                         </div>
-                        {% endfor %}
-                    </div>
-
+                    {% endif %}
                 </div>
             </article>
         {% endfor %}
@@ -822,10 +816,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return a.dataset.nom.localeCompare(b.dataset.nom, 'fr', { sensitivity: 'base' });
             } else if (sortMode === 'nom-desc') {
                 return b.dataset.nom.localeCompare(a.dataset.nom, 'fr', { sensitivity: 'base' });
-            } else if (sortMode === 'moyenne-desc') {
-                return parseFloat(b.dataset.moyenne || 0) - parseFloat(a.dataset.moyenne || 0);
-            } else if (sortMode === 'moyenne-asc') {
-                return parseFloat(a.dataset.moyenne || 0) - parseFloat(b.dataset.moyenne || 0);
             } else if (sortMode === 'notes-desc') {
                 return parseInt(b.dataset.notesCount || 0, 10) - parseInt(a.dataset.notesCount || 0, 10);
             }

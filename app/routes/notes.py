@@ -2,7 +2,7 @@ import io
 import pandas as pd
 from types import SimpleNamespace
 from datetime import datetime
-from flask import abort, flash, redirect, render_template, request, send_file, url_for, current_app
+from flask import abort, current_app, flash, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
@@ -200,6 +200,7 @@ def notes():
 
     # Inscriptions pour accordéons / structure annuelle
     inscriptions = get_inscriptions_notes(ecole_id, annee_consultee, user=current_user)
+    eleve_classe_map = {ins.eleve_id: ins.classe_id for ins in inscriptions if ins.eleve_id and ins.classe_id}
 
     # Extraction des élèves uniques pour compatibilité templates
     eleves_uniques = []
@@ -210,12 +211,24 @@ def notes():
             eleves_uniques.append(ins.eleve)
 
     tous_les_cours = get_cours_annee(ecole_id, annee_consultee, user=current_user)
-    eleve_classe_map = {ins.eleve_id: ins.classe_id for ins in inscriptions if ins.eleve_id and ins.classe_id}
+    from collections import defaultdict
+    from app.services.evaluations import preparer_dossier_notes_eleve
+
+    notes_par_eleve = defaultdict(list)
+    for n in notes_filtrees:
+        if n.eleve_id:
+            notes_par_eleve[n.eleve_id].append(n)
+
+    dossiers_notes_par_eleve = {
+        e_id: preparer_dossier_notes_eleve(e_notes)
+        for e_id, e_notes in notes_par_eleve.items()
+    }
 
     return render_template(
         'notes.html',
         form=form if peut_modifier else None,
         notes=notes_filtrees,
+        dossiers_notes_par_eleve=dossiers_notes_par_eleve,
         moyenne_generale=stats["moyenne_generale"],
         taux_reussite=stats["taux_reussite"],
         matieres_evaluees=stats["matieres_evaluees"],

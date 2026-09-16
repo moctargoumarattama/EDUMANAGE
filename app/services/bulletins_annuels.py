@@ -126,22 +126,30 @@ def _get_appreciation(moyenne):
     return "Insuffisant"
 
 
-def calculer_bulletin_data(ecole_id, annee, inscription, periode=None):
+def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_publiee=None):
     """
     Calcule toutes les données académiques pour le bulletin semestriel d'une Inscription (Phase 5D).
     Modèle à 2 semestres :
     - Moyenne contrôles (Devoir, Interrogation) = simple moyenne arithmétique.
     - Note composition (max 1 par matière/semestre).
-    - Moyenne semestre matière = (moyenne_controles + note_composition) / 2 (None si incomplet).
+    - Moyenne semestre matière = (moyenne_controles + note_composition) / 2 (sans comp : moy contrôles).
     - Coefficient officiel = Cours.coefficient.
     - Points matière = moyenne_semestre * Cours.coefficient.
     - Moyenne générale semestrielle = sum(points) / sum(coefficients) des matières finalisées.
-    - Statistiques de classe semestrielles (rang, effectif, moyenne classe, min, max).
+    - Le bulletin n'est FINAL (officiel) SSI toutes les matières attendues sont notées ET la période est publiée.
     """
     if not inscription or inscription.ecole_id != ecole_id:
         return None, "Inscription introuvable ou non autorisée."
 
     target_periode = periode or SEMESTRE_1
+
+    if periode_publiee is None:
+        p_obj = PeriodeBulletin.query.filter_by(
+            ecole_id=ecole_id,
+            annee_id=annee.id,
+            nom=target_periode
+        ).first()
+        periode_publiee = bool(p_obj and p_obj.publie)
 
     # Sélection des notes de cette inscription pour la période demandée
     q = Note.query.options(joinedload(Note.cours).joinedload(Cours.professeur)).filter(
@@ -166,13 +174,13 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None):
     for cours_nom, c_notes in sorted(notes_par_cours.items(), key=lambda x: (x[0] or "").lower()):
         cours = c_notes[0].cours if (c_notes and c_notes[0].cours) else None
         cours_coef = cours.coefficient if (cours and cours.coefficient) else 1.0
-
+        from app.services.evaluations import calculer_moyenne_matiere
         controles = [n for n in c_notes if n.type_evaluation in TYPES_CONTROLE_CONTINU]
         comp = next((n for n in c_notes if n.type_evaluation == TYPE_COMPOSITION), None)
 
         moy_controles = calculer_moyenne_controles(controles)
         note_comp = comp.valeur if comp else None
-        moy_semestre = calculer_moyenne_matiere_semestre(moy_controles, note_comp)
+        moy_semestre = calculer_moyenne_matiere(c_notes)
         pts = calculer_points_matiere(moy_semestre, cours_coef)
 
         prof_nom = "Non assigné"
@@ -210,13 +218,17 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None):
         STATUS_NON_EVALUE,
     )
 
-    eval_info = calculer_completude_inscription(ecole_id, annee.id, inscription, periode=target_periode)
+    eval_info = calculer_completude_inscription(
+        ecole_id, annee.id, inscription,
+        periode=target_periode,
+        periode_publiee=periode_publiee
+    )
 
     total_points = round(sum(d['points'] for d in disciplines if d['est_finalisee']), 2)
     total_coefs = sum(d['coefficient'] for d in disciplines if d['est_finalisee'])
     moyenne_generale = eval_info["average"]
 
-    # Mention / appréciation globale basée sur la complétude
+    # Mention / appréciation globale basée sur la complétude officielle
     if eval_info["status"] == STATUS_COMPLETE:
         if moyenne_generale is not None:
             if moyenne_generale >= 16:
@@ -244,7 +256,7 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None):
             appreciation_code = "non-evalue"
             badge_class = "badge-mention-non-evalue bg-secondary text-white"
     elif eval_info["status"] == STATUS_PROVISOIRE:
-        appreciation = f"En cours ({eval_info['evaluated_subjects']}/{eval_info['expected_subjects']} matières)"
+        appreciation = "En attente"
         appreciation_code = "provisoire"
         badge_class = "badge-mention-provisoire bg-warning text-dark"
     else:
@@ -257,10 +269,11 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None):
         ecole_id,
         inscription.classe_id,
         inscription.annee_scolaire_id,
-        periode=target_periode
+        periode=target_periode,
+        periode_publiee=periode_publiee
     )
 
-    rang = stats_classe_raw["rangs_par_inscription"].get(inscription.id)
+    rang = stats_classe_raw["rangs_par_inscription"].get(inscription.id) if eval_info["status"] == STATUS_COMPLETE else None
     rang_total = stats_classe_raw["complets_count"]
     stats_classe = {
         'effectif_classe': stats_classe_raw['effectif_total'],

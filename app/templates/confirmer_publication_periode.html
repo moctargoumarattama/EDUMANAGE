@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Confirmation de publication - {{ periode.nom }} - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container py-3 py-md-4" style="max-width: 900px;">
+    {# --- EN-TÊTE --- #}
+    <div class="page-header mb-3 mb-md-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            <div>
+                <h1 class="h4 mb-1 text-dark">
+                    <i class="fas fa-bullhorn text-warning me-2"></i>Publication de la période : {{ periode.nom }}
+                </h1>
+                <p class="text-muted small mb-0">
+                    Année scolaire : <strong>{{ periode.annee.nom }}</strong>
+                </p>
+            </div>
+            <a href="{{ url_for('main.gestion_periodes') }}" class="btn btn-outline-secondary btn-sm w-100 w-md-auto text-center">
+                <i class="fas fa-arrow-left me-1"></i>Retour aux périodes
+            </a>
+        </div>
+    </div>
+
+    {# --- AVERTISSEMENT BULLETINS INCOMPLETS --- #}
+    <div class="alert alert-warning border-warning shadow-sm mb-3 mb-md-4">
+        <div class="d-flex align-items-start gap-2 gap-sm-3">
+            <div class="fs-2 text-warning flex-shrink-0">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="flex-grow-1">
+                <h2 class="h5 alert-heading fw-bold mb-1">
+                    {{ verif.total_incomplets }} élève(s) ont encore un bulletin incomplet
+                </h2>
+                <p class="mb-2 small">
+                    Certaines évaluations n'ont pas encore été saisies par les enseignants. Vous pouvez néanmoins publier cette période pour officialiser les bulletins complets.
+                </p>
+                <div class="small">
+                    <strong>Règles appliquées lors de la publication :</strong>
+                    <ul class="mb-0 ps-3 mt-1">
+                        <li><strong>Élèves complets :</strong> leurs bulletins deviennent <strong>OFFICIELS</strong> avec rang et appréciation.</li>
+                        <li><strong>Élèves incomplets :</strong> leurs bulletins restent <strong>PROVISOIRES</strong> et ils sont <strong>exclus des rangs et statistiques officielles</strong>.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# --- DÉTAIL DES CLASSES ET ÉLÈVES CONCERNÉS --- #}
+    <div class="card shadow-sm border-0 mb-3 mb-md-4">
+        <div class="card-header bg-white py-3 border-bottom d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
+            <h3 class="h6 mb-0 fw-bold text-dark">
+                <i class="fas fa-user-clock text-primary me-2"></i>Élèves avec matières manquantes ({{ verif.total_incomplets }})
+            </h3>
+            <span class="badge bg-secondary">{{ verif.classes_concernees|length }} classe(s) concernée(s)</span>
+        </div>
+
+        {# Vue Desktop / Tablette (Tableau) #}
+        <div class="card-body p-0 d-none d-md-block">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle mb-0 small">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 25%;">Classe</th>
+                            <th style="width: 35%;">Élève</th>
+                            <th style="width: 40%;">Matière(s) sans note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for classe_nom, eleves in verif.details_par_classe.items() %}
+                            {% for e in eleves %}
+                            <tr>
+                                <td><span class="badge bg-light text-dark border">{{ classe_nom }}</span></td>
+                                <td><strong>{{ e.eleve_nom }}</strong></td>
+                                <td>
+                                    {% for m in e.manquants %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle me-1">{{ m }}</span>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {# Vue Mobile (< 768px : cartes empilées sans défilement horizontal) #}
+        <div class="card-body p-2 p-sm-3 d-md-none">
+            {% for classe_nom, eleves in verif.details_par_classe.items() %}
+                {% for e in eleves %}
+                <div class="p-3 mb-2 rounded border bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-bold text-dark">{{ e.eleve_nom }}</div>
+                        <span class="badge bg-secondary">{{ classe_nom }}</span>
+                    </div>
+                    <div class="small">
+                        <span class="text-muted d-block mb-1">Matière(s) sans note :</span>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for m in e.manquants %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{{ m }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
+
+    {# --- ACTIONS DE CONFIRMATION / ANNULATION --- #}
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-3 p-sm-4 text-center">
+            <h4 class="h6 fw-bold mb-2">Confirmez-vous la publication de la période {{ periode.nom }} ?</h4>
+            <p class="text-muted small mb-3 mb-sm-4">
+                Si vous annulez, la période restera non publiée et aucun bulletin ne sera officialisé.
+            </p>
+
+            <div class="d-flex flex-column flex-sm-row justify-content-center gap-2 gap-sm-3">
+                <a href="{{ url_for('main.gestion_periodes') }}" class="btn btn-outline-secondary px-4 py-2 w-100 w-sm-auto text-center order-2 order-sm-1">
+                    <i class="fas fa-times me-1"></i>Annuler (ne rien publier)
+                </a>
+                <a href="{{ url_for('main.toggle_periode', id=periode.id, confirmer=1) }}" class="btn btn-warning px-4 py-2 fw-semibold shadow-sm w-100 w-sm-auto text-center order-1 order-sm-2">
+                    <i class="fas fa-check me-2"></i>Confirmer la publication
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

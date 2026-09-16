@@ -369,6 +369,7 @@ def generer_bulletin_pdf(
     total_points=None,
     stats_classe=None,
     nb_absences=None,
+    est_provisoire=False,
 ):
     import io
     import os
@@ -451,7 +452,10 @@ def generer_bulletin_pdf(
         ['Nom et Prénom', f"{eleve.nom} {eleve.prenom}" if eleve else "-", 'Classe', classe_affichee],
     ]
     
-    rang_str = f"{rang}e sur {rang_total}" if (rang and rang_total) else (f"{rang}e" if rang else "-")
+    if est_provisoire:
+        rang_str = "En attente"
+    else:
+        rang_str = f"{rang}e sur {rang_total}" if (rang and rang_total) else (f"{rang}e" if rang else "-")
     eff_classe = stats_classe.get('effectif_classe', rang_total) if stats_classe else (rang_total or "-")
     student_info.append(['Période', per_str, 'Rang / Effectif', f"{rang_str} (Eff: {eff_classe})"])
 
@@ -516,9 +520,14 @@ def generer_bulletin_pdf(
         ])
 
         # Ligne Moyenne Générale
-        moy_gen_str = f"{moyenne_generale:.2f} / 20" if moyenne_generale is not None else "Non évalué"
+        if est_provisoire:
+            titre_moy = "<b>MOYENNE PROVISOIRE DU SEMESTRE</b>"
+            moy_gen_str = f"{moyenne_generale:.2f} / 20" if moyenne_generale is not None else "En attente"
+        else:
+            titre_moy = "<b>MOYENNE GÉNÉRALE DU SEMESTRE</b>"
+            moy_gen_str = f"{moyenne_generale:.2f} / 20" if moyenne_generale is not None else "Non évalué"
         data.append([
-            Paragraph("<b>MOYENNE GÉNÉRALE DU SEMESTRE</b>", cell_bold_center),
+            Paragraph(titre_moy, cell_bold_center),
             "", "",
             Paragraph(f"<b>{moy_gen_str}</b>", cell_bold_center),
             "", "", ""

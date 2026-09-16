@@ -33,6 +33,7 @@ from app.models import (
     Eleve,
     Inscription,
     Note,
+    PeriodeBulletin,
 )
 from app.services.evaluations import (
     LABEL_COMPLETE,
@@ -76,7 +77,6 @@ class EvaluationsCompletenessTestCase(unittest.TestCase):
         db.session.add(self.annee)
         db.session.flush()
 
-        # Classe
         self.classe = Classe(
             nom="6ème A",
             niveau="6ème",
@@ -85,6 +85,16 @@ class EvaluationsCompletenessTestCase(unittest.TestCase):
         )
         db.session.add(self.classe)
         db.session.flush()
+
+        self.periode = PeriodeBulletin(
+            nom="Semestre 1",
+            annee_id=self.annee.id,
+            ecole_id=self.ecole.id,
+            publie=True,
+            periode_active=True,
+        )
+        db.session.add(self.periode)
+        db.session.commit()
 
     def tearDown(self):
         db.session.remove()

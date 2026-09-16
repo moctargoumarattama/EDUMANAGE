@@ -73,7 +73,7 @@
                                        data-confirm="{% if periode.publie %}Dépublier cette période {% else %}Publier cette période {% endif %}">
                                         {% if periode.publie %}Dépublier{% else %}Publier{% endif %}
                                     </a>
-                                    {% if not periode.periode_active and periode.publie %}
+                                    {% if not periode.periode_active %}
                                     <a href="{{ url_for('main.activer_periode', id=periode.id) }}"
                                        class="btn btn-sm btn-outline-primary js-confirm-link"
                                        data-confirm="Définir cette période comme active ">
@@ -113,7 +113,7 @@
                    data-confirm="{% if periode.publie %}Dépublier cette période {% else %}Publier cette période {% endif %}">
                     {% if periode.publie %}Dépublier{% else %}Publier{% endif %}
                 </a>
-                {% if not periode.periode_active and periode.publie %}
+                {% if not periode.periode_active %}
                 <a href="{{ url_for('main.activer_periode', id=periode.id) }}"
                    class="btn btn-sm btn-outline-primary js-confirm-link"
                    data-confirm="Définir cette période comme active ">
