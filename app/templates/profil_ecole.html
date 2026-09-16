@@ -44,42 +44,19 @@
 
                         <hr class="my-4">
 
-                        <h5 class="text-secondary mb-3"><i class="fas fa-file-image me-2"></i> Éléments Visuels & Documents Officiels</h5>
+                        <h5 class="text-secondary mb-3"><i class="fas fa-image me-2"></i> Identité Visuelle de l’Établissement</h5>
                         <div class="row g-4">
                             <!-- Logo -->
-                            <div class="col-md-4 text-center">
-                                <div class="p-3 border rounded bg-light h-100 d-flex flex-column align-items-center justify-content-between">
-                                    <h6>Logo École</h6>
+                            <div class="col-md-6 col-lg-4">
+                                <div class="p-3 border rounded bg-light h-100 d-flex flex-column align-items-center justify-content-between text-center">
+                                    <h6 class="fw-bold text-gray-800 mb-2">Logo École</h6>
                                     {% if ecole.logo_path %}
-                                        <img src="{{ url_for('static', filename=ecole.logo_path) }}" alt="Logo" class="img-thumbnail mb-2" style="max-height: 100px;">
+                                        <img src="{{ url_for('static', filename=ecole.logo_path) }}" alt="Logo" class="img-thumbnail mb-2" style="max-height: 110px;">
                                     {% else %}
                                         <div class="my-3 text-muted"><i class="fas fa-school fa-3x"></i></div>
                                     {% endif %}
+                                    <p class="small text-muted mb-2">Le logo officiel figurera sur les bulletins scolaires et documents officiels de l'établissement.</p>
                                     <input type="file" class="form-control form-control-sm mt-2" name="logo" accept="image/*">
-                                </div>
-                            </div>
-                            <!-- Signature -->
-                            <div class="col-md-4 text-center">
-                                <div class="p-3 border rounded bg-light h-100 d-flex flex-column align-items-center justify-content-between">
-                                    <h6>Signature du Directeur</h6>
-                                    {% if ecole.signature_path %}
-                                        <img src="{{ url_for('static', filename=ecole.signature_path) }}" alt="Signature" class="img-thumbnail mb-2" style="max-height: 100px;">
-                                    {% else %}
-                                        <div class="my-3 text-muted"><i class="fas fa-file-signature fa-3x"></i></div>
-                                    {% endif %}
-                                    <input type="file" class="form-control form-control-sm mt-2" name="signature" accept="image/*">
-                                </div>
-                            </div>
-                            <!-- Cachet -->
-                            <div class="col-md-4 text-center">
-                                <div class="p-3 border rounded bg-light h-100 d-flex flex-column align-items-center justify-content-between">
-                                    <h6>Cachet Officiel</h6>
-                                    {% if ecole.cachet_path %}
-                                        <img src="{{ url_for('static', filename=ecole.cachet_path) }}" alt="Cachet" class="img-thumbnail mb-2" style="max-height: 100px;">
-                                    {% else %}
-                                        <div class="my-3 text-muted"><i class="fas fa-stamp fa-3x"></i></div>
-                                    {% endif %}
-                                    <input type="file" class="form-control form-control-sm mt-2" name="cachet" accept="image/*">
                                 </div>
                             </div>
                         </div>

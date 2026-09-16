@@ -541,24 +541,6 @@ def profil_ecole():
                     ecole.logo_path = rel_path
                     ecole.logo = filename
 
-            if 'signature' in request.files:
-                file = request.files['signature']
-                if file and file.filename and allowed_file(file.filename):
-                    filename = f"signature_{secure_filename(file.filename)}"
-                    save_path = os.path.join(school_dir, filename)
-                    file.save(save_path)
-                    if hasattr(ecole, 'signature_path'):
-                        ecole.signature_path = f"ecoles/{ecole.id}/{filename}"
-
-            if 'cachet' in request.files:
-                file = request.files['cachet']
-                if file and file.filename and allowed_file(file.filename):
-                    filename = f"cachet_{secure_filename(file.filename)}"
-                    save_path = os.path.join(school_dir, filename)
-                    file.save(save_path)
-                    if hasattr(ecole, 'cachet_path'):
-                        ecole.cachet_path = f"ecoles/{ecole.id}/{filename}"
-
             db.session.commit()
             flash("Identité et profil de l'établissement mis à jour avec succès ✅", "success")
         except Exception as e:

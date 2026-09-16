@@ -16,7 +16,13 @@ from .common import (
     professeur_classes,
 )
 import qrcode
+from flask import url_for, make_response
 from app.services import get_qr_cache_path
+from app.services.bulletin_verification import (
+    generer_token_eleve,
+    decoder_token_eleve,
+    generer_qr_code_buffer,
+)
 
 
 @main.route('/eleve/<int:id>/qrcode')
@@ -35,31 +41,18 @@ def generer_qrcode_eleve(id):
         annee_scolaire_id=annee_active.id
     ).first() if annee_active else None
 
-    classe_nom = ins.classe.nom if (ins and ins.classe) else "Aucune inscription active"
-    annee_nom = annee_active.nom if annee_active else "Aucune"
-    statut_ins = ins.statut if ins else "Non inscrit"
+    if ins:
+        token = generer_token_eleve(current_user.ecole_id, ins.id)
+        scan_url = url_for('main.verifier_eleve_public', token=token, _external=True)
+    else:
+        scan_url = url_for('main.voir_eleve', eleve_id=eleve.id, _external=True)
 
     cache_path = get_qr_cache_path(eleve)
+    img_buf = generer_qr_code_buffer(scan_url)
 
-    # Données minimales publiques (aucune donnée financière ou contact sensible)
-    data = (
-        f"ÉLÈVE: {eleve.prenom} {eleve.nom}\n"
-        f"ÉTABLISSEMENT: {eleve.ecole.nom if eleve.ecole else ''}\n"
-        f"ANNÉE SCOLAIRE: {annee_nom}\n"
-        f"CLASSE: {classe_nom}\n"
-        f"STATUT: {statut_ins}\n"
-    )
-
-    qr = qrcode.QRCode(
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=8,
-        border=2
-    )
-    qr.add_data(data)
-    qr.make(fit=True)
-    img = qr.make_image()
-
-    img.save(cache_path)
+    # Sauvegarder dans le cache pour rétrocompatibilité
+    with open(cache_path, "wb") as f:
+        f.write(img_buf.getvalue())
 
     return send_file(cache_path, mimetype='image/png',
                      download_name=f"qrcode_{eleve.prenom}_{eleve.nom}.png")
@@ -161,17 +154,17 @@ def qrcodes_etudiants():
         classe_obj = ins.classe
         classe_nom = classe_obj.nom if classe_obj else 'Sans classe'
 
+        token = generer_token_eleve(ecole_id, ins.id)
+        scan_url = url_for('main.verifier_eleve_public', token=token, _external=True)
+
+        # Génération du QR code en mémoire directement
+        img_buf = generer_qr_code_buffer(scan_url)
+        img_data = base64.b64encode(img_buf.getvalue()).decode()
+
+        # Mettre à jour le fichier cache physique pour rétrocompatibilité
         cache_path = get_qr_cache_path(e)
-
-        # Génère si manquant
-        if not os.path.exists(cache_path):
-            data = f"{e.prenom} {e.nom}\nClasse: {classe_nom}"
-            qr = qrcode.make(data)
-            qr.save(cache_path)
-
-        # Charger en base64
-        with open(cache_path, "rb") as f:
-            img_data = base64.b64encode(f.read()).decode()
+        with open(cache_path, "wb") as f:
+            f.write(img_buf.getvalue())
 
         if classe_nom not in qrcodes_par_classe:
             qrcodes_par_classe[classe_nom] = {
@@ -188,6 +181,7 @@ def qrcodes_etudiants():
             'inscription': ins,
             'classe_nom': classe_nom,
             'annee_nom': annee_active.nom,
+            'scan_url': scan_url,
         })
 
     return render_template(
@@ -195,3 +189,65 @@ def qrcodes_etudiants():
         qrcodes_par_classe=qrcodes_par_classe,
         annee_active=annee_active,
     )
+
+
+@main.route('/verifier/eleve/<token>')
+@main.route('/verifier/etudiant/<token>')
+def verifier_eleve_public(token):
+    """
+    Page publique d'authentification de l'identité scolaire d'un élève (carte scolaire / badge).
+    Mobile-first, sans connexion.
+    Affiche UNIQUEMENT l'identité minimale :
+    - Nom et prénom
+    - Matricule
+    - École
+    - Classe
+    - Année scolaire
+    Aucun contact, parent, note, absence, paiement ou autre donnée privée.
+    Exclue de l'indexation (noindex, nofollow, noarchive) et du cache (Cache-Control: no-store, private).
+    """
+    ecole_id, inscription_id = decoder_token_eleve(token)
+
+    if not ecole_id or not inscription_id:
+        resp = make_response(render_template(
+            'verifier_eleve.html',
+            valide=False,
+            message_erreur="Ce QR code étudiant est introuvable ou n'est pas valide."
+        ), 404)
+        resp.headers["Cache-Control"] = "no-store, private, must-revalidate"
+        resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+        return resp
+
+    inscription = Inscription.query.filter_by(id=inscription_id, ecole_id=ecole_id).first()
+
+    if not inscription or not inscription.eleve:
+        resp = make_response(render_template(
+            'verifier_eleve.html',
+            valide=False,
+            message_erreur="L'inscription de cet élève est introuvable ou n'est plus active."
+        ), 404)
+        resp.headers["Cache-Control"] = "no-store, private, must-revalidate"
+        resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+        return resp
+
+    eleve = inscription.eleve
+    classe = inscription.classe
+    annee = inscription.annee_scolaire
+    ecole = inscription.ecole or eleve.ecole
+
+    matricule = eleve.code_parent or f"#{eleve.id}"
+
+    resp = make_response(render_template(
+        'verifier_eleve.html',
+        valide=True,
+        eleve=eleve,
+        matricule=matricule,
+        classe=classe,
+        annee=annee,
+        ecole=ecole,
+        inscription=inscription,
+    ), 200)
+
+    resp.headers["Cache-Control"] = "no-store, private, must-revalidate"
+    resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+    return resp

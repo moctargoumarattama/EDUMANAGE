@@ -167,6 +167,15 @@ def bulletin_eleve(id=None, inscription_id=None):
         periode_demandee = periode_active.nom if periode_active else "Semestre 1"
 
     p_obj = PeriodeBulletin.query.filter_by(ecole_id=ecole_id, annee_id=annee.id, nom=periode_demandee).first()
+    if not p_obj:
+        p_obj = PeriodeBulletin(
+            nom=periode_demandee,
+            ecole_id=ecole_id,
+            annee_id=annee.id,
+            publie=False
+        )
+        db.session.add(p_obj)
+        db.session.commit()
     periode_est_publiee = bool(p_obj and p_obj.publie)
 
     # Calcul des données du bulletin strictement depuis Inscription et ses Notes
@@ -178,6 +187,10 @@ def bulletin_eleve(id=None, inscription_id=None):
     ecole = eleve.ecole
     classe_nom = inscription.classe.nom if inscription.classe else "Sans classe"
     annee_nom = inscription.annee_scolaire.nom if inscription.annee_scolaire else annee.nom
+
+    from app.services.bulletin_verification import generer_token_bulletin
+    token_bulletin = generer_token_bulletin(ecole_id, inscription.id, p_obj.id)
+    verification_url = url_for('main.verifier_bulletin_public', token=token_bulletin, _external=True)
 
     try:
         buffer = generer_bulletin_pdf(
@@ -201,6 +214,7 @@ def bulletin_eleve(id=None, inscription_id=None):
             stats_classe=data.get('stats_classe'),
             nb_absences=data.get('nb_absences'),
             est_provisoire=data.get('est_provisoire', False),
+            verification_url=verification_url,
         )
 
         filename = f"bulletin_{eleve.prenom}_{eleve.nom}_{annee_nom}_{periode_demandee.replace(' ', '_')}.pdf"
@@ -699,3 +713,81 @@ def creer_periode():
         return redirect(url_for('main.gestion_periodes'))
     
     return render_template('creer_periode.html', form=form)
+
+
+@main.route('/verifier/bulletin/<token>')
+def verifier_bulletin_public(token):
+    """
+    Page publique d'authentification et de vérification d'un bulletin scolaire (mobile-first).
+    Ne requiert aucune authentification.
+    N'expose aucune note, absence, paiement ou information privée parent.
+    Exclue de l'indexation (noindex, nofollow, noarchive) et du cache (Cache-Control: no-store, private).
+    """
+    from datetime import datetime
+    from flask import make_response
+    from app.services.bulletin_verification import decoder_token_bulletin
+    from app.services.evaluations import calculer_completude_inscription
+
+    ecole_id, inscription_id, periode_id = decoder_token_bulletin(token)
+
+    if not ecole_id or not inscription_id or not periode_id:
+        resp = make_response(render_template(
+            'verifier_bulletin.html',
+            valide=False,
+            message_erreur="Ce document est introuvable ou la signature de vérification n'est pas valide."
+        ), 404)
+        resp.headers["Cache-Control"] = "no-store, private, must-revalidate"
+        resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+        return resp
+
+    inscription = Inscription.query.filter_by(id=inscription_id, ecole_id=ecole_id).first()
+    periode = PeriodeBulletin.query.filter_by(id=periode_id, ecole_id=ecole_id).first()
+
+    if not inscription or not periode or not inscription.eleve:
+        resp = make_response(render_template(
+            'verifier_bulletin.html',
+            valide=False,
+            message_erreur="Le bulletin correspondant à ce code est introuvable ou n'est plus actif."
+        ), 404)
+        resp.headers["Cache-Control"] = "no-store, private, must-revalidate"
+        resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+        return resp
+
+    eleve = inscription.eleve
+    classe = inscription.classe
+    annee = inscription.annee_scolaire
+    ecole = inscription.ecole or eleve.ecole
+
+    # Évaluation de la complétude et du statut officiel vs provisoire en temps réel
+    eval_info = calculer_completude_inscription(
+        ecole_id,
+        annee.id if annee else None,
+        inscription,
+        periode=periode.nom,
+        periode_publiee=periode.publie,
+    )
+
+    is_official = bool(eval_info.get("is_official", False))
+    statut_bulletin = "BULLETIN OFFICIEL" if is_official else "BULLETIN PROVISOIRE"
+    statut_description = "Document authentique" if is_official else "Document authentique mais non définitif"
+    matricule = eleve.code_parent or f"#{eleve.id}"
+
+    resp = make_response(render_template(
+        'verifier_bulletin.html',
+        valide=True,
+        is_official=is_official,
+        statut_bulletin=statut_bulletin,
+        statut_description=statut_description,
+        eleve=eleve,
+        matricule=matricule,
+        classe=classe,
+        annee=annee,
+        ecole=ecole,
+        periode=periode,
+        date_verification=datetime.utcnow(),
+    ), 200)
+
+    resp.headers["Cache-Control"] = "no-store, private, must-revalidate"
+    resp.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+    return resp
+

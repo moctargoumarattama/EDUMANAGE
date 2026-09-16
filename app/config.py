@@ -50,6 +50,7 @@ class Config:
     # Securite
     SECRET_KEY = os.environ.get("SECRET_KEY", "ma_cle_ultra_secrete")
     SECURITY_PASSWORD_SALT = os.environ.get("SECURITY_PASSWORD_SALT", "mon_salt_securise")
+    BULLETIN_VERIFICATION_KEY = os.environ.get("BULLETIN_VERIFICATION_KEY", "klasora_bulletin_verification_secret_key_stable")
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     REMEMBER_COOKIE_HTTPONLY = True
