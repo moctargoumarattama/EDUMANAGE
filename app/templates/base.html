@@ -521,7 +521,7 @@
                             </li>
                             {% endif %}
                             
-                            <li class="nav-item dropdown">
+                            <li class="nav-item dropdown d-none d-lg-block">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-user-graduate me-1"></i>Élèves
                                 </a>
@@ -532,7 +532,7 @@
                                 </ul>
                             </li>
                             
-                            <li class="nav-item dropdown">
+                            <li class="nav-item dropdown d-none d-lg-block">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-chalkboard-teacher me-1"></i>Professeurs
                                 </a>
@@ -552,11 +552,11 @@
                                     <i class="fas fa-layer-group me-1"></i>Scolarité
                                 </a>
                                 <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{{ url_for('main.liste_classes') }}"><i class="fas fa-chalkboard me-2"></i>Classes</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('main.cours') }}"><i class="fas fa-book me-2"></i>Cours</a></li>
+                                    <li class="d-none d-lg-block"><a class="dropdown-item" href="{{ url_for('main.liste_classes') }}"><i class="fas fa-chalkboard me-2"></i>Classes</a></li>
+                                    <li class="d-none d-lg-block"><a class="dropdown-item" href="{{ url_for('main.cours') }}"><i class="fas fa-book me-2"></i>Cours</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.notes') }}"><i class="fas fa-edit me-2"></i>Notes</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.absences') }}"><i class="fas fa-calendar-times me-2"></i>Absences</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('main.admin_emplois') }}"><i class="fas fa-calendar-alt me-2"></i>Emplois du temps</a></li>
+                                    <li class="d-none d-lg-block"><a class="dropdown-item" href="{{ url_for('main.admin_emplois') }}"><i class="fas fa-calendar-alt me-2"></i>Emplois du temps</a></li>
                                 </ul>
                             </li>
                             <li class="nav-item dropdown">
@@ -568,7 +568,7 @@
                                     <li><a class="dropdown-item" href="{{ url_for('main.paiements') }}"><i class="fas fa-money-bill-wave me-2"></i>Paiements</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.bulletins') }}"><i class="fas fa-file-pdf me-2"></i>Bulletins</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.alertes') }}"><i class="fas fa-bell me-2"></i>Alertes</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('main.rapports') }}"><i class="fas fa-chart-bar me-2"></i>Rapport global</a></li>
+                                    <li class="d-none d-lg-block"><a class="dropdown-item" href="{{ url_for('main.rapports') }}"><i class="fas fa-chart-bar me-2"></i>Rapport global</a></li>
                                 </ul>
                             </li>
 
@@ -996,6 +996,26 @@
                     const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('#userDropdown'));
                     if (dropdown) {
                         dropdown.hide();
+                    }
+                });
+            // Déroulement garanti des sous-menus mobile lors du clic sur les flèches / intitulés (dropdown-toggle)
+            document.querySelectorAll('.navbar-nav .dropdown-toggle').forEach(toggle => {
+                toggle.addEventListener('click', (e) => {
+                    if (window.innerWidth < 992) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const menu = toggle.nextElementSibling;
+                        if (menu && menu.classList.contains('dropdown-menu')) {
+                            const isOpen = menu.classList.contains('show');
+                            document.querySelectorAll('.navbar-nav .dropdown-menu.show').forEach(m => {
+                                if (m !== menu) m.classList.remove('show');
+                            });
+                            if (isOpen) {
+                                menu.classList.remove('show');
+                            } else {
+                                menu.classList.add('show');
+                            }
+                        }
                     }
                 });
             });

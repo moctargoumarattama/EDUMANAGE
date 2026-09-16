@@ -1006,7 +1006,7 @@ textarea {
         position: fixed;
         inset: 0;
         z-index: 1040;
-        background: rgba(15, 23, 42, 0.42);
+        background: transparent;
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.18s ease;
@@ -1038,6 +1038,37 @@ textarea {
     .navbar-collapse.show {
         opacity: 1;
         transform: translateY(0);
+    }
+
+    .navbar-nav .dropdown-menu {
+        position: static !important;
+        float: none !important;
+        width: 100% !important;
+        margin-top: 0.35rem !important;
+        margin-bottom: 0.5rem !important;
+        background: rgba(255, 255, 255, 0.12) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        box-shadow: none !important;
+        transform: none !important;
+        border-radius: 10px !important;
+        display: none;
+    }
+
+    .navbar-nav .dropdown-menu.show,
+    .navbar-nav .dropdown.show > .dropdown-menu,
+    .navbar-nav .show > .dropdown-menu {
+        display: block !important;
+    }
+
+    .navbar-nav .dropdown-menu .dropdown-item {
+        color: rgba(255, 255, 255, 0.95) !important;
+        padding: 0.55rem 0.85rem !important;
+    }
+
+    .navbar-nav .dropdown-menu .dropdown-item:hover,
+    .navbar-nav .dropdown-menu .dropdown-item:focus {
+        background: rgba(255, 255, 255, 0.22) !important;
+        color: #ffffff !important;
     }
 }
 
