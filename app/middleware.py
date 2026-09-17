@@ -54,7 +54,7 @@ def get_ecole_courante():
                 except (TypeError, ValueError):
                     ecole_id = None
             if ecole_id:
-                ecole = Ecole.query.get(ecole_id)
+                ecole = db.session.get(Ecole, ecole_id)
                 if ecole:
                     session['ecole_courante'] = {'id': ecole.id, 'nom': ecole.nom}
                     session['ecole_nom'] = ecole.nom
@@ -73,7 +73,7 @@ def get_ecole_courante():
     # 3️⃣ Utilisateur normal : école fixe
     try:
         if getattr(current_user, 'ecole_id', None):
-            ecole = Ecole.query.get(current_user.ecole_id)
+            ecole = db.session.get(Ecole, current_user.ecole_id)
             if ecole:
                 # Synchroniser session si absent ou différent
                 try:
@@ -97,6 +97,9 @@ def get_annee_courante():
 
     Note: import effectué localement pour éviter import circulaire.
     """
+    if hasattr(g, 'annee_courante') and g.annee_courante is not None:
+        return g.annee_courante
+
     try:
         from app.utils import get_annee_active
     except ImportError as e:
@@ -111,7 +114,12 @@ def get_annee_courante():
         return None
 
     try:
-        return get_annee_active(result.id)
+        annee = get_annee_active(result.id)
+        try:
+            g.annee_courante = annee
+        except RuntimeError:
+            pass
+        return annee
     except Exception as e:
         current_app.logger.error(f"Erreur get_annee_courante: {e}\n{traceback.format_exc()}")
         return None
@@ -147,10 +155,9 @@ def clear_ecole_courante():
     session.pop('ecole_id', None)
     session.pop('ecole_courante', None)
     session.pop('ecole_nom', None)
-    if hasattr(g, 'ecole_courante'):
-        del g.ecole_courante
-    if hasattr(g, 'annee_courante'):
-        del g.annee_courante
+    for attr in ('ecole_courante', 'annee_courante', '_school_setup_cache', '_annee_active_cache', '_annee_consultee_cache'):
+        if hasattr(g, attr):
+            delattr(g, attr)
 
 
 # ====================================================================
@@ -464,14 +471,18 @@ def before_request_handler():
         return None
 
     # 1️⃣ Vérification de la sauvegarde automatique quotidienne
-    try:
-        from app.admin.scripts import check_and_run_daily_backup, get_maintenance_status
-        check_and_run_daily_backup()
-    except Exception as e:
-        current_app.logger.debug(f"Erreur vérification sauvegarde quotidienne: {e}")
+    # En production, les sauvegardes sont gérées par un système externe planifié (cron/worker).
+    # Ce contrôle inline n'est activé que si CHECK_BACKUP_ON_REQUEST est expressément configuré (ex: dev autonome).
+    if current_app.config.get('CHECK_BACKUP_ON_REQUEST', False):
+        try:
+            from app.admin.scripts import check_and_run_daily_backup
+            check_and_run_daily_backup()
+        except Exception as e:
+            current_app.logger.debug(f"Erreur vérification sauvegarde quotidienne: {e}")
 
     # 2️⃣ Vérification du Mode Maintenance
     try:
+        from app.admin.scripts import get_maintenance_status
         maint = get_maintenance_status()
         if maint.get('active'):
             # Le super_admin conserve un accès absolu à l'ensemble de la plateforme
@@ -506,9 +517,9 @@ def before_request_handler():
                 current_app.logger.debug(f"Impossible d'écrire le log d'accès: {e}")
 
         # 3️⃣-bis Vérification école bloquée / suspendue / maintenance pour les sessions actives
-        if getattr(current_user, 'role', None) != 'super_admin' and getattr(current_user, 'ecole', None):
-            ecole = current_user.ecole
-            if ecole.statut in ('bloque', 'suspendu', 'maintenance'):
+        if getattr(current_user, 'role', None) != 'super_admin':
+            ecole = getattr(g, 'ecole_courante', None) or getattr(current_user, 'ecole', None)
+            if ecole and ecole.statut in ('bloque', 'suspendu', 'maintenance'):
                 allowed_eps = {'main.logout', 'main.login'}
                 current_ep = request.endpoint or ''
                 if current_ep not in allowed_eps and not current_ep.startswith('static') and current_ep != 'admin.static' and not request.path.startswith('/static/'):
@@ -616,31 +627,17 @@ def after_request_handler(response):
         except Exception:
             pass
 
-    try:
-        if hasattr(g, 'ecole_courante'):
-            del g.ecole_courante
-    except RuntimeError:
-        pass
-    try:
-        if hasattr(g, 'annee_courante'):
-            del g.annee_courante
-    except RuntimeError:
-        pass
-    try:
-        if hasattr(g, '_school_setup_cache'):
-            del g._school_setup_cache
-    except RuntimeError:
-        pass
-    try:
-        if hasattr(g, '_login_user'):
-            del g._login_user
-    except RuntimeError:
-        pass
-    try:
-        if hasattr(g, 'csrf_token'):
-            del g.csrf_token
-    except RuntimeError:
-        pass
+    for attr in (
+        'ecole_courante', 'annee_courante', '_school_setup_cache',
+        '_annee_active_cache', '_annee_consultee_cache',
+        '_system_params', '_maintenance_status', '_super_admin_counts',
+        '_backup_checked_in_request', '_login_user', 'csrf_token'
+    ):
+        try:
+            if hasattr(g, attr):
+                delattr(g, attr)
+        except RuntimeError:
+            pass
     return response
 
 

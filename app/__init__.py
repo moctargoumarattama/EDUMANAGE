@@ -112,7 +112,7 @@ def create_app(config_class=None):
         # user_loader
         @login_manager.user_loader
         def load_user(user_id):
-            return Utilisateur.query.get(int(user_id))
+            return db.session.get(Utilisateur, int(user_id))
 
         @login_manager.unauthorized_handler
         def unauthorized_callback():
@@ -171,12 +171,17 @@ def create_app(config_class=None):
             nouvelles_demandes_count = 0
             if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'role', None) == 'super_admin':
                 try:
-                    nouveau_tickets_count = SupportTicket.query.filter_by(statut='nouveau').count()
+                    if hasattr(g, '_super_admin_counts'):
+                        nouveau_tickets_count, nouvelles_demandes_count = g._super_admin_counts
+                    else:
+                        nouveau_tickets_count = SupportTicket.query.filter_by(statut='nouveau').count()
+                        nouvelles_demandes_count = DemandePresentation.query.filter_by(statut='nouvelle').count()
+                        try:
+                            g._super_admin_counts = (nouveau_tickets_count, nouvelles_demandes_count)
+                        except RuntimeError:
+                            pass
                 except Exception:
                     nouveau_tickets_count = 0
-                try:
-                    nouvelles_demandes_count = DemandePresentation.query.filter_by(statut='nouvelle').count()
-                except Exception:
                     nouvelles_demandes_count = 0
 
             return dict(

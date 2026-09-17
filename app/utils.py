@@ -111,11 +111,27 @@ def get_annee_active(ecole_id=None) -> Optional['AnneeScolaire']:
     ecole_id = ecole_id or get_ecole_id()
     if not ecole_id:
         return None
+
+    try:
+        if not hasattr(g, '_annee_active_cache'):
+            g._annee_active_cache = {}
+        if ecole_id in g._annee_active_cache:
+            return g._annee_active_cache[ecole_id]
+    except RuntimeError:
+        pass
     
-    return AnneeScolaire.query.filter_by(
+    annee = AnneeScolaire.query.filter_by(
         ecole_id=ecole_id,
         statut='active'
     ).first()
+
+    try:
+        if hasattr(g, '_annee_active_cache'):
+            g._annee_active_cache[ecole_id] = annee
+    except RuntimeError:
+        pass
+
+    return annee
 
 
 def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[str, Any]:
@@ -161,11 +177,8 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
     except RuntimeError:
         pass
 
-    # 1. Vérification de l'année scolaire active pour cette école
-    active_year = AnneeScolaire.query.filter_by(
-        ecole_id=target_ecole_id,
-        statut='active'
-    ).first()
+    # 1. Vérification de l'année scolaire active pour cette école (réutilise le cache d'année active)
+    active_year = get_annee_active(target_ecole_id)
 
     if not active_year:
         result = {
@@ -280,9 +293,14 @@ def creer_ou_activer_annee_scolaire(ecole_id: int, nom: str, date_debut, date_fi
             )
             db.session.add(annee)
 
-        db.session.commit()
         if hasattr(g, '_school_setup_cache'):
             g._school_setup_cache.pop(ecole_id, None)
+        if hasattr(g, '_annee_active_cache'):
+            g._annee_active_cache.pop(ecole_id, None)
+        if hasattr(g, '_annee_consultee_cache'):
+            g._annee_consultee_cache.clear()
+        if hasattr(g, 'annee_courante'):
+            delattr(g, 'annee_courante')
 
         return annee, None
     except Exception as e:

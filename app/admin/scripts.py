@@ -1,4 +1,4 @@
-﻿from flask import send_file, current_app
+from flask import send_file, current_app, g
 from app.utils import get_ecole_filter_query
 import hashlib
 import os
@@ -1086,15 +1086,30 @@ def get_school_backups(ecole_id):
 
 
 # ====================================================================
-# ðŸ› ï¸ GESTION DU MODE MAINTENANCE, SAUVEGARDE AUTO & CACHE
+# GESTION DU MODE MAINTENANCE, SAUVEGARDE AUTO & CACHE
 # ====================================================================
 
 CACHE_DIR = os.path.join(BASE_DIR, "app", "static", "qrcache")
 
 def get_param(cle, default=None):
     try:
+        try:
+            if hasattr(g, '_system_params') and cle in g._system_params:
+                return g._system_params[cle]
+        except RuntimeError:
+            pass
+
         p = ParametreSysteme.query.filter_by(cle=cle).first()
-        return p.valeur if p else default
+        val = p.valeur if p else default
+
+        try:
+            if not hasattr(g, '_system_params'):
+                g._system_params = {}
+            g._system_params[cle] = val
+        except RuntimeError:
+            pass
+
+        return val
     except Exception:
         return default
 
@@ -1109,6 +1124,15 @@ def set_param(cle, valeur, description=None):
             p = ParametreSysteme(cle=cle, valeur=str(valeur), description=description)
             db.session.add(p)
         db.session.commit()
+
+        try:
+            if hasattr(g, '_system_params'):
+                g._system_params[cle] = str(valeur)
+            if hasattr(g, '_maintenance_status') and cle.startswith('maintenance_'):
+                del g._maintenance_status
+        except RuntimeError:
+            pass
+
         return True
     except Exception as e:
         db.session.rollback()
@@ -1116,22 +1140,47 @@ def set_param(cle, valeur, description=None):
         return False
 
 def get_maintenance_status():
+    try:
+        if hasattr(g, '_maintenance_status'):
+            return g._maintenance_status
+    except RuntimeError:
+        pass
+
     active = get_param('maintenance_mode', 'false') == 'true'
-    message = get_param('maintenance_message', 'Mise Ã  jour programmÃ©e en cours. Nos services seront rÃ©tablis sous peu.')
-    updated_at = get_param('maintenance_updated_at', '')
-    return {
-        'active': active,
-        'message': message,
-        'updated_at': updated_at
-    }
+    if not active:
+        res = {
+            'active': False,
+            'message': '',
+            'updated_at': ''
+        }
+    else:
+        message = get_param('maintenance_message', 'Mise à jour programmée en cours. Nos services seront rétablis sous peu.')
+        updated_at = get_param('maintenance_updated_at', '')
+        res = {
+            'active': True,
+            'message': message,
+            'updated_at': updated_at
+        }
+
+    try:
+        g._maintenance_status = res
+    except RuntimeError:
+        pass
+
+    return res
 
 def set_maintenance_status(active: bool, message: str = None):
     set_param('maintenance_mode', 'true' if active else 'false', 'Mode maintenance actif')
     if message:
-        set_param('maintenance_message', message, 'Message affichÃ© en mode maintenance')
-    set_param('maintenance_updated_at', datetime.now().strftime('%d/%m/%Y Ã  %H:%M'), 'DerniÃ¨re mise Ã  jour maintenance')
-    action = "ACTIVATION" if active else "DÃ‰SACTIVATION"
-    log_action(f"MAINTENANCE_{action}", f"Mode maintenance {'activÃ©' if active else 'dÃ©sactivÃ©'}")
+        set_param('maintenance_message', message, 'Message affiché en mode maintenance')
+    set_param('maintenance_updated_at', datetime.now().strftime('%d/%m/%Y à %H:%M'), 'Dernière mise à jour maintenance')
+    try:
+        if hasattr(g, '_maintenance_status'):
+            del g._maintenance_status
+    except RuntimeError:
+        pass
+    action = "ACTIVATION" if active else "DÉSACTIVATION"
+    log_action(f"MAINTENANCE_{action}", f"Mode maintenance {'activé' if active else 'désactivé'}")
 
 def get_auto_backup_config():
     enabled = get_param('auto_backup_enabled', 'true') == 'true'
@@ -1147,11 +1196,18 @@ def set_auto_backup_config(enabled: bool, time_val: str = "02:00"):
     set_param('auto_backup_enabled', 'true' if enabled else 'false', 'Sauvegarde auto quotidienne')
     if time_val:
         set_param('auto_backup_time', time_val, 'Heure sauvegarde auto')
-    log_action("CONFIG_BACKUP", f"Sauvegarde auto {'activÃ©e' if enabled else 'dÃ©sactivÃ©e'} Ã  {time_val}")
+    log_action("CONFIG_BACKUP", f"Sauvegarde auto {'activée' if enabled else 'désactivée'} à {time_val}")
 
 def check_and_run_daily_backup():
-    """VÃ©rifie si une sauvegarde quotidienne automatique doit Ãªtre exÃ©cutÃ©e"""
+    """Vérifie si une sauvegarde quotidienne automatique doit être exécutée"""
     try:
+        try:
+            if hasattr(g, '_backup_checked_in_request'):
+                return False
+            g._backup_checked_in_request = True
+        except RuntimeError:
+            pass
+
         enabled = get_param('auto_backup_enabled', 'true') == 'true'
         if not enabled:
             return False
@@ -1170,7 +1226,7 @@ def check_and_run_daily_backup():
 
         if (now.hour > target_h) or (now.hour == target_h and now.minute >= target_m):
             run_daily_automatic_backups()
-            set_param('auto_backup_last_date', today_str, 'DerniÃ¨re exÃ©cution sauvegarde auto')
+            set_param('auto_backup_last_date', today_str, 'Dernière exécution sauvegarde auto')
             return True
     except Exception as e:
         current_app.logger.error(f"Erreur check_and_run_daily_backup: {e}")
@@ -1180,7 +1236,7 @@ def get_cache_info():
     if not os.path.exists(CACHE_DIR):
         os.makedirs(CACHE_DIR, exist_ok=True)
         return {'count': 0, 'size_kb': 0, 'size_mb': 0}
-    
+
     files = [f for f in os.listdir(CACHE_DIR) if os.path.isfile(os.path.join(CACHE_DIR, f))]
     total_size = sum(os.path.getsize(os.path.join(CACHE_DIR, f)) for f in files)
     return {

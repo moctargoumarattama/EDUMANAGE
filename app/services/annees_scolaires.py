@@ -1,6 +1,6 @@
 import re
 from datetime import date
-from flask import session
+from flask import session, g
 from sqlalchemy.orm import joinedload
 
 from app.models import AnneeScolaire, Classe, Eleve, Inscription
@@ -149,6 +149,11 @@ def set_annee_consultee(ecole_id, annee_id):
     data[_ecole_key(ecole_id)] = annee.id
     session[SESSION_KEY] = data
     session.modified = True
+    try:
+        if hasattr(g, '_annee_consultee_cache'):
+            g._annee_consultee_cache.clear()
+    except RuntimeError:
+        pass
     return annee
 
 
@@ -156,16 +161,33 @@ def get_annee_consultee(ecole_id, annee_id=None):
     if not ecole_id:
         return None
 
+    cache_key = (ecole_id, annee_id)
+    try:
+        if not hasattr(g, '_annee_consultee_cache'):
+            g._annee_consultee_cache = {}
+        if cache_key in g._annee_consultee_cache:
+            return g._annee_consultee_cache[cache_key]
+    except RuntimeError:
+        pass
+
+    annee = None
     if annee_id:
-        return AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
+        annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
+    else:
+        stored_id = _get_session_annee_id(ecole_id)
+        if stored_id:
+            annee = AnneeScolaire.query.filter_by(id=stored_id, ecole_id=ecole_id).first()
+        if not annee:
+            from app.utils import get_annee_active
+            annee = get_annee_active(ecole_id)
 
-    stored_id = _get_session_annee_id(ecole_id)
-    if stored_id:
-        annee = AnneeScolaire.query.filter_by(id=stored_id, ecole_id=ecole_id).first()
-        if annee:
-            return annee
+    try:
+        if hasattr(g, '_annee_consultee_cache'):
+            g._annee_consultee_cache[cache_key] = annee
+    except RuntimeError:
+        pass
 
-    return get_annee_active(ecole_id)
+    return annee
 
 
 def get_classes_annee(ecole_id, annee_id):
