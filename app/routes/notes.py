@@ -72,14 +72,30 @@ def notes():
             flash("La saisie des notes est réservée aux professeurs.", "warning")
             return redirect(url_for('main.notes'))
 
+    # Inscriptions et cours rattachés pour les formulaires et l'affichage
+    inscriptions = get_inscriptions_notes(ecole_id, annee_consultee, user=current_user)
+    tous_les_cours = get_cours_annee(ecole_id, annee_consultee, user=current_user)
+
     form = NoteForm() if current_user.role == 'professeur' else None
 
     # ------------------- Choix élèves et cours pour le professeur -------------------
     if form and annee_consultee:
-        eleve_choices = get_eleves_choices_notes(ecole_id, annee_consultee, user=current_user)
+        seen_choices = set()
+        eleve_choices = []
+        for ins in inscriptions:
+            if not ins.eleve or ins.eleve.id in seen_choices:
+                continue
+            seen_choices.add(ins.eleve.id)
+            classe_nom = ins.classe.nom if ins.classe else "Sans classe"
+            label = f"{ins.eleve.prenom} {ins.eleve.nom} - {classe_nom}"
+            eleve_choices.append((ins.eleve.id, label))
         form.eleve_id.choices = eleve_choices or [(0, "--- Aucun élève disponible ---")]
 
-        cours_choices = get_cours_choices_notes(ecole_id, annee_consultee, user=current_user)
+        cours_choices = []
+        for c in tous_les_cours:
+            classe_nom = c.classe.nom if c.classe else "Sans classe"
+            label = f"{c.nom} ({classe_nom})"
+            cours_choices.append((c.id, label))
         form.cours_id.choices = cours_choices or [(0, "--- Aucun cours disponible ---")]
 
         if hasattr(form, 'annee_id'):
@@ -205,11 +221,9 @@ def notes():
             ]
         })
 
-    # Inscriptions pour accordéons / structure annuelle
-    inscriptions = get_inscriptions_notes(ecole_id, annee_consultee, user=current_user)
+    # Extraction des élèves uniques pour compatibilité templates
     eleve_classe_map = {ins.eleve_id: ins.classe_id for ins in inscriptions if ins.eleve_id and ins.classe_id}
 
-    # Extraction des élèves uniques pour compatibilité templates
     eleves_uniques = []
     seen_eleves = set()
     for ins in inscriptions:
@@ -217,7 +231,6 @@ def notes():
             seen_eleves.add(ins.eleve.id)
             eleves_uniques.append(ins.eleve)
 
-    tous_les_cours = get_cours_annee(ecole_id, annee_consultee, user=current_user)
     from collections import defaultdict
     from app.services.evaluations import (
         calculer_completude_inscription,
@@ -246,16 +259,56 @@ def notes():
         if p_active:
             periode_cible = p_active.nom
 
+    # Notes nécessaires au calcul de complétude pédagogique
+    # Pour l'admin, toutes_notes contient déjà toutes les notes de l'école.
+    # Pour le professeur, toutes_notes ne contient que ses propres cours :
+    # on charge en une seule requête les notes de l'ensemble des matières
+    # uniquement pour les inscriptions autorisées de la page (sans exposer ces notes hors complétude).
+    if current_user.role == 'professeur':
+        inscr_ids_visibles = [ins.id for ins in inscriptions if ins.id]
+        notes_completude = (
+            Note.query.filter(
+                Note.ecole_id == ecole_id,
+                Note.annee_id == annee_consultee.id,
+                Note.inscription_id.in_(inscr_ids_visibles),
+            ).all()
+            if (inscr_ids_visibles and annee_consultee) else []
+        )
+    else:
+        notes_completude = toutes_notes
+
+    notes_par_inscription = defaultdict(list)
+    for n in notes_completude:
+        if n.inscription_id:
+            notes_par_inscription[n.inscription_id].append(n)
+
+    # Pré-chargement des cours attendus par classe pour la complétude
+    classe_ids_ins = {ins.classe_id for ins in inscriptions if ins.classe_id}
+    if classe_ids_ins and annee_consultee:
+        from flask import g
+        if not hasattr(g, '_cours_attendus_cache'):
+            g._cours_attendus_cache = {}
+        missing_cids = [cid for cid in classe_ids_ins if (ecole_id, cid, annee_consultee.id) not in g._cours_attendus_cache]
+        if missing_cids:
+            all_c = Cours.query.filter(Cours.ecole_id == ecole_id, Cours.classe_id.in_(missing_cids)).order_by(Cours.nom.asc()).all()
+            c_by_class = defaultdict(list)
+            for crs in all_c:
+                c_by_class[crs.classe_id].append(crs)
+            for cid in missing_cids:
+                g._cours_attendus_cache[(ecole_id, cid, annee_consultee.id)] = c_by_class[cid]
+
     completude_par_eleve = {}
     if annee_consultee and ecole_id:
         for ins in inscriptions:
             if ins.eleve_id:
+                ins_notes = notes_par_inscription.get(ins.id, [])
                 completude_par_eleve[ins.eleve_id] = calculer_completude_inscription(
                     ecole_id=ecole_id,
                     annee_id=annee_consultee.id,
                     inscription=ins,
                     periode=periode_cible,
                     periode_publiee=False,
+                    notes=ins_notes,
                 )
 
     return render_template(

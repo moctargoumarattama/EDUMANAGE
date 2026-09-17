@@ -40,7 +40,14 @@ def get_cours_attendus_classe(ecole_id, classe_id, annee_id):
     """
     if not ecole_id or not classe_id or not annee_id:
         return []
-    return (
+    from flask import has_app_context, g
+    if has_app_context():
+        if not hasattr(g, '_cours_attendus_cache'):
+            g._cours_attendus_cache = {}
+        key = (ecole_id, classe_id, annee_id)
+        if key in g._cours_attendus_cache:
+            return g._cours_attendus_cache[key]
+    cours = (
         Cours.query.filter(
             Cours.ecole_id == ecole_id,
             Cours.classe_id == classe_id,
@@ -48,6 +55,9 @@ def get_cours_attendus_classe(ecole_id, classe_id, annee_id):
         .order_by(Cours.nom.asc())
         .all()
     )
+    if has_app_context():
+        g._cours_attendus_cache[key] = cours
+    return cours
 
 
 def calculer_moyenne_matiere(notes_matiere):
@@ -97,7 +107,7 @@ def calculer_moyenne_matiere(notes_matiere):
         return round(sum(valeurs) / len(valeurs), 2) if valeurs else None
 
 
-def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=None, periode_publiee=None):
+def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=None, periode_publiee=None, notes=None, cours_attendus=None):
     """
     Source de vérité pour l'état d'évaluation d'une inscription sur une période donnée.
 
@@ -128,24 +138,53 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
     """
     if periode_publiee is None:
         if ecole_id and annee_id:
-            if periode:
-                p_obj = PeriodeBulletin.query.filter_by(
-                    ecole_id=ecole_id,
-                    annee_id=annee_id,
-                    nom=periode
-                ).first()
+            from flask import has_app_context, g
+            p_obj = None
+            if has_app_context():
+                if not hasattr(g, '_periode_bulletin_cache'):
+                    g._periode_bulletin_cache = {}
+                p_key = (ecole_id, annee_id, periode)
+                if p_key in g._periode_bulletin_cache:
+                    p_obj = g._periode_bulletin_cache[p_key]
+                else:
+                    if periode:
+                        p_obj = PeriodeBulletin.query.filter_by(
+                            ecole_id=ecole_id,
+                            annee_id=annee_id,
+                            nom=periode
+                        ).first()
+                    else:
+                        p_obj = PeriodeBulletin.query.filter_by(
+                            ecole_id=ecole_id,
+                            annee_id=annee_id,
+                            periode_active=True
+                        ).first()
+                        if not p_obj:
+                            p_obj = PeriodeBulletin.query.filter_by(
+                                ecole_id=ecole_id,
+                                annee_id=annee_id,
+                                publie=True
+                            ).first()
+                    g._periode_bulletin_cache[p_key] = p_obj
             else:
-                p_obj = PeriodeBulletin.query.filter_by(
-                    ecole_id=ecole_id,
-                    annee_id=annee_id,
-                    periode_active=True
-                ).first()
-                if not p_obj:
+                if periode:
                     p_obj = PeriodeBulletin.query.filter_by(
                         ecole_id=ecole_id,
                         annee_id=annee_id,
-                        publie=True
+                        nom=periode
                     ).first()
+                else:
+                    p_obj = PeriodeBulletin.query.filter_by(
+                        ecole_id=ecole_id,
+                        annee_id=annee_id,
+                        periode_active=True
+                    ).first()
+                    if not p_obj:
+                        p_obj = PeriodeBulletin.query.filter_by(
+                            ecole_id=ecole_id,
+                            annee_id=annee_id,
+                            publie=True
+                        ).first()
             est_publiee = bool(p_obj and p_obj.publie)
         else:
             est_publiee = False
@@ -172,23 +211,30 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
         }
 
     classe_id = inscription.classe_id
-    cours_attendus = get_cours_attendus_classe(ecole_id, classe_id, annee_id)
+    if cours_attendus is None:
+        cours_attendus = get_cours_attendus_classe(ecole_id, classe_id, annee_id)
     expected_subjects = len(cours_attendus)
     expected_coefficients = sum(c.coefficient if (c.coefficient and c.coefficient > 0) else 1.0 for c in cours_attendus)
 
     # Récupération des notes de l'inscription pour la période
-    query = Note.query.filter(
-        Note.inscription_id == inscription.id,
-        Note.ecole_id == ecole_id,
-        Note.annee_id == annee_id,
-    )
-    if periode:
-        query = query.filter(Note.periode == periode)
-    notes = query.all()
+    if notes is None:
+        query = Note.query.filter(
+            Note.inscription_id == inscription.id,
+            Note.ecole_id == ecole_id,
+            Note.annee_id == annee_id,
+        )
+        if periode:
+            query = query.filter(Note.periode == periode)
+        notes_list = query.all()
+    else:
+        if periode:
+            notes_list = [n for n in notes if getattr(n, "periode", None) == periode or getattr(n, "periode", None) is None]
+        else:
+            notes_list = list(notes)
 
     # Regroupement par cours_id
     notes_par_cours = defaultdict(list)
-    for n in notes:
+    for n in notes_list:
         notes_par_cours[n.cours_id].append(n)
 
     evaluated_subjects = 0
@@ -376,7 +422,7 @@ def preparer_dossier_notes_eleve(notes_eleve):
     return matieres
 
 
-def calculer_stats_et_classements_classe(ecole_id, classe_id, annee_id, periode=None, periode_publiee=None):
+def calculer_stats_et_classements_classe(ecole_id, classe_id, annee_id, periode=None, periode_publiee=None, precomputed_evals=None):
     """
     Calcule les classements et statistiques de classe en filtrant STRICTEMENT les évaluations complètes.
     
@@ -438,45 +484,78 @@ def calculer_stats_et_classements_classe(ecole_id, classe_id, annee_id, periode=
             "plus_faible_moyenne": None,
         }
 
-    inscriptions = (
-        Inscription.query.options(joinedload(Inscription.eleve))
-        .filter_by(ecole_id=ecole_id, classe_id=classe_id, annee_scolaire_id=annee_id)
-        .all()
-    )
-
-    effectif_total = len(inscriptions)
-    if effectif_total == 0:
-        return {
-            "rangs_par_inscription": {},
-            "effectif_total": 0,
-            "complets_count": 0,
-            "provisoires_count": 0,
-            "non_evalues_count": 0,
-            "taux_reussite": None,
-            "moyenne_classe_officielle": None,
-            "meilleur_eleve_complet": None,
-            "plus_forte_moyenne": None,
-            "plus_faible_moyenne": None,
-        }
-
-    evals_by_ins = {}
-    complets = []
-    provisoires = []
-    non_evalues = []
-
-    for ins in inscriptions:
-        ev = calculer_completude_inscription(
-            ecole_id, annee_id, ins,
-            periode=periode,
-            periode_publiee=periode_publiee
+    if precomputed_evals is not None:
+        effectif_total = len(precomputed_evals)
+        if effectif_total == 0:
+            return {
+                "rangs_par_inscription": {},
+                "effectif_total": 0,
+                "complets_count": 0,
+                "provisoires_count": 0,
+                "non_evalues_count": 0,
+                "taux_reussite": None,
+                "moyenne_classe_officielle": None,
+                "meilleur_eleve_complet": None,
+                "plus_forte_moyenne": None,
+                "plus_faible_moyenne": None,
+            }
+        evals_by_ins = {}
+        complets = []
+        provisoires = []
+        non_evalues = []
+        for item in precomputed_evals:
+            if isinstance(item, (tuple, list)):
+                ins, ev = item[0], item[1]
+            else:
+                ins = item.get('inscription')
+                ev = item.get('eval_info')
+            if not ins or not ev:
+                continue
+            evals_by_ins[ins.id] = ev
+            if ev.get("status") == STATUS_COMPLETE:
+                complets.append((ins, ev))
+            elif ev.get("status") == STATUS_PROVISOIRE:
+                provisoires.append((ins, ev))
+            else:
+                non_evalues.append((ins, ev))
+    else:
+        inscriptions = (
+            Inscription.query.options(joinedload(Inscription.eleve))
+            .filter_by(ecole_id=ecole_id, classe_id=classe_id, annee_scolaire_id=annee_id)
+            .all()
         )
-        evals_by_ins[ins.id] = ev
-        if ev["status"] == STATUS_COMPLETE:
-            complets.append((ins, ev))
-        elif ev["status"] == STATUS_PROVISOIRE:
-            provisoires.append((ins, ev))
-        else:
-            non_evalues.append((ins, ev))
+        effectif_total = len(inscriptions)
+        if effectif_total == 0:
+            return {
+                "rangs_par_inscription": {},
+                "effectif_total": 0,
+                "complets_count": 0,
+                "provisoires_count": 0,
+                "non_evalues_count": 0,
+                "taux_reussite": None,
+                "moyenne_classe_officielle": None,
+                "meilleur_eleve_complet": None,
+                "plus_forte_moyenne": None,
+                "plus_faible_moyenne": None,
+            }
+
+        evals_by_ins = {}
+        complets = []
+        provisoires = []
+        non_evalues = []
+        for ins in inscriptions:
+            ev = calculer_completude_inscription(
+                ecole_id, annee_id, ins,
+                periode=periode,
+                periode_publiee=periode_publiee
+            )
+            evals_by_ins[ins.id] = ev
+            if ev["status"] == STATUS_COMPLETE:
+                complets.append((ins, ev))
+            elif ev["status"] == STATUS_PROVISOIRE:
+                provisoires.append((ins, ev))
+            else:
+                non_evalues.append((ins, ev))
 
     # Classement : UNIQUEMENT les élèves complets (période publiée + 100% matières)
     complets.sort(key=lambda item: item[1]["average"] if item[1]["average"] is not None else -1.0, reverse=True)

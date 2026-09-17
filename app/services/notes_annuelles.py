@@ -53,10 +53,18 @@ def _professeur(user):
         return None
     prof = getattr(user, "professeur_rel", None)
     if not prof and hasattr(user, "id"):
+        from flask import has_app_context, g
+        if has_app_context():
+            if not hasattr(g, '_professeur_cache'):
+                g._professeur_cache = {}
+            if user.id in g._professeur_cache:
+                return g._professeur_cache[user.id]
         prof = Professeur.query.filter_by(
             utilisateur_id=user.id,
             ecole_id=getattr(user, "ecole_id", None)
         ).first()
+        if has_app_context():
+            g._professeur_cache[user.id] = prof
     return prof
 
 
@@ -66,12 +74,23 @@ def _professeur_cours_ids(user, annee_id=None):
     if not prof:
         return set()
 
+    from flask import has_app_context, g
+    if has_app_context():
+        if not hasattr(g, '_prof_cours_ids_cache'):
+            g._prof_cours_ids_cache = {}
+        key = (prof.id, annee_id)
+        if key in g._prof_cours_ids_cache:
+            return g._prof_cours_ids_cache[key]
+
     query = Cours.query.filter_by(professeur_id=prof.id, ecole_id=prof.ecole_id)
     if annee_id:
         query = query.join(Classe, Cours.classe_id == Classe.id).filter(
             Classe.annee_scolaire_id == annee_id
         )
-    return {c.id for c in query.all()}
+    res = {c.id for c in query.all()}
+    if has_app_context():
+        g._prof_cours_ids_cache[key] = res
+    return res
 
 
 def _professeur_classe_ids(user, annee_id=None):
@@ -80,13 +99,24 @@ def _professeur_classe_ids(user, annee_id=None):
     if not prof:
         return set()
 
+    from flask import has_app_context, g
+    if has_app_context():
+        if not hasattr(g, '_prof_classe_ids_cache'):
+            g._prof_classe_ids_cache = {}
+        key = (prof.id, annee_id)
+        if key in g._prof_classe_ids_cache:
+            return g._prof_classe_ids_cache[key]
+
     query = (
         Classe.query.join(Cours, Cours.classe_id == Classe.id)
         .filter(Cours.professeur_id == prof.id, Classe.ecole_id == prof.ecole_id)
     )
     if annee_id:
         query = query.filter(Classe.annee_scolaire_id == annee_id)
-    return {c.id for c in query.all()}
+    res = {c.id for c in query.all()}
+    if has_app_context():
+        g._prof_classe_ids_cache[key] = res
+    return res
 
 
 def _parent_enfant_ids(user):
@@ -889,6 +919,7 @@ def get_classes_notes(ecole_id, annee, user=None):
     if not ecole_id or not annee:
         return []
     query = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
+    query = Classe.query.options(joinedload(Classe.niveau_scolaire)).filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
     role = getattr(user, "role", None)
     if role == "professeur":
         classe_ids = _professeur_classe_ids(user, annee.id)

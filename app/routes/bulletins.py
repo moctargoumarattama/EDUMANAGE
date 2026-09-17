@@ -293,6 +293,22 @@ def bulletins():
         ecole_id=ecole_id,
         annee_scolaire_id=annee.id
     ).order_by(Classe.nom.asc()).all()
+    class_ids = [c.id for c in classes]
+
+    # Pré-chargement des cours par classe pour éviter N+1
+    if class_ids:
+        from flask import g
+        if not hasattr(g, '_cours_attendus_cache'):
+            g._cours_attendus_cache = {}
+        tous_cours = Cours.query.filter(
+            Cours.ecole_id == ecole_id,
+            Cours.classe_id.in_(class_ids)
+        ).order_by(Cours.nom.asc()).all()
+        cours_par_classe = defaultdict(list)
+        for crs in tous_cours:
+            cours_par_classe[crs.classe_id].append(crs)
+        for cid in class_ids:
+            g._cours_attendus_cache[(ecole_id, cid, annee.id)] = cours_par_classe[cid]
 
     # Récupérer les inscriptions de cette année
     inscriptions = get_inscriptions_bulletins(ecole_id, annee, current_user)
@@ -355,17 +371,18 @@ def bulletins():
         if statut_bulletin in ('genere', 'valide') and not has_bulletin:
             continue
 
+        student_notes = notes_par_inscription.get(ins.id, [])
         eval_info = calculer_completude_inscription(
             ecole_id,
             annee.id,
             ins,
             periode=periode_nom,
-            periode_publiee=periode_publiee
+            periode_publiee=periode_publiee,
+            notes=student_notes,
         )
 
         status = eval_info["status"]
         moyenne = eval_info["average"]
-        student_notes = notes_par_inscription.get(ins.id, [])
 
         if status == STATUS_NON_EVALUE:
             appreciation = 'Non évalué'
@@ -448,12 +465,14 @@ def bulletins():
     classe_stats = {}
     for c in classes:
         c_items = eleves_par_classe.get(c.id, [])
+        c_evals = [(item['inscription'], item['eval_info']) for item in c_items]
         c_canon_stats = calculer_stats_et_classements_classe(
             ecole_id,
             c.id,
             annee.id,
             periode=periode_nom,
-            periode_publiee=periode_publiee
+            periode_publiee=periode_publiee,
+            precomputed_evals=c_evals,
         )
         rangs_map = c_canon_stats['rangs_par_inscription']
 

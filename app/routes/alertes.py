@@ -1,6 +1,7 @@
 from . import main
 from .common import (
     Classe,
+    current_app,
     current_user,
     datetime,
     envoyer_email,
@@ -158,9 +159,10 @@ def alertes():
     if sans_classe_group['alertes']:
         classes_alertes.append(sans_classe_group)
 
-    # Notifications : uniquement pour une année active (pas d'envoi en archivee ou planifiee)
+    # Notifications : uniquement pour une année active et si activé explicitement par configuration
     if annee.statut not in ('archivee', 'planifiee'):
-        notifier_alertes([a for a in alertes_actives if a["type"] in ["danger", "warning"]])
+        if current_app.config.get('AUTO_NOTIFY_ALERTES_ON_PAGE_LOAD', False):
+            notifier_alertes([a for a in alertes_actives if a["type"] in ["danger", "warning"]])
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
         return jsonify({

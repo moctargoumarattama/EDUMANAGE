@@ -167,6 +167,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
         }
 
     use_cache = not force_refresh and not current_app.config.get('TESTING', False)
+    use_cache = not force_refresh
 
     try:
         if use_cache:
