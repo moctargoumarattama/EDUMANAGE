@@ -438,6 +438,8 @@
             }
         }
     </style>
+    <!-- Couche Responsive & Adaptative Globale KLASORA -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive-adaptive.css', v=config.VERSION) }}">
     {% block extra_head %}{% endblock %}
 </head>
 <body class="{{ 'auth-layout' if request.endpoint == 'main.login' else '' }}{{ ' home-layout' if request.endpoint == 'main.index' else '' }}{{ ' onboarding-layout' if request.endpoint == 'main.onboarding' else '' }}" data-role="{{ current_user.role if current_user.is_authenticated else 'guest' }}">

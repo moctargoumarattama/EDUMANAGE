@@ -1,0 +1,447 @@
+/* ==========================================================================
+   KLASORA — COUCHE RESPONSIVE & ADAPTATIVE DESKTOP UNIFIÉE (>= 992px)
+   Fichier : app/static/css/responsive-adaptive.css
+   Protection : ISOLATION ABSOLUE. Aucune règle ne s'applique sous 992px.
+   ========================================================================== */
+
+/* ==========================================================================
+   01. VARIABLES ADAPTATIVES DESKTOP
+   ========================================================================== */
+:root {
+    --adaptive-content-max: 1640px;
+    --adaptive-container-padding: clamp(1rem, 2vw, 1.85rem);
+    --adaptive-card-gap: clamp(0.85rem, 1.15vw, 1.25rem);
+    --adaptive-card-padding: clamp(0.85rem, 1.15vw, 1.25rem);
+    --adaptive-header-margin: clamp(0.9rem, 1.8vh, 1.5rem);
+    --adaptive-stat-icon-size: clamp(2.2rem, 3.2vw, 2.75rem);
+    --adaptive-nav-link-padding: 0.52rem 0.82rem;
+    --adaptive-table-cell-padding: clamp(0.5rem, 0.75vw, 0.85rem);
+}
+
+/* ==========================================================================
+   02. OPTIMISATIONS DESKTOP GLOBALES (>= 992px)
+   ========================================================================== */
+@media (min-width: 992px) {
+
+    /* --- CONTENEUR PRINCIPAL & PLAFOND 2K / 4K --- */
+    .main-content {
+        flex: 1 0 auto;
+        width: 100%;
+        padding-top: clamp(0.75rem, 1.5vh, 1.5rem);
+        padding-bottom: clamp(1rem, 2vh, 2rem);
+    }
+
+    .main-content > .container,
+    .main-content > .container-fluid,
+    .main-content .container-fluid {
+        max-width: var(--adaptive-content-max);
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: var(--adaptive-container-padding);
+        padding-right: var(--adaptive-container-padding);
+    }
+
+    .main-content .container-fluid.w-100-full {
+        max-width: 100%;
+    }
+
+    /* --- NAVBAR DESKTOP --- */
+    .navbar {
+        min-height: 58px;
+        padding: clamp(0.45rem, 0.9vh, 0.75rem) clamp(0.75rem, 1.5vw, 1.25rem);
+    }
+
+    .navbar > .container,
+    .navbar > .container-fluid {
+        max-width: var(--adaptive-content-max);
+        margin-inline: auto;
+    }
+
+    .navbar-brand {
+        font-size: clamp(1.2rem, 1.8vw, 1.65rem);
+        gap: 0.4rem;
+    }
+
+    .navbar-brand i {
+        font-size: clamp(1.35rem, 2vw, 1.85rem);
+    }
+
+    .navbar .nav-link {
+        font-size: clamp(0.84rem, 0.95vw, 0.94rem);
+        padding: var(--adaptive-nav-link-padding) !important;
+        white-space: nowrap;
+    }
+
+    .navbar .user-avatar {
+        flex-shrink: 0;
+    }
+
+    /* --- HEADERS DE PAGES & HERO DESKTOP --- */
+    .page-header {
+        margin-bottom: var(--adaptive-header-margin);
+    }
+
+    .page-header-body {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: clamp(0.6rem, 1.2vw, 1.25rem);
+    }
+
+    .page-title {
+        font-size: clamp(1.3rem, 2.2vw, 1.75rem);
+        line-height: 1.25;
+        margin-bottom: 0.2rem;
+    }
+
+    .page-subtitle {
+        font-size: clamp(0.82rem, 0.95vw, 0.92rem);
+        color: #64748b;
+    }
+
+    .page-icon {
+        width: clamp(40px, 4vw, 48px);
+        height: clamp(40px, 4vw, 48px);
+        font-size: clamp(1.2rem, 1.6vw, 1.45rem);
+    }
+
+    .home-hero {
+        min-height: auto;
+        padding: clamp(0.9rem, 1.8vh, 1.5rem) clamp(1rem, 2vw, 2rem);
+        margin-bottom: var(--adaptive-header-margin);
+    }
+
+    .home-hero h1 {
+        font-size: clamp(1.4rem, 2.5vw, 1.95rem);
+    }
+
+    .home-hero p {
+        font-size: clamp(0.88rem, 1.1vw, 1rem);
+    }
+
+    /* --- DASHBOARDS & GRILLES ACCUEIL --- */
+    .home-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+        gap: var(--adaptive-card-gap);
+    }
+
+    .home-action-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+        gap: var(--adaptive-card-gap);
+    }
+
+    .home-stat-card,
+    .home-action-card {
+        min-height: clamp(74px, 7.5vh, 86px);
+        padding: var(--adaptive-card-padding);
+    }
+
+    .home-stat-icon,
+    .home-action-icon {
+        width: var(--adaptive-stat-icon-size);
+        height: var(--adaptive-stat-icon-size);
+        flex-shrink: 0;
+    }
+
+    .home-stat-info strong {
+        font-size: clamp(1.1rem, 1.6vw, 1.4rem);
+        line-height: 1.2;
+    }
+
+    .home-action-info strong {
+        font-size: clamp(0.88rem, 1.05vw, 0.98rem);
+        line-height: 1.25;
+    }
+
+    .teacher-home-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(270px, 0.95fr);
+        gap: var(--adaptive-card-gap);
+        max-width: var(--adaptive-content-max);
+        margin: 0 auto;
+    }
+
+    .teacher-summary-card {
+        padding: var(--adaptive-card-padding);
+    }
+
+    .onboarding-grid {
+        display: grid;
+        grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+        gap: var(--adaptive-card-gap);
+    }
+
+    /* --- CARDS & STAT GRIDS DESKTOP --- */
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+        gap: var(--adaptive-card-gap);
+    }
+
+    .stat-grid-2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+        gap: var(--adaptive-card-gap);
+    }
+
+    .stat-card {
+        min-height: clamp(70px, 7vh, 84px);
+        padding: var(--adaptive-card-padding);
+    }
+
+    .stat-number {
+        font-size: clamp(1.2rem, 1.7vw, 1.65rem);
+        line-height: 1.2;
+        margin-bottom: 0.15rem;
+    }
+
+    .stat-label {
+        font-size: clamp(0.78rem, 0.9vw, 0.85rem);
+        margin-bottom: 0;
+    }
+
+    .stat-icon {
+        width: var(--adaptive-stat-icon-size);
+        height: var(--adaptive-stat-icon-size);
+        flex-shrink: 0;
+    }
+
+    .card-header,
+    .card-body,
+    .card-footer {
+        padding: var(--adaptive-card-padding);
+    }
+
+    /* --- GRILLES SECONDAIRES DESKTOP --- */
+    .student-detail-grid,
+    .class-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+        gap: var(--adaptive-card-gap);
+    }
+
+    .reports-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+        gap: var(--adaptive-card-gap);
+    }
+
+    /* --- TABLEAUX DESKTOP (SCROLL LOCAL PROPRE) --- */
+    .table-responsive {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: var(--border-radius);
+    }
+
+    .table-responsive::-webkit-scrollbar {
+        height: 7px;
+    }
+
+    .table-responsive::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+
+    .table-responsive::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    .table th,
+    .table td {
+        padding: var(--adaptive-table-cell-padding);
+        vertical-align: middle;
+        font-size: clamp(0.83rem, 0.92vw, 0.92rem);
+    }
+
+    .table-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        flex-wrap: nowrap;
+        white-space: nowrap;
+    }
+
+    /* --- FORMULAIRES DESKTOP --- */
+    .form-grid,
+    .responsive-form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+        gap: var(--adaptive-card-gap);
+    }
+
+    .form-grid-full {
+        grid-column: 1 / -1;
+    }
+
+    .form-control,
+    .form-select {
+        min-height: 40px;
+        font-size: clamp(0.86rem, 0.95vw, 0.95rem);
+    }
+
+    .form-section {
+        padding-bottom: clamp(1rem, 1.8vh, 1.5rem);
+        margin-bottom: clamp(1rem, 1.8vh, 1.5rem);
+    }
+
+    /* --- BOUTONS & DROPDOWNS DESKTOP --- */
+    .page-actions,
+    .btn-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn {
+        font-size: clamp(0.83rem, 0.92vw, 0.92rem);
+        padding: 0.45rem 0.9rem;
+    }
+
+    .dropdown-menu {
+        max-height: min(75vh, 480px);
+        overflow-y: auto;
+    }
+
+    /* --- MODALES DESKTOP --- */
+    .modal-dialog {
+        max-width: min(92vw, 640px);
+        margin: 1.5rem auto;
+    }
+
+    .modal-dialog.modal-lg {
+        max-width: min(94vw, 880px);
+    }
+
+    .modal-dialog.modal-xl {
+        max-width: min(96vw, 1140px);
+    }
+
+    .modal-content {
+        max-height: calc(100vh - 3rem);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-body {
+        overflow-y: auto;
+        max-height: calc(100vh - 12rem);
+        padding: clamp(0.85rem, 1.4vw, 1.4rem);
+    }
+}
+
+/* ==========================================================================
+   03. ADAPTATION COMPACTE DESKTOP ÉTROIT / ZOOM INTERMÉDIAIRE (992px à 1240px)
+   ========================================================================== */
+@media (min-width: 992px) and (max-width: 1240px) {
+    .navbar .nav-link {
+        padding: 0.4rem 0.55rem !important;
+        font-size: 0.84rem;
+        margin: 0 0.1rem;
+    }
+
+    .navbar-brand {
+        font-size: 1.25rem;
+    }
+
+    .navbar-brand i {
+        font-size: 1.45rem;
+    }
+
+    .home-stat-grid {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    }
+
+    .home-action-grid {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    }
+}
+
+/* ==========================================================================
+   04. OPTIMISATIONS DESKTOP LARGES & TRÈS GRANDS VIEWPORTS (>= 1400px / >= 1920px)
+   ========================================================================== */
+@media (min-width: 1400px) {
+    .home-stat-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .home-action-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .stat-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1920px) {
+    :root {
+        --adaptive-content-max: 1720px;
+    }
+}
+
+/* ==========================================================================
+   05. FAIBLE HAUTEUR DE VIEWPORT DESKTOP (>= 992px ET max-height)
+   ========================================================================== */
+@media (min-width: 992px) and (max-height: 720px) {
+    .navbar {
+        min-height: 50px;
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
+    }
+
+    .main-content {
+        padding-top: 0.5rem;
+        padding-bottom: 0.85rem;
+    }
+
+    .home-hero {
+        padding: 0.75rem 1.25rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .page-header {
+        margin-bottom: 0.85rem;
+    }
+
+    .stat-card,
+    .home-stat-card,
+    .home-action-card {
+        min-height: 66px;
+        padding: 0.55rem 0.85rem;
+    }
+
+    .modal-dialog {
+        margin: 0.5rem auto;
+    }
+
+    .modal-body {
+        max-height: calc(100vh - 8.5rem);
+    }
+}
+
+@media (min-width: 992px) and (max-height: 560px) {
+    .navbar {
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+    }
+
+    .home-hero {
+        padding: 0.5rem 0.85rem;
+    }
+
+    .stat-card,
+    .home-stat-card,
+    .home-action-card {
+        min-height: 58px;
+    }
+
+    .modal-body {
+        max-height: calc(100vh - 7rem);
+    }
+}
