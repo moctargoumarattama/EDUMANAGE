@@ -74,7 +74,6 @@
                                             <option value="" selected disabled>-- Choisir une classe --</option>
                                         {% endif %}
                                         {% for classe in classes %}
-                                            <option value="{{ classe.id }}" {% if eleve.classe_id == classe.id %}selected{% endif %}>{{ classe.nom }}</option>
                                             <option value="{{ classe.id }}" {% if inscription_active and inscription_active.classe_id == classe.id %}selected{% endif %}>{{ classe.nom }}</option>
                                         {% endfor %}
                                     </select>

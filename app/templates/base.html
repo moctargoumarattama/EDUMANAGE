@@ -16,16 +16,16 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icons/apple-touch-icon.png') }}">
 
     <title>{% block title %}KLASORA - Excellence Éducative{% endblock %}</title>
-    
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2family=Poppins:wght@300;400;500;600;700&family=Roboto+Slab:wght@300;400;500;600&display=swap" rel="stylesheet">
-    
+
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=config.VERSION) }}">
     <style>
@@ -43,7 +43,7 @@
             --gray-200: #e9ecef;
             --gray-300: #dee2e6;
             --gray-800: #2d3748;
-            
+
             --gradient-primary: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
             --gradient-primary-hover: linear-gradient(135deg, #3a56d4 0%, #320b8f 100%);
             --gradient-success: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
@@ -51,7 +51,7 @@
             --gradient-warning: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
             --gradient-dark: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
             --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-            
+
             --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.08);
             --shadow-medium: 0 8px 30px rgba(0, 0, 0, 0.12);
             --shadow-strong: 0 15px 40px rgba(0, 0, 0, 0.15);
@@ -59,7 +59,7 @@
             --border-radius: 12px;
             --border-radius-lg: 16px;
             --border-radius-xl: 20px;
-            
+
             --transition: all 0.3s ease;
         }
 
@@ -423,16 +423,16 @@
             .navbar-nav {
                 padding: 1rem 0;
             }
-            
+
             .nav-link {
                 margin: 0.3rem 0;
             }
-            
+
             .dropdown-menu {
                 margin: 0.5rem 0;
                 border-radius: var(--border-radius);
             }
-            
+
             .user-badge {
                 margin-top: 0.5rem;
             }
@@ -465,12 +465,12 @@
                     <span class="navbar-toggler-icon"></span>
                 </button>
             </div>
-            
+
             <div class="collapse navbar-collapse" id="navbarNav">
                 <!-- Navigation principale selon le rôle -->
                 <ul class="navbar-nav me-auto">
                     {% if current_user.is_authenticated %}
-                        
+
                         <!-- 🔹 SUPER ADMIN : Gestion de la plateforme, des écoles et de la maintenance -->
                         {% if current_user.role == 'super_admin' %}
                             <li class="nav-item">
@@ -478,7 +478,7 @@
                                     <i class="fas fa-home me-1"></i>Accueil
                                 </a>
                             </li>
-                            
+
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ('main.gestion_ecoles', 'main.ajouter_ecole') }}" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-school me-1"></i>Écoles
@@ -529,7 +529,7 @@
                                 </a>
                             </li>
                             {% endif %}
-                            
+
                             <li class="nav-item dropdown d-none d-lg-block">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-user-graduate me-1"></i>Élèves
@@ -540,7 +540,7 @@
 
                                 </ul>
                             </li>
-                            
+
                             <li class="nav-item dropdown d-none d-lg-block">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-chalkboard-teacher me-1"></i>Professeurs
@@ -550,12 +550,8 @@
                                     <li><a class="dropdown-item" href="{{ url_for('main.ajouter_professeur') }}"><i class="fas fa-plus me-2"></i>Ajouter un professeur</a></li>
                                 </ul>
                             </li>
-                            
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('main.gestion_utilisateurs') }}">
-                                    <i class="fas fa-users me-1"></i>Utilisateurs
-                                </a>
-                            </li>
+
+
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-layer-group me-1"></i>Scolarité
@@ -582,10 +578,15 @@
                             </li>
 
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ('main.config_email', 'main.gestion_annees') }}" href="#" role="button" data-bs-toggle="dropdown">
+                                <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ('main.config_email', 'main.gestion_annees', 'main.gestion_utilisateurs') }}" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-cog me-1"></i>Paramètres
                                 </a>
                                 <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ url_for('main.gestion_utilisateurs') }}">
+                                            <span><i class="fas fa-users me-2 text-primary"></i>Comptes & Utilisateurs</span>
+                                        </a>
+                                    </li>
                                     <li>
                                         <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ url_for('main.profil_ecole') }}">
                                             <span><i class="fas fa-school me-2 text-primary"></i>Profil & Identité de l'établissement</span>
@@ -687,12 +688,12 @@
                             {% if current_user.role != 'super_admin' and user_ecole %}
                                 <!-- Logo École -->
                                 {% if user_ecole.logo_path and user_ecole.logo_path != 'default_logo.png' %}
-                                    <img src="{{ url_for('static', filename=user_ecole.logo_path) if not user_ecole.logo_path.startswith('http') and not user_ecole.logo_path.startswith('/') else user_ecole.logo_path }}" 
-                                         alt="{{ user_ecole.nom }}" 
-                                         class="rounded-circle border border-2 border-white shadow-sm" 
+                                    <img src="{{ url_for('static', filename=user_ecole.logo_path) if not user_ecole.logo_path.startswith('http') and not user_ecole.logo_path.startswith('/') else user_ecole.logo_path }}"
+                                         alt="{{ user_ecole.nom }}"
+                                         class="rounded-circle border border-2 border-white shadow-sm"
                                          style="width: 38px; height: 38px; object-fit: cover; background-color: #ffffff;">
                                 {% else %}
-                                    <div class="user-avatar rounded-circle bg-white text-primary d-flex justify-content-center align-items-center shadow-sm" 
+                                    <div class="user-avatar rounded-circle bg-white text-primary d-flex justify-content-center align-items-center shadow-sm"
                                          style="width: 38px; height: 38px; font-weight: bold; font-size: 1rem;">
                                         <i class="fas fa-school"></i>
                                     </div>
@@ -711,7 +712,7 @@
                                 </div>
                             {% else %}
                                 <!-- Profil sans école (ex: Super Admin) -->
-                                <div class="user-avatar rounded-circle bg-white text-primary d-flex justify-content-center align-items-center shadow-sm" 
+                                <div class="user-avatar rounded-circle bg-white text-primary d-flex justify-content-center align-items-center shadow-sm"
                                      style="width: 38px; height: 38px; font-weight: bold; font-size: 0.9rem;">
                                     {% if current_user.prenom and current_user.nom %}
                                         {{ current_user.prenom[0] }}{{ current_user.nom[0] }}
@@ -741,11 +742,7 @@
                         {% if current_user.role in ['admin', 'super_admin'] %}
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 py-1 rounded-3" aria-labelledby="userDropdown" style="min-width: 200px;">
                             {% if current_user.role == 'admin' %}
-                            <li>
-                                <a class="dropdown-item d-flex align-items-center py-2" href="{{ url_for('main.config_email') }}">
-                                    <i class="fas fa-envelope text-primary me-2"></i>E-mail de l'établissement
-                                </a>
-                            </li>
+
                             <li>
                                 <a class="dropdown-item d-flex align-items-center py-2" href="{{ url_for('main.index', start_tour=1) }}" onclick="if(window.KlasoraTour){window.KlasoraTour.start(true);return false;}">
                                     <i class="fas fa-question-circle text-primary me-2"></i>Revoir la visite guidée
@@ -766,11 +763,11 @@
                         </ul>
                         {% else %}
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="userDropdown" style="min-width: 250px;">
-                            
+
                             <!-- Profil utilisateur -->
                             <li class="px-3 py-2 bg-light border-bottom">
                                 <div class="d-flex align-items-center">
-                                    <div class="user-avatar rounded-circle bg-primary text-white d-flex justify-content-center align-items-center me-3" 
+                                    <div class="user-avatar rounded-circle bg-primary text-white d-flex justify-content-center align-items-center me-3"
                                          style="width: 45px; height: 45px; font-weight: bold;">
                                         {% if current_user.prenom and current_user.nom %}
                                             {{ current_user.prenom[0] }}{{ current_user.nom[0] }}
@@ -820,7 +817,7 @@
 
                             <!-- Aide commune -->
                             <li><a class="dropdown-item" href="{{ url_for('main.aide') }}"><i class="fas fa-question-circle me-2"></i>Centre d'Aide</a></li>
-                            
+
                             <!-- Déconnexion -->
                             <li><hr class="dropdown-divider"></li>
                             <li>
@@ -839,7 +836,7 @@
                             <i class="fas fa-sign-in-alt me-1"></i>Connexion
                         </a>
                     </li>
-                
+
                     {% endif %}
                 </ul>
             </div>
@@ -858,11 +855,11 @@
                             {% for category, message in messages %}
                                 <div class="alert alert-{{ 'danger' if category == 'error' else (category if category in ['success', 'warning', 'info'] else 'info') }} alert-dismissible fade show animate-pop-in mb-4" role="alert">
                                     <div class="d-flex align-items-center">
-                                        <i class="fas 
-                                            {% if category == 'success' or category == 'message' %}fa-check-circle 
-                                            {% elif category == 'error' or category == 'danger' %}fa-exclamation-circle 
-                                            {% elif category == 'warning' %}fa-exclamation-triangle 
-                                            {% else %}fa-info-circle{% endif %} 
+                                        <i class="fas
+                                            {% if category == 'success' or category == 'message' %}fa-check-circle
+                                            {% elif category == 'error' or category == 'danger' %}fa-exclamation-circle
+                                            {% elif category == 'warning' %}fa-exclamation-triangle
+                                            {% else %}fa-info-circle{% endif %}
                                             me-2 fs-5"></i>
                                         <div class="fw-medium">{{ message|safe }}</div>
                                     </div>
@@ -925,7 +922,7 @@
     <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <!-- Custom JavaScript -->
     <script>
         // Configuration CSRF pour toutes les requêtes fetch
@@ -951,13 +948,13 @@
             animatedElements.forEach((el, idx) => {
                 el.style.animationDelay = `${idx * 0.1}s`;
             });
-            
+
             // Initialiser les tooltips
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
             var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
                 return new bootstrap.Tooltip(tooltipTriggerEl);
             });
-            
+
             // Effet de navbar au scroll
             const navbar = document.querySelector('.navbar');
             window.addEventListener('scroll', function() {
@@ -969,7 +966,7 @@
                     navbar.style.backdropFilter = 'blur(10px)';
                 }
             });
-            
+
             // Auto-hide alerts après 5 secondes
             const alerts = document.querySelectorAll('.alert');
             alerts.forEach(alert => {
@@ -987,7 +984,7 @@
                 const selector = toggle.getAttribute('href') || toggle.getAttribute('data-bs-target');
                 const target = selector ? document.querySelector(selector) : null;
                 const chevron = toggle.querySelector('.fa-chevron-down');
-                
+
                 if (target && chevron) {
                     target.addEventListener('show.bs.collapse', () => {
                         chevron.style.transform = 'rotate(180deg)';
@@ -1079,7 +1076,7 @@
             }
         });
     </script>
-    
+
     <!-- Contexte utilisateur PWA (sans données sensibles) -->
     <div id="klasoraUserContext"
          data-authenticated="{{ 'true' if current_user.is_authenticated else 'false' }}"
@@ -1115,7 +1112,7 @@
     {% if current_user.is_authenticated and current_user.role == 'admin' %}
     <script src="{{ url_for('static', filename='js/onboarding.js', v=config.VERSION ~ '-tour2') }}"></script>
     {% endif %}
-    
+
     <!-- Scripts spécifiques aux pages -->
     {% block scripts %}{% endblock %}
     {% block extra_js %}{% endblock %}

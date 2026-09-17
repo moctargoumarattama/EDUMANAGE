@@ -22,15 +22,21 @@ from app.models import (
 )
 
 
+from flask import g
+
 def get_niveaux_annee(ecole_id: int, annee_scolaire_id: int):
-    """
-    Source canonique UNIQUE des niveaux de l'année scolaire.
-    Lit UNIQUEMENT AnneeNiveauConfig où actif=True.
-    Retourne la liste ordonnée des NiveauScolaire.
-    """
     if not ecole_id or not annee_scolaire_id:
         return []
-    return (
+
+    cache_key = '_niveaux_annee_cache'
+    if not hasattr(g, cache_key):
+        setattr(g, cache_key, {})
+
+    key = (ecole_id, annee_scolaire_id)
+    if key in g._niveaux_annee_cache:
+        return g._niveaux_annee_cache[key]
+
+    result = (
         NiveauScolaire.query
         .join(AnneeNiveauConfig, AnneeNiveauConfig.niveau_id == NiveauScolaire.id)
         .filter(
@@ -41,6 +47,16 @@ def get_niveaux_annee(ecole_id: int, annee_scolaire_id: int):
         .order_by(NiveauScolaire.ordre.asc())
         .all()
     )
+    g._niveaux_annee_cache[key] = result
+    return result
+
+    try:
+        if hasattr(g, '_niveaux_annee_cache'):
+            g._niveaux_annee_cache[cache_key] = niveaux
+    except RuntimeError:
+        pass
+
+    return niveaux
 
 
 def niveau_est_dans_structure(ecole_id: int, annee_scolaire_id: int, niveau_id: int) -> bool:
@@ -253,4 +269,3 @@ def verifier_integrite_classes(ecole_id: int = None):
             hors_structure.append(c)
 
     return hors_structure
-

@@ -3273,18 +3273,6 @@ body.auth-layout .main-content > .container {
     isolation: isolate;
 }
 
-.login-page::before {
-    content: "";
-    position: absolute;
-    inset: auto auto 8% 8%;
-    width: min(38vw, 520px);
-    aspect-ratio: 1;
-    background: url('../img/logo-edumanage.png') center / contain no-repeat;
-    opacity: 0.035;
-    filter: saturate(0.9);
-    z-index: -1;
-}
-
 .login-shell {
     width: min(100%, 378px);
     overflow: hidden;

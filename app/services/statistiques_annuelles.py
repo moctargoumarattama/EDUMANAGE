@@ -49,11 +49,27 @@ def _inscription_ids(ecole_id, annee_id):
 def _classes_annee(ecole_id, annee_id):
     if not ecole_id or not annee_id:
         return []
-    return (
+    from flask import g
+    key = (ecole_id, annee_id)
+    try:
+        if not hasattr(g, '_classes_annee_cache'):
+            g._classes_annee_cache = {}
+        if key in g._classes_annee_cache:
+            return g._classes_annee_cache[key]
+    except RuntimeError:
+        pass
+
+    classes = (
         Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_id)
         .order_by(Classe.nom.asc())
         .all()
     )
+    try:
+        if hasattr(g, '_classes_annee_cache'):
+            g._classes_annee_cache[key] = classes
+    except RuntimeError:
+        pass
+    return classes
 
 
 def get_dashboard_admin_annuel(ecole_id, annee):
@@ -62,33 +78,40 @@ def get_dashboard_admin_annuel(ecole_id, annee):
         return stats
 
     annee_id = annee.id
-    inscription_ids = _inscription_ids(ecole_id, annee_id)
-    classe_ids = [c.id for c in _classes_annee(ecole_id, annee_id)]
+    classes = _classes_annee(ecole_id, annee_id)
+    classe_ids = [c.id for c in classes]
     debut_mois = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    stats["total_eleves"] = len(inscription_ids)
+    from sqlalchemy.orm import selectinload
+    inscriptions = (
+        Inscription.query
+        .filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee_id
+        )
+        .options(selectinload(Inscription.paiements))
+        .all()
+    )
+
+    stats["total_eleves"] = len(inscriptions)
     stats["total_professeurs"] = Professeur.query.filter_by(ecole_id=ecole_id).count()
     stats["total_cours"] = (
         Cours.query.filter(Cours.ecole_id == ecole_id, Cours.classe_id.in_(classe_ids)).count()
         if classe_ids
         else 0
     )
+
     nb_impayes = 0
-    if inscription_ids:
-        inscriptions = Inscription.query.filter(
-            Inscription.ecole_id == ecole_id,
-            Inscription.annee_scolaire_id == annee_id
-        ).options(joinedload(Inscription.paiements), joinedload(Inscription.eleve)).all()
-        for ins in inscriptions:
-            fin = get_finances_inscription(ins)
-            if fin.get("reste_a_payer", 0) > 0:
-                nb_impayes += 1
+    eleves_nouveaux = 0
+    for ins in inscriptions:
+        fin = get_finances_inscription(ins)
+        if fin.get("reste_a_payer", 0) > 0:
+            nb_impayes += 1
+        if ins.date_inscription and ins.date_inscription >= debut_mois:
+            eleves_nouveaux += 1
+
     stats["paiements_attente"] = nb_impayes
-    stats["eleves_nouveaux"] = Inscription.query.filter(
-        Inscription.ecole_id == ecole_id,
-        Inscription.annee_scolaire_id == annee_id,
-        Inscription.date_inscription >= debut_mois,
-    ).count()
+    stats["eleves_nouveaux"] = eleves_nouveaux
     return stats
 
 
@@ -103,6 +126,7 @@ def get_professeur_dashboard_annuel(ecole_id, annee, professeur_id):
             Cours.professeur_id == professeur_id,
             Cours.classe_id.in_(classe_ids),
         )
+        .options(joinedload(Cours.classe))
         .order_by(Cours.nom.asc())
         .all()
         if classe_ids
@@ -117,13 +141,32 @@ def get_professeur_dashboard_annuel(ecole_id, annee, professeur_id):
             Note.cours_id.in_(cours_ids),
             Note.inscription_id.in_(inscription_ids),
         )
-        total_eleves = notes_query.with_entities(Note.eleve_id).distinct().count()
-        moyenne = db.session.query(db.func.avg(Note.valeur)).filter(
-            Note.ecole_id == ecole_id,
-            Note.cours_id.in_(cours_ids),
-            Note.inscription_id.in_(inscription_ids),
-        ).scalar() or 0
-        dernieres_notes = notes_query.order_by(Note.date_evaluation.desc()).limit(5).all()
+        stats_row = (
+            db.session.query(
+                db.func.count(db.func.distinct(Note.eleve_id)),
+                db.func.avg(Note.valeur)
+            )
+            .filter(
+                Note.ecole_id == ecole_id,
+                Note.cours_id.in_(cours_ids),
+                Note.inscription_id.in_(inscription_ids),
+            )
+            .first()
+        )
+        total_eleves = stats_row[0] if stats_row else 0
+        moyenne = round(float(stats_row[1]), 2) if (stats_row and stats_row[1] is not None) else 0
+
+        dernieres_notes = (
+            notes_query
+            .options(
+                joinedload(Note.eleve),
+                joinedload(Note.cours).joinedload(Cours.classe),
+                joinedload(Note.inscription).joinedload(Inscription.classe)
+            )
+            .order_by(Note.date_evaluation.desc(), Note.id.desc())
+            .limit(5)
+            .all()
+        )
     else:
         total_eleves = 0
         moyenne = 0

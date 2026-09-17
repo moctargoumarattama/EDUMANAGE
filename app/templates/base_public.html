@@ -147,7 +147,7 @@
                         <div class="position-relative rounded-3 overflow-hidden shadow-sm bg-dark border mx-auto" style="max-width: 320px;">
                             <div class="ratio bg-dark" style="--bs-aspect-ratio: 160%;">
                                 <video id="modalDemoVideo" autoplay muted playsinline loop controls preload="auto" class="w-100 h-100" style="object-fit: contain; background: #0f172a;">
-                                    <source src="{{ url_for('static', filename='video/Comment_KLASORA_Centralise_La_Gestion_Scolaire.mp4') }}" type="video/mp4">
+                                    <source src="{{ url_for('static', filename='video/KLASORA_FINAL.mp4') }}" type="video/mp4">
                                 </video>
                             </div>
                             <button id="modalUnmuteBtn" type="button" class="btn btn-sm btn-dark bg-opacity-75 text-white rounded-pill px-3 py-1 position-absolute bottom-0 end-0 m-2 border-0" style="z-index: 10; font-size: 0.75rem; backdrop-filter: blur(6px); width: auto; height: auto;">
@@ -278,11 +278,33 @@
 
             if (demoModal && modalVideo) {
                 demoModal.addEventListener('shown.bs.modal', function () {
+                    // Mettre en pause les vid├®os en arri├¿re-plan pour ├®viter la superposition des sons
+                    const heroVideo = document.getElementById('heroDemoVideo');
+                    if (heroVideo) heroVideo.pause();
+                    const mainVideo = document.getElementById('mainDemoVideo');
+                    if (mainVideo) mainVideo.pause();
+
                     modalVideo.muted = true;
                     modalVideo.play().catch(() => {});
                 });
                 demoModal.addEventListener('hidden.bs.modal', function () {
                     modalVideo.pause();
+
+                    // Relancer les vid├®os de la page (en muet par s├®curit├® navigateur)
+                    const heroVideo = document.getElementById('heroDemoVideo');
+                    if (heroVideo) {
+                        heroVideo.muted = true;
+                        heroVideo.play().catch(() => {});
+                        const btn = document.getElementById('heroUnmuteBtn');
+                        if (btn) btn.innerHTML = '<i class="fas fa-volume-mute me-1"></i>Activer le son';
+                    }
+                    const mainVideo = document.getElementById('mainDemoVideo');
+                    if (mainVideo) {
+                        mainVideo.muted = true;
+                        mainVideo.play().catch(() => {});
+                        const btn = document.getElementById('pageUnmuteBtn');
+                        if (btn) btn.innerHTML = '<i class="fas fa-volume-mute me-1"></i>Activer le son';
+                    }
                 });
             }
 

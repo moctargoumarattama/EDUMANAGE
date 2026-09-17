@@ -62,8 +62,14 @@ def get_creneaux_annee(ecole_id, annee, classe_id=None, professeur_id=None):
     if not annee:
         return []
 
+    from sqlalchemy.orm import joinedload
     query = (
         EmploiTemps.query.join(Classe, EmploiTemps.classe_id == Classe.id)
+        .options(
+            joinedload(EmploiTemps.classe),
+            joinedload(EmploiTemps.cours),
+            joinedload(EmploiTemps.professeur)
+        )
         .filter(
             Classe.ecole_id == ecole_id,
             Classe.annee_scolaire_id == annee.id,

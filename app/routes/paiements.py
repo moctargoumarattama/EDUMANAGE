@@ -233,6 +233,10 @@ def paiements():
                 Paiement.ecole_id == current_user.ecole_id,
                 Paiement.inscription_id.in_(ins_ids)
             )
+            .options(
+                joinedload(Paiement.inscription).joinedload(Inscription.eleve),
+                joinedload(Paiement.inscription).joinedload(Inscription.classe)
+            )
             .order_by(Paiement.date_paiement.desc(), Paiement.id.desc())
         )
     else:
@@ -243,7 +247,7 @@ def paiements():
     )
 
     all_eleves = [ins.eleve for ins in inscriptions_filtrees if ins.eleve]
-    niveaux = get_niveaux_annee(current_user.ecole_id, annee.id) if annee else []
+    niveaux = niveaux_annee
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
         return jsonify({
