@@ -1,0 +1,1344 @@
+/* ==========================================================================
+   KLASORA - Feuille de Style Vitrine Publique (Landing Page)
+   Conception moderne, premium, responsive (320px -> 1920px), ultra-légère.
+   ========================================================================== */
+
+:root {
+    --kl-navy: #1E3A8A;
+    --kl-navy-dark: #090D16;
+    --kl-blue: #2563EB;
+    --kl-blue-light: #3B82F6;
+    --kl-blue-soft: #EFF6FF;
+    --kl-blue-border: #DBEAFE;
+    --kl-slate-dark: #0F172A;
+    --kl-slate: #1E293B;
+    --kl-slate-light: #334155;
+    --kl-gray-bg: #F8FAFC;
+    --kl-border: #E2E8F0;
+    --kl-border-light: #F1F5F9;
+    --kl-white: #FFFFFF;
+    --kl-green: #059669;
+    --kl-green-soft: #ECFDF5;
+    --kl-amber: #D97706;
+    --kl-amber-soft: #FFFBEB;
+    
+    --kl-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
+    --kl-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+    --kl-shadow-lg: 0 16px 36px rgba(15, 23, 42, 0.12);
+    --kl-radius-sm: 8px;
+    --kl-radius-md: 12px;
+    --kl-radius-lg: 18px;
+    --kl-radius-xl: 24px;
+}
+
+/* --------------------------------------------------------------------------
+   RESET & STRUCTURE DE BASE
+   -------------------------------------------------------------------------- */
+html {
+    scroll-behavior: smooth;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+*, *::before, *::after {
+    box-sizing: inherit;
+}
+
+body.klasora-public-body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--kl-gray-bg);
+    color: #0F172A;
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+    overflow-x: hidden;
+    max-width: 100vw;
+    width: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* --------------------------------------------------------------------------
+   TYPOGRAPHIE & HIÉRARCHIE (NETTE, LISIBLE ET DESIGN PROPRE)
+   -------------------------------------------------------------------------- */
+.kl-title-h1 {
+    font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+    font-size: clamp(2rem, 4.2vw, 3.1rem);
+    font-weight: 800;
+    line-height: 1.18;
+    color: #090D16;
+    letter-spacing: -0.025em;
+    margin-bottom: 1.2rem;
+}
+
+.kl-title-h2 {
+    font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+    font-size: clamp(1.6rem, 3.2vw, 2.3rem);
+    font-weight: 800;
+    line-height: 1.22;
+    color: #090D16;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.75rem;
+}
+
+.kl-subtitle {
+    font-size: clamp(1.02rem, 1.8vw, 1.18rem);
+    color: #1E293B;
+    font-weight: 500;
+    line-height: 1.65;
+    max-width: 680px;
+    margin: 0 auto;
+}
+
+.kl-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #1D4ED8;
+    background-color: var(--kl-blue-soft);
+    border: 1px solid var(--kl-blue-border);
+    padding: 0.35rem 0.95rem;
+    border-radius: 9999px;
+    margin-bottom: 1rem;
+}
+
+/* --------------------------------------------------------------------------
+   HEADER PUBLIC & NAVIGATION RESPONSIVE
+   -------------------------------------------------------------------------- */
+.kl-header {
+    position: sticky;
+    top: 0;
+    z-index: 1050;
+    background-color: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--kl-border);
+    transition: all 0.25s ease;
+    padding: 0.75rem 0;
+}
+
+.kl-header.scrolled {
+    padding: 0.5rem 0;
+    box-shadow: var(--kl-shadow-sm);
+}
+
+.kl-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    text-decoration: none;
+    color: var(--kl-navy);
+}
+
+.kl-brand-logo {
+    width: 38px;
+    height: 38px;
+    object-fit: contain;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 1px solid var(--kl-border);
+}
+
+.kl-brand-name {
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--kl-navy);
+}
+
+.kl-nav-link {
+    color: var(--kl-slate);
+    font-weight: 500;
+    font-size: 0.94rem;
+    padding: 0.5rem 0.85rem !important;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.kl-nav-link:hover {
+    color: var(--kl-blue);
+}
+
+.kl-btn-login {
+    background-color: var(--kl-blue);
+    color: #ffffff !important;
+    font-weight: 600;
+    font-size: 0.92rem;
+    padding: 0.55rem 1.35rem;
+    border-radius: 8px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+}
+
+.kl-btn-login:hover {
+    background-color: var(--kl-navy);
+    color: #ffffff !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.25);
+}
+
+.kl-btn-demo-nav {
+    color: var(--kl-navy) !important;
+    background-color: var(--kl-blue-soft);
+    font-weight: 600;
+    font-size: 0.92rem;
+    padding: 0.55rem 1.15rem;
+    border-radius: 8px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--kl-blue-border);
+    transition: all 0.2s ease;
+}
+
+.kl-btn-demo-nav:hover {
+    background-color: #DBEAFE;
+    color: var(--kl-blue) !important;
+}
+
+/* --------------------------------------------------------------------------
+   HERO SECTION & PRODUIT VISUEL RÉEL
+   -------------------------------------------------------------------------- */
+.kl-hero-section {
+    padding: 3.5rem 0 3rem 0;
+    background: linear-gradient(180deg, #FFFFFF 0%, var(--kl-gray-bg) 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.kl-hero-cta-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 1.75rem;
+}
+
+.kl-btn-cta-primary {
+    background-color: var(--kl-blue);
+    color: #ffffff !important;
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 0.85rem 1.75rem;
+    border-radius: 10px;
+    border: none;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+    transition: all 0.2s ease;
+}
+
+.kl-btn-cta-primary:hover {
+    background-color: var(--kl-navy);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(30, 58, 138, 0.35);
+}
+
+.kl-btn-cta-secondary {
+    background-color: #FFFFFF;
+    color: var(--kl-navy-dark) !important;
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 0.85rem 1.65rem;
+    border-radius: 10px;
+    border: 1.5px solid var(--kl-border);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.kl-btn-cta-secondary:hover {
+    background-color: var(--kl-blue-soft);
+    border-color: var(--kl-blue);
+    color: var(--kl-blue) !important;
+}
+
+/* Composition Produit Réel : Écran Ordinateur + Téléphone */
+.kl-product-stage {
+    position: relative;
+    max-width: 580px;
+    margin: 0 auto;
+}
+
+.kl-laptop-frame {
+    background: #0F172A;
+    border-radius: 14px 14px 4px 4px;
+    padding: 10px 10px 0 10px;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+    border: 1px solid #334155;
+    position: relative;
+}
+
+.kl-laptop-screen {
+    background: #F8FAFC;
+    border-radius: 8px 8px 0 0;
+    overflow: hidden;
+    border: 1px solid #E2E8F0;
+}
+
+.kl-laptop-bar {
+    background: #FFFFFF;
+    border-bottom: 1px solid #E2E8F0;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.kl-bar-dots {
+    display: flex;
+    gap: 5px;
+}
+
+.kl-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+}
+.kl-dot.red { background: #EF4444; }
+.kl-dot.yellow { background: #F59E0B; }
+.kl-dot.green { background: #10B981; }
+
+.kl-bar-url {
+    background: #F1F5F9;
+    border-radius: 4px;
+    padding: 2px 10px;
+    font-size: 0.68rem;
+    color: #64748B;
+    font-family: monospace;
+    flex: 1;
+    text-align: center;
+}
+
+.kl-laptop-content {
+    padding: 12px;
+    background: #F8FAFC;
+}
+
+.kl-dash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.kl-dash-school {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--kl-navy);
+}
+
+.kl-dash-badge {
+    font-size: 0.65rem;
+    background: #DCFCE7;
+    color: #15803D;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+.kl-dash-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.kl-dash-stat {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    padding: 6px 8px;
+    text-align: left;
+}
+
+.kl-dash-stat small {
+    display: block;
+    font-size: 0.62rem;
+    color: #64748B;
+}
+
+.kl-dash-stat strong {
+    font-size: 0.88rem;
+    color: #0F172A;
+    font-weight: 700;
+}
+
+.kl-dash-table-preview {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.kl-table-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--kl-slate-dark);
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.kl-table-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid #F1F5F9;
+    font-size: 0.68rem;
+}
+
+.kl-table-row:last-child {
+    border-bottom: none;
+}
+
+.kl-laptop-base {
+    height: 12px;
+    background: #334155;
+    border-radius: 0 0 16px 16px;
+    margin: 0 -15px;
+    position: relative;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.kl-laptop-base::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 4px;
+    background: #64748B;
+    border-radius: 0 0 4px 4px;
+}
+
+/* Smartphone compagnon superposé */
+.kl-phone-frame {
+    position: absolute;
+    bottom: -20px;
+    right: -15px;
+    width: 175px;
+    background: #0F172A;
+    border-radius: 20px;
+    padding: 6px;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.28);
+    border: 1px solid #334155;
+    z-index: 2;
+}
+
+.kl-phone-notch {
+    width: 45px;
+    height: 4px;
+    background: #334155;
+    border-radius: 4px;
+    margin: 2px auto 6px auto;
+}
+
+.kl-phone-screen {
+    background: #FFFFFF;
+    border-radius: 14px;
+    padding: 10px 8px;
+    font-size: 0.62rem;
+}
+
+.kl-phone-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 6px;
+    color: var(--kl-navy);
+    font-weight: 700;
+}
+
+.kl-phone-card {
+    background: var(--kl-blue-soft);
+    border: 1px solid var(--kl-blue-border);
+    border-radius: 6px;
+    padding: 6px;
+    margin-bottom: 6px;
+}
+
+.kl-phone-card strong {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--kl-navy);
+}
+
+.kl-phone-badge {
+    display: inline-block;
+    background: #10B981;
+    color: #FFFFFF;
+    font-size: 0.55rem;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-top: 3px;
+}
+
+/* --------------------------------------------------------------------------
+   SECTION 2 : FONCTIONNALITÉS ESSENTIELLES (8 CARTES COMPACTES)
+   -------------------------------------------------------------------------- */
+.kl-features-section {
+    padding: 4.5rem 0;
+    background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
+    color: #FFFFFF;
+    border-top: 1px solid var(--kl-border);
+    border-bottom: 1px solid var(--kl-border);
+    position: relative;
+    overflow: hidden;
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+}
+
+.kl-features-section .kl-title-h2 {
+    color: #FFFFFF !important;
+}
+
+.kl-features-section .kl-subtitle {
+    color: #E2E8F0 !important;
+    font-weight: 500;
+}
+
+.kl-features-section .kl-kicker {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #93C5FD !important;
+    border-color: rgba(255, 255, 255, 0.25);
+    font-weight: 700;
+}
+
+.kl-features-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.25rem;
+    margin-top: 2.2rem;
+}
+
+.kl-feature-card {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: var(--kl-radius-md);
+    padding: 1.35rem 1.15rem;
+    transition: all 0.25s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.kl-feature-card:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: #60A5FA;
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+}
+
+.kl-feature-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: rgba(37, 99, 235, 0.4);
+    color: #93C5FD;
+    border: 1px solid rgba(147, 197, 253, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+}
+
+.kl-feature-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: #FFFFFF !important;
+    margin-bottom: 0.35rem;
+    letter-spacing: -0.01em;
+}
+
+.kl-feature-text {
+    font-size: 0.88rem;
+    color: #F1F5F9 !important;
+    line-height: 1.55;
+    font-weight: 450;
+    margin-bottom: 0;
+}
+
+/* --------------------------------------------------------------------------
+   SECTION 3 : SCHÉMA DES RÔLES (ADMINISTRATION / PROFS / PARENTS)
+   -------------------------------------------------------------------------- */
+.kl-roles-section {
+    padding: 4.5rem 0;
+    background-color: var(--kl-gray-bg);
+}
+
+.kl-role-tree {
+    max-width: 920px;
+    margin: 2.5rem auto 0 auto;
+    position: relative;
+}
+
+/* Noeud Sommet : Établissement */
+.kl-tree-top {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.kl-tree-node-school {
+    background: #FFFFFF;
+    border: 2px solid var(--kl-navy);
+    color: var(--kl-navy);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 1.05rem;
+    padding: 0.65rem 2rem;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    box-shadow: var(--kl-shadow-sm);
+    letter-spacing: 0.04em;
+}
+
+.kl-tree-arrow-down {
+    text-align: center;
+    color: var(--kl-blue);
+    font-size: 1.25rem;
+    margin: -0.75rem 0 0.75rem 0;
+}
+
+.kl-tree-pyramid-arrows {
+    margin: -0.75rem 0 1rem 0;
+    color: var(--kl-blue);
+    font-size: 1.2rem;
+}
+
+.kl-arrow-left {
+    transform: rotate(25deg);
+}
+
+.kl-arrow-right {
+    transform: rotate(-25deg);
+}
+
+/* Noeud Central : Administration (Sommet Pyramide) */
+.kl-tree-admin-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.kl-role-card-admin {
+    background: #FFFFFF;
+    border: 1.5px solid var(--kl-blue);
+    border-radius: var(--kl-radius-md);
+    padding: 1.35rem 1.75rem;
+    box-shadow: var(--kl-shadow-md);
+    max-width: 600px;
+    width: 100%;
+    text-align: center;
+    position: relative;
+}
+
+.kl-role-card-admin .kl-role-badge {
+    background-color: var(--kl-navy);
+    color: #FFFFFF;
+}
+
+.kl-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.3rem 0.85rem;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+}
+
+.kl-role-card-admin h3,
+.kl-role-subcard h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.18rem;
+    font-weight: 800;
+    color: #090D16;
+    margin-bottom: 0.5rem;
+}
+
+.kl-role-list {
+    list-style: none;
+    padding-left: 0;
+    margin-bottom: 0;
+    font-size: 0.90rem;
+    color: #0F172A;
+    font-weight: 500;
+    text-align: left;
+}
+
+.kl-role-list li {
+    position: relative;
+    padding-left: 1.35rem;
+    margin-bottom: 0.4rem;
+    color: #0F172A;
+}
+
+.kl-role-list li:last-child {
+    margin-bottom: 0;
+}
+
+.kl-role-list li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: var(--kl-blue);
+    font-weight: 800;
+}
+
+/* Branches Basses : Professeurs & Parents (Deux en bas de la Pyramide) */
+.kl-tree-branches {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.75rem;
+    position: relative;
+}
+
+.kl-role-subcard {
+    background: #FFFFFF;
+    border: 1px solid var(--kl-border);
+    border-radius: var(--kl-radius-md);
+    padding: 1.35rem 1.5rem;
+    box-shadow: var(--kl-shadow-sm);
+    transition: all 0.2s ease;
+    min-width: 0;
+}
+
+.kl-role-subcard:hover {
+    border-color: var(--kl-blue);
+    box-shadow: var(--kl-shadow-md);
+}
+
+.kl-role-subcard.teacher .kl-role-badge {
+    background-color: #0284C7;
+    color: #FFFFFF;
+}
+
+.kl-role-subcard.parent .kl-role-badge {
+    background-color: #059669;
+    color: #FFFFFF;
+}
+
+.kl-roles-tagline {
+    text-align: center;
+    font-size: 0.96rem;
+    font-weight: 600;
+    color: #0F172A;
+    margin-top: 2rem;
+    padding: 0.65rem 1.25rem;
+    background: #FFFFFF;
+    border-radius: 8px;
+    border: 1px dashed var(--kl-border);
+    display: inline-block;
+}
+
+/* --------------------------------------------------------------------------
+   SECTION 4 : SÉCURITÉ & À PROPOS (CONCENTRÉ EN 1 ZONE HARMONIEUSE)
+   -------------------------------------------------------------------------- */
+.kl-trust-section {
+    padding: 4.5rem 0;
+    background-color: #FFFFFF;
+    border-top: 1px solid var(--kl-border);
+    border-bottom: 1px solid var(--kl-border);
+}
+
+.kl-security-box {
+    background: var(--kl-gray-bg);
+    border: 1px solid var(--kl-border);
+    border-radius: var(--kl-radius-lg);
+    padding: 2rem;
+    height: 100%;
+}
+
+.kl-security-points {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.75rem;
+    margin: 1.25rem 0;
+}
+
+.kl-sec-point {
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+    background: #ffffff;
+    border: 1px solid var(--kl-border);
+    border-radius: var(--kl-radius-md);
+    padding: 0.75rem 0.85rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    height: 100%;
+}
+
+.kl-sec-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: var(--kl-blue-soft);
+    color: var(--kl-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.88rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.kl-sec-text strong {
+    display: block;
+    font-size: 0.92rem;
+    color: #090D16;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.kl-sec-text small {
+    font-size: 0.80rem;
+    color: #334155;
+    font-weight: 500;
+}
+
+.kl-about-box {
+    background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%);
+    border: 1px solid var(--kl-blue-border);
+    border-radius: var(--kl-radius-lg);
+    padding: 2rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.kl-about-quote {
+    font-size: 1.02rem;
+    line-height: 1.65;
+    color: var(--kl-navy-dark);
+    font-weight: 450;
+    margin: 1rem 0;
+    border-left: 3px solid var(--kl-blue);
+    padding-left: 1rem;
+}
+
+.kl-about-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 1rem;
+}
+
+.kl-about-tag {
+    background: #FFFFFF;
+    border: 1px solid var(--kl-border);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--kl-navy);
+    padding: 0.3rem 0.75rem;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* --------------------------------------------------------------------------
+   SECTION 5 : CTA FINAL
+   -------------------------------------------------------------------------- */
+.kl-cta-section {
+    padding: 4.5rem 0;
+    background: linear-gradient(135deg, var(--kl-navy-dark) 0%, var(--kl-navy) 100%);
+    color: #FFFFFF;
+    text-align: center;
+    position: relative;
+}
+
+.kl-cta-section .kl-title-h2 {
+    color: #FFFFFF;
+}
+
+.kl-cta-section .kl-subtitle {
+    color: #CBD5E1;
+}
+
+.kl-cta-actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.kl-btn-cta-light {
+    background-color: #FFFFFF;
+    color: var(--kl-navy) !important;
+    font-weight: 700;
+    font-size: 1.05rem;
+    padding: 0.85rem 2rem;
+    border-radius: 10px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.kl-btn-cta-light:hover {
+    background-color: #F8FAFC;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.kl-btn-cta-transparent {
+    background-color: transparent;
+    color: #FFFFFF !important;
+    font-weight: 600;
+    font-size: 1.05rem;
+    padding: 0.85rem 1.85rem;
+    border-radius: 10px;
+    border: 1.5px solid rgba(255, 255, 255, 0.4);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.kl-btn-cta-transparent:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: #FFFFFF;
+}
+
+/* --------------------------------------------------------------------------
+   FOOTER COMPACT AVEC LES 4 LIENS (ÉLÉGANT & ÉPURÉ)
+   -------------------------------------------------------------------------- */
+.kl-footer {
+    background-color: #0B1120;
+    color: #94A3B8;
+    padding: 2rem 0 1.5rem 0;
+    font-size: 0.9rem;
+    border-top: 1px solid #1E293B;
+}
+
+.kl-footer a {
+    color: #CBD5E1;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.kl-footer a:hover {
+    color: #3B82F6;
+}
+
+.kl-footer-bottom {
+    margin-top: 0.75rem;
+}
+}
+
+.kl-footer-links li {
+    margin-bottom: 0.45rem;
+}
+
+.kl-footer-bottom {
+    border-top: 1px solid #1E293B;
+    margin-top: 2.2rem;
+    padding-top: 1.5rem;
+    text-align: center;
+    font-size: 0.8rem;
+}
+
+/* Pages Détaillées (Sécurité & Confidentialité) */
+.kl-page-content-box {
+    background: #FFFFFF;
+    border: 1px solid var(--kl-border);
+    border-radius: var(--kl-radius-lg);
+    padding: 2.5rem;
+    margin: 2.5rem 0 4rem 0;
+    box-shadow: var(--kl-shadow-sm);
+}
+
+.kl-page-content-box h2 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--kl-navy);
+    margin-top: 1.8rem;
+    margin-bottom: 0.6rem;
+    border-bottom: 1px solid #F1F5F9;
+    padding-bottom: 0.4rem;
+}
+
+.kl-page-content-box p,
+.kl-page-content-box li {
+    color: var(--kl-slate);
+    font-size: 0.94rem;
+    line-height: 1.7;
+}
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE MEDIA QUERIES STRICTES (320px -> 1920px)
+   -------------------------------------------------------------------------- */
+@media (max-width: 1200px) {
+    .kl-features-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .kl-features-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+
+    .kl-feature-card {
+        padding: 1rem 0.85rem;
+        border-radius: 10px;
+    }
+
+    .kl-feature-icon-wrap {
+        width: 38px;
+        height: 38px;
+        font-size: 1.05rem;
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+    }
+
+    .kl-feature-title {
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .kl-feature-text {
+        font-size: 0.8rem;
+        line-height: 1.4;
+    }
+
+    .kl-hero-section {
+        padding: 2.5rem 0 2rem 0;
+    }
+    
+    .kl-hero-cta-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .kl-btn-cta-primary,
+    .kl-btn-cta-secondary {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .kl-product-stage {
+        margin-top: 2.5rem;
+    }
+
+    .kl-dash-stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .kl-laptop-base {
+        margin: 0;
+    }
+
+    .kl-phone-frame {
+        width: 140px;
+        right: 0px;
+        bottom: -15px;
+    }
+
+    .kl-tree-branches {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+    }
+
+    .kl-role-card-admin {
+        padding: 1.15rem 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .kl-role-subcard {
+        padding: 1rem 0.85rem;
+        border-radius: 10px;
+    }
+
+    .kl-role-subcard h3 {
+        font-size: 0.98rem;
+    }
+
+    .kl-role-list {
+        font-size: 0.78rem;
+        line-height: 1.4;
+    }
+
+    .kl-security-points {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    .kl-cta-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .kl-btn-cta-light,
+    .kl-btn-cta-transparent {
+        justify-content: center;
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .kl-features-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)); /* 2 cartes par ligne comme sur PC ! */
+        gap: 0.5rem;
+        margin-top: 1.25rem;
+    }
+
+    .kl-feature-card {
+        padding: 0.75rem 0.55rem;
+        border-radius: 10px;
+    }
+
+    .kl-feature-icon-wrap {
+        width: 32px;
+        height: 32px;
+        font-size: 0.88rem;
+        border-radius: 8px;
+        margin-bottom: 0.45rem;
+    }
+
+    .kl-feature-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        margin-bottom: 0.2rem;
+        line-height: 1.25;
+        word-break: break-word;
+    }
+
+    .kl-feature-text {
+        font-size: 0.70rem;
+        line-height: 1.35;
+    }
+
+    .kl-product-stage {
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .kl-laptop-frame {
+        max-width: 100%;
+        padding: 6px 6px 0 6px;
+    }
+
+    .kl-laptop-screen {
+        max-width: 100%;
+    }
+
+    .kl-laptop-content {
+        padding: 8px;
+    }
+
+    .kl-dash-school {
+        font-size: 0.68rem;
+    }
+
+    .kl-bar-url {
+        font-size: 0.58rem;
+        padding: 2px 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .kl-dash-stat-grid {
+        gap: 4px;
+    }
+
+    .kl-dash-stat {
+        padding: 4px 6px;
+    }
+
+    .kl-dash-stat small {
+        font-size: 0.55rem;
+    }
+
+    .kl-dash-stat strong {
+        font-size: 0.75rem;
+    }
+
+    .kl-table-row {
+        font-size: 0.60rem;
+    }
+
+    .kl-table-row span:first-child {
+        max-width: 105px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .kl-laptop-base {
+        margin: 0;
+        max-width: 100%;
+    }
+
+    .kl-phone-frame {
+        display: none; /* Simplification sur écrans < 480px pour zéro overflow */
+    }
+
+    /* Pyramide des rôles sur mobile : Admin en haut, deux en bas */
+    .kl-tree-branches {
+        grid-template-columns: repeat(2, minmax(0, 1fr)); /* Deux en bas comme la pyramide ! */
+        gap: 0.5rem;
+    }
+
+    .kl-tree-node-school {
+        font-size: 0.85rem;
+        padding: 0.45rem 1.25rem;
+    }
+
+    .kl-role-card-admin {
+        padding: 0.85rem 0.7rem;
+        border-radius: 10px;
+        margin-bottom: 0.75rem;
+    }
+
+    .kl-role-card-admin h3 {
+        font-size: 0.92rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .kl-role-subcard {
+        padding: 0.75rem 0.55rem;
+        border-radius: 10px;
+    }
+
+    .kl-role-subcard h3 {
+        font-size: 0.82rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        line-height: 1.25;
+        word-break: break-word;
+    }
+
+    .kl-role-badge {
+        font-size: 0.65rem;
+        padding: 0.2rem 0.5rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .kl-role-list {
+        font-size: 0.68rem;
+        line-height: 1.35;
+    }
+
+    .kl-role-list li {
+        padding-left: 0.95rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .kl-tree-pyramid-arrows {
+        font-size: 0.9rem;
+        margin: -0.25rem 0 0.5rem 0;
+    }
+
+    .kl-roles-tagline {
+        font-size: 0.78rem;
+        padding: 0.5rem 0.75rem;
+        margin-top: 1.25rem;
+    }
+
+    .kl-page-content-box {
+        padding: 1.5rem 1.15rem;
+    }
+}
+
+@media (max-width: 360px) {
+    .kl-features-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.4rem;
+    }
+
+    .kl-feature-card {
+        padding: 0.65rem 0.45rem;
+    }
+
+    .kl-feature-title {
+        font-size: 0.78rem;
+    }
+
+    .kl-feature-text {
+        font-size: 0.66rem;
+        line-height: 1.25;
+    }
+
+    .kl-tree-branches {
+        gap: 0.35rem;
+    }
+
+    .kl-role-card-admin {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .kl-role-subcard {
+        padding: 0.65rem 0.45rem;
+    }
+
+    .kl-role-subcard h3 {
+        font-size: 0.76rem;
+    }
+
+    .kl-role-badge {
+        font-size: 0.60rem;
+        padding: 0.15rem 0.4rem;
+    }
+
+    .kl-role-list {
+        font-size: 0.64rem;
+        line-height: 1.25;
+    }
+
+    .kl-role-list li {
+        padding-left: 0.8rem;
+    }
+
+    .kl-brand-name {
+        font-size: 1.15rem;
+    }
+
+    .kl-btn-login {
+        padding: 0.45rem 0.9rem;
+        font-size: 0.85rem;
+    }
+}
+

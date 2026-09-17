@@ -1421,3 +1421,37 @@ class SupportTicket(db.Model):
             "resolved_at": self.resolved_at.strftime('%d/%m/%Y %H:%M') if self.resolved_at else None,
         }
 
+
+# -----------------------------------------------------------------------------
+# Modèle Demandes de Présentation KLASORA (Demandes de contact vitrine publique)
+# -----------------------------------------------------------------------------
+class DemandePresentation(db.Model):
+    __tablename__ = 'demande_presentation'
+
+    id = db.Column(db.Integer, primary_key=True)
+    nom_ecole = db.Column(db.String(150), nullable=False)
+    telephone = db.Column(db.String(50), nullable=False)
+    email = db.Column(db.String(120), nullable=True)
+    ville = db.Column(db.String(100), nullable=True)
+    message = db.Column(db.Text, nullable=True)
+    statut = db.Column(db.String(30), nullable=False, default='nouvelle', index=True)  # 'nouvelle', 'contactee', 'traitee', 'archivee'
+    notes_admin = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f"<DemandePresentation id={self.id} ecole='{self.nom_ecole}' statut='{self.statut}'>"
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "nom_ecole": self.nom_ecole,
+            "telephone": self.telephone,
+            "email": self.email,
+            "ville": self.ville,
+            "message": self.message,
+            "statut": self.statut,
+            "notes_admin": self.notes_admin,
+            "created_at": self.created_at.strftime("%d/%m/%Y %H:%M") if self.created_at else None
+        }
+
+

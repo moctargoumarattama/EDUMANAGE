@@ -1,0 +1,73 @@
+{% extends "base_public.html" %}
+
+{% block title %}Politique de Confidentialité — KLASORA{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Fil d'Ariane -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}" class="text-decoration-none text-primary"><i class="fas fa-home me-1"></i>Accueil</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Politique de confidentialité</li>
+        </ol>
+    </nav>
+
+    <div class="kl-page-content-box mx-auto" style="max-width: 860px;">
+        <span class="kl-kicker mb-2">Protection des Données</span>
+        <h1 class="kl-title-h1 fs-2 mb-3">Politique de Confidentialité</h1>
+        <p class="text-muted small">Dernière mise à jour : Septembre 2026</p>
+
+        <hr class="my-4">
+
+        <h2>1. Engagement Général</h2>
+        <p>
+            KLASORA est une plateforme logicielle conçue pour accompagner les établissements scolaires dans leur gestion administrative et pédagogique. La protection de la vie privée des élèves, des parents et du personnel éducatif est au cœur de notre conception logicielle.
+        </p>
+
+        <h2>2. Rôle de l'Établissement et de KLASORA</h2>
+        <p>
+            L’établissement scolaire abonné à KLASORA demeure l'unique responsable du traitement des données personnelles de ses élèves, de leurs familles et de son personnel. KLASORA intervient exclusivement en qualité de prestataire technique et sous-traitant sécurisé.
+        </p>
+
+        <h2>3. Données Traitées & Finalités</h2>
+        <p>Les données renseignées par l'établissement sont limitées à ce qui est strictement nécessaire au fonctionnement de la scolarité :</p>
+        <ul>
+            <li><strong>Dossier de l'élève :</strong> Nom, prénom, date de naissance, classe, matricule interne, photo facultative.</li>
+            <li><strong>Parcours pédagogique :</strong> Notes, moyennes, appréciations, coefficients, rangs et décisions du conseil de classe.</li>
+            <li><strong>Assiduité :</strong> Enregistrement des retards et absences en classe.</li>
+            <li><strong>Coordonnées des parents ou tuteurs :</strong> Nom, numéro de téléphone / WhatsApp et email pour la transmission des avis scolaires et reçus.</li>
+            <li><strong>Scolarité et finances scolaires :</strong> Échéances de frais scolaires, enregistrement des règlements et édition des reçus.</li>
+        </ul>
+
+        <h2>4. Non-Commercialisation des Données</h2>
+        <p>
+            <strong>KLASORA ne vend, ne loue et ne commercialise aucune donnée personnelle.</strong> Aucune donnée scolaire n'est exploitée à des fins publicitaires, commerciales ou de profilage.
+        </p>
+
+        <h2>5. Cloisonnement Multi-Établissements</h2>
+        <p>
+            L'architecture de KLASORA assure une séparation hermétique des bases et requêtes par identifiant d'établissement (<code>ecole_id</code>). Aucun utilisateur d'un établissement ne peut consulter, rechercher ou modifier les données d'un autre établissement.
+        </p>
+
+        <h2>6. Vérification Publique des Bulletins (QR Code)</h2>
+        <p>
+            Les bulletins édités intègrent un QR code permettant de vérifier publiquement l'authenticité du document officiel. La page de vérification affiche uniquement les données académiques publiques du bulletin (nom, prénom, classe, moyenne et mention) sous l'identité de l'école émettrice, sans jamais divulguer les contacts personnels ou coordonnées privées de la famille.
+        </p>
+
+        <h2>7. Droits d'Accès et de Rectification</h2>
+        <p>
+            Conformément aux réglementations relatives à la protection des données personnelles, les parents et élèves peuvent exercer leurs droits d'accès, de rectification ou d'effacement de leurs informations scolaires directement auprès de la direction de leur établissement.
+        </p>
+
+        <div class="mt-5 pt-4 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i>Retour à l'accueil
+            </a>
+            <a href="{{ url_for('main.securite') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-shield-alt me-1"></i>Consulter la page Sécurité
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

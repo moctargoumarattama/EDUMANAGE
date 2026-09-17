@@ -1,0 +1,68 @@
+{% extends "base_public.html" %}
+
+{% block title %}Sécurité des Données — KLASORA{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <!-- Fil d'Ariane -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}" class="text-decoration-none text-primary"><i class="fas fa-home me-1"></i>Accueil</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Sécurité des données</li>
+        </ol>
+    </nav>
+
+    <div class="kl-page-content-box mx-auto" style="max-width: 860px;">
+        <span class="kl-kicker mb-2">Transparence Technique</span>
+        <h1 class="kl-title-h1 fs-2 mb-3">Sécurité & Protection des Données Scolaires</h1>
+        <p class="text-muted small">Présentation factuelle des mécanismes de protection mis en œuvre sur KLASORA.</p>
+
+        <hr class="my-4">
+
+        <h2>1. Accès Sécurisés Selon les Rôles</h2>
+        <p>
+            L’accès à l’application repose sur un modèle de permissions étanches. Chaque utilisateur n’accède qu’aux modules et aux données strictement nécessaires à sa fonction :
+        </p>
+        <ul>
+            <li><strong>Direction & Administration :</strong> Gestion complète de l’école (élèves, inscriptions, finances, bulletins).</li>
+            <li><strong>Professeurs :</strong> Accès restreint exclusivement à leurs classes et matières attribuées pour la saisie des notes et de l’appel.</li>
+            <li><strong>Parents :</strong> Consultation restreinte et en lecture seule des seules informations relatives à leurs propres enfants.</li>
+        </ul>
+
+        <h2>2. Séparation Hermétique des Établissements</h2>
+        <p>
+            Chaque école dispose d’un identifiant unique (<code>ecole_id</code>). Toutes les requêtes de consultation, de saisie ou d’exportation sont filtrées au niveau applicatif et de la base de données. Il est techniquement impossible pour un établissement d’accéder aux élèves, aux comptes ou aux statistiques d'un autre établissement.
+        </p>
+
+        <h2>3. Sauvegardes Régulières</h2>
+        <p>
+            Pour prévenir tout risque d’incident technique ou de perte accidentelle, des procédures de sauvegarde automatisées quotidiennes sont configurées pour chaque établissement. Les sauvegardes peuvent également être déclenchées manuellement par la direction avant chaque rentrée scolaire ou clôture de période.
+        </p>
+
+        <h2>4. Chiffrement des Communications (HTTPS / TLS)</h2>
+        <p>
+            Tous les échanges entre le navigateur de l’utilisateur et la plateforme transitent par un protocole chiffré HTTPS (TLS), protégeant les identifiants, mots de passe et données de scolarité contre toute interception sur le réseau.
+        </p>
+
+        <h2>5. Documents Vérifiables par QR Code</h2>
+        <p>
+            Les bulletins scolaires officiels édités par KLASORA comportent un QR code contenant un identifiant cryptographique unique. Toute personne scannant le code (parent, université, administration) est redirigée vers une page de vérification officielle attestant que les notes présentées sur le papier correspondent exactement à celles validées par le conseil de classe.
+        </p>
+
+        <h2>6. Protection des Mots de Passe & Sessions</h2>
+        <p>
+            Les mots de passe ne sont jamais stockés en clair. Ils font l'objet d'un hachage cryptographique sécurisé (PBKDF2/SHA-256). Les tentatives de connexion répétées sont régulées par un système de limitation de débit (rate limiting) pour contrer les attaques par force brute.
+        </p>
+
+        <div class="mt-5 pt-4 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i>Retour à l'accueil
+            </a>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#demoModal">
+                <i class="fas fa-play-circle me-1"></i>Demander une présentation
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

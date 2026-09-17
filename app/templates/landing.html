@@ -1,0 +1,336 @@
+{% extends "base_public.html" %}
+
+{% block title %}KLASORA — Plateforme Moderne de Gestion Scolaire Centralisée{% endblock %}
+
+{% block content %}
+
+<!-- ========================================================================
+     ZONE 1 : HERO SECTION (COMPRENDRE KLASORA EN 20 SECONDES)
+     ======================================================================== -->
+<section class="kl-hero-section">
+    <div class="container">
+        <div class="row align-items-center g-5">
+            <!-- Colonne Texte & CTAs -->
+            <div class="col-lg-6 text-start">
+                <span class="kl-kicker">
+                    <i class="fas fa-sparkles"></i> Une gestion scolaire moderne, simple et centralisée.
+                </span>
+
+                <h1 class="kl-title-h1">
+                    Tout votre établissement scolaire, dans une seule plateforme.
+                </h1>
+
+                <p class="kl-subtitle mx-0 mb-4">
+                    Élèves, enseignants, notes, absences, paiements, bulletins, emplois du temps et suivi administratif.
+                </p>
+
+                <div class="kl-hero-cta-group">
+                    <button type="button" class="kl-btn-cta-primary" data-bs-toggle="modal" data-bs-target="#demoModal">
+                        <i class="fas fa-play-circle"></i>
+                        <span>Demander une présentation</span>
+                    </button>
+                    <a href="{{ url_for('main.login') }}" class="kl-btn-cta-secondary">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>Se connecter</span>
+                    </a>
+                </div>
+
+            </div>
+
+            <!-- Colonne Visuelle : Vidéo de Présentation Officielle KLASORA -->
+            <div class="col-lg-6 text-center">
+                <div class="position-relative rounded-4 overflow-hidden shadow-lg border bg-dark mx-auto" style="max-width: 360px;">
+                    <div class="ratio bg-dark" style="--bs-aspect-ratio: 160%;">
+                        <video id="heroDemoVideo" autoplay muted playsinline loop controls preload="auto" class="w-100 h-100 rounded-4" style="object-fit: contain; background: #0f172a;">
+                            <source src="{{ url_for('static', filename='video/Comment_KLASORA_Centralise_La_Gestion_Scolaire.mp4') }}" type="video/mp4">
+                            Votre navigateur ne prend pas en charge la lecture vidéo HTML5.
+                        </video>
+                    </div>
+                    <button id="heroUnmuteBtn" type="button" class="btn btn-sm btn-dark bg-opacity-75 text-white rounded-pill px-3 py-1 position-absolute bottom-0 end-0 m-3 border-0" style="z-index: 10; font-size: 0.78rem; backdrop-filter: blur(6px); width: auto; height: auto;">
+                        <i class="fas fa-volume-mute me-1"></i>Activer le son
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========================================================================
+     ZONE 2 : FONCTIONNALITÉS ESSENTIELLES (8 CARTES COMPACTES)
+     ======================================================================== -->
+<section class="kl-features-section" id="fonctionnalites">
+    <div class="container">
+        <div class="text-center mb-4">
+            <span class="kl-kicker">Modules Intégrés</span>
+            <h2 class="kl-title-h2">Tout ce qu’il faut pour gérer votre établissement</h2>
+            <p class="kl-subtitle">
+                Des outils simples et connectés pour piloter chaque aspect de la vie scolaire sans complexité inutile.
+            </p>
+        </div>
+
+        <div class="kl-features-grid">
+            <!-- Carte 1 : Élèves & classes -->
+            <div class="kl-feature-card">
+                <div class="kl-feature-icon-wrap">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
+                <h3 class="kl-feature-title">Élèves & classes</h3>
+                <p class="kl-feature-text">Inscriptions, dossiers scolaires et répartition structurée par classe et filière.</p>
+            </div>
+
+            <!-- Carte 2 : Professeurs -->
+            <div class="kl-feature-card">
+                <div class="kl-feature-icon-wrap">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                </div>
+                <h3 class="kl-feature-title">Professeurs</h3>
+                <p class="kl-feature-text">Gestion des enseignants, affectations des matières et suivi direct des attributions.</p>
+            </div>
+
+            <!-- Carte 3 : Notes & évaluations -->
+            <div class="kl-feature-card">
+                <div class="kl-feature-icon-wrap">
+                    <i class="fas fa-file-signature"></i>
+                </div>
+                <h3 class="kl-feature-title">Notes & évaluations</h3>
+                <p class="kl-feature-text">Saisie rapide des contrôles et compositions avec calcul automatique et juste des moyennes.</p>
+            </div>
+
+            <!-- Carte 4 : Absences -->
+            <div class="kl-feature-card">
+                <div class="kl-feature-icon-wrap">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h3 class="kl-feature-title">Absences</h3>
+                <p class="kl-feature-text">Appel numérique en classe, décompte rigoureux des absences et historique d’assiduité.</p>
+            </div>
+
+            <!-- Carte 5 : Paiements -->
+            <div class="kl-feature-card">
+                <div class="kl-feature-icon-wrap">
+                    <i class="fas fa-receipt"></i>
+                </div>
+                <h3 class="kl-feature-title">Paiements</h3>
+                <p class="kl-feature-text">Enregistrement des frais de scolarité, reçus officiels conformes et suivi des soldes.</p>
+            </div>
+
+            <!-- Carte 6 : Bulletins scolaires -->
+            <div class="kl-feature-card">
+                <div class="kl-feature-icon-wrap">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <h3 class="kl-feature-title">Bulletins scolaires</h3>
+                <p class="kl-feature-text">Génération en un clic de bulletins A4 modernes garantis sur une seule page et prêts à imprimer.</p>
+            </div>
+
+            <!-- Carte 7 : Emploi du temps -->
+            <div class="kl-feature-card">
+                <div class="kl-feature-icon-wrap">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <h3 class="kl-feature-title">Emploi du temps</h3>
+                <p class="kl-feature-text">Planning hebdomadaire clair par classe et par enseignant pour éviter les chevauchements.</p>
+            </div>
+
+            <!-- Carte 8 : Rapports & vérification QR -->
+            <div class="kl-feature-card">
+                <div class="kl-feature-icon-wrap">
+                    <i class="fas fa-qrcode"></i>
+                </div>
+                <h3 class="kl-feature-title">Rapports & vérification QR</h3>
+                <p class="kl-feature-text">Chaque bulletin dispose d'un QR code infalsifiable pour authentifier le document en ligne.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========================================================================
+     ZONE 3 : SCHÉMA DES ACCÈS PAR RÔLE (ADMIN / PROFESSEUR / PARENT)
+     ======================================================================== -->
+<section class="kl-roles-section" id="utilisateurs">
+    <div class="container text-center">
+        <span class="kl-kicker">Organisation & Sécurité</span>
+        <h2 class="kl-title-h2">Une plateforme, des accès adaptés à chaque rôle</h2>
+        <p class="kl-subtitle">
+            Chaque acteur de l'établissement dispose d'un espace conçu spécifiquement pour ses responsabilités.
+        </p>
+
+        <div class="kl-role-tree">
+            <!-- Nœud Sommet : Établissement -->
+            <div class="kl-tree-top">
+                <div class="kl-tree-node-school">
+                    <i class="fas fa-school"></i>
+                    <span>ÉTABLISSEMENT</span>
+                </div>
+            </div>
+
+            <div class="kl-tree-arrow-down">
+                <i class="fas fa-arrow-down"></i>
+            </div>
+
+            <!-- Nœud Central : Administration -->
+            <div class="kl-tree-admin-wrap">
+                <div class="kl-role-card-admin">
+                    <span class="kl-role-badge">
+                        <i class="fas fa-crown"></i> Administration
+                    </span>
+                    <h3>Direction & Secrétariat</h3>
+                    <ul class="kl-role-list">
+                        <li>Supervise l’ensemble de l’établissement et configure l'année scolaire.</li>
+                        <li>Gère élèves, classes, utilisateurs, paiements, bulletins et rapports officiels.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="kl-tree-arrow-down kl-tree-pyramid-arrows">
+                <div class="d-flex justify-content-around px-4 px-sm-5">
+                    <i class="fas fa-arrow-down kl-arrow-left"></i>
+                    <i class="fas fa-arrow-down kl-arrow-right"></i>
+                </div>
+            </div>
+
+            <!-- Niveaux Inférieurs : Professeurs & Parents -->
+            <div class="kl-tree-branches">
+                <!-- Professeurs -->
+                <div class="kl-role-subcard teacher text-start">
+                    <span class="kl-role-badge">
+                        <i class="fas fa-chalkboard-teacher"></i> Professeurs
+                    </span>
+                    <h3>Corps Enseignant</h3>
+                    <ul class="kl-role-list">
+                        <li>Accèdent uniquement à leurs classes et matières attribuées.</li>
+                        <li>Saisissent évaluations, notes et absences selon leurs affectations pédagogiques.</li>
+                    </ul>
+                </div>
+
+                <!-- Parents -->
+                <div class="kl-role-subcard parent text-start">
+                    <span class="kl-role-badge">
+                        <i class="fas fa-user-friends"></i> Parents
+                    </span>
+                    <h3>Familles & Tuteurs</h3>
+                    <ul class="kl-role-list">
+                        <li>Consultent uniquement les informations scolaires auxquelles leur compte est autorisé.</li>
+                        <li>Suivent les notes, l'assiduité, les bulletins et l'état des paiements de leurs enfants.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <span class="kl-roles-tagline">
+                <i class="fas fa-lock text-primary me-2"></i>Chaque utilisateur dispose uniquement des accès correspondant à son rôle.
+            </span>
+        </div>
+    </div>
+</section>
+
+<!-- ========================================================================
+     ZONE 4 : SÉCURITÉ & CONFIDENTIALITÉ + À PROPOS DE KLASORA
+     ======================================================================== -->
+<section class="kl-trust-section" id="securite">
+    <div class="container">
+        <div class="row g-4 align-items-stretch">
+            <!-- Sous-Section Sécurité & Protection des Données -->
+            <div class="col-lg-6">
+                <div class="kl-security-box">
+                    <span class="kl-kicker mb-2">Sécurité & Fiabilité</span>
+                    <h2 class="kl-title-h2 fs-3 text-start">Vos données scolaires méritent une vraie protection.</h2>
+                    <p class="text-muted small mb-3">
+                        KLASORA limite l’accès aux informations selon les responsabilités de chaque utilisateur et protège les données de chaque établissement.
+                    </p>
+
+                    <div class="kl-security-points">
+                        <div class="kl-sec-point">
+                            <span class="kl-sec-icon"><i class="fas fa-user-shield"></i></span>
+                            <div class="kl-sec-text">
+                                <strong>Accès sécurisés selon les rôles</strong>
+                                <small>Droits cloisonnés par profil.</small>
+                            </div>
+                        </div>
+
+                        <div class="kl-sec-point">
+                            <span class="kl-sec-icon"><i class="fas fa-building-shield"></i></span>
+                            <div class="kl-sec-text">
+                                <strong>Séparation des établissements</strong>
+                                <small>Espace de données 100% isolé.</small>
+                            </div>
+                        </div>
+
+                        <div class="kl-sec-point">
+                            <span class="kl-sec-icon"><i class="fas fa-database"></i></span>
+                            <div class="kl-sec-text">
+                                <strong>Sauvegardes régulières</strong>
+                                <small>Backups automatiques anti-perte.</small>
+                            </div>
+                        </div>
+
+                        <div class="kl-sec-point">
+                            <span class="kl-sec-icon"><i class="fas fa-qrcode"></i></span>
+                            <div class="kl-sec-text">
+                                <strong>Documents vérifiables par QR</strong>
+                                <small>Scellement anti-fraude en ligne.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2 mt-4 pt-2 border-top">
+                        <a href="{{ url_for('main.politique_confidentialite') }}" class="btn btn-sm btn-outline-secondary rounded-3">
+                            <i class="fas fa-file-contract me-1"></i>Politique de confidentialité
+                        </a>
+                        <a href="{{ url_for('main.securite') }}" class="btn btn-sm btn-outline-primary rounded-3">
+                            <i class="fas fa-shield-alt me-1"></i>Détails sur la sécurité
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sous-Section À Propos de KLASORA -->
+            <div class="col-lg-6" id="a-propos">
+                <div class="kl-about-box">
+                    <div>
+                        <span class="kl-kicker mb-2">Notre Histoire & Vision</span>
+                        <h2 class="kl-title-h2 fs-3 text-start">Pensée pour les réalités des établissements scolaires</h2>
+
+                        <blockquote class="kl-about-quote">
+                            « KLASORA est une plateforme de gestion scolaire conçue par des ingénieurs nigériens établis au Maroc. Elle est née d’un objectif simple : proposer aux établissements scolaires une solution moderne, pratique et adaptée à leurs réalités quotidiennes. »
+                        </blockquote>
+
+                        <p class="text-muted small mb-3">
+                            Face aux contraintes concrètes du terrain (connexions intermittentes, besoin de bulletins conformes au format officiel, simplicité pour les enseignants), KLASORA mise sur l'efficacité sans superflu.
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('heroDemoVideo');
+    const btn = document.getElementById('heroUnmuteBtn');
+    if (video) {
+        video.play().catch(() => {});
+        if (btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (video.muted) {
+                    video.muted = false;
+                    video.volume = 1.0;
+                    video.play().then(() => {
+                        btn.innerHTML = '<i class="fas fa-volume-up me-1"></i>Désactiver le son';
+                    }).catch(() => {
+                        btn.innerHTML = '<i class="fas fa-volume-up me-1"></i>Désactiver le son';
+                    });
+                } else {
+                    video.muted = true;
+                    btn.innerHTML = '<i class="fas fa-volume-mute me-1"></i>Activer le son';
+                }
+            });
+        }
+    }
+});
+</script>
+{% endblock %}

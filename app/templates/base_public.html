@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="theme-color" content="#1E3A8A">
+    <meta name="description" content="{% block meta_description %}KLASORA est la plateforme moderne de gestion scolaire tout-en-un pour établissements privés et publics : élèves, professeurs, notes, absences, paiements et bulletins certifiés par QR code.{% endblock %}">
+
+    <!-- OpenGraph / Référencement Réseaux Sociaux -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{% block og_title %}KLASORA — Plateforme Moderne de Gestion Scolaire{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Tout votre établissement scolaire dans une seule plateforme : élèves, enseignants, notes, absences, paiements et bulletins certifiés.{% endblock %}">
+    <meta property="og:image" content="{{ url_for('static', filename='img/logo-klasora.png', _external=True) }}">
+    <meta property="og:url" content="{{ request.url }}">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/icons/favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/icons/favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icons/apple-touch-icon.png') }}">
+
+    <title>{% block title %}KLASORA — Plateforme de Gestion Scolaire Centralisée{% endblock %}</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Plus Jakarta Sans & Outfit (Ultra-Clean, High Contrast & Luxury) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+
+    <!-- Stylesheet Dédiée Vitrine Publique -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="klasora-public-body">
+
+    <!-- ====================================================================
+         1. HEADER PUBLIC & NAVIGATION RESPONSIVE
+         ==================================================================== -->
+    <header class="kl-header" id="mainHeader">
+        <div class="container">
+            <nav class="navbar navbar-expand-lg p-0">
+                <!-- Marque / Logo KLASORA -->
+                <a class="kl-brand" href="{{ url_for('main.index') }}" aria-label="KLASORA Accueil">
+                    <img src="{{ url_for('static', filename='img/logo-klasora.png') }}" alt="KLASORA" class="kl-brand-logo">
+                    <span class="kl-brand-name">KLASORA</span>
+                </a>
+
+                <!-- Bouton Hamburger Mobile -->
+                <button class="navbar-toggler border-0 p-1 ms-auto d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#publicNavCollapse" aria-controls="publicNavCollapse" aria-expanded="false" aria-label="Ouvrir le menu">
+                    <i class="fas fa-bars text-dark fs-4"></i>
+                </button>
+
+                <!-- Menu de Navigation Collapsible -->
+                <div class="collapse navbar-collapse" id="publicNavCollapse">
+                    <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-1">
+                        <li class="nav-item">
+                            <a class="kl-nav-link" href="{{ url_for('main.index') }}#fonctionnalites">Fonctionnalités</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="kl-nav-link" href="{{ url_for('main.index') }}#utilisateurs">Utilisateurs</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="kl-nav-link" href="{{ url_for('main.index') }}#securite">Sécurité</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="kl-nav-link" href="{{ url_for('main.index') }}#a-propos">À propos</a>
+                        </li>
+                    </ul>
+
+                    <!-- Actions à Droite : Présentation & Se connecter -->
+                    <div class="d-flex align-items-stretch align-items-lg-center flex-column flex-lg-row gap-2 mt-3 mt-lg-0">
+                        <button type="button" class="kl-btn-demo-nav border-0" data-bs-toggle="modal" data-bs-target="#demoModal">
+                            <i class="fas fa-calendar-check text-primary"></i>
+                            <span>Demander une présentation</span>
+                        </button>
+                        <a href="{{ url_for('main.login') }}" class="kl-btn-login text-center">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>Se connecter</span>
+                        </a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- ====================================================================
+         CONTENU PRINCIPAL DE LA PAGE
+         ==================================================================== -->
+    <main>
+        <div class="container pt-3">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3 small py-2.5 mb-3" role="alert">
+                            <i class="fas fa-info-circle me-1"></i>{{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- ====================================================================
+         FOOTER COMPACT AVEC LES 4 LIENS
+         ==================================================================== -->
+    <footer class="kl-footer py-4">
+        <div class="container text-center">
+            <div class="d-flex flex-wrap justify-content-center gap-4 mb-3" style="font-size: 0.9rem;">
+                <a href="{{ url_for('main.securite') }}" class="text-decoration-none">Sécurité des données</a>
+                <a href="{{ url_for('main.politique_confidentialite') }}" class="text-decoration-none">Politique de confidentialité</a>
+                <a href="{{ url_for('main.demander_demo') }}" class="text-decoration-none">Demander une présentation</a>
+                <a href="{{ url_for('main.login') }}" class="text-decoration-none">Espace de connexion</a>
+            </div>
+
+            <div class="kl-footer-bottom border-0 pt-0">
+                <p class="mb-0 text-secondary small">
+                    © 2026 KLASORA. Tous droits réservés.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ====================================================================
+         MODAL : DEMANDE DE PRÉSENTATION
+         ==================================================================== -->
+    <div class="modal fade" id="demoModal" tabindex="-1" aria-labelledby="demoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header border-0 pb-0" style="background: var(--kl-blue-soft);">
+                    <div class="p-2">
+                        <span class="badge bg-primary px-2.5 py-1 mb-2">Présentation personnalisée</span>
+                        <h3 class="modal-title fs-5 fw-bold text-dark" id="demoModalLabel">Découvrir KLASORA pour votre école</h3>
+                        <p class="small text-muted mb-0">Remplissez ce formulaire et notre équipe vous contactera sous 24h.</p>
+                    </div>
+                    <button type="button" class="btn-close me-2 mt-2" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div id="demoModalAlert" class="alert d-none py-2 px-3 small rounded-3"></div>
+
+                    <!-- Vidéo de présentation avec autoplay dans la modale -->
+                    <div class="mb-3 text-center">
+                        <div class="position-relative rounded-3 overflow-hidden shadow-sm bg-dark border mx-auto" style="max-width: 320px;">
+                            <div class="ratio bg-dark" style="--bs-aspect-ratio: 160%;">
+                                <video id="modalDemoVideo" autoplay muted playsinline loop controls preload="auto" class="w-100 h-100" style="object-fit: contain; background: #0f172a;">
+                                    <source src="{{ url_for('static', filename='video/Comment_KLASORA_Centralise_La_Gestion_Scolaire.mp4') }}" type="video/mp4">
+                                </video>
+                            </div>
+                            <button id="modalUnmuteBtn" type="button" class="btn btn-sm btn-dark bg-opacity-75 text-white rounded-pill px-3 py-1 position-absolute bottom-0 end-0 m-2 border-0" style="z-index: 10; font-size: 0.75rem; backdrop-filter: blur(6px); width: auto; height: auto;">
+                                <i class="fas fa-volume-mute me-1"></i>Activer le son
+                            </button>
+                        </div>
+                    </div>
+
+                    <form id="demoModalForm" method="POST" action="{{ url_for('main.demander_demo') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-dark mb-1">Nom de l'établissement *</label>
+                            <input type="text" name="nom_ecole" class="form-control form-control-sm py-2 rounded-3" placeholder="Ex: Groupe Scolaire Excellence" required>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold text-dark mb-1">Téléphone / WhatsApp *</label>
+                                <input type="tel" name="telephone" class="form-control form-control-sm py-2 rounded-3" placeholder="+227 90 00 00 00" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold text-dark mb-1">Email</label>
+                                <input type="email" name="email" class="form-control form-control-sm py-2 rounded-3" placeholder="direction@ecole.com">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-dark mb-1">Ville / Pays</label>
+                            <input type="text" name="ville" class="form-control form-control-sm py-2 rounded-3" placeholder="Ex: Niamey, Niger / Bamako / Casablanca">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold text-dark mb-1">Message facultatif</label>
+                            <textarea name="message" rows="2" class="form-control form-control-sm rounded-3" placeholder="Nombre d'élèves, besoins particuliers..."></textarea>
+                        </div>
+
+                        <button type="submit" id="btnSubmitDemo" class="btn btn-primary w-100 py-2.5 fw-bold rounded-3 shadow-sm">
+                            <i class="fas fa-paper-plane me-1"></i>Envoyer ma demande de présentation
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Interactions Légères Vanilla JS -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Header compact au scroll
+            const header = document.getElementById('mainHeader');
+            if (header) {
+                window.addEventListener('scroll', function() {
+                    if (window.scrollY > 30) {
+                        header.classList.add('scrolled');
+                    } else {
+                        header.classList.remove('scrolled');
+                    }
+                }, { passive: true });
+            }
+
+            // Gestion du formulaire modal de présentation en AJAX
+            const demoForm = document.getElementById('demoModalForm');
+            const demoAlert = document.getElementById('demoModalAlert');
+            const submitBtn = document.getElementById('btnSubmitDemo');
+
+            if (demoForm) {
+                demoForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    if (!demoForm.checkValidity()) {
+                        demoForm.reportValidity();
+                        return;
+                    }
+
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Envoi en cours...';
+                    }
+
+                    const formData = new FormData(demoForm);
+
+                    fetch("{{ url_for('main.demander_demo') }}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json().catch(() => ({ success: true })))
+                    .then(data => {
+                        if (demoAlert) {
+                            demoAlert.classList.remove('d-none', 'alert-danger', 'alert-success');
+                            if (data.success) {
+                                demoAlert.classList.add('alert-success');
+                                demoAlert.textContent = data.message || "Votre demande de présentation a bien été transmise. Notre équipe vous contactera sous 24h.";
+                                demoForm.reset();
+                                setTimeout(() => {
+                                    const modal = bootstrap.Modal.getInstance(document.getElementById('demoModal'));
+                                    if (modal) modal.hide();
+                                    demoAlert.classList.add('d-none');
+                                }, 3000);
+                            } else {
+                                demoAlert.classList.add('alert-danger');
+                                demoAlert.textContent = data.message || "Une erreur est survenue lors de l'enregistrement de votre demande.";
+                            }
+                        }
+                    })
+                    .catch(() => {
+                        // Fallback soumission classique
+                        demoForm.submit();
+                    })
+                    .finally(() => {
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Envoyer ma demande de présentation';
+                        }
+                    });
+                });
+            }
+
+            // Gestion de l'autoplay et du bouton son de la vidéo dans la modale
+            const demoModal = document.getElementById('demoModal');
+            const modalVideo = document.getElementById('modalDemoVideo');
+            const modalUnmuteBtn = document.getElementById('modalUnmuteBtn');
+
+            if (demoModal && modalVideo) {
+                demoModal.addEventListener('shown.bs.modal', function () {
+                    modalVideo.muted = true;
+                    modalVideo.play().catch(() => {});
+                });
+                demoModal.addEventListener('hidden.bs.modal', function () {
+                    modalVideo.pause();
+                });
+            }
+
+            if (modalVideo && modalUnmuteBtn) {
+                modalUnmuteBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (modalVideo.muted) {
+                        modalVideo.muted = false;
+                        modalVideo.volume = 1.0;
+                        modalVideo.play().then(() => {
+                            modalUnmuteBtn.innerHTML = '<i class="fas fa-volume-up me-1"></i>Désactiver le son';
+                        }).catch(() => {
+                            modalUnmuteBtn.innerHTML = '<i class="fas fa-volume-up me-1"></i>Désactiver le son';
+                        });
+                    } else {
+                        modalVideo.muted = true;
+                        modalUnmuteBtn.innerHTML = '<i class="fas fa-volume-mute me-1"></i>Activer le son';
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

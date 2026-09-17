@@ -485,3 +485,105 @@ def support_ticket_update_statut(ticket_id):
         flash(f"Erreur lors de la mise à jour : {str(e)}", "error")
 
     return redirect(url_for('admin.support_tickets'))
+
+
+# -----------------------------------------------------------------------------
+# GESTION DES DEMANDES DE PRÉSENTATION (RÔLE SUPER ADMIN)
+# -----------------------------------------------------------------------------
+@admin_bp.route('/admin/demandes-presentation', methods=['GET'])
+def demandes_presentation():
+    """
+    Page réservée au Super Admin pour consulter et gérer les demandes de présentation
+    soumises depuis le formulaire vitrine publique KLASORA.
+    """
+    from app.models import DemandePresentation
+
+    statut_filter = request.args.get('statut', 'tous')
+
+    query = DemandePresentation.query
+    if statut_filter and statut_filter != 'tous':
+        query = query.filter_by(statut=statut_filter)
+
+    demandes = query.order_by(DemandePresentation.created_at.desc()).all()
+
+    # Statistiques
+    total_demandes = DemandePresentation.query.count()
+    nouvelles_count = DemandePresentation.query.filter_by(statut='nouvelle').count()
+    contactees_count = DemandePresentation.query.filter_by(statut='contactee').count()
+    traitees_count = DemandePresentation.query.filter_by(statut='traitee').count()
+    archivees_count = DemandePresentation.query.filter_by(statut='archivee').count()
+
+    return render_template(
+        'admin/demandes_presentation.html',
+        demandes=demandes,
+        statut_filter=statut_filter,
+        total_demandes=total_demandes,
+        nouvelles_count=nouvelles_count,
+        contactees_count=contactees_count,
+        traitees_count=traitees_count,
+        archivees_count=archivees_count
+    )
+
+
+@admin_bp.route('/admin/demandes-presentation/<int:demande_id>/statut', methods=['POST'])
+def update_demande_presentation_statut(demande_id):
+    """
+    Mise à jour du statut ou des notes d'une demande de présentation.
+    """
+    from app.models import DemandePresentation
+
+    demande = DemandePresentation.query.get_or_404(demande_id)
+    payload = request.get_json() if request.is_json else request.form
+
+    nouveau_statut = payload.get('statut')
+    notes_admin = payload.get('notes_admin')
+
+    if nouveau_statut and nouveau_statut in ('nouvelle', 'contactee', 'traitee', 'archivee'):
+        demande.statut = nouveau_statut
+
+    if notes_admin is not None:
+        demande.notes_admin = notes_admin.strip()
+
+    try:
+        db.session.commit()
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'message': f'Demande #{demande.id} mise à jour.',
+                'statut': demande.statut,
+                'notes_admin': demande.notes_admin
+            })
+        flash(f"Demande pour {demande.nom_ecole} mise à jour avec succès.", "success")
+    except Exception as e:
+        db.session.rollback()
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': str(e)}), 500
+        flash(f"Erreur : {str(e)}", "error")
+
+    return redirect(url_for('admin.demandes_presentation'))
+
+
+@admin_bp.route('/admin/demandes-presentation/<int:demande_id>/supprimer', methods=['POST'])
+def delete_demande_presentation(demande_id):
+    """
+    Supprime une demande de présentation de la base de données.
+    """
+    from app.models import DemandePresentation
+
+    demande = DemandePresentation.query.get_or_404(demande_id)
+    nom_ecole = demande.nom_ecole
+
+    try:
+        db.session.delete(demande)
+        db.session.commit()
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': f'Demande pour {nom_ecole} supprimée.'})
+        flash(f"Demande de présentation pour {nom_ecole} supprimée.", "success")
+    except Exception as e:
+        db.session.rollback()
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': str(e)}), 500
+        flash(f"Erreur lors de la suppression : {str(e)}", "error")
+
+    return redirect(url_for('admin.demandes_presentation'))
+

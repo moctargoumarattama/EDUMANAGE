@@ -32,12 +32,16 @@ from .common import (
     session,
     url_for,
 )
+from flask import jsonify
 
 
 @main.route('/')
-@login_required
 def index():
-    """Route principale - Redirige vers le dashboard approprié selon le rôle"""
+    """Route principale - Vitrine publique pour visiteurs non connectés, ou tableau de bord pour utilisateurs connectés"""
+    if not current_user.is_authenticated:
+        session['visited_public_page'] = True
+        return render_template('landing.html')
+
     current_user.dernier_acces = datetime.utcnow()
     db.session.commit()
 
@@ -108,10 +112,17 @@ def login():
         endpoint_par_role = {
             "admin": "main.index",
             "super_admin": "main.index",
-                        "professeur": "main.professeur_dashboard",
+            "professeur": "main.professeur_dashboard",
             "parent": "main.parent_dashboard",
         }
         return redirect(url_for(endpoint_par_role.get(role, "main.index")))
+
+    # Redirection vers la vitrine publique pour tout visiteur Web (non PWA) n'y ayant pas encore accédé
+    is_pwa = request.args.get('pwa') == '1' or request.headers.get('X-PWA-Mode') == 'standalone'
+    is_testing = current_app.config.get('TESTING', False)
+    if not is_pwa and not is_testing and not session.get('visited_public_page') and not request.args.get('from_public'):
+        session['visited_public_page'] = True
+        return redirect(url_for('main.index'))
 
     form = LoginForm()
     if form.validate_on_submit():
@@ -317,3 +328,94 @@ def reset_password_token(token):
         return redirect(url_for('main.login'))
 
     return render_template('reset_password.html', form=form, token=token)
+
+
+@main.route('/demander-demo', methods=['GET', 'POST'])
+@limiter.limit("6 per minute; 25 per hour", key_func=get_remote_address)
+def demander_demo():
+    """Prise de contact et demande de présentation pour les établissements scolaires"""
+    if request.method == 'POST':
+        is_json = request.is_json
+        data = request.get_json() if is_json else request.form
+
+        nom_ecole = escape((data.get('nom_ecole') or '').strip())
+        telephone = escape((data.get('telephone') or '').strip())
+        email = escape((data.get('email') or '').strip().lower())
+        ville = escape((data.get('ville') or '').strip())
+        message = escape((data.get('message') or '').strip())
+
+        # Validation minimale des coordonnées indispensables
+        if not nom_ecole or not (telephone or email):
+            err_msg = "Veuillez renseigner le nom de l'établissement et au moins un moyen de contact (téléphone ou email)."
+            if is_json:
+                return jsonify({'success': False, 'message': err_msg}), 400
+            flash(err_msg, "warning")
+            return render_template('demander_demo.html')
+
+        # Enregistrement en base de données pour consultation Super Admin
+        try:
+            from app.models import DemandePresentation
+            demande = DemandePresentation(
+                nom_ecole=nom_ecole,
+                telephone=telephone,
+                email=email,
+                ville=ville,
+                message=message,
+                statut='nouvelle'
+            )
+            db.session.add(demande)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Erreur enregistrement DemandePresentation : {e}")
+
+        # Journalisation de la demande
+        current_app.logger.info(
+            f"DEMANDE_PRESENTATION_REÇUE : Établissement='{nom_ecole}', "
+            f"Tél='{telephone}', Email='{email}', Ville='{ville}', Msg='{message[:120]}'"
+        )
+
+        # Notification par email si le service mail est disponible
+        try:
+            from app.notifications import envoyer_email
+            admin_dest = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME') or "contact@klasora.com"
+            sujet_mail = f"🎓 Demande de présentation KLASORA : {nom_ecole} ({ville or 'Ville non précisée'})"
+            corps_mail = f"""Bonjour l'équipe KLASORA,
+
+Une nouvelle demande de présentation a été soumise sur la plateforme :
+
+• Établissement : {nom_ecole}
+• Téléphone / WhatsApp : {telephone or 'Non renseigné'}
+• Email : {email or 'Non renseigné'}
+• Ville / Pays : {ville or 'Non renseigné'}
+
+Message :
+{message or 'Aucun message particulier.'}
+
+Date de réception : {datetime.utcnow().strftime('%d/%m/%Y %H:%M UTC')}
+"""
+            envoyer_email(admin_dest, sujet_mail, corps_mail)
+        except Exception as e:
+            current_app.logger.warning(f"Notification email présentation non envoyée (non bloquant) : {e}")
+
+        success_msg = "Merci ! Votre demande de présentation a bien été enregistrée. Notre équipe vous contactera sous 24h ouvrées."
+        if is_json:
+            return jsonify({'success': True, 'message': success_msg})
+
+        flash(success_msg, "success")
+        return redirect(url_for('main.index'))
+
+    return render_template('demander_demo.html')
+
+
+@main.route('/politique-confidentialite')
+def politique_confidentialite():
+    """Page publique détaillant la politique de confidentialité et la protection des données scolaires"""
+    return render_template('politique_confidentialite.html')
+
+
+@main.route('/securite')
+def securite():
+    """Page publique détaillant les garanties de sécurité factuelles de KLASORA"""
+    return render_template('securite.html')
+

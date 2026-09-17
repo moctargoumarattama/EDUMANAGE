@@ -1,0 +1,154 @@
+{% extends "base_public.html" %}
+
+{% block title %}Demander une Présentation — KLASORA{% endblock %}
+
+{% block content %}
+<div class="container py-4 py-md-5">
+    <!-- Fil d'Ariane -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb small mb-0">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}" class="text-decoration-none text-primary"><i class="fas fa-home me-1"></i>Accueil</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Demander une présentation</li>
+        </ol>
+    </nav>
+
+    <div class="row g-4 align-items-stretch justify-content-center">
+        <!-- 🎥 Colonne Vidéo de Présentation Autoplay -->
+        <div class="col-lg-6 col-xl-6 d-flex">
+            <div class="w-100 d-flex flex-column justify-content-between p-4 p-md-5 bg-white rounded-4 shadow-sm border">
+                <div>
+                    <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                        <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill fw-bold" style="font-size: 0.82rem;">
+                            <i class="fas fa-play-circle me-1"></i>Démonstration Vidéo
+                        </span>
+                        <span class="badge bg-success-subtle text-success px-2.5 py-1.5 rounded-pill small fw-semibold">
+                            <i class="fas fa-check-circle me-1"></i>HD 1080p
+                        </span>
+                    </div>
+
+                    <h2 class="fs-3 fw-bold text-dark mb-2">Découvrez KLASORA en Vidéo</h2>
+                    <p class="text-muted small mb-4">
+                        Visionnez notre vidéo officielle de présentation. La vidéo démarre automatiquement pour vous faire découvrir les fonctionnalités clés.
+                    </p>
+
+                    <!-- Player Vidéo Responsive & Autoplay avec bouton d'activation du son -->
+                    <div class="position-relative rounded-4 overflow-hidden shadow-sm border bg-dark mx-auto" style="max-width: 360px;">
+                        <div class="ratio bg-dark" style="--bs-aspect-ratio: 160%;">
+                            <video id="pageDemoVideo" autoplay muted playsinline loop controls preload="auto" class="w-100 h-100 rounded-4" style="object-fit: contain; background: #0f172a;">
+                                <source src="{{ url_for('static', filename='video/Comment_KLASORA_Centralise_La_Gestion_Scolaire.mp4') }}" type="video/mp4">
+                                Votre navigateur ne prend pas en charge la lecture vidéo HTML5.
+                            </video>
+                        </div>
+                        <button id="pageUnmuteBtn" type="button" class="btn btn-sm btn-dark bg-opacity-75 text-white rounded-pill px-3 py-1 position-absolute bottom-0 end-0 m-3 border-0" style="z-index: 10; font-size: 0.78rem; backdrop-filter: blur(6px); width: auto; height: auto;">
+                            <i class="fas fa-volume-mute me-1"></i>Activer le son
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
+                    <span><i class="fas fa-bolt text-warning me-1"></i>Plateforme simple & moderne</span>
+                    <span><i class="fas fa-shield-alt text-success me-1"></i>Données sécurisées</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 📝 Colonne Formulaire de Demande -->
+        <div class="col-lg-6 col-xl-6 d-flex">
+            <div class="kl-page-content-box w-100 m-0 p-4 p-md-5 rounded-4 shadow-sm border bg-white">
+                <span class="kl-kicker mb-2">Accompagnement Établissement</span>
+                <h1 class="kl-title-h1 fs-2 mb-2">Demander une Présentation Personnalisée</h1>
+                <p class="text-muted small mb-4">
+                    Découvrez concrètement comment KLASORA simplifie la gestion de votre école. Remplissez ce formulaire et notre équipe prendra contact avec vous sous 24h.
+                </p>
+
+                <!-- Messages Flash -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3 small py-2.5 mb-4" role="alert">
+                                <i class="fas fa-info-circle me-1"></i>{{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <form method="POST" action="{{ url_for('main.demander_demo') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-dark mb-1">Nom de l'établissement *</label>
+                            <input type="text" name="nom_ecole" class="form-control py-2 rounded-3" placeholder="Ex: Groupe Scolaire Excellence" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-dark mb-1">Téléphone / WhatsApp *</label>
+                            <input type="tel" name="telephone" class="form-control py-2 rounded-3" placeholder="+227 90 00 00 00" required>
+                            <div class="form-text small" style="font-size: 0.75rem;">Indispensable pour convenir d'un créneau rapide.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold text-dark mb-1">Adresse Email</label>
+                            <input type="email" name="email" class="form-control py-2 rounded-3" placeholder="direction@ecole.com">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-dark mb-1">Ville / Pays</label>
+                            <input type="text" name="ville" class="form-control py-2 rounded-3" placeholder="Ex: Niamey, Niger / Bamako / Casablanca">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-dark mb-1">Message ou besoins spécifiques (facultatif)</label>
+                            <textarea name="message" rows="3" class="form-control rounded-3" placeholder="Précisez le nombre approximatif d'élèves, les cycles (primaire, collège, lycée) ou vos attentes..."></textarea>
+                        </div>
+
+                        <div class="col-12 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg w-100 py-3 fw-bold rounded-3 shadow-sm">
+                                <i class="fas fa-paper-plane me-2"></i>Envoyer ma demande de présentation
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <div class="mt-4 pt-3 border-top text-center">
+                    <p class="small text-muted mb-0">
+                        Vous possédez déjà des identifiants d'établissement ?
+                        <a href="{{ url_for('main.login') }}" class="fw-semibold text-primary text-decoration-none ms-1">
+                            Accéder à la connexion
+                        </a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('pageDemoVideo');
+    const btn = document.getElementById('pageUnmuteBtn');
+    if (video) {
+        video.play().catch(() => {});
+        if (btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (video.muted) {
+                    video.muted = false;
+                    video.volume = 1.0;
+                    video.play().then(() => {
+                        btn.innerHTML = '<i class="fas fa-volume-up me-1"></i>Désactiver le son';
+                    }).catch(() => {
+                        btn.innerHTML = '<i class="fas fa-volume-up me-1"></i>Désactiver le son';
+                    });
+                } else {
+                    video.muted = true;
+                    btn.innerHTML = '<i class="fas fa-volume-mute me-1"></i>Activer le son';
+                }
+            });
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -495,6 +495,15 @@
                                 </a>
                             </li>
 
+                            <li class="nav-item">
+                                <a class="nav-link {{ 'active' if request.endpoint == 'admin.demandes_presentation' }}" href="{{ url_for('admin.demandes_presentation') }}">
+                                    <i class="fas fa-handshake me-1"></i>Demandes Présentation
+                                    {% if nouvelles_demandes_count and nouvelles_demandes_count > 0 %}
+                                        <span class="badge bg-danger rounded-pill ms-1">{{ nouvelles_demandes_count }}</span>
+                                    {% endif %}
+                                </a>
+                            </li>
+
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ('admin.view_logs', 'main.journaux_corrections') }}" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-file-alt me-1"></i>Journalisation
@@ -1080,12 +1089,15 @@
          class="d-none"></div>
 
     <script>
-        window.KLASORA_USER = {
-            isAuthenticated: {{ 'true' if current_user.is_authenticated else 'false' }},
-            role: {{ (current_user.role if current_user.is_authenticated else 'guest')|tojson }},
-            id: {{ (current_user.id if current_user.is_authenticated else None)|tojson }},
-            ecoleId: {{ (current_user.ecole_id if current_user.is_authenticated else None)|tojson }}
-        };
+        (function() {
+            const el = document.getElementById('klasoraUserContext');
+            window.KLASORA_USER = {
+                isAuthenticated: el ? el.dataset.authenticated === 'true' : false,
+                role: el ? el.dataset.userRole : 'guest',
+                id: el && el.dataset.userId ? parseInt(el.dataset.userId, 10) : null,
+                ecoleId: el && el.dataset.ecoleId ? parseInt(el.dataset.ecoleId, 10) : null
+            };
+        })();
     </script>
 
     <!-- Composants Modals & Toasts PWA & Hors-ligne -->

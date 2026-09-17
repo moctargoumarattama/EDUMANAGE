@@ -3,7 +3,7 @@
   "short_name": "KLASORA",
   "description": "Gestion scolaire et suivi parental d'excellence",
   "lang": "fr-FR",
-  "start_url": "/",
+  "start_url": "/login?pwa=1",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

@@ -109,8 +109,6 @@ def create_app(config_class=None):
             NiveauScolaire, EcoleNiveauConfig
         )
 
-
-
         # user_loader
         @login_manager.user_loader
         def load_user(user_id):
@@ -168,13 +166,18 @@ def create_app(config_class=None):
                 if getattr(current_user, 'role', None) == 'admin':
                     setup_state = get_school_setup_state(current_user.ecole.id)
 
-            from app.models import ADMIN_TOUR_VERSION, SupportTicket
+            from app.models import ADMIN_TOUR_VERSION, SupportTicket, DemandePresentation
             nouveau_tickets_count = 0
+            nouvelles_demandes_count = 0
             if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'role', None) == 'super_admin':
                 try:
                     nouveau_tickets_count = SupportTicket.query.filter_by(statut='nouveau').count()
                 except Exception:
                     nouveau_tickets_count = 0
+                try:
+                    nouvelles_demandes_count = DemandePresentation.query.filter_by(statut='nouvelle').count()
+                except Exception:
+                    nouvelles_demandes_count = 0
 
             return dict(
                 annee_active=annee_active,
@@ -183,42 +186,39 @@ def create_app(config_class=None):
                 ADMIN_TOUR_VERSION=ADMIN_TOUR_VERSION,
                 SUPPORT_WHATSAPP_NUMBER=app.config.get('SUPPORT_WHATSAPP_NUMBER', '212770010264'),
                 SUPPORT_EMAIL=app.config.get('SUPPORT_EMAIL', 'moctargoumarattama@gmail.com'),
-                nouveau_tickets_count=nouveau_tickets_count
+                nouveau_tickets_count=nouveau_tickets_count,
+                nouvelles_demandes_count=nouvelles_demandes_count
             )
 
-    # -------------------
-    # Fonction utilitaire pour journaliser les actions
-    # -------------------
-    def log_correction(action, description, ecole_id, cible_type=None, cible_id=None, ancienne_valeur=None, nouvelle_valeur=None, niveau="info"):
-        from .models import JournalCorrection
+        def log_correction(action, description, ecole_id, cible_type=None, cible_id=None, ancienne_valeur=None, nouvelle_valeur=None, niveau="info"):
+            from .models import JournalCorrection
 
-        user_id = None
-        try:
-            from flask_login import current_user
-            if current_user and getattr(current_user, 'is_authenticated', False):
-                user_id = current_user.id
-        except Exception:
-            pass
+            user_id = None
+            try:
+                from flask_login import current_user
+                if current_user and getattr(current_user, 'is_authenticated', False):
+                    user_id = current_user.id
+            except Exception:
+                pass
 
-        correction = JournalCorrection(
-            action=action,
-            description=description,
-            ecole_id=ecole_id,
-            user_id=user_id,
-            cible_type=cible_type,
-            cible_id=cible_id,
-            ancienne_valeur=ancienne_valeur,
-            nouvelle_valeur=nouvelle_valeur,
-            niveau=niveau,
-            date=datetime.utcnow()
-        )
-        db.session.add(correction)
-        db.session.commit()
+            correction = JournalCorrection(
+                action=action,
+                description=description,
+                ecole_id=ecole_id,
+                user_id=user_id,
+                cible_type=cible_type,
+                cible_id=cible_id,
+                ancienne_valeur=ancienne_valeur,
+                nouvelle_valeur=nouvelle_valeur,
+                niveau=niveau,
+                date=datetime.utcnow()
+            )
+            db.session.add(correction)
+            db.session.commit()
 
-    app.log_correction = log_correction
+        app.log_correction = log_correction
 
     # Enregistrement des commandes CLI
-
     from .cli import register_cli_commands
     register_cli_commands(app)
 
@@ -228,4 +228,3 @@ def create_app(config_class=None):
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
     return app
-

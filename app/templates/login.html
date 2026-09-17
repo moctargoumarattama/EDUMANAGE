@@ -5,7 +5,13 @@
 {% block content %}
 <div class="login-page">
     <section class="login-shell" aria-label="Connexion KLASORA">
-        <div class="login-card">
+        <div class="login-card position-relative">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <a href="{{ url_for('main.index') }}" class="btn btn-sm btn-light border rounded-pill px-3 text-secondary shadow-sm" style="font-size: 0.78rem; font-weight: 500; transition: all 0.2s;" title="Retourner à la page d'accueil publique">
+                    <i class="fas fa-arrow-left me-1"></i>Accueil
+                </a>
+            </div>
+
             <div class="login-card-header">
                 <img class="login-logo" src="{{ url_for('static', filename='img/logo-klasora.png') }}" alt="KLASORA">
                 <h1>Connexion</h1>
@@ -45,7 +51,13 @@
                 </button>
             </form>
 
-            <p class="login-note">Compte fourni par l'établissement.</p>
+            <p class="login-note mt-3 mb-1">Compte fourni par l'établissement.</p>
+
+            <div class="text-center mt-2">
+                <a href="{{ url_for('main.index') }}" class="text-muted small text-decoration-none" style="font-size: 0.78rem;">
+                    <i class="fas fa-globe me-1"></i>Retour au site public
+                </a>
+            </div>
         </div>
     </section>
 </div>

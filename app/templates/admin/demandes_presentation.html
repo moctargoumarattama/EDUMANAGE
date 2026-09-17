@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}Demandes de Présentation — Super Admin KLASORA{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- En-tête de page -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2.5 py-1 rounded-pill small">
+                    <i class="fas fa-crown me-1"></i>Super Admin
+                </span>
+                <h1 class="h3 mb-0 fw-bold text-dark">Demandes de Présentation</h1>
+            </div>
+            <p class="text-muted small mb-0">Consultez et contactez les établissements scolaires ayant demandé une présentation de KLASORA.</p>
+        </div>
+        <div>
+            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-sm rounded-3">
+                <i class="fas fa-arrow-left me-1"></i>Retour Accueil
+            </a>
+        </div>
+    </div>
+
+    <!-- Cartes de Statistiques -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3 h-100 bg-white">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted small d-block">Total Demandes</span>
+                        <span class="fs-4 fw-bold text-dark">{{ total_demandes }}</span>
+                    </div>
+                    <div class="rounded-3 p-2 bg-primary bg-opacity-10 text-primary">
+                        <i class="fas fa-inbox fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3 h-100 bg-white">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted small d-block">Nouvelles</span>
+                        <span class="fs-4 fw-bold text-danger">{{ nouvelles_count }}</span>
+                    </div>
+                    <div class="rounded-3 p-2 bg-danger bg-opacity-10 text-danger">
+                        <i class="fas fa-bell fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3 h-100 bg-white">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted small d-block">Contactées</span>
+                        <span class="fs-4 fw-bold text-warning">{{ contactees_count }}</span>
+                    </div>
+                    <div class="rounded-3 p-2 bg-warning bg-opacity-10 text-warning">
+                        <i class="fas fa-phone-alt fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm rounded-3 p-3 h-100 bg-white">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted small d-block">Traitées</span>
+                        <span class="fs-4 fw-bold text-success">{{ traitees_count }}</span>
+                    </div>
+                    <div class="rounded-3 p-2 bg-success bg-opacity-10 text-success">
+                        <i class="fas fa-check-circle fs-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres & Tableau -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h2 class="h6 mb-0 fw-bold text-dark"><i class="fas fa-list me-2 text-primary"></i>Liste des Demandes</h2>
+            
+            <!-- Filtres par statut -->
+            <div class="btn-group btn-group-sm" role="group">
+                <a href="{{ url_for('admin.demandes_presentation', statut='tous') }}" class="btn {{ 'btn-primary' if statut_filter == 'tous' else 'btn-outline-secondary' }}">Toutes ({{ total_demandes }})</a>
+                <a href="{{ url_for('admin.demandes_presentation', statut='nouvelle') }}" class="btn {{ 'btn-danger' if statut_filter == 'nouvelle' else 'btn-outline-secondary' }}">Nouvelles ({{ nouvelles_count }})</a>
+                <a href="{{ url_for('admin.demandes_presentation', statut='contactee') }}" class="btn {{ 'btn-warning text-dark' if statut_filter == 'contactee' else 'btn-outline-secondary' }}">Contactées ({{ contactees_count }})</a>
+                <a href="{{ url_for('admin.demandes_presentation', statut='traitee') }}" class="btn {{ 'btn-success' if statut_filter == 'traitee' else 'btn-outline-secondary' }}">Traitées ({{ traitees_count }})</a>
+                <a href="{{ url_for('admin.demandes_presentation', statut='archivee') }}" class="btn {{ 'btn-secondary' if statut_filter == 'archivee' else 'btn-outline-secondary' }}">Archivées ({{ archivees_count }})</a>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            {% if demandes %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-muted small text-uppercase">
+                            <tr>
+                                <th style="width: 140px;" class="ps-4">Date</th>
+                                <th>Établissement</th>
+                                <th>Téléphone / WhatsApp</th>
+                                <th>Email & Ville</th>
+                                <th>Message</th>
+                                <th style="width: 150px;">Statut</th>
+                                <th style="width: 160px;" class="text-end pe-4">Actions Directes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in demandes %}
+                                <tr class="{{ 'table-warning bg-warning bg-opacity-10' if d.statut == 'nouvelle' else '' }}">
+                                    <!-- Date -->
+                                    <td class="ps-4 text-nowrap">
+                                        <span class="d-block small fw-bold text-dark">{{ d.created_at.strftime('%d/%m/%Y') }}</span>
+                                        <small class="text-muted" style="font-size: 0.75rem;"><i class="far fa-clock me-1"></i>{{ d.created_at.strftime('%H:%M') }}</small>
+                                    </td>
+
+                                    <!-- Établissement -->
+                                    <td>
+                                        <strong class="d-block text-dark fs-6">{{ d.nom_ecole }}</strong>
+                                        {% if d.notes_admin %}
+                                            <small class="text-primary d-block" style="font-size: 0.78rem;" title="{{ d.notes_admin }}">
+                                                <i class="fas fa-sticky-note me-1"></i>Note: {{ d.notes_admin[:40] }}{% if d.notes_admin|length > 40 %}...{% endif %}
+                                            </small>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Téléphone / WhatsApp -->
+                                    <td>
+                                        {% if d.telephone %}
+                                            {% set tel_clean = d.telephone | replace(' ', '') | replace('+', '') | replace('-', '') %}
+                                            <div class="d-flex align-items-center gap-1.5">
+                                                <a href="tel:{{ d.telephone }}" class="fw-semibold text-dark text-decoration-none">
+                                                    {{ d.telephone }}
+                                                </a>
+                                                <a href="https://wa.me/{{ tel_clean }}?text=Bonjour%20de%20KLASORA%2C%20suite%20%C3%A0%20votre%20demande%20de%20pr%C3%A9sentation%20pour%20{{ d.nom_ecole|urlencode }}..." 
+                                                   target="_blank" class="btn btn-sm btn-success py-0 px-1.5 rounded-2" style="font-size: 0.72rem;" title="Ouvrir WhatsApp">
+                                                    <i class="fab fa-whatsapp"></i>
+                                                </a>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted small">Non renseigné</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Email & Ville -->
+                                    <td>
+                                        {% if d.email %}
+                                            <a href="mailto:{{ d.email }}" class="d-block text-decoration-none small text-dark fw-medium mb-0.5">
+                                                <i class="far fa-envelope me-1 text-primary"></i>{{ d.email }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted small d-block">Pas d'email</span>
+                                        {% endif %}
+                                        {% if d.ville %}
+                                            <small class="text-muted" style="font-size: 0.78rem;"><i class="fas fa-map-marker-alt me-1 text-danger"></i>{{ d.ville }}</small>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Message -->
+                                    <td>
+                                        {% if d.message %}
+                                            <span class="small text-secondary" title="{{ d.message }}">
+                                                {{ d.message[:60] }}{% if d.message|length > 60 %}...{% endif %}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted small italic">Aucun message</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Statut (Changement Instantané) -->
+                                    <td>
+                                        <form method="POST" action="{{ url_for('admin.update_demande_presentation_statut', demande_id=d.id) }}" class="m-0">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <select name="statut" class="form-select form-select-sm py-1 rounded-2 fw-semibold style-statut-select" onchange="this.form.submit()" style="font-size: 0.8rem;">
+                                                <option value="nouvelle" {{ 'selected' if d.statut == 'nouvelle' }}>🔴 Nouvelle</option>
+                                                <option value="contactee" {{ 'selected' if d.statut == 'contactee' }}>🟡 Contactée</option>
+                                                <option value="traitee" {{ 'selected' if d.statut == 'traitee' }}>🟢 Traitée</option>
+                                                <option value="archivee" {{ 'selected' if d.statut == 'archivee' }}>⚪ Archivée</option>
+                                            </select>
+                                        </form>
+                                    </td>
+
+                                    <!-- Actions -->
+                                    <td class="text-end pe-4">
+                                        <div class="d-inline-flex gap-1">
+                                            {% if d.telephone %}
+                                                {% set tel_clean = d.telephone | replace(' ', '') | replace('+', '') | replace('-', '') %}
+                                                <a href="https://wa.me/{{ tel_clean }}?text=Bonjour%20de%20KLASORA%2C%20suite%20%C3%A0%20votre%20demande%20de%20pr%C3%A9sentation%20pour%20{{ d.nom_ecole|urlencode }}..." 
+                                                   target="_blank" class="btn btn-sm btn-outline-success p-1 rounded-2" title="Contacter par WhatsApp">
+                                                    <i class="fab fa-whatsapp"></i>
+                                                </a>
+                                            {% endif %}
+
+                                            <button type="button" class="btn btn-sm btn-outline-primary p-1 rounded-2" 
+                                                    data-bs-toggle="modal" data-bs-target="#noteModal{{ d.id }}" title="Ajouter une note / Détails">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+
+                                            <form method="POST" action="{{ url_for('admin.delete_demande_presentation', demande_id=d.id) }}" 
+                                                  class="d-inline" onsubmit="return confirm('Supprimer définitivement la demande de {{ d.nom_ecole }} ?');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger p-1 rounded-2" title="Supprimer">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+
+                                        <!-- Modal Notes Admin pour cette demande -->
+                                        <div class="modal fade text-start" id="noteModal{{ d.id }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog modal-dialog-centered">
+                                                <div class="modal-content border-0 shadow rounded-4">
+                                                    <div class="modal-header border-0 pb-0">
+                                                        <h5 class="modal-title fs-6 fw-bold">Détails & Notes — {{ d.nom_ecole }}</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                                                    </div>
+                                                    <form method="POST" action="{{ url_for('admin.update_demande_presentation_statut', demande_id=d.id) }}">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <div class="modal-body py-3">
+                                                            <div class="bg-light p-3 rounded-3 mb-3 small">
+                                                                <p class="mb-1"><strong>Date :</strong> {{ d.created_at.strftime('%d/%m/%Y à %H:%M') }}</p>
+                                                                <p class="mb-1"><strong>Établissement :</strong> {{ d.nom_ecole }}</p>
+                                                                <p class="mb-1"><strong>Téléphone / WhatsApp :</strong> {{ d.telephone or 'N/A' }}</p>
+                                                                <p class="mb-1"><strong>Email :</strong> {{ d.email or 'N/A' }}</p>
+                                                                <p class="mb-1"><strong>Ville / Pays :</strong> {{ d.ville or 'N/A' }}</p>
+                                                                <hr class="my-2">
+                                                                <p class="mb-0 text-dark"><strong>Message :</strong> {{ d.message or 'Aucun message.' }}</p>
+                                                            </div>
+
+                                                            <div class="mb-3">
+                                                                <label class="form-label small fw-semibold text-dark">Statut</label>
+                                                                <select name="statut" class="form-select form-select-sm rounded-3">
+                                                                    <option value="nouvelle" {{ 'selected' if d.statut == 'nouvelle' }}>🔴 Nouvelle</option>
+                                                                    <option value="contactee" {{ 'selected' if d.statut == 'contactee' }}>🟡 Contactée</option>
+                                                                    <option value="traitee" {{ 'selected' if d.statut == 'traitee' }}>🟢 Traitée</option>
+                                                                    <option value="archivee" {{ 'selected' if d.statut == 'archivee' }}>⚪ Archivée</option>
+                                                                </select>
+                                                            </div>
+
+                                                            <div class="mb-2">
+                                                                <label class="form-label small fw-semibold text-dark">Notes d'accompagnement internes</label>
+                                                                <textarea name="notes_admin" rows="3" class="form-control form-control-sm rounded-3" 
+                                                                          placeholder="Notes sur la prise de contact, la date de la réunion de présentation, le devis..."></textarea>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer border-0 pt-0">
+                                                            <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Annuler</button>
+                                                            <button type="submit" class="btn btn-primary btn-sm fw-bold">Enregistrer</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox text-muted display-4 mb-3 d-block"></i>
+                    <h3 class="h6 fw-bold text-dark">Aucune demande de présentation</h3>
+                    <p class="text-muted small mb-0">Les demandes soumises par les établissements scolaires apparaîtront ici.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
