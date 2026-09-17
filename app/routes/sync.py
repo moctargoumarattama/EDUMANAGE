@@ -865,10 +865,6 @@ def _process_inscription_item(item, client_op_id, local_uuid_to_id=None):
         statut='inscrit'
     )
     db.session.add(inscription)
-
-    if annee.statut == 'active':
-        eleve.classe_id = classe.id
-
     db.session.flush()
 
     log = SyncOperationLog(
@@ -1380,15 +1376,34 @@ def api_parent_offline_data():
     try:
         ecole_id = current_user.ecole_id
         enfants = Eleve.query.filter_by(parent_id=current_user.id, ecole_id=ecole_id).all()
+        annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
+        annee_id = annee_active.id if annee_active else None
+
+        enfant_ids = [e.id for e in enfants]
+        inscriptions_active = {}
+        if annee_id and enfant_ids:
+            inscriptions = (
+                Inscription.query
+                .options(db.joinedload(Inscription.classe))
+                .filter(
+                    Inscription.ecole_id == ecole_id,
+                    Inscription.annee_scolaire_id == annee_id,
+                    Inscription.eleve_id.in_(enfant_ids),
+                    Inscription.statut != 'desinscrit'
+                )
+                .all()
+            )
+            inscriptions_active = {ins.eleve_id: ins for ins in inscriptions}
 
         enfants_data = []
         for e in enfants:
+            ins = inscriptions_active.get(e.id)
             enfants_data.append({
                 'id': e.id,
                 'nom': e.nom,
                 'prenom': e.prenom,
-                'classe_nom': e.classe.nom if e.classe else None,
-                'classe_id': e.classe_id,
+                'classe_nom': ins.classe.nom if (ins and ins.classe) else None,
+                'classe_id': ins.classe_id if ins else None,
                 'notes': [
                     {
                         'id': n.id,

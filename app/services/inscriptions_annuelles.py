@@ -61,8 +61,7 @@ def _validate_inscription_context(ecole_id, eleve_id, annee_scolaire_id, classe_
 
 
 def _sync_classe_active(eleve, annee, classe):
-    if annee.statut == "active":
-        eleve.classe_id = classe.id
+    pass
 
 
 def creer_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id, statut="inscrit", sync_active=True, frais_annuels=None, allow_archived=False):

@@ -360,9 +360,7 @@ def executer_import_excel(lignes_valides: list, ecole_id: int, annee_consultee: 
                     adresse=item.get('adresse'),
                     contact_parent=telephone_parent,
                     email_parent=email_parent,
-                    parent_id=parent_id,
                     ecole_id=ecole_id,
-                    classe_id=classe_id,
                     statut=item.get('statut', 'actif'),
                 )
                 db.session.add(nouveau)

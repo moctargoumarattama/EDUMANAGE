@@ -200,7 +200,6 @@ def get_eleves_annee_query(ecole_id, annee_id):
         .join(Inscription, Inscription.eleve_id == Eleve.id)
         .options(
             joinedload(Eleve.parent),
-            joinedload(Eleve.classe),
         )
         .filter(
             Eleve.ecole_id == ecole_id,

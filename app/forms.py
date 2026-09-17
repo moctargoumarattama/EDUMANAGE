@@ -173,7 +173,7 @@ class NoteForm(FlaskForm):
         # --- Élèves ---
         if ecole:
             eleves_query = filtre_par_ecole(Eleve.query, Eleve)
-            eleves_choices = [(e.id, f"{e.prenom} {e.nom} - {e.classe.nom if e.classe else 'Sans classe'}") for e in eleves_query.order_by(Eleve.nom).all()]
+            eleves_choices = [(e.id, f"{e.prenom} {e.nom}") for e in eleves_query.order_by(Eleve.nom).all()]
             self.eleve_id.choices = eleves_choices or [(0, "--- Aucun élève disponible ---")]
 
             # --- Cours ---

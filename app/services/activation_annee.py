@@ -1,4 +1,4 @@
-﻿"""
+"""
 app/services/activation_annee.py
 =============================================================
 KLASORA — Phase 2D-5
@@ -139,10 +139,8 @@ def resynchroniser_classes_eleves_annee_active(ecole_id, annee_active_id):
     for el in eleves_ecole:
         insc = inscriptions_annee.get(el.id)
         if insc and insc.statut == "inscrit" and insc.classe_id:
-            el.classe_id = insc.classe_id
             nb_synchronises += 1
         else:
-            el.classe_id = None
             nb_sans_classe += 1
 
     db.session.flush()

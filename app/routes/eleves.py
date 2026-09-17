@@ -78,7 +78,6 @@ def eleves():
 
     # ---------------- Base query avec relations pour éviter N+1 ----------------
     base_query = Eleve.query.options(
-        db.joinedload(Eleve.classe),
         db.joinedload(Eleve.parent)
     )
     if annee_consultee:
@@ -421,7 +420,6 @@ def ajouter_eleve():
                 contact_parent=telephone_parent,
                 email_parent=email_parent.lower() if email_parent else None,
                 
-                classe_id=form.classe_id.data,
                 frais_annuels=form.frais_annuels.data or 0.0,
                 code_parent=code_parent,
                 parent_id=parent_id_final,
@@ -692,12 +690,11 @@ def export_eleves_excel():
     else:
         eleves = (
             Eleve.query
-            .options(joinedload(Eleve.classe))
             .filter_by(ecole_id=ecole_id)
             .order_by(Eleve.nom.asc(), Eleve.prenom.asc())
             .all()
         )
-        eleves_rows = [(e, e.classe) for e in eleves]
+        eleves_rows = [(e, None) for e in eleves]
 
     data = {
         'ID': [e.id for e, _classe in eleves_rows],
@@ -849,7 +846,6 @@ def voir_eleve(eleve_id):
         joinedload(Eleve.notes).joinedload(Note.cours),
         joinedload(Eleve.absences).joinedload(Absence.cours),
         joinedload(Eleve.paiements),
-        joinedload(Eleve.classe),
         joinedload(Eleve.parent)
     ).get_or_404(eleve_id)
 

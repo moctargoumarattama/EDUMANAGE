@@ -448,7 +448,6 @@ class Classe(db.Model):
     annee_scolaire = db.relationship('AnneeScolaire', back_populates='classes')
     niveau_scolaire = db.relationship('NiveauScolaire', back_populates='classes')
 
-    eleves = db.relationship('Eleve', back_populates='classe', lazy=True, cascade="all, delete-orphan")
     emplois = db.relationship('EmploiTemps', back_populates='classe', lazy=True, cascade="all, delete-orphan")
     cours = db.relationship('Cours', back_populates='classe', lazy=True, cascade="all, delete-orphan")
     capacite_max = db.Column(db.Integer, nullable=False, default=30)
@@ -552,9 +551,6 @@ class Eleve(db.Model):
     ecole = db.relationship('Ecole', back_populates='eleves')
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    classe_id = db.Column(db.Integer, db.ForeignKey('classe.id', ondelete='RESTRICT'), nullable=True)
-    classe = db.relationship('Classe', back_populates='eleves')
-
     # parent_id : ondelete SET NULL pour ne pas supprimer un élève si le parent est supprimé
     parent_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id', ondelete='SET NULL'), nullable=True)
     parent = db.relationship('Utilisateur', back_populates='enfants', foreign_keys=[parent_id])
@@ -566,7 +562,6 @@ class Eleve(db.Model):
     annee_premiere_ecole = db.Column(db.Integer)
 
     __table_args__ = (
-        db.Index('ix_eleve_ecole_classe', 'ecole_id', 'classe_id'),
         db.Index('ix_eleve_parent_id', 'parent_id'),
     )
 
@@ -616,7 +611,6 @@ class Eleve(db.Model):
             "statut": self.statut,
             "date_inscription": self.date_inscription.isoformat() if self.date_inscription else None,
             "ecole_id": self.ecole_id,
-            "classe_id": self.classe_id,
             "parent_id": self.parent_id,
             "annee_premiere_ecole": self.annee_premiere_ecole
         }
