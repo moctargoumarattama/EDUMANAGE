@@ -601,7 +601,7 @@ def recherche():
                 'id': eleve.id,
                 'nom': eleve.nom,
                 'prenom': eleve.prenom,
-                'classe': historique[0]['classe'] if historique else '',
+                'classe': historique[0]['classe'] if historique else 'Sans inscription',
                 'ecole': eleve.ecole.nom if getattr(eleve, 'ecole', None) else '',
                 'historique': historique,
             })

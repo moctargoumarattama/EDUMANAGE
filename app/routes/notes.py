@@ -168,13 +168,11 @@ def notes():
                 return True
             if n.cours and n.cours.classe_id == classe_id:
                 return True
-            if n.eleve and n.eleve.classe_id == classe_id:
-                return True
             return False
         notes_filtrees = [n for n in notes_filtrees if note_match_classe(n)]
     if niveau_param:
         def note_match_niveau(n):
-            cl = (n.inscription.classe if n.inscription else None) or (n.cours.classe if n.cours else None) or (n.eleve.classe if n.eleve else None)
+            cl = (n.inscription.classe if n.inscription else None) or (n.cours.classe if n.cours else None)
             if not cl:
                 return False
             if str(niveau_param).isdigit():

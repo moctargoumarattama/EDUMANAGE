@@ -1,4 +1,5 @@
-from sqlalchemy.orm import selectinload
+from flask import g, has_request_context
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.models import Absence, AnneeScolaire, Classe, Cours, Eleve, Inscription
 
@@ -19,6 +20,11 @@ def _professeur_classe_ids(user, annee_id=None):
     professeur = _professeur(user)
     if not professeur:
         return set()
+
+    cache_key = f"_prof_classe_ids_{professeur.id}_{annee_id}"
+    if has_request_context() and hasattr(g, cache_key):
+        return getattr(g, cache_key)
+
     query = (
         Cours.query.with_entities(Cours.classe_id)
         .join(Classe, Classe.id == Cours.classe_id)
@@ -31,7 +37,11 @@ def _professeur_classe_ids(user, annee_id=None):
     )
     if annee_id:
         query = query.filter(Classe.annee_scolaire_id == annee_id)
-    return {row.classe_id for row in query.all()}
+    res = {row.classe_id for row in query.all()}
+
+    if has_request_context():
+        setattr(g, cache_key, res)
+    return res
 
 
 def _parent_enfant_ids(user):
@@ -80,8 +90,8 @@ def get_inscriptions_absences(ecole_id, annee, user):
 
     query = (
         Inscription.query.options(
-            selectinload(Inscription.eleve),
-            selectinload(Inscription.classe),
+            joinedload(Inscription.eleve),
+            joinedload(Inscription.classe),
         )
         .join(Eleve, Eleve.id == Inscription.eleve_id)
         .filter(
@@ -117,7 +127,7 @@ def get_classes_absences(ecole_id, annee, user):
     if not ecole_id or not annee:
         return []
 
-    query = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
+    query = Classe.query.options(joinedload(Classe.niveau_scolaire)).filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
     if getattr(user, "role", None) == "professeur":
         classe_ids = _professeur_classe_ids(user, annee.id)
         if not classe_ids:
@@ -237,8 +247,8 @@ def get_absences_annee(ecole_id, annee, user):
 
     query = (
         Absence.query.options(
-            selectinload(Absence.eleve),
-            selectinload(Absence.cours).selectinload(Cours.classe),
+            joinedload(Absence.eleve),
+            joinedload(Absence.cours).joinedload(Cours.classe),
         )
         .filter(
             Absence.ecole_id == ecole_id,

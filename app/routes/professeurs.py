@@ -507,6 +507,24 @@ def mes_classes():
         else []
     )
 
+    inscriptions = (
+        Inscription.query.filter(
+            Inscription.ecole_id == current_user.ecole_id,
+            Inscription.annee_scolaire_id == annee_consultee.id,
+            Inscription.classe_id.in_(classe_ids),
+            Inscription.statut != 'desinscrit'
+        )
+        .options(db.joinedload(Inscription.eleve))
+        .all()
+    ) if classe_ids else []
+
+    inscriptions_par_classe = {}
+    for insc in inscriptions:
+        inscriptions_par_classe.setdefault(insc.classe_id, []).append(insc)
+
+    for classe in classes:
+        classe.inscriptions_actives = inscriptions_par_classe.get(classe.id, [])
+
     return render_template("mes_classes.html", classes=classes)
 
 

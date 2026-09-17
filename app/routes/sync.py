@@ -1172,21 +1172,31 @@ def api_professeur_offline_data():
         classe_ids = list(classes_map.keys())
         eleves_data = []
         if classe_ids:
-            eleves = (
-                Eleve.query
-                .filter(Eleve.ecole_id == ecole_id, Eleve.classe_id.in_(classe_ids))
-                .order_by(Eleve.classe_id, Eleve.nom, Eleve.prenom)
-                .all()
+            annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
+            annee_id = annee_active.id if annee_active else None
+
+            inscriptions_q = Inscription.query.filter(
+                Inscription.ecole_id == ecole_id,
+                Inscription.classe_id.in_(classe_ids),
+                Inscription.statut != 'desinscrit'
             )
-            for e in eleves:
-                eleves_data.append({
-                    'id': e.id,
-                    'nom': e.nom,
-                    'prenom': e.prenom,
-                    'matricule': getattr(e, 'matricule', None) or f"EL-{e.id}",
-                    'classe_id': e.classe_id,
-                    'classe_nom': e.classe.nom if e.classe else None
-                })
+            if annee_id:
+                inscriptions_q = inscriptions_q.filter(Inscription.annee_scolaire_id == annee_id)
+
+            inscriptions = inscriptions_q.options(db.joinedload(Inscription.eleve), db.joinedload(Inscription.classe)).all()
+            seen_eleve_ids = set()
+            for insc in inscriptions:
+                e = insc.eleve
+                if e and e.id not in seen_eleve_ids:
+                    seen_eleve_ids.add(e.id)
+                    eleves_data.append({
+                        'id': e.id,
+                        'nom': e.nom,
+                        'prenom': e.prenom,
+                        'matricule': getattr(e, 'matricule', None) or f"EL-{e.id}",
+                        'classe_id': insc.classe_id,
+                        'classe_nom': insc.classe.nom if insc.classe else None
+                    })
 
         # 5. Périodes d'évaluation
         periodes = ['Trimestre 1', 'Trimestre 2', 'Trimestre 3', 'Semestre 1', 'Semestre 2']
@@ -1274,22 +1284,33 @@ def api_admin_offline_data():
             for c in cours_query
         ]
 
-        # 4. Élèves de l'établissement (filtrage optionnel par classe_id)
-        eleves_q = Eleve.query.filter_by(ecole_id=ecole_id)
+        annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
+        annee_id = annee_active.id if annee_active else None
+
+        inscriptions_q = Inscription.query.filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.statut != 'desinscrit'
+        )
+        if annee_id:
+            inscriptions_q = inscriptions_q.filter(Inscription.annee_scolaire_id == annee_id)
         if classe_id_param:
-            eleves_q = eleves_q.filter_by(classe_id=classe_id_param)
-        eleves_query = eleves_q.order_by(Eleve.classe_id, Eleve.nom, Eleve.prenom).all()
-        eleves_data = [
-            {
-                'id': e.id,
-                'nom': e.nom,
-                'prenom': e.prenom,
-                'matricule': getattr(e, 'matricule', None) or f"EL-{e.id}",
-                'classe_id': e.classe_id,
-                'classe_nom': e.classe.nom if e.classe else None
-            }
-            for e in eleves_query
-        ]
+            inscriptions_q = inscriptions_q.filter(Inscription.classe_id == classe_id_param)
+
+        inscriptions = inscriptions_q.options(db.joinedload(Inscription.eleve), db.joinedload(Inscription.classe)).all()
+        seen_eleve_ids = set()
+        eleves_data = []
+        for insc in inscriptions:
+            e = insc.eleve
+            if e and e.id not in seen_eleve_ids:
+                seen_eleve_ids.add(e.id)
+                eleves_data.append({
+                    'id': e.id,
+                    'nom': e.nom,
+                    'prenom': e.prenom,
+                    'matricule': getattr(e, 'matricule', None) or f"EL-{e.id}",
+                    'classe_id': insc.classe_id,
+                    'classe_nom': insc.classe.nom if insc.classe else None
+                })
 
         # 5. Périodes d'évaluation & types
         periodes = ['Trimestre 1', 'Trimestre 2', 'Trimestre 3', 'Semestre 1', 'Semestre 2']

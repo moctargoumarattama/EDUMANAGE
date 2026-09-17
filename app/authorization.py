@@ -57,7 +57,7 @@ def can_access_class(classe):
     return False
 
 
-def can_access_eleve(eleve):
+def can_access_eleve(eleve, annee_scolaire_id=None):
     if not eleve or not getattr(current_user, "is_authenticated", False):
         return False
     role = getattr(current_user, "role", None)
@@ -66,7 +66,44 @@ def can_access_eleve(eleve):
     if role == "parent":
         return check_parent_access(eleve.id)
     if role == "professeur":
-        return eleve.ecole_id == current_user.ecole_id and can_access_class(eleve.classe)
+        if eleve.ecole_id != current_user.ecole_id:
+            return False
+        professeur = get_current_professeur()
+        if not professeur:
+            return False
+
+        from app import db
+        from app.models import Inscription, Cours, Classe
+        from app.utils import get_annee_active
+
+        target_annee_id = annee_scolaire_id
+        if not target_annee_id:
+            annee_active = get_annee_active(eleve.ecole_id)
+            target_annee_id = annee_active.id if annee_active else None
+
+        q_insc = Inscription.query.filter_by(eleve_id=eleve.id, ecole_id=eleve.ecole_id).filter(Inscription.statut != 'desinscrit')
+        if target_annee_id:
+            q_insc = q_insc.filter_by(annee_scolaire_id=target_annee_id)
+
+        inscriptions = q_insc.all()
+        if not inscriptions and not annee_scolaire_id:
+            inscriptions = Inscription.query.filter_by(eleve_id=eleve.id, ecole_id=eleve.ecole_id).filter(Inscription.statut != 'desinscrit').all()
+
+        classe_ids = [i.classe_id for i in inscriptions if i.classe_id]
+        if not classe_ids:
+            return False
+
+        for c_id in classe_ids:
+            classe = db.session.get(Classe, c_id)
+            if classe and can_access_class(classe):
+                return True
+
+        return db.session.query(Cours.id).filter(
+            Cours.ecole_id == eleve.ecole_id,
+            Cours.professeur_id == professeur.id,
+            Cours.classe_id.in_(classe_ids)
+        ).first() is not None
+
     return False
 
 

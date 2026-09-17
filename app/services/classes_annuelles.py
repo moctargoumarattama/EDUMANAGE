@@ -157,3 +157,68 @@ def preparer_structure_annee(ecole_id, annee_cible_id, annee_source_id=None):
 
 def count_inscriptions_annee(ecole_id, annee_scolaire_id):
     return Inscription.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_scolaire_id).count()
+
+
+def precharger_effectifs_classes(classes, ecole_id=None, annee_id=None):
+    """
+    Précharge en lot les effectifs réels d'une liste de classes via Inscription.
+    Exécute UNE SEULE requête d'agrégation GROUP BY.
+    Injecte c._effectif_annuel sur chaque instance de classe.
+    Garantit une isolation stricte par école, par année scolaire et par statut actif.
+    """
+    if not classes:
+        return
+    classes_list = list(classes)
+    classe_ids = [c.id for c in classes_list if c and getattr(c, 'id', None)]
+    if not classe_ids:
+        for c in classes_list:
+            if c:
+                c._effectif_annuel = 0
+        return
+
+    query = (
+        db.session.query(
+            Inscription.classe_id,
+            Inscription.annee_scolaire_id,
+            db.func.count(Inscription.id)
+        )
+        .filter(
+            Inscription.classe_id.in_(classe_ids),
+            db.or_(Inscription.statut != 'desinscrit', Inscription.statut.is_(None))
+        )
+    )
+    if ecole_id:
+        query = query.filter(Inscription.ecole_id == ecole_id)
+    if annee_id:
+        query = query.filter(Inscription.annee_scolaire_id == annee_id)
+
+    counts = query.group_by(Inscription.classe_id, Inscription.annee_scolaire_id).all()
+    effectifs_map = {(row[0], row[1]): row[2] for row in counts}
+
+    for c in classes_list:
+        if c:
+            c._effectif_annuel = effectifs_map.get((c.id, c.annee_scolaire_id), 0)
+
+
+def precharger_effectif_classe(classe):
+    """
+    Précharge explicitement l'effectif réel d'une seule classe via Inscription.
+    Exécute UNE SEULE requête ciblée et injecte classe._effectif_annuel.
+    """
+    if not classe or not getattr(classe, 'id', None):
+        if classe:
+            classe._effectif_annuel = 0
+        return 0
+
+    count = (
+        Inscription.query
+        .filter(
+            Inscription.ecole_id == classe.ecole_id,
+            Inscription.annee_scolaire_id == classe.annee_scolaire_id,
+            Inscription.classe_id == classe.id,
+            db.or_(Inscription.statut != 'desinscrit', Inscription.statut.is_(None))
+        )
+        .count()
+    )
+    classe._effectif_annuel = count
+    return count

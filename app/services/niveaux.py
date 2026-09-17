@@ -313,6 +313,8 @@ def modifier_classe_depuis_niveau(classe, ecole_id, niveau_id, nom=None, section
     classe.section = section
     classe.capacite = capacite
     classe.capacite_max = capacite
+    from app.services.classes_annuelles import precharger_effectif_classe
+    precharger_effectif_classe(classe)
     classe.effectif = classe.effectif_reel
     classe.professeur_id = professeur_id
     db.session.commit()

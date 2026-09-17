@@ -177,6 +177,9 @@ def liste_classes():
 
     # Récupérer toutes les classes pour les statistiques (sans pagination)
     all_classes = base_query.all()
+    from app.services.classes_annuelles import precharger_effectifs_classes
+    classes_to_precharge = list({c.id: c for c in (all_classes + list(classes_paginated.items))}.values())
+    precharger_effectifs_classes(classes_to_precharge, ecole_id, annee_consultee.id if annee_consultee else None)
 
     # Calculer les valeurs pour la pagination
     start_item = ((page - 1) * per_page) + 1
@@ -501,6 +504,8 @@ def modifier_classe(classe_id):
         flash(f"Classe '{classe.nom}' modifiée avec succès (Capacité : {classe.capacite} élèves) ✅", "success")
         return redirect(url_for("main.liste_classes"))
 
+    from app.services.classes_annuelles import precharger_effectif_classe
+    precharger_effectif_classe(classe)
     return render_template("modifier_classe.html", form=form, classe=classe)
 
 
@@ -541,8 +546,7 @@ def supprimer_classe(classe_id):
         return redirect(url_for("main.liste_classes"))
 
     has_dependencies = bool(
-        classe.eleves
-        or classe.cours
+        classe.cours
         or classe.emplois
         or Inscription.query.filter_by(classe_id=classe.id).first()
     )
@@ -634,13 +638,15 @@ def get_classes(annee_id):
 @login_required
 @role_required('admin')
 def api_classes_par_annee(annee_id):
-    """API pour récupérer les classes d'une année scolaire spécifique"""
     from app.models import Classe
+    from app.services.classes_annuelles import precharger_effectifs_classes
 
     classes = Classe.query.filter(
         Classe.ecole_id == current_user.ecole_id,
         Classe.annee_scolaire_id == annee_id
     ).order_by(Classe.nom).all()
+
+    precharger_effectifs_classes(classes, current_user.ecole_id, annee_id)
 
     classes_list = [{
         'id': c.id,

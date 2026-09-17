@@ -284,7 +284,7 @@
             {% set eleve = group.list[0].eleve %}
             {% set eleve_full = (eleve.prenom ~ ' ' ~ eleve.nom) %}
             {% set first_note = group.list[0] %}
-            {% set classe_nom = (first_note.inscription.classe.nom if (first_note.inscription and first_note.inscription.classe) else (first_note.cours.classe.nom if (first_note.cours and first_note.cours.classe) else (eleve.classe.nom if eleve.classe else 'Sans classe'))) %}
+            {% set classe_nom = (first_note.inscription.classe.nom if (first_note.inscription and first_note.inscription.classe) else (first_note.cours.classe.nom if (first_note.cours and first_note.cours.classe) else 'Sans classe')) %}
             {% set student_notes_count = group.list|length %}
 
             <!-- Filtres pour l'élève -->

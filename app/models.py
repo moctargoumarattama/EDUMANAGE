@@ -474,7 +474,18 @@ class Classe(db.Model):
 
     @property
     def effectif_reel(self):
-        return len(self.eleves) if self.eleves is not None else 0
+        if getattr(self, '_effectif_annuel', None) is not None:
+            return self._effectif_annuel
+        if not self.id:
+            return 0
+        if 'inscriptions' in self.__dict__:
+            return sum(
+                1 for ins in self.inscriptions
+                if getattr(ins, 'ecole_id', None) == self.ecole_id
+                and getattr(ins, 'annee_scolaire_id', None) == self.annee_scolaire_id
+                and (getattr(ins, 'statut', 'inscrit') or 'inscrit') != 'desinscrit'
+            )
+        return 0
 
     @property
     def capacite_totale(self):
@@ -492,12 +503,13 @@ class Classe(db.Model):
         return f'<Classe {self.nom_complet}>'
 
     def to_dict(self):
+        eff = self.effectif_reel
         return {
             "id": self.id,
             "nom": self.nom,
             "nom_complet": self.nom_complet,
             "niveau": self.niveau,
-            "effectif": self.effectif_reel,
+            "effectif": eff,
             "ecole_id": self.ecole_id,
             "salle": self.salle,
             "professeur_id": self.professeur_id,
@@ -506,9 +518,12 @@ class Classe(db.Model):
             "est_ouverte": self.est_ouverte,
             "capacite": self.capacite_totale,
             "capacite_max": self.capacite_totale,
-            "effectif_reel": self.effectif_reel,
-            # Ajouter les professeurs assignés
-            "professeurs_assignes": [prof.to_dict() for prof in self.professeurs_assignes]
+            "effectif_reel": eff,
+            # Professeurs assignés (structure légère pour éviter récursion circulaire)
+            "professeurs_assignes": [
+                {"id": prof.id, "nom": prof.nom, "prenom": prof.prenom, "specialite": prof.specialite}
+                for prof in self.professeurs_assignes
+            ]
         }
 # -----------------------------------------------------------------------------
 # Eleve

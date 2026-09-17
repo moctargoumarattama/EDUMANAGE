@@ -93,13 +93,16 @@ def get_statistics(classes):
             'classes_pleines': 0
         }
 
-    total_eleves = sum(c.effectif_reel for c in classes)
-    moyenne_effectif = int(total_eleves / len(classes)) if classes else 0
+    # Précharger en lot si certaines classes n'ont pas encore leur effectif annuel injecté
+    classes_list = list(classes)
+    non_precharges = [c for c in classes_list if getattr(c, '_effectif_annuel', None) is None and 'inscriptions' not in c.__dict__]
+    if non_precharges:
+        from app.services.classes_annuelles import precharger_effectifs_classes
+        precharger_effectifs_classes(classes_list)
 
-    classes_pleines = 0
-    for c in classes:
-        if c.est_pleine:
-            classes_pleines += 1
+    total_eleves = sum(c.effectif_reel for c in classes_list)
+    moyenne_effectif = int(total_eleves / len(classes_list)) if classes_list else 0
+    classes_pleines = sum(1 for c in classes_list if c.est_pleine)
 
     return {
         'total_eleves': total_eleves,
@@ -735,7 +738,7 @@ def generer_bulletin_pdf(
         # SECTION 2 : CARTE IDENTITÉ ÉLÈVE (STYLE ACADÉMIQUE AVANCÉ)
         nom_prenom = f"{eleve.nom} {eleve.prenom}".strip().upper() if eleve else "ÉLÈVE INCONNU"
         matricule = getattr(eleve, 'matricule', None) or getattr(eleve, 'code_parent', None) or (f"#{eleve.id}" if hasattr(eleve, 'id') and eleve.id else "-")
-        classe_affichee = classe_nom or (eleve.classe.nom if (eleve and getattr(eleve, 'classe', None)) else "Non renseignée")
+        classe_affichee = classe_nom or "Non renseignée"
         date_nais = eleve.date_naissance.strftime('%d/%m/%Y') if (eleve and hasattr(eleve, 'date_naissance') and eleve.date_naissance) else "—"
 
         eff_classe = stats_classe.get('effectif_classe', rang_total) if stats_classe else (rang_total or "—")

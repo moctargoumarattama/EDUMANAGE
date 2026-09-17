@@ -11,12 +11,14 @@
                     Classe : <strong>{{ classe.nom }}</strong>
                 </div>
                 <div class="card-body">
-                    {% if classe.eleves %}
+                    {% if classe.inscriptions_actives %}
                         <ul class="list-group">
-                            {% for eleve in classe.eleves %}
-                                <li class="list-group-item">
-                                    {{ eleve.prenom }} {{ eleve.nom }}
-                                </li>
+                            {% for inscription in classe.inscriptions_actives %}
+                                {% if inscription.eleve %}
+                                    <li class="list-group-item">
+                                        {{ inscription.eleve.prenom }} {{ inscription.eleve.nom }}
+                                    </li>
+                                {% endif %}
                             {% endfor %}
                         </ul>
                     {% else %}

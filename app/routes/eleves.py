@@ -569,35 +569,6 @@ def export_notes_eleve_pdf(id):
         flash("Accès non autorisé à cet élève.", "danger")
         return redirect(url_for('main.index'))
 
-    # Vérification des accès selon rôle
-    if current_user.role == 'parent' and not check_parent_access(id):
-        flash("Accès non autorisé à cet élève.", "danger")
-        return redirect(url_for('main.parent_dashboard'))
-
-    if current_user.role in ['admin', 'professeur'] and eleve.ecole_id != current_user.ecole_id:
-        flash("Accès non autorisé à cet élève.", "danger")
-        return redirect(url_for('main.eleves'))
-
-    if current_user.role == 'professeur':
-        professeur = getattr(current_user, 'professeur_rel', None)
-        professeur_id = getattr(professeur, 'id', None)
-        classe_autorisee = (
-            professeur_id and eleve.classe and (
-                eleve.classe.professeur_id == professeur_id
-                or db.session.query(professeur_classes).filter(
-                    professeur_classes.c.professeur_id == professeur_id,
-                    professeur_classes.c.classe_id == eleve.classe.id
-                ).first()
-            )
-        )
-        if not classe_autorisee:
-            flash("Accès non autorisé à cet élève.", "danger")
-            return redirect(url_for('main.eleves'))
-
-    if current_user.role == 'parent' and eleve.ecole_id != current_user.ecole_id:
-        flash("Accès non autorisé à cet élève.", "danger")
-        return redirect(url_for('main.parent_dashboard'))
-
     # Création PDF
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=18)
@@ -890,7 +861,7 @@ def voir_eleve(eleve_id):
     parcours_scolaire = get_parcours_eleve(eleve)
     eleve.inscription_active = inscription_active
     eleve.parcours_scolaire = parcours_scolaire
-    eleve.classe_actuelle = inscription_active.classe if inscription_active else eleve.classe
+    eleve.classe_actuelle = inscription_active.classe if inscription_active else None
 
     from app.services.evaluations import calculer_completude_inscription, STATUS_COMPLETE, STATUS_PROVISOIRE
 
@@ -1066,7 +1037,16 @@ def modifier_eleve(eleve_id):
         flash("Élève modifié avec succès.", "success")
         return redirect(url_for('main.voir_eleve', eleve_id=eleve.id))
 
-    return render_template('edit_eleve.html', eleve=eleve, classes=classes, parents=parents)
+    inscription_active = (
+        Inscription.query.filter_by(
+            ecole_id=current_user.ecole_id,
+            eleve_id=eleve.id,
+            annee_scolaire_id=annee_active.id
+        ).first()
+        if annee_active else None
+    )
+    return render_template('edit_eleve.html', eleve=eleve, classes=classes, parents=parents, inscription_active=inscription_active)
+
 
 @main.route('/eleve/<int:id>/supprimer', methods=['POST'])
 @login_required
@@ -1104,7 +1084,7 @@ def supprimer_eleve_cascade(id):
     eleve = filtre_par_ecole(Eleve.query, Eleve).filter_by(id=id).first_or_404()
 
     try:
-        ancienne_valeur = f"{eleve.nom} {eleve.prenom} (Classe: {eleve.classe_id})"
+        ancienne_valeur = f"{eleve.nom} {eleve.prenom} (ID: {eleve.id})"
 
         # Supprimer toutes les données associées
         Note.query.filter_by(eleve_id=id).delete(synchronize_session=False)

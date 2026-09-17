@@ -1,3 +1,4 @@
+import pandas as pd
 from . import main
 from .common import (
     Classe,
@@ -340,8 +341,6 @@ def generer_recu_pdf(id):
             classe_nom = paiement.inscription.classe.nom
         if paiement.inscription.annee_scolaire:
             annee_scolaire_nom = paiement.inscription.annee_scolaire.nom
-    elif eleve and eleve.classe:
-        classe_nom = eleve.classe.nom
 
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=A4)
@@ -437,8 +436,7 @@ def export_paiements_excel():
         'Date': [p.date_paiement.strftime('%d/%m/%Y') if p.date_paiement else '' for p in paiements],
         'Élève': [f"{p.eleve.prenom} {p.eleve.nom}" if p.eleve else '' for p in paiements],
         'Classe': [
-            p.inscription.classe.nom if (p.inscription and p.inscription.classe)
-            else (p.eleve.classe.nom if (p.eleve and p.eleve.classe) else 'Sans classe')
+            p.inscription.classe.nom if (p.inscription and p.inscription.classe) else 'Sans classe'
             for p in paiements
         ],
         'Année Scolaire': [

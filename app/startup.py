@@ -42,9 +42,9 @@ def _filter_by_ecole_id(model, ecole_id):
     if hasattr(model, "ecole_id"):
         return model.query.filter_by(ecole_id=ecole_id)
 
-    # --- Modèle lié via eleve -> classe -> ecole ---
+    # --- Modèle lié via eleve -> ecole ---
     if hasattr(model, "eleve_id"):
-        return model.query.join(Eleve).join(Classe).filter(Classe.ecole_id == ecole_id)
+        return model.query.join(Eleve).filter(Eleve.ecole_id == ecole_id)
 
     # --- Fallback : aucun champ exploitable → query vide ---
     current_app.logger.warning(f"[safe_query] Impossible de filtrer {model.__name__} automatiquement")

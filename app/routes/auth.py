@@ -42,9 +42,6 @@ def index():
         session['visited_public_page'] = True
         return render_template('landing.html')
 
-    current_user.dernier_acces = datetime.utcnow()
-    db.session.commit()
-
     # -----------------------------
     # SUPER_ADMIN / ADMIN
     # -----------------------------
@@ -167,6 +164,9 @@ def login():
             session_keys = list(session.keys())
             for k in session_keys:
                 session.pop(k, None)
+
+            utilisateur.dernier_acces = datetime.utcnow()
+            db.session.commit()
 
             login_user(utilisateur)
             session["role"] = utilisateur.role
