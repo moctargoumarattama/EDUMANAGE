@@ -1,4 +1,4 @@
-# Shared imports and compatibility helpers for the main route package.
+﻿# Shared imports and compatibility helpers for the main route package.
 from __future__ import annotations
 
 import base64
@@ -10,7 +10,6 @@ import random
 import re
 import secrets
 import shutil
-import smtplib
 import sqlite3
 import string
 import sys
@@ -135,39 +134,7 @@ bcrypt = Bcrypt()
 # In the former app/routes.py this pointed to the project root.
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
-try:
-    SMTP_SERVER = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
-    SMTP_PORT = int(os.environ.get("MAIL_PORT", 587))
-    EMAIL_ADDRESS = os.environ["MAIL_USERNAME"]
-    EMAIL_PASSWORD = os.environ["MAIL_PASSWORD"]
-except KeyError as e:
-    raise RuntimeError(
-        f"⚠️ Variable d'environnement manquante : {e.args[0]} "
-        "(nécessaire pour l'envoi d'e-mails)"
-    )
 
-
-def envoyer_email_smtp(destinataire, sujet, message):
-    """Fonction historique d'envoi SMTP, conservée pour compatibilité interne."""
-    try:
-        msg = MIMEMultipart()
-        msg["From"] = EMAIL_ADDRESS
-        msg["To"] = destinataire
-        msg["Subject"] = sujet
-        msg.attach(MIMEText(message, "plain"))
-
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-
-        current_app.logger.info(f"📧 Email envoyé à {destinataire}")
-        return True
-
-    except Exception as e:
-        current_app.logger.error(f"Erreur lors de l'envoi de l'email: {e}")
-        return False
 
 
 try:

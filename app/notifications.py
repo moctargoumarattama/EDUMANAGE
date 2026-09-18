@@ -1,6 +1,6 @@
-import smtplib
-from email.mime.text import MIMEText
 import logging
+from flask_mail import Message
+from app.extensions import mail
 
 # app/notifications.py
 
@@ -11,24 +11,19 @@ logger = logging.getLogger(__name__)
 # ========================
 # Email Plateforme (SMTP)
 # ========================
-def envoyer_email(to, sujet, corps):
-    """Envoie un email via SMTP Gmail."""
+def envoyer_email(to, sujet, corps, reply_to=None):
+    """Envoie un email technique via l'instance Flask-Mail configurée (utilise MAIL_DEFAULT_SENDER)."""
     try:
-        msg = MIMEText(corps, "html")  # HTML pour afficher le QR code
-        msg['Subject'] = sujet
-        msg['From'] = "moctargoumarattama@gmail.com"
-        msg['To'] = to
+        msg = Message(subject=sujet, recipients=[to])
+        msg.html = corps
+        if reply_to:
+            msg.reply_to = reply_to
 
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login("moctargoumarattama@gmail.com", "pmcfedouowvrtztx")  # mot de passe d'application Gmail
-        server.send_message(msg)
-        server.quit()
-
-        logger.info(f"Email envoyé à {to}")
+        mail.send(msg)
+        logger.info(f"Email technique envoyé à {to}")
         return True
     except Exception as e:
-        logger.error(f"Erreur Email: {e}")
+        logger.error(f"Erreur d'envoi Email technique: {e}")
         return False
 
 
