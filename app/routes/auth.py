@@ -419,3 +419,19 @@ def securite():
     """Page publique détaillant les garanties de sécurité factuelles de KLASORA"""
     return render_template('securite.html')
 
+
+
+# ====================================================================
+# ROUTES SEO (Robots.txt & Sitemap.xml)
+# ====================================================================
+from flask import Response
+
+@main.route('/robots.txt')
+def robots_txt():
+    content = "User-agent: *\nAllow: /\nSitemap: https://www.klasora.com/sitemap.xml\n"
+    return Response(content, mimetype='text/plain')
+
+@main.route('/sitemap.xml')
+def sitemap_xml():
+    content = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>https://www.klasora.com/</loc>\n  </url>\n</urlset>'
+    return Response(content, mimetype='application/xml')

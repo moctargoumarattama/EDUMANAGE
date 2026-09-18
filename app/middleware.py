@@ -596,6 +596,12 @@ def after_request_handler(response):
 
         # Politique de cache HTTP
         path = request.path if request else ''
+        # Ajout du X-Robots-Tag global (SEO)
+        content_type = response.headers.get('Content-Type', '')
+        if 'text/html' in content_type:
+            excluded_seo_paths = ('/', '/robots.txt', '/sitemap.xml')
+            if path not in excluded_seo_paths:
+                response.headers['X-Robots-Tag'] = 'noindex, follow'
 
         # 1. Service Worker : STRICTEMENT JAMAIS EN CACHE (pour mises à jour instantanées)
         if path == '/login':
