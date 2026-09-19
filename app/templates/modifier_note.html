@@ -8,7 +8,7 @@
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('main.notes') }}">Notes</a></li>
+            <li class="breadcrumb-item"><a href="{{ return_url or url_for('main.notes') }}">Notes</a></li>
             <li class="breadcrumb-item active" aria-current="page">Modifier</li>
         </ol>
     </nav>
@@ -36,6 +36,7 @@
                 <div class="form-card-body">
                     <form method="POST" class="needs-validation" novalidate>
                         {{ form.hidden_tag() }}
+                        <input type="hidden" name="return_url" value="{{ return_url }}">
 
                         <div class="form-section">
                             <h5 class="form-section-title">
@@ -80,7 +81,7 @@
                         </div>
 
                         <div class="form-actions">
-                            <a href="{{ url_for('main.notes') }}" class="btn btn-outline-secondary">
+                            <a href="{{ return_url or url_for('main.notes') }}" class="btn btn-outline-secondary">
                                 <i class="fas fa-times me-1"></i>Annuler
                             </a>
                             <button type="submit" class="btn btn-primary px-4">

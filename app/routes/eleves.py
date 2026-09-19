@@ -46,6 +46,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 import pandas as pd
 import uuid
 from app.services import check_ecole_access
+from app.utils import sanitize_internal_url
 from app.services.import_eleves_service import (
     generer_modele_excel_eleves,
     previsualiser_import_excel,
@@ -54,6 +55,30 @@ from app.services.import_eleves_service import (
     recuperer_preview_import,
     supprimer_preview_import,
 )
+
+
+def _url_with_args(endpoint, allowed_args, **values):
+    args = {}
+    for key in allowed_args:
+        value = request.args.get(key)
+        if value not in (None, ""):
+            args[key] = value
+    args.update({k: v for k, v in values.items() if v not in (None, "")})
+    return url_for(endpoint, **args)
+
+
+def _eleves_context_url():
+    return _url_with_args(
+        'main.eleves',
+        ('search', 'classe_id', 'niveau', 'niveau_id', 'genre', 'page'),
+    )
+
+
+def _safe_return_url(fallback):
+    return sanitize_internal_url(
+        request.form.get('return_url') or request.args.get('return_url'),
+        fallback,
+    )
 
 
 @main.route('/eleves')
@@ -288,7 +313,8 @@ def eleves():
         eleves=eleves_pagination,
         all_eleves=all_eleves,
         annee_consultee=annee_consultee,
-        annees_ecole=annees_ecole
+        annees_ecole=annees_ecole,
+        return_url=_eleves_context_url()
     )
 
 @main.route('/ajouter_eleve', methods=['GET', 'POST'])
@@ -944,6 +970,9 @@ def voir_eleve(eleve_id):
         today = datetime.now().date()
         age = today.year - eleve.date_naissance.year - ((today.month, today.day) < (eleve.date_naissance.month, eleve.date_naissance.day))
 
+    return_url = _safe_return_url(url_for('main.eleves'))
+    detail_url = url_for('main.voir_eleve', eleve_id=eleve.id, return_url=return_url)
+
     return render_template('voir_eleve.html',
                            eleve=eleve,
                            age=age,
@@ -964,13 +993,17 @@ def voir_eleve(eleve_id):
                            reste_a_payer=reste_a_payer,
                            pourcentage_paye=pourcentage_paye,
                            echeancier=echeancier,
-                           mois_impayes_list=mois_impayes_list)
+                           mois_impayes_list=mois_impayes_list,
+                           return_url=return_url,
+                           detail_url=detail_url)
 
 @main.route('/eleve/<int:eleve_id>/modifier', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
 def modifier_eleve(eleve_id):
     eleve = filtre_par_ecole(Eleve.query, Eleve).filter_by(id=eleve_id).first_or_404()
+    return_url = _safe_return_url(url_for('main.eleves'))
+    detail_url = url_for('main.voir_eleve', eleve_id=eleve.id, return_url=return_url)
     annee_active = AnneeScolaire.query.filter_by(ecole_id=current_user.ecole_id, statut="active").first()
     classes_query = Classe.query.filter_by(ecole_id=current_user.ecole_id)
     if annee_active:
@@ -984,17 +1017,17 @@ def modifier_eleve(eleve_id):
 
         if not classe_id:
             flash("❌ La classe est obligatoire. Un élève doit toujours être inscrit dans une classe.", "danger")
-            return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id))
+            return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
 
         classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first()
         if not classe:
             flash("❌ Classe invalide pour cette école.", "danger")
-            return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id))
+            return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
 
         parent = Utilisateur.query.filter_by(id=parent_id, ecole_id=current_user.ecole_id, role='parent').first() if parent_id else None
         if parent_id and not parent:
             flash("❌ Parent invalide pour cette école.", "danger")
-            return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id))
+            return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
 
         eleve.nom = request.form.get('nom', eleve.nom).strip()
         eleve.prenom = request.form.get('prenom', eleve.prenom).strip()
@@ -1011,14 +1044,14 @@ def modifier_eleve(eleve_id):
         )
         if inscription_error:
             flash(inscription_error, "danger")
-            return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id))
+            return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
 
         eleve.parent_id = parent.id if parent else None
         eleve.email_parent = parent.email if parent else request.form.get('email_parent') or eleve.email_parent
         eleve.contact_parent = parent.telephone if parent else request.form.get('telephone_parent') or eleve.contact_parent
         db.session.commit()
         flash("Élève modifié avec succès.", "success")
-        return redirect(url_for('main.voir_eleve', eleve_id=eleve.id))
+        return redirect(detail_url)
 
     inscription_active = (
         Inscription.query.filter_by(
@@ -1028,7 +1061,7 @@ def modifier_eleve(eleve_id):
         ).first()
         if annee_active else None
     )
-    return render_template('edit_eleve.html', eleve=eleve, classes=classes, parents=parents, inscription_active=inscription_active)
+    return render_template('edit_eleve.html', eleve=eleve, classes=classes, parents=parents, inscription_active=inscription_active, return_url=return_url, detail_url=detail_url)
 
 
 @main.route('/eleve/<int:id>/supprimer', methods=['POST'])

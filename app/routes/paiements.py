@@ -30,6 +30,7 @@ from flask import jsonify
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from app.services.annees_scolaires import get_annee_consultee
+from app.utils import sanitize_internal_url
 from app.services.structure_annuelle import get_niveaux_annee
 from app.services.paiements_annuels import (
     get_inscriptions_paiements,
@@ -41,11 +42,31 @@ from app.services.paiements_annuels import (
 )
 
 
+_PAIEMENTS_CONTEXT_ARGS = ('classe', 'classe_id', 'search', 'recherche', 'statut_solde', 'niveau', 'page_paiements')
+
+
+def _paiements_context_url():
+    args = {}
+    for key in _PAIEMENTS_CONTEXT_ARGS:
+        value = request.args.get(key)
+        if value not in (None, ""):
+            args[key] = value
+    return url_for('main.paiements', **args)
+
+
+def _paiements_return_url():
+    return sanitize_internal_url(
+        request.form.get('return_url') or request.args.get('return_url'),
+        _paiements_context_url(),
+    )
+
+
 @main.route('/paiements', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
 def paiements():
     annee = get_annee_consultee(current_user.ecole_id)
+    context_url = _paiements_return_url()
     if not annee:
         flash("Aucune année scolaire configurée pour cet établissement.", "warning")
         return redirect(url_for('main.gestion_annees'))
@@ -82,13 +103,13 @@ def paiements():
     if form.validate_on_submit():
         if annee.statut == 'archivee':
             flash("L'année scolaire est archivée : les paiements sont en lecture seule stricte.", "danger")
-            return redirect(url_for('main.paiements'))
+            return redirect(context_url)
         if annee.statut == 'planifiee':
             flash("Les paiements pourront être enregistrés lorsque cette année sera active.", "warning")
-            return redirect(url_for('main.paiements'))
+            return redirect(context_url)
         if annee.statut != 'active':
             flash("Seule l'année active autorise l'encaissement de paiements.", "danger")
-            return redirect(url_for('main.paiements'))
+            return redirect(context_url)
 
         paiement, error = enregistrer_paiement(
             ecole_id=current_user.ecole_id,
@@ -103,12 +124,12 @@ def paiements():
         )
         if error:
             flash(error, "danger")
-            return redirect(url_for('main.paiements'))
+            return redirect(context_url)
 
         try:
             db.session.commit()
             flash("Paiement enregistré avec succès !", "success")
-            return redirect(url_for('main.paiements'))
+            return redirect(context_url)
         except Exception as e:
             db.session.rollback()
             flash(f"Erreur lors de l'enregistrement du paiement: {e}", "danger")
@@ -290,6 +311,7 @@ def paiements():
         classe_id=classe_id,
         recherche=recherche,
         annee_consultee=annee,
+        return_url=context_url,
     )
 
 
@@ -414,10 +436,11 @@ def generer_recu_pdf(id):
 @login_required
 @role_required('admin')
 def export_paiements_excel():
+    context_url = _paiements_return_url()
     annee = get_annee_consultee(current_user.ecole_id)
     if not annee:
         flash("Aucune année scolaire configurée.", "warning")
-        return redirect(url_for('main.paiements'))
+        return redirect(context_url)
 
     inscriptions = get_inscriptions_paiements(current_user.ecole_id, annee, current_user)
     ins_ids = [ins.id for ins in inscriptions]
@@ -477,19 +500,20 @@ def export_paiements_excel():
 @login_required
 @role_required('admin')
 def supprimer_paiement(id):
+    context_url = _paiements_return_url()
     annee = get_annee_consultee(current_user.ecole_id)
     if not annee or annee.statut == 'archivee':
         flash("L'année scolaire est archivée : suppression de paiement interdite (lecture seule).", "danger")
-        return redirect(url_for('main.paiements'))
+        return redirect(context_url)
     if annee.statut == 'planifiee':
         flash("Opération non autorisée sur une année planifiée.", "danger")
-        return redirect(url_for('main.paiements'))
+        return redirect(context_url)
 
     paiement = filtre_par_ecole(Paiement.query, Paiement).filter_by(id=id).first_or_404()
 
     if paiement.inscription and paiement.inscription.annee_scolaire_id != annee.id:
         flash("Ce paiement n'appartient pas à l'année scolaire consultée.", "danger")
-        return redirect(url_for('main.paiements'))
+        return redirect(context_url)
 
     try:
         ancienne_valeur = f"Paiement ID {paiement.id} (Élève: {paiement.eleve_id}, Montant: {paiement.montant})"
@@ -511,24 +535,25 @@ def supprimer_paiement(id):
         db.session.rollback()
         current_app.logger.error(f"Erreur suppression paiement {id}: {e}")
         flash(f"Erreur lors de la suppression: {str(e)}", "danger")
+    return redirect(context_url)
 
-    return redirect(url_for('main.paiements'))
 
 @main.route('/paiements/configurer_mensualites', methods=['POST'])
 @login_required
 @role_required('admin', 'super_admin')
 def configurer_mensualites():
+    context_url = _paiements_return_url()
     # Protection multi-tenant et rôles
     ecole_id = current_user.ecole_id
     annee = get_annee_consultee(ecole_id)
     
     if not annee:
         flash("Aucune année scolaire configurée.", "warning")
-        return redirect(url_for('main.paiements'))
+        return redirect(context_url)
         
     if annee.statut == 'archivee':
         flash("Impossible de modifier la configuration d'une année archivée.", "danger")
-        return redirect(url_for('main.paiements'))
+        return redirect(context_url)
 
     facturer_juillet = request.form.get('facturer_juillet') == 'on'
     
@@ -543,5 +568,5 @@ def configurer_mensualites():
         db.session.rollback()
         current_app.logger.error(f"Erreur configuration mensualités : {e}")
         flash("Erreur lors de la sauvegarde.", "danger")
-        
-    return redirect(url_for('main.paiements'))
+
+    return redirect(context_url)

@@ -22,6 +22,7 @@ from .common import (
     role_required,
 )
 from app.services.annees_scolaires import get_annee_consultee
+from app.utils import sanitize_internal_url
 from app.services.notes_annuelles import (
     MESSAGE_ANNEE_ARCHIVEE,
     MESSAGE_ANNEE_PLANIFIEE,
@@ -39,6 +40,25 @@ from app.services.notes_annuelles import (
     statut_annee_notes,
     supprimer_note as service_supprimer_note,
 )
+
+
+_NOTES_CONTEXT_ARGS = ('classe_id', 'cours_id', 'periode', 'type_evaluation', 'search', 'eleve_id')
+
+
+def _notes_context_url():
+    args = {}
+    for key in _NOTES_CONTEXT_ARGS:
+        value = request.args.get(key)
+        if value not in (None, ""):
+            args[key] = value
+    return url_for('main.notes', **args)
+
+
+def _notes_return_url():
+    return sanitize_internal_url(
+        request.form.get('return_url') or request.args.get('return_url'),
+        _notes_context_url(),
+    )
 
 
 
@@ -60,6 +80,7 @@ def _niveaux_depuis_classes(classes):
 @role_required('admin', 'professeur', 'parent')
 def notes():
     ecole_id = current_user.ecole_id
+    context_url = _notes_return_url()
 
     # ------------------- Contexte annuel unique (Règle 2C-5D) -------------------
     annee_consultee = get_annee_consultee(ecole_id)
@@ -70,7 +91,7 @@ def notes():
     if request.method == 'POST':
         if current_user.role != 'professeur':
             flash("La saisie des notes est réservée aux professeurs.", "warning")
-            return redirect(url_for('main.notes'))
+            return redirect(context_url)
 
     # Inscriptions et cours rattachés pour les formulaires et l'affichage
     inscriptions = get_inscriptions_notes(ecole_id, annee_consultee, user=current_user)
@@ -116,7 +137,7 @@ def notes():
                 flash(MESSAGE_ANNEE_PLANIFIEE, "warning")
             else:
                 flash("Action non autorisée pour cette année scolaire.", "danger")
-            return redirect(url_for('main.notes'))
+            return redirect(context_url)
 
         nouvelle_note, err = creer_note(
             ecole_id=ecole_id,
@@ -135,7 +156,7 @@ def notes():
             flash(err, "danger")
         else:
             flash("Note ajoutée avec succès", "success")
-        return redirect(url_for('main.notes'))
+        return redirect(context_url)
 
     # ------------------- Récupération des notes et statistiques -------------------
     toutes_notes = get_notes_annee(
@@ -335,6 +356,7 @@ def notes():
         annee_consultee=annee_consultee,
         message_annee=message_annee,
         notes_modifiables=peut_modifier,
+        return_url=context_url,
     )
 
 
@@ -388,6 +410,7 @@ def export_notes_excel():
 def saisie_notes_classe():
     """Saisie rapide des notes par classe entière (Phase 5C)."""
     ecole_id = current_user.ecole_id
+    context_url = _notes_return_url()
     annee_consultee = get_annee_consultee(ecole_id)
     message_annee = statut_annee_notes(annee_consultee)
     peut_modifier = notes_modifiables(annee_consultee, current_user)
@@ -400,7 +423,7 @@ def saisie_notes_classe():
                 flash(MESSAGE_ANNEE_PLANIFIEE, "warning")
             else:
                 flash("Action non autorisée pour cette année scolaire.", "danger")
-            return redirect(url_for('main.notes'))
+            return redirect(context_url)
 
         classe_id = request.form.get('classe_id', type=int)
         cours_id = request.form.get('cours_id', type=int)
@@ -430,10 +453,10 @@ def saisie_notes_classe():
 
         if err:
             flash(err, "danger")
-            return redirect(url_for('main.saisie_notes_classe', classe_id=classe_id, cours_id=cours_id))
+            return redirect(url_for('main.saisie_notes_classe', classe_id=classe_id, cours_id=cours_id, return_url=context_url))
         else:
             flash(f"{nb_notes} note(s) enregistrée(s) avec succès pour la classe.", "success")
-            return redirect(url_for('main.notes'))
+            return redirect(context_url)
 
     # GET: Préparation de la grille
     classes = get_classes_notes(ecole_id, annee_consultee, user=current_user)
@@ -469,6 +492,7 @@ def saisie_notes_classe():
         annee_consultee=annee_consultee,
         notes_modifiables=peut_modifier,
         message_annee=message_annee,
+        return_url=context_url,
     )
 
 
@@ -476,6 +500,7 @@ def saisie_notes_classe():
 @login_required
 @role_required('admin', 'professeur')
 def modifier_note(note_id):
+    context_url = _notes_return_url()
     note = Note.query.get_or_404(note_id)
     if not can_manage_note(note):
         abort(403)
@@ -499,7 +524,7 @@ def modifier_note(note_id):
             flash(MESSAGE_ANNEE_PLANIFIEE, "warning")
         else:
             flash("Vous ne pouvez modifier une note que pour une année scolaire active.", "warning")
-        return redirect(url_for('main.notes'))
+        return redirect(context_url)
 
     # Permissions professeurs
     if current_user.role == 'professeur':
@@ -543,13 +568,14 @@ def modifier_note(note_id):
             flash(err, "danger")
         else:
             flash("Note modifiée avec succès", "success")
-            return redirect(url_for('main.notes'))
+            return redirect(context_url)
 
     return render_template(
         'modifier_note.html',
         form=form,
         note=note,
         annee_note=annee_note,
+        return_url=context_url,
     )
 
 
@@ -557,6 +583,7 @@ def modifier_note(note_id):
 @login_required
 @role_required('admin', 'professeur')
 def supprimer_note(note_id):
+    context_url = _notes_return_url()
     note = Note.query.get_or_404(note_id)
     if not can_manage_note(note):
         abort(403)
@@ -583,4 +610,4 @@ def supprimer_note(note_id):
     else:
         flash("Note supprimée avec succès.", "success")
 
-    return redirect(url_for('main.notes'))
+    return redirect(context_url)

@@ -285,7 +285,7 @@
 
                                 <!-- Barre d'actions rapides pour cet élève -->
                                 <div class="student-entry-actions">
-                                    <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" 
+                                    <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id, return_url=return_url) }}"
                                        class="student-action-btn btn btn-sm btn-primary" 
                                        title="Consulter le dossier annuel complet">
                                         <i class="fas fa-folder-open me-1"></i>Dossier annuel
@@ -296,7 +296,7 @@
                                         <i class="fas fa-file-alt me-1"></i>Bulletin
                                     </a>
                                     {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
-                                    <a href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id) }}" 
+                                    <a href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url) }}"
                                        class="student-action-btn btn btn-sm btn-outline-warning" 
                                        title="Modifier les données de l'élève">
                                         <i class="fas fa-edit me-1"></i>Modifier

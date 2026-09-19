@@ -7,6 +7,7 @@ Fonctions helpers respectant l'isolation des données
 from flask import current_app, jsonify, send_file, flash, g
 from flask_login import current_user
 from datetime import datetime, date, timedelta
+from urllib.parse import urlsplit
 from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import selectinload, joinedload
 import csv
@@ -17,6 +18,25 @@ from typing import Optional, List, Dict, Any, Union
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.models import AnneeScolaire
+
+
+def is_safe_internal_url(value: str) -> bool:
+    """Return True only for local application paths such as /eleves?search=a."""
+    if not value or not isinstance(value, str):
+        return False
+
+    value = value.strip()
+    if not value.startswith("/") or value.startswith("//") or value.startswith("\\"):
+        return False
+    if "\\" in value:
+        return False
+
+    parts = urlsplit(value)
+    return not parts.scheme and not parts.netloc
+
+
+def sanitize_internal_url(value: str, fallback: str = "/") -> str:
+    return value.strip() if is_safe_internal_url(value) else fallback
 
 
 # ====================================================================

@@ -9,7 +9,7 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
             <li class="breadcrumb-item"><a href="{{ url_for('main.eleves') }}">Élèves</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}">{{ eleve.prenom }} {{ eleve.nom }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ detail_url or url_for('main.voir_eleve', eleve_id=eleve.id) }}">{{ eleve.prenom }} {{ eleve.nom }}</a></li>
             <li class="breadcrumb-item active" aria-current="page">Modifier</li>
         </ol>
     </nav>
@@ -32,10 +32,11 @@
 
                 <!-- Corps du formulaire -->
                 <div class="form-card-body">
-                    <form method="POST" action="{{ url_for('main.modifier_eleve', eleve_id=eleve.id) }}" class="needs-validation" novalidate>
+                    <form method="POST" action="{{ url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url) }}" class="needs-validation" novalidate>
                         {% if csrf_token %}
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         {% endif %}
+                        <input type="hidden" name="return_url" value="{{ return_url }}">
 
                         <div class="form-section">
                             <h5 class="form-section-title">
@@ -84,7 +85,7 @@
 
                         <!-- Actions -->
                         <div class="form-actions">
-                            <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-outline-secondary">
+                            <a href="{{ detail_url or url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-outline-secondary">
                                 <i class="fas fa-times me-1"></i>Annuler
                             </a>
                             <button type="submit" class="btn btn-primary px-4">

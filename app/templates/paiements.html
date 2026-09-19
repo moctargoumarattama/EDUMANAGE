@@ -103,6 +103,7 @@
             <div class="card-body p-4 bg-light bg-opacity-50">
                 <form method="POST" action="{{ url_for('main.paiements') }}" class="needs-validation" novalidate>
                     {{ form.hidden_tag() }}
+                    <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
                     <div class="row g-3">
                         <div class="col-12 col-md-6">
                             <label class="form-label fw-semibold" for="eleve_id">Élève concerné <span class="text-danger">*</span></label>
@@ -463,6 +464,7 @@
                                                                           class="d-inline js-confirm-form"
                                                                           data-confirm="Supprimer ce paiement de {{ '{:,.0f}'.format(p.montant) }} FCFA ">
                                                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                                        <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
                                                                         <button type="submit"
                                                                                 class="btn btn-sm btn-outline-danger"
                                                                                 title="Supprimer ce paiement"
@@ -506,6 +508,7 @@
                                                         {% if not annee_consultee or annee_consultee.statut == 'active' %}
                                                         <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}" method="POST" class="js-confirm-form" data-confirm="Supprimer ce versement ">
                                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                            <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
                                                             <button type="submit" class="btn btn-sm btn-outline-danger">
                                                                 <i class="fas fa-trash-alt me-1"></i>Supprimer
                                                             </button>
@@ -708,6 +711,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (st) params.set('statut_solde', st);
         const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         window.history.replaceState({}, '', newUrl);
+        document.querySelectorAll('[data-return-url-field]').forEach(field => {
+            field.value = newUrl;
+        });
     }
 
     // Rendu et filtrage dynamique
@@ -1118,6 +1124,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="modal-content">
             <form action="{{ url_for('main.configurer_mensualites') }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
                 <div class="modal-header">
                     <h5 class="modal-title" id="configMensualitesModalLabel">Configuration des mensualités</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>

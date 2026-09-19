@@ -652,6 +652,12 @@ document.addEventListener('DOMContentLoaded', function() {
     let classCards = Array.from(container.querySelectorAll('.class-bulletin-card'));
     let currentPage = 1;
     let areAllExpanded = false;
+    const initialParams = new URLSearchParams(window.location.search);
+    if (searchInput && initialParams.has('search')) searchInput.value = initialParams.get('search') || '';
+    if (filterClasse && initialParams.has('classe_id')) filterClasse.value = initialParams.get('classe_id') || '';
+    if (filterMention && initialParams.has('mention')) filterMention.value = initialParams.get('mention') || '';
+    const initialStatutBulletin = initialParams.get('statut_bulletin') || '';
+    const initialPeriode = initialParams.get('periode') || '';
 
     // Synchronisation de la rotation du chevron sur ouverture / fermeture
     classCards.forEach(card => {
@@ -705,6 +711,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const query = normalize(searchInput ? searchInput.value : '');
         const selectedClasse = filterClasse ? filterClasse.value : '';
         const selectedMention = filterMention ? filterMention.value : '';
+        const params = new URLSearchParams();
+        if (searchInput && searchInput.value.trim()) params.set('search', searchInput.value.trim());
+        if (selectedClasse) params.set('classe_id', selectedClasse);
+        if (selectedMention) params.set('mention', selectedMention);
+        if (initialStatutBulletin) params.set('statut_bulletin', initialStatutBulletin);
+        if (initialPeriode) params.set('periode', initialPeriode);
+        const cleanUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+        window.history.replaceState({}, '', cleanUrl);
 
         if (btnClearSearch) {
             btnClearSearch.classList.toggle('d-none', query.length === 0);

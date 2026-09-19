@@ -55,7 +55,7 @@
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
                 {% if current_user.role == 'professeur' and notes_modifiables %}
-                <a href="{{ url_for('main.saisie_notes_classe') }}" class="btn btn-success shadow-sm" id="btnSaisieNotesClasse" title="Saisie rapide des notes par classe entière">
+                <a href="{{ url_for('main.saisie_notes_classe', return_url=return_url) }}" class="btn btn-success shadow-sm" id="btnSaisieNotesClasse" title="Saisie rapide des notes par classe entière">
                     <i class="fas fa-table-list me-2"></i>Saisie par classe
                 </a>
                 {% if form %}
@@ -98,6 +98,7 @@
             <div class="card-body p-4 bg-light bg-opacity-50">
                 <form method="POST" action="{{ url_for('main.notes') }}" class="needs-validation" novalidate>
                     {{ form.hidden_tag() }}
+                    <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
 
                     {% if form.annee_id %}
                         <input type="hidden" name="annee_id" value="{{ form.annee_id.data or (annee_active.id if annee_active else '') }}">
@@ -453,11 +454,12 @@
                                                 {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
                                                 <td class="text-end pe-3">
                                                     <div class="d-inline-flex gap-1">
-                                                        <a href="{{ url_for('main.modifier_note', note_id=note.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier la note">
+                                                        <a href="{{ url_for('main.modifier_note', note_id=note.id, return_url=return_url) }}" class="btn btn-sm btn-outline-primary" title="Modifier la note">
                                                             <i class="fas fa-edit"></i>
                                                         </a>
                                                         <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette note pour {{ eleve_full }} ?');">
                                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                            <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
                                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer la note">
                                                                 <i class="fas fa-trash"></i>
                                                             </button>
@@ -506,11 +508,12 @@
                                         {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
                                         <div class="student-eval-card-bottom">
                                             <div class="student-eval-card-actions">
-                                                <a href="{{ url_for('main.modifier_note', note_id=note.id) }}" class="btn btn-outline-primary btn-sm" title="Modifier">
+                                                <a href="{{ url_for('main.modifier_note', note_id=note.id, return_url=return_url) }}" class="btn btn-outline-primary btn-sm" title="Modifier">
                                                     <i class="fas fa-edit me-1"></i>Modifier
                                                 </a>
                                                 <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette note ?');">
                                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                            <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
                                                     <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
                                                         <i class="fas fa-trash me-1"></i>Supprimer
                                                     </button>
@@ -791,12 +794,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const params = new URLSearchParams();
         if (query) params.set('search', query);
         if (selectedNiveau) params.set('niveau', filterNiveau.value);
-        if (selectedClasse) params.set('classe', selectedClasse);
-        if (selectedCours) params.set('cours', filterCours.value);
+        if (selectedClasse && filterClasse && filterClasse.selectedOptions.length) {
+            params.set('classe_id', filterClasse.selectedOptions[0].dataset.id || selectedClasse);
+        }
+        if (selectedCours && filterCours && filterCours.selectedOptions.length) {
+            params.set('cours_id', filterCours.selectedOptions[0].dataset.id || filterCours.value);
+        }
         if (selectedPeriode) params.set('periode', selectedPeriode);
         if (selectedType) params.set('type_evaluation', selectedType);
         const cleanUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
         window.history.replaceState({}, '', cleanUrl);
+        document.querySelectorAll('[data-return-url-field]').forEach(field => {
+            field.value = cleanUrl;
+        });
 
         let matched = studentCards.filter(function(card) {
             const nom = normalizeStr(card.dataset.nom);

@@ -31,6 +31,7 @@ from .common import (
 from app.models import Bulletin, Inscription, JournalCorrection
 from app.services import generer_bulletin_pdf
 from app.services.annees_scolaires import get_annee_consultee
+from app.utils import sanitize_internal_url
 from app.services.bulletins_annuels import (
     statut_annee_bulletins,
     bulletins_modifiables,
@@ -49,6 +50,25 @@ from app.services.evaluations import (
     STATUS_PROVISOIRE,
     STATUS_NON_EVALUE,
 )
+
+
+_BULLETINS_CONTEXT_ARGS = ('search', 'classe_id', 'mention', 'statut_bulletin', 'periode')
+
+
+def _bulletins_context_url():
+    args = {}
+    for key in _BULLETINS_CONTEXT_ARGS:
+        value = request.args.get(key)
+        if value not in (None, ""):
+            args[key] = value
+    return url_for('main.bulletins', **args)
+
+
+def _bulletins_return_url():
+    return sanitize_internal_url(
+        request.form.get('return_url') or request.args.get('return_url'),
+        _bulletins_context_url(),
+    )
 
 
 @main.route('/bulletin_eleve/<int:id>')
@@ -238,6 +258,7 @@ def bulletins():
     Règle 2C-5D : Consomme get_annee_consultee(ecole_id) sans modifier la session.
     """
     ecole_id = current_user.ecole_id
+    context_url = _bulletins_return_url()
     annee = get_annee_consultee(ecole_id)
 
     if not annee:
@@ -551,7 +572,8 @@ def bulletins():
         annee_consultee=annee,
         bulletins_modifiables=est_modifiable,
         statut_warning=statut_warning,
-        periode_publiee=periode_publiee
+        periode_publiee=periode_publiee,
+        return_url=context_url
     )
 
 
@@ -560,6 +582,7 @@ def bulletins():
 @login_required
 @role_required('admin')
 def route_supprimer_bulletin(id):
+    context_url = _bulletins_return_url()
     """Supprime un bulletin persistant (interdit sur année archivée ou planifiée)."""
     annee = get_annee_consultee(current_user.ecole_id)
     succes, err = supprimer_bulletin(current_user.ecole_id, annee, current_user, id)
@@ -567,13 +590,14 @@ def route_supprimer_bulletin(id):
         flash(err or "Impossible de supprimer ce bulletin.", "danger")
     else:
         flash("Bulletin supprimé avec succès.", "success")
-    return redirect(url_for('main.bulletins'))
+    return redirect(context_url)
 
 
 @main.route('/bulletin/<int:id>/appreciation', methods=['POST'])
 @login_required
 @role_required('admin', 'professeur')
 def route_modifier_appreciation(id):
+    context_url = _bulletins_return_url()
     """Modifie l'appréciation générale d'un bulletin (interdit sur année archivée)."""
     annee = get_annee_consultee(current_user.ecole_id)
     nouvelle_appreciation = request.form.get('appreciation', '')
@@ -582,7 +606,7 @@ def route_modifier_appreciation(id):
         flash(err, "danger")
     else:
         flash("Appréciation mise à jour avec succès.", "success")
-    return redirect(url_for('main.bulletins'))
+    return redirect(context_url)
 
 
 @main.route('/toggle_periode/<int:id>', methods=['GET', 'POST'])

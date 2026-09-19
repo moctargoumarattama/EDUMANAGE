@@ -33,6 +33,7 @@ from .common import (
     url_for,
 )
 from flask import jsonify
+from app.utils import sanitize_internal_url
 
 
 @main.route('/')
@@ -185,18 +186,15 @@ def login():
             # Logging succinct (éviter d'écrire info sensibles)
             current_app.logger.info(f"Connexion réussie pour utilisateur id={utilisateur.id} depuis {ip} rôle={utilisateur.role}")
 
-            # traitement safe du next param (ne pas rediriger vers un domaine externe)
-            next_page = request.args.get('next')
-            if next_page and not next_page.startswith('/'):
-                next_page = None
-
             endpoint_par_role = {
                 "admin": "main.index",
                 "super_admin": "main.index",
                 "professeur": "main.professeur_dashboard",
                 "parent": "main.parent_dashboard",
             }
-            return redirect(next_page) if next_page else redirect(url_for(endpoint_par_role.get(utilisateur.role, "main.index")))
+            fallback = url_for(endpoint_par_role.get(utilisateur.role, "main.index"))
+            next_page = sanitize_internal_url(request.args.get('next'), fallback)
+            return redirect(next_page)
         else:
             # échec de connexion
             current_app.logger.warning(f"Tentative de connexion échouée pour identifiant={identifiant} depuis {ip}")
