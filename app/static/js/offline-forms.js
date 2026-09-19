@@ -3,6 +3,27 @@
 (function () {
     'use strict';
 
+    function fieldValue(form, selector, fallback = '') {
+        const field = form.querySelector(selector);
+        return field ? field.value : fallback;
+    }
+
+    function selectedText(select, fallback = '') {
+        return select && select.selectedOptions && select.selectedOptions[0]
+            ? select.selectedOptions[0].text
+            : fallback;
+    }
+
+    function canQueueOffline(form) {
+        return !navigator.onLine &&
+            typeof offlineManager !== 'undefined' &&
+            offlineManager &&
+            typeof offlineManager.addToSync === 'function' &&
+            form &&
+            !form.matches('form[data-klasora-form]') &&
+            form.dataset.offlineQueueing !== '1';
+    }
+
     // 1. Mise à jour de l'indicateur d'état dans la navbar
     async function updateSyncBadge() {
         const badge = document.getElementById('klasoraSyncStatusBadge');
@@ -83,7 +104,7 @@
         const path = window.location.pathname;
         if (!path.includes('/notes')) return;
 
-        const form = document.querySelector('form[action*="notes"]') || document.querySelector('form');
+        const form = document.querySelector('form[action*="notes"]');
         if (!form) return;
 
         const valeurInput = form.querySelector('input[name="valeur"]');
@@ -93,26 +114,27 @@
         if (!valeurInput || !eleveSelect) return;
 
         form.addEventListener('submit', async function (e) {
-            if (!navigator.onLine) {
+            if (canQueueOffline(form)) {
                 e.preventDefault();
 
                 const eleve_id = eleveSelect.value;
                 const cours_id = coursSelect ? coursSelect.value : null;
                 const valeur = valeurInput.value;
-                const type_eval = form.querySelector('select[name="type_evaluation"]').value || 'Devoir';
-                const coef = form.querySelector('input[name="coefficient"]').value || 1.0;
-                const periode = form.querySelector('select[name="periode"]').value || form.querySelector('select[name="annee_id"]').selectedOptions.[0].text || '';
-                const date_eval = form.querySelector('input[name="date_evaluation"]').value || new Date().toISOString();
+                const type_eval = fieldValue(form, 'select[name="type_evaluation"]', 'Devoir') || 'Devoir';
+                const coef = fieldValue(form, 'input[name="coefficient"]', 1.0) || 1.0;
+                const periode = fieldValue(form, 'select[name="periode"]') || selectedText(form.querySelector('select[name="annee_id"]'));
+                const date_eval = fieldValue(form, 'input[name="date_evaluation"]') || new Date().toISOString();
 
                 if (!eleve_id || !cours_id || valeur === '') {
                     alert('Veuillez remplir les champs obligatoires (Élève, Cours, Note).');
                     return;
                 }
 
+                form.dataset.offlineQueueing = '1';
                 try {
-                    const studentName = eleveSelect.selectedOptions.[0].text || 'Élève';
-                    const baseVersionVal = form.querySelector('input[name="base_version"], input[name="sync_version"]').value;
-                    const noteIdVal = form.querySelector('input[name="note_id"], input[name="id"]').value;
+                    const studentName = selectedText(eleveSelect, 'Élève');
+                    const baseVersionVal = fieldValue(form, 'input[name="base_version"], input[name="sync_version"]');
+                    const noteIdVal = fieldValue(form, 'input[name="note_id"], input[name="id"]');
                     const notePayload = {
                         eleve_id: parseInt(eleve_id, 10),
                         cours_id: parseInt(cours_id, 10),
@@ -137,17 +159,18 @@
                 } catch (err) {
                     console.error('Erreur enregistrement note hors-ligne:', err);
                     alert('Erreur de sauvegarde locale: ' + err.message);
+                } finally {
+                    delete form.dataset.offlineQueueing;
                 }
             }
         });
     }
-
     // 4. Interception du formulaire des Absences
     function setupAbsencesOffline() {
         const path = window.location.pathname;
         if (!path.includes('/absences')) return;
 
-        const form = document.querySelector('form[action*="absences"]') || document.querySelector('form');
+        const form = document.querySelector('form[action*="absences"]');
         if (!form) return;
 
         const eleveSelect = form.querySelector('select[name="eleve_id"]');
@@ -156,24 +179,26 @@
         if (!eleveSelect) return;
 
         form.addEventListener('submit', async function (e) {
-            if (!navigator.onLine) {
+            if (canQueueOffline(form)) {
                 e.preventDefault();
 
                 const eleve_id = eleveSelect.value;
-                const cours_id = form.querySelector('select[name="cours_id"]').value || null;
+                const cours_id = fieldValue(form, 'select[name="cours_id"]') || null;
                 const date_absence = dateInput ? dateInput.value : new Date().toISOString().slice(0, 10);
-                const motif = form.querySelector('input[name="motif"], textarea[name="motif"]').value || '';
-                const justifiee = form.querySelector('input[name="justifiee"]').checked || false;
+                const motif = fieldValue(form, 'input[name="motif"], textarea[name="motif"]');
+                const justifieeInput = form.querySelector('input[name="justifiee"]');
+                const justifiee = justifieeInput ? justifieeInput.checked : false;
 
                 if (!eleve_id || !date_absence) {
                     alert('Veuillez sélectionner au moins un élève et une date.');
                     return;
                 }
 
+                form.dataset.offlineQueueing = '1';
                 try {
-                    const studentName = eleveSelect.selectedOptions.[0].text || 'Élève';
-                    const baseVersionVal = form.querySelector('input[name="base_version"], input[name="sync_version"]').value;
-                    const absIdVal = form.querySelector('input[name="absence_id"], input[name="id"]').value;
+                    const studentName = selectedText(eleveSelect, 'Élève');
+                    const baseVersionVal = fieldValue(form, 'input[name="base_version"], input[name="sync_version"]');
+                    const absIdVal = fieldValue(form, 'input[name="absence_id"], input[name="id"]');
                     const absPayload = {
                         eleve_id: parseInt(eleve_id, 10),
                         cours_id: cours_id ? parseInt(cours_id, 10) : null,
@@ -196,6 +221,13 @@
                 } catch (err) {
                     console.error('Erreur enregistrement absence hors-ligne:', err);
                     alert('Erreur de sauvegarde locale: ' + err.message);
+                } finally {
+                    delete form.dataset.offlineQueueing;
+                }
+            }
+        });
+    }
+
     // 4b. Interception du formulaire des Élèves (Création & Modification)
     function setupElevesOffline() {
         const path = window.location.pathname;
@@ -206,7 +238,7 @@
             if (!form) return;
 
             form.addEventListener('submit', async function (e) {
-                if (!navigator.onLine) {
+                if (canQueueOffline(form)) {
                     e.preventDefault();
 
                     const nomInput = form.querySelector('input[name="nom"]');
@@ -234,6 +266,7 @@
                         classe_id: classe_id
                     };
 
+                    form.dataset.offlineQueueing = '1';
                     try {
                         await offlineManager.addToSync('eleve_creation', payload);
 
@@ -253,10 +286,10 @@
                     } catch (err) {
                         console.error('Erreur enregistrement élève hors-ligne:', err);
                         alert('Erreur de sauvegarde locale: ' + err.message);
+                    } finally {
+                        delete form.dataset.offlineQueueing;
                     }
                 }
-            }
-        });
             });
         }
 
@@ -266,7 +299,7 @@
             if (!form) return;
 
             form.addEventListener('submit', async function (e) {
-                if (!navigator.onLine) {
+                if (canQueueOffline(form)) {
                     e.preventDefault();
 
                     const eleveIdInput = form.querySelector('input[name="eleve_id"], input[name="id"]');
@@ -294,6 +327,7 @@
                         payload.base_version = parseInt(baseVersionVal.value, 10);
                     }
 
+                    form.dataset.offlineQueueing = '1';
                     try {
                         await offlineManager.addToSync('eleve_modification', payload);
                         showNotification(`✅ Modifications pour <strong>${payload.prenom} ${payload.nom}</strong> enregistrées sur cet appareil !<br><small class="text-muted">🟠 En attente de synchronisation.</small>`, 'warning');
@@ -301,6 +335,8 @@
                     } catch (err) {
                         console.error('Erreur modification élève hors-ligne:', err);
                         alert('Erreur de sauvegarde locale: ' + err.message);
+                    } finally {
+                        delete form.dataset.offlineQueueing;
                     }
                 }
             });
@@ -352,8 +388,8 @@
 
         let cached = await offlineDB.getCachedData(cacheKey);
         if (!cached && typeof offlineDB.getAdminCacheKey === 'function' && typeof offlineDB.getTeacherCacheKey === 'function') {
-            const altKey = (cacheKey === offlineDB.getAdminCacheKey()) 
-                 offlineDB.getTeacherCacheKey() 
+            const altKey = (cacheKey === offlineDB.getAdminCacheKey())
+                ? offlineDB.getTeacherCacheKey()
                 : offlineDB.getAdminCacheKey();
             cached = await offlineDB.getCachedData(altKey);
         }
