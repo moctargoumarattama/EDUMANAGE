@@ -20,10 +20,7 @@
                                 <label for="nom" class="form-label fw-bold">Nom de l'école *</label>
                                 <input type="text" class="form-control" id="nom" name="nom" value="{{ ecole.nom }}" required>
                             </div>
-                            <div class="col-md-6">
-                                <label for="directeur" class="form-label fw-bold">Nom du Directeur / Chef d'Établissement</label>
-                                <input type="text" class="form-control" id="directeur" name="directeur" value="{{ ecole.directeur or '' }}" placeholder="Ex: M. Amadou Diallo">
-                            </div>
+
                             <div class="col-md-6">
                                 <label for="email" class="form-label fw-bold">Email de contact</label>
                                 <input type="email" class="form-control" id="email" name="email" value="{{ ecole.email or '' }}" {% if current_user.role != 'super_admin' %}readonly{% endif %}>

@@ -35,7 +35,7 @@
 
     <!-- Informations détaillées -->
     <div class="row g-4 justify-content-center">
-        <div class="col-lg-8">
+        <div class="col-lg-7 col-xl-6">
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-white border-bottom py-3">
                     <h5 class="mb-0 text-primary fw-bold">
@@ -43,7 +43,7 @@
                     </h5>
                 </div>
                 <div class="card-body p-4">
-                    <div class="row g-3">
+                    <div class="row g-4">
                         <div class="col-md-6">
                             <label class="text-muted small text-uppercase fw-semibold d-block mb-1">Nom complet</label>
                             <div class="fs-6 fw-bold text-dark">{{ professeur.prenom }} {{ professeur.nom }}</div>
@@ -56,20 +56,16 @@
                             <label class="text-muted small text-uppercase fw-semibold d-block mb-1">Téléphone</label>
                             <div class="fs-6 text-dark"><i class="fas fa-phone text-success me-2"></i>{{ professeur.telephone or "Non renseigné" }}</div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="text-muted small text-uppercase fw-semibold d-block mb-1">Spécialité / Discipline</label>
-                            <div class="fs-6 text-dark"><span class="badge bg-primary bg-opacity-10 text-primary fs-6">{{ professeur.specialite or professeur.matiere or "Générale" }}</span></div>
-                        </div>
                         {% if professeur.adresse %}
-                        <div class="col-12">
+                        <div class="col-md-6">
                             <label class="text-muted small text-uppercase fw-semibold d-block mb-1">Adresse postale</label>
                             <div class="fs-6 text-dark"><i class="fas fa-map-marker-alt text-danger me-2"></i>{{ professeur.adresse }}</div>
                         </div>
                         {% endif %}
                         {% if professeur.matieres_enseignees %}
-                        <div class="col-12">
+                        <div class="col-md-6">
                             <label class="text-muted small text-uppercase fw-semibold d-block mb-1">Matières assignées</label>
-                            <div class="fs-6 text-dark">{{ professeur.matieres_enseignees }}</div>
+                            <div class="fs-6 text-dark"><i class="fas fa-book-open text-info me-2"></i>{{ professeur.matieres_enseignees }}</div>
                         </div>
                         {% endif %}
                     </div>

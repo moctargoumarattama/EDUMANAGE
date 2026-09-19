@@ -23,6 +23,20 @@ from app.models import (
     Paiement,
 )
 
+MOIS_SCOLAIRES_BASE = [
+    "Octobre", "Novembre", "Décembre", "Janvier",
+    "Février", "Mars", "Avril", "Mai", "Juin"
+]
+
+def get_mois_scolaires(annee_scolaire=None):
+    """
+    Retourne la liste ordonnée des mois de l'année scolaire.
+    Ajoute Juillet si l'année scolaire l'autorise.
+    """
+    mois = list(MOIS_SCOLAIRES_BASE)
+    if annee_scolaire and getattr(annee_scolaire, 'facturer_juillet', False):
+        mois.append("Juillet")
+    return mois
 
 def get_inscriptions_paiements(ecole_id, annee, user=None):
     """Retourne les inscriptions actives/terminées pour l'année et l'école, filtrées par utilisateur."""

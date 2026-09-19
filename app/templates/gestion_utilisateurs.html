@@ -103,6 +103,9 @@
                             <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.modifier_utilisateur', id=user.id) }}" title="Modifier">
                                 <i class="fas fa-edit"></i>
                             </a>
+                            <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#resetPasswordModal" data-userid="{{ user.id }}" data-fullname="{{ user.prenom or '' }} {{ user.nom }}" data-email="{{ user.email }}" data-role="{{ user.role|replace('_', ' ')|title }}" title="Nouveau mot de passe">
+                                <i class="fas fa-key"></i>
+                            </button>
                             {% if user.id != current_user.id %}
                             {% set statut_user = user.statut or 'actif' %}
                             <button class="btn btn-sm btn-outline-warning js-user-status" type="button" data-klasora-action data-method="PUT" data-url="{{ url_for('main.toggle_user_status', user_id=user.id) }}" data-status-target="[data-user-status='{{ user.id }}']" data-user-id="{{ user.id }}" data-current-status="{{ statut_user }}" data-confirm="Changer le statut de cet utilisateur " data-loading="Traitement..." data-success="Statut mis ? jour." title="{{ 'Débloquer' if statut_user == 'bloque' else 'Bloquer' }}">
@@ -144,6 +147,11 @@
                 <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.modifier_utilisateur', id=user.id) }}">
                     <i class="fas fa-edit me-1"></i>Modifier
                 </a>
+
+                <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#resetPasswordModal" data-userid="{{ user.id }}" data-fullname="{{ user.prenom or '' }} {{ user.nom }}" data-email="{{ user.email }}" data-role="{{ user.role|replace('_', ' ')|title }}">
+                    <i class="fas fa-key me-1"></i>Mot de passe
+                </button>
+
                 {% if user.id != current_user.id %}
                 {% set statut_user = user.statut or 'actif' %}
                 <button class="btn btn-sm btn-outline-warning js-user-status" type="button" data-klasora-action data-method="PUT" data-url="{{ url_for('main.toggle_user_status', user_id=user.id) }}" data-status-target="[data-user-status='{{ user.id }}']" data-user-id="{{ user.id }}" data-current-status="{{ statut_user }}" data-confirm="Changer le statut de cet utilisateur " data-loading="Traitement..." data-success="Statut mis ? jour.">
@@ -187,10 +195,163 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Modal Reset Password -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="resetPasswordModalLabel">Réinitialiser le mot de passe</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="resetPasswordConfirmSection">
+            <p><strong>Utilisateur :</strong> <span id="resetModalFullName"></span></p>
+            <p><strong>Email :</strong> <span id="resetModalEmail"></span></p>
+            <p><strong>Rôle :</strong> <span id="resetModalRole"></span></p>
+            <div class="alert alert-warning mt-3">
+                <p class="mb-2">Le mot de passe actuel de cet utilisateur ne peut pas être affiché.</p>
+                <p class="mb-2">Vous pouvez générer un nouveau mot de passe à 8 chiffres. Cette action remplacera immédiatement le mot de passe actuel.</p>
+                <p class="mb-0">Le nouveau mot de passe restera valide jusqu'à ce qu'il soit modifié ou réinitialisé.</p>
+            </div>
+        </div>
+
+        <div id="resetPasswordResultSection" class="d-none text-center py-4">
+            <h5 class="text-success mb-3"><i class="fas fa-check-circle me-2"></i>Nouveau mot de passe généré</h5>
+
+            <div class="input-group mb-3 justify-content-center" style="max-width: 300px; margin: 0 auto;">
+                <input type="text" class="form-control text-center fw-bold fs-4 bg-light" id="generatedPasswordDisplay" readonly value="" style="letter-spacing: 2px;">
+                <button class="btn btn-outline-primary" type="button" id="btnCopyPassword" title="Copier">
+                    <i class="fas fa-copy"></i> Copier
+                </button>
+            </div>
+
+            <div id="copyFeedback" class="text-success small mb-3" style="opacity: 0; transition: opacity 0.3s;">
+                <i class="fas fa-check"></i> Copié !
+            </div>
+
+            <div class="alert alert-info text-start small">
+                <strong>Attention :</strong> Copiez ce mot de passe maintenant.<br>
+                Pour des raisons de sécurité, il ne pourra plus être affiché après la fermeture de cette fenêtre.
+                Ce mot de passe restera valide jusqu'à ce qu'il soit modifié ou réinitialisé.
+            </div>
+        </div>
+      </div>
+      <div class="modal-footer" id="resetPasswordFooter">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmReset">Générer un nouveau mot de passe</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+(function() {
+    let currentUserId = null;
+
+    document.addEventListener('click', function(e) {
+        // 1. Clic sur le bouton d'ouverture de la modale
+        const btnOpen = e.target.closest('[data-bs-target="#resetPasswordModal"]');
+        if (btnOpen) {
+            currentUserId = btnOpen.getAttribute('data-userid');
+            
+            const nameEl = document.getElementById('resetModalFullName');
+            const emailEl = document.getElementById('resetModalEmail');
+            const roleEl = document.getElementById('resetModalRole');
+            
+            if(nameEl) nameEl.textContent = btnOpen.getAttribute('data-fullname');
+            if(emailEl) emailEl.textContent = btnOpen.getAttribute('data-email');
+            if(roleEl) roleEl.textContent = btnOpen.getAttribute('data-role');
+            
+            const confirmSec = document.getElementById('resetPasswordConfirmSection');
+            const resultSec = document.getElementById('resetPasswordResultSection');
+            const footerSec = document.getElementById('resetPasswordFooter');
+            
+            if(confirmSec) confirmSec.classList.remove('d-none');
+            if(resultSec) resultSec.classList.add('d-none');
+            if(footerSec) footerSec.classList.remove('d-none');
+            
+            const display = document.getElementById('generatedPasswordDisplay');
+            if(display) display.value = '';
+            
+            const btnConfirm = document.getElementById('btnConfirmReset');
+            if (btnConfirm) {
+                btnConfirm.disabled = false;
+                btnConfirm.innerHTML = 'Générer un nouveau mot de passe';
+            }
+        }
+
+        // 2. Clic sur le bouton de confirmation (Générer)
+        const btnConfirm = e.target.closest('#btnConfirmReset');
+        if (btnConfirm) {
+            if (!currentUserId) {
+                alert("Erreur interne : aucun ID utilisateur. Fermez la modale et réessayez.");
+                return;
+            }
+            
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            btnConfirm.disabled = true;
+            btnConfirm.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Génération...';
+
+            fetch(`/admin/utilisateur/${currentUserId}/reset-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('resetPasswordConfirmSection').classList.add('d-none');
+                    document.getElementById('resetPasswordFooter').classList.add('d-none');
+                    document.getElementById('resetPasswordResultSection').classList.remove('d-none');
+                    document.getElementById('generatedPasswordDisplay').value = data.password;
+                } else {
+                    alert('Erreur: ' + (data.message || 'Impossible de réinitialiser le mot de passe.'));
+                    btnConfirm.disabled = false;
+                    btnConfirm.innerHTML = 'Générer un nouveau mot de passe';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Une erreur est survenue lors de la communication avec le serveur.');
+                btnConfirm.disabled = false;
+                btnConfirm.innerHTML = 'Générer un nouveau mot de passe';
+            });
+        }
+
+        // 3. Clic sur le bouton Copier
+        const btnCopy = e.target.closest('#btnCopyPassword');
+        if (btnCopy) {
+            const pwdInput = document.getElementById('generatedPasswordDisplay');
+            if (pwdInput && pwdInput.value) {
+                navigator.clipboard.writeText(pwdInput.value).then(() => {
+                    const feedback = document.getElementById('copyFeedback');
+                    if(feedback) {
+                        feedback.style.opacity = '1';
+                        setTimeout(() => {
+                            feedback.style.opacity = '0';
+                        }, 2000);
+                    }
+                });
+            }
+        }
+    });
+
+    // Nettoyage lors de la fermeture de la modale
+    document.addEventListener('hidden.bs.modal', function(e) {
+        if (e.target.id === 'resetPasswordModal') {
+            const display = document.getElementById('generatedPasswordDisplay');
+            if(display) display.value = '';
+            currentUserId = null;
+        }
+    });
+})();
+
 document.addEventListener('klasora:success', function(event) {
     const btn = event.target;
     const id = btn.dataset.userId;
@@ -198,7 +359,7 @@ document.addEventListener('klasora:success', function(event) {
 
     if (btn.classList.contains('js-user-delete')) {
         const paired = btn.closest('.user-card')
-             document.querySelector('#user-row-' + id)
+            ? document.querySelector('#user-row-' + id)
             : document.querySelector('#user-card-' + id);
         if (paired) window.KlasoraUI.removeElementAnimated(paired);
     }

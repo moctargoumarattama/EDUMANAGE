@@ -37,6 +37,7 @@ from app.services.paiements_annuels import (
     get_paiements_annee,
     enregistrer_paiement,
     supprimer_paiement_securise,
+    get_mois_scolaires,
 )
 
 
@@ -74,6 +75,8 @@ def paiements():
         )
         for ins in inscriptions_annee if ins.eleve
     ]
+    mois_list = get_mois_scolaires(annee)
+    form.mois.choices = [(m, m) for m in mois_list]
 
     # --- TRAITEMENT DU POST (ENCAISSEMENT) ---
     if form.validate_on_submit():
@@ -509,4 +512,36 @@ def supprimer_paiement(id):
         current_app.logger.error(f"Erreur suppression paiement {id}: {e}")
         flash(f"Erreur lors de la suppression: {str(e)}", "danger")
 
+    return redirect(url_for('main.paiements'))
+
+@main.route('/paiements/configurer_mensualites', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def configurer_mensualites():
+    # Protection multi-tenant et rôles
+    ecole_id = current_user.ecole_id
+    annee = get_annee_consultee(ecole_id)
+    
+    if not annee:
+        flash("Aucune année scolaire configurée.", "warning")
+        return redirect(url_for('main.paiements'))
+        
+    if annee.statut == 'archivee':
+        flash("Impossible de modifier la configuration d'une année archivée.", "danger")
+        return redirect(url_for('main.paiements'))
+
+    facturer_juillet = request.form.get('facturer_juillet') == 'on'
+    
+    try:
+        annee.facturer_juillet = facturer_juillet
+        db.session.commit()
+        if facturer_juillet:
+            flash(f"Mensualités mises à jour (Octobre - Juillet) pour l'année {annee.nom}.", "success")
+        else:
+            flash(f"Mensualités mises à jour (Octobre - Juin) pour l'année {annee.nom}.", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur configuration mensualités : {e}")
+        flash("Erreur lors de la sauvegarde.", "danger")
+        
     return redirect(url_for('main.paiements'))

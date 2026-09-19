@@ -937,7 +937,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (filterDay && filterDay.value) params.set('jour', filterDay.value); else params.delete('jour');
         if (filterClasse && filterClasse.value) params.set('classe', filterClasse.value); else params.delete('classe');
         if (sortSelect && sortSelect.value !== 'nom-asc') params.set('sort', sortSelect.value); else params.delete('sort');
-        const newUrl = window.location.pathname + (params.toString() ? '' + params.toString() : '');
+        const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         window.history.replaceState({}, '', newUrl);
     }
 

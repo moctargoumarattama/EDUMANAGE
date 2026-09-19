@@ -168,7 +168,7 @@ def login():
             utilisateur.dernier_acces = datetime.utcnow()
             db.session.commit()
 
-            login_user(utilisateur)
+            login_user(utilisateur, remember=form.remember.data)
             session["role"] = utilisateur.role
 
             # ASSIGNATION ÉCOLE

@@ -18,6 +18,7 @@ from app import db
 from app.models import Absence, Cours, Eleve, Inscription, Note, Paiement, Professeur
 from app.notifications import envoyer_email
 from app.utils import get_ecole_filter_query
+from app.services.paiements_annuels import get_mois_scolaires
 
 
 _stats_cache = {}
@@ -137,9 +138,15 @@ def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
 
     alertes = []
     maintenant = datetime.now()
-    mois_courant = maintenant.month
-    mois_noms = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-                 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+
+    # Construction de la timeline scolaire
+    mois_scolaires_liste = get_mois_scolaires(annee)
+    month_to_num = {'Janvier': 1, 'Février': 2, 'Mars': 3, 'Avril': 4, 'Mai': 5, 'Juin': 6, 'Juillet': 7, 'Août': 8, 'Septembre': 9, 'Octobre': 10, 'Novembre': 11, 'Décembre': 12}
+    timeline = []
+    for m_name in mois_scolaires_liste:
+        m_num = month_to_num.get(m_name, 1)
+        y = annee.date_debut.year if m_num >= 8 else annee.date_fin.year
+        timeline.append((m_name, y, m_num))
 
     is_archivee = (annee.statut == 'archivee')
 
@@ -263,9 +270,14 @@ def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
                     'historique': True,
                 })
         else:
-            mois_manquants = [mois_noms[m-1] for m in range(1, mois_courant) if mois_noms[m-1] not in mois_payes]
+            mois_dus = []
+            for m_name, y, m_num in timeline:
+                if (y, m_num) <= (maintenant.year, maintenant.month):
+                    mois_dus.append(m_name)
+
+            mois_manquants = [m for m in mois_dus if m not in mois_payes]
             if mois_manquants and total_paye < frais_annuels:
-                frais_mensuels = frais_annuels / 10
+                frais_mensuels = frais_annuels / len(timeline)
                 montant_du = round(min(frais_annuels - total_paye, frais_mensuels * len(mois_manquants)))
                 if montant_du > 0:
                     if len(mois_manquants) >= 3:

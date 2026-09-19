@@ -411,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedNiveau && selectedNiveau !== 'all') params.set('niveau', selectedNiveau);
         if (selectedClass && selectedClass !== 'all') params.set('classe_id', selectedClass);
         if (selectedGenre && selectedGenre !== 'all') params.set('genre', selectedGenre);
-        const cleanUrl = `${window.location.pathname}${params.toString() ? '' + params.toString() : ''}`;
+        const cleanUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
         window.history.replaceState({}, '', cleanUrl);
 
         let totalVisibleStudents = 0;

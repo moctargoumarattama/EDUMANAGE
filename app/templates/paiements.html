@@ -19,21 +19,7 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                {% if annee_consultee %}
-                <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-light text-dark border px-3 py-2">
-                        <i class="fas fa-calendar-alt me-1 text-primary"></i>Année : {{ annee_consultee.nom }}
-                        {% if annee_consultee.statut == 'archivee' %}
-                        <span class="badge bg-secondary ms-1">ARCHIVÉE</span>
-                        {% elif annee_consultee.statut == 'planifiee' %}
-                        <span class="badge bg-info text-dark ms-1">PLANIFIÉE</span>
-                        {% else %}
-                        <span class="badge bg-success ms-1">ACTIVE</span>
-                        {% endif %}
-                    </span>
-                    <a href="{{ url_for('main.gestion_annees') }}" class="small text-decoration-none">Changer</a>
-                </div>
-                {% endif %}
+
                 <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllPayments" title="Déplier ou replier toutes les classes">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
@@ -42,6 +28,9 @@
                     <i class="fas fa-plus-circle me-2"></i>Nouveau paiement
                 </button>
                 {% endif %}
+                <button type="button" class="btn btn-outline-secondary shadow-sm" data-bs-toggle="modal" data-bs-target="#configMensualitesModal" title="Configurer les mensualités (Juillet, etc.)">
+                    <i class="fas fa-cog me-1"></i>Configurer
+                </button>
                 <a href="{{ url_for('main.export_paiements_excel') }}" class="btn btn-outline-primary shadow-sm" title="Exporter les paiements au format Excel">
                     <i class="fas fa-file-excel me-2"></i>Exporter Excel
                 </a>
@@ -70,33 +59,32 @@
     {% endif %}
 
     <!-- Cartes statistiques récapitulatives -->
-    <div class="stat-grid mb-4">
-        <div class="stat-card">
-            <div class="stat-icon primary"><i class="fas fa-users"></i></div>
-            <div>
-                <p class="stat-number">{{ stats.total_eleves }}</p>
-                <p class="stat-label">Élèves inscrits</p>
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-4">
+            <div class="stat-card h-100">
+                <div class="stat-icon info"><i class="fas fa-file-invoice-dollar"></i></div>
+                <div>
+                    <p class="stat-number">{{ "{:,.0f}".format(stats.total_frais) }} <small class="fs-6 text-muted">FCFA</small></p>
+                    <p class="stat-label">Total attendu</p>
+                </div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon info"><i class="fas fa-file-invoice-dollar"></i></div>
-            <div>
-                <p class="stat-number">{{ "{:,.0f}".format(stats.total_frais) }} <small class="fs-6 text-muted">FCFA</small></p>
-                <p class="stat-label">Total attendu</p>
+        <div class="col-12 col-lg-4">
+            <div class="stat-card h-100">
+                <div class="stat-icon success"><i class="fas fa-check-circle"></i></div>
+                <div>
+                    <p class="stat-number text-success">{{ "{:,.0f}".format(stats.total_recouvre) }} <small class="fs-6 text-muted">FCFA</small></p>
+                    <p class="stat-label">Recouvré ({{ stats.taux_recouvrement }}%)</p>
+                </div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon success"><i class="fas fa-check-circle"></i></div>
-            <div>
-                <p class="stat-number text-success">{{ "{:,.0f}".format(stats.total_recouvre) }} <small class="fs-6 text-muted">FCFA</small></p>
-                <p class="stat-label">Recouvré ({{ stats.taux_recouvrement }}%)</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon warning"><i class="fas fa-hourglass-half"></i></div>
-            <div>
-                <p class="stat-number text-danger">{{ "{:,.0f}".format(stats.total_reste) }} <small class="fs-6 text-muted">FCFA</small></p>
-                <p class="stat-label">Reste à percevoir</p>
+        <div class="col-12 col-lg-4">
+            <div class="stat-card h-100">
+                <div class="stat-icon warning"><i class="fas fa-hourglass-half"></i></div>
+                <div>
+                    <p class="stat-number text-danger">{{ "{:,.0f}".format(stats.total_reste) }} <small class="fs-6 text-muted">FCFA</small></p>
+                    <p class="stat-label">Reste à percevoir</p>
+                </div>
             </div>
         </div>
     </div>
@@ -157,7 +145,7 @@
     <div class="course-toolbar-card mb-4">
         <div class="row g-2 align-items-center">
             <!-- Recherche rapide -->
-            <div class="col-12 col-md-4 col-lg-3">
+            <div class="col-12 col-md-6 col-lg-5">
                 <div class="course-search-box">
                     <i class="fas fa-search search-icon"></i>
                     <input type="text" id="paymentSearchInput" class="form-control" placeholder="Rechercher classe, élève, reçu..." autocomplete="off">
@@ -167,20 +155,8 @@
                 </div>
             </div>
 
-            <!-- Filtre par niveau -->
-            <div class="col-6 col-md-3 col-lg-2">
-                <select id="filterPaymentNiveauSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Tous les niveaux</option>
-                    {% if niveaux %}
-                        {% for niv in niveaux %}
-                            <option value="{{ niv.nom }}">{{ niv.nom }}</option>
-                        {% endfor %}
-                    {% endif %}
-                </select>
-            </div>
-
             <!-- Filtre par classe -->
-            <div class="col-6 col-md-3 col-lg-2">
+            <div class="col-12 col-md-3 col-lg-4">
                 <select id="filterPaymentClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="">Toutes les classes</option>
                     {% if classes %}
@@ -191,19 +167,8 @@
                 </select>
             </div>
 
-            <!-- Filtre par statut financier -->
-            <div class="col-6 col-md-3 col-lg-2">
-                <select id="filterPaymentStatutSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Tous les statuts</option>
-                    <option value="reste_a_payer">Reste à payer (&gt; 0)</option>
-                    <option value="partiel">Partiellement payé</option>
-                    <option value="aucun">Aucun versement</option>
-                    <option value="complet">Totalement soldé</option>
-                </select>
-            </div>
-
             <!-- Tri des classes -->
-            <div class="col-6 col-md-3 col-lg-2">
+            <div class="col-12 col-md-3 col-lg-3">
                 <select id="sortPaymentSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="nom-asc">Classe (A &rarr; Z)</option>
                     <option value="nom-desc">Classe (Z &rarr; A)</option>
@@ -645,7 +610,9 @@
                     {% endfor %}
                 </div>
             </article>
-        {% else %}
+        {% endif %}
+
+        {% if not classes %}
             <div class="card border-0 shadow-sm text-center py-5 my-4">
                 <div class="card-body">
                     <i class="fas fa-money-check-alt text-muted fa-4x mb-3 opacity-50"></i>
@@ -739,7 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (niv) params.set('niveau', niv);
         if (cl) params.set('classe', cl);
         if (st) params.set('statut_solde', st);
-        const newUrl = window.location.pathname + (params.toString() ? '' + params.toString() : '');
+        const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         window.history.replaceState({}, '', newUrl);
     }
 
@@ -1145,4 +1112,33 @@ document.addEventListener('DOMContentLoaded', function() {
     render();
 });
 </script>
+<!-- Modale Configuration Mensualités -->
+<div class="modal fade" id="configMensualitesModal" tabindex="-1" aria-labelledby="configMensualitesModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('main.configurer_mensualites') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="configMensualitesModalLabel">Configuration des mensualités</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-4">
+                        Par défaut, KLASORA comptabilise les mensualités d'octobre à juin.
+                    </p>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" id="facturerJuilletSwitch" name="facturer_juillet" {% if annee_consultee and annee_consultee.facturer_juillet %}checked{% endif %}>
+                        <label class="form-check-label" for="facturerJuilletSwitch">Facturer le mois de juillet</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
+

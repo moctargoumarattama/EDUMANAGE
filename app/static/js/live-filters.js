@@ -122,7 +122,7 @@
             const params = this.collectParams();
 
             // Synchronisation de l'URL dans l'historique sans rechargement
-            const cleanUrl = `${window.location.pathname}${params.toString() ? '' + params.toString() : ''}`;
+            const cleanUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
             window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
 
             // Annuler l'ancienne requête si elle était toujours en cours
@@ -141,7 +141,8 @@
             try {
                 // Ajouter ajax=1 ou en-tête XMLHttpRequest
                 params.set('ajax', '1');
-                const fetchUrl = `${this.endpoint}${params.toString()}`;
+                const separator = this.endpoint.includes('?') ? '&' : '?';
+                const fetchUrl = `${this.endpoint}${separator}${params.toString()}`;
 
                 const response = await fetch(fetchUrl, {
                     method: 'GET',

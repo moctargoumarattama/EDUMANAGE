@@ -24,14 +24,14 @@
     <div class="card mb-4" id="professeurs-filter-section">
         <div class="card-body">
             <form method="get" action="{{ url_for('main.professeurs') }}" class="row g-2 align-items-center" id="professeursFilterForm">
-                <div class="col-12 col-md-5">
+                <div class="col-12 col-md-7">
                     <label for="search" class="form-label small fw-semibold text-muted mb-1">Recherche multi-critères</label>
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
                         <input id="search" name="search" type="search" class="form-control border-start-0 ps-0" value="{{ search or '' }}" placeholder="Nom, prénom, email, téléphone, code...">
                     </div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-12 col-md-3">
                     <label for="filterClasseSelect" class="form-label small fw-semibold text-muted mb-1">Classe</label>
                     <select id="filterClasseSelect" name="classe_id" class="form-select">
                         <option value="">Toutes les classes</option>
@@ -40,14 +40,6 @@
                                 <option value="{{ c.id }}" {% if classe_id == c.id %}selected{% endif %}>{{ c.nom }}</option>
                             {% endfor %}
                         {% endif %}
-                    </select>
-                </div>
-                <div class="col-6 col-md-2">
-                    <label for="filterStatutSelect" class="form-label small fw-semibold text-muted mb-1">Statut</label>
-                    <select id="filterStatutSelect" name="statut" class="form-select">
-                        <option value="">Tous les statuts</option>
-                        <option value="actif" {% if statut == 'actif' %}selected{% endif %}>Actif</option>
-                        <option value="inactif" {% if statut == 'inactif' %}selected{% endif %}>Inactif</option>
                     </select>
                 </div>
                 <div class="col-12 col-md-2 d-flex align-items-end gap-2 mt-md-4">
@@ -160,7 +152,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (q) params.set('search', q);
         if (cid) params.set('classe_id', cid);
         if (st) params.set('statut', st);
-        const newUrl = window.location.pathname + (params.toString() ? '' + params.toString() : '');
+        const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         window.history.replaceState({}, '', newUrl);
     }
 
@@ -216,3 +208,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+

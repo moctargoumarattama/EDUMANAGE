@@ -207,23 +207,13 @@ def ajouter_professeur():
             if nouveau_professeur.email:
                 try:
                     from app.notifications import envoyer_email
-                    sujet = "Création de votre compte professeur"
-                    message = f"""<html>
-                    <body style="font-family:Arial,sans-serif; background:#f4f4f4; padding:20px;">
-                        <div style="max-width:600px; margin:auto; background:#fff; border-radius:10px; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.1);">
-                            <h2 style="color:#2196F3;">Bonjour {nouveau_professeur.prenom or ''} {nouveau_professeur.nom},</h2>
-                            <p>Votre compte professeur a été créé avec succès !</p>
-                            <h3>Vos identifiants :</h3>
-                            <ul>
-                                <li><b>Email:</b> {nouveau_professeur.email}</li>
-                                <li><b>Mot de passe:</b> {code_prof}</li>
-                            </ul>
-                            <p><a href="{request.host_url}login" style="display:inline-block; padding:10px 20px; background:#2196F3; color:#fff; text-decoration:none; border-radius:5px;">Se connecter</a></p>
-                            <hr style="border:none; border-top:1px solid #eee;">
-                            <p style="font-size:12px; color:#555;">Ne partagez pas vos identifiants.<br>Cordialement,<br>L'administration</p>
-                        </div>
-                    </body>
-                    </html>"""
+                    sujet = "Bienvenue sur KLASORA — Votre espace professeur est prêt"
+                    message = render_template(
+                        'emails/bienvenue_professeur.html',
+                        professeur=nouveau_professeur,
+                        ecole=current_user.ecole,
+                        mot_de_passe=code_prof
+                    )
                     envoyer_email(nouveau_professeur.email, sujet, message)
                     current_app.logger.info(f"Email envoyé ? {nouveau_professeur.email}")
                 except Exception as e:

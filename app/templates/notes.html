@@ -795,7 +795,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectedCours) params.set('cours', filterCours.value);
         if (selectedPeriode) params.set('periode', selectedPeriode);
         if (selectedType) params.set('type_evaluation', selectedType);
-        const cleanUrl = `${window.location.pathname}${params.toString() ? '' + params.toString() : ''}`;
+        const cleanUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
         window.history.replaceState({}, '', cleanUrl);
 
         let matched = studentCards.filter(function(card) {

@@ -29,15 +29,7 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                {% if annee_consultee %}
-                <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <span class="small fw-semibold text-muted">Année consultée :</span>
-                    <span class="badge bg-light text-dark border">
-                        {{ annee_consultee.nom }}{% if annee_consultee.statut %} - {{ annee_consultee.statut|capitalize }}{% endif %}
-                    </span>
-                    <a href="{{ url_for('main.gestion_annees') }}" class="small text-decoration-none">Changer depuis Années</a>
-                </div>
-                {% endif %}
+
                 {% if current_user.role in ['admin', 'super_admin'] %}
                 <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">
                     {{ cours_sans_professeur }} sans professeur
@@ -107,7 +99,7 @@
     <div class="course-toolbar-card">
         <div class="row g-2 align-items-center">
             <!-- Recherche rapide -->
-            <div class="col-12 col-md-4 col-lg-3">
+            <div class="col-12 col-md-5 col-lg-5">
                 <div class="course-search-box">
                     <i class="fas fa-search search-icon"></i>
                     <input type="text" id="classCourseSearchInput" class="form-control" placeholder="Rechercher classe, niveau, matière..." autocomplete="off">
@@ -117,24 +109,10 @@
                 </div>
             </div>
 
-            <!-- Filtre par niveau -->
-            <div class="col-6 col-md-2 col-lg-2">
-                <select id="filterNiveauSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Tous niveaux</option>
-                    {% set niveaux_list = [] %}
-                    {% for c in cours %}
-                        {% if c.classe and c.classe.niveau and c.classe.niveau not in niveaux_list %}
-                            {% set _ = niveaux_list.append(c.classe.niveau) %}
-                        {% endif %}
-                    {% endfor %}
-                    {% for nv in niveaux_list|sort %}
-                        <option value="{{ nv }}">{{ nv }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+
 
             <!-- Filtre par classe / niveau -->
-            <div class="col-6 col-md-3 col-lg-2">
+            <div class="col-12 col-md-4 col-lg-3">
                 <select id="filterClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="">Toutes les classes</option>
                     {% set seen_classes = {} %}
@@ -151,7 +129,7 @@
 
             <!-- Filtre par professeur (admin) -->
             {% if current_user.role in ['admin', 'super_admin'] %}
-            <div class="col-6 col-md-3 col-lg-2">
+            <div class="col-12 col-md-3 col-lg-2">
                 <select id="filterProfSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="">Tous les professeurs</option>
                     {% set profs_list = [] %}
@@ -170,15 +148,7 @@
             </div>
             {% endif %}
 
-            <!-- Tri des classes -->
-            <div class="col-6 col-md-2 col-lg-{% if current_user.role in ['admin', 'super_admin'] %}1{% else %}3{% endif %}">
-                <select id="sortClassesSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="nom-asc">Classe (A &rarr; Z)</option>
-                    <option value="nom-desc">Classe (Z &rarr; A)</option>
-                    <option value="cours-desc">Matières &darr;</option>
-                    <option value="cours-asc">Matières &uarr;</option>
-                </select>
-            </div>
+
 
             <!-- Nombre de classes par page -->
             <div class="col-12 col-lg-auto ms-auto d-flex align-items-center justify-content-end gap-2">
@@ -732,7 +702,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (cl) params.set('classe', cl);
         if (niv) params.set('niveau', niv);
         if (pr) params.set('professeur', pr);
-        const newUrl = window.location.pathname + (params.toString() ? '' + params.toString() : '');
+        const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         window.history.replaceState({}, '', newUrl);
     }
 
@@ -1079,3 +1049,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+

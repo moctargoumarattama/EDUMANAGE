@@ -197,16 +197,12 @@ class NoteForm(FlaskForm):
 class PaiementForm(FlaskForm):
     eleve_id = SelectField('Élève', coerce=int, validators=[DataRequired()])
     montant = FloatField('Montant (FCFA)', validators=[DataRequired(), NumberRange(min=0)])
-    mois = SelectField('Mois', choices=[
-        ('Janvier', 'Janvier'), ('Février', 'Février'), ('Mars', 'Mars'), ('Avril', 'Avril'),
-        ('Mai', 'Mai'), ('Juin', 'Juin'), ('Juillet', 'Juillet'), ('Août', 'Août'),
-        ('Septembre', 'Septembre'), ('Octobre', 'Octobre'), ('Novembre', 'Novembre'), ('Décembre', 'Décembre')
-    ], validators=[DataRequired()])
+    mois = SelectField('Mois', choices=[], validators=[DataRequired()])
     annee = IntegerField('Année', default=datetime.now().year, validators=[DataRequired()])
     mode_paiement = SelectField('Mode de paiement', choices=[
-        ('espèces', 'Espèces'), ('Espèces', 'Espèces'),
-        ('mobile_money', 'Mobile Money'), ('Mobile Money', 'Mobile Money'),
-        ('virement', 'Virement bancaire'), ('Virement bancaire', 'Virement bancaire')
+        ('Espèces', 'Espèces'),
+        ('Mobile Money', 'Mobile Money'),
+        ('Virement bancaire', 'Virement bancaire')
     ], validators=[DataRequired()])
     reference = StringField('Référence', validators=[Optional()])
     submit = SubmitField('Enregistrer le paiement')

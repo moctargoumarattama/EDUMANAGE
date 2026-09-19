@@ -680,7 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const params = new URLSearchParams(window.location.search);
         if (searchInput && searchInput.value.trim()) params.set('q', searchInput.value.trim()); else params.delete('q');
         if (selectFilter && selectFilter.value !== 'all') params.set('classe', selectFilter.value); else params.delete('classe');
-        const newUrl = window.location.pathname + (params.toString() ? '' + params.toString() : '');
+        const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         window.history.replaceState({}, '', newUrl);
     }
 

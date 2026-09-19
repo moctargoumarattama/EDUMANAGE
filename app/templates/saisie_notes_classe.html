@@ -19,22 +19,7 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                {% if annee_consultee %}
-                <div class="d-flex align-items-center gap-2">
-                    <span class="small fw-semibold text-muted">Année :</span>
-                    <span class="badge bg-light text-dark border">
-                        {{ annee_consultee.nom }}
-                        {% if annee_consultee.statut == 'active' %}
-                        <span class="badge bg-success ms-1">ACTIVE</span>
-                        {% elif annee_consultee.statut == 'planifiee' %}
-                        <span class="badge bg-info text-dark ms-1">PLANIFIÉE</span>
-                        {% elif annee_consultee.statut == 'archivee' %}
-                        <span class="badge bg-secondary ms-1">ARCHIVÉE</span>
-                        {% endif %}
-                    </span>
-                    <a href="{{ url_for('main.gestion_annees') }}" class="small text-decoration-none">Changer</a>
-                </div>
-                {% endif %}
+
                 <a href="{{ url_for('main.notes') }}" class="btn btn-outline-secondary shadow-sm">
                     <i class="fas fa-arrow-left me-2"></i>Retour aux notes
                 </a>

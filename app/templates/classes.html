@@ -30,49 +30,39 @@
     {% endif %}
 
     {% if current_user.role == 'admin' %}
-    <div class="stat-grid mb-4">
-        <div class="stat-card">
-            <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="fas fa-chalkboard"></i></div>
-            <div>
-                <h3 class="stat-number">{{ pagination.total if pagination else classes|length }}</h3>
-                <p class="stat-label">Classes</p>
+    <div class="row g-2 mb-4 flex-nowrap">
+        <div class="col">
+            <div class="stat-card h-100 d-flex flex-column align-items-center justify-content-center text-center p-2">
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary mb-2"><i class="fas fa-chalkboard"></i></div>
+                <div>
+                    <h3 class="stat-number mb-0">{{ pagination.total if pagination else classes|length }}</h3>
+                    <p class="stat-label small mb-0 text-uppercase">Classes</p>
+                </div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="fas fa-users"></i></div>
-            <div>
-                <h3 class="stat-number">{{ total_eleves }}</h3>
-                <p class="stat-label">Élèves</p>
+        <div class="col">
+            <div class="stat-card h-100 d-flex flex-column align-items-center justify-content-center text-center p-2">
+                <div class="stat-icon bg-success bg-opacity-10 text-success mb-2"><i class="fas fa-users"></i></div>
+                <div>
+                    <h3 class="stat-number mb-0">{{ total_eleves }}</h3>
+                    <p class="stat-label small mb-0 text-uppercase">Élèves</p>
+                </div>
             </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="fas fa-chart-bar"></i></div>
-            <div>
-                <h3 class="stat-number">{{ moyenne_effectif }}</h3>
-                <p class="stat-label">Moyenne</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="fas fa-triangle-exclamation"></i></div>
-            <div>
-                <h3 class="stat-number">{{ classes_pleines }}</h3>
-                <p class="stat-label">Pleines</p>
+        <div class="col">
+            <div class="stat-card h-100 d-flex flex-column align-items-center justify-content-center text-center p-2">
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning mb-2"><i class="fas fa-triangle-exclamation"></i></div>
+                <div>
+                    <h3 class="stat-number mb-0">{{ classes_pleines }}</h3>
+                    <p class="stat-label small mb-0 text-uppercase">Pleines</p>
+                </div>
             </div>
         </div>
     </div>
 
     <div class="filter-card mb-4">
         <form method="get" action="{{ url_for('main.liste_classes') }}" class="responsive-form-grid">
-            <div>
-                <span class="form-label d-block">Année consultée</span>
-                <div class="form-control bg-light">
-                    {{ annee_consultee.nom if annee_consultee else 'Aucune année' }}
-                    {% if annee_consultee and annee_consultee.statut %}
-                    <span class="badge bg-secondary ms-2">{{ annee_consultee.statut|capitalize }}</span>
-                    {% endif %}
-                </div>
-                <a href="{{ url_for('main.gestion_annees') }}" class="small text-decoration-none">Changer depuis Années</a>
-            </div>
+
             <div>
                 <label for="search" class="form-label">Recherche</label>
                 <input id="search" name="search" type="search" class="form-control" value="{{ current_filters.search }}" placeholder="Nom de classe">
@@ -239,7 +229,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (q) params.set('search', q);
         if (niv) params.set('niveau', niv);
         if (srt && srt !== 'nom') params.set('sort', srt);
-        const newUrl = window.location.pathname + (params.toString() ? '' + params.toString() : '');
+        const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         window.history.replaceState({}, '', newUrl);
     }
 
@@ -307,3 +297,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+

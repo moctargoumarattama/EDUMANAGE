@@ -35,6 +35,7 @@ from .common import (
     session,
     url_for,
 )
+from app.services.paiements_annuels import get_mois_scolaires
 from app.services.annees_scolaires import get_annee_consultee, get_annees_ecole, get_classes_annee
 from app.services.classes_annuelles import get_classes_ouvertes_annee
 from app.services.inscriptions_annuelles import creer_inscription_annuelle, get_inscription_active, get_parcours_eleve, modifier_inscription_annuelle
@@ -458,27 +459,13 @@ def ajouter_eleve():
                     # Envoi email
                     if email_parent:
                         from app.notifications import envoyer_email
-                        sujet = "Création de votre compte parent"
-                        message = f"""
-                        <html>
-                        <body style="font-family:Arial,sans-serif; background:#f4f4f4; padding:20px;">
-                            <div style="max-width:600px; margin:auto; background:#fff; border-radius:10px; padding:20px; box-shadow:0 0 10px rgba(0,0,0,0.1);">
-                                <h2 style="color:#4CAF50;">Bonjour {parent_utilisateur.prenom or ''} {parent_utilisateur.nom},</h2>
-                                <p>Un compte parent a été créé pour suivre la scolarité de votre enfant.</p>
-                                <h3>Vos identifiants :</h3>
-                                <ul>
-                                    <li><b>Email :</b> {email_parent}</li>
-                                    <li><b>Mot de passe :</b> {code_parent}</li>
-                                </ul>
-                                <p>
-                                    <a href="{request.host_url}login_parent" style="display:inline-block; padding:10px 20px; background:#4CAF50; color:#fff; text-decoration:none; border-radius:5px;">Se connecter</a>
-                                </p>
-                                <img src="data:image/png;base64,{qr_base64}" width="150" height="150"/><br>
-                                <p style="font-size:12px; color:#555;">Cordialement,<br>L’administration</p>
-                            </div>
-                        </body>
-                        </html>
-                        """
+                        sujet = "Bienvenue sur KLASORA — Votre espace parent est prêt"
+                        message = render_template(
+                            'emails/bienvenue_parent.html',
+                            parent=parent_utilisateur,
+                            ecole=current_user.ecole,
+                            mot_de_passe=code_parent
+                        )
                         envoyer_email(email_parent, sujet, message)
 
                 except Exception as e:
@@ -946,7 +933,7 @@ def voir_eleve(eleve_id):
         reste_a_payer = max(0.0, total_frais - total_paye)
         pourcentage_paye = round((total_paye / total_frais) * 100, 1) if total_frais > 0 else 0.0
 
-        mois_scolaires = ['Octobre', 'Novembre', 'Décembre', 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin']
+        mois_scolaires = get_mois_scolaires(inscription_active.annee_scolaire if inscription_active else None)
         mois_payes_set = set(p.mois for p in paiements if p.mois)
         echeancier = [{'mois': m, 'paye': (m in mois_payes_set)} for m in mois_scolaires]
         mois_impayes_list = [m for m in mois_scolaires if m not in mois_payes_set]

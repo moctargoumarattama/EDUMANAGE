@@ -51,7 +51,7 @@ def create_user():
                 mot_de_passe=hashed_password,
                 role=form.role.data
             )
-            
+
             if form.role.data == 'parent' and form.eleve_id.data != 0:
                 user.eleve_id = form.eleve_id.data
 
@@ -59,7 +59,7 @@ def create_user():
             db.session.commit()
             flash(f"Utilisateur {user.nom} créé avec succès !", "success")
             return redirect(url_for('main.dashboard'))
-            
+
         except IntegrityError as e:
             db.session.rollback()
             if 'email' in str(e):
@@ -269,6 +269,61 @@ def supprimer_utilisateur(user_id):
         current_app.logger.error(f"Erreur suppression utilisateur: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@main.route('/admin/utilisateur/<int:user_id>/reset-password', methods=['POST'])
+@login_required
+@role_required('admin')
+def admin_reset_password(user_id):
+    """Génère un nouveau mot de passe permanent à 8 chiffres pour l'utilisateur"""
+    import secrets
+
+    # Vérification multi-tenant et chargement de l'utilisateur
+    user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first()
+
+    if not user:
+        return jsonify({'success': False, 'message': "Utilisateur introuvable ou non autorisé."}), 404
+
+    # Protection des comptes d'administration supérieurs
+    if user.role == 'super_admin' and current_user.role != 'super_admin':
+        return jsonify({'success': False, 'message': "Action non autorisée sur un super-administrateur."}), 403
+
+    try:
+        # Génération cryptographique stricte de 8 chiffres
+        forbidden_patterns = ['00000000', '11111111', '22222222', '33333333', '44444444',
+                              '55555555', '66666666', '77777777', '88888888', '99999999',
+                              '12345678', '87654321', '01234567', '98765432']
+
+        while True:
+            nouveau_mdp = ''.join(secrets.choice('0123456789') for _ in range(8))
+            if nouveau_mdp not in forbidden_patterns:
+                break
+
+        # Hachage et remplacement
+        user.set_mot_de_passe(nouveau_mdp)
+        db.session.commit()
+
+        # Log de l'action s'il y a un système de journalisation
+        if hasattr(current_app, 'log_correction'):
+            current_app.log_correction(
+                action="password_reset_by_admin",
+                description=f"Réinitialisation du mot de passe de l'utilisateur {user.email}",
+                ecole_id=user.ecole_id,
+                cible_type="utilisateur",
+                cible_id=user.id,
+                niveau="warning"
+            )
+
+        # On retourne SEULEMENT LE MOT DE PASSE CLAIR DANS LA RÉPONSE HTTP IMMÉDIATE
+        return jsonify({
+            'success': True,
+            'password': nouveau_mdp,
+            'message': 'Nouveau mot de passe généré avec succès.'
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur réinitialisation mot de passe admin: {e}")
+        return jsonify({'success': False, 'message': "Impossible de réinitialiser le mot de passe."}), 500
+
 @main.route('/admin/eleve/<int:eleve_id>/regenerer-code', methods=['POST'])
 @login_required
 @role_required('admin')
@@ -312,16 +367,13 @@ def envoyer_credentials_parent(parent_id):
         buffer.seek(0)
         qr_base64 = base64.b64encode(buffer.getvalue()).decode()
 
-        sujet = "Vos identifiants de connexion - KLASORA"
-        message = f"""
-        <h3>Bonjour {parent.prenom or ''} {parent.nom},</h3>
-        <p>Voici vos identifiants pour accéder au portail parent :</p>
-        <ul>
-            <li>Email : {parent.email}</li>
-            <li>Code d'accès : {eleve.code_parent}</li>
-        </ul>
-        <img src="data:image/png;base64,{qr_base64}" width="150" height="150"/>
-        """
+        sujet = "Bienvenue sur KLASORA — Votre espace parent est prêt"
+        message = render_template(
+            'emails/bienvenue_parent.html',
+            parent=parent,
+            ecole=parent.ecole,
+            mot_de_passe=eleve.code_parent
+        )
 
         from app.notifications import envoyer_email
         if envoyer_email(parent.email, sujet, message):
@@ -438,7 +490,7 @@ def journaux_corrections():
     ecole_id = request.args.get('ecole_id', type=int)
     user_id = request.args.get('user_id', type=int)
     action = request.args.get('action', '').strip()
-    
+
     # Par défaut, se concentrer sur les cas critiques
     niveau = request.args.get('niveau')
     if niveau is None:
@@ -497,7 +549,7 @@ def journaux_corrections():
     # Organisation groupée par école
     ecoles_groupes = []
     ecoles_a_traiter = [e for e in toutes_ecoles if not ecole_id or e.id == ecole_id]
-    
+
     for ecole in ecoles_a_traiter:
         items_ecole = [c for c in corrections if c.ecole_id == ecole.id]
         nb_critiques = sum(1 for c in items_ecole if c.niveau == 'critique')
@@ -534,27 +586,27 @@ def toggle_user_status(user_id):
     """Changer le statut d'un utilisateur"""
     if current_user.role not in ['admin']:
         return jsonify({'success': False, 'message': 'Non autorisé'}), 403
-        
+
     user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
-    
+
     # Vérifier les permissions
     if user.ecole_id != current_user.ecole_id:
         return jsonify({'success': False, 'message': 'Non autorisé'}), 403
-        
+
     # Empêcher de se désactiver soi-même
     if user.id == current_user.id:
         return jsonify({'success': False, 'message': 'Vous ne pouvez pas modifier votre propre statut'}), 400
-    
+
     user.statut = 'bloque' if user.statut == 'actif' else 'actif'
     db.session.commit()
-    
+
     return jsonify({'success': True, 'new_status': user.statut})
 
 @main.route('/api/users/<int:user_id>', methods=['DELETE'])
 @login_required
 def delete_user(user_id):
     """Supprimer un utilisateur et toutes ses dépendances (enfants + inscriptions)"""
-    
+
     # Vérification des rôles
     if current_user.role not in ['admin']:
         return jsonify({'success': False, 'message': 'Non autorisé'}), 403

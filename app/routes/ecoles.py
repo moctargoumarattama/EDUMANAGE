@@ -135,11 +135,12 @@ def ajouter_ecole():
 
             # Email de bienvenue (optionnel)
             try:
-                sujet = f"Bienvenue sur KLASORA - {ecole.nom}"
-                corps = (
-                    f"Votre école \"{ecole.nom}\" a été créée sur KLASORA.\n\n"
-                    f"Email : {admin.email}\n"
-                    f"Mot de passe : {mot_de_passe}\n"
+                sujet = "Bienvenue sur KLASORA — Votre espace école est prêt"
+                corps = render_template(
+                    'emails/bienvenue_ecole.html',
+                    ecole=ecole,
+                    admin=admin,
+                    mot_de_passe=mot_de_passe
                 )
                 envoyer_email(admin.email, sujet, corps)
             except Exception as mail_err:

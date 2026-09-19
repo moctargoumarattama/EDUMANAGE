@@ -58,6 +58,7 @@ class AnneeScolaire(db.Model):
     date_debut = db.Column(db.Date, nullable=False)
     date_fin = db.Column(db.Date, nullable=False)
     statut = db.Column(db.String(20), default='planifiee')  # planifiee, active, archivee
+    facturer_juillet = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
 
     # Lien avec l'école
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'), nullable=False)
