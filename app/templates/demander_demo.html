@@ -78,6 +78,12 @@
 
                     <div class="row g-3">
                         <div class="col-12">
+                            <!-- Honeypot anti-spam -->
+                            <div style="display:none; visibility:hidden;">
+                                <label for="website_url_standalone">Ne pas remplir ce champ si vous êtes humain</label>
+                                <input type="text" name="website_url" id="website_url_standalone" tabindex="-1" autocomplete="off">
+                            </div>
+
                             <label class="form-label small fw-semibold text-dark mb-1">Nom de l'établissement *</label>
                             <input type="text" name="nom_ecole" class="form-control py-2 rounded-3" placeholder="Ex: Groupe Scolaire Excellence" required>
                         </div>

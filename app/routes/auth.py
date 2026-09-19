@@ -340,6 +340,15 @@ def demander_demo():
         ville = escape((data.get('ville') or '').strip())
         message = escape((data.get('message') or '').strip())
 
+        # HONEYPOT ANTI-SPAM
+        honeypot = (data.get('website_url') or '').strip()
+        if honeypot:
+            current_app.logger.warning(f"SPAM BOT DÉTECTÉ sur /demander-demo via honeypot (IP: {request.remote_addr})")
+            if is_json:
+                return jsonify({'success': True, 'message': 'Votre demande de présentation a bien été transmise. Notre équipe vous contactera sous 24h.'}), 200
+            flash("Votre demande a bien été transmise. Merci !", "success")
+            return redirect(url_for('main.login'))
+
         # Validation minimale des coordonnées indispensables
         if not nom_ecole or not (telephone or email):
             err_msg = "Veuillez renseigner le nom de l'établissement et au moins un moyen de contact (téléphone ou email)."
