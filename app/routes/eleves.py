@@ -1077,23 +1077,35 @@ def supprimer_eleve(id):
 
     # 🛡️ Sécurité multi-écoles : empêche la suppression inter-écoles
     if current_user.role != 'super_admin' and eleve.ecole_id != current_user.ecole_id:
-        flash("Action non autorisée : cet élève appartient à une autre école.", "danger")
+        message = "Action non autorisée : cet élève appartient à une autre école."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({'success': False, 'message': message}), 403
+        flash(message, "danger")
         return redirect(url_for('main.eleves'))
 
     # Vérifier s'il y a des données liées
     if eleve.notes or eleve.paiements or eleve.absences:
-        flash("Impossible de supprimer cet élève car il a des données associées.", "danger")
+        message = "Impossible de supprimer cet élève car il a des données associées."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({'success': False, 'message': message}), 400
+        flash(message, "danger")
         return redirect(url_for('main.eleves'))
 
     try:
         db.session.delete(eleve)
         db.session.commit()
         current_app.logger.info(f"Élève supprimé : {eleve.nom} (ID={eleve.id}) par {current_user.email}")
-        flash("Élève supprimé avec succès.", "success")
+        message = "Élève supprimé avec succès."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({'success': True, 'message': message})
+        flash(message, "success")
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur lors de la suppression de l’élève {eleve.id} : {e}")
-        flash("Erreur lors de la suppression de l’élève.", "danger")
+        message = "Erreur lors de la suppression de l’élève."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({'success': False, 'message': message}), 500
+        flash(message, "danger")
 
     return redirect(url_for('main.eleves'))
 

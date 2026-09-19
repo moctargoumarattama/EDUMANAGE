@@ -72,10 +72,16 @@
                 signal: controller.signal
             });
 
+            if (response.redirected && response.url && response.url.includes('/login')) {
+                const error = new Error('Session expirée. Reconnectez-vous.');
+                error.status = 401;
+                throw error;
+            }
+
             const contentType = response.headers.get('content-type') || '';
             const data = contentType.includes('application/json')
-                 await response.json()
-                : { success: response.ok, message: await response.text() };
+                ? await response.json()
+                : { success: response.ok, message: response.ok ? 'Action effectuée.' : messageForStatus(response.status) };
 
             if (!response.ok) {
                 const message = data.message || data.error || messageForStatus(response.status);
@@ -91,7 +97,7 @@
                 throw new Error('La requête prend trop de temps. Réessayez.');
             }
             if (!navigator.onLine) {
-                throw new Error('Connexion indisponible. Réessayez quand le réseau revient.');
+                throw new Error("Impossible de terminer l'action. Vérifiez votre connexion.");
             }
             throw error;
         } finally {
@@ -140,7 +146,11 @@
 
     document.addEventListener('click', async function (event) {
         const action = event.target.closest('[data-klasora-action]');
-        if (!action || action.dataset.klasoraBusy === '1') return;
+        if (!action) return;
+        if (action.dataset.klasoraBusy === '1') {
+            event.preventDefault();
+            return;
+        }
 
         const url = action.dataset.url || action.getAttribute('href');
         const method = action.dataset.method || 'POST';
@@ -153,6 +163,7 @@
 
         event.preventDefault();
         const restore = setButtonLoading(action, action.dataset.loading || 'Traitement...');
+        action.setAttribute('aria-busy', 'true');
 
         try {
             const payload = action.dataset.payload ? JSON.parse(action.dataset.payload) : null;
@@ -176,16 +187,22 @@
 
             action.dispatchEvent(new CustomEvent('klasora:success', { bubbles: true, detail: data }));
             showToast(data.message || action.dataset.success || 'Action effectuée.', 'success');
+            if (data.redirect) window.location.href = data.redirect;
         } catch (error) {
             showToast(error.message || 'Action impossible.', error.status === 403 ? 'warning' : 'danger');
         } finally {
+            action.setAttribute('aria-busy', 'false');
             restore();
         }
     });
 
     document.addEventListener('submit', async function (event) {
         const form = event.target.closest('form[data-klasora-form]');
-        if (!form || form.dataset.klasoraBusy === '1') return;
+        if (!form) return;
+        if (form.dataset.klasoraBusy === '1') {
+            event.preventDefault();
+            return;
+        }
 
         const confirmText = form.dataset.confirm;
         if (confirmText && !window.confirm(confirmText)) {
@@ -197,6 +214,7 @@
         const submitter = event.submitter || form.querySelector('[type="submit"], button:not([type])');
         const restore = setButtonLoading(submitter, form.dataset.loading || 'Traitement...');
         form.dataset.klasoraBusy = '1';
+        form.setAttribute('aria-busy', 'true');
 
         try {
             const data = await klasoraFetch(form.action || window.location.href, {
@@ -213,10 +231,12 @@
             if (form.dataset.counter) updateCounter(form.dataset.counter, parseInt(form.dataset.counterDelta || '-1', 10));
             form.dispatchEvent(new CustomEvent('klasora:success', { bubbles: true, detail: data }));
             showToast(data.message || form.dataset.success || 'Action effectuée.', 'success');
+            if (data.redirect) window.location.href = data.redirect;
         } catch (error) {
             showToast(error.message || 'Action impossible.', error.status === 403 ? 'warning' : 'danger');
         } finally {
             restore();
+            form.setAttribute('aria-busy', 'false');
             delete form.dataset.klasoraBusy;
         }
     });

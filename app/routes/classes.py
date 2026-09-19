@@ -542,7 +542,10 @@ def parametres_pedagogiques():
 def supprimer_classe(classe_id):
     classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first_or_404()
     if classe.annee_scolaire and classe.annee_scolaire.statut == "archivee":
-        flash("Impossible de supprimer une classe d'une annee archivee.", "warning")
+        message = "Impossible de supprimer une classe d'une annee archivee."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({'success': False, 'message': message}), 400
+        flash(message, "warning")
         return redirect(url_for("main.liste_classes"))
 
     has_dependencies = bool(
@@ -551,13 +554,19 @@ def supprimer_classe(classe_id):
         or Inscription.query.filter_by(classe_id=classe.id).first()
     )
     if has_dependencies:
-        flash("Impossible de supprimer une classe contenant des élèves, cours ou emplois du temps.", "warning")
+        message = "Impossible de supprimer une classe contenant des élèves, cours ou emplois du temps."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({'success': False, 'message': message}), 400
+        flash(message, "warning")
         return redirect(url_for("main.liste_classes"))
 
     try:
         db.session.delete(classe)
         db.session.commit()
-        flash("Classe supprimée avec succès.", "success")
+        message = "Classe supprimée avec succès."
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+            return jsonify({'success': True, 'message': message})
+        flash(message, "success")
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur suppression classe {classe_id}: {e}")
