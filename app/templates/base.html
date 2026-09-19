@@ -929,12 +929,6 @@
                 el.style.animationDelay = `${idx * 0.1}s`;
             });
 
-            // Initialiser les tooltips
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl);
-            });
-
             // Effet de navbar au scroll
             const navbar = document.querySelector('.navbar');
             window.addEventListener('scroll', function() {

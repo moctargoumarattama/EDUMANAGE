@@ -10,18 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
         new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
-    // 2. Auto-hide des alertes après 5 secondes
-    const alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
-    alerts.forEach(function(alert) {
-        setTimeout(function() {
-            const bsAlert = bootstrap.Alert.getInstance(alert);
-            if (bsAlert) {
-                bsAlert.close();
-            }
-        }, 5000);
-    });
-
-    // 3. Validation Bootstrap standard pour les formulaires .needs-validation
+    // 2. Validation Bootstrap standard pour les formulaires .needs-validation
     const forms = document.querySelectorAll('.needs-validation');
     Array.prototype.slice.call(forms).forEach(function(form) {
         form.addEventListener('submit', function(event) {
@@ -38,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
         bar.style.width = value + '%';
     });
 
-    // 4. Calcul de moyenne (aide réutilisable)
+    // 3. Calcul de moyenne reutilisable
     window.calculerMoyenne = function(notes, coefficients) {
         let total = 0;
         let totalCoeff = 0;
