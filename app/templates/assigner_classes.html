@@ -38,9 +38,9 @@
                             {% if cours.professeur_id == professeur.id %}(deja affecte){% endif %}
                         </option>
                         {% endfor %}
-                        {% for classe in classes_sans_matiere_prof %}
-                        <option value="new:{{ classe.id }}">
-                            {{ classe.nom }} - {{ matiere_professeur }} (creer et affecter)
+                        {% for option in options_creation %}
+                        <option value="new:{{ option.classe.id }}:{{ option.matiere_index }}">
+                            {{ option.classe.nom }} - {{ option.matiere }} (creer et affecter)
                         </option>
                         {% endfor %}
                     </select>
