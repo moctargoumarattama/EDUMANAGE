@@ -41,6 +41,10 @@
 
     // 4. Affichage du popup d'installation
     function showInstallPrompt() {
+        if (!navigator.onLine) {
+            hideInstallPrompt();
+            return;
+        }
         if (isKlasoraInstalled()) return;
 
         const container = document.getElementById('klasoraPwaInstallContainer');
@@ -68,6 +72,13 @@
         if (!container) return;
         container.classList.add('d-none');
         container.setAttribute('aria-hidden', 'true');
+    }
+
+    function syncNetworkUiState() {
+        if (!navigator.onLine) {
+            hideInstallPrompt();
+            showNetworkToast(false);
+        }
     }
 
     // 6. Gestion du clic "Installer KLASORA"
@@ -274,7 +285,12 @@
 
         // Écouteurs de réseau
         window.addEventListener('online', () => showNetworkToast(true));
-        window.addEventListener('offline', () => showNetworkToast(false));
+        window.addEventListener('offline', syncNetworkUiState);
+        window.addEventListener('pageshow', syncNetworkUiState);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) syncNetworkUiState();
+        });
+        syncNetworkUiState();
     });
 
     // 12. Fonction utilitaire globale pour nettoyage au logout

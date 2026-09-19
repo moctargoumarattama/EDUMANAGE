@@ -1,6 +1,6 @@
 // static/service-worker.js - KLASORA PWA Service Worker
-const CACHE_VERSION = 'klasora-static-v7';
-const PAGE_CACHE = 'klasora-pages-v7';
+const CACHE_VERSION = 'klasora-static-v8';
+const PAGE_CACHE = 'klasora-pages-v8';
 const OFFLINE_URL = '/offline';
 
 const PRECACHE_ASSETS = [
