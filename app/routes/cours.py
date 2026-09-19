@@ -734,10 +734,7 @@ def supprimer_cours(id):
     try:
         # Vérifier s'il y a des notes ou absences associées
         if cours.notes or cours.absences:
-            message = "Impossible de supprimer ce cours car il a des données associées."
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
-                return jsonify({'success': False, 'message': message}), 400
-            flash(message, "danger")
+            flash("Impossible de supprimer ce cours car il a des données associées.", "danger")
             return redirect(url_for('main.cours'))
 
         ancienne_valeur = f"Cours: {cours.nom} (Prof: {cours.professeur_id}, Classe: {cours.classe_id})"
@@ -757,10 +754,7 @@ def supprimer_cours(id):
             niveau="info"
         )
 
-        message = "Cours supprimé avec succès."
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
-            return jsonify({'success': True, 'message': message})
-        flash(message, "success")
+        flash("Cours supprimé avec succès.", "success")
         return redirect(url_for('main.cours'))
 
     except Exception as e:
@@ -771,3 +765,4 @@ def supprimer_cours(id):
             return jsonify({'success': False, 'message': message}), 500
         flash(message, "danger")
         return redirect(url_for('main.cours'))
+

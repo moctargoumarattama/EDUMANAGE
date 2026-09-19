@@ -306,18 +306,12 @@ def supprimer_professeur(id):
 
     # ðŸ›¡ï¸ Sécurité multi-écoles : empêche la suppression inter-écoles
     if current_user.role != 'super_admin' and professeur.ecole_id != current_user.ecole_id:
-        message = "Action non autorisée : ce professeur appartient à une autre école."
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
-            return jsonify({'success': False, 'message': message}), 403
-        flash(message, "danger")
+        flash("Action non autorisée : ce professeur appartient ? une autre école.", "danger")
         return redirect(url_for('main.professeurs'))
 
     # Vérifier s'il y a des cours associés
     if professeur.cours:
-        message = "Impossible de supprimer ce professeur car il a des cours associés."
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
-            return jsonify({'success': False, 'message': message}), 400
-        flash(message, "danger")
+        flash("Impossible de supprimer ce professeur car il a des cours associés.", "danger")
         return redirect(url_for('main.professeurs'))
 
     try:
@@ -330,10 +324,7 @@ def supprimer_professeur(id):
         db.session.delete(professeur)
         db.session.commit()
         current_app.logger.info(f"Professeur supprimé : {professeur.nom} (ID={professeur.id}) par {current_user.email}")
-        message = "Professeur supprimé avec succès."
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
-            return jsonify({'success': True, 'message': message})
-        flash(message, "success")
+        flash("Professeur supprimé avec succès.", "success")
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur lors de la suppression du professeur {professeur.id} : {e}")
