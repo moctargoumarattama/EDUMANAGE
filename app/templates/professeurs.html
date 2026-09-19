@@ -94,7 +94,7 @@
                 <a href="{{ url_for('main.modifier_professeur', id=prof.id) }}" class="btn btn-sm btn-outline-warning" title="Modifier le professeur">
                     <i class="fas fa-edit me-1"></i>Modifier
                 </a>
-                <form action="{{ url_for('main.supprimer_professeur', id=prof.id) }}" method="POST" data-klasora-form data-remove-target="#prof-card-{{ prof.id }}" data-confirm="Supprimer ce professeur " data-loading="Suppression...">
+                <form action="{{ url_for('main.supprimer_professeur', id=prof.id) }}" method="POST" data-klasora-form data-klasora-ajax="true" data-remove-target="#prof-card-{{ prof.id }}" data-confirm="Supprimer ce professeur ?" data-loading="Suppression...">
                     {{ delete_form.hidden_tag() }}
                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer ce professeur">
                         <i class="fas fa-trash me-1"></i>Supprimer

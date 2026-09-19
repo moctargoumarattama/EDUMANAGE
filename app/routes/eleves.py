@@ -1078,26 +1078,41 @@ def modifier_eleve(eleve_id):
 @login_required
 @role_required('admin')
 def supprimer_eleve(id):
-    eleve = filtre_par_ecole(Eleve.query, Eleve).filter_by(id=id).first_or_404()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    eleve = filtre_par_ecole(Eleve.query, Eleve).filter_by(id=id).first()
+    if not eleve:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Élève introuvable.'}), 404
+        abort(404)
 
     # 🛡️ Sécurité multi-écoles : empêche la suppression inter-écoles
     if current_user.role != 'super_admin' and eleve.ecole_id != current_user.ecole_id:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
         flash("Action non autorisée : cet élève appartient à une autre école.", "danger")
         return redirect(url_for('main.eleves'))
 
     # Vérifier s'il y a des données liées
     if eleve.notes or eleve.paiements or eleve.absences:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Impossible de supprimer cet élève car il a des données associées.'}), 409
         flash("Impossible de supprimer cet élève car il a des données associées.", "danger")
         return redirect(url_for('main.eleves'))
 
     try:
+        deleted_id = eleve.id
+        nom_eleve = eleve.nom
         db.session.delete(eleve)
         db.session.commit()
-        current_app.logger.info(f"Élève supprimé : {eleve.nom} (ID={eleve.id}) par {current_user.email}")
+        current_app.logger.info(f"Élève supprimé : {nom_eleve} (ID={deleted_id}) par {current_user.email}")
+        if is_ajax:
+            return jsonify({'success': True, 'message': 'Élève supprimé.', 'deleted_id': deleted_id})
         flash("Élève supprimé avec succès.", "success")
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur lors de la suppression de l’élève {eleve.id} : {e}")
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Suppression impossible. Veuillez réessayer.'}), 500
         flash("Erreur lors de la suppression de l’élève.", "danger")
 
     return redirect(url_for('main.eleves'))

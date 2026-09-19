@@ -2,6 +2,7 @@ from . import main
 from .common import (
     AnneeScolaire,
     AssignerClassesForm,
+    abort,
     Classe,
     Cours,
     DeleteForm,
@@ -326,19 +327,30 @@ def modifier_professeur(id):
 @login_required
 @role_required('admin')
 def supprimer_professeur(id):
-    professeur = Professeur.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    professeur = Professeur.query.filter_by(id=id, ecole_id=current_user.ecole_id).first()
+    if not professeur:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Professeur introuvable.'}), 404
+        abort(404)
 
     # ðŸ›¡ï¸ Sécurité multi-écoles : empêche la suppression inter-écoles
     if current_user.role != 'super_admin' and professeur.ecole_id != current_user.ecole_id:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
         flash("Action non autorisée : ce professeur appartient ? une autre école.", "danger")
         return redirect(url_for('main.professeurs'))
 
     # Vérifier s'il y a des cours associés
     if professeur.cours:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Impossible de supprimer ce professeur car il a des cours associés.'}), 409
         flash("Impossible de supprimer ce professeur car il a des cours associés.", "danger")
         return redirect(url_for('main.professeurs'))
 
     try:
+        deleted_id = professeur.id
+        nom_professeur = professeur.nom
         # Supprimer aussi l'utilisateur associé si existe
         if professeur.utilisateur_id:
             utilisateur = Utilisateur.query.get(professeur.utilisateur_id)
@@ -347,13 +359,15 @@ def supprimer_professeur(id):
 
         db.session.delete(professeur)
         db.session.commit()
-        current_app.logger.info(f"Professeur supprimé : {professeur.nom} (ID={professeur.id}) par {current_user.email}")
+        current_app.logger.info(f"Professeur supprimé : {nom_professeur} (ID={deleted_id}) par {current_user.email}")
+        if is_ajax:
+            return jsonify({'success': True, 'message': 'Professeur supprimé.', 'deleted_id': deleted_id})
         flash("Professeur supprimé avec succès.", "success")
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur lors de la suppression du professeur {professeur.id} : {e}")
-        message = "Erreur lors de la suppression du professeur."
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+        message = "Suppression impossible. Veuillez réessayer."
+        if is_ajax:
             return jsonify({'success': False, 'message': message}), 500
         flash(message, "danger")
 

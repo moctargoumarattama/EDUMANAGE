@@ -301,7 +301,7 @@
                                        title="Modifier les données de l'élève">
                                         <i class="fas fa-edit me-1"></i>Modifier
                                     </a>
-                                    <form method="post" action="{{ url_for('main.supprimer_eleve', id=eleve.id) }}" class="d-inline" data-klasora-form data-remove-target="#eleve-card-{{ eleve.id }}" data-confirm="Supprimer cet élève " data-loading="Suppression...">
+                                    <form method="post" action="{{ url_for('main.supprimer_eleve', id=eleve.id) }}" class="d-inline" data-klasora-form data-klasora-ajax="true" data-remove-target="#eleve-card-{{ eleve.id }}" data-confirm="Supprimer cet élève ?" data-loading="Suppression...">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="student-action-btn btn btn-sm btn-outline-danger" title="Supprimer l'élève">
                                             <i class="fas fa-trash-alt"></i>

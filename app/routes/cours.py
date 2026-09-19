@@ -729,14 +729,24 @@ def imports_historique():
 @role_required('admin')
 def supprimer_cours(id):
     # âœ… Sécurisation multi-écoles
-    cours = filtre_par_ecole(Cours.query, Cours).filter_by(id=id).first_or_404()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    cours = filtre_par_ecole(Cours.query, Cours).filter_by(id=id).first()
+    if not cours:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Cours introuvable.'}), 404
+        abort(404)
 
     try:
         # Vérifier s'il y a des notes ou absences associées
         if cours.notes or cours.absences:
+            if is_ajax:
+                return jsonify({'success': False, 'message': 'Impossible de supprimer ce cours car il a des données associées.'}), 409
             flash("Impossible de supprimer ce cours car il a des données associées.", "danger")
             return redirect(url_for('main.cours'))
 
+        deleted_id = cours.id
+        cours_nom = cours.nom
+        cours_ecole_id = cours.ecole_id
         ancienne_valeur = f"Cours: {cours.nom} (Prof: {cours.professeur_id}, Classe: {cours.classe_id})"
 
         db.session.delete(cours)
@@ -745,8 +755,8 @@ def supprimer_cours(id):
         # âœ… Journalisation
         current_app.log_correction(
             action="suppression_cours",
-            description=f"Cours supprimé : {cours.nom}",
-            ecole_id=cours.ecole_id,
+            description=f"Cours supprimé : {cours_nom}",
+            ecole_id=cours_ecole_id,
             cible_type="cours",
             cible_id=id,
             ancienne_valeur=ancienne_valeur,
@@ -754,14 +764,16 @@ def supprimer_cours(id):
             niveau="info"
         )
 
+        if is_ajax:
+            return jsonify({'success': True, 'message': 'Cours supprimé.', 'deleted_id': deleted_id})
         flash("Cours supprimé avec succès.", "success")
         return redirect(url_for('main.cours'))
 
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur suppression cours {id}: {e}")
-        message = "Erreur inattendue lors de la suppression du cours."
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
+        message = "Suppression impossible. Veuillez réessayer."
+        if is_ajax:
             return jsonify({'success': False, 'message': message}), 500
         flash(message, "danger")
         return redirect(url_for('main.cours'))

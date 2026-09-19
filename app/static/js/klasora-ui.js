@@ -92,7 +92,7 @@
                 throw new Error('La requête prend trop de temps. Réessayez.');
             }
             if (!navigator.onLine) {
-                throw new Error('Connexion indisponible. Réessayez quand le réseau revient.');
+                throw new Error('Connexion requise pour supprimer cet élément.');
             }
             throw error;
         } finally {
@@ -186,7 +186,11 @@
 
     document.addEventListener('submit', async function (event) {
         const form = event.target.closest('form[data-klasora-form]');
-        if (!form || form.dataset.klasoraBusy === '1') return;
+        if (!form) return;
+        if (form.dataset.klasoraBusy === '1') {
+            event.preventDefault();
+            return;
+        }
         if (form.dataset.klasoraAjax !== 'true') return;
 
         const confirmText = form.dataset.confirm;

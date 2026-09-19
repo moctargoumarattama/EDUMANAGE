@@ -330,7 +330,7 @@
                                             <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-sm btn-outline-warning" title="Modifier le cours">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-                                            <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours " data-loading="Suppression...">
+                                            <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-klasora-ajax="true" data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours ?" data-loading="Suppression...">
                                                 {{ delete_form.hidden_tag() }}
                                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer ce cours">
                                                     <i class="fas fa-trash"></i>
@@ -403,7 +403,7 @@
                                 <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-outline-warning btn-sm" title="Modifier">
                                     <i class="fas fa-edit me-1"></i>Modifier
                                 </a>
-                                <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours " data-loading="Suppression...">
+                                <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-klasora-ajax="true" data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours ?" data-loading="Suppression...">
                                     {{ delete_form.hidden_tag() }}
                                     <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
                                         <i class="fas fa-trash me-1"></i>Supprimer
@@ -532,7 +532,7 @@
                                             <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-sm btn-outline-warning" title="Modifier le cours">
                                                 <i class="fas fa-edit"></i>
                                             </a>
-                                            <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours " data-loading="Suppression...">
+                                            <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-klasora-ajax="true" data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours ?" data-loading="Suppression...">
                                                 {{ delete_form.hidden_tag() }}
                                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                                     <i class="fas fa-trash"></i>
@@ -579,7 +579,7 @@
                                 <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-outline-warning btn-sm" title="Modifier">
                                     <i class="fas fa-edit me-1"></i>Modifier
                                 </a>
-                                <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours " data-loading="Suppression...">
+                                <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-klasora-ajax="true" data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours ?" data-loading="Suppression...">
                                     {{ delete_form.hidden_tag() }}
                                     <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
                                         <i class="fas fa-trash me-1"></i>Supprimer
