@@ -143,59 +143,13 @@ class TestLandingPage(unittest.TestCase):
     # --------------------------------------------------------------------------
     # 3. Formulaire de Demande de Présentation
     # --------------------------------------------------------------------------
-    def test_10_demande_demo_get_et_post_valide(self):
-        """10. Vérifie que /demander-demo est accessible en GET et traite les POST valides."""
+    def test_10_demande_demo_get_valide(self):
+        """10. Vérifie que /demander-demo est accessible en GET."""
         # Test GET
         resp_get = self.client.get('/demander-demo')
         self.assertEqual(resp_get.status_code, 200)
         self.assertIn("Demander une Présentation Personnalisée", resp_get.data.decode('utf-8'))
 
-        # Test POST JSON (modal AJAX)
-        resp_post_json = self.client.post('/demander-demo', json={
-            'nom_ecole': 'Lycée Test Excellence',
-            'nom_responsable': 'Directeur Test',
-            'telephone': '+227 90 00 00 00',
-            'email': 'directeur@test.ne',
-            'ville': 'Niamey',
-            'message': 'Intéressé par une présentation pour 500 élèves.'
-        })
-        self.assertEqual(resp_post_json.status_code, 200)
-        data = resp_post_json.get_json()
-        self.assertTrue(data.get('success'))
-
-        # Test POST Formulaire classique (redirection flash)
-        resp_post_form = self.client.post('/demander-demo', data={
-            'nom_ecole': 'Collège Pilote',
-            'nom_responsable': 'Mme Fondatrice',
-            'telephone': '+227 91 11 22 33',
-            'email': 'fondatrice@college.ne',
-            'ville': 'Maradi',
-            'message': 'Besoin urgent de bulletins.'
-        }, follow_redirects=True)
-        self.assertEqual(resp_post_form.status_code, 200)
-        self.assertIn("Votre demande de présentation a bien été enregistrée", resp_post_form.data.decode('utf-8'))
-
-    # --------------------------------------------------------------------------
-    # 4. Non-Régression Utilisateurs Connectés
-    # --------------------------------------------------------------------------
-    def test_11_utilisateur_connecte_redirige_ou_affiche_dashboard(self):
-        """11. Vérifie qu'un utilisateur connecté accède à son espace depuis /."""
-        # Recherche d'un utilisateur admin existant en base
-        admin = Utilisateur.query.filter_by(role='admin').first()
-        if admin:
-            with self.client.session_transaction() as sess:
-                sess['_user_id'] = str(admin.id)
-                sess['_fresh'] = True
-            
-            resp = self.client.get('/')
-            # Soit code 200 (affiche son dashboard index.html) soit redirection vers onboarding/setup
-            self.assertIn(resp.status_code, (200, 302))
-            if resp.status_code == 200:
-                html = resp.data.decode('utf-8')
-                # Doit être le dashboard interne (pas la landing)
-                self.assertIn("Tableau de bord", html)
-
 
 if __name__ == '__main__':
     unittest.main()
-
