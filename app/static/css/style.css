@@ -46,7 +46,7 @@
     --border-radius-xl: 20px;
 
     /* Transitions */
-    --transition: all 0.25s ease-in-out;
+    --transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 180ms ease, transform 140ms ease, opacity 150ms ease;
 }
 
 /* ==================================================
@@ -1281,7 +1281,7 @@ textarea {
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    transition: all 0.2s ease;
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 120ms ease;
 }
 
 .app-footer .footer-links a:hover {
@@ -1311,7 +1311,7 @@ textarea {
     font-size: 0.8rem;
     font-weight: 500;
     text-decoration: none;
-    transition: all 0.2s ease;
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
 }
 
 .app-footer .footer-mail-link:hover {
@@ -1332,7 +1332,7 @@ textarea {
     text-decoration: none;
     box-shadow: 0 4px 14px rgba(37, 211, 102, 0.32);
     border: 1px solid rgba(255, 255, 255, 0.22);
-    transition: all 0.22s ease;
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 180ms ease, transform 120ms ease;
 }
 
 .app-footer .btn-footer-whatsapp:hover {
@@ -4764,7 +4764,7 @@ body.auth-layout .main-content > .container {
     display: flex;
     align-items: center;
     gap: 1rem;
-    transition: all 0.22s ease-in-out;
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 180ms ease, transform 140ms ease;
     cursor: pointer;
     text-decoration: none !important;
     position: relative;
@@ -4863,7 +4863,7 @@ body.auth-layout .main-content > .container {
     background: #f8fafc;
     color: #475569;
     cursor: pointer;
-    transition: all 0.18s ease;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 160ms ease, transform 120ms ease;
     user-select: none;
     text-decoration: none;
 }
@@ -4993,7 +4993,7 @@ body.auth-layout .main-content > .container {
     border-radius: 10px;
     padding: 1rem 1.15rem;
     margin-bottom: 0.75rem;
-    transition: all 0.2s ease;
+    transition: background-color 150ms ease, border-color 150ms ease, box-shadow 170ms ease, transform 140ms ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
@@ -5068,7 +5068,7 @@ body.auth-layout .main-content > .container {
     border-radius: 8px;
     min-height: 38px;
     line-height: 1.2;
-    transition: all 0.18s ease;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 160ms ease, transform 120ms ease;
     text-decoration: none !important;
 }
 
@@ -5130,7 +5130,7 @@ body.auth-layout .main-content > .container {
     border-radius: 14px;
     margin-bottom: 1.25rem;
     overflow: hidden;
-    transition: all 0.2s ease;
+    transition: border-color 150ms ease, box-shadow 170ms ease, transform 140ms ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
@@ -5218,7 +5218,7 @@ body.auth-layout .main-content > .container {
     border-radius: 12px;
     padding: 1rem 1.15rem;
     margin-bottom: 0.75rem;
-    transition: all 0.2s ease;
+    transition: background-color 150ms ease, border-color 150ms ease, box-shadow 170ms ease, transform 140ms ease;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -5287,7 +5287,7 @@ body.auth-layout .main-content > .container {
     border-radius: 8px;
     min-height: 38px;
     text-decoration: none !important;
-    transition: all 0.18s ease;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 
 /* Responsive */
@@ -5416,7 +5416,7 @@ body.auth-layout .main-content > .container {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     margin-bottom: 1.25rem;
     overflow: hidden;
-    transition: all 0.2s ease;
+    transition: border-color 150ms ease, box-shadow 170ms ease, transform 140ms ease;
 }
 
 .rapport-class-card.is-most-absent {
@@ -5808,7 +5808,7 @@ body.onboarding-layout .main-content {
     color: #64748b;
     font-size: 0.78rem;
     font-weight: 600;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 180ms ease, transform 140ms ease;
 }
 
 .m-step-chip.active {
@@ -5836,7 +5836,7 @@ body.onboarding-layout .main-content {
     background: #cbd5e1;
     color: #ffffff;
     flex-shrink: 0;
-    transition: all 0.25s ease;
+    transition: color 150ms ease, background-color 150ms ease;
 }
 
 .m-step-chip.active .m-step-badge {
@@ -5896,7 +5896,7 @@ body.onboarding-layout .main-content {
     justify-content: center;
     font-weight: 700;
     font-size: 0.84rem;
-    transition: all 0.3s ease;
+    transition: color 160ms ease, background-color 160ms ease, transform 160ms ease;
     flex-shrink: 0;
 }
 
@@ -6005,7 +6005,7 @@ body.onboarding-layout .main-content {
     border: 2px solid #4361ee;
     box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.72), 0 0 25px rgba(67, 97, 238, 0.6);
     pointer-events: none;
-    transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    transition: border-color 180ms ease, box-shadow 220ms ease, transform 180ms ease, opacity 180ms ease;
 }
 
 /* Bulle interactive (Tooltip Popover) */
@@ -6105,7 +6105,7 @@ body.onboarding-layout .main-content {
     background: #f8fafc;
     color: #475569;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 
 .tour-btn-prev:hover:not(:disabled) {
@@ -6128,7 +6128,7 @@ body.onboarding-layout .main-content {
     color: #ffffff;
     cursor: pointer;
     box-shadow: 0 4px 10px rgba(67, 97, 238, 0.3);
-    transition: all 0.2s;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 
 .tour-btn-next:hover {
@@ -6325,7 +6325,7 @@ body.onboarding-layout .main-content {
     border: 1px solid #e2e8f0;
     font-size: 0.82rem;
     font-weight: 500;
-    transition: all 0.2s ease;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 
 .filter-btn.active {
@@ -6350,7 +6350,7 @@ body.onboarding-layout .main-content {
 }
 
 .quick-motif-btn {
-    transition: all 0.15s ease;
+    transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
 }
 
 .quick-motif-btn:hover {
@@ -6432,7 +6432,7 @@ body.onboarding-layout .main-content {
     justify-content: center;
     color: #64748b;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: color 140ms ease, background-color 140ms ease, transform 120ms ease;
 }
 
 .klasora-pwa-close:hover {
@@ -7461,7 +7461,7 @@ body.onboarding-layout .main-content {
     justify-content: center;
     cursor: pointer;
     font-size: 0.95rem;
-    transition: all 0.2s ease;
+    transition: color 140ms ease, background-color 140ms ease, transform 120ms ease;
     flex-shrink: 0;
 }
 
@@ -7634,7 +7634,7 @@ body.onboarding-layout .main-content {
     font-size: 0.8rem;
     font-weight: 600;
     color: #475569;
-    transition: all 0.15s ease;
+    transition: color 120ms ease, background-color 120ms ease;
 }
 
 .support-btn-back:hover {

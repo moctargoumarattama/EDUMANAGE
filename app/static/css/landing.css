@@ -119,7 +119,7 @@ body.klasora-public-body {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--kl-border);
-    transition: all 0.25s ease;
+    transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
     padding: 0.75rem 0;
 }
 
@@ -177,7 +177,7 @@ body.klasora-public-body {
     align-items: center;
     gap: 0.5rem;
     border: 1px solid transparent;
-    transition: all 0.2s ease;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 160ms ease, transform 120ms ease;
     box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
 }
 
@@ -200,7 +200,7 @@ body.klasora-public-body {
     align-items: center;
     gap: 0.4rem;
     border: 1px solid var(--kl-blue-border);
-    transition: all 0.2s ease;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 
 .kl-btn-demo-nav:hover {
@@ -239,7 +239,7 @@ body.klasora-public-body {
     align-items: center;
     gap: 0.5rem;
     box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
-    transition: all 0.2s ease;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 
 .kl-btn-cta-primary:hover {
@@ -260,7 +260,7 @@ body.klasora-public-body {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    transition: all 0.2s ease;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 
 .kl-btn-cta-secondary:hover {
@@ -539,7 +539,7 @@ body.klasora-public-body {
     border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: var(--kl-radius-md);
     padding: 1.35rem 1.15rem;
-    transition: all 0.25s ease;
+    transition: border-color 160ms ease, box-shadow 180ms ease, transform 140ms ease, background-color 160ms ease;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -732,7 +732,7 @@ body.klasora-public-body {
     border-radius: var(--kl-radius-md);
     padding: 1.35rem 1.5rem;
     box-shadow: var(--kl-shadow-sm);
-    transition: all 0.2s ease;
+    transition: border-color 150ms ease, box-shadow 170ms ease, transform 140ms ease;
     min-width: 0;
 }
 
@@ -909,7 +909,7 @@ body.klasora-public-body {
     align-items: center;
     gap: 0.5rem;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-    transition: all 0.2s ease;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 
 .kl-btn-cta-light:hover {
@@ -930,7 +930,7 @@ body.klasora-public-body {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    transition: all 0.2s ease;
+    transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 
 .kl-btn-cta-transparent:hover {
@@ -1341,4 +1341,3 @@ body.klasora-public-body {
         font-size: 0.85rem;
     }
 }
-
