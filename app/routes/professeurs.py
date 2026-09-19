@@ -379,6 +379,20 @@ def assigner_classes_professeur(id):
         .order_by(Professeur.nom.asc(), Professeur.prenom.asc())
         .all()
     )
+    matiere_professeur = (
+        getattr(professeur, "matiere", None)
+        or professeur.specialite
+        or (professeur.matieres_enseignees.split(",")[0].strip() if professeur.matieres_enseignees else "")
+    )
+    classes_annee = (
+        Classe.query
+        .filter(
+            Classe.ecole_id == current_user.ecole_id,
+            Classe.annee_scolaire_id == annee_consultee.id,
+        )
+        .order_by(Classe.nom.asc())
+        .all()
+    )
     cours_annee = (
         Cours.query
         .join(Classe, Classe.id == Cours.classe_id)
@@ -399,8 +413,55 @@ def assigner_classes_professeur(id):
 
         try:
             action = (request.form.get("action") or "assign").strip()
-            cours_id = request.form.get("cours_id", type=int)
-            cours = next((item for item in cours_annee if item.id == cours_id), None)
+            cours_id_raw = (request.form.get("cours_id") or "").strip()
+            cours = None
+            if action == "assign" and cours_id_raw.startswith("new:"):
+                try:
+                    classe_id = int(cours_id_raw.split(":", 1)[1])
+                except (TypeError, ValueError):
+                    classe_id = None
+                classe = (
+                    Classe.query
+                    .filter(
+                        Classe.id == classe_id,
+                        Classe.ecole_id == current_user.ecole_id,
+                        Classe.annee_scolaire_id == annee_consultee.id,
+                    )
+                    .with_for_update()
+                    .first()
+                )
+                if not classe:
+                    flash("Classe invalide pour cette annee scolaire.", "danger")
+                    return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
+                if not classe_est_ouverte(classe):
+                    flash("Impossible de modifier une affectation dans une classe fermee.", "warning")
+                    return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
+                if not matiere_professeur:
+                    flash("Aucune matiere principale definie pour ce professeur.", "warning")
+                    return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
+                matiere_normalisee = matiere_professeur.strip().lower()
+                cours = (
+                    Cours.query
+                    .filter(
+                        Cours.ecole_id == current_user.ecole_id,
+                        Cours.classe_id == classe.id,
+                        db.func.lower(db.func.trim(Cours.nom)) == matiere_normalisee,
+                    )
+                    .first()
+                )
+                if not cours:
+                    cours = Cours(
+                        nom=matiere_professeur.strip(),
+                        coefficient=1.0,
+                        ecole_id=current_user.ecole_id,
+                        classe_id=classe.id,
+                    )
+                    db.session.add(cours)
+                    db.session.flush()
+                    cours_annee.append(cours)
+            else:
+                cours_id = int(cours_id_raw) if cours_id_raw.isdigit() else None
+                cours = next((item for item in cours_annee if item.id == cours_id), None)
             if not cours:
                 flash("Cours invalide pour cette annee scolaire.", "danger")
                 return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
@@ -447,6 +508,19 @@ def assigner_classes_professeur(id):
 
     cours_professeur = [cours for cours in cours_annee if cours.professeur_id == professeur.id]
     cours_disponibles = [cours for cours in cours_annee if cours.professeur_id in (None, professeur.id)]
+    classes_avec_matiere_prof = {
+        cours.classe_id
+        for cours in cours_annee
+        if matiere_professeur
+        and cours.classe_id is not None
+        and (cours.nom or "").strip().lower() == matiere_professeur.strip().lower()
+    }
+    classes_sans_matiere_prof = [
+        classe for classe in classes_annee
+        if matiere_professeur
+        and classe_est_ouverte(classe)
+        and classe.id not in classes_avec_matiere_prof
+    ]
 
     return render_template(
         'assigner_classes.html',
@@ -455,6 +529,8 @@ def assigner_classes_professeur(id):
         cours_annee=cours_annee,
         cours_professeur=cours_professeur,
         cours_disponibles=cours_disponibles,
+        classes_sans_matiere_prof=classes_sans_matiere_prof,
+        matiere_professeur=matiere_professeur,
         annee_consultee=annee_consultee,
         est_archivee=est_archivee,
     )

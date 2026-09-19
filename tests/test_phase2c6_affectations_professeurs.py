@@ -34,7 +34,7 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
         self.ctx.push()
         db.create_all()
 
-        self.ecole_a = Ecole(nom="Ecole A")
+        self.ecole_a = Ecole(nom="Ecole A", onboarding_complete=True)
         self.ecole_b = Ecole(nom="Ecole B")
         db.session.add_all([self.ecole_a, self.ecole_b])
         db.session.commit()
@@ -96,7 +96,7 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
         db.session.add_all([self.math_source, self.archive_course, self.course_b])
         db.session.flush()
 
-        self.eleve = Eleve(nom="Eleve", prenom="A", date_naissance=date(2014, 1, 1), ecole_id=self.ecole_a.id, classe_id=self.classe_source.id)
+        self.eleve = Eleve(nom="Eleve", prenom="A", date_naissance=date(2014, 1, 1), ecole_id=self.ecole_a.id)
         db.session.add(self.eleve)
         db.session.flush()
         db.session.add_all([
@@ -205,6 +205,132 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
         self.assertEqual(Absence.query.count(), 1)
         self.assertEqual(EmploiTemps.query.count(), 1)
         self.assertEqual(Inscription.query.count(), 1)
+
+    def test_assigner_classes_affiche_classe_avec_ou_sans_cours_et_isole_ecole(self):
+        classe_5b = Classe(
+            nom="5e B",
+            niveau="5e",
+            section="B",
+            capacite=35,
+            capacite_max=35,
+            statut="ouverte",
+            ecole_id=self.ecole_a.id,
+            annee_scolaire_id=self.target.id,
+        )
+        autre_annee = Classe(
+            nom="Autre Annee",
+            niveau="5e",
+            section="Y",
+            capacite=35,
+            capacite_max=35,
+            statut="ouverte",
+            ecole_id=self.ecole_a.id,
+            annee_scolaire_id=self.source.id,
+        )
+        autre_ecole = Classe(
+            nom="Classe Autre Ecole",
+            niveau="5e",
+            section="X",
+            capacite=35,
+            capacite_max=35,
+            statut="ouverte",
+            ecole_id=self.ecole_b.id,
+            annee_scolaire_id=self.annee_b.id,
+        )
+        db.session.add_all([classe_5b, autre_annee, autre_ecole])
+        db.session.flush()
+        db.session.delete(self.target_course)
+        db.session.flush()
+        cours_5b = Cours(
+            nom=self.prof_ali.specialite,
+            coefficient=1,
+            ecole_id=self.ecole_a.id,
+            classe_id=classe_5b.id,
+            professeur_id=self.prof_ali.id,
+        )
+        db.session.add(cours_5b)
+        db.session.add(
+            Inscription(
+                ecole_id=self.ecole_a.id,
+                eleve_id=self.eleve.id,
+                annee_scolaire_id=self.target.id,
+                classe_id=self.target_classe.id,
+            )
+        )
+        db.session.commit()
+
+        client = self.login_as(self.admin)
+        with client.session_transaction() as session:
+            session["annee_consultee"] = {str(self.ecole_a.id): self.target.id}
+
+        response = client.get(f"/professeur/{self.prof_ali.id}/assigner_classes")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(self.target_classe.nom.encode(), response.data)
+        self.assertIn(b"5e B", response.data)
+        self.assertIn(b"Math", response.data)
+        self.assertNotIn(b"Classe Autre Ecole", response.data)
+        self.assertNotIn(b"Autre Annee", response.data)
+
+        response = client.post(
+            f"/professeur/{self.prof_ali.id}/assigner_classes",
+            data={"action": "assign", "cours_id": f"new:{self.target_classe.id}"},
+        )
+        self.assertEqual(response.status_code, 302)
+        cours_6a = Cours.query.filter_by(
+            ecole_id=self.ecole_a.id,
+            classe_id=self.target_classe.id,
+            nom=self.prof_ali.specialite,
+        ).all()
+        self.assertEqual(len(cours_6a), 1)
+        self.assertEqual(cours_6a[0].professeur_id, self.prof_ali.id)
+
+        response = client.post(
+            f"/professeur/{self.prof_ali.id}/assigner_classes",
+            data={"action": "assign", "cours_id": f"new:{self.target_classe.id}"},
+        )
+        self.assertEqual(response.status_code, 302)
+        cours_6a = Cours.query.filter_by(
+            ecole_id=self.ecole_a.id,
+            classe_id=self.target_classe.id,
+            nom=self.prof_ali.specialite,
+        ).all()
+        self.assertEqual(len(cours_6a), 1)
+        self.assertEqual(cours_6a[0].professeur_id, self.prof_ali.id)
+
+        self.assertEqual(
+            Cours.query.filter_by(
+                ecole_id=self.ecole_a.id,
+                classe_id=classe_5b.id,
+                nom=self.prof_ali.specialite,
+            ).count(),
+            1,
+        )
+
+        response = client.post(
+            f"/professeur/{self.prof_ali.id}/assigner_classes",
+            data={"action": "assign", "cours_id": f"new:{autre_ecole.id}"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNone(
+            Cours.query.filter_by(
+                ecole_id=self.ecole_a.id,
+                classe_id=autre_ecole.id,
+                nom=self.prof_ali.specialite,
+            ).first()
+        )
+
+        response = client.post(
+            f"/professeur/{self.prof_ali.id}/assigner_classes",
+            data={"action": "assign", "cours_id": f"new:{autre_annee.id}"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNone(
+            Cours.query.filter_by(
+                ecole_id=self.ecole_a.id,
+                classe_id=autre_annee.id,
+                nom=self.prof_ali.specialite,
+            ).first()
+        )
 
 
 if __name__ == "__main__":
