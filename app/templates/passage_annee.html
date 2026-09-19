@@ -120,7 +120,7 @@
                     <label class="form-label small text-muted mb-0 me-2"><i class="fas fa-filter me-1"></i>Filtrer :</label>
                 </div>
                 <div class="col-12 col-sm-auto">
-                    <select name="classe_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <select name="classe_id" class="form-select form-select-sm" data-klasora-filter-submit>
                         <option value="">Toutes les classes sources</option>
                         {% for c in classes_source_disponibles %}
                             <option value="{{ c.id }}" {% if classe_id_filtre == c.id %}selected{% endif %}>{{ c.nom }}</option>
@@ -128,7 +128,7 @@
                     </select>
                 </div>
                 <div class="col-12 col-sm-auto">
-                    <select name="statut" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <select name="statut" class="form-select form-select-sm" data-klasora-filter-submit>
                         <option value="tous" {% if statut_filtre == 'tous' %}selected{% endif %}>Tous les états</option>
                         <option value="a_traiter" {% if statut_filtre == 'a_traiter' %}selected{% endif %}>À traiter ({{ nb_a_traiter }})</option>
                         <option value="traites" {% if statut_filtre == 'traites' %}selected{% endif %}>Traités ({{ nb_traites }})</option>
@@ -141,6 +141,7 @@
                     </a>
                 </div>
                 {% endif %}
+                <button type="submit" class="visually-hidden">Filtrer</button>
             </form>
         </div>
     </div>
@@ -361,4 +362,3 @@
     {% endif %}
 </div>
 {% endblock %}
-

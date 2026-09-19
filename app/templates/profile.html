@@ -145,7 +145,7 @@
                                         </div>
                                     </div>
                                     <div class="col-md-3">
-                                        <select class="form-select" id="ecoleFilter" onchange="applyFilters()">
+                                        <select class="form-select" id="ecoleFilter" data-profile-filter>
                                             <option value="">Toutes les écoles</option>
                                             {% for ecole in ecoles %}
                                             <option value="{{ ecole.id }}" {% if request.args.get('ecole') == ecole.id|string %}selected{% endif %}>
@@ -155,7 +155,7 @@
                                         </select>
                                     </div>
                                     <div class="col-md-3">
-                                        <select class="form-select" id="roleFilter" onchange="applyFilters()">
+                                        <select class="form-select" id="roleFilter" data-profile-filter>
                                             <option value="">Tous les rôles</option>
                                             <option value="super_admin" {% if role_filter == 'super_admin' %}selected{% endif %}>Super Admin</option>
                                             <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admin</option>
@@ -300,14 +300,14 @@
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                        <select class="form-select" id="roleFilter" onchange="applyFilters()">
+                                        <select class="form-select" id="roleFilter" data-profile-filter>
                                             <option value="">Tous les rôles</option>
                                             <option value="professeur" {% if role_filter == 'professeur' %}selected{% endif %}>Professeur</option>
                                             <option value="parent" {% if role_filter == 'parent' %}selected{% endif %}>Parent</option>
                                         </select>
                                     </div>
                                     <div class="col-md-4">
-                                        <select class="form-select" id="statutFilter" onchange="applyFilters()">
+                                        <select class="form-select" id="statutFilter" data-profile-filter>
                                             <option value="">Tous les statuts</option>
                                             <option value="actif" {% if request.args.get('statut') == 'actif' %}selected{% endif %}>Actif</option>
                                             <option value="inactif" {% if request.args.get('statut') == 'inactif' %}selected{% endif %}>Inactif</option>
@@ -563,8 +563,13 @@ function applyFilters() {
         });
     {% endif %}
     
-    window.location.href = `{{ url_for('main.profile') }}${params.toString()}`;
+    const query = params.toString();
+    window.location.href = `{{ url_for('main.profile') }}${query ? '?' + query : ''}`;
 }
+
+document.querySelectorAll('[data-profile-filter]').forEach((filter) => {
+    filter.addEventListener('change', applyFilters);
+});
 
 // Fonction pour changer le statut d'un utilisateur
 function toggleUserStatus(userId, currentStatus) {

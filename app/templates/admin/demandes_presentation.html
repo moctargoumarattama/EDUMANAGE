@@ -177,12 +177,13 @@
                                     <td>
                                         <form method="POST" action="{{ url_for('admin.update_demande_presentation_statut', demande_id=d.id) }}" class="m-0">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <select name="statut" class="form-select form-select-sm py-1 rounded-2 fw-semibold style-statut-select" onchange="this.form.submit()" style="font-size: 0.8rem;">
+                                            <select name="statut" class="form-select form-select-sm py-1 rounded-2 fw-semibold style-statut-select" data-klasora-filter-submit style="font-size: 0.8rem;">
                                                 <option value="nouvelle" {{ 'selected' if d.statut == 'nouvelle' }}>🔴 Nouvelle</option>
                                                 <option value="contactee" {{ 'selected' if d.statut == 'contactee' }}>🟡 Contactée</option>
                                                 <option value="traitee" {{ 'selected' if d.statut == 'traitee' }}>🟢 Traitée</option>
                                                 <option value="archivee" {{ 'selected' if d.statut == 'archivee' }}>⚪ Archivée</option>
                                             </select>
+                                            <button type="submit" class="visually-hidden">Enregistrer</button>
                                         </form>
                                     </td>
 
@@ -273,4 +274,3 @@
     </div>
 </div>
 {% endblock %}
-

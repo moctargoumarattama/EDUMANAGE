@@ -50,18 +50,19 @@
     <div class="appel-toolbar">
         <label>
             Date
-            <input class="form-control" type="date" name="date_appel" value="{{ date_appel.isoformat() }}" onchange="this.form.method='GET'; this.form.submit();">
+            <input class="form-control" type="date" name="date_appel" value="{{ date_appel.isoformat() }}" data-klasora-filter-submit data-klasora-filter-method="get">
         </label>
         {% if cours_disponibles|length > 1 %}
         <label>
             Cours
-            <select class="form-select" name="cours_id" onchange="this.form.method='GET'; this.form.submit();">
+            <select class="form-select" name="cours_id" data-klasora-filter-submit data-klasora-filter-method="get">
                 {% for c in cours_disponibles %}
                 <option value="{{ c.id }}" {% if c.id == cours.id %}selected{% endif %}>{{ c.nom }}</option>
                 {% endfor %}
             </select>
         </label>
         {% endif %}
+        <button type="submit" formmethod="get" class="visually-hidden">Afficher</button>
     </div>
 
     <div class="appel-list">

@@ -130,9 +130,9 @@
             <!-- SÉLECTEUR D'ENFANT & BULLETIN -->
             <div class="d-flex flex-column flex-sm-row gap-2 align-items-stretch align-items-sm-center">
                 {% if inscriptions|length > 1 %}
-                <div>
-                    <select class="form-select form-select-sm border-0 fw-bold shadow-sm" 
-                            onchange="window.location.href='?enfant_id=' + this.value" 
+                <form method="get" action="{{ url_for('main.parent_dashboard') }}">
+                    <select name="enfant_id" class="form-select form-select-sm border-0 fw-bold shadow-sm"
+                            data-klasora-filter-submit
                             style="background-color: rgba(255,255,255,0.95); color: #1e3a8a; border-radius: 0.5rem; min-width: 170px;">
                         {% for ins in inscriptions %}
                         <option value="{{ ins.eleve.id }}" {% if ins.eleve_id == enfant_selectionne.id %}selected{% endif %}>
@@ -140,7 +140,8 @@
                         </option>
                         {% endfor %}
                     </select>
-                </div>
+                    <button type="submit" class="visually-hidden">Changer</button>
+                </form>
                 {% endif %}
 
                 <a href="{{ url_for('main.bulletin_eleve', id=enfant_selectionne.id) }}" 

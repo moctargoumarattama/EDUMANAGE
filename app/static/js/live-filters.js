@@ -15,6 +15,42 @@
         };
     }
 
+    function submitFilterControl(control) {
+        const form = control.form;
+        if (!form || form.dataset.klasoraSubmitting === 'true') return;
+
+        const method = control.dataset.klasoraFilterMethod;
+        if (method) {
+            form.method = method;
+        }
+
+        const resetPage = control.dataset.klasoraResetPage !== 'false';
+        if (resetPage) {
+            const pageInput = form.querySelector('[name="page"]');
+            if (pageInput) {
+                pageInput.value = '1';
+            }
+        }
+
+        form.dataset.klasoraSubmitting = 'true';
+        window.setTimeout(() => {
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+            } else {
+                form.submit();
+            }
+        }, 50);
+    }
+
+    function bindClassicFilterSubmits() {
+        const controls = document.querySelectorAll('[data-klasora-filter-submit]');
+        controls.forEach(control => {
+            if (control.dataset.klasoraFilterBound === 'true') return;
+            control.dataset.klasoraFilterBound = 'true';
+            control.addEventListener('change', () => submitFilterControl(control));
+        });
+    }
+
     class LiveFilterManager {
         constructor(config) {
             this.container = document.querySelector(config.containerSelector);
@@ -308,7 +344,13 @@
     window.KlasoraLiveFilter = {
         Manager: LiveFilterManager,
         bindDependentSelect: bindDependentSelect,
+        bindClassicFilterSubmits: bindClassicFilterSubmits,
         debounce: debounce
     };
-})();
 
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bindClassicFilterSubmits);
+    } else {
+        bindClassicFilterSubmits();
+    }
+})();

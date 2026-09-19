@@ -68,7 +68,7 @@
                     <!-- Classe -->
                     <div class="col-12 col-md-6 col-lg-3">
                         <label for="selectClasse" class="form-label fw-semibold">Classe <span class="text-danger">*</span></label>
-                        <select name="classe_id" id="selectClasse" class="form-select shadow-sm" required onchange="onClasseChange(this.value)">
+                        <select name="classe_id" id="selectClasse" class="form-select shadow-sm" required>
                             {% for c in classes %}
                             <option value="{{ c.id }}" {% if c.id == selected_classe_id %}selected{% endif %}>
                                 {{ c.nom }}
@@ -229,6 +229,13 @@ function onClasseChange(classeId) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    const selectClasse = document.getElementById('selectClasse');
+    if (selectClasse) {
+        selectClasse.addEventListener('change', function () {
+            onClasseChange(this.value);
+        });
+    }
+
     const inputs = Array.from(document.querySelectorAll('.note-input'));
 
     inputs.forEach((input, idx) => {

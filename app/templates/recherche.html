@@ -210,7 +210,11 @@ document.addEventListener('DOMContentLoaded', function () {
         window.clearTimeout(timer);
         timer = window.setTimeout(function () {
             if (input.value.trim().length >= 2) {
-                form.submit();
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
             }
         }, 300);
     });
