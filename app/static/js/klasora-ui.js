@@ -73,9 +73,10 @@
             });
 
             const contentType = response.headers.get('content-type') || '';
-            const data = contentType.includes('application/json')
-                 await response.json()
-                : { success: response.ok, message: await response.text() };
+            if (!contentType.includes('application/json')) {
+                throw new Error('Réponse non compatible AJAX.');
+            }
+            const data = await response.json();
 
             if (!response.ok) {
                 const message = data.message || data.error || messageForStatus(response.status);
@@ -186,6 +187,7 @@
     document.addEventListener('submit', async function (event) {
         const form = event.target.closest('form[data-klasora-form]');
         if (!form || form.dataset.klasoraBusy === '1') return;
+        if (form.dataset.klasoraAjax !== 'true') return;
 
         const confirmText = form.dataset.confirm;
         if (confirmText && !window.confirm(confirmText)) {
