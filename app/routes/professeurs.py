@@ -32,6 +32,20 @@ from app.services.annees_scolaires import get_annee_consultee
 from app.services.classes_annuelles import classe_est_ouverte
 
 
+def _matiere_affectation_professeur(professeur):
+    valeurs_vides = {"", "non renseignee", "non renseignée", "non defini", "non défini"}
+    candidats = [
+        getattr(professeur, "matiere", None),
+        professeur.specialite,
+        professeur.matieres_enseignees.split(",")[0].strip() if professeur.matieres_enseignees else None,
+    ]
+    for candidat in candidats:
+        valeur = (candidat or "").strip()
+        if valeur and valeur.lower() not in valeurs_vides:
+            return valeur
+    return ""
+
+
 @main.route('/professeurs')
 @login_required
 @role_required('admin')
@@ -379,11 +393,7 @@ def assigner_classes_professeur(id):
         .order_by(Professeur.nom.asc(), Professeur.prenom.asc())
         .all()
     )
-    matiere_professeur = (
-        getattr(professeur, "matiere", None)
-        or professeur.specialite
-        or (professeur.matieres_enseignees.split(",")[0].strip() if professeur.matieres_enseignees else "")
-    )
+    matiere_professeur = _matiere_affectation_professeur(professeur)
     classes_annee = (
         Classe.query
         .filter(

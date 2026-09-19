@@ -207,6 +207,8 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
         self.assertEqual(Inscription.query.count(), 1)
 
     def test_assigner_classes_affiche_classe_avec_ou_sans_cours_et_isole_ecole(self):
+        self.prof_ali.specialite = "Non renseignée"
+        self.prof_ali.matieres_enseignees = "Science"
         classe_5b = Classe(
             nom="5e B",
             niveau="5e",
@@ -227,6 +229,16 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
             ecole_id=self.ecole_a.id,
             annee_scolaire_id=self.source.id,
         )
+        classe_4a = Classe(
+            nom="4e A",
+            niveau="4e",
+            section="A",
+            capacite=35,
+            capacite_max=35,
+            statut="ouverte",
+            ecole_id=self.ecole_a.id,
+            annee_scolaire_id=self.target.id,
+        )
         autre_ecole = Classe(
             nom="Classe Autre Ecole",
             niveau="5e",
@@ -237,18 +249,24 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
             ecole_id=self.ecole_b.id,
             annee_scolaire_id=self.annee_b.id,
         )
-        db.session.add_all([classe_5b, autre_annee, autre_ecole])
+        db.session.add_all([classe_5b, classe_4a, autre_annee, autre_ecole])
         db.session.flush()
         db.session.delete(self.target_course)
         db.session.flush()
         cours_5b = Cours(
-            nom=self.prof_ali.specialite,
+            nom="Science",
             coefficient=1,
             ecole_id=self.ecole_a.id,
             classe_id=classe_5b.id,
             professeur_id=self.prof_ali.id,
         )
-        db.session.add(cours_5b)
+        cours_math_4a = Cours(
+            nom="Mathematiques",
+            coefficient=1,
+            ecole_id=self.ecole_a.id,
+            classe_id=classe_4a.id,
+        )
+        db.session.add_all([cours_5b, cours_math_4a])
         db.session.add(
             Inscription(
                 ecole_id=self.ecole_a.id,
@@ -265,11 +283,19 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
 
         response = client.get(f"/professeur/{self.prof_ali.id}/assigner_classes")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(self.target_classe.nom.encode(), response.data)
-        self.assertIn(b"5e B", response.data)
-        self.assertIn(b"Math", response.data)
-        self.assertNotIn(b"Classe Autre Ecole", response.data)
-        self.assertNotIn(b"Autre Annee", response.data)
+        html = response.get_data(as_text=True)
+        self.assertIn("5e B - Science", html)
+        self.assertIn(f'value="{cours_5b.id}"', html)
+        self.assertNotIn(f'value="new:{classe_5b.id}"', html)
+        self.assertIn("(deja affecte)", html)
+        self.assertIn(f'value="new:{self.target_classe.id}"', html)
+        self.assertIn(f"{self.target_classe.nom} - Science (creer et affecter)", html)
+        self.assertIn(f'value="new:{classe_4a.id}"', html)
+        self.assertIn("4e A - Science (creer et affecter)", html)
+        self.assertNotIn("5e B - Non renseign", html)
+        self.assertNotIn("5e B - Science (creer et affecter)", html)
+        self.assertNotIn("Classe Autre Ecole", html)
+        self.assertNotIn("Autre Annee", html)
 
         response = client.post(
             f"/professeur/{self.prof_ali.id}/assigner_classes",
@@ -279,7 +305,7 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
         cours_6a = Cours.query.filter_by(
             ecole_id=self.ecole_a.id,
             classe_id=self.target_classe.id,
-            nom=self.prof_ali.specialite,
+            nom="Science",
         ).all()
         self.assertEqual(len(cours_6a), 1)
         self.assertEqual(cours_6a[0].professeur_id, self.prof_ali.id)
@@ -292,7 +318,7 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
         cours_6a = Cours.query.filter_by(
             ecole_id=self.ecole_a.id,
             classe_id=self.target_classe.id,
-            nom=self.prof_ali.specialite,
+            nom="Science",
         ).all()
         self.assertEqual(len(cours_6a), 1)
         self.assertEqual(cours_6a[0].professeur_id, self.prof_ali.id)
@@ -301,9 +327,17 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
             Cours.query.filter_by(
                 ecole_id=self.ecole_a.id,
                 classe_id=classe_5b.id,
-                nom=self.prof_ali.specialite,
+                nom="Science",
             ).count(),
             1,
+        )
+        self.assertEqual(
+            Cours.query.filter_by(
+                ecole_id=self.ecole_a.id,
+                classe_id=classe_4a.id,
+                nom="Science",
+            ).count(),
+            0,
         )
 
         response = client.post(
@@ -315,7 +349,7 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
             Cours.query.filter_by(
                 ecole_id=self.ecole_a.id,
                 classe_id=autre_ecole.id,
-                nom=self.prof_ali.specialite,
+                nom="Science",
             ).first()
         )
 
@@ -328,7 +362,7 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
             Cours.query.filter_by(
                 ecole_id=self.ecole_a.id,
                 classe_id=autre_annee.id,
-                nom=self.prof_ali.specialite,
+                nom="Science",
             ).first()
         )
 
