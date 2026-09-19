@@ -185,6 +185,8 @@ class Ecole(db.Model):
     statut = db.Column(db.String(20), default='actif')
     motif_blocage = db.Column(db.String(300))
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    from sqlalchemy.sql import expression
+    onboarding_complete = db.Column(db.Boolean, nullable=False, default=False, server_default=expression.false())
     logo_path = db.Column(db.String(200))  # <-- champ existant
     signature_path = db.Column(db.String(200))
     cachet_path = db.Column(db.String(200))

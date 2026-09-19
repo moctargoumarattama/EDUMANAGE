@@ -346,14 +346,20 @@ def notifier_alertes(alertes):
                         f"Source: {a['source']}"
                     )
 
+                    email_ok = True
                     if eleve and eleve.email_parent:
-                        envoyer_email(
+                        email_ok = envoyer_email(
                             eleve.email_parent,
                             f"Alerte: {a['titre']}",
-                            message
+                            message,
+                            context="alert_parent_notification",
                         )
+                        if email_ok:
+                            current_app.logger.info("EMAIL_SUCCESS_HANDLED type=alert_parent_notification recipient=%s", eleve.email_parent)
+                        else:
+                            current_app.logger.warning("EMAIL_FAILED_HANDLED type=alert_parent_notification recipient=%s", eleve.email_parent)
 
-                    a['notifie'] = True
+                    a['notifie'] = email_ok
 
             try:
                 db.session.commit()

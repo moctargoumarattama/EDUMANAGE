@@ -273,13 +273,11 @@ def request_reset_password():
             </html>
             """
 
-            try:
-                # Utilisation de la fonction centralisée comme pour ajouter_eleve
-                envoyer_email(utilisateur.email, sujet, message)
-                current_app.logger.info(f"Email de reset envoyé à {utilisateur.email}")
-            except Exception as e:
-                current_app.logger.error(f"Erreur envoi email reset: {e}")
-
+            email_ok = envoyer_email(utilisateur.email, sujet, message, context="reset_password")
+            if email_ok:
+                current_app.logger.info("EMAIL_SUCCESS_HANDLED type=reset_password recipient=%s", utilisateur.email)
+            else:
+                current_app.logger.warning("EMAIL_FAILED_HANDLED type=reset_password recipient=%s", utilisateur.email)
         else:
             current_app.logger.info(f"Tentative de reset pour email inexistant: {email}")
 
@@ -392,9 +390,13 @@ Message :
 
 Date de réception : {datetime.utcnow().strftime('%d/%m/%Y %H:%M UTC')}
 """
-            envoyer_email(admin_dest, sujet_mail, corps_mail)
+            email_ok = envoyer_email(admin_dest, sujet_mail, corps_mail, context="demo_request")
+            if email_ok:
+                current_app.logger.info("EMAIL_SUCCESS_HANDLED type=demo_request recipient=%s", admin_dest)
+            else:
+                current_app.logger.warning("EMAIL_FAILED_HANDLED type=demo_request recipient=%s", admin_dest)
         except Exception as e:
-            current_app.logger.warning(f"Notification email présentation non envoyée (non bloquant) : {e}")
+            current_app.logger.warning("Notification email presentation non envoyee (preparation, non bloquant): %s", e)
 
         success_msg = "Merci ! Votre demande de présentation a bien été enregistrée. Notre équipe vous contactera sous 24h ouvrées."
         if is_json:

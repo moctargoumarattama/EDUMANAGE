@@ -727,10 +727,11 @@ Connectez-vous au portail parent pour plus de détails.
 
 Cordialement,
 L'équipe pédagogique"""
-            try:
-                envoyer_email(eleve.email_parent, sujet, message)
-            except Exception as email_err:
-                current_app.logger.warning(f"Erreur envoi email note: {email_err}")
+            email_ok = envoyer_email(eleve.email_parent, sujet, message, context="note_parent_notification")
+            if email_ok:
+                current_app.logger.info("EMAIL_SUCCESS_HANDLED type=note_parent_notification recipient=%s", eleve.email_parent)
+            else:
+                current_app.logger.warning("EMAIL_FAILED_HANDLED type=note_parent_notification recipient=%s", eleve.email_parent)
 
         return nouvelle_note, None
 
@@ -1102,4 +1103,3 @@ def saisir_notes_classe(
             current_app.logger.warning(f"Erreur journalisation saisie classe: {log_err}")
 
     return len(created_notes), None
-

@@ -112,21 +112,21 @@
                             <div class="d-flex align-items-center gap-2 p-2 border rounded bg-white">
                                 <span class="text-muted ps-1"><i class="fas fa-calendar-alt"></i></span>
                                 <span class="fw-bold text-muted ms-1">20</span>
-                                <input type="text" class="form-control text-center fw-bold px-1" id="annee_debut_court" name="annee_debut_court" maxlength="2" placeholder="26" pattern="\d{2}" style="max-width: 70px;" required autofocus>
+                                <input type="text" class="form-control text-center fw-bold px-1" id="annee_debut_court" name="annee_debut_court" maxlength="2" placeholder="AA" value="{{ form_data.get('annee_debut_court', '') }}" pattern="\d{2}" style="max-width: 70px;" required autofocus>
                                 <span class="fw-bold text-muted px-1">-</span>
                                 <span class="fw-bold text-muted">20</span>
-                                <input type="text" class="form-control text-center fw-bold bg-light px-1" id="annee_fin_court" placeholder="27" style="max-width: 70px;" readonly tabindex="-1">
+                                <input type="text" class="form-control text-center fw-bold bg-light px-1" id="annee_fin_court" placeholder="AA" value="{{ form_data.get('annee_fin_court', '') }}" style="max-width: 70px;" readonly tabindex="-1">
                             </div>
                             <div class="form-text small text-muted">Saisissez les 2 derniers chiffres de l'année de départ (ex: 26 pour 2026-2027).</div>
                         </div>
                         <div class="row g-2 g-sm-3 mb-3 mb-sm-4">
                             <div class="col-6">
                                 <label for="date_debut" class="form-label small fw-bold text-dark mb-1">Date de rentree <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control" id="date_debut" name="date_debut" required>
+                                <input type="date" class="form-control" id="date_debut" name="date_debut" value="{{ form_data.get('date_debut', '') }}" required>
                             </div>
                             <div class="col-6">
                                 <label for="date_fin" class="form-label small fw-bold text-dark mb-1">Date de fin <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control" id="date_fin" name="date_fin" required>
+                                <input type="date" class="form-control" id="date_fin" name="date_fin" value="{{ form_data.get('date_fin', '') }}" required>
                             </div>
                         </div>
                         <div class="d-grid mt-3 mt-sm-4">
@@ -148,7 +148,7 @@
                                     }
                                 }
                                 debut.addEventListener('input', syncFin);
-                                syncFin();
+                                // Retiré : l'initialisation automatique au chargement
                             }
                         });
                     </script>
@@ -222,7 +222,13 @@
                             <div class="summary-pill px-3 py-1.5 bg-light rounded-pill border small text-dark"><i class="fas fa-layer-group text-primary me-1"></i>Niveaux configures</div>
                         </div>
                         <div class="d-grid gap-2 col-12 col-md-10 mx-auto">
-                            <a href="{{ url_for('main.index') }}" class="btn btn-success btn-lg fw-bold shadow-sm py-2.5 py-sm-3"><i class="fas fa-arrow-right me-2"></i>Acceder a mon tableau de bord</a>
+                            <form method="POST" action="{{ url_for('main.onboarding') }}" class="m-0">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="finaliser">
+                                <button type="submit" class="btn btn-success btn-lg fw-bold shadow-sm py-2.5 py-sm-3 w-100">
+                                    <i class="fas fa-arrow-right me-2"></i>Acceder a mon tableau de bord
+                                </button>
+                            </form>
                         </div>
                     </div>
                 {% endif %}

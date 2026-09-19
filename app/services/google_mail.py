@@ -458,4 +458,4 @@ def send_platform_email(
     Utilise le serveur SMTP configuré globalement.
     """
     from app.notifications import envoyer_email
-    return envoyer_email(to, subject, html_body)
+    return envoyer_email(to, subject, html_body, context="platform_email")

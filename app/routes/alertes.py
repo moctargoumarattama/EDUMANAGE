@@ -293,7 +293,7 @@ def envoyer_notification_test():
             return jsonify({'success': True, 'message': 'Notification ajoutée dans l’application'})
 
         if channel == 'email':
-            ok = envoyer_email(contact, "Test de notification - KLASORA", message)
+            ok = envoyer_email(contact, "Test de notification - KLASORA", message, context="notification_test")
             return jsonify({'success': ok, 'message': 'Email envoyé' if ok else 'Échec envoi email'})
 
         return jsonify({'success': False, 'message': 'Canal inconnu'}), 400

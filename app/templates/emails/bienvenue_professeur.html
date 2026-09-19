@@ -18,8 +18,10 @@
                         <td style="padding: 40px 30px;">
                             <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.5;">
                                 Bonjour {{ professeur.prenom or '' }} {{ professeur.nom }},<br><br>
-                                Votre compte professeur pour l'établissement<br>
-                                <strong>« {{ ecole.nom }} »</strong> vient d'être créé.
+                                Votre espace professeur est prêt.
+                            </p>
+                            <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.5;">
+                                Retrouvez vos classes, vos cours, vos notes et le suivi de vos élèves depuis votre espace KLASORA.
                             </p>
                             <div style="background-color: #F9FAFB; border: 1px solid #E5E7EB; border-left: 4px solid #1E3A8A; padding: 20px; margin-bottom: 25px; border-radius: 4px;">
                                 <p style="margin: 0 0 10px 0; font-size: 15px;">
@@ -27,16 +29,10 @@
                                     <span style="color: #111827;">{{ professeur.email }}</span>
                                 </p>
                                 <p style="margin: 0; font-size: 15px;">
-                                    <strong>Mot de passe provisoire :</strong><br>
+                                    <strong>Mot de passe :</strong><br>
                                     <span style="font-family: monospace; font-size: 16px; color: #111827;">{{ mot_de_passe }}</span>
                                 </p>
                             </div>
-                            <p style="margin: 0 0 25px 0; font-size: 15px; color: #333333; line-height: 1.5;">
-                                Votre espace KLASORA vous permet d'accéder aux fonctionnalités pédagogiques mises à votre disposition par votre établissement.
-                            </p>
-                            <p style="margin: 0 0 35px 0; font-size: 14px; color: #4B5563; line-height: 1.5;">
-                                Pour votre sécurité, nous vous recommandons de modifier ce mot de passe après votre première connexion.
-                            </p>
                             <table width="100%" cellpadding="0" cellspacing="0" border="0">
                                 <tr>
                                     <td align="center">
@@ -60,4 +56,3 @@
     </table>
 </body>
 </html>
-

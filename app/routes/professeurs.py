@@ -204,21 +204,22 @@ def ajouter_professeur():
             )
 
             # ---------------- Envoi email ----------------
+            email_ok = True
             if nouveau_professeur.email:
-                try:
-                    from app.notifications import envoyer_email
-                    sujet = "Bienvenue sur KLASORA — Votre espace professeur est prêt"
-                    message = render_template(
-                        'emails/bienvenue_professeur.html',
-                        professeur=nouveau_professeur,
-                        ecole=current_user.ecole,
-                        mot_de_passe=code_prof
-                    )
-                    envoyer_email(nouveau_professeur.email, sujet, message)
-                    current_app.logger.info(f"Email envoyé ? {nouveau_professeur.email}")
-                except Exception as e:
-                    current_app.logger.error(f"Erreur envoi email: {e}")
-                    flash("Professeur ajouté mais email non envoyé.", "warning")
+                from app.notifications import envoyer_email
+                sujet = "Bienvenue sur KLASORA — Votre espace professeur est prêt"
+                message = render_template(
+                    'emails/bienvenue_professeur.html',
+                    professeur=nouveau_professeur,
+                    ecole=current_user.ecole,
+                    mot_de_passe=code_prof
+                )
+                email_ok = envoyer_email(nouveau_professeur.email, sujet, message, context="welcome_professor")
+                if email_ok:
+                    current_app.logger.info("EMAIL_SUCCESS_HANDLED type=welcome_professor recipient=%s", nouveau_professeur.email)
+                else:
+                    current_app.logger.warning("EMAIL_FAILED_HANDLED type=welcome_professor recipient=%s", nouveau_professeur.email)
+                    flash("Professeur ajouté, mais l'email de bienvenue n'a pas pu être envoyé.", "warning")
 
             flash(f"âœ… Professeur ajouté avec succès. Code d'accès: {code_prof}", "success")
             return redirect(url_for('main.professeurs'))

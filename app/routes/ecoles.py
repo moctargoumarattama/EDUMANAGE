@@ -133,20 +133,23 @@ def ajouter_ecole():
             db.session.add(admin)
             db.session.commit()
 
-            # Email de bienvenue (optionnel)
-            try:
-                sujet = "Bienvenue sur KLASORA — Votre espace école est prêt"
-                corps = render_template(
-                    'emails/bienvenue_ecole.html',
-                    ecole=ecole,
-                    admin=admin,
-                    mot_de_passe=mot_de_passe
+            sujet = "Bienvenue sur KLASORA — Votre espace école est prêt"
+            corps = render_template(
+                'emails/bienvenue_ecole.html',
+                ecole=ecole,
+                admin=admin,
+                mot_de_passe=mot_de_passe
+            )
+            email_ok = envoyer_email(admin.email, sujet, corps, context="welcome_school")
+            if email_ok:
+                current_app.logger.info("EMAIL_SUCCESS_HANDLED type=welcome_school recipient=%s", admin.email)
+                flash(f"École « {ecole.nom} » créée avec succès ✅", "success")
+            else:
+                current_app.logger.warning("EMAIL_FAILED_HANDLED type=welcome_school recipient=%s", admin.email)
+                flash(
+                    f"École « {ecole.nom} » créée avec succès, mais l'email de bienvenue n'a pas pu être envoyé.",
+                    "warning"
                 )
-                envoyer_email(admin.email, sujet, corps)
-            except Exception as mail_err:
-                current_app.logger.warning(f"Email non envoyé : {mail_err}")
-
-            flash(f"École « {ecole.nom} » créée avec succès ✅", "success")
             return redirect(url_for('main.gestion_ecoles'))
 
         except Exception as e:

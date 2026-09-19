@@ -157,22 +157,16 @@ def get_annee_active(ecole_id=None) -> Optional['AnneeScolaire']:
 def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[str, Any]:
     """
     Détermine l'état de configuration d'une école (onboarding).
-    
-    Règles :
-    1. Présence d'une année scolaire active (statut == 'active') pour l'école
-    2. Présence d'au moins une classe liée à cette école et à cette année active
-    
-    Optimisation : mise en cache dans flask.g._school_setup_cache pour la requête en cours.
-    
+
+    Règles révisées :
+    1. Si ecole.onboarding_complete == True, le setup est définitif (setup_complete = True).
+    2. Sinon, on évalue l'étape du wizard (current_step = 'year', 'pedagogie', ou 'complete')
+       selon la présence de l'année active et de la configuration pédagogique.
+
     Returns:
-        dict:
-            has_active_year: bool
-            active_year: AnneeScolaire ou None
-            has_class: bool
-            setup_complete: bool
-            current_step: 'year' | 'class' | 'complete'
+        dict avec setup_complete et current_step.
     """
-    from app.models import AnneeNiveauConfig, AnneeScolaire, Classe, NiveauScolaire
+    from app.models import AnneeNiveauConfig, AnneeScolaire, Classe, NiveauScolaire, Ecole
     from app.middleware import get_ecole_id
 
     target_ecole_id = ecole_id or get_ecole_id()
@@ -186,9 +180,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
             'current_step': 'year'
         }
 
-    use_cache = not force_refresh and not current_app.config.get('TESTING', False)
     use_cache = not force_refresh
-
     try:
         if use_cache:
             if not hasattr(g, '_school_setup_cache'):
@@ -198,57 +190,69 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
     except RuntimeError:
         pass
 
-    # 1. Vérification de l'année scolaire active pour cette école (réutilise le cache d'année active)
+    ecole = Ecole.query.get(target_ecole_id)
+    onboarding_complete = getattr(ecole, 'onboarding_complete', False) if ecole else False
     active_year = get_annee_active(target_ecole_id)
 
-    if not active_year:
+    if onboarding_complete:
         result = {
-            'has_active_year': False,
-            'active_year': None,
-            'has_class': False,
-            'has_pedagogie': False,
-            'setup_complete': False,
-            'current_step': 'year'
+            'has_active_year': active_year is not None,
+            'active_year': active_year,
+            'has_class': True,  # Valeurs non bloquantes
+            'has_pedagogie': True,
+            'setup_complete': True,
+            'current_step': 'complete'
         }
     else:
-        # 2. Vérification de la configuration pédagogique pour l'année active (AnneeNiveauConfig uniquement)
-        has_pedagogie = (
-            AnneeNiveauConfig.query
-            .filter_by(
-                ecole_id=target_ecole_id,
-                annee_scolaire_id=active_year.id,
-                actif=True,
-            )
-            .first()
-            is not None
-        )
-        has_class = Classe.query.filter_by(
-            ecole_id=target_ecole_id,
-            annee_scolaire_id=active_year.id
-        ).with_entities(Classe.id).first() is not None
-
-        if not has_pedagogie:
+        if not active_year:
             result = {
-                'has_active_year': True,
-                'active_year': active_year,
+                'has_active_year': False,
+                'active_year': None,
                 'has_class': False,
                 'has_pedagogie': False,
                 'setup_complete': False,
-                'current_step': 'pedagogie'
+                'current_step': 'year'
             }
         else:
-            result = {
-                'has_active_year': True,
-                'active_year': active_year,
-                'has_class': has_class,
-                'has_pedagogie': True,
-                'setup_complete': True,
-                'current_step': 'complete'
-            }
+            has_pedagogie = (
+                AnneeNiveauConfig.query
+                .filter_by(
+                    ecole_id=target_ecole_id,
+                    annee_scolaire_id=active_year.id,
+                    actif=True,
+                )
+                .first()
+                is not None
+            )
+            has_class = Classe.query.filter_by(
+                ecole_id=target_ecole_id,
+                annee_scolaire_id=active_year.id
+            ).with_entities(Classe.id).first() is not None
+
+            if not has_pedagogie:
+                result = {
+                    'has_active_year': True,
+                    'active_year': active_year,
+                    'has_class': False,
+                    'has_pedagogie': False,
+                    'setup_complete': False,
+                    'current_step': 'pedagogie'
+                }
+            else:
+                result = {
+                    'has_active_year': True,
+                    'active_year': active_year,
+                    'has_class': has_class,
+                    'has_pedagogie': True,
+                    'setup_complete': False, # Pas encore validé manuellement
+                    'current_step': 'complete'
+                }
 
     try:
-        if use_cache and hasattr(g, '_school_setup_cache'):
+        if hasattr(g, '_school_setup_cache'):
             g._school_setup_cache[target_ecole_id] = result
+        else:
+            g._school_setup_cache = {target_ecole_id: result}
     except RuntimeError:
         pass
 

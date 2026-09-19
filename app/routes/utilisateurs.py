@@ -376,15 +376,18 @@ def envoyer_credentials_parent(parent_id):
         )
 
         from app.notifications import envoyer_email
-        if envoyer_email(parent.email, sujet, message):
+        email_ok = envoyer_email(parent.email, sujet, message, context="resend_parent_credentials")
+        if email_ok:
+            current_app.logger.info("EMAIL_SUCCESS_HANDLED type=resend_parent_credentials recipient=%s", parent.email)
             return jsonify({'success': True, 'message': 'Email envoyé avec succès.'}), 200
-        else:
-            return jsonify({'success': False, 'message': 'Erreur lors de l’envoi de l’email.'}), 500
+
+        current_app.logger.warning("EMAIL_FAILED_HANDLED type=resend_parent_credentials recipient=%s", parent.email)
+        return jsonify({'success': False, 'message': 'Erreur lors de l’envoi de l’email.'}), 500
 
     except Exception as e:
         from flask import current_app
-        current_app.logger.error(f"Erreur lors de l’envoi des credentials: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        current_app.logger.error("Erreur préparation credentials parent: %s", e)
+        return jsonify({'success': False, 'message': "Erreur lors de la préparation de l'email."}), 500
 
 def seed_critical_corrections_if_empty():
     """Génère des données d'audit critiques initiales si la table est vide pour la démonstration"""

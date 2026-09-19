@@ -243,24 +243,38 @@ def onboarding():
         return redirect(url_for('main.logout'))
 
     setup_state = get_school_setup_state(ecole.id, force_refresh=True)
+
+    if setup_state['setup_complete']:
+        # L'onboarding est définitivement terminé, on redirige toujours vers le dashboard
+        return redirect(url_for('main.index'))
+
+    step = setup_state['current_step']
     active_year = setup_state.get('active_year')
 
-    # Contrôle strict du cycle de vie des étapes (impossible de forcer 'complete' si setup incomplet)
-    if not setup_state['setup_complete']:
-        step = setup_state['current_step']  # Strictement 'year' ou 'class'
-    else:
-        # Configuration complète en base
-        just_completed = session.pop('onboarding_just_completed', False) or request.args.get('step') == 'complete'
-        if just_completed:
-            step = 'complete'
-        else:
-            return redirect(url_for('main.index'))
-
     # Traitement des formulaires au sein de l'expérience d'onboarding
+    form_data = {}
+
     if request.method == 'POST':
         action = request.form.get('action')
 
-        # Étape 1 : Création / activation de l'année scolaire
+        if action == 'finaliser':
+            if step != 'complete':
+                flash("Vous ne pouvez pas finaliser l'onboarding tant que les prérequis ne sont pas remplis.", "danger")
+                return redirect(url_for('main.onboarding'))
+
+            ecole.onboarding_complete = True
+            db.session.commit()
+            flash("Configuration initiale de votre établissement terminée avec succès ! Bienvenue sur votre tableau de bord.", "success")
+
+            # On nettoie la session existante juste au cas où
+            session.pop('onboarding_just_completed', None)
+
+            # Nettoyer le cache
+            if hasattr(g, '_school_setup_cache'):
+                g._school_setup_cache.pop(ecole.id, None)
+
+            return redirect(url_for('main.index'))
+
         if action == 'creer_annee':
             from app.services.annees_scolaires import construire_nom_annee, valider_dates_annee
 
@@ -269,33 +283,38 @@ def onboarding():
             date_fin_str = request.form.get('date_fin', '').strip()
 
             nom, debut_annee, fin_annee, err_nom = construire_nom_annee(annee_court)
+            error_found = False
+
             if err_nom:
                 flash(err_nom, "danger")
-                return redirect(url_for('main.onboarding'))
-
-            if not date_debut_str or not date_fin_str:
+                error_found = True
+            elif not date_debut_str or not date_fin_str:
                 flash("Veuillez renseigner tous les champs obligatoires de l'année scolaire.", "danger")
-                return redirect(url_for('main.onboarding'))
+                error_found = True
+            else:
+                try:
+                    dt_debut = datetime.strptime(date_debut_str, '%Y-%m-%d').date()
+                    dt_fin = datetime.strptime(date_fin_str, '%Y-%m-%d').date()
 
-            try:
-                dt_debut = datetime.strptime(date_debut_str, '%Y-%m-%d').date()
-                dt_fin = datetime.strptime(date_fin_str, '%Y-%m-%d').date()
-            except (ValueError, TypeError):
-                flash("Format de date invalide (AAAA-MM-JJ).", "danger")
-                return redirect(url_for('main.onboarding'))
+                    ok_dates, err_dates = valider_dates_annee(dt_debut, dt_fin, debut_annee, fin_annee)
+                    if not ok_dates:
+                        flash(err_dates, "danger")
+                        error_found = True
+                    else:
+                        annee, error_msg = creer_ou_activer_annee_scolaire(ecole.id, nom, dt_debut, dt_fin)
+                        if error_msg:
+                            flash(error_msg, "danger")
+                            error_found = True
+                        else:
+                            db.session.commit()
+                            flash(f"Année scolaire « {annee.nom} » configurée et activée avec succès 🎉", "success")
+                            return redirect(url_for('main.onboarding'))
+                except (ValueError, TypeError):
+                    flash("Format de date invalide (AAAA-MM-JJ).", "danger")
+                    error_found = True
 
-            ok_dates, err_dates = valider_dates_annee(dt_debut, dt_fin, debut_annee, fin_annee)
-            if not ok_dates:
-                flash(err_dates, "danger")
-                return redirect(url_for('main.onboarding'))
-
-            annee, error_msg = creer_ou_activer_annee_scolaire(ecole.id, nom, dt_debut, dt_fin)
-            if error_msg:
-                flash(error_msg, "danger")
-                return redirect(url_for('main.onboarding'))
-
-            flash(f"Année scolaire « {annee.nom} » configurée et activée avec succès 🎉", "success")
-            return redirect(url_for('main.onboarding'))
+            if error_found:
+                form_data = request.form
 
         # Étape 2 : Création de la première classe
         elif action == 'configurer_pedagogie':
@@ -318,9 +337,8 @@ def onboarding():
                 return redirect(url_for('main.onboarding'))
 
             db.session.commit()
-            session['onboarding_just_completed'] = True
             flash("Configuration pedagogique enregistree avec succes.", "success")
-            return redirect(url_for('main.onboarding', step='complete'))
+            return redirect(url_for('main.onboarding'))
 
     niveau_configs_grouped = get_niveaux_catalogue_grouped_for_onboarding(ecole.id, active_year.id if active_year else None)
 
@@ -330,7 +348,8 @@ def onboarding():
         setup_state=setup_state,
         step=step,
         active_year=active_year,
-        niveau_configs_grouped=niveau_configs_grouped
+        niveau_configs_grouped=niveau_configs_grouped,
+        form_data=form_data
     )
 
 

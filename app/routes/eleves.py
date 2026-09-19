@@ -492,10 +492,15 @@ def ajouter_eleve():
                             ecole=current_user.ecole,
                             mot_de_passe=code_parent
                         )
-                        envoyer_email(email_parent, sujet, message)
+                        email_ok = envoyer_email(email_parent, sujet, message, context="welcome_parent")
+                        if email_ok:
+                            current_app.logger.info("EMAIL_SUCCESS_HANDLED type=welcome_parent recipient=%s", email_parent)
+                        else:
+                            current_app.logger.warning("EMAIL_FAILED_HANDLED type=welcome_parent recipient=%s", email_parent)
+                            flash("Parent créé, mais l'email de bienvenue n'a pas pu être envoyé.", "warning")
 
                 except Exception as e:
-                    current_app.logger.error(f"Erreur QR/Email : {e}")
+                    current_app.logger.error("Erreur préparation notification parent: %s", e)
 
             flash("✅ Élève ajouté avec succès et inscrit à tous les cours de sa classe.", "success")
             return redirect(url_for('main.eleves'))
