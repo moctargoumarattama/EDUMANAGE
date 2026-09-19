@@ -30,6 +30,7 @@ from .common import (
 from app.services import check_ecole_access
 from app.services.annees_scolaires import get_annee_consultee
 from app.services.classes_annuelles import classe_est_ouverte
+from app.access_codes import generate_access_code, is_valid_access_code
 
 
 def _matieres_affectation_professeur(professeur):
@@ -164,7 +165,10 @@ def ajouter_professeur():
     if form.validate_on_submit():
         try:
             # ---------------- Code professeur ----------------
-            code_prof = form.code_prof.data.strip() if form.code_prof.data else Professeur.generer_code()
+            code_prof = form.code_prof.data.strip() if form.code_prof.data else generate_access_code()
+            if not is_valid_access_code(code_prof):
+                flash("Le code d'accès doit contenir exactement 8 chiffres.", "danger")
+                return redirect(url_for('main.ajouter_professeur'))
 
             # ---------------- Vérification unicité ----------------
             if Professeur.query.filter_by(code_prof=code_prof, ecole_id=ecole_id).first():
@@ -218,8 +222,7 @@ def ajouter_professeur():
                 nouvelle_valeur=json.dumps({
                     "nom": nouveau_professeur.nom,
                     "prenom": nouveau_professeur.prenom,
-                    "email": nouveau_professeur.email,
-                    "code_prof": nouveau_professeur.code_prof
+                    "email": nouveau_professeur.email
                 }, ensure_ascii=False),
                 niveau="info"
             )

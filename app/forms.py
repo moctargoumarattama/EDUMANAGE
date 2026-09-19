@@ -78,7 +78,7 @@ class EleveForm(FlaskForm):
     parent_prenom = StringField('Prénom du parent', validators=[Optional(), Length(max=100)])
     email_parent = StringField('Email du parent', validators=[Optional(), Email(), Length(max=120)])
     telephone_parent = StringField('Téléphone du parent', validators=[Optional(), Length(max=20)])
-    code_parent = StringField('Code parent (laisser vide pour générer automatiquement)', validators=[Optional(), Length(max=10)])
+    code_parent = StringField('Code parent (laisser vide pour générer automatiquement)', validators=[Optional(), Length(max=8)])
     
     submit = SubmitField('Enregistrer')
     
@@ -114,7 +114,7 @@ class ProfesseurForm(FlaskForm):
     email = StringField('Email', validators=[Optional(), Email(), Length(max=100)])
     specialite = StringField('Spécialité', validators=[DataRequired(), Length(max=100)])
     matieres_enseignees = StringField('Matières enseignées', validators=[DataRequired(), Length(max=200)])
-    code_prof = StringField("Code d'accès", validators=[Optional()])
+    code_prof = StringField("Code d'accès", validators=[Optional(), Length(max=8)])
     submit = SubmitField('Enregistrer')
 
     def __init__(self, *args, **kwargs):

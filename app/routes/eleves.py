@@ -39,6 +39,7 @@ from app.services.paiements_annuels import get_mois_scolaires
 from app.services.annees_scolaires import get_annee_consultee, get_annees_ecole, get_classes_annee
 from app.services.classes_annuelles import get_classes_ouvertes_annee
 from app.services.inscriptions_annuelles import creer_inscription_annuelle, get_inscription_active, get_parcours_eleve, modifier_inscription_annuelle
+from app.access_codes import generate_access_code, is_valid_access_code
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -401,12 +402,16 @@ def ajouter_eleve():
 
                 # Vérifier si code_parent saisi est unique
                 if code_parent_saisi:
+                    if not is_valid_access_code(code_parent_saisi):
+                        flash("Le code d'accès doit contenir exactement 8 chiffres.", "danger")
+                        return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
+                                               annee_active=annee_active, classes=classes)
                     if Eleve.query.filter_by(code_parent=code_parent_saisi).first():
                         flash("Ce code parent est déjà utilisé par un autre élève.", "danger")
                         return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
                                                annee_active=annee_active, classes=classes)
 
-                code_parent = code_parent_saisi or Eleve.generer_code_parent()
+                code_parent = code_parent_saisi or generate_access_code()
                 parent_utilisateur = Utilisateur(
                     nom=request.form.get("parent_nom"),
                     prenom=None,

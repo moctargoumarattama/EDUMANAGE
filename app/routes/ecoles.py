@@ -18,10 +18,10 @@ from .common import (
     render_template,
     request,
     role_required,
-    secrets,
     session,
     url_for,
 )
+from app.access_codes import generate_access_code
 
 
 @main.route('/choisir-ecole')
@@ -96,7 +96,7 @@ def ajouter_ecole():
             adresse      = request.form.get('adresse', '').strip()
             telephone    = request.form.get('telephone', '').strip()
             email_admin  = request.form.get('email_admin', '').strip()
-            mot_de_passe = request.form.get('mot_de_passe', '').strip() or secrets.token_urlsafe(12)
+            mot_de_passe = request.form.get('mot_de_passe', '').strip() or generate_access_code()
 
             if not nom_ecole:
                 flash("Le nom de l'école est obligatoire.", "danger")

@@ -2,6 +2,7 @@ from flask_login import UserMixin
 from . import db
 from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
+from app.access_codes import generate_access_code
 import random
 import string
 from sqlalchemy import event
@@ -33,9 +34,8 @@ professeur_classes = db.Table(
 # -----------------------
 def generer_code_parent_unique(self):
     """Génère un code parent unique et sauvegarde l'élève."""
-    lettres_chiffres = string.ascii_uppercase + string.digits
     while True:
-        code = ''.join(random.choices(lettres_chiffres, k=8))
+        code = generate_access_code()
         if not Eleve.query.filter_by(code_parent=code).first():
             self.code_parent = code
             db.session.commit()
@@ -402,7 +402,7 @@ class Professeur(db.Model):
 
     @staticmethod
     def generer_code(length=6):
-        return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+        return generate_access_code()
 
     def to_dict(self):
         return {
@@ -570,9 +570,8 @@ class Eleve(db.Model):
 
     @staticmethod
     def generer_code_parent(length=8):
-        lettres_chiffres = string.ascii_uppercase + string.digits
         while True:
-            code = ''.join(random.choices(lettres_chiffres, k=length))
+            code = generate_access_code()
             if not Eleve.query.filter_by(code_parent=code).first():
                 return code
 

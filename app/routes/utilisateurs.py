@@ -28,6 +28,7 @@ from .common import (
     timedelta,
     url_for,
 )
+from app.access_codes import generate_access_code
 
 
 @main.route('/admin/create_user', methods=['GET', 'POST'])
@@ -274,8 +275,6 @@ def supprimer_utilisateur(user_id):
 @role_required('admin')
 def admin_reset_password(user_id):
     """Génère un nouveau mot de passe permanent à 8 chiffres pour l'utilisateur"""
-    import secrets
-
     # Vérification multi-tenant et chargement de l'utilisateur
     user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first()
 
@@ -287,15 +286,7 @@ def admin_reset_password(user_id):
         return jsonify({'success': False, 'message': "Action non autorisée sur un super-administrateur."}), 403
 
     try:
-        # Génération cryptographique stricte de 8 chiffres
-        forbidden_patterns = ['00000000', '11111111', '22222222', '33333333', '44444444',
-                              '55555555', '66666666', '77777777', '88888888', '99999999',
-                              '12345678', '87654321', '01234567', '98765432']
-
-        while True:
-            nouveau_mdp = ''.join(secrets.choice('0123456789') for _ in range(8))
-            if nouveau_mdp not in forbidden_patterns:
-                break
+        nouveau_mdp = generate_access_code()
 
         # Hachage et remplacement
         user.set_mot_de_passe(nouveau_mdp)
