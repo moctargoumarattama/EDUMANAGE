@@ -171,7 +171,7 @@
             transform: translateX(5px);
         }
 
-        /* Alertes améliorées */
+        /* Alertes de page */
         .alert {
             border: none;
             border-radius: var(--border-radius);
@@ -849,29 +849,7 @@
 
     <main class="main-content">
         <div class="{{ 'container-fluid px-3 px-lg-4 px-xl-5' if request.endpoint in ('admin.view_logs', 'admin.maintenance_page', 'admin.maintenance', 'main.journaux_corrections') else 'container' }}">
-            <!-- Affichage des messages flash -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <div class="row">
-                        <div class="col-12">
-                            {% for category, message in messages %}
-                                <div class="alert alert-{{ 'danger' if category == 'error' else (category if category in ['success', 'warning', 'info'] else 'info') }} alert-dismissible fade show animate-pop-in mb-4" role="alert">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas
-                                            {% if category == 'success' or category == 'message' %}fa-check-circle
-                                            {% elif category == 'error' or category == 'danger' %}fa-exclamation-circle
-                                            {% elif category == 'warning' %}fa-exclamation-triangle
-                                            {% else %}fa-info-circle{% endif %}
-                                            me-2 fs-5"></i>
-                                        <div class="fw-medium">{{ message|safe }}</div>
-                                    </div>
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                {% endif %}
-            {% endwith %}
+            {% include 'partials/_flash_messages.html' %}
 
             <!-- Contenu spécifique de la page -->
             {% block content %}{% endblock %}
@@ -967,17 +945,6 @@
                     navbar.style.padding = '0.8rem 1rem';
                     navbar.style.backdropFilter = 'blur(10px)';
                 }
-            });
-
-            // Auto-hide alerts après 5 secondes
-            const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(alert => {
-                setTimeout(() => {
-                    const bsAlert = bootstrap.Alert.getInstance(alert);
-                    if (bsAlert) {
-                        bsAlert.close();
-                    }
-                }, 5000);
             });
 
             // Gestion des menus collapibles dans le dropdown

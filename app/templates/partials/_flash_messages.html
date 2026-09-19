@@ -1,0 +1,279 @@
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<style>
+    .kl-toast-container {
+        position: fixed;
+        top: max(0.75rem, env(safe-area-inset-top));
+        left: 50%;
+        z-index: 1085;
+        display: flex;
+        width: min(520px, calc(100vw - 1.5rem));
+        max-height: calc(100vh - 1.5rem);
+        flex-direction: column;
+        gap: 0.6rem;
+        transform: translateX(-50%);
+        pointer-events: none;
+    }
+
+    .kl-toast {
+        position: relative;
+        display: flex;
+        min-height: 48px;
+        overflow: hidden;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 14px 36px rgba(15, 23, 42, 0.16), 0 2px 8px rgba(15, 23, 42, 0.08);
+        opacity: 0;
+        transform: translateY(-10px);
+        animation: klToastIn 180ms ease-out forwards;
+        pointer-events: auto;
+    }
+
+    .kl-toast.is-hiding {
+        animation: klToastOut 160ms ease-in forwards;
+    }
+
+    .kl-toast-accent {
+        width: 4px;
+        flex: 0 0 4px;
+    }
+
+    .kl-toast-body {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        align-items: flex-start;
+        gap: 0.65rem;
+        padding: 0.75rem 0.5rem 0.8rem 0.85rem;
+    }
+
+    .kl-toast-icon {
+        margin-top: 0.08rem;
+        flex: 0 0 auto;
+        font-size: 1rem;
+    }
+
+    .kl-toast-text {
+        min-width: 0;
+        color: #263449;
+        font-size: 0.9rem;
+        font-weight: 600;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
+    .kl-toast-code {
+        display: inline-block;
+        margin-inline: 0.15rem;
+        padding: 0.05rem 0.35rem;
+        border-radius: 6px;
+        background: rgba(15, 23, 42, 0.08);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+    }
+
+    .kl-toast-close {
+        display: grid;
+        width: 44px;
+        min-height: 44px;
+        place-items: center;
+        flex: 0 0 auto;
+        border: 0;
+        background: transparent;
+        color: #64748b;
+        font-size: 1.35rem;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    .kl-toast-close:hover,
+    .kl-toast-close:focus-visible {
+        color: #0f172a;
+        outline: none;
+    }
+
+    .kl-toast-progress {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 4px;
+        height: 3px;
+        background: rgba(15, 23, 42, 0.06);
+    }
+
+    .kl-toast-progress-bar {
+        width: 100%;
+        height: 100%;
+        transform-origin: left center;
+    }
+
+    .kl-toast-success .kl-toast-accent,
+    .kl-toast-success .kl-toast-progress-bar { background: #16a34a; }
+    .kl-toast-success .kl-toast-icon,
+    .kl-toast-success .kl-toast-text { color: #166534; }
+    .kl-toast-success { background: #f0fdf4; }
+
+    .kl-toast-info .kl-toast-accent,
+    .kl-toast-info .kl-toast-progress-bar { background: #2563eb; }
+    .kl-toast-info .kl-toast-icon,
+    .kl-toast-info .kl-toast-text { color: #1e40af; }
+    .kl-toast-info { background: #eff6ff; }
+
+    .kl-toast-warning .kl-toast-accent,
+    .kl-toast-warning .kl-toast-progress-bar { background: #d97706; }
+    .kl-toast-warning .kl-toast-icon,
+    .kl-toast-warning .kl-toast-text { color: #92400e; }
+    .kl-toast-warning { background: #fffbeb; }
+
+    .kl-toast-danger .kl-toast-accent,
+    .kl-toast-danger .kl-toast-progress-bar { background: #dc2626; }
+    .kl-toast-danger .kl-toast-icon,
+    .kl-toast-danger .kl-toast-text { color: #991b1b; }
+    .kl-toast-danger { background: #fef2f2; }
+
+    @keyframes klToastIn {
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes klToastOut {
+        to { opacity: 0; transform: translateY(-8px); }
+    }
+
+    @media (max-width: 576px) {
+        .kl-toast-container {
+            top: max(0.5rem, env(safe-area-inset-top));
+            width: calc(100vw - 1rem);
+        }
+
+        .kl-toast-body {
+            padding: 0.68rem 0.35rem 0.78rem 0.75rem;
+        }
+
+        .kl-toast-text {
+            font-size: 0.84rem;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .kl-toast,
+        .kl-toast.is-hiding {
+            animation: none;
+            opacity: 1;
+            transform: none;
+        }
+
+        .kl-toast-progress-bar {
+            transition: none !important;
+        }
+    }
+</style>
+<div class="kl-toast-container" id="klToastContainer">
+    {% for category, message in messages %}
+    {% set cat = 'danger' if category in ['error', 'danger'] else (category if category in ['success','warning','info'] else 'info') %}
+    {% set assertive = cat in ['danger', 'warning'] %}
+    <div class="kl-toast kl-toast-{{ cat }}" role="{{ 'alert' if assertive else 'status' }}" aria-live="{{ 'assertive' if assertive else 'polite' }}" aria-atomic="true" data-kl-category="{{ cat }}">
+        <div class="kl-toast-accent" aria-hidden="true"></div>
+        <div class="kl-toast-body">
+            <i class="fas {% if cat == 'success' %}fa-check-circle{% elif cat == 'danger' %}fa-exclamation-circle{% elif cat == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} kl-toast-icon" aria-hidden="true"></i>
+            <span class="kl-toast-text">{{ message|safe }}</span>
+        </div>
+        <button type="button" class="kl-toast-close" aria-label="Fermer">&times;</button>
+        <div class="kl-toast-progress"><div class="kl-toast-progress-bar"></div></div>
+    </div>
+    {% endfor %}
+</div>
+<script>
+    (function () {
+        if (window.klasoraFlashToastsReady) return;
+        window.klasoraFlashToastsReady = true;
+
+        function initFlashToasts() {
+            var durations = { success: 3000, info: 3800, warning: 5000, danger: 6500 };
+            var reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            document.querySelectorAll('.kl-toast').forEach(function (toast) {
+                if (toast.dataset.klReady === '1') return;
+                toast.dataset.klReady = '1';
+
+                var category = toast.getAttribute('data-kl-category') || 'info';
+                var duration = durations[category] || 3800;
+                var remaining = duration;
+                var startedAt = 0;
+                var timer = null;
+                var closing = false;
+                var bar = toast.querySelector('.kl-toast-progress-bar');
+
+                function removeToast() {
+                    var container = toast.parentElement;
+                    toast.remove();
+                    if (container && container.classList.contains('kl-toast-container') && !container.children.length) {
+                        container.remove();
+                    }
+                }
+
+                function closeToast() {
+                    if (closing) return;
+                    closing = true;
+                    window.clearTimeout(timer);
+                    if (bar) {
+                        bar.style.transition = 'none';
+                    }
+                    if (reducedMotion) {
+                        removeToast();
+                        return;
+                    }
+                    toast.classList.add('is-hiding');
+                    window.setTimeout(removeToast, 180);
+                }
+
+                function startTimer() {
+                    window.clearTimeout(timer);
+                    startedAt = Date.now();
+                    if (bar) {
+                        bar.style.transition = 'none';
+                        bar.style.transform = 'scaleX(' + Math.max(remaining / duration, 0) + ')';
+                        window.requestAnimationFrame(function () {
+                            bar.style.transition = 'transform ' + remaining + 'ms linear';
+                            bar.style.transform = 'scaleX(0)';
+                        });
+                    }
+                    timer = window.setTimeout(closeToast, remaining);
+                }
+
+                function pauseTimer() {
+                    if (closing) return;
+                    window.clearTimeout(timer);
+                    remaining -= Date.now() - startedAt;
+                    remaining = Math.max(remaining, 300);
+                    if (bar) {
+                        var computed = window.getComputedStyle(bar).transform;
+                        bar.style.transition = 'none';
+                        bar.style.transform = computed === 'none' ? 'scaleX(' + Math.max(remaining / duration, 0) + ')' : computed;
+                    }
+                }
+
+                var closeButton = toast.querySelector('.kl-toast-close');
+                if (closeButton) {
+                    closeButton.addEventListener('click', closeToast);
+                }
+
+                toast.addEventListener('mouseenter', pauseTimer);
+                toast.addEventListener('mouseleave', startTimer);
+                toast.addEventListener('focusin', pauseTimer);
+                toast.addEventListener('focusout', startTimer);
+
+                startTimer();
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initFlashToasts);
+        } else {
+            initFlashToasts();
+        }
+    })();
+</script>
+{% endif %}
+{% endwith %}

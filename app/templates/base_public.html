@@ -94,16 +94,7 @@
          ==================================================================== -->
     <main>
         <div class="container pt-3">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }} alert-dismissible fade show rounded-3 small py-2.5 mb-3" role="alert">
-                            <i class="fas fa-info-circle me-1"></i>{{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
+            {% include 'partials/_flash_messages.html' %}
         </div>
         {% block content %}{% endblock %}
     </main>
