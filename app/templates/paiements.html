@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}Gestion des Paiements par Classe - KLASORA{% endblock %}
 
 {% block content %}
@@ -452,12 +452,6 @@
                                                                        aria-label="Reçu">
                                                                         <i class="fas fa-eye"></i>
                                                                     </a>
-                                                                    <a href="{{ url_for('main.generer_recu_pdf', id=p.id) }}"
-                                                                       class="btn btn-sm btn-outline-primary"
-                                                                       title="Télécharger le reçu PDF"
-                                                                       aria-label="PDF">
-                                                                        <i class="fas fa-file-pdf"></i>
-                                                                    </a>
                                                                     {% if not annee_consultee or annee_consultee.statut == 'active' %}
                                                                     <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}"
                                                                           method="POST"
@@ -501,9 +495,6 @@
                                                     <div class="payment-student-mini-actions">
                                                         <a href="{{ url_for('main.recu_paiement', id=p.id) }}" class="btn btn-sm btn-outline-info">
                                                             <i class="fas fa-eye me-1"></i>Reçu
-                                                        </a>
-                                                        <a href="{{ url_for('main.generer_recu_pdf', id=p.id) }}" class="btn btn-sm btn-outline-primary">
-                                                            <i class="fas fa-file-pdf me-1"></i>PDF
                                                         </a>
                                                         {% if not annee_consultee or annee_consultee.statut == 'active' %}
                                                         <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}" method="POST" class="js-confirm-form" data-confirm="Supprimer ce versement ">
@@ -1148,4 +1139,5 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 {% endblock %}
+
 

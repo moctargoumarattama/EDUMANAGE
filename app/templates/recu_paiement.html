@@ -1,163 +1,90 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
-{% block title %}Reçu de Paiement #{{ "%06d"|format(paiement.id) }}{% endblock %}
+{% block title %}Recu de Paiement #{{ numero }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header bg-success text-white">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">📋 Reçu de Paiement</h4>
-                        <span class="badge bg-light text-dark">#{{ "%06d"|format(paiement.id) }}</span>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <!-- En-tête de l'école dynamique -->
-                    <div class="text-center mb-4">
-                        <h2 class="text-primary">
-                            {{ paiement.eleve.ecole.nom|upper if paiement.eleve.ecole else "ÉCOLE INCONNUE" }}
-                        </h2>
-                        <p class="text-muted">
-                            {{ paiement.eleve.ecole.adresse if paiement.eleve.ecole and paiement.eleve.ecole.adresse else "Non renseignée" }}
-                            | Tél: {{ paiement.eleve.ecole.telephone if paiement.eleve.ecole and paiement.eleve.ecole.telephone else "-" }}
-                        </p>
-                        <div class="border-bottom mb-3"></div>
-                    </div>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/payment-receipt.css') }}">
 
-                    <!-- Informations du reçu -->
-                    <div class="row mb-4">
-                        <div class="col-md-6 mb-3 mb-md-0">
-                            <h5>Informations de Paiement</h5>
-                            <div class="table-responsive">
-                                <table class="table table-sm">
-                                    <tr>
-                                        <th>Date du paiement:</th>
-                                        <td>{{ paiement.date_paiement.strftime('%d/%m/%Y à %H:%M') }}</td>
-                                    </tr>
-                                    {% if paiement.inscription and paiement.inscription.annee_scolaire %}
-                                    <tr>
-                                        <th>Année scolaire:</th>
-                                        <td class="fw-bold">{{ paiement.inscription.annee_scolaire.nom }}</td>
-                                    </tr>
-                                    {% endif %}
-                                    <tr>
-                                        <th>Mois payé:</th>
-                                        <td class="fw-bold">{{ paiement.mois }} {{ paiement.annee }}</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Montant:</th>
-                                        <td class="fw-bold text-success">{{ "{:,.0f}".format(paiement.montant) }} FCFA</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Mode de paiement:</th>
-                                        <td>{{ paiement.mode_paiement|title }}</td>
-                                    </tr>
-                                    {% if paiement.reference %}
-                                    <tr>
-                                        <th>Référence:</th>
-                                        <td class="text-muted">{{ paiement.reference }}</td>
-                                    </tr>
-                                    {% endif %}
-                                    <tr>
-                                        <th>Statut:</th>
-                                        <td>
-                                            <span class="badge bg-{{ 'success' if paiement.statut == 'payé' else 'warning' }}">
-                                                {{ paiement.statut|title }}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <h5>Informations de l'Élève</h5>
-                            <div class="table-responsive">
-                                <table class="table table-sm">
-                                    <tr>
-                                        <th>Élève:</th>
-                                        <td class="fw-bold">{{ paiement.eleve.prenom }} {{ paiement.eleve.nom }}</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Classe:</th>
-                                        <td>{{ paiement.inscription.classe.nom if (paiement.inscription and paiement.inscription.classe) else "Sans classe" }}</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Date de naissance:</th>
-                                        <td>{{ paiement.eleve.date_naissance.strftime('%d/%m/%Y') if paiement.eleve.date_naissance else 'N/A' }}</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Téléphone parent:</th>
-                                        <td>{{ paiement.eleve.telephone or 'N/A' }}</td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Signature -->
-                    <div class="border-top pt-4 mt-4">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <p class="mb-1">Signature du Caissier</p>
-                                <div class="border-bottom" style="width: 200px;"></div>
-                            </div>
-                            <div class="col-md-6 text-end">
-                                <p class="mb-1">Signature du Parent</p>
-                                <div class="border-bottom" style="width: 200px; margin-left: auto;"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Cachet de l'école -->
-                    <div class="text-center mt-4">
-                        <div style="border: 2px dashed #ccc; padding: 10px; display: inline-block;">
-                            <p class="text-muted mb-0">Cachet de l'Établissement</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card-footer">
-                    <div class="d-flex justify-content-between">
-                        <small class="text-muted">Édition du: {{ now.strftime('%d/%m/%Y %H:%M') }}</small>
-                        <div>
-                            <a href="{{ url_for('main.generer_recu_pdf', id=paiement.id) }}" 
-                               class="btn btn-outline-primary btn-sm me-2">
-                                📄 Télécharger PDF
-                            </a>
-                            <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
-                                🖨️ Imprimer
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Actions supplémentaires -->
-            <div class="mt-3 text-center">
-                <a href="{{ url_for('main.paiements') }}" class="btn btn-secondary me-2">
-                    ← Retour aux paiements
+<div class="payment-receipt-page py-4">
+    <div class="receipt-shell">
+        <div class="receipt-actions">
+            <a href="{{ url_for('main.paiements') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Retour aux paiements
+            </a>
+            <div class="receipt-actions-group">
+                <button type="button" class="btn btn-outline-secondary" onclick="window.print()" aria-label="Imprimer le recu">
+                    <i class="fas fa-print me-2"></i>Imprimer
+                </button>
+                <a href="{{ url_for('main.generer_recu_pdf', id=paiement.id) }}" class="btn btn-outline-primary" aria-label="Telecharger le PDF du recu">
+                    <i class="fas fa-file-pdf me-2"></i>Telecharger PDF
                 </a>
-                {% if current_user.role == 'admin' %}
-                <a href="{{ url_for('main.export_paiements_excel') }}" class="btn btn-outline-info">
-                    📊 Exporter Excel
+                <a href="{{ whatsapp_url }}" class="btn btn-success" target="_blank" rel="noopener" aria-label="Partager la verification du recu par WhatsApp">
+                    <i class="fab fa-whatsapp me-2"></i>WhatsApp
                 </a>
-                {% endif %}
             </div>
         </div>
+
+        <article class="receipt-document">
+            <header class="receipt-school">
+                {% if logo_url %}
+                    <img class="receipt-logo" src="{{ logo_url }}" alt="Logo {{ ecole.nom if ecole else 'ecole' }}">
+                {% else %}
+                    <div class="receipt-logo-placeholder" aria-hidden="true">{{ (ecole.nom[:1] if ecole and ecole.nom else 'K')|upper }}</div>
+                {% endif %}
+                <div>
+                    <h2 class="h4 fw-bold mb-1">{{ ecole.nom if ecole else "Etablissement non renseigne" }}</h2>
+                    {% if ecole and ecole.adresse %}<div class="text-muted">{{ ecole.adresse }}</div>{% endif %}
+                    {% if ecole and (ecole.telephone or ecole.email) %}
+                    <div class="text-muted small">
+                        {% if ecole.telephone %}Tel: {{ ecole.telephone }}{% endif %}
+                        {% if ecole.telephone and ecole.email %} | {% endif %}
+                        {% if ecole.email %}{{ ecole.email }}{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </header>
+
+            <section class="receipt-title-band">
+                <h1>RECU DE PAIEMENT</h1>
+                <div class="receipt-number">#{{ numero }}</div>
+            </section>
+
+            <section class="receipt-grid">
+                <div class="receipt-panel">
+                    <h2>Paiement</h2>
+                    <div class="receipt-row"><span class="receipt-label">Date</span><span class="receipt-value">{{ date }}{% if heure %} a {{ heure }}{% endif %}</span></div>
+                    {% if annee_scolaire_nom %}<div class="receipt-row"><span class="receipt-label">Annee scolaire</span><span class="receipt-value">{{ annee_scolaire_nom }}</span></div>{% endif %}
+                    <div class="receipt-row"><span class="receipt-label">Mois / Objet</span><span class="receipt-value">{{ mois_paye }}</span></div>
+                    <div class="receipt-row"><span class="receipt-label">Montant</span><span class="receipt-value text-success">{{ montant }}</span></div>
+                    {% if mode_paiement %}<div class="receipt-row"><span class="receipt-label">Mode</span><span class="receipt-value">{{ mode_paiement }}</span></div>{% endif %}
+                    {% if statut %}<div class="receipt-row"><span class="receipt-label">Statut</span><span class="receipt-value">{{ statut|upper }}</span></div>{% endif %}
+                    {% if reference %}<div class="receipt-row"><span class="receipt-label">Reference</span><span class="receipt-value">{{ reference }}</span></div>{% endif %}
+                </div>
+
+                <div class="receipt-panel">
+                    <h2>Eleve</h2>
+                    {% if eleve %}
+                    <div class="receipt-row"><span class="receipt-label">Nom</span><span class="receipt-value">{{ eleve.prenom }} {{ eleve.nom }}</span></div>
+                    {% endif %}
+                    <div class="receipt-row"><span class="receipt-label">Classe</span><span class="receipt-value">{{ classe_nom }}</span></div>
+                </div>
+            </section>
+
+            <section class="receipt-trace">
+                <img class="receipt-qr" src="data:image/png;base64,{{ qr_base64 }}" alt="QR code de verification du recu">
+                <div>
+                    <h2 class="h5 fw-bold mb-2">Verification</h2>
+                    <p class="mb-2">Scanner pour verifier l'authenticite du recu.</p>
+                    <div class="small text-muted text-break">{{ verification_url }}</div>
+                </div>
+            </section>
+
+            <section class="receipt-signatures">
+                <div class="receipt-signature-box">Signature caisse</div>
+                <div class="receipt-stamp">Cachet etablissement</div>
+                <div class="receipt-signature-box">Signature parent</div>
+            </section>
+        </article>
     </div>
 </div>
-
-<style>
-@media print {
-    .card-footer, .btn {
-        display: none !important;
-    }
-    .card {
-        border: none !important;
-    }
-}
-</style>
 {% endblock %}
