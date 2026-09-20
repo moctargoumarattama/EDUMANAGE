@@ -5,10 +5,13 @@ from .common import (
     Eleve,
     Inscription,
     abort,
+    can_access_eleve,
     current_user,
     db,
     flash,
+    jsonify,
     login_required,
+    limiter,
     os,
     render_template,
     role_required,
@@ -59,9 +62,15 @@ def generer_qrcode_eleve(id):
 
 
 @main.route('/api/qr/info/<int:eleve_id>')
+@login_required
+@role_required('admin', 'professeur', 'parent')
+@limiter.limit("60 per minute")
 def api_qr_info(eleve_id):
     """Endpoint public minimal de résolution QR code."""
     eleve = Eleve.query.get_or_404(eleve_id)
+    if not can_access_eleve(eleve):
+        abort(403)
+
     ecole_id = eleve.ecole_id
 
     # Toujours résoudre selon l'année ACTIVE
@@ -72,14 +81,16 @@ def api_qr_info(eleve_id):
         annee_scolaire_id=annee_active.id
     ).first() if annee_active else None
 
-    return {
-        'eleve_id': eleve.id,
+    response = jsonify({
         'nom': f"{eleve.prenom} {eleve.nom}",
         'ecole': eleve.ecole.nom if eleve.ecole else '',
         'annee_scolaire': annee_active.nom if annee_active else None,
         'classe': ins.classe.nom if (ins and ins.classe) else 'Aucune inscription active',
         'statut': ins.statut if ins else 'Non inscrit',
-    }
+    })
+    response.headers["Cache-Control"] = "no-store, private, must-revalidate"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+    return response
 
 
 @main.route('/qrcodes_etudiants')
@@ -193,6 +204,7 @@ def qrcodes_etudiants():
 
 @main.route('/verifier/eleve/<token>')
 @main.route('/verifier/etudiant/<token>')
+@limiter.limit("30 per minute")
 def verifier_eleve_public(token):
     """
     Page publique d'authentification de l'identité scolaire d'un élève (carte scolaire / badge).
@@ -235,13 +247,10 @@ def verifier_eleve_public(token):
     annee = inscription.annee_scolaire
     ecole = inscription.ecole or eleve.ecole
 
-    matricule = eleve.code_parent or f"#{eleve.id}"
-
     resp = make_response(render_template(
         'verifier_eleve.html',
         valide=True,
         eleve=eleve,
-        matricule=matricule,
         classe=classe,
         annee=annee,
         ecole=ecole,

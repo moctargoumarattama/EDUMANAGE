@@ -65,11 +65,15 @@
                         <a href="{{ url_for('admin.download_backup', filename=backup.filename) }}" class="btn btn-primary btn-sm">
                             <i class="fas fa-download me-1"></i> Télécharger
                         </a>
-                        <a href="{{ url_for('admin.delete_backup', filename=backup.filename) }}"
-                           class="btn btn-danger btn-sm"
-                           onclick="return confirm('Supprimer cette sauvegarde ')">
-                            <i class="fas fa-trash me-1"></i> Supprimer
-                        </a>
+                        <form action="{{ url_for('admin.delete_backup', filename=backup.filename) }}"
+                              method="POST"
+                              class="d-inline"
+                              onsubmit="return confirm('Supprimer cette sauvegarde ')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger btn-sm">
+                                <i class="fas fa-trash me-1"></i> Supprimer
+                            </button>
+                        </form>
                     </div>
                 </div>
             {% endfor %}

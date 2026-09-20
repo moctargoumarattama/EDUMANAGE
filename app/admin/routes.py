@@ -63,7 +63,7 @@ def dashboard():
     return redirect(url_for('main.index'))
 
 # --- Sauvegarde simple ---
-@admin_bp.route('/admin/backup')
+@admin_bp.route('/admin/backup', methods=['POST'])
 def backup():
     try:
         create_backup()
@@ -73,7 +73,7 @@ def backup():
     return redirect(url_for('admin.maintenance_page'))
 
 # --- Restauration simple ---
-@admin_bp.route('/admin/restore/<filename>')
+@admin_bp.route('/admin/restore/<filename>', methods=['POST'])
 def restore(filename):
     try:
         restore_backup(filename)
@@ -83,7 +83,7 @@ def restore(filename):
     return redirect(url_for('admin.maintenance_page'))
 
 # --- Nettoyage ---
-@admin_bp.route('/admin/clean')
+@admin_bp.route('/admin/clean', methods=['POST'])
 def clean():
     try:
         result = clean_data()
@@ -155,7 +155,7 @@ def purge_cache_route():
     return redirect(url_for('admin.maintenance_page'))
 
 # --- Gestion des sauvegardes ---
-@admin_bp.route('/admin/delete_backup/<filename>')
+@admin_bp.route('/admin/delete_backup/<filename>', methods=['POST'])
 def delete_backup(filename):
     try:
         delete_backup_file(filename)
@@ -254,7 +254,7 @@ def deploy():
 
 
 # --- Création des tables manquantes ---
-@admin_bp.route('/admin/create_tables')
+@admin_bp.route('/admin/create_tables', methods=['POST'])
 def create_tables():
     """Crée les tables manquantes"""
     try:
@@ -268,7 +268,7 @@ def create_tables():
     return redirect(url_for('admin.maintenance_page'))
 
 # --- Initialisation des années scolaires ---
-@admin_bp.route('/admin/init_annees')
+@admin_bp.route('/admin/init_annees', methods=['POST'])
 def init_annees():
     """Initialise les années scolaires"""
     try:
@@ -279,7 +279,7 @@ def init_annees():
     return redirect(url_for('admin.maintenance_page'))
 
 # --- Sauvegarde complète ---
-@admin_bp.route('/admin/backup_complete')
+@admin_bp.route('/admin/backup_complete', methods=['POST'])
 def backup_complete():
     """Sauvegarde complète de toutes les écoles"""
     try:

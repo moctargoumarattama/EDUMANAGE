@@ -66,9 +66,12 @@
 <div class="admin-card">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <h2 class="mb-0 border-0 pb-0"><i class="fas fa-database text-primary"></i> Sauvegardes</h2>
-        <a href="{{ url_for('admin.backup') }}" class="btn btn-primary btn-sm fw-semibold">
+        <form action="{{ url_for('admin.backup') }}" method="POST" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary btn-sm fw-semibold">
             <i class="fas fa-save me-1"></i>Créer
-        </a>
+            </button>
+        </form>
     </div>
 
     <div class="p-3 mb-4 rounded-3 border" style="background: #f8fafc;">
@@ -118,8 +121,14 @@
                         <td>{{ b.date_formatted }}</td>
                         <td class="text-end">
                             <a href="{{ url_for('admin.download_backup', filename=b.filename) }}" class="btn btn-outline-primary btn-sm me-1" title="Télécharger"><i class="fas fa-download"></i> Télécharger</a>
-                            <a href="{{ url_for('admin.restore', filename=b.filename) }}" class="btn btn-outline-warning btn-sm me-1" title="Restaurer" onclick="return confirm('Restaurer cette sauvegarde ');"><i class="fas fa-undo"></i> Restaurer</a>
-                            <a href="{{ url_for('admin.delete_backup', filename=b.filename) }}" class="btn btn-outline-danger btn-sm" title="Supprimer" onclick="return confirm('Supprimer cette sauvegarde ');"><i class="fas fa-trash"></i></a>
+                            <form action="{{ url_for('admin.restore', filename=b.filename) }}" method="POST" class="d-inline" onsubmit="return confirm('Restaurer cette sauvegarde ');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline-warning btn-sm me-1" title="Restaurer"><i class="fas fa-undo"></i> Restaurer</button>
+                            </form>
+                            <form action="{{ url_for('admin.delete_backup', filename=b.filename) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette sauvegarde ');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer"><i class="fas fa-trash"></i></button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}
@@ -143,8 +152,14 @@
                 </div>
                 <div class="maintenance-backup-actions">
                     <a href="{{ url_for('admin.download_backup', filename=b.filename) }}" class="btn btn-outline-primary btn-sm" title="Télécharger"><i class="fas fa-download"></i><span>Télécharger</span></a>
-                    <a href="{{ url_for('admin.restore', filename=b.filename) }}" class="btn btn-outline-warning btn-sm" title="Restaurer" onclick="return confirm('Restaurer cette sauvegarde ');"><i class="fas fa-undo"></i><span>Restaurer</span></a>
-                    <a href="{{ url_for('admin.delete_backup', filename=b.filename) }}" class="btn btn-outline-danger btn-sm" title="Supprimer" onclick="return confirm('Supprimer cette sauvegarde ');"><i class="fas fa-trash"></i><span>Supprimer</span></a>
+                    <form action="{{ url_for('admin.restore', filename=b.filename) }}" method="POST" class="d-inline" onsubmit="return confirm('Restaurer cette sauvegarde ');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-warning btn-sm" title="Restaurer"><i class="fas fa-undo"></i><span>Restaurer</span></button>
+                    </form>
+                    <form action="{{ url_for('admin.delete_backup', filename=b.filename) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette sauvegarde ');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer"><i class="fas fa-trash"></i><span>Supprimer</span></button>
+                    </form>
                 </div>
             </article>
             {% endfor %}
@@ -194,7 +209,7 @@
 
             <div class="d-flex justify-content-between align-items-center gap-2">
                 <span class="small text-muted">Orphelins</span>
-                <a href="{{ url_for('admin.clean') }}" class="btn btn-outline-warning btn-sm" onclick="return confirm('Nettoyer les données orphelines ');"><i class="fas fa-broom me-1"></i>Nettoyer</a>
+                <form action="{{ url_for('admin.clean') }}" method="POST" class="d-inline" onsubmit="return confirm('Nettoyer les données orphelines ');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-outline-warning btn-sm"><i class="fas fa-broom me-1"></i>Nettoyer</button></form>
             </div>
         </div>
     </div>
