@@ -13,9 +13,11 @@
             <a href="{{ url_for('main.rapports') }}" class="btn btn-outline-primary">
                 <i class="fas fa-chart-bar me-2"></i>Rapport global
             </a>
+            {% if can_create_admin %}
             <a href="{{ url_for('main.creer_utilisateur') }}" class="btn btn-primary">
                 <i class="fas fa-plus me-2"></i>Ajouter
             </a>
+            {% endif %}
         </div>
     </div>
 
@@ -91,7 +93,16 @@
                         </div>
                     </td>
                     <td>{{ user.email }}</td>
-                    <td><span class="badge bg-info text-dark">{{ user.role|replace('_', ' ')|title }}</span></td>
+                    <td>
+                        <span class="badge bg-info text-dark">{{ user.role|replace('_', ' ')|title }}</span>
+                        {% if user.role == 'admin' %}
+                            {% if user.id == primary_admin_id %}
+                                <span class="badge bg-primary">Principal</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Secondaire</span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
                     <td data-user-status="{{ user.id }}">
                         <span class="badge bg-{{ 'success' if user.statut == 'actif' else 'secondary' }}">
                             {{ user.statut or 'actif' }}
@@ -100,9 +111,11 @@
                     <td>{{ user.date_creation.strftime('%d/%m/%Y') if user.date_creation else 'N/A' }}</td>
                     <td>
                         <div class="d-flex justify-content-end gap-2 flex-wrap">
+                            {% if user.role != 'professeur' %}
                             <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.modifier_utilisateur', id=user.id) }}" title="Modifier">
                                 <i class="fas fa-edit"></i>
                             </a>
+                            {% endif %}
                             <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#resetPasswordModal" data-userid="{{ user.id }}" data-fullname="{{ user.prenom or '' }} {{ user.nom }}" data-email="{{ user.email }}" data-role="{{ user.role|replace('_', ' ')|title }}" title="Nouveau mot de passe">
                                 <i class="fas fa-key"></i>
                             </button>
@@ -139,14 +152,25 @@
                 <span data-user-card-status="{{ user.id }}" class="badge bg-{{ 'success' if user.statut == 'actif' else 'secondary' }}">{{ user.statut or 'actif' }}</span>
             </div>
             <div class="user-card-meta">
-                <span>{{ user.role|replace('_', ' ')|title }}</span>
+                <span>
+                    {{ user.role|replace('_', ' ')|title }}
+                    {% if user.role == 'admin' %}
+                        {% if user.id == primary_admin_id %}
+                            · Principal
+                        {% else %}
+                            · Secondaire
+                        {% endif %}
+                    {% endif %}
+                </span>
                 <span>{{ user.telephone or 'Téléphone non renseigné' }}</span>
                 <span>{{ user.date_creation.strftime('%d/%m/%Y') if user.date_creation else 'N/A' }}</span>
             </div>
             <div class="d-flex gap-2 flex-wrap mt-3">
+                {% if user.role != 'professeur' %}
                 <a class="btn btn-sm btn-outline-primary" href="{{ url_for('main.modifier_utilisateur', id=user.id) }}">
                     <i class="fas fa-edit me-1"></i>Modifier
                 </a>
+                {% endif %}
 
                 <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#resetPasswordModal" data-userid="{{ user.id }}" data-fullname="{{ user.prenom or '' }} {{ user.nom }}" data-email="{{ user.email }}" data-role="{{ user.role|replace('_', ' ')|title }}">
                     <i class="fas fa-key me-1"></i>Mot de passe

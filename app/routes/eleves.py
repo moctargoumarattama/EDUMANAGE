@@ -1024,28 +1024,81 @@ def modifier_eleve(eleve_id):
     if request.method == 'POST':
         classe_id = request.form.get('classe_id', type=int)
         parent_id = request.form.get('parent_id', type=int)
+        parent_nom = (request.form.get('parent_nom') or '').strip()
+        parent_email = (request.form.get('parent_email') or '').strip().lower()
+        parent_telephone = (request.form.get('parent_telephone') or '').strip()
 
         if not classe_id:
-            flash("❌ La classe est obligatoire. Un élève doit toujours être inscrit dans une classe.", "danger")
+            flash("La classe est obligatoire. Un eleve doit toujours etre inscrit dans une classe.", "danger")
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
 
         classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first()
         if not classe:
-            flash("❌ Classe invalide pour cette école.", "danger")
+            flash("Classe invalide pour cette ecole.", "danger")
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
 
         parent = Utilisateur.query.filter_by(id=parent_id, ecole_id=current_user.ecole_id, role='parent').first() if parent_id else None
         if parent_id and not parent:
-            flash("❌ Parent invalide pour cette école.", "danger")
+            flash("Parent invalide pour cette ecole.", "danger")
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
 
-        eleve.nom = request.form.get('nom', eleve.nom).strip()
-        eleve.prenom = request.form.get('prenom', eleve.prenom).strip()
+        eleve.nom = (request.form.get('nom') or eleve.nom).strip()
+        eleve.prenom = (request.form.get('prenom') or eleve.prenom).strip()
         if request.form.get('genre'):
             eleve.genre = request.form.get('genre')
+
         date_naissance = request.form.get('date_naissance')
         if date_naissance:
-            eleve.date_naissance = datetime.strptime(date_naissance, '%Y-%m-%d').date()
+            try:
+                eleve.date_naissance = datetime.strptime(date_naissance, '%Y-%m-%d').date()
+            except ValueError:
+                flash("Date de naissance invalide.", "danger")
+                return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
+        else:
+            eleve.date_naissance = None
+
+        eleve.lieu_naissance = (request.form.get('lieu_naissance') or '').strip() or None
+        eleve.adresse = (request.form.get('adresse') or '').strip() or None
+        try:
+            eleve.frais_annuels = float(request.form.get('frais_annuels') or 0)
+        except (TypeError, ValueError):
+            flash("Le montant des frais annuels est invalide.", "danger")
+            return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
+
+        if parent:
+            if parent_email:
+                existing_parent = Utilisateur.query.filter(
+                    Utilisateur.ecole_id == current_user.ecole_id,
+                    Utilisateur.email == parent_email,
+                    Utilisateur.id != parent.id,
+                ).first()
+                if existing_parent:
+                    flash("Cet email parent est deja utilise par un autre compte.", "danger")
+                    return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
+                parent.email = parent_email
+            if parent_nom:
+                parent.nom = parent_nom
+            parent.telephone = parent_telephone or None
+        elif any([parent_nom, parent_email, parent_telephone]):
+            if not parent_email:
+                flash("L'email du parent est obligatoire pour creer un nouveau compte parent.", "danger")
+                return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
+            if Utilisateur.query.filter_by(email=parent_email, role='parent', ecole_id=current_user.ecole_id).first():
+                flash("Cet email est deja utilise par un autre parent.", "danger")
+                return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
+            parent = Utilisateur(
+                nom=parent_nom or parent_email,
+                prenom=None,
+                email=parent_email,
+                telephone=parent_telephone or None,
+                role='parent',
+                ecole_id=current_user.ecole_id,
+                statut='actif',
+            )
+            parent.set_mot_de_passe(generate_access_code())
+            db.session.add(parent)
+            db.session.flush()
+
         inscription, inscription_error = modifier_inscription_annuelle(
             ecole_id=current_user.ecole_id,
             eleve_id=eleve.id,
@@ -1057,10 +1110,10 @@ def modifier_eleve(eleve_id):
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
 
         eleve.parent_id = parent.id if parent else None
-        eleve.email_parent = parent.email if parent else request.form.get('email_parent') or eleve.email_parent
-        eleve.contact_parent = parent.telephone if parent else request.form.get('telephone_parent') or eleve.contact_parent
+        eleve.email_parent = parent.email if parent else (parent_email or None)
+        eleve.contact_parent = parent.telephone if parent else (parent_telephone or None)
         db.session.commit()
-        flash("Élève modifié avec succès.", "success")
+        flash("Eleve modifie avec succes.", "success")
         return redirect(detail_url)
 
     inscription_active = (
@@ -1071,8 +1124,16 @@ def modifier_eleve(eleve_id):
         ).first()
         if annee_active else None
     )
-    return render_template('edit_eleve.html', eleve=eleve, classes=classes, parents=parents, inscription_active=inscription_active, return_url=return_url, detail_url=detail_url)
-
+    return render_template(
+        'edit_eleve.html',
+        eleve=eleve,
+        classes=classes,
+        parents=parents,
+        inscription_active=inscription_active,
+        annee_active=annee_active,
+        return_url=return_url,
+        detail_url=detail_url,
+    )
 
 @main.route('/eleve/<int:id>/supprimer', methods=['POST'])
 @login_required

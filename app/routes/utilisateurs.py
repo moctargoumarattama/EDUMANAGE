@@ -31,6 +31,36 @@ from .common import (
 from app.access_codes import generate_access_code
 
 
+def _parent_delete_block_response(user):
+    enfants_count = len(user.get_enfants()) if user.role == 'parent' else 0
+    if user.role != 'parent' or enfants_count == 0:
+        return None
+
+    message = (
+        f"Ce compte parent est rattaché à {enfants_count} élève(s). "
+        "Vous ne pouvez pas le supprimer. Pour changer de responsable, "
+        "modifiez directement ses informations (nom, téléphone, email) "
+        "sur sa fiche ou réassignez l'élève."
+    )
+    return jsonify({'success': False, 'message': message}), 400
+
+
+def _primary_admin_for_ecole(ecole_id):
+    if not ecole_id:
+        return None
+    return (
+        Utilisateur.query
+        .filter_by(ecole_id=ecole_id, role='admin')
+        .order_by(Utilisateur.date_creation.asc(), Utilisateur.id.asc())
+        .first()
+    )
+
+
+def _is_primary_admin(user):
+    primary_admin = _primary_admin_for_ecole(user.ecole_id)
+    return bool(primary_admin and primary_admin.id == user.id)
+
+
 @main.route('/admin/create_user', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
@@ -93,7 +123,11 @@ def gestion_utilisateurs():
             flash("Votre compte n'est associé ? aucune école.", "danger")
             return redirect(url_for('main.index'))
 
+        primary_admin = _primary_admin_for_ecole(current_user.ecole_id)
+        is_primary_admin = _is_primary_admin(current_user)
         utilisateurs_query = filtre_par_ecole(Utilisateur.query, Utilisateur)
+        if primary_admin and not is_primary_admin:
+            utilisateurs_query = utilisateurs_query.filter(Utilisateur.id != primary_admin.id)
 
         if search:
             like = f"%{search}%"
@@ -117,13 +151,14 @@ def gestion_utilisateurs():
             per_page=25,
             error_out=False
         )
-
         return render_template(
             'gestion_utilisateurs.html',
             utilisateurs=utilisateurs,
             search=search,
             role_filter=role_filter,
             statut_filter=statut_filter,
+            primary_admin_id=primary_admin.id if primary_admin else None,
+            can_create_admin=is_primary_admin,
         )
 
     except Exception as e:
@@ -137,17 +172,24 @@ def gestion_utilisateurs():
 def creer_utilisateur():
     from werkzeug.security import generate_password_hash
 
+    if not _is_primary_admin(current_user):
+        flash("Seul l'administrateur principal peut créer un autre administrateur.", "danger")
+        return redirect(url_for('main.gestion_utilisateurs'))
+
     if request.method == 'POST':
         nom = request.form.get('nom', '').strip()
-        prenom = request.form.get('prenom', '').strip()
         email = request.form.get('email', '').strip()
         telephone = request.form.get('telephone', '').strip()
         role = 'admin'
         mot_de_passe = request.form.get('mot_de_passe', '').strip()
 
-        if not all([nom, prenom, email, mot_de_passe]):
+        if not all([nom, email]):
             flash("Tous les champs obligatoires doivent être remplis.", "warning")
             return redirect(url_for('main.creer_utilisateur'))
+
+        mot_de_passe_genere = not mot_de_passe
+        if mot_de_passe_genere:
+            mot_de_passe = generate_access_code()
 
         if Utilisateur.query.filter_by(email=email).first():
             flash('Cet email est d?j? utilisé', 'danger')
@@ -156,7 +198,7 @@ def creer_utilisateur():
         try:
             nouvel_utilisateur = Utilisateur(
                 nom=nom,
-                prenom=prenom,
+                prenom='',
                 email=email,
                 telephone=telephone,
                 role=role,
@@ -169,7 +211,10 @@ def creer_utilisateur():
             db.session.add(nouvel_utilisateur)
             db.session.commit()
 
-            flash('Utilisateur créé avec succès', 'success')
+            if mot_de_passe_genere:
+                flash(f"Administrateur créé avec succès. Code d'accès généré : {mot_de_passe}", 'success')
+            else:
+                flash('Administrateur créé avec succès', 'success')
             return redirect(url_for('main.gestion_utilisateurs'))
         except Exception as e:
             db.session.rollback()
@@ -191,16 +236,9 @@ def modifier_utilisateur(id):
         flash("Le compte Super Administrateur est protégé et ne peut pas être modifié par un autre administrateur.", "danger")
         return redirect(url_for('main.gestion_utilisateurs'))
 
-    roles_autorises = ['admin', 'parent', 'professeur']
-
     if request.method == 'POST':
-        role = request.form.get('role', '').strip()
         statut = request.form.get('statut', '').strip() or 'actif'
         email = request.form.get('email', '').strip().lower()
-
-        if role not in roles_autorises:
-            flash("Rôle utilisateur invalide.", "danger")
-            return redirect(url_for('main.modifier_utilisateur', id=user.id))
 
         doublon = Utilisateur.query.filter(Utilisateur.email == email, Utilisateur.id != user.id).first()
         if doublon:
@@ -211,18 +249,18 @@ def modifier_utilisateur(id):
         user.prenom = request.form.get('prenom', user.prenom).strip()
         user.email = email
         user.telephone = request.form.get('telephone', '').strip() or None
-        user.role = role
         user.statut = statut
-
-        password = request.form.get('password', '').strip()
-        if password:
-            user.mot_de_passe = bcrypt.generate_password_hash(password).decode('utf-8')
 
         db.session.commit()
         flash("Utilisateur modifié avec succès.", "success")
         return redirect(url_for('main.gestion_utilisateurs'))
 
-    return render_template('edit_utilisateur.html', user=user, roles=roles_autorises)
+    return render_template(
+        'edit_utilisateur.html',
+        user=user,
+        is_primary_admin=_is_primary_admin(user),
+        parent_enfants=user.get_enfants() if user.role == 'parent' else [],
+    )
 
 @main.route('/admin/utilisateur/<int:user_id>/statut', methods=['POST'])
 @login_required
@@ -253,13 +291,23 @@ def changer_statut_utilisateur(user_id):
 @login_required
 @role_required('admin')
 def supprimer_utilisateur(user_id):
-    user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
+    user = Utilisateur.query.filter_by(id=user_id).first_or_404()
+
+    if user.ecole_id != current_user.ecole_id:
+        return jsonify({'success': False, 'message': 'Non autorise'}), 403
 
     if user.role == 'super_admin':
         return jsonify({'success': False, 'message': 'Le compte Super Administrateur est protégé et ne peut jamais être supprimé.'}), 403
 
     if user.id == current_user.id:
         return jsonify({'success': False, 'message': 'Vous ne pouvez pas vous supprimer vous-même'}), 403
+
+    if _is_primary_admin(user):
+        return jsonify({'success': False, 'message': "L'administrateur principal ne peut jamais être supprimé."}), 403
+
+    blocked_response = _parent_delete_block_response(user)
+    if blocked_response:
+        return blocked_response
 
     try:
         db.session.delete(user)
@@ -605,7 +653,10 @@ def delete_user(user_id):
     if current_user.role not in ['admin']:
         return jsonify({'success': False, 'message': 'Non autorisé'}), 403
 
-    user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
+    user = Utilisateur.query.filter_by(id=user_id).first_or_404()
+
+    if user.role == 'super_admin':
+        return jsonify({'success': False, 'message': 'Le compte Super Administrateur est protege et ne peut jamais etre supprime.'}), 403
 
     # Empêcher un admin de supprimer un utilisateur d'une autre école
     if user.ecole_id != current_user.ecole_id:
@@ -615,17 +666,15 @@ def delete_user(user_id):
     if user.id == current_user.id:
         return jsonify({'success': False, 'message': 'Vous ne pouvez pas vous supprimer'}), 400
 
+    if _is_primary_admin(user):
+        return jsonify({'success': False, 'message': "L'administrateur principal ne peut jamais être supprimé."}), 403
+
+    blocked_response = _parent_delete_block_response(user)
+    if blocked_response:
+        return blocked_response
+
     try:
-        # 1ï¸âƒ£ Supprimer les inscriptions des enfants
-        for enfant in user.get_enfants():
-            for inscription in enfant.inscriptions:
-                db.session.delete(inscription)
-
-        # 2ï¸ âƒ£ Supprimer les enfants
-        for enfant in user.get_enfants():
-            db.session.delete(enfant)
-
-        # 3️⃣ Supprimer les relations professeur si existantes
+        # Supprimer les relations professeur si existantes
         if user.professeur_rel:
             # Supprimer les cours enseignés par ce professeur si nécessaire
             for cours in user.professeur_rel.cours:
@@ -642,7 +691,7 @@ def delete_user(user_id):
         db.session.delete(user)
 
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Utilisateur supprimé avec toutes ses dépendances.'})
+        return jsonify({'success': True, 'message': 'Utilisateur supprime.'})
 
     except Exception as e:
         db.session.rollback()

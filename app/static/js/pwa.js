@@ -7,6 +7,8 @@
     const DISMISS_DELAY_DAYS = 7;
     const DISMISS_KEY = 'klasora_pwa_later_at';
     const INSTALLED_KEY = 'klasora_pwa_installed';
+    const AUTO_SHOWN_KEY = 'klasora_pwa_auto_shown';
+    const AUTO_PROMPT_DELAY_MS = 12000;
 
     // 1. Détection du mode d'affichage installé
     function isKlasoraInstalled() {
@@ -37,6 +39,40 @@
         const diffMs = Date.now() - parseInt(dismissedAt, 10);
         const diffDays = diffMs / (1000 * 60 * 60 * 24);
         return diffDays < DISMISS_DELAY_DAYS;
+    }
+
+    function wasAutoPromptShown() {
+        return localStorage.getItem(AUTO_SHOWN_KEY) === 'true';
+    }
+
+    function markAutoPromptShown() {
+        localStorage.setItem(AUTO_SHOWN_KEY, 'true');
+    }
+
+    function canShowAutoPrompt(isAuthenticated, currentPath) {
+        const isParentDashboard = currentPath.startsWith('/parent');
+        const isTeacherDashboard = currentPath.startsWith('/professeur');
+        const isAdminArea = currentPath.startsWith('/admin') && !currentPath.includes('/support');
+        const isAllowedPage = isAuthenticated && (isParentDashboard || isTeacherDashboard || isAdminArea);
+        const isExcludedPage = currentPath.includes('/login') || currentPath.includes('/onboarding') || currentPath.includes('/aide');
+
+        return (
+            navigator.onLine &&
+            !isKlasoraInstalled() &&
+            !isDismissedRecently() &&
+            !wasAutoPromptShown() &&
+            isAllowedPage &&
+            !isExcludedPage
+        );
+    }
+
+    function scheduleAutoInstallPrompt(isAuthenticated, currentPath) {
+        if (!canShowAutoPrompt(isAuthenticated, currentPath)) return;
+        window.setTimeout(() => {
+            if (!canShowAutoPrompt(isAuthenticated, currentPath)) return;
+            markAutoPromptShown();
+            showInstallPrompt();
+        }, AUTO_PROMPT_DELAY_MS);
     }
 
     // 4. Affichage du popup d'installation
@@ -213,19 +249,7 @@
             deferredPrompt = e;
             console.log('[PWA] Événement beforeinstallprompt capturé');
 
-            // Affichage automatique pour le parent, le professeur ou l'admin connecté sur son dashboard
-            const isParentDashboard = currentPath.startsWith('/parent');
-            const isTeacherDashboard = currentPath.startsWith('/professeur');
-            const isAdminDashboard = currentPath.startsWith('/admin') && !currentPath.includes('/support');
-            const isAllowedRole = (isAuthenticated && (isParentDashboard || isTeacherDashboard || isAdminDashboard));
-            const isExcludedPage = currentPath.includes('/login') || currentPath.includes('/onboarding') || currentPath.includes('/aide');
-
-            if (!alreadyInstalled && !isDismissedRecently() && isAllowedRole && !isExcludedPage) {
-                // Délai de courtoisie de 2 secondes pour ne pas surprendre l'utilisateur
-                setTimeout(() => {
-                    showInstallPrompt();
-                }, 2000);
-            }
+            scheduleAutoInstallPrompt(isAuthenticated, currentPath);
         });
 
         // Événement après installation réussie

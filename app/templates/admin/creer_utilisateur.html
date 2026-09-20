@@ -2,8 +2,11 @@
 {% block content %}
 <div class="container mt-5">
     <div class="card shadow-lg rounded-3 p-4 form-card">
-        <h2 class="mb-4 text-primary">Créer un nouvel utilisateur</h2>
+        <h2 class="mb-4 text-primary">Créer un administrateur</h2>
         <form id="userForm" action="{{ url_for('main.creer_utilisateur') }}" method="POST" novalidate>
+            {% if csrf_token %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% endif %}
             <div class="row g-3">
                 <!-- Nom -->
                 <div class="col-md-6 position-relative">
@@ -13,15 +16,6 @@
                         <input type="text" class="form-control rounded-1" id="nom" name="nom" required>
                     </div>
                     <div class="invalid-feedback">Le nom est requis.</div>
-                </div>
-                <!-- Prénom -->
-                <div class="col-md-6 position-relative">
-                    <label for="prenom" class="form-label">Prénom</label>
-                    <div class="input-icon">
-                        <i class="fas fa-user"></i>
-                        <input type="text" class="form-control rounded-1" id="prenom" name="prenom" required>
-                    </div>
-                    <div class="invalid-feedback">Le prénom est requis.</div>
                 </div>
                 <!-- Email -->
                 <div class="col-md-6 position-relative">
@@ -42,29 +36,26 @@
                 </div>
                 <!-- Rôle -->
                 <div class="col-md-6 position-relative">
-                    <label for="role" class="form-label">Rôle</label>
+                    <label for="role_display" class="form-label">Rôle</label>
                     <div class="input-icon">
                         <i class="fas fa-user-tag"></i>
-                        <select class="form-select rounded-1" id="role" name="role" required>
-                            <option value="">Sélectionner un rôle</option>
-                            <option value="admin">Admin</option>
-                        </select>
+                        <input type="text" class="form-control rounded-1" id="role_display" value="Admin" readonly>
                     </div>
-                    <div class="invalid-feedback">Veuillez choisir un rôle.</div>
+                    <div class="form-text">Ce formulaire crée uniquement un administrateur de l'établissement.</div>
                 </div>
                 <!-- Mot de passe -->
                 <div class="col-md-6 position-relative">
                     <label for="mot_de_passe" class="form-label">Mot de passe</label>
                     <div class="input-icon">
                         <i class="fas fa-lock"></i>
-                        <input type="password" class="form-control rounded-1" id="mot_de_passe" name="mot_de_passe" required>
+                        <input type="password" class="form-control rounded-1" id="mot_de_passe" name="mot_de_passe" autocomplete="new-password">
                     </div>
-                    <div class="invalid-feedback">Le mot de passe est requis.</div>
+                    <div class="form-text">Laissez vide pour générer automatiquement un code d'accès.</div>
                 </div>
             </div>
 
             <div class="mt-4 d-flex gap-2">
-                <button type="submit" class="btn btn-primary rounded-1 px-4">Créer l'utilisateur</button>
+                <button type="submit" class="btn btn-primary rounded-1 px-4">Créer l'administrateur</button>
                 <a href="{{ url_for('main.gestion_utilisateurs') }}" class="btn btn-secondary rounded-1 px-4">Annuler</a>
             </div>
         </form>

@@ -1,101 +1,177 @@
 {% extends "base.html" %}
 
-{% block title %}Modifier l'Élève - {{ eleve.prenom }} {{ eleve.nom }}{% endblock %}
+{% block title %}Modifier l'élève - {{ eleve.prenom }} {{ eleve.nom }}{% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <!-- Breadcrumb & Header -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}"><i class="fas fa-home me-1"></i>Accueil</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('main.eleves') }}">Élèves</a></li>
-            <li class="breadcrumb-item"><a href="{{ detail_url or url_for('main.voir_eleve', eleve_id=eleve.id) }}">{{ eleve.prenom }} {{ eleve.nom }}</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Modifier</li>
-        </ol>
-    </nav>
-
-    <div class="row justify-content-center">
-        <div class="col-lg-9 col-xl-8">
-            <div class="form-card animate-pop-in">
-                <!-- En-tête du formulaire -->
-                <div class="form-header">
-                    <div class="form-header-content">
-                        <div class="form-header-icon">
-                            <i class="fas fa-user-graduate"></i>
-                        </div>
-                        <div>
-                            <h2 class="form-header-title">Modifier l'élève</h2>
-                            <p class="form-header-subtitle">{{ eleve.prenom }} {{ eleve.nom }} &bull; Matricule / Identifiant : #{{ eleve.id }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Corps du formulaire -->
-                <div class="form-card-body">
-                    <form method="POST" action="{{ url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url) }}" class="needs-validation" novalidate>
-                        {% if csrf_token %}
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        {% endif %}
-                        <input type="hidden" name="return_url" value="{{ return_url }}">
-
-                        <div class="form-section">
-                            <h5 class="form-section-title">
-                                <i class="fas fa-id-card"></i> Identité de l'élève
-                            </h5>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="nom" class="form-label">Nom <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="nom" name="nom" value="{{ eleve.nom }}" required>
-                                    <div class="invalid-feedback">Veuillez saisir le nom de l'élève.</div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label for="prenom" class="form-label">Prénom <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="prenom" name="prenom" value="{{ eleve.prenom }}" required>
-                                    <div class="invalid-feedback">Veuillez saisir le prénom de l'élève.</div>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label for="genre" class="form-label">Genre / Sexe <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="genre" name="genre" required>
-                                        <option value="M" {% if eleve.genre == 'M' or not eleve.genre %}selected{% endif %}>Garçon (Masculin)</option>
-                                        <option value="F" {% if eleve.genre == 'F' %}selected{% endif %}>Fille (Féminin)</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label for="date_naissance" class="form-label">Date de naissance</label>
-                                    <input type="date" class="form-control" id="date_naissance" name="date_naissance" value="{{ eleve.date_naissance }}">
-                                </div>
-
-                                <div class="col-md-6">
-                                    <label for="classe_id" class="form-label">Classe d'affectation <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="classe_id" name="classe_id" required>
-                                        {% if not inscription_active or not inscription_active.classe_id %}
-                                            <option value="" selected disabled>-- Choisir une classe --</option>
-                                        {% endif %}
-                                        {% for classe in classes %}
-                                            <option value="{{ classe.id }}" {% if inscription_active and inscription_active.classe_id == classe.id %}selected{% endif %}>{{ classe.nom }}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <div class="invalid-feedback">La classe est obligatoire. Un élève doit toujours être inscrit dans une classe.</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Actions -->
-                        <div class="form-actions">
-                            <a href="{{ detail_url or url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-outline-secondary">
-                                <i class="fas fa-times me-1"></i>Annuler
-                            </a>
-                            <button type="submit" class="btn btn-primary px-4">
-                                <i class="fas fa-save me-1"></i>Enregistrer les modifications
-                            </button>
-                        </div>
-                    </form>
-                </div>
+<section class="page-header">
+    <div class="page-header-body">
+        <div class="page-title-group">
+            <div class="page-icon">
+                <i class="fas fa-user-graduate"></i>
+            </div>
+            <div>
+                <h1 class="page-title">Modifier l'élève</h1>
+                <p class="page-subtitle">{{ eleve.prenom }} {{ eleve.nom }} · Matricule / Identifiant : #{{ eleve.id }}</p>
             </div>
         </div>
+        <a href="{{ detail_url or url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i>
+            Retour
+        </a>
+    </div>
+</section>
+
+<div class="form-card">
+    <div class="form-card-header surface-gradient-primary text-white mobile-hidden-form-header">
+        <h2 class="h5 mb-1 text-white">Informations de l'élève</h2>
+        <p class="mb-0 opacity-75">Corrigez les informations saisies lors de la création.</p>
+    </div>
+
+    <div class="form-card-body">
+        <form method="POST" action="{{ url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url) }}" class="needs-validation" novalidate>
+            {% if csrf_token %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% endif %}
+            <input type="hidden" name="return_url" value="{{ return_url }}">
+
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-user"></i> Informations personnelles</h3>
+                <div class="responsive-form-grid">
+                    <div class="form-floating">
+                        <input type="text" class="form-control" id="nom" name="nom" value="{{ eleve.nom or '' }}" placeholder="Nom de l'élève" required>
+                        <label for="nom">Nom de l'élève</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="text" class="form-control" id="prenom" name="prenom" value="{{ eleve.prenom or '' }}" placeholder="Prénom de l'élève" required>
+                        <label for="prenom">Prénom de l'élève</label>
+                    </div>
+                    <div class="form-floating">
+                        <select class="form-select" id="genre" name="genre" required>
+                            <option value="M" {% if eleve.genre == 'M' or not eleve.genre %}selected{% endif %}>Garçon (Masculin)</option>
+                            <option value="F" {% if eleve.genre == 'F' %}selected{% endif %}>Fille (Féminin)</option>
+                        </select>
+                        <label for="genre">Genre (Garçon ou Fille)</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="date" class="form-control" id="date_naissance" name="date_naissance" value="{{ eleve.date_naissance.isoformat() if eleve.date_naissance else '' }}">
+                        <label for="date_naissance">Date de naissance</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="text" class="form-control" id="lieu_naissance" name="lieu_naissance" value="{{ eleve.lieu_naissance or '' }}" placeholder="Lieu de naissance">
+                        <label for="lieu_naissance">Lieu de naissance</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-school"></i> Informations scolaires</h3>
+                <div class="responsive-form-grid">
+                    <div>
+                        <span class="form-label d-block">Année consultée</span>
+                        <div class="form-control bg-light">
+                            {{ annee_active.nom if annee_active else 'Aucune année' }}
+                            {% if annee_active and annee_active.statut %}
+                            <span class="badge bg-secondary ms-2">{{ annee_active.statut|capitalize }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="form-floating">
+                        <select class="form-select" name="classe_id" id="classe_id" required>
+                            {% if not inscription_active or not inscription_active.classe_id %}
+                                <option value="" selected disabled>-- Choisir obligatoirement une classe --</option>
+                            {% endif %}
+                            {% for classe in classes %}
+                                <option value="{{ classe.id }}" {% if inscription_active and inscription_active.classe_id == classe.id %}selected{% endif %}>{{ classe.nom_complet or classe.nom }}</option>
+                            {% endfor %}
+                        </select>
+                        <label for="classe_id">Classe <span class="text-danger">*</span></label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="number" step="0.01" min="0" class="form-control" id="frais_annuels" name="frais_annuels" value="{{ eleve.frais_annuels or 0 }}" placeholder="Frais annuels">
+                        <label for="frais_annuels">Frais annuels (FCFA)</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-user-friends"></i> Parent</h3>
+                <div class="form-floating mb-2">
+                    <select class="form-select" id="parent_id" name="parent_id">
+                        <option value="0" {% if not eleve.parent_id %}selected{% endif %}>--- Aucun parent ---</option>
+                        {% for parent in parents %}
+                            <option value="{{ parent.id }}"
+                                    data-nom="{{ parent.nom or '' }}"
+                                    data-email="{{ parent.email or '' }}"
+                                    data-telephone="{{ parent.telephone or '' }}"
+                                    {% if eleve.parent_id == parent.id %}selected{% endif %}>
+                                {{ parent.prenom or '' }} {{ parent.nom }}{% if parent.email %} ({{ parent.email }}){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <label for="parent_id">Parent existant</label>
+                </div>
+                <div class="responsive-form-grid mt-3">
+                    <div class="form-floating">
+                        <input type="text" name="parent_nom" class="form-control" value="{{ eleve.parent.nom if eleve.parent else '' }}" placeholder="Nom du parent">
+                        <label>Nom du parent</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="email" name="parent_email" class="form-control" value="{{ eleve.parent.email if eleve.parent else (eleve.email_parent or '') }}" placeholder="Email du parent">
+                        <label>Email du parent</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="text" name="parent_telephone" class="form-control" value="{{ eleve.parent.telephone if eleve.parent else (eleve.contact_parent or '') }}" placeholder="Téléphone du parent">
+                        <label>Téléphone du parent</label>
+                    </div>
+                </div>
+                <p class="form-help mt-2">Le code parent / mot de passe n'est pas affiché ni modifié ici.</p>
+            </div>
+
+            <div class="form-section">
+                <h3 class="form-section-title"><i class="fas fa-address-card"></i> Coordonnées</h3>
+                <div class="form-floating">
+                    <textarea class="form-control form-textarea" id="adresse" name="adresse" placeholder="Adresse">{{ eleve.adresse or '' }}</textarea>
+                    <label for="adresse">Adresse résidentielle</label>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="{{ detail_url or url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i>
+                    Annuler
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    Enregistrer les modifications
+                </button>
+            </div>
+        </form>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const parentSelect = document.getElementById('parent_id');
+    const parentNom = document.querySelector('input[name="parent_nom"]');
+    const parentEmail = document.querySelector('input[name="parent_email"]');
+    const parentTelephone = document.querySelector('input[name="parent_telephone"]');
+
+    if (!parentSelect || !parentNom || !parentEmail || !parentTelephone) return;
+
+    parentSelect.addEventListener('change', () => {
+        const selected = parentSelect.options[parentSelect.selectedIndex];
+        if (!selected || parentSelect.value === '0') {
+            parentNom.value = '';
+            parentEmail.value = '';
+            parentTelephone.value = '';
+            return;
+        }
+        parentNom.value = selected.dataset.nom || '';
+        parentEmail.value = selected.dataset.email || '';
+        parentTelephone.value = selected.dataset.telephone || '';
+    });
+});
+</script>
 {% endblock %}
