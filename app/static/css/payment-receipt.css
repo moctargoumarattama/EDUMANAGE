@@ -335,19 +335,28 @@
 
 @page {
     size: A4 portrait;
-    margin: 13mm;
+    margin: 7mm;
 }
 
 @media print {
+    html,
     body {
         background: #fff !important;
+        overflow: hidden !important;
     }
     .navbar,
     .sidebar,
     .footer,
     .receipt-actions,
+    .receipt-share-alert,
     .btn,
     .floating-support,
+    #klasoraSupportTriggerBtn,
+    #klasoraSupportModalContainer,
+    #klasoraSupportBackdrop,
+    [id^="klasoraSupport"],
+    [class^="support-"],
+    [class*=" support-"],
     .toast-container {
         display: none !important;
     }
@@ -370,8 +379,129 @@
     .receipt-document {
         box-shadow: none !important;
         border: 1px solid #cbd5e1 !important;
-        padding: 14mm !important;
+        border-radius: 6px !important;
+        padding: 8mm !important;
         break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    .receipt-document::before {
+        height: 4px;
+    }
+    .receipt-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 42mm;
+        gap: 7mm;
+        padding-top: 3mm;
+    }
+    .receipt-school {
+        gap: 5mm;
+    }
+    .receipt-logo,
+    .receipt-logo-placeholder {
+        width: 20mm;
+        height: 20mm;
+        flex-basis: 20mm;
+    }
+    .receipt-logo {
+        padding: 2mm;
+    }
+    .receipt-school-text {
+        font-size: 8.5pt;
+        line-height: 1.3;
+    }
+    .receipt-school-text h2 {
+        font-size: 13pt;
+        margin-bottom: 1mm;
+    }
+    .receipt-contact {
+        font-size: 8pt;
+    }
+    .receipt-id-card {
+        min-width: 0;
+        padding: 4mm;
+        border-radius: 6px;
+        box-shadow: none;
+    }
+    .receipt-id-card span,
+    .receipt-id-card em,
+    .receipt-amount span,
+    .receipt-kicker {
+        font-size: 7pt;
+    }
+    .receipt-id-card strong {
+        font-size: 14pt;
+        margin: 1mm 0 2mm;
+    }
+    .receipt-title-band {
+        margin: 6mm 0 5mm;
+        padding: 5mm;
+        border-radius: 6px;
+    }
+    .receipt-title-band h1 {
+        font-size: 18pt;
+    }
+    .receipt-amount strong {
+        font-size: 15pt;
+    }
+    .receipt-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+        gap: 5mm;
+    }
+    .receipt-panel {
+        padding: 4.5mm;
+        border-radius: 6px;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    .receipt-panel h2 {
+        font-size: 10pt;
+        margin-bottom: 3mm;
+    }
+    .receipt-row {
+        grid-template-columns: 25mm minmax(0, 1fr);
+        gap: 3mm;
+        padding: 2mm 0;
+    }
+    .receipt-label {
+        font-size: 8pt;
+    }
+    .receipt-value {
+        font-size: 9pt;
+    }
+    .receipt-row-strong {
+        display: none;
+    }
+    .receipt-status {
+        min-height: 0;
+        padding: 1mm 2.5mm;
+        font-size: 7.5pt;
+    }
+    .receipt-trace {
+        grid-template-columns: 30mm minmax(0, 1fr);
+        gap: 6mm;
+        margin-top: 5mm;
+        padding: 4.5mm;
+        border-radius: 6px;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    .receipt-qr-frame {
+        width: 28mm;
+        height: 28mm;
+        padding: 2mm;
+        margin: 0;
+        border-radius: 6px;
+    }
+    .receipt-qr {
+        width: 24mm;
+        height: 24mm;
+    }
+    .receipt-trace-copy h2 {
+        font-size: 10pt;
+        margin-bottom: 1.5mm;
+    }
+    .receipt-trace-copy p {
+        font-size: 8.5pt;
     }
     .receipt-title-band,
     .receipt-trace {
