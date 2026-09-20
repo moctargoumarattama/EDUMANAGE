@@ -18,35 +18,56 @@
                 <a href="{{ url_for('main.generer_recu_pdf', id=paiement.id) }}" class="btn btn-outline-primary" aria-label="Telecharger le PDF du recu">
                     <i class="fas fa-file-pdf me-2"></i>Telecharger PDF
                 </a>
-                <a href="{{ whatsapp_url }}" class="btn btn-success" target="_blank" rel="noopener" aria-label="Partager la verification du recu par WhatsApp">
-                    <i class="fab fa-whatsapp me-2"></i>WhatsApp
-                </a>
+                <button type="button"
+                        class="btn btn-success"
+                        id="shareReceiptPdfBtn"
+                        data-pdf-url="{{ url_for('main.generer_recu_pdf', id=paiement.id) }}"
+                        data-file-name="recu-paiement-{{ numero }}.pdf"
+                        data-share-title="Reçu de paiement"
+                        data-share-text="Bonjour, voici votre reçu de paiement KLASORA."
+                        data-whatsapp-url="{{ whatsapp_url }}"
+                        aria-label="Partager le PDF du reçu">
+                    <i class="fas fa-share-nodes me-2"></i><span data-share-label>Partager PDF</span>
+                </button>
             </div>
         </div>
 
         <article class="receipt-document">
-            <header class="receipt-school">
-                {% if logo_url %}
-                    <img class="receipt-logo" src="{{ logo_url }}" alt="Logo {{ ecole.nom if ecole else 'ecole' }}">
-                {% else %}
-                    <div class="receipt-logo-placeholder" aria-hidden="true">{{ (ecole.nom[:1] if ecole and ecole.nom else 'K')|upper }}</div>
-                {% endif %}
-                <div>
-                    <h2 class="h4 fw-bold mb-1">{{ ecole.nom if ecole else "Etablissement non renseigne" }}</h2>
-                    {% if ecole and ecole.adresse %}<div class="text-muted">{{ ecole.adresse }}</div>{% endif %}
-                    {% if ecole and (ecole.telephone or ecole.email) %}
-                    <div class="text-muted small">
-                        {% if ecole.telephone %}Tel: {{ ecole.telephone }}{% endif %}
-                        {% if ecole.telephone and ecole.email %} | {% endif %}
-                        {% if ecole.email %}{{ ecole.email }}{% endif %}
-                    </div>
+            <header class="receipt-hero">
+                <div class="receipt-school">
+                    {% if logo_url %}
+                        <img class="receipt-logo" src="{{ logo_url }}" alt="Logo {{ ecole.nom if ecole else 'ecole' }}">
+                    {% else %}
+                        <div class="receipt-logo-placeholder" aria-hidden="true">{{ (ecole.nom[:1] if ecole and ecole.nom else 'K')|upper }}</div>
                     {% endif %}
+                    <div class="receipt-school-text">
+                        <h2>{{ ecole.nom if ecole else "Etablissement non renseigne" }}</h2>
+                        {% if ecole and ecole.adresse %}<div>{{ ecole.adresse }}</div>{% endif %}
+                        {% if ecole and (ecole.telephone or ecole.email) %}
+                        <div class="receipt-contact">
+                            {% if ecole.telephone %}Tel: {{ ecole.telephone }}{% endif %}
+                            {% if ecole.telephone and ecole.email %} | {% endif %}
+                            {% if ecole.email %}{{ ecole.email }}{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="receipt-id-card">
+                    <span>Recu</span>
+                    <strong>#{{ numero }}</strong>
+                    {% if statut %}<em>{{ statut|upper }}</em>{% endif %}
                 </div>
             </header>
 
             <section class="receipt-title-band">
-                <h1>RECU DE PAIEMENT</h1>
-                <div class="receipt-number">#{{ numero }}</div>
+                <div>
+                    <span class="receipt-kicker">Document officiel</span>
+                    <h1>RECU DE PAIEMENT</h1>
+                </div>
+                <div class="receipt-amount">
+                    <span>Montant regle</span>
+                    <strong>{{ montant }}</strong>
+                </div>
             </section>
 
             <section class="receipt-grid">
@@ -55,9 +76,9 @@
                     <div class="receipt-row"><span class="receipt-label">Date</span><span class="receipt-value">{{ date }}{% if heure %} a {{ heure }}{% endif %}</span></div>
                     {% if annee_scolaire_nom %}<div class="receipt-row"><span class="receipt-label">Annee scolaire</span><span class="receipt-value">{{ annee_scolaire_nom }}</span></div>{% endif %}
                     <div class="receipt-row"><span class="receipt-label">Mois / Objet</span><span class="receipt-value">{{ mois_paye }}</span></div>
-                    <div class="receipt-row"><span class="receipt-label">Montant</span><span class="receipt-value text-success">{{ montant }}</span></div>
+                    <div class="receipt-row receipt-row-strong"><span class="receipt-label">Montant</span><span class="receipt-value">{{ montant }}</span></div>
                     {% if mode_paiement %}<div class="receipt-row"><span class="receipt-label">Mode</span><span class="receipt-value">{{ mode_paiement }}</span></div>{% endif %}
-                    {% if statut %}<div class="receipt-row"><span class="receipt-label">Statut</span><span class="receipt-value">{{ statut|upper }}</span></div>{% endif %}
+                    {% if statut %}<div class="receipt-row"><span class="receipt-label">Statut</span><span class="receipt-value"><span class="receipt-status">{{ statut|upper }}</span></span></div>{% endif %}
                     {% if reference %}<div class="receipt-row"><span class="receipt-label">Reference</span><span class="receipt-value">{{ reference }}</span></div>{% endif %}
                 </div>
 
@@ -71,20 +92,17 @@
             </section>
 
             <section class="receipt-trace">
-                <img class="receipt-qr" src="data:image/png;base64,{{ qr_base64 }}" alt="QR code de verification du recu">
-                <div>
-                    <h2 class="h5 fw-bold mb-2">Verification</h2>
-                    <p class="mb-2">Scanner pour verifier l'authenticite du recu.</p>
-                    <div class="small text-muted text-break">{{ verification_url }}</div>
+                <div class="receipt-qr-frame">
+                    <img class="receipt-qr" src="data:image/png;base64,{{ qr_base64 }}" alt="QR code de verification du recu">
                 </div>
-            </section>
-
-            <section class="receipt-signatures">
-                <div class="receipt-signature-box">Signature caisse</div>
-                <div class="receipt-stamp">Cachet etablissement</div>
-                <div class="receipt-signature-box">Signature parent</div>
+                <div class="receipt-trace-copy">
+                    <span class="receipt-kicker">Tracabilite</span>
+                    <h2>Verification securisee par QR code</h2>
+                    <p>Scanner pour verifier ce recu en ligne.</p>
+                </div>
             </section>
         </article>
     </div>
 </div>
+<script src="{{ url_for('static', filename='js/payment-receipt.js') }}"></script>
 {% endblock %}
