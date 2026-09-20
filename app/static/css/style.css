@@ -4601,6 +4601,25 @@ body.auth-layout .main-content > .container {
         grid-template-columns: 1fr;
     }
 
+    .class-course-mini-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.45rem;
+    }
+
+    .class-course-mini-actions form {
+        grid-column: 1 / -1;
+        width: 100%;
+    }
+
+    .class-course-mini-actions form.d-inline {
+        display: block !important;
+    }
+
+    .class-course-mini-actions form .btn {
+        width: 100%;
+    }
+
     /* Styles mobiles spécifiques pour la page absences (accordéon par classe) */
     .class-absence-header {
         padding: 0.85rem;
