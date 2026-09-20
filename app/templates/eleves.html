@@ -99,24 +99,6 @@
     <!-- Barre d'outils et de recherche réactive -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
-            <div class="d-flex align-items-center justify-content-between p-2 mb-3 bg-light rounded border">
-                <div class="d-flex align-items-center gap-2">
-                    <span class="text-muted small fw-semibold"><i class="fas fa-calendar-alt me-1"></i>Année consultée :</span>
-                    <span class="fw-bold small">{{ annee_consultee.nom if annee_consultee else 'Aucune année' }}</span>
-                    {% if annee_consultee %}
-                        {% if annee_consultee.statut == 'active' %}
-                        <span class="badge bg-success small">ACTIVE</span>
-                        {% elif annee_consultee.statut == 'planifiee' %}
-                        <span class="badge bg-info text-dark small">PLANIFIÉE (Préparation)</span>
-                        {% elif annee_consultee.statut == 'archivee' %}
-                        <span class="badge bg-secondary small">ARCHIVÉE (Lecture seule)</span>
-                        {% endif %}
-                    {% endif %}
-                </div>
-                <a href="{{ url_for('main.gestion_annees') }}" class="btn btn-sm btn-outline-secondary">
-                    <i class="fas fa-exchange-alt me-1"></i>Changer d'année
-                </a>
-            </div>
             <div class="row g-2 align-items-center">
                 <!-- Champ de recherche live -->
                 <div class="col-12 col-md-4 col-lg-3">
