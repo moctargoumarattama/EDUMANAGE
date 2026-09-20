@@ -24,6 +24,15 @@
             form.dataset.offlineQueueing !== '1';
     }
 
+    function offlineRequiredMessage(path) {
+        if (path.includes('/cours')) return 'Connexion Internet requise pour crÃ©er ou modifier un cours.';
+        if (path.includes('/paiement') || path.includes('/paiements')) return 'Connexion Internet requise pour enregistrer un paiement.';
+        if (path.includes('/eleve') || path.includes('/eleves') || path.includes('/ajouter_eleve') || path.includes('/modifier_eleve')) {
+            return 'Connexion Internet requise pour crÃ©er ou modifier un Ã©lÃ¨ve.';
+        }
+        return 'Connexion Internet requise pour cette opÃ©ration.';
+    }
+
     // 1. Mise à jour de l'indicateur d'état dans la navbar
     async function updateSyncBadge() {
         const badge = document.getElementById('klasoraSyncStatusBadge');
@@ -144,6 +153,10 @@
                 const coef = fieldValue(form, 'input[name="coefficient"]', 1.0) || 1.0;
                 const periode = fieldValue(form, 'select[name="periode"]') || selectedText(form.querySelector('select[name="annee_id"]'));
                 const date_eval = fieldValue(form, 'input[name="date_evaluation"]') || new Date().toISOString();
+                const selectedEleveOption = eleveSelect.selectedOptions && eleveSelect.selectedOptions[0] ? eleveSelect.selectedOptions[0] : null;
+                const selectedCoursOption = coursSelect && coursSelect.selectedOptions && coursSelect.selectedOptions[0] ? coursSelect.selectedOptions[0] : null;
+                const classe_id = selectedCoursOption ? selectedCoursOption.getAttribute('data-classe-id') : (selectedEleveOption ? selectedEleveOption.getAttribute('data-classe-id') : null);
+                const annee_id = fieldValue(form, 'input[name="annee_id"], select[name="annee_id"]') || null;
 
                 if (!eleve_id || !cours_id || valeur === '') {
                     alert('Veuillez remplir les champs obligatoires (Élève, Cours, Note).');
@@ -162,7 +175,9 @@
                         type_evaluation: type_eval,
                         coefficient: parseFloat(coef),
                         periode: periode,
-                        date_evaluation: date_eval
+                        date_evaluation: date_eval,
+                        classe_id: classe_id ? parseInt(classe_id, 10) : null,
+                        annee_id: annee_id ? parseInt(annee_id, 10) : null
                     };
                     if (baseVersionVal) notePayload.base_version = parseInt(baseVersionVal, 10);
                     if (noteIdVal) notePayload.note_id = parseInt(noteIdVal, 10);
@@ -207,6 +222,8 @@
 
                 const eleve_id = eleveSelect.value;
                 const cours_id = fieldValue(form, 'select[name="cours_id"]') || null;
+                const classe_id = fieldValue(form, 'select[name="classe_id"]') || null;
+                const annee_id = fieldValue(form, 'input[name="annee_id"], select[name="annee_id"]') || null;
                 const date_absence = dateInput ? dateInput.value : new Date().toISOString().slice(0, 10);
                 const motif = fieldValue(form, 'input[name="motif"], textarea[name="motif"]');
                 const justifieeInput = form.querySelector('input[name="justifiee"]');
@@ -225,6 +242,8 @@
                     const absPayload = {
                         eleve_id: parseInt(eleve_id, 10),
                         cours_id: cours_id ? parseInt(cours_id, 10) : null,
+                        classe_id: classe_id ? parseInt(classe_id, 10) : null,
+                        annee_id: annee_id ? parseInt(annee_id, 10) : null,
                         date_absence: date_absence,
                         motif: motif,
                         justifiee: justifiee
@@ -379,8 +398,13 @@
     function setupOnlineOnlyRestrictions() {
         const path = window.location.pathname;
         const onlineOnlyKeywords = [
+            '/cours',
             '/paiement',
             '/paiements',
+            '/eleve',
+            '/eleves',
+            '/ajouter_eleve',
+            '/modifier_eleve',
             '/annees-scolaires',
             '/annee_scolaire',
             '/niveaux',
@@ -399,8 +423,9 @@
                 f.addEventListener('submit', function (e) {
                     if (!navigator.onLine) {
                         e.preventDefault();
-                        showNotification('Connexion Internet requise pour cette opération (Finances / Structure / Sécurité en ligne uniquement).', 'danger');
-                        alert('Connexion Internet requise pour cette opération.');
+                        const message = offlineRequiredMessage(path);
+                        showNotification(message, 'danger');
+                        alert(message);
                     }
                 });
             });
@@ -522,7 +547,6 @@
         updateSyncBadge();
         setupNotesOffline();
         setupAbsencesOffline();
-        setupElevesOffline();
         setupOnlineOnlyRestrictions();
         setupLogoutProtection();
         populateOfflineOptions();

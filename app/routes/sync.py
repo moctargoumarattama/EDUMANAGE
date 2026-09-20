@@ -3,6 +3,8 @@ import json
 import uuid
 from datetime import date, datetime
 
+from flask_wtf.csrf import generate_csrf
+
 from app.extensions import csrf
 from . import main
 from .common import (
@@ -39,6 +41,18 @@ from app.services.absences_annuelles import (
 @main.route('/api/connectivity', methods=['GET'])
 def api_connectivity():
     return jsonify({"online": True}), 200
+
+
+@main.route('/api/csrf-token', methods=['GET'])
+@login_required
+@role_required('admin', 'professeur')
+def api_csrf_token():
+    response = jsonify({
+        "success": True,
+        "csrf_token": generate_csrf(),
+    })
+    response.headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate'
+    return response, 200
 
 def _get_sync_eleve_cours(eleve_id, cours_id):
     try:
@@ -904,7 +918,6 @@ def sync_hors_ligne():
 
 
 @main.route('/api/sync', methods=['POST'])
-@csrf.exempt
 @login_required
 @role_required('admin', 'professeur')
 def api_sync():
@@ -983,6 +996,34 @@ def api_sync():
                 continue
             client_op_id = client_op_id.strip()
 
+            item_user_id = item.get('user_id')
+            if item_user_id is not None:
+                try:
+                    item_user_id = int(item_user_id)
+                except (TypeError, ValueError):
+                    item_user_id = None
+                if item_user_id != current_user.id:
+                    results.append({
+                        'client_op_id': client_op_id,
+                        'status': 'forbidden',
+                        'message': 'OpÃ©ration non autorisÃ©e pour ce compte'
+                    })
+                    continue
+
+            item_ecole_id = item.get('ecole_id')
+            if item_ecole_id is not None:
+                try:
+                    item_ecole_id = int(item_ecole_id)
+                except (TypeError, ValueError):
+                    item_ecole_id = None
+                if item_ecole_id != current_user.ecole_id:
+                    results.append({
+                        'client_op_id': client_op_id,
+                        'status': 'forbidden',
+                        'message': 'OpÃ©ration non autorisÃ©e pour cette Ã©cole'
+                    })
+                    continue
+
             if len(client_op_id) > 128:
                 results.append({
                     'client_op_id': client_op_id[:32] + '...',
@@ -1037,6 +1078,13 @@ def api_sync():
                     d['eleve_id'] = local_uuid_to_id[str(d.get('local_student_uuid'))]
 
             item_type = item.get('type')
+            if item_type not in ('note', 'absence', 'test'):
+                results.append({
+                    'client_op_id': client_op_id,
+                    'status': 'forbidden',
+                    'message': 'Connexion Internet requise pour cette opÃ©ration.'
+                })
+                continue
 
             try:
                 with db.session.begin_nested():

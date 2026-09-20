@@ -1,6 +1,5 @@
 // static/service-worker.js - KLASORA PWA Service Worker
-const CACHE_VERSION = 'klasora-static-v10';
-const PAGE_CACHE = 'klasora-pages-v10';
+const CACHE_VERSION = 'klasora-static-v11';
 const OFFLINE_URL = '/offline';
 
 const PRECACHE_ASSETS = [
@@ -22,14 +21,6 @@ const PRECACHE_ASSETS = [
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
 ];
 
-const BYPASS_NAVIGATION_CACHE = [
-    '/login',
-    '/logout',
-    '/google/',
-    '/api/',
-    '/service-worker.js'
-];
-
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_VERSION)
@@ -42,12 +33,12 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-    const allowedCaches = new Set([CACHE_VERSION, PAGE_CACHE]);
+    const allowedCaches = new Set([CACHE_VERSION]);
     event.waitUntil(
         caches.keys()
             .then(cacheNames => Promise.all(
                 cacheNames.map(cacheName => {
-                    if (!allowedCaches.has(cacheName)) {
+                    if (cacheName.startsWith('klasora-pages-') || (cacheName.startsWith('klasora-') && !allowedCaches.has(cacheName))) {
                         console.log('[SW] Suppression ancien cache:', cacheName);
                         return caches.delete(cacheName);
                     }
@@ -63,16 +54,6 @@ function isHtmlNavigation(request) {
         (request.method === 'GET' && (request.headers.get('accept') || '').includes('text/html'));
 }
 
-function shouldCacheNavigation(url) {
-    if (url.origin !== self.location.origin) return false;
-    return !BYPASS_NAVIGATION_CACHE.some(prefix => url.pathname.startsWith(prefix));
-}
-
-function isHtmlResponse(response) {
-    const contentType = response.headers.get('content-type') || '';
-    return response.ok && contentType.includes('text/html');
-}
-
 async function offlineFallback() {
     const offlineResponse = await caches.match(OFFLINE_URL);
     if (offlineResponse) return offlineResponse;
@@ -84,10 +65,15 @@ async function offlineFallback() {
 }
 
 async function clearUserCaches() {
-    await caches.delete(PAGE_CACHE);
+    const cacheNames = await caches.keys();
+    await Promise.all(
+        cacheNames
+            .filter(cacheName => cacheName.startsWith('klasora-pages-'))
+            .map(cacheName => caches.delete(cacheName))
+    );
 }
 
-// Network-first pour HTML, avec cache runtime des pages deja visitees.
+// Network-only pour HTML prive: jamais de cache runtime des pages visitees.
 async function handleNavigation(request) {
     const url = new URL(request.url);
 
@@ -96,38 +82,13 @@ async function handleNavigation(request) {
     }
 
     try {
-        const networkResponse = await fetch(request);
-
-        if (shouldCacheNavigation(url) && isHtmlResponse(networkResponse)) {
-            const cache = await caches.open(PAGE_CACHE);
-            await cache.put(request, networkResponse.clone());
-        }
-
-        return networkResponse;
+        return await fetch(request);
     } catch (firstError) {
         await new Promise(resolve => setTimeout(resolve, 800));
 
         try {
-            const retryResponse = await fetch(request);
-
-            if (shouldCacheNavigation(url) && isHtmlResponse(retryResponse)) {
-                const cache = await caches.open(PAGE_CACHE);
-                await cache.put(request, retryResponse.clone());
-            }
-
-            return retryResponse;
+            return await fetch(request);
         } catch (secondError) {
-            if (url.pathname === '/login') {
-                return offlineFallback();
-            }
-
-            const cachedResponse = await caches.match(request);
-            if (cachedResponse) return cachedResponse;
-
-            const pageCache = await caches.open(PAGE_CACHE);
-            const cachedByPath = await pageCache.match(url.pathname);
-            if (cachedByPath) return cachedByPath;
-
             return offlineFallback();
         }
     }

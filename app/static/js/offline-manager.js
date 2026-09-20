@@ -308,6 +308,36 @@ class OfflineManager {
         }
     }
 
+    async getFreshCsrfToken() {
+        const response = await fetch('/api/csrf-token', {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            cache: 'no-store',
+            credentials: 'same-origin'
+        });
+
+        if (response.status === 401 || response.status === 403) {
+            this.emit('sync-auth-required');
+            return null;
+        }
+
+        if (!response.ok) {
+            throw new Error(`Impossible de rafraichir le token CSRF (HTTP ${response.status})`);
+        }
+
+        const data = await response.json();
+        const token = data && data.csrf_token;
+        if (!token) {
+            throw new Error('Token CSRF frais manquant');
+        }
+
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) {
+            meta.setAttribute('content', token);
+        }
+        return token;
+    }
+
     /**
      * Synchroniser les données avec le serveur (idempotence + réponse granulaire)
      */
@@ -343,7 +373,10 @@ class OfflineManager {
             let errorCount = 0;
             let lastMessage = '';
 
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const csrfToken = await this.getFreshCsrfToken();
+            if (!csrfToken) {
+                return { success: false, message: 'Session expirÃ©e' };
+            }
 
             // Traitement par lots de 50 pour éviter les saturations et sécuriser la progression
             for (let i = 0; i < pendingData.length; i += BATCH_SIZE) {
