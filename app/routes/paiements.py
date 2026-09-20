@@ -1,4 +1,4 @@
-import pandas as pd
+﻿import pandas as pd
 from . import main
 from .common import (
     Classe,
@@ -18,6 +18,7 @@ from .common import (
     func,
     io,
     joinedload,
+    limiter,
     login_required,
     redirect,
     render_template,
@@ -26,9 +27,7 @@ from .common import (
     send_file,
     url_for,
 )
-from flask import jsonify
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
+from flask import jsonify, make_response
 from app.services.annees_scolaires import get_annee_consultee
 from app.utils import sanitize_internal_url
 from app.services.structure_annuelle import get_niveaux_annee
@@ -39,6 +38,11 @@ from app.services.paiements_annuels import (
     enregistrer_paiement,
     supprimer_paiement_securise,
     get_mois_scolaires,
+)
+from app.services.payment_receipts import (
+    build_payment_receipt_context,
+    build_public_receipt_verification_context,
+    generate_payment_receipt_pdf,
 )
 
 
@@ -330,13 +334,28 @@ def paiements_parent():
 @login_required
 @role_required('admin', 'parent')
 def recu_paiement(id):
-    paiement = filtre_par_ecole(Paiement.query, Paiement).filter_by(id=id).first_or_404()
+    paiement = (
+        filtre_par_ecole(Paiement.query, Paiement)
+        .options(
+            joinedload(Paiement.eleve),
+            joinedload(Paiement.inscription).joinedload(Inscription.classe),
+            joinedload(Paiement.inscription).joinedload(Inscription.annee_scolaire),
+            joinedload(Paiement.inscription).joinedload(Inscription.ecole),
+        )
+        .filter_by(id=id)
+        .first_or_404()
+    )
 
     if current_user.role == 'parent' and not check_parent_access(paiement.eleve_id):
         flash("Accès non autorisé.", "danger")
         return redirect(url_for('main.parent_dashboard'))
 
-    return render_template('recu_paiement.html', paiement=paiement, now=datetime.now())
+    context = build_payment_receipt_context(paiement)
+    db.session.commit()
+    response = make_response(render_template('recu_paiement.html', **context, now=datetime.now()))
+    response.headers["Cache-Control"] = "no-store, private, must-revalidate"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+    return response
 
 
 @main.route('/paiement/<int:id>/pdf')
@@ -344,91 +363,57 @@ def recu_paiement(id):
 @login_required
 @role_required('admin', 'parent')
 def generer_recu_pdf(id):
-    paiement = filtre_par_ecole(Paiement.query, Paiement).filter_by(id=id).first_or_404()
+    paiement = (
+        filtre_par_ecole(Paiement.query, Paiement)
+        .options(
+            joinedload(Paiement.eleve),
+            joinedload(Paiement.inscription).joinedload(Inscription.classe),
+            joinedload(Paiement.inscription).joinedload(Inscription.annee_scolaire),
+            joinedload(Paiement.inscription).joinedload(Inscription.ecole),
+        )
+        .filter_by(id=id)
+        .first_or_404()
+    )
 
     if current_user.role == 'parent' and not check_parent_access(paiement.eleve_id):
-        flash("Accès non autorisé.", "danger")
+        flash("Acces non autorise.", "danger")
         return redirect(url_for('main.parent_dashboard'))
 
-    eleve = paiement.eleve
-    # --- Infos école dynamiques ---
-    if eleve and eleve.ecole:
-        ecole = eleve.ecole
-        nom_ecole = ecole.nom
-        adresse_ecole = ecole.adresse or ""
-        contact_ecole = f"Tél: {ecole.telephone or '-'}"
-    else:
-        nom_ecole = "ÉCOLE INCONNUE"
-        adresse_ecole = "Non renseignée"
-        contact_ecole = "-"
+    context = build_payment_receipt_context(paiement)
+    db.session.commit()
+    buffer = generate_payment_receipt_pdf(context)
 
-    # Classe et année scolaire historiques depuis Inscription
-    classe_nom = "Sans classe"
-    annee_scolaire_nom = ""
-    if paiement.inscription:
-        if paiement.inscription.classe:
-            classe_nom = paiement.inscription.classe.nom
-        if paiement.inscription.annee_scolaire:
-            annee_scolaire_nom = paiement.inscription.annee_scolaire.nom
-
-    buffer = io.BytesIO()
-    p = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-
-    # --- En-tête ---
-    p.setFont("Helvetica-Bold", 16)
-    p.drawString(100, height - 100, nom_ecole)
-    p.setFont("Helvetica", 12)
-    p.drawString(100, height - 120, adresse_ecole)
-    p.drawString(100, height - 140, contact_ecole)
-
-    p.setFont("Helvetica-Bold", 14)
-    p.drawString(100, height - 180, "REÇU DE PAIEMENT")
-    p.line(100, height - 185, 300, height - 185)
-
-    # --- Infos paiement ---
-    y = height - 220
-    p.setFont("Helvetica", 12)
-    p.drawString(100, y, f"Référence: {paiement.id:06d}")
-    y -= 25
-    p.drawString(100, y, f"Date: {paiement.date_paiement.strftime('%d/%m/%Y %H:%M') if paiement.date_paiement else '-'}")
-    if annee_scolaire_nom:
-        y -= 25
-        p.drawString(100, y, f"Année scolaire: {annee_scolaire_nom}")
-    y -= 25
-    p.drawString(100, y, f"Élève: {eleve.prenom if eleve else ''} {eleve.nom if eleve else ''}")
-    y -= 25
-    p.drawString(100, y, f"Classe: {classe_nom}")
-    y -= 25
-    p.drawString(100, y, f"Mois payé: {paiement.mois} {paiement.annee}")
-    y -= 25
-    p.drawString(100, y, f"Montant: {paiement.montant:,.0f} FCFA")
-    y -= 25
-    p.drawString(100, y, f"Mode de paiement: {paiement.mode_paiement}")
-    if paiement.reference:
-        y -= 25
-        p.drawString(100, y, f"Référence: {paiement.reference}")
-
-    # --- Signature & cachet ---
-    p.line(50, 120, 250, 120)
-    p.drawString(70, 100, "Signature du Caissier")
-
-    p.line(300, 120, 500, 120)
-    p.drawString(320, 100, "Signature du Parent")
-
-    p.drawString(100, 60, "Cachet de l'Établissement")
-    p.drawString(100, 40, f"Édition du: {datetime.utcnow().strftime('%d/%m/%Y %H:%M')}")
-
-    p.showPage()
-    p.save()
-    buffer.seek(0)
-
-    return send_file(
+    response = send_file(
         buffer,
         as_attachment=True,
-        download_name=f"reçu_paiement_{paiement.id}.pdf",
+        download_name=f"recu-paiement-{context['numero']}.pdf",
         mimetype='application/pdf'
     )
+    response.headers["Cache-Control"] = "no-store, private, must-revalidate"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+    return response
+
+
+@main.route('/verifier/recu/<token>')
+@main.route('/verifier-recu/<token>')
+@limiter.limit("30 per minute")
+def verifier_recu_public(token):
+    paiement = Paiement.query.filter_by(verification_token=token).first()
+    if not paiement:
+        response = make_response(render_template(
+            'verifier_recu.html',
+            valide=False,
+            message_erreur="Recu introuvable ou non valide."
+        ), 404)
+        response.headers["Cache-Control"] = "no-store, private, must-revalidate"
+        response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+        return response
+
+    context = build_public_receipt_verification_context(paiement)
+    response = make_response(render_template('verifier_recu.html', **context), 200)
+    response.headers["Cache-Control"] = "no-store, private, must-revalidate"
+    response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+    return response
 
 
 @main.route('/paiements/export_excel')

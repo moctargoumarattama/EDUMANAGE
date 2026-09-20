@@ -4,6 +4,7 @@ from datetime import datetime, date
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.access_codes import generate_access_code
 import random
+import secrets
 import string
 from sqlalchemy import event
 from datetime import datetime
@@ -687,6 +688,7 @@ class Paiement(db.Model):
     mode_paiement = db.Column(db.String(30), default='espèces')
     statut = db.Column(db.String(20), default='payé')
     reference = db.Column(db.String(100))
+    verification_token = db.Column(db.String(64), unique=True, index=True, nullable=True)
     eleve_id = db.Column(db.Integer, db.ForeignKey('eleve.id'), nullable=False)
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'))
     inscription_id = db.Column(
@@ -701,6 +703,18 @@ class Paiement(db.Model):
     )
 
     inscription = db.relationship('Inscription', backref=db.backref('paiements', lazy=True))
+
+    @staticmethod
+    def generer_verification_token():
+        while True:
+            token = secrets.token_urlsafe(32)
+            if not Paiement.query.filter_by(verification_token=token).first():
+                return token
+
+    def ensure_verification_token(self):
+        if not self.verification_token:
+            self.verification_token = self.generer_verification_token()
+        return self.verification_token
 
     def statut_paiement(self):
         mois_num = {
@@ -726,6 +740,7 @@ class Paiement(db.Model):
             "mode_paiement": self.mode_paiement,
             "statut": self.statut,
             "reference": self.reference,
+            "verification_token": self.verification_token,
             "eleve_id": self.eleve_id,
             "ecole_id": self.ecole_id,
             "inscription_id": self.inscription_id

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <title>Verification recu KLASORA</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { min-height: 100vh; background: #f5f7fb; display: grid; place-items: center; padding: 24px; color: #10233f; }
+        .verify-card { width: min(100%, 560px); background: #fff; border: 1px solid #dfe6f1; border-radius: 8px; box-shadow: 0 16px 40px rgba(16, 35, 63, .08); overflow: hidden; }
+        .verify-head { padding: 24px; background: #0f8f4f; color: #fff; }
+        .verify-head.invalid { background: #6b7280; }
+        .verify-body { padding: 24px; }
+        .verify-row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #edf1f7; }
+        .verify-label { color: #64748b; font-size: .9rem; }
+        .verify-value { font-weight: 700; text-align: right; }
+    </style>
+</head>
+<body>
+    <main class="verify-card">
+        {% if valide %}
+        <header class="verify-head">
+            <div class="small text-uppercase fw-semibold">KLASORA</div>
+            <h1 class="h3 mb-0">Recu authentique</h1>
+        </header>
+        <section class="verify-body">
+            <div class="verify-row"><span class="verify-label">Etablissement</span><span class="verify-value">{{ ecole_nom }}</span></div>
+            <div class="verify-row"><span class="verify-label">Recu</span><span class="verify-value">#{{ numero }}</span></div>
+            <div class="verify-row"><span class="verify-label">Date</span><span class="verify-value">{{ date }}</span></div>
+            <div class="verify-row"><span class="verify-label">Montant</span><span class="verify-value">{{ montant }}</span></div>
+            <div class="verify-row"><span class="verify-label">Statut actuel</span><span class="verify-value">{{ statut|upper }}</span></div>
+            {% if classe_nom %}
+            <div class="verify-row"><span class="verify-label">Classe</span><span class="verify-value">{{ classe_nom }}</span></div>
+            {% endif %}
+            <p class="text-muted small mt-4 mb-0">Verification effectuee sans exposition des donnees personnelles de l'eleve ou du parent.</p>
+        </section>
+        {% else %}
+        <header class="verify-head invalid">
+            <div class="small text-uppercase fw-semibold">KLASORA</div>
+            <h1 class="h3 mb-0">Recu introuvable</h1>
+        </header>
+        <section class="verify-body">
+            <p class="mb-0">{{ message_erreur }}</p>
+        </section>
+        {% endif %}
+    </main>
+</body>
+</html>
