@@ -134,6 +134,7 @@
                 <tbody id="schoolsTableBody">
                     {% for ecole in ecoles %}
                     {% set is_blocked = ecole.statut in ['bloque', 'suspendu', 'inactive'] %}
+                    {% set deletion_eligible = ecole.deletion_eligible|default(false) %}
                     <tr class="school-row" data-statut="{{ 'bloque' if is_blocked else 'actif' }}" data-search="{{ ecole.nom|lower }} {{ ecole.adresse|default('')|lower }} {{ ecole.email|default('')|lower }} {{ ecole.telephone|default('')|lower }}">
                         <td class="ps-4 text-muted fw-semibold">
                             #{{ ecole.id }}
@@ -190,6 +191,18 @@
                                     <i class="fas fa-info-circle me-1"></i>{{ ecole.motif_blocage }}
                                 </div>
                                 {% endif %}
+                                {% if ecole.disabled_at %}
+                                <div class="text-muted small mt-1" style="font-size: 0.75rem;">
+                                    Désactivée depuis : {{ ecole.disabled_at.strftime('%d/%m/%Y %H:%M') }}
+                                </div>
+                                <div class="small mt-1 {{ 'text-danger fw-semibold' if deletion_eligible else 'text-muted' }}" style="font-size: 0.75rem;">
+                                    {% if deletion_eligible %}
+                                    Suppression définitive disponible
+                                    {% else %}
+                                    Suppression définitive disponible dans : {{ ecole.deletion_days_remaining }} jour(s)
+                                    {% endif %}
+                                </div>
+                                {% endif %}
                             </div>
                             {% else %}
                             <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill">
@@ -233,7 +246,9 @@
                                         data-id="{{ ecole.id }}"
                                         data-nom="{{ ecole.nom }}"
                                         data-eleves="{{ ecole.nb_eleves|default(0) }}"
-                                        data-classes="{{ ecole.nb_classes|default(0) }}">
+                                        data-classes="{{ ecole.nb_classes|default(0) }}"
+                                        data-eligible="{{ '1' if deletion_eligible else '0' }}"
+                                        {% if not deletion_eligible %}disabled{% endif %}>
                                     <i class="fas fa-trash-alt"></i>
                                 </button>
                             </div>
@@ -263,6 +278,7 @@
     <div class="d-md-none" id="schoolsMobileContainer">
         {% for ecole in ecoles %}
         {% set is_blocked = ecole.statut in ['bloque', 'suspendu', 'inactive'] %}
+        {% set deletion_eligible = ecole.deletion_eligible|default(false) %}
         <div class="card border-0 shadow-sm rounded-4 mb-3 school-row school-mobile-card" data-statut="{{ 'bloque' if is_blocked else 'actif' }}" data-search="{{ ecole.nom|lower }} {{ ecole.adresse|default('')|lower }} {{ ecole.email|default('')|lower }} {{ ecole.telephone|default('')|lower }}">
             <div class="card-body p-3">
                 <!-- En-tête carte -->
@@ -293,6 +309,16 @@
                 {% if is_blocked and ecole.motif_blocage %}
                 <div class="alert alert-danger py-1.5 px-2.5 rounded-3 small mb-2.5" style="font-size: 0.8rem;">
                     <i class="fas fa-info-circle me-1"></i><strong>Motif :</strong> {{ ecole.motif_blocage }}
+                </div>
+                {% endif %}
+                {% if is_blocked and ecole.disabled_at %}
+                <div class="alert alert-light border py-1.5 px-2.5 rounded-3 small mb-2.5" style="font-size: 0.8rem;">
+                    <div>Désactivée depuis : {{ ecole.disabled_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                    {% if deletion_eligible %}
+                    <strong class="text-danger">Suppression définitive disponible</strong>
+                    {% else %}
+                    <span>Suppression définitive disponible dans : {{ ecole.deletion_days_remaining }} jour(s)</span>
+                    {% endif %}
                 </div>
                 {% endif %}
 
@@ -358,7 +384,9 @@
                             data-id="{{ ecole.id }}"
                             data-nom="{{ ecole.nom }}"
                             data-eleves="{{ ecole.nb_eleves|default(0) }}"
-                            data-classes="{{ ecole.nb_classes|default(0) }}">
+                            data-classes="{{ ecole.nb_classes|default(0) }}"
+                            data-eligible="{{ '1' if deletion_eligible else '0' }}"
+                            {% if not deletion_eligible %}disabled{% endif %}>
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </div>
@@ -564,7 +592,13 @@
                         <label for="confirmSchoolName" class="form-label small fw-bold text-dark">
                             Pour confirmer, saisissez exactement le nom de l'école :
                         </label>
-                        <input type="text" class="form-control" id="confirmSchoolName" placeholder="Nom de l'école" autocomplete="off">
+                        <input type="text" class="form-control" id="confirmSchoolName" name="confirmation_nom" placeholder="Nom de l'école" autocomplete="off">
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmDeletePhrase" class="form-label small fw-bold text-dark">
+                            Saisissez exactement : <span class="text-danger">SUPPRIMER DÉFINITIVEMENT</span>
+                        </label>
+                        <input type="text" class="form-control" id="confirmDeletePhrase" name="confirmation_phrase" placeholder="SUPPRIMER DÉFINITIVEMENT" autocomplete="off">
                     </div>
                 </div>
                 <div class="modal-footer border-top py-2.5 px-4 bg-light rounded-bottom-4">
@@ -687,7 +721,17 @@ document.addEventListener('DOMContentLoaded', function () {
     if (modalSupprimer) {
         let targetSchoolName = '';
         const confirmInput = document.getElementById('confirmSchoolName');
+        const confirmPhrase = document.getElementById('confirmDeletePhrase');
         const deleteBtn = document.getElementById('btnConfirmDeleteSchool');
+        const requiredPhrase = 'SUPPRIMER DÉFINITIVEMENT';
+
+        function refreshDeleteButton() {
+            if (!confirmInput || !confirmPhrase || !deleteBtn) return;
+            deleteBtn.disabled = !(
+                confirmInput.value.trim() === targetSchoolName.trim() &&
+                confirmPhrase.value.trim() === requiredPhrase
+            );
+        }
 
         modalSupprimer.addEventListener('show.bs.modal', function (event) {
             const btn = event.relatedTarget;
@@ -704,19 +748,17 @@ document.addEventListener('DOMContentLoaded', function () {
             if (confirmInput) {
                 confirmInput.value = '';
             }
+            if (confirmPhrase) {
+                confirmPhrase.value = '';
+            }
             if (deleteBtn) {
                 deleteBtn.disabled = true;
             }
         });
 
-        if (confirmInput && deleteBtn) {
-            confirmInput.addEventListener('input', function () {
-                if (this.value.trim().toLowerCase() === targetSchoolName.trim().toLowerCase()) {
-                    deleteBtn.disabled = false;
-                } else {
-                    deleteBtn.disabled = true;
-                }
-            });
+        if (confirmInput && confirmPhrase && deleteBtn) {
+            confirmInput.addEventListener('input', refreshDeleteButton);
+            confirmPhrase.addEventListener('input', refreshDeleteButton);
         }
     }
 });

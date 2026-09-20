@@ -150,9 +150,11 @@ def login():
                 return redirect(url_for("main.login"))
 
             # Vérification école bloquée / suspendue
-            if utilisateur.role != "super_admin" and utilisateur.ecole and utilisateur.ecole.statut in ('bloque', 'suspendu'):
+            if utilisateur.role != "super_admin" and utilisateur.ecole and utilisateur.ecole.statut in ('bloque', 'suspendu', 'inactive'):
                 ecole = utilisateur.ecole
-                if utilisateur.role == 'admin':
+                if ecole.statut == 'inactive':
+                    flash("Votre etablissement est actuellement desactive. Veuillez contacter l'administrateur de la plateforme.", "danger")
+                elif utilisateur.role == 'admin':
                     motif = f" Motif : {ecole.motif_blocage}." if ecole.motif_blocage else ""
                     flash(f"L'accès à votre établissement ({ecole.nom}) est suspendu.{motif} Veuillez contacter l'administration de la plateforme.", "danger")
                 else:

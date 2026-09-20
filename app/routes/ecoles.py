@@ -22,6 +22,15 @@ from .common import (
     url_for,
 )
 from app.access_codes import generate_access_code
+from app.services.school_lifecycle import (
+    SCHOOL_ACTIVE_STATUS,
+    SCHOOL_DELETE_CONFIRMATION_PHRASE,
+    days_until_school_deletion,
+    is_school_deletion_eligible,
+    is_school_disabled,
+    school_deletion_available_at,
+    utcnow,
+)
 
 
 @main.route('/choisir-ecole')
@@ -64,6 +73,9 @@ def gestion_ecoles():
             ecole.nb_eleves = Eleve.query.filter_by(ecole_id=ecole.id).count()
             ecole.nb_classes = Classe.query.filter_by(ecole_id=ecole.id).count()
             ecole.nb_profs = Professeur.query.filter_by(ecole_id=ecole.id).count()
+            ecole.deletion_available_at = school_deletion_available_at(ecole)
+            ecole.deletion_days_remaining = days_until_school_deletion(ecole)
+            ecole.deletion_eligible = is_school_deletion_eligible(ecole)
             total_eleves += ecole.nb_eleves
             if not ecole.email:
                 admin_user = Utilisateur.query.filter_by(ecole_id=ecole.id, role='admin').first()
@@ -73,7 +85,7 @@ def gestion_ecoles():
         stats = {
             'total_ecoles': len(ecoles),
             'ecoles_actives': sum(1 for e in ecoles if e.statut in ('actif', 'active')),
-            'ecoles_bloquees': sum(1 for e in ecoles if e.statut in ('bloque', 'suspendu', 'inactive')),
+            'ecoles_bloquees': sum(1 for e in ecoles if is_school_disabled(e)),
             'total_eleves': total_eleves,
         }
         return render_template('admin/ecoles.html', ecoles=ecoles, stats=stats)
@@ -434,11 +446,13 @@ def bloquer_ecole(ecole_id):
         if action == 'bloquer':
             ecole.statut = 'bloque'
             ecole.motif_blocage = motif or 'Suspension administrative'
+            ecole.disabled_at = utcnow()
             db.session.commit()
             flash(f"L'école « {ecole.nom} » a été bloquée 🛑 (Motif: {ecole.motif_blocage})", "warning")
         elif action == 'debloquer':
-            ecole.statut = 'actif'
+            ecole.statut = SCHOOL_ACTIVE_STATUS
             ecole.motif_blocage = None
+            ecole.disabled_at = None
             db.session.commit()
             flash(f"L'école « {ecole.nom} » a été débloquée et réactivée avec succès 🟢", "success")
         else:
@@ -455,8 +469,42 @@ def bloquer_ecole(ecole_id):
 @login_required
 @role_required('super_admin')
 def supprimer_ecole_action(ecole_id):
-    """Supprimer définitivement une école et toutes ses données associées (via formulaire)"""
+    """Supprimer définitivement une école après délai et confirmation forte."""
+    ecole = Ecole.query.get_or_404(ecole_id)
+    confirmation_nom = (request.form.get('confirmation_nom') or '').strip()
+    confirmation_phrase = (request.form.get('confirmation_phrase') or '').strip()
+
+    if not is_school_disabled(ecole):
+        flash("Suppression définitive refusée : l'école doit d'abord être désactivée.", "danger")
+        return redirect(url_for('main.gestion_ecoles'))
+
+    if not ecole.disabled_at:
+        flash("Suppression définitive refusée : aucune date de désactivation valide n'est enregistrée.", "danger")
+        return redirect(url_for('main.gestion_ecoles'))
+
+    if not is_school_deletion_eligible(ecole):
+        jours = days_until_school_deletion(ecole)
+        flash(f"Suppression définitive refusée : disponible dans {jours} jour(s).", "danger")
+        return redirect(url_for('main.gestion_ecoles'))
+
+    if confirmation_nom != ecole.nom:
+        flash("Suppression définitive refusée : le nom de l'école ne correspond pas exactement.", "danger")
+        return redirect(url_for('main.gestion_ecoles'))
+
+    if confirmation_phrase != SCHOOL_DELETE_CONFIRMATION_PHRASE:
+        flash("Suppression définitive refusée : la phrase de confirmation est incorrecte.", "danger")
+        return redirect(url_for('main.gestion_ecoles'))
+
     try:
+        current_app.logger.warning(
+            "SCHOOL_PERMANENT_DELETE_CONFIRMED ecole_id=%s ecole_nom=%s disabled_at=%s deleted_at=%s super_admin_id=%s super_admin_email=%s",
+            ecole.id,
+            ecole.nom,
+            ecole.disabled_at.isoformat() if ecole.disabled_at else None,
+            utcnow().isoformat(),
+            current_user.id,
+            current_user.email,
+        )
         nom_ecole = safe_delete_ecole(ecole_id)
         flash(f"L'école « {nom_ecole} » et toutes ses données associées ont été supprimées définitivement 🗑️", "success")
     except Exception as e:
@@ -471,13 +519,11 @@ def supprimer_ecole_action(ecole_id):
 @login_required
 @role_required('super_admin')
 def supprimer_ecole(ecole_id):
-    """Supprimer une école et tous ses utilisateurs associés (via API DELETE)"""
-    try:
-        nom_ecole = safe_delete_ecole(ecole_id)
-        return jsonify({'success': True, 'message': f"L'école « {nom_ecole} » a été supprimée avec succès."})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': f'Erreur lors de la suppression: {str(e)}'}), 500
+    """API DELETE désactivée pour empêcher le contournement du délai."""
+    return jsonify({
+        'success': False,
+        'message': "Suppression directe désactivée. Utilisez la confirmation forte après 30 jours de désactivation."
+    }), 405
 
 
 @main.route('/api/ecoles/<int:ecole_id>/status', methods=['PUT'])
@@ -489,7 +535,14 @@ def toggle_ecole_status(ecole_id):
         return jsonify({'success': False, 'message': 'Non autorisé'}), 403
 
     ecole = Ecole.query.get_or_404(ecole_id)
-    ecole.statut = 'inactive' if ecole.statut in ('active', 'actif') else 'actif'
+    if ecole.statut in ('active', 'actif'):
+        ecole.statut = 'inactive'
+        ecole.disabled_at = utcnow()
+        ecole.motif_blocage = ecole.motif_blocage or 'Désactivation administrative'
+    else:
+        ecole.statut = SCHOOL_ACTIVE_STATUS
+        ecole.disabled_at = None
+        ecole.motif_blocage = None
     db.session.commit()
 
     return jsonify({'success': True, 'new_status': ecole.statut})

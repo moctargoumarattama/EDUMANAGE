@@ -185,6 +185,7 @@ class Ecole(db.Model):
     logo = db.Column(db.String(200), default='default_logo.png')
     statut = db.Column(db.String(20), default='actif')
     motif_blocage = db.Column(db.String(300))
+    disabled_at = db.Column(db.DateTime, nullable=True)
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     from sqlalchemy.sql import expression
     onboarding_complete = db.Column(db.Boolean, nullable=False, default=False, server_default=expression.false())
@@ -234,6 +235,7 @@ class Ecole(db.Model):
             "logo": self.logo,
             "statut": self.statut,
             "motif_blocage": self.motif_blocage,
+            "disabled_at": self.disabled_at.isoformat() if self.disabled_at else None,
             "date_creation": self.date_creation.isoformat() if self.date_creation else None,
             "logo_path": self.logo_path,
             "signature_path": getattr(self, 'signature_path', None),

@@ -519,7 +519,7 @@ def before_request_handler():
         # 3️⃣-bis Vérification école bloquée / suspendue / maintenance pour les sessions actives
         if getattr(current_user, 'role', None) != 'super_admin':
             ecole = getattr(g, 'ecole_courante', None) or getattr(current_user, 'ecole', None)
-            if ecole and ecole.statut in ('bloque', 'suspendu', 'maintenance'):
+            if ecole and ecole.statut in ('bloque', 'suspendu', 'inactive', 'maintenance'):
                 allowed_eps = {'main.logout', 'main.login'}
                 current_ep = request.endpoint or ''
                 if current_ep not in allowed_eps and not current_ep.startswith('static') and current_ep != 'admin.static' and not request.path.startswith('/static/'):
@@ -534,6 +534,9 @@ def before_request_handler():
                     else:
                         # Confidentialité : les parents et professeurs ne voient jamais le motif
                         msg = f"L'accès à l'espace de votre établissement ({ecole.nom}) est temporairement indisponible. Veuillez contacter la direction de votre école."
+
+                    if ecole.statut == 'inactive':
+                        msg = "Votre etablissement est actuellement desactive. Veuillez contacter l'administrateur de la plateforme."
 
                     logout_user()
                     if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
