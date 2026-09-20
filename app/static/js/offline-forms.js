@@ -84,13 +84,33 @@
         const alertEl = document.createElement('div');
         alertEl.className = `alert alert-${type} alert-dismissible fade show shadow-lg rounded-4 mb-2 border-0`;
         alertEl.role = 'alert';
-        alertEl.innerHTML = `
-            <div class="d-flex align-items-center">
-                <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} fa-lg me-2"></i>
-                <div>${message}</div>
-            </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
-        `;
+
+        const row = document.createElement('div');
+        row.className = 'd-flex align-items-center';
+
+        const icon = document.createElement('i');
+        icon.className = `fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} fa-lg me-2`;
+        icon.setAttribute('aria-hidden', 'true');
+        row.appendChild(icon);
+
+        const text = document.createElement('div');
+        const lines = Array.isArray(message) ? message : [message];
+        lines.forEach((line, index) => {
+            if (index > 0) text.appendChild(document.createElement('br'));
+            const node = document.createElement(index > 0 ? 'small' : 'span');
+            if (index > 0) node.className = 'text-muted';
+            node.textContent = String(line || '');
+            text.appendChild(node);
+        });
+        row.appendChild(text);
+        alertEl.appendChild(row);
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'btn-close';
+        close.setAttribute('data-bs-dismiss', 'alert');
+        close.setAttribute('aria-label', 'Fermer');
+        alertEl.appendChild(close);
 
         container.appendChild(alertEl);
         setTimeout(() => {
@@ -148,7 +168,10 @@
                     if (noteIdVal) notePayload.note_id = parseInt(noteIdVal, 10);
                     await offlineManager.addToSync('note', notePayload);
 
-                    showNotification(`✅ Note de <strong>${valeur}/20</strong> pour <strong>${studentName}</strong> enregistrée localement sur cet appareil !<br><small class="text-muted">🟠 En attente de synchronisation dès le retour d'Internet.</small>`, 'warning');
+                    showNotification([
+                        `Note de ${valeur}/20 pour ${studentName} enregistrée localement sur cet appareil !`,
+                        "En attente de synchronisation dès le retour d'Internet."
+                    ], 'warning');
 
                     // Réinitialiser le champ note pour la saisie suivante
                     valeurInput.value = '';
@@ -210,7 +233,10 @@
                     if (absIdVal) absPayload.absence_id = parseInt(absIdVal, 10);
                     await offlineManager.addToSync('absence', absPayload);
 
-                    showNotification(`✅ Absence de <strong>${studentName}</strong> enregistrée sur cet appareil !<br><small class="text-muted">🟠 En attente de synchronisation automatique.</small>`, 'warning');
+                    showNotification([
+                        `Absence de ${studentName} enregistrée sur cet appareil !`,
+                        'En attente de synchronisation automatique.'
+                    ], 'warning');
 
                     if (form.querySelector('input[name="motif"]')) {
                         form.querySelector('input[name="motif"]').value = '';
@@ -278,7 +304,10 @@
                             });
                         }
 
-                        showNotification(`✅ Élève <strong>${payload.prenom} ${payload.nom}</strong> créé localement sur cet appareil !<br><small class="text-muted">🟠 En attente de synchronisation dès le retour d'Internet.</small>`, 'warning');
+                        showNotification([
+                            `Élève ${payload.prenom} ${payload.nom} créé localement sur cet appareil !`,
+                            "En attente de synchronisation dès le retour d'Internet."
+                        ], 'warning');
 
                         form.reset();
                         updateSyncBadge();
@@ -330,7 +359,10 @@
                     form.dataset.offlineQueueing = '1';
                     try {
                         await offlineManager.addToSync('eleve_modification', payload);
-                        showNotification(`✅ Modifications pour <strong>${payload.prenom} ${payload.nom}</strong> enregistrées sur cet appareil !<br><small class="text-muted">🟠 En attente de synchronisation.</small>`, 'warning');
+                        showNotification([
+                            `Modifications pour ${payload.prenom} ${payload.nom} enregistrées sur cet appareil !`,
+                            'En attente de synchronisation.'
+                        ], 'warning');
                         updateSyncBadge();
                     } catch (err) {
                         console.error('Erreur modification élève hors-ligne:', err);
@@ -367,7 +399,7 @@
                 f.addEventListener('submit', function (e) {
                     if (!navigator.onLine) {
                         e.preventDefault();
-                        showNotification('⛔ <strong>Connexion Internet requise</strong> pour cette opération (Finances / Structure / Sécurité en ligne uniquement).', 'danger');
+                        showNotification('Connexion Internet requise pour cette opération (Finances / Structure / Sécurité en ligne uniquement).', 'danger');
                         alert('Connexion Internet requise pour cette opération.');
                     }
                 });

@@ -177,7 +177,7 @@
         <div class="kl-toast-accent" aria-hidden="true"></div>
         <div class="kl-toast-body">
             <i class="fas {% if cat == 'success' %}fa-check-circle{% elif cat == 'danger' %}fa-exclamation-circle{% elif cat == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} kl-toast-icon" aria-hidden="true"></i>
-            <span class="kl-toast-text">{{ message|safe }}</span>
+            <span class="kl-toast-text">{{ message }}</span>
         </div>
         <button type="button" class="kl-toast-close" aria-label="Fermer">&times;</button>
         <div class="kl-toast-progress"><div class="kl-toast-progress-bar"></div></div>

@@ -31,6 +31,7 @@ from .common import (
 from app.services import check_ecole_access
 from app.services.annees_scolaires import get_annee_consultee
 from app.services.classes_annuelles import classe_est_ouverte
+from app.services.cours_uniqueness import find_duplicate_cours, normalize_cours_nom
 from app.access_codes import generate_access_code, is_valid_access_code
 
 
@@ -477,17 +478,8 @@ def assigner_classes_professeur(id):
                 if not matieres_professeur or matiere_index < 0 or matiere_index >= len(matieres_professeur):
                     flash("Aucune matiere principale definie pour ce professeur.", "warning")
                     return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
-                matiere_a_creer = matieres_professeur[matiere_index].strip()
-                matiere_normalisee = matiere_a_creer.lower()
-                cours = (
-                    Cours.query
-                    .filter(
-                        Cours.ecole_id == current_user.ecole_id,
-                        Cours.classe_id == classe.id,
-                        db.func.lower(db.func.trim(Cours.nom)) == matiere_normalisee,
-                    )
-                    .first()
-                )
+                matiere_a_creer = normalize_cours_nom(matieres_professeur[matiere_index])
+                cours = find_duplicate_cours(current_user.ecole_id, classe.id, matiere_a_creer)
                 if cours and cours.professeur_id not in (None, professeur.id):
                     flash("Ce cours est deja affecte a un autre professeur.", "warning")
                     return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))

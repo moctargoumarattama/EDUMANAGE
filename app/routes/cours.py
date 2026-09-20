@@ -39,6 +39,7 @@ from app.services import check_ecole_access
 from app.services.annees_scolaires import get_annee_consultee
 from app.services.classes_annuelles import classe_est_ouverte
 from app.services.cours_annuels import valider_classe_pour_nouveau_cours
+from app.services.cours_uniqueness import find_duplicate_cours, normalize_cours_nom
 from app.utils import get_annee_active
 
 
@@ -311,18 +312,21 @@ def ajouter_cours():
             if not annee_consultee or classe.annee_scolaire_id != annee_consultee.id:
                 flash("Classe invalide pour l'annee consultee.", "danger")
                 return redirect(url_for('main.cours'))
+            classe = (
+                Classe.query
+                .filter_by(id=classe.id, ecole_id=ecole_courante.id)
+                .with_for_update()
+                .first()
+            )
 
-            doublon = Cours.query.filter_by(
-                nom=form.nom.data,
-                classe_id=form.classe_id.data,
-                ecole_id=ecole_courante.id
-            ).first()
+            nom_cours = normalize_cours_nom(form.nom.data)
+            doublon = find_duplicate_cours(ecole_courante.id, classe.id, nom_cours)
             if doublon:
                 flash("Un cours avec ce nom existe d?j? pour cette classe.", "danger")
                 return redirect(url_for('main.cours'))
 
             nouveau_cours = Cours(
-                nom=form.nom.data,
+                nom=nom_cours,
                 description=form.description.data,
                 coefficient=form.coefficient.data,
                 professeur_id=prof.id if prof else None,
@@ -420,7 +424,13 @@ def modifier_cours(id):
             flash(classe_error, "danger")
             return redirect(url_for('main.modifier_cours', id=cours.id))
 
-        cours.nom = form.nom.data
+        nom_cours = normalize_cours_nom(form.nom.data)
+        doublon = find_duplicate_cours(ecole_courante.id, classe.id, nom_cours, exclude_id=cours.id)
+        if doublon:
+            flash("Un cours avec ce nom existe d?j? pour cette classe.", "danger")
+            return redirect(url_for('main.modifier_cours', id=cours.id))
+
+        cours.nom = nom_cours
         cours.description = form.description.data
         cours.coefficient = form.coefficient.data
         cours.professeur_id = professeur.id
