@@ -227,7 +227,7 @@ def professeur_home():
 @role_required('admin')
 def onboarding():
     """Parcours d'onboarding dédié pour l'administrateur d'établissement avant tout accès au dashboard"""
-    from flask import g, jsonify, session
+    from flask import current_app, g, jsonify, session
     from app.utils import (
         get_school_setup_state,
         creer_ou_activer_annee_scolaire,
@@ -267,6 +267,9 @@ def onboarding():
             db.session.commit()
             session.pop(f'onboarding_skip_classes_{ecole.id}', None)
             session.pop('onboarding_skip_classes', None)
+            session.pop(f'onboarding_identite_done_{ecole.id}', None)
+            from app.utils import _ecoles_identite_validee
+            _ecoles_identite_validee.discard(ecole.id)
             flash("Configuration initiale de votre établissement terminée avec succès ! Bienvenue sur votre tableau de bord.", "success")
 
             session['onboarding_just_completed'] = True
@@ -386,7 +389,7 @@ def onboarding():
                         })
 
             if not configurations:
-                flash("Veuillez cocher au moins une classe à créer, ou cliquez sur « Ignorer cette étape ».", "warning")
+                flash("Veuillez sélectionner au moins une classe à créer.", "warning")
                 return redirect(url_for('main.onboarding'))
 
             from app.services.pedagogie_standard import generer_classes_batch
@@ -408,17 +411,129 @@ def onboarding():
             else:
                 flash("Les classes sélectionnées existent déjà pour cette année.", "info")
 
-            session[f'onboarding_skip_classes_{ecole.id}'] = True
             if hasattr(g, '_school_setup_cache'):
                 g._school_setup_cache.pop(ecole.id, None)
 
             return redirect(url_for('main.onboarding'))
 
-        elif action == 'ignorer_classes':
-            session[f'onboarding_skip_classes_{ecole.id}'] = True
+        elif action == 'configurer_matieres_onboarding':
+            if not active_year:
+                flash("Veuillez d'abord configurer une année scolaire active.", "warning")
+                return redirect(url_for('main.onboarding'))
+
+            pack_keys = request.form.getlist('pack_keys')
+            if not pack_keys:
+                flash("Aucun niveau ou classe détecté pour configurer les matières.", "warning")
+                return redirect(url_for('main.onboarding'))
+
+            matieres_par_niveau = {}
+            total_matieres_count = 0
+
+            for key in pack_keys:
+                key_clean = key.strip()
+                if not key_clean:
+                    continue
+
+                matieres_groupe = []
+
+                # Matières standards du pack
+                try:
+                    count_std = int(request.form.get(f'matieres_count_{key_clean}', 0))
+                except (ValueError, TypeError):
+                    count_std = 0
+
+                for i in range(count_std):
+                    is_active = request.form.get(f'matiere_chk_{key_clean}_{i}')
+                    if is_active:
+                        nom = request.form.get(f'matiere_nom_{key_clean}_{i}', '').strip()
+                        coeff_raw = request.form.get(f'matiere_coef_{key_clean}_{i}', '1')
+                        if nom:
+                            try:
+                                coeff_clean = str(coeff_raw or '').replace(',', '.').strip()
+                                coeff = float(coeff_clean)
+                                if coeff <= 0:
+                                    coeff = 1.0
+                            except (ValueError, TypeError):
+                                coeff = 1.0
+                            matieres_groupe.append({"nom": nom, "coefficient": coeff})
+
+                # Matières ajoutées dynamiquement
+                custom_noms = request.form.getlist(f'custom_nom_{key_clean}[]') or request.form.getlist(f'custom_nom_{key_clean}')
+                custom_coefs = request.form.getlist(f'custom_coef_{key_clean}[]') or request.form.getlist(f'custom_coef_{key_clean}')
+                for cnom, ccoef_raw in zip(custom_noms, custom_coefs):
+                    nom_c = cnom.strip()
+                    if nom_c:
+                        try:
+                            ccoef_clean = str(ccoef_raw or '').replace(',', '.').strip()
+                            coeff_c = float(ccoef_clean)
+                            if coeff_c <= 0:
+                                coeff_c = 1.0
+                        except (ValueError, TypeError):
+                            coeff_c = 1.0
+                        matieres_groupe.append({"nom": nom_c, "coefficient": coeff_c})
+
+                if matieres_groupe:
+                    matieres_par_niveau[key_clean] = matieres_groupe
+                    total_matieres_count += len(matieres_groupe)
+
+            if total_matieres_count == 0:
+                flash("Veuillez sélectionner ou ajouter au moins une matière pour valider cette étape.", "warning")
+                return redirect(url_for('main.onboarding'))
+
+            from app.services.pedagogie_standard import injecter_matieres_onboarding
+            cours_crees, erreur = injecter_matieres_onboarding(
+                ecole_id=ecole.id,
+                annee_id=active_year.id,
+                matieres_par_niveau=matieres_par_niveau
+            )
+
+            if erreur:
+                flash(erreur, "danger")
+                return redirect(url_for('main.onboarding'))
+
             if hasattr(g, '_school_setup_cache'):
                 g._school_setup_cache.pop(ecole.id, None)
-            flash("Étape de création des classes ignorée. Vous pourrez créer vos classes ultérieurement.", "info")
+
+            flash(f"Matières et coefficients enregistrés avec succès ! ({len(cours_crees)} cours injectés) 🎉", "success")
+            return redirect(url_for('main.onboarding'))
+
+        elif action == 'configurer_identite_onboarding':
+            nom = request.form.get('nom', '').strip()[:200]
+            telephone = request.form.get('telephone', '').strip()[:20]
+            ville = request.form.get('ville', '').strip()[:100]
+            adresse = request.form.get('adresse', '').strip()[:300]
+            slogan = (request.form.get('slogan') or request.form.get('devise', '')).strip()[:250]
+
+            if nom:
+                ecole.nom = nom
+                admin = Utilisateur.query.filter_by(ecole_id=ecole.id, role='admin').first()
+                if admin:
+                    admin.nom = nom
+
+            ecole.telephone = telephone or None
+            ecole.ville = ville or None
+            ecole.adresse = adresse or None
+            if slogan:
+                ecole.slogan = slogan
+
+            logo_file = request.files.get('logo')
+            if logo_file and logo_file.filename:
+                from app.utils import validate_and_save_school_logo
+                ok, err_msg = validate_and_save_school_logo(logo_file, ecole, current_app.static_folder)
+                if not ok:
+                    flash(err_msg, "danger")
+                    return redirect(url_for('main.onboarding'))
+
+            db.session.commit()
+
+            from app.utils import _ecoles_identite_validee
+            _ecoles_identite_validee.add(ecole.id)
+            session[f'onboarding_identite_done_{ecole.id}'] = True
+
+            if hasattr(g, '_school_setup_cache'):
+                g._school_setup_cache.pop(ecole.id, None)
+
+            flash("Identité et coordonnées de l'établissement enregistrées avec succès ! 🎉", "success")
             return redirect(url_for('main.onboarding'))
 
     niveau_configs_grouped = get_niveaux_catalogue_grouped_for_onboarding(ecole.id, active_year.id if active_year else None)
@@ -471,6 +586,55 @@ def onboarding():
                 "existing_sections": [sec for (nid, sec) in existing_map if nid == n.id]
             })
 
+    packs_matieres = []
+    if active_year:
+        from app.models import Classe, NiveauScolaire
+        from app.services.pedagogie_standard import obtenir_matieres_standard
+
+        classes_annee = Classe.query.filter_by(
+            ecole_id=ecole.id,
+            annee_scolaire_id=active_year.id
+        ).order_by(Classe.niveau_id, Classe.nom).all()
+
+        groups = {}
+        for c in classes_annee:
+            niveau = c.niveau_scolaire
+            if not niveau and c.niveau_id:
+                niveau = db.session.get(NiveauScolaire, c.niveau_id)
+
+            cycle = (niveau.cycle if niveau else None) or "college"
+            code = (niveau.code if niveau else (c.niveau or "")).upper()
+            sec = (c.section or "").strip().upper()
+
+            if cycle == "lycee" and code in ("1ERE", "TERMINALE", "TLE") and sec:
+                group_key = f"{c.niveau_id}:{sec}"
+                titre = f"{niveau.nom if niveau else c.nom} — Série {sec}"
+                serie_param = sec
+            else:
+                group_key = str(c.niveau_id or c.id)
+                titre = f"{niveau.nom if niveau else c.nom}"
+                serie_param = None
+
+            if group_key not in groups:
+                matieres_std = obtenir_matieres_standard(
+                    niveau_code=code,
+                    cycle=cycle,
+                    serie=serie_param
+                )
+                groups[group_key] = {
+                    "key": group_key,
+                    "titre": titre,
+                    "cycle": cycle,
+                    "classes": [],
+                    "matieres": [
+                        {"nom": m[0], "coefficient": m[1]}
+                        for m in matieres_std
+                    ]
+                }
+            groups[group_key]["classes"].append(c.nom)
+
+        packs_matieres = list(groups.values())
+
     return render_template(
         'onboarding.html',
         ecole=ecole,
@@ -479,6 +643,7 @@ def onboarding():
         active_year=active_year,
         niveau_configs_grouped=niveau_configs_grouped,
         grouped_niveaux_classes=grouped_niveaux_classes,
+        packs_matieres=packs_matieres,
         form_data=form_data
     )
 

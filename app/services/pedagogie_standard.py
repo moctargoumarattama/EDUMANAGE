@@ -294,6 +294,110 @@ def injecter_matieres_standard(
     return cours_crees, None
 
 
+def injecter_matieres_onboarding(
+    ecole_id: int,
+    annee_id: int,
+    matieres_par_niveau: Dict[Any, List[Dict[str, Any]]],
+) -> Tuple[List[Cours], Optional[str]]:
+    """
+    Injecte les cours et coefficients configurés lors de l'onboarding pour chaque groupe de niveau/série.
+    Associe les cours à toutes les classes concernées de l'année scolaire active.
+    Évite les doublons au sein de chaque classe (comparaison normalisée insensible à la casse et espaces).
+
+    :param ecole_id: ID de l'établissement
+    :param annee_id: ID de l'année scolaire active
+    :param matieres_par_niveau: Dictionnaire {group_key: [{'nom': str, 'coefficient': float}, ...]}
+                                où group_key peut être 'niveau_id' ou 'niveau_id:serie'
+    :return: (cours_crees, erreur_eventuelle)
+    """
+    if not ecole_id or not annee_id:
+        return [], "Identifiants école ou année manquants."
+
+    annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
+    if not annee:
+        return [], "Année scolaire introuvable pour cet établissement."
+    if annee.statut == "archivee":
+        return [], "Impossible de configurer les matières dans une année scolaire archivée."
+
+    if not matieres_par_niveau:
+        return [], "Aucune matière fournie."
+
+    cours_crees: List[Cours] = []
+
+    for group_key, matieres_list in matieres_par_niveau.items():
+        if not matieres_list:
+            continue
+
+        # Résolution de la clé
+        key_str = str(group_key).strip()
+        niveau_id = None
+        serie = None
+
+        if ":" in key_str:
+            parts = key_str.split(":", 1)
+            try:
+                niveau_id = int(parts[0].strip())
+            except (ValueError, TypeError):
+                continue
+            serie_raw = parts[1].strip().upper()
+            serie = serie_raw if serie_raw else None
+        else:
+            try:
+                niveau_id = int(key_str)
+            except (ValueError, TypeError):
+                continue
+
+        # Trouver toutes les classes correspondantes dans cette école pour cette année
+        query = Classe.query.filter_by(
+            ecole_id=ecole_id,
+            annee_scolaire_id=annee_id,
+            niveau_id=niveau_id,
+        )
+        classes = query.all()
+
+        if serie:
+            classes = [c for c in classes if (c.section or "").strip().upper() == serie]
+
+        if not classes:
+            continue
+
+        for classe in classes:
+            cours_existants = Cours.query.filter_by(ecole_id=ecole_id, classe_id=classe.id).all()
+            existing_normalized = {" ".join(c.nom.split()).lower() for c in cours_existants if c.nom}
+
+            for item in matieres_list:
+                nom = str(item.get("nom") or item.get("name") or "").strip()
+                if not nom:
+                    continue
+
+                try:
+                    coeff = float(item.get("coefficient") or item.get("coef") or 1.0)
+                    if coeff <= 0:
+                        coeff = 1.0
+                except (ValueError, TypeError):
+                    coeff = 1.0
+
+                norm_nom = " ".join(nom.split()).lower()
+                if norm_nom in existing_normalized:
+                    continue
+
+                cours = Cours(
+                    nom=nom,
+                    coefficient=coeff,
+                    ecole_id=ecole_id,
+                    classe_id=classe.id,
+                    professeur_id=None,
+                )
+                db.session.add(cours)
+                cours_crees.append(cours)
+                existing_normalized.add(norm_nom)
+
+    if cours_crees:
+        db.session.commit()
+
+    return cours_crees, None
+
+
 # -----------------------------------------------------------------------------
 # 4. ÉTAT D'AVANCEMENT POUR LE GUIDAGE PAS-À-PAS DU DASHBOARD
 # -----------------------------------------------------------------------------

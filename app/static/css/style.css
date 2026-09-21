@@ -1822,6 +1822,7 @@ textarea {
     word-break: break-word;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
@@ -4480,6 +4481,7 @@ body.auth-layout .main-content > .container {
         line-height: 1.08 !important;
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
@@ -5790,20 +5792,22 @@ body.auth-layout .main-content > .container {
    PARCOURS D'ONBOARDING & VISITE GUIDÉE SPOTLIGHT (KLASORA)
    ========================================================================== */
 
-/* Layout Onboarding Dédié */
+/* Layout Onboarding Dédié (PC élargi & adaptatif au zoom) */
 body.onboarding-layout {
     background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 2.5rem 1.25rem;
+    padding: clamp(0.5rem, 1.5vh, 1.25rem) clamp(0.75rem, 2.5vw, 3rem);
+    overflow-y: auto;
 }
 
 body.onboarding-layout .main-content {
     width: 100%;
-    max-width: 1000px; /* Élargi sur PC au lieu du 680px étroit */
+    max-width: min(1560px, 96vw); /* Élargi sur grand écran PC */
     margin: auto;
     padding: 0;
 }
@@ -5815,39 +5819,89 @@ body.onboarding-layout .main-content {
 
 .onboarding-card {
     background: #ffffff;
-    border-radius: 22px;
-    padding: 2.25rem;
-    border: 1px solid rgba(226, 232, 240, 0.85);
-    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.03) !important;
+    border-radius: 20px;
+    padding: clamp(0.85rem, 1.6vh, 1.35rem) clamp(1rem, 2vw, 2rem);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 16px 42px rgba(15, 23, 42, 0.08), 0 3px 10px rgba(15, 23, 42, 0.03) !important;
+    max-height: calc(100vh - 2.5rem);
+    max-height: calc(100dvh - 2.5rem);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 /* Grille 2 colonnes Desktop (Sidebar gauche + Panneau principal droit) */
 .onboarding-grid {
     display: grid;
-    grid-template-columns: 320px 1fr;
-    gap: 2.5rem;
+    grid-template-columns: clamp(250px, 20vw, 290px) 1fr;
+    gap: clamp(1rem, 2vw, 2rem);
     align-items: stretch;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 /* Colonne Gauche Desktop */
 .onboarding-sidebar {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 18px;
-    padding: 1.75rem 1.5rem;
+    border-radius: 16px;
+    padding: clamp(0.75rem, 1.4vh, 1.15rem) clamp(0.65rem, 1vw, 1rem);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .onboarding-logo {
-    height: 44px;
-    max-width: 165px;
+    height: 40px;
+    max-width: 160px;
     object-fit: contain;
 }
 
 .onboarding-school-badge {
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    font-size: 0.84rem;
+    font-size: 0.82rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Barre de validation sticky anti-coupure par le zoom */
+.onboarding-submit-bar {
+    position: sticky;
+    bottom: 0;
+    background: #ffffff;
+    z-index: 30;
+    margin-top: auto;
+    padding-top: 0.65rem;
+    padding-bottom: 0.25rem;
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -4px 14px rgba(15, 23, 42, 0.05);
+}
+
+/* Puces interactives des niveaux scolaires (Offre pédagogique) */
+.niveau-label-chip {
+    transition: all 0.15s ease;
+    user-select: none;
+}
+.niveau-label-chip:hover {
+    border-color: #4361ee !important;
+    background-color: #f8fafc !important;
+}
+.niveau-label-chip:has(.niveau-checkbox:checked) {
+    border-color: #4361ee !important;
+    background-color: #eff6ff !important;
+}
+
+.matieres-scroll-container,
+.classes-scroll-container,
+.pedagogie-scroll-container {
+    flex: 1 1 auto;
+    min-height: 120px;
+    max-height: clamp(160px, calc(100vh - 350px), 520px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 4px;
 }
 
 /* ==============================================
@@ -6293,67 +6347,122 @@ body.onboarding-layout .main-content {
     }
 
     .onboarding-card {
-        padding: 1.65rem 1.35rem;
-        border-radius: 22px;
+        padding: 0.75rem 0.65rem 1rem 0.65rem;
+        border-radius: 16px;
         border: 1px solid rgba(226, 232, 240, 0.95);
         box-shadow: 0 16px 42px rgba(30, 41, 59, 0.09) !important;
         background: #ffffff;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow-x: hidden;
     }
 
     .onboarding-logo-mobile {
-        height: 48px;
-        max-width: 175px;
+        height: 28px;
+        max-width: 110px;
         object-fit: contain;
     }
 
     .onboarding-school-badge-mobile {
         background: #f8fafc;
         border: 1px solid #e2e8f0;
-        font-size: 0.82rem;
+        font-size: 0.75rem;
+        padding: 0.15rem 0.5rem;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
     }
 
     .onboarding-mobile-steps {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 0.35rem;
+        display: flex !important;
+        justify-content: center;
+        align-items: center;
+        gap: 0.2rem;
         width: 100%;
-        padding: 0.15rem 0 0.35rem;
+        padding: 0.05rem 0;
+        margin-top: 0.2rem;
     }
 
     .m-step-chip {
+        display: inline-flex;
+        align-items: center;
         justify-content: center;
-        min-width: 0;
+        transition: all 0.2s ease;
+    }
+
+    .m-step-chip.m-step-compact {
+        width: 24px;
+        height: 24px;
+        min-width: 24px;
+        padding: 0;
+        border-radius: 50%;
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+    }
+
+    .m-step-chip.m-step-compact .m-step-badge {
+        width: 100%;
+        height: 100%;
+        font-size: 0.65rem;
+        background: transparent;
+        color: #64748b;
+    }
+
+    .m-step-chip.m-step-compact.done {
+        background: #ecfdf5;
+        border-color: rgba(16, 185, 129, 0.4);
+    }
+
+    .m-step-chip.m-step-compact.done .m-step-badge {
+        color: #10b981;
+    }
+
+    .m-step-chip.m-step-expanded {
+        padding: 0.15rem 0.5rem;
         gap: 0.25rem;
-        padding: 0.32rem 0.28rem;
-        font-size: 0.68rem;
-    }
-
-    .m-step-badge {
-        width: 18px;
-        height: 18px;
-        font-size: 0.6rem;
-    }
-
-    .m-step-divider {
-        display: none;
-    }
-
-    .m-step-label {
-        overflow: hidden;
-        text-overflow: ellipsis;
+        border-radius: 9999px;
+        background: #eff6ff;
+        border: 1px solid rgba(67, 97, 238, 0.4);
+        color: #4361ee;
+        font-weight: 700;
+        font-size: 0.72rem;
+        box-shadow: 0 2px 6px rgba(67, 97, 238, 0.12);
         white-space: nowrap;
     }
 
+    .m-step-chip.m-step-expanded .m-step-badge {
+        width: 16px;
+        height: 16px;
+        font-size: 0.58rem;
+        background: #4361ee;
+        color: #ffffff;
+    }
+
+    .m-step-divider {
+        display: block !important;
+        width: 5px;
+        height: 2px;
+        background: #cbd5e1;
+        border-radius: 2px;
+        flex-shrink: 0;
+    }
+
+    .m-step-divider.done {
+        background: #10b981;
+    }
+
+    .m-step-label {
+        letter-spacing: -0.01em;
+    }
+
     .onboarding-title {
-        font-size: 1.28rem !important;
+        font-size: 1.05rem !important;
         font-weight: 700;
         color: #0f172a;
+        margin-bottom: 0.15rem !important;
     }
 
     .onboarding-pane-header {
-        padding-bottom: 0.75rem;
-        margin-bottom: 1.15rem !important;
+        padding-bottom: 0.2rem;
+        margin-bottom: 0.5rem !important;
     }
 
     .onboarding-form .form-label {
@@ -7945,3 +8054,47 @@ body.support-modal-open {
     gap: 0.75rem;
 }
 
+/* Champs de saisie de coefficient fiables, centrés et épurés */
+.coef-input {
+    width: 58px !important;
+    min-width: 50px !important;
+    max-width: 68px !important;
+    text-align: center !important;
+    font-weight: 700 !important;
+    font-size: 0.92rem !important;
+    padding: 0.32rem 0.25rem !important;
+    border-radius: 8px !important;
+    border: 1px solid #cbd5e1 !important;
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+    appearance: textfield !important;
+    -moz-appearance: textfield !important;
+    -webkit-appearance: none !important;
+}
+
+.coef-input::-webkit-outer-spin-button,
+.coef-input::-webkit-inner-spin-button {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+}
+
+.coef-input:focus {
+    border-color: #4361ee !important;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15) !important;
+    outline: none !important;
+}
+
+/* Accordéon onboarding matières : suppression chevron natif et rotation flèche personnalisée */
+#accordionMatieres .accordion-button::after {
+    display: none !important;
+}
+
+#accordionMatieres .accordion-button .accordion-icon-arrow {
+    transition: transform 0.25s ease;
+    display: inline-block;
+}
+
+#accordionMatieres .accordion-button:not(.collapsed) .accordion-icon-arrow {
+    transform: rotate(180deg);
+}

@@ -25,7 +25,7 @@
                         </div>
                         <div>
                             <h2 class="form-header-title">Modifier le cours</h2>
-                            <p class="form-header-subtitle">{{ cours.nom }} &bull; Coefficient : {{ cours.coefficient or '1' }}</p>
+                            <p class="form-header-subtitle">{{ cours.nom }} &bull; Coefficient : {{ cours.coefficient|int if (cours.coefficient and cours.coefficient == cours.coefficient|int) else (cours.coefficient or '1') }}</p>
                         </div>
                     </div>
                 </div>
@@ -46,7 +46,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     {{ form.coefficient.label(class="form-label") }}
-                                    {{ form.coefficient(class="form-control") }}
+                                    {{ form.coefficient(class="form-control", placeholder="1", step="any") }}
                                 </div>
                                 <div class="col-md-6">
                                     {{ form.professeur_id.label(class="form-label") }}

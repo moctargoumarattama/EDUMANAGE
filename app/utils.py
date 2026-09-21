@@ -154,19 +154,25 @@ def get_annee_active(ecole_id=None) -> Optional['AnneeScolaire']:
     return annee
 
 
-def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[str, Any]:
-    """
-    Détermine l'état de configuration d'une école (onboarding).
+_ecoles_identite_validee = set()
 
-    Règles révisées :
-    1. Si ecole.onboarding_complete == True, le setup est définitif (setup_complete = True).
-    2. Sinon, on évalue l'étape du wizard (current_step = 'year', 'pedagogie', ou 'complete')
-       selon la présence de l'année active et de la configuration pédagogique.
+
+def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[str, Any]:
+    """Évalue l'état d'avancement de la configuration initiale d'une école.
+
+    Enchaînement canonique des étapes (wizard /onboarding) :
+    1. 'year' : Année scolaire active créée
+    2. 'semestres' : Périodes / semestres configurés
+    3. 'pedagogie' : Niveaux scolaires activés
+    4. 'classes' : Au moins une classe créée pour l'année active
+    5. 'matieres' : Au moins un cours / matière configuré pour les classes
+    6. 'identite' : Coordonnées, ville, slogan et logo configurés
+    7. 'complete' : Configuration terminée, accès au dashboard
 
     Returns:
         dict avec setup_complete et current_step.
     """
-    from app.models import AnneeNiveauConfig, AnneeScolaire, Classe, NiveauScolaire, Ecole
+    from app.models import AnneeNiveauConfig, AnneeScolaire, Classe, Cours, NiveauScolaire, Ecole
     from app.middleware import get_ecole_id
     from app.services.semestres import calendrier_configure
 
@@ -178,6 +184,8 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
             'has_class': False,
             'has_pedagogie': False,
             'has_semestres': False,
+            'has_cours': False,
+            'has_identite': False,
             'setup_complete': False,
             'current_step': 'year'
         }
@@ -203,6 +211,8 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
             'has_class': True,  # Valeurs non bloquantes
             'has_pedagogie': True,
             'has_semestres': True,
+            'has_cours': True,
+            'has_identite': True,
             'setup_complete': True,
             'current_step': 'complete'
         }
@@ -214,6 +224,8 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
                 'has_class': False,
                 'has_pedagogie': False,
                 'has_semestres': False,
+                'has_cours': False,
+                'has_identite': False,
                 'setup_complete': False,
                 'current_step': 'year'
             }
@@ -233,16 +245,29 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
                 annee_scolaire_id=active_year.id
             ).with_entities(Classe.id).first() is not None
             has_semestres = calendrier_configure(target_ecole_id, active_year.id)
-
-            skip_classes = False
-            try:
-                from flask import session
-                skip_classes = bool(
-                    session.get(f'onboarding_skip_classes_{target_ecole_id}') or
-                    session.get('onboarding_skip_classes')
+            has_cours = False
+            if has_class:
+                has_cours = (
+                    Cours.query.filter_by(ecole_id=target_ecole_id)
+                    .filter(
+                        Cours.classe_id.in_(
+                            Classe.query.filter_by(
+                                ecole_id=target_ecole_id,
+                                annee_scolaire_id=active_year.id,
+                            ).with_entities(Classe.id)
+                        )
+                    )
+                    .first()
+                    is not None
                 )
-            except (RuntimeError, AttributeError):
-                skip_classes = False
+
+            has_identite = target_ecole_id in _ecoles_identite_validee
+            if not has_identite:
+                try:
+                    from flask import session
+                    has_identite = bool(session.get(f'onboarding_identite_done_{target_ecole_id}'))
+                except (RuntimeError, AttributeError):
+                    pass
 
             if not has_semestres:
                 result = {
@@ -251,6 +276,8 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
                     'has_class': False,
                     'has_pedagogie': False,
                     'has_semestres': False,
+                    'has_cours': False,
+                    'has_identite': False,
                     'setup_complete': False,
                     'current_step': 'semestres'
                 }
@@ -261,27 +288,57 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
                     'has_class': False,
                     'has_pedagogie': False,
                     'has_semestres': True,
+                    'has_cours': False,
+                    'has_identite': False,
                     'setup_complete': False,
                     'current_step': 'pedagogie'
                 }
-            elif not has_class and not skip_classes:
+            elif not has_class:
                 result = {
                     'has_active_year': True,
                     'active_year': active_year,
                     'has_class': False,
                     'has_pedagogie': True,
                     'has_semestres': True,
+                    'has_cours': False,
+                    'has_identite': False,
                     'setup_complete': False,
                     'current_step': 'classes'
+                }
+            elif not has_cours:
+                result = {
+                    'has_active_year': True,
+                    'active_year': active_year,
+                    'has_class': True,
+                    'has_pedagogie': True,
+                    'has_semestres': True,
+                    'has_cours': False,
+                    'has_identite': False,
+                    'setup_complete': False,
+                    'current_step': 'matieres'
+                }
+            elif not has_identite:
+                result = {
+                    'has_active_year': True,
+                    'active_year': active_year,
+                    'has_class': True,
+                    'has_pedagogie': True,
+                    'has_semestres': True,
+                    'has_cours': True,
+                    'has_identite': False,
+                    'setup_complete': False,
+                    'current_step': 'identite'
                 }
             else:
                 result = {
                     'has_active_year': True,
                     'active_year': active_year,
-                    'has_class': has_class,
+                    'has_class': True,
                     'has_pedagogie': True,
                     'has_semestres': True,
-                    'setup_complete': False, # Pas encore validé manuellement
+                    'has_cours': True,
+                    'has_identite': True,
+                    'setup_complete': False,  # Pas encore validé manuellement
                     'current_step': 'complete'
                 }
 

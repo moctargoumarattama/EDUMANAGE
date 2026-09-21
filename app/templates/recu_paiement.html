@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Recu de Paiement #{{ numero }}{% endblock %}
 
@@ -42,6 +42,9 @@
                     {% endif %}
                     <div class="receipt-school-text">
                         <h2>{{ ecole.nom if ecole else "Etablissement non renseigne" }}</h2>
+                        {% if ecole and (ecole.devise or ecole.slogan) %}
+                        <div class="receipt-motto" style="font-size: 0.78rem; font-style: italic; color: #64748B; margin-top: 0.05rem; margin-bottom: 0.15rem;">« {{ ecole.devise or ecole.slogan }} »</div>
+                        {% endif %}
                         {% if ecole and ecole.adresse %}<div>{{ ecole.adresse }}</div>{% endif %}
                         {% if ecole and (ecole.telephone or ecole.email) %}
                         <div class="receipt-contact">

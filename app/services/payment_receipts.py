@@ -184,13 +184,16 @@ def generate_payment_receipt_pdf(context):
     school_lines = []
     ecole = context.get("ecole")
     if ecole:
+        slogan_val = getattr(ecole, 'devise', '') or getattr(ecole, 'slogan', '')
+        if slogan_val:
+            school_lines.append(f"« {slogan_val.strip()} »")
         if ecole.adresse:
             school_lines.append(ecole.adresse)
         contact = " | ".join(v for v in [ecole.telephone, ecole.email] if v)
         if contact:
             school_lines.append(contact)
-    for idx, line in enumerate(school_lines[:2]):
-        pdf.drawString(text_x, top - (22 + idx * 5) * mm, line[:90])
+    for idx, line in enumerate(school_lines[:3]):
+        pdf.drawString(text_x, top - (21 + idx * 4.5) * mm, line[:90])
 
     pdf.setFillColor(colors.HexColor("#10233F"))
     pdf.roundRect(width - margin - 42 * mm, top - 28 * mm, 34 * mm, 22 * mm, 5, stroke=0, fill=1)

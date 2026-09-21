@@ -77,6 +77,9 @@
                 </div>
             {% endif %}
             <h5 class="fw-bold mb-0 text-dark" style="letter-spacing: 0.3px;">{{ (ecole.nom if ecole else 'ÉTABLISSEMENT SCOLAIRE') | upper }}</h5>
+            {% if ecole and (ecole.devise or ecole.slogan) %}
+                <div class="text-secondary small fst-italic mb-0.5">« {{ ecole.devise or ecole.slogan }} »</div>
+            {% endif %}
             <div class="text-muted small">Portail Officiel d'Identification Scolaire</div>
         </div>
 

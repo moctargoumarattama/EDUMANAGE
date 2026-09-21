@@ -68,7 +68,7 @@ def choisir_ecole():
 def gestion_ecoles():
     """Gestion des écoles (super-admin seulement)"""
     try:
-        from app.models import Classe, Eleve, Professeur
+        from app.models import Classe, Eleve, Professeur, AnneeScolaire
         ecoles = get_ecole_filter_query(Ecole).order_by(Ecole.id.desc()).all()
         total_eleves = 0
         for ecole in ecoles:
@@ -79,10 +79,12 @@ def gestion_ecoles():
             ecole.deletion_days_remaining = days_until_school_deletion(ecole)
             ecole.deletion_eligible = is_school_deletion_eligible(ecole)
             total_eleves += ecole.nb_eleves
-            if not ecole.email:
-                admin_user = Utilisateur.query.filter_by(ecole_id=ecole.id, role='admin').first()
-                if admin_user and admin_user.email:
-                    ecole.email = admin_user.email
+            admin_user = Utilisateur.query.filter_by(ecole_id=ecole.id, role='admin').first()
+            ecole.admin_user = admin_user
+            if not ecole.email and admin_user and admin_user.email:
+                ecole.email = admin_user.email
+            annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole.id, statut='active').first()
+            ecole.annee_active = annee_active.nom if annee_active else 'Non configurée'
 
         stats = {
             'total_ecoles': len(ecoles),
@@ -90,7 +92,15 @@ def gestion_ecoles():
             'ecoles_bloquees': sum(1 for e in ecoles if is_school_disabled(e)),
             'total_eleves': total_eleves,
         }
-        return render_template('admin/ecoles.html', ecoles=ecoles, stats=stats)
+
+        # Récupérer (et supprimer de la session) le mot de passe auto-généré pour affichage temporaire
+        mdp_auto = session.pop('_mdp_auto_ecole', None)
+        mdp_auto_email = session.pop('_mdp_auto_email', None)
+        mdp_auto_nom = session.pop('_mdp_auto_nom', None)
+
+        return render_template('admin/ecoles.html', ecoles=ecoles, stats=stats,
+                               mdp_auto=mdp_auto, mdp_auto_email=mdp_auto_email,
+                               mdp_auto_nom=mdp_auto_nom)
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur récupération écoles : {e}")
@@ -106,11 +116,14 @@ def ajouter_ecole():
     """Ajouter une nouvelle ecole et son administrateur"""
     if request.method == 'POST':
         try:
-            nom_ecole    = request.form.get('nom_ecole', '').strip()
-            adresse      = request.form.get('adresse', '').strip()
-            telephone    = request.form.get('telephone', '').strip()
-            email_admin  = request.form.get('email_admin', '').strip()
-            mot_de_passe = request.form.get('mot_de_passe', '').strip() or generate_access_code()
+            nom_ecole    = request.form.get('nom_ecole', '').strip()[:200]
+            adresse      = request.form.get('adresse', '').strip()[:300]
+            ville        = request.form.get('ville', '').strip()[:100]
+            telephone    = request.form.get('telephone', '').strip()[:20]
+            email_admin  = request.form.get('email_admin', '').strip()[:120]
+            mot_de_passe_saisi = request.form.get('mot_de_passe', '').strip()
+            mot_de_passe_auto = not bool(mot_de_passe_saisi)
+            mot_de_passe = mot_de_passe_saisi or generate_access_code()
 
             if not nom_ecole:
                 flash("Le nom de l'école est obligatoire.", "danger")
@@ -127,8 +140,9 @@ def ajouter_ecole():
             # Création école (un seul nom et un seul email)
             ecole = Ecole(
                 nom=nom_ecole,
-                adresse=adresse,
-                telephone=telephone,
+                adresse=adresse or None,
+                ville=ville or None,
+                telephone=telephone or None,
                 email=email_admin,
                 statut='active'
             )
@@ -155,6 +169,13 @@ def ajouter_ecole():
                 mot_de_passe=mot_de_passe
             )
             email_ok = envoyer_email(admin.email, sujet, corps, context="welcome_school")
+
+            # Stocker le mot de passe auto-généré en session pour affichage temporaire
+            if mot_de_passe_auto:
+                session['_mdp_auto_ecole'] = mot_de_passe
+                session['_mdp_auto_email'] = email_admin
+                session['_mdp_auto_nom'] = nom_ecole
+
             if email_ok:
                 current_app.logger.info("EMAIL_SUCCESS_HANDLED type=welcome_school recipient=%s", admin.email)
                 flash(f"École « {ecole.nom} » créée avec succès ✅", "success")
@@ -193,6 +214,42 @@ def api_ecoles():
     except Exception as e:
         current_app.logger.error(f"Erreur API écoles : {e}")
         return jsonify([]), 500
+
+
+@main.route('/api/ecoles/<int:ecole_id>/details')
+@login_required
+@role_required('super_admin')
+def api_ecole_details(ecole_id):
+    """API renvoyant les informations complètes d'une école pour la modale 'Voir plus'"""
+    try:
+        from app.models import Classe, Eleve, Professeur, AnneeScolaire
+        ecole = Ecole.query.get_or_404(ecole_id)
+        annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole.id, statut='active').first()
+
+        data = {
+            'id': ecole.id,
+            'nom': ecole.nom,
+            'adresse': ecole.adresse or '',
+            'ville': ecole.ville or '',
+            'telephone': ecole.telephone or '',
+            'email': ecole.email or '',
+            'slogan': ecole.slogan or ecole.devise or '',
+            'statut': ecole.statut,
+            'motif_blocage': ecole.motif_blocage or '',
+            'disabled_at': ecole.disabled_at.strftime('%d/%m/%Y %H:%M') if ecole.disabled_at else None,
+            'date_creation': ecole.date_creation.strftime('%d/%m/%Y à %H:%M') if ecole.date_creation else '',
+            'logo_url': url_for('static', filename=ecole.logo_path) if ecole.logo_path and ecole.logo_path != 'default_logo.png' else '',
+            'onboarding_complete': bool(ecole.onboarding_complete),
+            'annee_active': annee_active.nom if annee_active else 'Non configurée',
+            'nb_eleves': Eleve.query.filter_by(ecole_id=ecole.id).count(),
+            'nb_classes': Classe.query.filter_by(ecole_id=ecole.id).count(),
+            'nb_profs': Professeur.query.filter_by(ecole_id=ecole.id).count(),
+        }
+        return jsonify({'success': True, 'ecole': data})
+    except Exception as e:
+        current_app.logger.error(f"Erreur API détails école {ecole_id}: {e}")
+        return jsonify({'success': False, 'message': "Erreur lors de la récupération des détails de l'école"}), 500
+
 
 @main.route('/admin/ecoles/<int:ecole_id>/assigner', methods=['POST'])
 @login_required
@@ -401,10 +458,11 @@ def modifier_ecole(ecole_id):
     """Modifier les informations d'un établissement (un seul nom, un seul email)"""
     ecole = Ecole.query.get_or_404(ecole_id)
     try:
-        nom = request.form.get('nom', '').strip()
-        email = request.form.get('email', '').strip()
-        telephone = request.form.get('telephone', '').strip()
-        adresse = request.form.get('adresse', '').strip()
+        nom = request.form.get('nom', '').strip()[:200]
+        email = request.form.get('email', '').strip()[:120]
+        telephone = request.form.get('telephone', '').strip()[:20]
+        adresse = request.form.get('adresse', '').strip()[:300]
+        ville = request.form.get('ville', '').strip()[:100]
 
         if not nom:
             flash("Le nom de l'école est obligatoire.", "danger")
@@ -430,6 +488,7 @@ def modifier_ecole(ecole_id):
         ecole.email = email
         ecole.telephone = telephone or None
         ecole.adresse = adresse or None
+        ecole.ville = ville or None
 
         # Synchronisation de l'administrateur de l'école
         if admin:
@@ -528,6 +587,48 @@ def supprimer_ecole_action(ecole_id):
     return redirect(url_for('main.gestion_ecoles'))
 
 
+@main.route('/admin/ecoles/<int:ecole_id>/reset-mdp', methods=['POST'])
+@login_required
+@role_required('super_admin')
+def reset_mdp_ecole(ecole_id):
+    """Génère un nouveau mot de passe pour l'administrateur de l'école et l'envoie par email"""
+    try:
+        ecole = Ecole.query.get_or_404(ecole_id)
+        admin = Utilisateur.query.filter_by(ecole_id=ecole.id, role='admin').first()
+
+        if not admin:
+            return jsonify({'success': False, 'message': "Aucun compte administrateur trouvé pour cette école."}), 404
+
+        if not admin.email:
+            return jsonify({'success': False, 'message': "L'administrateur n'a pas d'adresse email valide."}), 400
+
+        nouveau_mdp = generate_access_code()
+        admin.mot_de_passe = generate_password_hash(nouveau_mdp)
+        db.session.commit()
+
+        sujet = f"Réinitialisation de votre mot de passe — KLASORA ({ecole.nom})"
+        corps = render_template(
+            'emails/reinitialisation_mdp.html',
+            ecole=ecole,
+            admin=admin,
+            mot_de_passe=nouveau_mdp
+        )
+        email_ok = envoyer_email(admin.email, sujet, corps, context="reset_school_mdp")
+
+        return jsonify({
+            'success': True,
+            'nouveau_mdp': nouveau_mdp,
+            'email_envoye': email_ok,
+            'email': admin.email,
+            'ecole_nom': ecole.nom
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erreur réinitialisation MDP école {ecole_id}: {e}")
+        return jsonify({'success': False, 'message': "Une erreur interne est survenue."}), 500
+
+
 @main.route('/api/ecoles/<int:ecole_id>', methods=['DELETE'])
 @login_required
 @role_required('super_admin')
@@ -577,15 +678,19 @@ def profil_ecole():
 
     if request.method == 'POST':
         try:
-            nom = request.form.get('nom', '').strip()
-            adresse = request.form.get('adresse', '').strip()
-            telephone = request.form.get('telephone', '').strip()
-            email = request.form.get('email', '').strip()
-            directeur = request.form.get('directeur', '').strip()
-            ville = request.form.get('ville', '').strip()
+            nom = request.form.get('nom', '').strip()[:200]
+            adresse = request.form.get('adresse', '').strip()[:300]
+            telephone = request.form.get('telephone', '').strip()[:20]
+            email = request.form.get('email', '').strip()[:120]
+            directeur = request.form.get('directeur', '').strip()[:100]
+            ville = request.form.get('ville', '').strip()[:100]
+            slogan = (request.form.get('slogan') or request.form.get('devise', '')).strip()[:250]
 
             if nom:
                 ecole.nom = nom
+                admin = Utilisateur.query.filter_by(ecole_id=ecole.id, role='admin').first()
+                if admin:
+                    admin.nom = nom
             ecole.adresse = adresse or None
             ecole.telephone = telephone or None
             if current_user.role == 'super_admin':
@@ -593,6 +698,8 @@ def profil_ecole():
             ecole.directeur = directeur or None
             if hasattr(ecole, 'ville'):
                 ecole.ville = ville or None
+            if slogan:
+                ecole.slogan = slogan
 
             if 'logo' in request.files:
                 file = request.files['logo']

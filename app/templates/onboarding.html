@@ -5,38 +5,50 @@
 {% block content %}
 <div class="onboarding-wrapper">
     <div class="onboarding-card shadow-lg">
-        <div class="onboarding-mobile-header d-lg-none text-center mb-3 pb-2 border-bottom">
-            <div class="onboarding-brand-mobile mb-2">
-                <img src="{{ url_for('static', filename='img/logo-klasora.png') }}" alt="KLASORA" class="onboarding-logo-mobile">
+        <div class="onboarding-mobile-header d-lg-none mb-2 pb-2 border-bottom">
+            <div class="d-flex align-items-center justify-content-between gap-2 mb-1.5 px-1">
+                <div class="d-inline-flex align-items-center">
+                    <img src="{{ url_for('static', filename='img/logo-klasora.png') }}" alt="KLASORA" class="onboarding-logo-mobile">
+                </div>
+                <div class="d-inline-flex align-items-center gap-1.5 px-2.5 py-1 rounded-pill onboarding-school-badge-mobile">
+                    <i class="fas fa-school text-primary" style="font-size: 0.72rem;"></i>
+                    <span class="fw-semibold text-dark text-truncate" style="max-width: 170px; font-size: 0.78rem;">{{ ecole.nom if ecole else 'Votre etablissement' }}</span>
+                </div>
             </div>
-            <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill onboarding-school-badge-mobile mb-2">
-                <i class="fas fa-school text-primary"></i>
-                <span class="fw-semibold text-dark text-truncate" style="max-width: 240px;">{{ ecole.nom if ecole else 'Votre etablissement' }}</span>
-            </div>
-            <div class="onboarding-mobile-steps d-flex justify-content-center align-items-center gap-2 mt-1">
-                <div class="m-step-chip {% if step in ['year', 'semestres', 'pedagogie', 'classes', 'complete'] %}active{% endif %} {% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}done{% endif %}">
-                    <span class="m-step-badge">{% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}<i class="fas fa-check"></i>{% else %}1{% endif %}</span>
-                    <span class="m-step-label">Annee</span>
+            <div class="onboarding-mobile-steps d-flex justify-content-center align-items-center gap-1 mt-0.5">
+                <div class="m-step-chip {% if step == 'year' %}active m-step-expanded{% else %}m-step-compact{% endif %} {% if step in ['semestres', 'pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}done{% endif %}" title="Année scolaire">
+                    <span class="m-step-badge">{% if step in ['semestres', 'pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}<i class="fas fa-check"></i>{% else %}1{% endif %}</span>
+                    {% if step == 'year' %}<span class="m-step-label">Année</span>{% endif %}
                 </div>
-                <div class="m-step-divider {% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}done{% endif %}"></div>
-                <div class="m-step-chip {% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}active{% endif %} {% if step in ['pedagogie', 'classes', 'complete'] %}done{% endif %}">
-                    <span class="m-step-badge">{% if step in ['pedagogie', 'classes', 'complete'] %}<i class="fas fa-check"></i>{% else %}2{% endif %}</span>
-                    <span class="m-step-label">Semestres</span>
+                <div class="m-step-divider {% if step in ['semestres', 'pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}done{% endif %}"></div>
+                <div class="m-step-chip {% if step == 'semestres' %}active m-step-expanded{% else %}m-step-compact{% endif %} {% if step in ['pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}done{% endif %}" title="Semestres">
+                    <span class="m-step-badge">{% if step in ['pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}<i class="fas fa-check"></i>{% else %}2{% endif %}</span>
+                    {% if step == 'semestres' %}<span class="m-step-label">Semestres</span>{% endif %}
                 </div>
-                <div class="m-step-divider {% if step in ['pedagogie', 'classes', 'complete'] %}done{% endif %}"></div>
-                <div class="m-step-chip {% if step in ['pedagogie', 'classes', 'complete'] %}active{% endif %} {% if step in ['classes', 'complete'] %}done{% endif %}">
-                    <span class="m-step-badge">{% if step in ['classes', 'complete'] %}<i class="fas fa-check"></i>{% else %}3{% endif %}</span>
-                    <span class="m-step-label">Niveaux</span>
+                <div class="m-step-divider {% if step in ['pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}done{% endif %}"></div>
+                <div class="m-step-chip {% if step == 'pedagogie' %}active m-step-expanded{% else %}m-step-compact{% endif %} {% if step in ['classes', 'matieres', 'identite', 'complete'] %}done{% endif %}" title="Niveaux scolaires">
+                    <span class="m-step-badge">{% if step in ['classes', 'matieres', 'identite', 'complete'] %}<i class="fas fa-check"></i>{% else %}3{% endif %}</span>
+                    {% if step == 'pedagogie' %}<span class="m-step-label">Niveaux</span>{% endif %}
                 </div>
-                <div class="m-step-divider {% if step in ['classes', 'complete'] %}done{% endif %}"></div>
-                <div class="m-step-chip {% if step in ['classes', 'complete'] %}active{% endif %} {% if step == 'complete' %}done{% endif %}">
-                    <span class="m-step-badge">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}4{% endif %}</span>
-                    <span class="m-step-label">Classes</span>
+                <div class="m-step-divider {% if step in ['classes', 'matieres', 'identite', 'complete'] %}done{% endif %}"></div>
+                <div class="m-step-chip {% if step == 'classes' %}active m-step-expanded{% else %}m-step-compact{% endif %} {% if step in ['matieres', 'identite', 'complete'] %}done{% endif %}" title="Classes">
+                    <span class="m-step-badge">{% if step in ['matieres', 'identite', 'complete'] %}<i class="fas fa-check"></i>{% else %}4{% endif %}</span>
+                    {% if step == 'classes' %}<span class="m-step-label">Classes</span>{% endif %}
+                </div>
+                <div class="m-step-divider {% if step in ['matieres', 'identite', 'complete'] %}done{% endif %}"></div>
+                <div class="m-step-chip {% if step == 'matieres' %}active m-step-expanded{% else %}m-step-compact{% endif %} {% if step in ['identite', 'complete'] %}done{% endif %}" title="Matières & Coefs">
+                    <span class="m-step-badge">{% if step in ['identite', 'complete'] %}<i class="fas fa-check"></i>{% else %}5{% endif %}</span>
+                    {% if step == 'matieres' %}<span class="m-step-label">Matières</span>{% endif %}
+                </div>
+                <div class="m-step-divider {% if step in ['identite', 'complete'] %}done{% endif %}"></div>
+                <div class="m-step-chip {% if step == 'identite' %}active m-step-expanded{% else %}m-step-compact{% endif %} {% if step == 'complete' %}done{% endif %}" title="Identité & Documents">
+                    <span class="m-step-badge">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}6{% endif %}</span>
+                    {% if step == 'identite' %}<span class="m-step-label">Identité</span>{% endif %}
                 </div>
                 <div class="m-step-divider {% if step == 'complete' %}done{% endif %}"></div>
-                <div class="m-step-chip {% if step == 'complete' %}active done{% endif %}">
+                <div class="m-step-chip {% if step == 'complete' %}active done m-step-expanded{% else %}m-step-compact{% endif %}" title="Prêt">
                     <span class="m-step-badge"><i class="fas fa-flag-checkered"></i></span>
-                    <span class="m-step-label">Pret</span>
+                    {% if step == 'complete' %}<span class="m-step-label">Prêt</span>{% endif %}
                 </div>
             </div>
         </div>
@@ -53,35 +65,51 @@
                     </div>
 
                     <div class="onboarding-vertical-stepper mb-4">
-                        <div class="v-step-item {% if step in ['year', 'semestres', 'pedagogie', 'classes', 'complete'] %}active{% endif %} {% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}completed{% endif %}">
-                            <div class="v-step-marker">{% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>1</span>{% endif %}</div>
+                        <div class="v-step-item {% if step in ['year', 'semestres', 'pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}active{% endif %} {% if step in ['semestres', 'pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}completed{% endif %}">
+                            <div class="v-step-marker">{% if step in ['semestres', 'pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>1</span>{% endif %}</div>
                             <div class="v-step-content">
                                 <div class="v-step-title">Annee scolaire</div>
                                 <div class="v-step-desc">Periode active obligatoire</div>
                             </div>
                         </div>
-                        <div class="v-step-line {% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}completed{% endif %}"></div>
-                        <div class="v-step-item {% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}active{% endif %} {% if step in ['pedagogie', 'classes', 'complete'] %}completed{% endif %}">
-                            <div class="v-step-marker">{% if step in ['pedagogie', 'classes', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>2</span>{% endif %}</div>
+                        <div class="v-step-line {% if step in ['semestres', 'pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}completed{% endif %}"></div>
+                        <div class="v-step-item {% if step in ['semestres', 'pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}active{% endif %} {% if step in ['pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}completed{% endif %}">
+                            <div class="v-step-marker">{% if step in ['pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>2</span>{% endif %}</div>
                             <div class="v-step-content">
                                 <div class="v-step-title">Semestres</div>
                                 <div class="v-step-desc">Calendrier S1 et S2</div>
                             </div>
                         </div>
-                        <div class="v-step-line {% if step in ['pedagogie', 'classes', 'complete'] %}completed{% endif %}"></div>
-                        <div class="v-step-item {% if step in ['pedagogie', 'classes', 'complete'] %}active{% endif %} {% if step in ['classes', 'complete'] %}completed{% endif %}">
-                            <div class="v-step-marker">{% if step in ['classes', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>3</span>{% endif %}</div>
+                        <div class="v-step-line {% if step in ['pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}completed{% endif %}"></div>
+                        <div class="v-step-item {% if step in ['pedagogie', 'classes', 'matieres', 'identite', 'complete'] %}active{% endif %} {% if step in ['classes', 'matieres', 'identite', 'complete'] %}completed{% endif %}">
+                            <div class="v-step-marker">{% if step in ['classes', 'matieres', 'identite', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>3</span>{% endif %}</div>
                             <div class="v-step-content">
                                 <div class="v-step-title">Offre pedagogique</div>
                                 <div class="v-step-desc">Cycles et niveaux proposes</div>
                             </div>
                         </div>
-                        <div class="v-step-line {% if step in ['classes', 'complete'] %}completed{% endif %}"></div>
-                        <div class="v-step-item {% if step in ['classes', 'complete'] %}active{% endif %} {% if step == 'complete' %}completed{% endif %}">
-                            <div class="v-step-marker">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}<span>4</span>{% endif %}</div>
+                        <div class="v-step-line {% if step in ['classes', 'matieres', 'identite', 'complete'] %}completed{% endif %}"></div>
+                        <div class="v-step-item {% if step in ['classes', 'matieres', 'identite', 'complete'] %}active{% endif %} {% if step in ['matieres', 'identite', 'complete'] %}completed{% endif %}">
+                            <div class="v-step-marker">{% if step in ['matieres', 'identite', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>4</span>{% endif %}</div>
                             <div class="v-step-content">
                                 <div class="v-step-title">Classes</div>
                                 <div class="v-step-desc">Sections et series en 1 clic</div>
+                            </div>
+                        </div>
+                        <div class="v-step-line {% if step in ['matieres', 'identite', 'complete'] %}completed{% endif %}"></div>
+                        <div class="v-step-item {% if step in ['matieres', 'identite', 'complete'] %}active{% endif %} {% if step in ['identite', 'complete'] %}completed{% endif %}">
+                            <div class="v-step-marker">{% if step in ['identite', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>5</span>{% endif %}</div>
+                            <div class="v-step-content">
+                                <div class="v-step-title">Matieres & Coefs</div>
+                                <div class="v-step-desc">Programme officiel pre-rempli</div>
+                            </div>
+                        </div>
+                        <div class="v-step-line {% if step in ['identite', 'complete'] %}completed{% endif %}"></div>
+                        <div class="v-step-item {% if step in ['identite', 'complete'] %}active{% endif %} {% if step == 'complete' %}completed{% endif %}">
+                            <div class="v-step-marker">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}<span>6</span>{% endif %}</div>
+                            <div class="v-step-content">
+                                <div class="v-step-title">Identite & Documents</div>
+                                <div class="v-step-desc">Logo, contact, ville et devise</div>
                             </div>
                         </div>
                         <div class="v-step-line {% if step == 'complete' %}completed{% endif %}"></div>
@@ -106,9 +134,13 @@
                             {% elif step == 'pedagogie' %}
                                 Les niveaux definissent votre offre. Vous pourrez ensuite generer rapidement les classes correspondantes.
                             {% elif step == 'classes' %}
-                                Cochez les sections existantes pour chaque niveau actif. Vous pouvez aussi ignorer cette etape et creer vos classes plus tard.
+                                Cochez les sections existantes pour chaque niveau actif afin de generer vos classes en un clic.
+                            {% elif step == 'matieres' %}
+                                Les matieres et coefficients officiels sont pre-remplis. Ajustez-les ou ajoutez vos matieres specifiques.
+                            {% elif step == 'identite' %}
+                                Personnalisez vos documents officiels : le logo, les contacts et la devise figureront sur les bulletins et reçus.
                             {% else %}
-                                Votre etablissement est pret. Vous pouvez commencer a inscrire vos eleves.
+                                Votre etablissement est pret avec ses classes et ses matieres. Vous pouvez commencer a inscrire vos eleves.
                             {% endif %}
                         </p>
                     </div>
@@ -127,7 +159,7 @@
                 {% if step == 'year' %}
                     <div class="onboarding-pane-header mb-3 mb-sm-4">
                         <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
-                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 1 sur 4</span>
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 1 sur 6</span>
                             <span class="text-muted small"><i class="fas fa-calendar-alt text-primary me-1"></i>Annee scolaire</span>
                         </div>
                         <h1 class="onboarding-title h4 fw-bold text-dark mb-1">Bienvenue sur KLASORA</h1>
@@ -159,7 +191,7 @@
                                 <input type="date" class="form-control" id="date_fin" name="date_fin" value="{{ form_data.get('date_fin', '') }}" required>
                             </div>
                         </div>
-                        <div class="d-grid mt-3 mt-sm-4">
+                        <div class="onboarding-submit-bar d-grid mt-auto pt-2 border-top">
                             <button type="submit" class="btn btn-primary btn-lg fw-semibold shadow-sm py-2.5 py-sm-3"><i class="fas fa-check-circle me-2"></i>Creer et activer l'annee scolaire</button>
                         </div>
                     </form>
@@ -186,7 +218,7 @@
                 {% elif step == 'semestres' %}
                     <div class="onboarding-pane-header mb-3 mb-sm-4">
                         <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
-                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 2 sur 4</span>
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 2 sur 6</span>
                             <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1"><i class="fas fa-check me-1"></i>Annee {{ active_year.nom if active_year else 'active' }}</span>
                         </div>
                         <h1 class="onboarding-title h4 fw-bold text-dark mb-1">Configurer les semestres</h1>
@@ -215,7 +247,7 @@
                             <div class="form-text small text-muted">Le Semestre 2 démarrera automatiquement le lendemain.</div>
                         </div>
 
-                        <div class="d-grid mt-3 mt-sm-4">
+                        <div class="onboarding-submit-bar d-grid mt-auto pt-2 border-top">
                             <button type="submit" class="btn btn-primary btn-lg fw-semibold shadow-sm py-2.5 py-sm-3">
                                 <i class="fas fa-calendar-week me-2"></i>Enregistrer les semestres
                             </button>
@@ -225,7 +257,7 @@
                 {% elif step == 'pedagogie' %}
                     <div class="onboarding-pane-header mb-3 mb-sm-4">
                         <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
-                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 3 sur 4</span>
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 3 sur 6</span>
                             <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1"><i class="fas fa-check me-1"></i>Annee {{ active_year.nom if active_year else 'active' }}</span>
                         </div>
                         <h1 class="onboarding-title h4 fw-bold text-dark mb-1">Configurer l'offre pedagogique</h1>
@@ -235,29 +267,62 @@
                     <form method="POST" action="{{ url_for('main.onboarding') }}" class="onboarding-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="configurer_pedagogie">
+
+                        <!-- Bandeau d'assistance rassurant pour les profils non-techniques -->
+                        <div class="alert alert-primary bg-primary-subtle border-primary-subtle d-flex align-items-start gap-2.5 py-2 px-2.5 rounded-3 mb-2.5 text-dark shadow-sm">
+                            <div class="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded-circle flex-shrink-0 mt-0.5" style="width: 26px; height: 26px; font-size: 0.85rem;">
+                                <i class="fas fa-lightbulb"></i>
+                            </div>
+                            <div style="font-size: 0.78rem; line-height: 1.35;">
+                                <strong class="text-primary d-block mb-0.5">💡 Cochez les cycles de votre établissement</strong>
+                                Sélectionnez les niveaux que vous proposez cette année. Vous pouvez cocher « Tout le cycle » en 1 clic pour aller vite.
+                            </div>
+                        </div>
+
                         {% set cycle_labels = {'primaire': 'Primaire', 'college': 'College', 'lycee': 'Lycee'} %}
-                        <div class="row g-2 g-sm-3 mb-3">
-                            {% for cycle_key, configs in niveau_configs_grouped.items() %}
-                                <div class="col-12 col-md-4">
-                                    <div class="border rounded-3 p-3 h-100 bg-light">
-                                        <div class="form-check mb-2">
-                                            <input class="form-check-input cycle-toggle" type="checkbox" id="cycle_{{ cycle_key }}" data-cycle="{{ cycle_key }}">
-                                            <label class="form-check-label fw-bold text-dark" for="cycle_{{ cycle_key }}">Tout le {{ cycle_labels.get(cycle_key, cycle_key) }}</label>
-                                        </div>
-                                        <div class="d-grid gap-1">
-                                            {% for config in configs %}
-                                                <label class="form-check small mb-0">
-                                                    <input class="form-check-input niveau-checkbox" type="checkbox" name="niveau_ids" value="{{ config.niveau_id }}" data-cycle="{{ cycle_key }}" {% if config.actif %}checked{% endif %}>
-                                                    <span class="form-check-label">{{ config.niveau.nom }}</span>
-                                                </label>
-                                            {% endfor %}
+                        {% set cycle_icons = {'primaire': 'fas fa-shapes', 'college': 'fas fa-book-open', 'lycee': 'fas fa-graduation-cap'} %}
+
+                        <div class="pedagogie-scroll-container mb-2" style="overflow-y: auto; overflow-x: hidden; width: 100%; padding-right: 4px;">
+                            <div class="row g-2 g-sm-3 mb-2">
+                                {% for cycle_key, configs in niveau_configs_grouped.items() %}
+                                    <div class="col-12 col-md-4">
+                                        <div class="border rounded-3 p-2.5 p-sm-3 h-100 bg-light shadow-sm">
+                                            <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                                                <div class="d-flex align-items-center gap-1.5">
+                                                    <i class="{{ cycle_icons.get(cycle_key, 'fas fa-layer-group') }} text-primary" style="font-size: 0.9rem;"></i>
+                                                    <span class="fw-bold text-dark" style="font-size: 0.92rem;">{{ cycle_labels.get(cycle_key, cycle_key) }}</span>
+                                                </div>
+                                                <span class="badge bg-white text-muted border small">{{ configs|length }} niveau(x)</span>
+                                            </div>
+
+                                            <div class="form-check mb-2.5 bg-white p-2 rounded-2 border">
+                                                <input class="form-check-input cycle-toggle ms-0 me-2" type="checkbox" id="cycle_{{ cycle_key }}" data-cycle="{{ cycle_key }}">
+                                                <label class="form-check-label fw-bold text-primary small cursor-pointer" for="cycle_{{ cycle_key }}">Tout le {{ cycle_labels.get(cycle_key, cycle_key) }}</label>
+                                            </div>
+
+                                            <div class="row row-cols-1 row-cols-xl-2 g-1.5">
+                                                {% for config in configs %}
+                                                    <div class="col">
+                                                        <label class="d-flex align-items-center gap-2 p-2 rounded-2 border bg-white small mb-0 cursor-pointer h-100 niveau-label-chip">
+                                                            <input class="form-check-input mt-0 niveau-checkbox flex-shrink-0" type="checkbox" name="niveau_ids" value="{{ config.niveau_id }}" data-cycle="{{ cycle_key }}" {% if config.actif %}checked{% endif %}>
+                                                            <span class="fw-semibold text-dark text-truncate" style="font-size: 0.84rem;">{{ config.niveau.nom }}</span>
+                                                        </label>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            {% endfor %}
+                                {% endfor %}
+                            </div>
                         </div>
-                        <div class="d-grid mt-3 mt-sm-4">
-                            <button type="submit" class="btn btn-primary btn-lg fw-semibold shadow-sm py-2.5 py-sm-3"><i class="fas fa-check-circle me-2"></i>Continuer</button>
+
+                        <div class="onboarding-submit-bar d-grid mt-auto pt-2 border-top">
+                            <button type="submit" class="btn btn-success btn-lg fw-bold shadow-sm py-2.5 py-sm-3 text-wrap px-2 d-flex align-items-center justify-content-center gap-2" id="btnValiderPedagogie" title="Enregistrer l'offre pedagogique et continuer">
+                                <span class="d-inline-flex align-items-center justify-content-center bg-white text-success rounded-circle shadow-sm flex-shrink-0" style="width: 24px; height: 24px; font-size: 0.82rem;">
+                                    <i class="fas fa-check"></i>
+                                </span>
+                                <span style="font-size: 0.96rem;">Valider l'offre et continuer vers les classes</span>
+                            </button>
                         </div>
                     </form>
 
@@ -284,7 +349,7 @@
                 {% elif step == 'classes' %}
                     <div class="onboarding-pane-header mb-3 mb-sm-4">
                         <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
-                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 4 sur 4</span>
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 4 sur 6</span>
                             <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1"><i class="fas fa-check me-1"></i>Niveaux enregistres</span>
                         </div>
                         <h1 class="onboarding-title h4 fw-bold text-dark mb-1">Creation rapide de vos classes</h1>
@@ -295,7 +360,7 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="generer_classes_onboarding" id="classesFormAction">
 
-                        <div class="classes-scroll-container mb-3" style="max-height: 52vh; overflow-y: auto; padding-right: 4px;">
+                        <div class="classes-scroll-container mb-3" style="overflow-y: auto; padding-right: 4px;">
                             {% set cycle_titles = {'primaire': 'Cycle Primaire', 'college': 'Cycle College', 'lycee': 'Cycle Lycee'} %}
                             {% for cycle_key in ['primaire', 'college', 'lycee'] %}
                                 {% set items = grouped_niveaux_classes.get(cycle_key, []) %}
@@ -309,7 +374,7 @@
                                         </div>
                                         <div class="row g-2">
                                             {% for item in items %}
-                                                <div class="col-12 col-md-6">
+                                                <div class="col-12 col-md-6 col-xl-4">
                                                     <div class="border rounded-3 p-2.5 bg-light bg-opacity-50 h-100">
                                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                                             <span class="fw-bold text-dark small">
@@ -343,14 +408,10 @@
                             {% endfor %}
                         </div>
 
-                        <!-- Bouton principal vert et option d'ignorance discrete -->
-                        <div class="d-grid gap-2 mt-3 pt-2 border-top">
+                        <!-- Bouton principal obligatoire sans saut possible -->
+                        <div class="onboarding-submit-bar d-grid mt-auto pt-2 border-top">
                             <button type="submit" class="btn btn-success btn-lg fw-semibold shadow-sm py-2.5 py-sm-3" id="btnCreerClasses">
                                 <i class="fas fa-check-circle me-2"></i><span id="btnCreerText">Creer les classes et continuer</span>
-                            </button>
-
-                            <button type="button" class="btn btn-link text-muted text-decoration-none py-1 small text-center" onclick="document.getElementById('classesFormAction').value='ignorer_classes'; document.getElementById('onboardingClassesForm').submit();">
-                                Ignorer cette etape (creer mes classes plus tard) <i class="fas fa-arrow-right ms-1"></i>
                             </button>
                         </div>
                     </form>
@@ -369,16 +430,343 @@
                         }
                     </script>
 
+                {% elif step == 'matieres' %}
+                    <div class="onboarding-pane-header mb-2 mb-sm-4">
+                        <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 5 sur 6</span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1"><i class="fas fa-check me-1"></i>Classes enregistrees</span>
+                        </div>
+                        <h1 class="onboarding-title h5 fw-bold text-dark mb-1">Matieres et coefficients</h1>
+                        <p class="text-muted small mb-0 onboarding-desc-mobile d-none d-sm-block">Les matieres officielles sont pre-remplies selon votre offre scolaire. Ajustez les coefficients ou ajoutez des matieres selon vos besoins.</p>
+                        <p class="text-muted small mb-0 onboarding-desc-mobile d-sm-none" style="font-size: 0.76rem;">Matières pré-remplies. Ajustez les coefficients ou ajoutez vos cours.</p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('main.onboarding') }}" class="onboarding-form" id="onboardingMatieresForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="configurer_matieres_onboarding">
+
+                        <!-- Bandeau d'assistance rassurant pour les profils non-techniques -->
+                        <div class="alert alert-primary bg-primary-subtle border-primary-subtle d-flex align-items-start gap-2.5 py-2 px-2.5 rounded-3 mb-2.5 text-dark shadow-sm">
+                            <div class="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded-circle flex-shrink-0 mt-0.5" style="width: 26px; height: 26px; font-size: 0.85rem;">
+                                <i class="fas fa-lightbulb"></i>
+                            </div>
+                            <div style="font-size: 0.78rem; line-height: 1.35;">
+                                <strong class="text-primary d-block mb-0.5">💡 Tout est déjà prêt !</strong>
+                                Le programme officiel a été chargé automatiquement. Vous pouvez <strong>valider directement</strong> ci-dessous, ou toucher un niveau pour vérifier.
+                            </div>
+                        </div>
+
+                        <div class="matieres-scroll-container mb-2" style="overflow-y: auto; overflow-x: hidden; width: 100%; padding-right: 2px;">
+                            {% if packs_matieres|length == 0 %}
+                                <div class="alert alert-warning small">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    Aucune classe detectee pour cette annee. Veuillez d'abord creer vos classes.
+                                </div>
+                            {% else %}
+                                <div class="accordion" id="accordionMatieres" style="width: 100%;">
+                                     {% for pack in packs_matieres %}
+                                        {% set pack_loop = loop %}
+                                        {% set pack_clean = pack.key|replace(':', '_') %}
+                                        <input type="hidden" name="pack_keys" value="{{ pack.key }}">
+                                        <input type="hidden" name="matieres_count_{{ pack.key }}" value="{{ pack.matieres|length }}">
+                                        <div class="accordion-item mb-2 border rounded-3 overflow-hidden shadow-sm">
+                                            <h2 class="accordion-header" id="heading_{{ pack_clean }}">
+                                                <button class="accordion-button {% if not pack_loop.first %}collapsed{% endif %} py-2.5 px-2 px-sm-3 bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#collapse_{{ pack_clean }}" aria-expanded="{% if pack_loop.first %}true{% else %}false{% endif %}" aria-controls="collapse_{{ pack_clean }}" style="width: 100%;">
+                                                    <div class="d-flex flex-column w-100 text-start" style="min-width: 0;">
+                                                        <div class="d-flex align-items-center justify-content-between gap-2 w-100">
+                                                            <div class="d-flex align-items-center gap-2" style="min-width: 0;">
+                                                                <span class="badge bg-primary px-2 py-1 flex-shrink-0"><i class="fas fa-book-open"></i></span>
+                                                                <strong class="text-dark text-truncate" style="font-size: 0.95rem;">{{ pack.titre }}</strong>
+                                                            </div>
+                                                            <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+                                                                <!-- Desktop : pastille explicite incitant à ouvrir -->
+                                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle small d-none d-sm-inline-flex align-items-center gap-1.5 py-1.5 px-2.5">
+                                                                    <i class="fas fa-list-check me-0.5"></i>
+                                                                    <span>Voir les {{ pack.matieres|length }} matières</span>
+                                                                    <i class="fas fa-chevron-down accordion-icon-arrow ms-1 text-primary"></i>
+                                                                </span>
+                                                                <!-- Mobile : flèche colorée dynamique et compteur compact -->
+                                                                <span class="badge bg-primary text-white rounded-pill px-2.5 py-1 small d-inline-flex d-sm-none align-items-center gap-1.5 shadow-sm">
+                                                                    <span class="fw-bold">{{ pack.matieres|length }}</span>
+                                                                    <i class="fas fa-chevron-down accordion-icon-arrow text-white" style="font-size: 0.68rem;"></i>
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="d-flex flex-wrap gap-1 mt-1.5 align-items-center" style="min-width: 0;">
+                                                            {% for cnom in pack.classes %}
+                                                                <span class="badge bg-white text-muted border fw-normal text-wrap text-start" style="font-size: 0.72rem; line-height: 1.2;">{{ cnom }}</span>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            </h2>
+                                            <div id="collapse_{{ pack_clean }}" class="accordion-collapse collapse {% if pack_loop.first %}show{% endif %}" aria-labelledby="heading_{{ pack_clean }}" data-bs-parent="#accordionMatieres">
+                                                <div class="accordion-body p-2 p-sm-3">
+                                                    <div class="table-responsive mb-2" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                                                        <table class="table table-sm align-middle table-hover mb-0" style="min-width: 270px; width: 100%;">
+                                                            <thead class="table-light">
+                                                                <tr style="font-size: 0.78rem;">
+                                                                    <th style="width: 36px;" class="text-center">Actif</th>
+                                                                    <th>Matière</th>
+                                                                    <th style="width: 65px;" class="text-center">Coef</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody id="matieres_tbody_{{ pack_clean }}">
+                                                                {% for mat in pack.matieres %}
+                                                                    <tr>
+                                                                        <td class="text-center" style="width: 36px;">
+                                                                            <input class="form-check-input" type="checkbox" name="matiere_chk_{{ pack.key }}_{{ loop.index0 }}" value="1" checked id="chk_{{ pack_clean }}_{{ loop.index0 }}">
+                                                                        </td>
+                                                                        <td>
+                                                                            <input type="text" class="form-control form-control-sm" name="matiere_nom_{{ pack.key }}_{{ loop.index0 }}" value="{{ mat.nom }}" required>
+                                                                        </td>
+                                                                        <td class="text-center" style="width: 65px;">
+                                                                            <input type="text" inputmode="decimal" class="form-control form-control-sm text-center mx-auto coef-input" name="matiere_coef_{{ pack.key }}_{{ loop.index0 }}" value="{{ mat.coefficient|int if (mat.coefficient == mat.coefficient|int) else mat.coefficient }}" placeholder="1" required>
+                                                                        </td>
+                                                                    </tr>
+                                                                {% endfor %}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+
+                                                    <div id="custom_matieres_{{ pack_clean }}" class="mb-2"></div>
+
+                                                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 py-1" onclick="ajouterLigneMatiere('{{ pack.key }}', '{{ pack_clean }}')">
+                                                        <i class="fas fa-plus me-1"></i>Ajouter une matière
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="onboarding-submit-bar d-grid mt-auto pt-2 border-top">
+                            <button type="submit" class="btn btn-success btn-lg fw-bold shadow-sm py-2.5 py-sm-3 text-wrap px-2 d-flex align-items-center justify-content-center gap-2" id="btnConfirmerProgramme" title="Enregistrer les matieres et finaliser la rentree">
+                                <span class="d-inline-flex align-items-center justify-content-center bg-white text-success rounded-circle shadow-sm flex-shrink-0" style="width: 24px; height: 24px; font-size: 0.82rem;">
+                                    <i class="fas fa-check"></i>
+                                </span>
+                                <span style="font-size: 0.96rem;">Confirmer le programme et ouvrir mon école</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <script>
+                        function ajouterLigneMatiere(packKey, safeId) {
+                            var container = document.getElementById('custom_matieres_' + safeId);
+                            if (!container) return;
+
+                            var row = document.createElement('div');
+                            row.className = 'custom-matiere-row d-flex align-items-center gap-1.5 mb-2 p-1.5 rounded bg-light border';
+                            row.innerHTML = `
+                                <div class="flex-grow-1" style="min-width: 0;">
+                                    <input type="text" name="custom_nom_` + packKey + `[]" class="form-control form-control-sm" placeholder="Nom de la matière" required>
+                                </div>
+                                <div style="width: 65px; flex-shrink: 0;">
+                                    <input type="text" inputmode="decimal" name="custom_coef_` + packKey + `[]" class="form-control form-control-sm text-center coef-input" value="2" placeholder="2" required>
+                                </div>
+                                <div style="flex-shrink: 0;">
+                                    <button type="button" class="btn btn-outline-danger btn-sm px-2 py-1" onclick="this.closest('.custom-matiere-row').remove()" title="Supprimer"><i class="fas fa-trash-alt"></i></button>
+                                </div>
+                            `;
+                            container.appendChild(row);
+                        }
+                    </script>
+
+                {% elif step == 'identite' %}
+                    <div class="onboarding-pane-header mb-2 mb-sm-4">
+                        <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 6 sur 6</span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1"><i class="fas fa-check me-1"></i>Matières & Coefs validés</span>
+                        </div>
+                        <h1 class="onboarding-title h5 fw-bold text-dark mb-1">Identité & Documents officiels</h1>
+                        <p class="text-muted small mb-0 onboarding-desc-mobile d-none d-sm-block">Personnalisez le logo, les contacts et la devise qui figureront sur vos bulletins de notes, reçus de paiement et cartes scolaires.</p>
+                        <p class="text-muted small mb-0 onboarding-desc-mobile d-sm-none" style="font-size: 0.76rem;">Logo et coordonnées pour vos bulletins et reçus.</p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('main.onboarding') }}" enctype="multipart/form-data" class="onboarding-form" id="onboardingIdentiteForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="configurer_identite_onboarding">
+
+                        <!-- Bandeau d'assistance rassurant pour les profils non-techniques -->
+                        <div class="alert alert-primary bg-primary-subtle border-primary-subtle d-flex align-items-start gap-2.5 py-2 px-2.5 rounded-3 mb-2.5 text-dark shadow-sm">
+                            <div class="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded-circle flex-shrink-0 mt-0.5" style="width: 26px; height: 26px; font-size: 0.85rem;">
+                                <i class="fas fa-lightbulb"></i>
+                            </div>
+                            <div style="font-size: 0.78rem; line-height: 1.35;">
+                                <strong class="text-primary d-block mb-0.5">💡 Personnalisez vos documents en 1 clic !</strong>
+                                Vos coordonnées et votre logo s'afficheront sur tous les bulletins et reçus. Vous pouvez toujours les modifier plus tard dans les Paramètres.
+                            </div>
+                        </div>
+
+                        <!-- Grille responsive étalée horizontalement sur grand écran -->
+                        <div class="identite-scroll-container mb-2" style="overflow-y: auto; overflow-x: hidden; width: 100%; padding-right: 4px;">
+                            <div class="row g-3 g-lg-4 mb-2 align-items-stretch" style="width: 100%; margin-left: 0; margin-right: 0;">
+                                <!-- Colonne GAUCHE : Logo & Identité Visuelle -->
+                                <div class="col-12 col-lg-5 ps-0 pe-0 pe-lg-2">
+                                    <div class="p-3 border rounded-3 bg-light bg-opacity-50 h-100 d-flex flex-column justify-content-between">
+                                        <div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom">
+                                                <span class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.5px;">
+                                                    <i class="fas fa-image text-primary me-1.5"></i>Logo Officiel
+                                                </span>
+                                                <span class="badge bg-white text-muted border" style="font-size: 0.7rem;">PNG, JPG, WEBP &le; 2 Mo</span>
+                                            </div>
+
+                                            <div class="text-center my-2 p-2.5 bg-white rounded-3 border border-2 border-dashed position-relative logo-dropzone" id="logoDropzone" style="cursor: pointer; min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                                {% if ecole and ecole.logo_path and ecole.logo_path != 'default_logo.png' %}
+                                                    <img id="logoPreview" src="{{ url_for('static', filename=ecole.logo_path) }}" alt="Logo École" class="img-fluid rounded-2 shadow-sm p-1 bg-white mb-2" style="max-height: 105px; max-width: 140px; object-fit: contain;">
+                                                    <div id="logoPlaceholder" class="d-none">
+                                                        <i class="fas fa-cloud-upload-alt fa-2x text-primary mb-1"></i>
+                                                        <div class="small fw-semibold text-dark">Changer le logo</div>
+                                                    </div>
+                                                {% else %}
+                                                    <div id="logoPlaceholder" class="text-center py-2">
+                                                        <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary-subtle text-primary mb-2" style="width: 50px; height: 50px; font-size: 1.3rem;">
+                                                            <i class="fas fa-cloud-upload-alt"></i>
+                                                        </div>
+                                                        <div class="small fw-bold text-dark mb-0.5">Glisser ou toucher ici pour choisir un logo</div>
+                                                        <div class="text-muted" style="font-size: 0.72rem;">Apparaîtra sur l'en-tête officiel</div>
+                                                    </div>
+                                                    <img id="logoPreview" src="" alt="Aperçu logo" class="img-fluid rounded-2 shadow-sm p-1 bg-white mb-2 d-none" style="max-height: 105px; max-width: 140px; object-fit: contain;">
+                                                {% endif %}
+                                            </div>
+
+                                            <input type="file" class="form-control form-control-sm mt-1" id="inputLogo" name="logo" accept="image/png,image/jpeg,image/webp">
+                                        </div>
+                                        <div class="text-muted mt-2 small" style="font-size: 0.72rem; line-height: 1.3;">
+                                            <i class="fas fa-info-circle text-primary me-1"></i>Si vous n'avez pas de logo sous la main, le logo par défaut KLASORA sera utilisé provisoirement.
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Colonne DROITE : Coordonnées & Devise -->
+                                <div class="col-12 col-lg-7 ps-0 pe-0 ps-lg-2">
+                                    <div class="p-3 border rounded-3 bg-light bg-opacity-50 h-100 d-flex flex-column justify-content-between">
+                                        <div>
+                                            <div class="d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom">
+                                                <span class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.5px;">
+                                                    <i class="fas fa-address-card text-primary me-1.5"></i>Coordonnées officielles
+                                                </span>
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.72rem;">{{ ecole.nom if ecole else 'École' }}</span>
+                                            </div>
+
+                                            <div class="row g-2.5">
+                                                <!-- Nom officiel de l'établissement -->
+                                                <div class="col-12">
+                                                    <label class="form-label small fw-bold text-dark mb-1">
+                                                        <i class="fas fa-school text-primary me-1"></i>Nom officiel de l'établissement <span class="text-danger">*</span>
+                                                    </label>
+                                                    <input type="text" class="form-control form-control-sm py-1.5 fw-semibold" name="nom" value="{{ ecole.nom if ecole else '' }}" maxlength="200" required placeholder="Ex: Complexe Scolaire d'Excellence">
+                                                    <div class="form-text text-muted" style="font-size: 0.7rem;">Nom officiel figurant sur vos documents administratifs et le portail.</div>
+                                                </div>
+
+                                                <!-- Téléphone officiel -->
+                                                <div class="col-12 col-sm-6">
+                                                    <label class="form-label small fw-bold text-dark mb-1">
+                                                        <i class="fas fa-phone-alt text-primary me-1"></i>Téléphone officiel
+                                                    </label>
+                                                    <input type="tel" class="form-control form-control-sm py-1.5" name="telephone" value="{{ ecole.telephone or '' }}" placeholder="Ex: +227 90 00 00 00">
+                                                    <div class="form-text text-muted" style="font-size: 0.7rem;">Pour le contact sur les reçus de paiement.</div>
+                                                </div>
+
+                                                <!-- Ville -->
+                                                <div class="col-12 col-sm-6">
+                                                    <label class="form-label small fw-bold text-dark mb-1">
+                                                        <i class="fas fa-city text-primary me-1"></i>Ville
+                                                    </label>
+                                                    <input type="text" class="form-control form-control-sm py-1.5" name="ville" value="{{ ecole.ville or '' }}" placeholder="Ex: Niamey">
+                                                    <div class="form-text text-muted" style="font-size: 0.7rem;">Localité de l'établissement.</div>
+                                                </div>
+
+                                                <!-- Adresse physique -->
+                                                <div class="col-12">
+                                                    <label class="form-label small fw-bold text-dark mb-1">
+                                                        <i class="fas fa-map-marker-alt text-primary me-1"></i>Adresse physique ou Quartier
+                                                    </label>
+                                                    <input type="text" class="form-control form-control-sm py-1.5" name="adresse" value="{{ ecole.adresse or '' }}" placeholder="Ex: Quartier Plateau, Rue des Écoles">
+                                                </div>
+
+                                                <!-- Devise / Slogan -->
+                                                <div class="col-12">
+                                                    <label class="form-label small fw-bold text-dark mb-1">
+                                                        <i class="fas fa-quote-left text-primary me-1"></i>Devise / Slogan de l'établissement
+                                                    </label>
+                                                    <input type="text" class="form-control form-control-sm py-1.5 fw-semibold" name="slogan" value="{{ ecole.slogan or ecole.devise or '' }}" placeholder="Ex: Discipline - Travail - Réussite">
+                                                    <div class="form-text text-muted" style="font-size: 0.7rem;">Cette devise figurera au sommet de vos bulletins scolaires.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="text-success small mt-2.5 p-2 bg-success-subtle rounded-2 border border-success-subtle d-flex align-items-center gap-1.5" style="font-size: 0.75rem;">
+                                            <i class="fas fa-shield-alt"></i>
+                                            <span>Données sécurisées et réservées exclusivement à votre établissement.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bouton d'action principal -->
+                        <div class="onboarding-submit-bar d-grid mt-auto pt-2 border-top">
+                            <button type="submit" class="btn btn-success btn-lg fw-bold shadow-sm py-2.5 py-sm-3 text-wrap px-2 d-flex align-items-center justify-content-center gap-2" id="btnValiderIdentite" title="Valider l'identité et finaliser l'école">
+                                <span class="d-inline-flex align-items-center justify-content-center bg-white text-success rounded-circle shadow-sm flex-shrink-0" style="width: 24px; height: 24px; font-size: 0.82rem;">
+                                    <i class="fas fa-check"></i>
+                                </span>
+                                <span style="font-size: 0.96rem;">Valider l'identité et finaliser l'école</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            var logoInput = document.getElementById('inputLogo');
+                            var logoPreview = document.getElementById('logoPreview');
+                            var logoPlaceholder = document.getElementById('logoPlaceholder');
+                            var logoDropzone = document.getElementById('logoDropzone');
+
+                            if (logoDropzone && logoInput) {
+                                logoDropzone.addEventListener('click', function (e) {
+                                    if (e.target !== logoInput) {
+                                        logoInput.click();
+                                    }
+                                });
+                            }
+
+                            if (logoInput && logoPreview) {
+                                logoInput.addEventListener('change', function () {
+                                    var file = this.files && this.files[0];
+                                    if (file) {
+                                        var reader = new FileReader();
+                                        reader.onload = function (e) {
+                                            logoPreview.src = e.target.result;
+                                            logoPreview.classList.remove('d-none');
+                                            if (logoPlaceholder) logoPlaceholder.classList.add('d-none');
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }
+                                });
+                            }
+                        });
+                    </script>
+
                 {% else %}
                     <div class="onboarding-success-pane text-center py-3 py-sm-4">
                         <div class="success-badge-icon d-inline-flex align-items-center justify-content-center rounded-circle bg-success-subtle text-success mb-3 shadow-sm" style="width: 68px; height: 68px; font-size: 1.8rem;"><i class="fas fa-check-double"></i></div>
                         <h2 class="h4 fw-bold text-dark mb-2">Configuration terminee</h2>
-                        <p class="text-muted small mb-4 px-2">Votre etablissement <strong>{{ ecole.nom if ecole else '' }}</strong> dispose d'une annee active et d'une offre pedagogique.</p>
+                        <p class="text-muted small mb-4 px-2">Votre etablissement <strong>{{ ecole.nom if ecole else '' }}</strong> dispose d'une annee active, de classes et de matieres pretes a l'emploi.</p>
                         <div class="onboarding-summary d-flex flex-wrap justify-content-center gap-2 mb-4">
                             <div class="summary-pill px-3 py-1.5 bg-light rounded-pill border small text-dark"><i class="fas fa-calendar-check text-success me-1"></i>Annee : {{ active_year.nom if active_year else 'Active' }}</div>
                             <div class="summary-pill px-3 py-1.5 bg-light rounded-pill border small text-dark"><i class="fas fa-layer-group text-primary me-1"></i>Niveaux configures</div>
                             {% if setup_state.has_class %}
                             <div class="summary-pill px-3 py-1.5 bg-light rounded-pill border small text-dark"><i class="fas fa-chalkboard text-info me-1"></i>Classes pretes</div>
+                            {% endif %}
+                            {% if setup_state.has_cours %}
+                            <div class="summary-pill px-3 py-1.5 bg-light rounded-pill border small text-dark"><i class="fas fa-book-open text-warning me-1"></i>Matieres pretes</div>
+                            {% endif %}
+                            {% if setup_state.has_identite %}
+                            <div class="summary-pill px-3 py-1.5 bg-light rounded-pill border small text-dark"><i class="fas fa-id-card text-success me-1"></i>Identite & Documents</div>
                             {% endif %}
                         </div>
                         <div class="d-grid gap-2 col-12 col-md-10 mx-auto">
@@ -403,4 +791,330 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Style fiable et épuré pour la saisie des coefficients (entiers 1, 2, 3... ou décimaux) */
+.coef-input {
+    width: 58px !important;
+    min-width: 50px !important;
+    max-width: 65px !important;
+    text-align: center !important;
+    font-weight: 700 !important;
+    font-size: 0.92rem !important;
+    padding: 0.32rem 0.25rem !important;
+    border-radius: 8px !important;
+    border: 1px solid #cbd5e1 !important;
+    background-color: #ffffff !important;
+    color: #1e293b !important;
+    appearance: textfield !important;
+    -moz-appearance: textfield !important;
+    -webkit-appearance: none !important;
+}
+.coef-input::-webkit-outer-spin-button,
+.coef-input::-webkit-inner-spin-button {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+}
+.coef-input:focus {
+    border-color: #4361ee !important;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15) !important;
+    outline: none !important;
+}
+
+/* Personnalisation de l'accordéon des matières : suppression du chevron Bootstrap standard et flèche colorée rotative */
+#accordionMatieres .accordion-button::after {
+    display: none !important;
+}
+#accordionMatieres .accordion-button .accordion-icon-arrow {
+    transition: transform 0.25s ease;
+    display: inline-block;
+}
+#accordionMatieres .accordion-button:not(.collapsed) .accordion-icon-arrow {
+    transform: rotate(180deg);
+}
+
+/* Barre d'action sticky : Le bouton de soumission reste TOUJOURS visible,
+   même en cas de gros zoom automatique ou de faible hauteur d'écran */
+.onboarding-submit-bar {
+    position: sticky;
+    bottom: 0;
+    background: #ffffff;
+    z-index: 30;
+    margin-top: auto;
+    padding-top: 0.65rem;
+    padding-bottom: 0.25rem;
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -4px 14px rgba(15, 23, 42, 0.05);
+}
+
+/* Puces interactives des niveaux scolaires (Offre pédagogique) */
+.niveau-label-chip {
+    transition: all 0.15s ease;
+    user-select: none;
+}
+.niveau-label-chip:hover {
+    border-color: #4361ee !important;
+    background-color: #f8fafc !important;
+}
+.niveau-label-chip:has(.niveau-checkbox:checked) {
+    border-color: #4361ee !important;
+    background-color: #eff6ff !important;
+}
+
+/* Expansion horizontale sur PC et adaptation intelligente de la hauteur */
+@media (min-width: 992px) {
+    body.onboarding-layout {
+        padding: clamp(0.5rem, 1.5vh, 1.25rem) clamp(0.75rem, 2.5vw, 3rem) !important;
+        min-height: 100vh !important;
+        min-height: 100dvh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        overflow-y: auto !important;
+    }
+
+    body.onboarding-layout .main-content {
+        width: 100% !important;
+        max-width: min(1560px, 96vw) !important; /* Pleine expansion horizontale sur PC */
+        margin: auto !important;
+        padding: 0 !important;
+    }
+
+    .onboarding-wrapper {
+        width: 100% !important;
+    }
+
+    .onboarding-card {
+        background: #ffffff !important;
+        border-radius: 20px !important;
+        padding: clamp(0.85rem, 1.6vh, 1.35rem) clamp(1rem, 2vw, 2rem) !important;
+        border: 1px solid rgba(226, 232, 240, 0.9) !important;
+        box-shadow: 0 16px 42px rgba(15, 23, 42, 0.08) !important;
+        width: 100% !important;
+        max-height: calc(100vh - 2.5rem) !important;
+        max-height: calc(100dvh - 2.5rem) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+    }
+
+    .onboarding-grid {
+        display: grid !important;
+        grid-template-columns: clamp(250px, 20vw, 290px) 1fr !important;
+        gap: clamp(1rem, 2vw, 2rem) !important;
+        align-items: stretch !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+    }
+
+    .onboarding-sidebar {
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 16px !important;
+        padding: clamp(0.75rem, 1.4vh, 1.15rem) clamp(0.65rem, 1vw, 1rem) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        overflow-y: auto !important;
+        min-height: 0 !important;
+    }
+
+    .onboarding-brand {
+        margin-bottom: 0.6rem !important;
+    }
+
+    .onboarding-school-badge {
+        margin-bottom: 0.85rem !important;
+        padding: 0.25rem 0.65rem !important;
+    }
+
+    .onboarding-vertical-stepper {
+        margin-bottom: 0.75rem !important;
+    }
+
+    .v-step-line {
+        height: 12px !important;
+        margin-left: 15px !important;
+    }
+
+    .onboarding-main-pane {
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 0 !important;
+        flex: 1 1 auto !important;
+        overflow: hidden !important;
+        padding-right: 2px !important;
+    }
+
+    .onboarding-pane-header {
+        margin-bottom: 0.65rem !important;
+        flex-shrink: 0 !important;
+    }
+
+    .onboarding-form {
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 0 !important;
+        flex: 1 1 auto !important;
+    }
+
+    .matieres-scroll-container,
+    .classes-scroll-container,
+    .pedagogie-scroll-container,
+    .identite-scroll-container {
+        flex: 1 1 auto !important;
+        min-height: 120px !important;
+        max-height: clamp(160px, calc(100vh - 350px), 520px) !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding-right: 4px !important;
+    }
+}
+
+/* Zone d'upload / aperçu de logo interactive */
+.logo-dropzone {
+    transition: all 0.2s ease;
+    border-color: #cbd5e1 !important;
+}
+.logo-dropzone:hover {
+    border-color: #4361ee !important;
+    background-color: #f8fafc !important;
+}
+
+/* Protection contre le gros zoom automatique ou petits écrans PC (hauteur < 720px) */
+@media (min-width: 992px) and (max-height: 720px) {
+    .onboarding-card {
+        padding: 0.65rem 1rem !important;
+        max-height: calc(100vh - 1rem) !important;
+    }
+    .onboarding-guide-tip {
+        display: none !important;
+    }
+    .onboarding-brand {
+        margin-bottom: 0.35rem !important;
+    }
+    .onboarding-logo {
+        height: 32px !important;
+    }
+    .onboarding-school-badge {
+        margin-bottom: 0.4rem !important;
+    }
+    .v-step-line {
+        height: 8px !important;
+    }
+    .v-step-desc {
+        display: none !important;
+    }
+    .onboarding-pane-header {
+        margin-bottom: 0.4rem !important;
+    }
+    .onboarding-pane-header .badge {
+        padding: 0.15rem 0.45rem !important;
+        font-size: 0.68rem !important;
+    }
+    .matieres-scroll-container,
+    .classes-scroll-container,
+    .pedagogie-scroll-container,
+    .identite-scroll-container {
+        max-height: clamp(130px, calc(100vh - 270px), 360px) !important;
+    }
+    .onboarding-submit-bar {
+        padding-top: 0.4rem !important;
+        padding-bottom: 0.15rem !important;
+    }
+    .onboarding-submit-bar .btn {
+        padding-top: 0.45rem !important;
+        padding-bottom: 0.45rem !important;
+        font-size: 0.88rem !important;
+    }
+}
+
+/* Robustesse et compacité maximale sur mobile KLASORA */
+@media (max-width: 767.98px) {
+    .onboarding-card {
+        padding: 0.75rem 0.65rem 1rem 0.65rem !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+        border-radius: 16px !important;
+    }
+    .onboarding-mobile-header {
+        margin-bottom: 0.45rem !important;
+        padding-bottom: 0.35rem !important;
+    }
+    .onboarding-logo-mobile {
+        height: 28px !important;
+        max-width: 110px !important;
+        object-fit: contain !important;
+    }
+    .onboarding-school-badge-mobile {
+        padding: 0.15rem 0.5rem !important;
+        font-size: 0.75rem !important;
+    }
+    .onboarding-mobile-steps {
+        padding: 0.05rem 0 !important;
+        margin-top: 0.2rem !important;
+        margin-bottom: 0.1rem !important;
+        gap: 0.2rem !important;
+    }
+    .m-step-chip.m-step-compact {
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+    }
+    .m-step-chip.m-step-compact .m-step-badge {
+        font-size: 0.65rem !important;
+    }
+    .m-step-chip.m-step-expanded {
+        padding: 0.15rem 0.5rem !important;
+        font-size: 0.72rem !important;
+    }
+    .m-step-chip.m-step-expanded .m-step-badge {
+        width: 16px !important;
+        height: 16px !important;
+        font-size: 0.58rem !important;
+    }
+    .m-step-divider {
+        width: 5px !important;
+    }
+    .onboarding-pane-header {
+        margin-bottom: 0.45rem !important;
+        padding-bottom: 0.15rem !important;
+    }
+    .onboarding-title {
+        font-size: 1.05rem !important;
+        margin-bottom: 0.15rem !important;
+    }
+    .onboarding-grid {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+    .onboarding-main-pane {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+    .matieres-scroll-container,
+    .classes-scroll-container,
+    .pedagogie-scroll-container,
+    .identite-scroll-container {
+        max-height: 60vh !important;
+        width: 100% !important;
+        overflow-x: hidden !important;
+    }
+    #accordionMatieres .accordion-button {
+        padding: 0.55rem 0.6rem !important;
+    }
+    #accordionMatieres .accordion-body {
+        padding: 0.55rem 0.4rem !important;
+    }
+    .table-responsive {
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+</style>
 {% endblock %}

@@ -516,6 +516,7 @@ def generer_bulletin_pdf(
     nb_absences=None,
     est_provisoire=False,
     verification_url=None,
+    devise_ecole=None,
 ):
     """
     Génère un bulletin scolaire PDF moderne, prestigieux et adaptatif
@@ -657,11 +658,13 @@ def generer_bulletin_pdf(
         s_nom = nom_ecole
         s_adr = adresse_ecole
         s_contact = contact_ecole
-        if not s_nom or not s_adr or not s_contact:
+        s_devise = (devise_ecole or '').strip()
+        if not s_nom or not s_adr or not s_contact or not s_devise:
             if hasattr(eleve, 'ecole') and eleve.ecole:
                 s_nom = s_nom or eleve.ecole.nom
                 s_adr = s_adr or eleve.ecole.adresse
                 s_contact = s_contact or f"Tél: {eleve.ecole.telephone or '-'} &bull; Email: {eleve.ecole.email or '-'}"
+                s_devise = s_devise or getattr(eleve.ecole, 'devise', '') or getattr(eleve.ecole, 'slogan', '') or ''
             else:
                 s_nom = s_nom or "ÉTABLISSEMENT SCOLAIRE"
                 s_adr = s_adr or "Adresse de l'établissement"
@@ -690,8 +693,14 @@ def generer_bulletin_pdf(
         elif len(s_nom_display) > 38:
             font_school = max(font_school * 0.84, 10.5)
 
+        devise_line = ""
+        if s_devise and s_devise.strip():
+            devise_clean = s_devise.strip()
+            devise_line = f"<font size='{cfg['font_school_sub']}' color='#B45309'><i>&laquo; {devise_clean} &raquo;</i></font><br/>"
+
         school_p = Paragraph(
             f"<font size='{font_school}' color='#1E3A8A'><b>{s_nom_display}</b></font><br/>"
+            f"{devise_line}"
             f"<font size='{cfg['font_school_sub']}' color='#64748B'>{school_sub_text}</font>",
             ParagraphStyle('SchoolInfo', parent=styles['Normal'], leading=font_school + 2.5)
         )

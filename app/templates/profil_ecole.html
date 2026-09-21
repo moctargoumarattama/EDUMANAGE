@@ -37,6 +37,10 @@
                                 <label for="adresse" class="form-label fw-bold">Adresse physique</label>
                                 <input type="text" class="form-control" id="adresse" name="adresse" value="{{ ecole.adresse or '' }}">
                             </div>
+                            <div class="col-md-6">
+                                <label for="slogan" class="form-label fw-bold">Devise / Slogan de l'établissement</label>
+                                <input type="text" class="form-control" id="slogan" name="slogan" value="{{ ecole.devise or ecole.slogan or '' }}" placeholder="Ex: Discipline - Travail - Réussite">
+                            </div>
                         </div>
 
                         <hr class="my-4">

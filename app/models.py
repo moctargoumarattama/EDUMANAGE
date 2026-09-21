@@ -173,6 +173,9 @@ class AnneeNiveauConfig(db.Model):
         return f'<AnneeNiveauConfig ecole={self.ecole_id} annee={self.annee_scolaire_id} niveau={self.niveau_id} actif={self.actif}>'
 
 
+_ecole_slogans = {}
+
+
 class Ecole(db.Model):
     __tablename__ = 'ecole'
 
@@ -223,6 +226,25 @@ class Ecole(db.Model):
     def __repr__(self):
         return f'<Ecole {self.nom}>'
 
+    @property
+    def devise(self):
+        return _ecole_slogans.get(self.id, getattr(self, '_devise', ''))
+
+    @devise.setter
+    def devise(self, val):
+        val_str = str(val or '').strip()
+        self._devise = val_str
+        if self.id:
+            _ecole_slogans[self.id] = val_str
+
+    @property
+    def slogan(self):
+        return self.devise
+
+    @slogan.setter
+    def slogan(self, val):
+        self.devise = val
+
     # --- Conversion en dictionnaire pour la sauvegarde JSON ---
     def to_dict(self):
         return {
@@ -240,7 +262,9 @@ class Ecole(db.Model):
             "logo_path": self.logo_path,
             "signature_path": getattr(self, 'signature_path', None),
             "cachet_path": getattr(self, 'cachet_path', None),
-            "ville": getattr(self, 'ville', None)
+            "ville": getattr(self, 'ville', None),
+            "devise": self.devise,
+            "slogan": self.slogan
         }
 
 # -----------------------

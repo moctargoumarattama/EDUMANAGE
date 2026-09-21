@@ -16,7 +16,7 @@
                         </div>
                         <div>
                             <h4 class="mb-0 fw-bold">Créer une nouvelle école</h4>
-                            <small class="opacity-75">Renseignez les coordonnées de l'établissement et générez le compte de son directeur / administrateur</small>
+                            <small class="opacity-75">Renseignez les coordonnées de l'établissement et générez le compte de son administrateur</small>
                         </div>
                     </div>
                     <a href="{{ url_for('main.gestion_ecoles') }}" class="btn btn-outline-light btn-sm px-3 fw-semibold">
@@ -54,7 +54,15 @@
                                         <label class="form-label fw-semibold text-secondary">Adresse physique</label>
                                         <div class="input-group">
                                             <span class="input-group-text bg-white text-muted"><i class="fas fa-map-marker-alt"></i></span>
-                                            <input type="text" name="adresse" class="form-control" placeholder="Rue, quartier, ville, pays">
+                                            <input type="text" name="adresse" class="form-control" placeholder="Rue, quartier, localité">
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label fw-semibold text-secondary">Ville</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-white text-muted"><i class="fas fa-city"></i></span>
+                                            <input type="text" name="ville" class="form-control" placeholder="Ex : Niamey">
                                         </div>
                                     </div>
 
@@ -88,18 +96,26 @@
                                     </div>
 
                                     <div class="mb-3">
-                                        <label class="form-label fw-semibold text-secondary">
-                                            Mot de passe initial <span class="text-danger">*</span>
+                                        <label class="form-label fw-semibold text-secondary d-flex align-items-center justify-content-between">
+                                            <span>Mot de passe initial</span>
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style="font-size: 0.7rem; font-weight: 600;">
+                                                <i class="fas fa-magic me-1"></i>Auto-généré si vide
+                                            </span>
                                         </label>
                                         <div class="input-group">
                                             <span class="input-group-text bg-white text-muted"><i class="fas fa-lock"></i></span>
-                                            <input type="password" name="mot_de_passe" class="form-control"
-                                                   placeholder="Minimum 8 caractères" required minlength="8">
+                                            <input type="text" name="mot_de_passe" id="inputMotDePasse" class="form-control"
+                                                   placeholder="Laissez vide pour génération automatique" minlength="8"
+                                                   autocomplete="new-password" style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.08em;">
+                                            <button type="button" class="btn btn-outline-primary" id="btnGenererMdp" title="Générer un mot de passe sécurisé automatiquement">
+                                                <i class="fas fa-dice me-1 d-none d-sm-inline"></i><i class="fas fa-sync-alt d-sm-none"></i>
+                                                <span class="d-none d-sm-inline">Générer</span>
+                                            </button>
                                         </div>
                                         <div class="form-text">
-                                            <i class="fas fa-shield-alt me-1 text-primary"></i> Au moins 8 caractères recommandés.
+                                            <i class="fas fa-shield-alt me-1 text-primary"></i>
+                                            <span id="mdpHelpText">Laissez vide : un code sécurisé de 8 chiffres sera généré et envoyé par email à l'administrateur.</span>
                                         </div>
-                                        <div class="invalid-feedback">Mot de passe obligatoire (min. 8 caractères).</div>
                                     </div>
 
                                     <div class="p-3 rounded-3 border bg-white mt-3">
@@ -107,6 +123,7 @@
                                             <i class="fas fa-info-circle text-primary mt-1"></i>
                                             <small class="text-muted">
                                                 L'administrateur recevra les droits pour paramétrer les classes, les enseignants, les élèves et les finances de son établissement.
+                                                Le mot de passe sera envoyé automatiquement par email à l'adresse indiquée ci-dessus.
                                             </small>
                                         </div>
                                     </div>
@@ -130,4 +147,63 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var btnGenerer = document.getElementById('btnGenererMdp');
+    var inputMdp = document.getElementById('inputMotDePasse');
+    var helpText = document.getElementById('mdpHelpText');
+
+    if (btnGenerer && inputMdp) {
+        btnGenerer.addEventListener('click', function () {
+            /* Génération côté client d'un code de 8 chiffres sécurisé (identique au backend) */
+            var forbidden = ['00000000','11111111','22222222','33333333','44444444',
+                             '55555555','66666666','77777777','88888888','99999999',
+                             '12345678','87654321','01234567','98765432'];
+            var code = '';
+            var array = new Uint8Array(8);
+            do {
+                window.crypto.getRandomValues(array);
+                code = '';
+                for (var i = 0; i < 8; i++) {
+                    code += (array[i] % 10).toString();
+                }
+            } while (forbidden.indexOf(code) !== -1);
+
+            inputMdp.value = code;
+            inputMdp.type = 'text';
+
+            /* Effet visuel de confirmation */
+            inputMdp.style.transition = 'background-color 0.3s ease, border-color 0.3s ease';
+            inputMdp.style.backgroundColor = '#f0fdf4';
+            inputMdp.style.borderColor = '#16a34a';
+            setTimeout(function () {
+                inputMdp.style.backgroundColor = '';
+                inputMdp.style.borderColor = '';
+            }, 1200);
+
+            helpText.innerHTML = '<i class="fas fa-check-circle me-1 text-success"></i>Mot de passe généré ! Il sera aussi envoyé par email à l\'administrateur.';
+
+            /* Animation du bouton */
+            var icon = btnGenerer.querySelector('.fas.fa-dice, .fas.fa-sync-alt');
+            if (icon) {
+                icon.style.transition = 'transform 0.4s ease';
+                icon.style.transform = 'rotate(360deg)';
+                setTimeout(function () { icon.style.transform = ''; }, 500);
+            }
+        });
+
+        /* Mettre à jour le texte d'aide quand l'utilisateur tape manuellement */
+        inputMdp.addEventListener('input', function () {
+            if (inputMdp.value.trim().length >= 8) {
+                helpText.innerHTML = '<i class="fas fa-check-circle me-1 text-success"></i>Mot de passe personnalisé défini (min. 8 caractères).';
+            } else if (inputMdp.value.trim().length === 0) {
+                helpText.innerHTML = '<i class="fas fa-shield-alt me-1 text-primary"></i>Laissez vide : un code sécurisé de 8 chiffres sera généré et envoyé par email à l\'administrateur.';
+            } else {
+                helpText.innerHTML = '<i class="fas fa-exclamation-triangle me-1 text-warning"></i>Minimum 8 caractères requis.';
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

@@ -29,6 +29,135 @@
     </div>
 
     <!-- ======================================================= -->
+    <!-- 🔑 BANDEAU MOT DE PASSE AUTO-GÉNÉRÉ (temporaire)        -->
+    <!-- ======================================================= -->
+    {% if mdp_auto %}
+    <div class="alert border-0 rounded-4 shadow-sm mb-4 position-relative overflow-hidden" id="bandeauMdpAuto"
+         style="background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 50%, #4338ca 100%); color: #fff;">
+        <!-- Barre de progression qui diminue -->
+        <div class="position-absolute bottom-0 start-0 h-100" id="mdpAutoProgressBg"
+             style="background: rgba(255,255,255,0.06); width: 100%; transition: width 15s linear;"></div>
+        <div class="position-relative" style="z-index: 2;">
+            <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center gap-3">
+                <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                         style="width: 44px; height: 44px; background: rgba(255,255,255,0.15);">
+                        <i class="fas fa-key fa-lg"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold" style="font-size: 0.95rem;">Mot de passe auto-généré</div>
+                        <div class="opacity-75" style="font-size: 0.78rem;">Pour « {{ mdp_auto_nom }} » — {{ mdp_auto_email }}</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-grow-1 justify-content-md-center">
+                    <div class="px-3 py-2 rounded-3 d-flex align-items-center gap-2"
+                         style="background: rgba(255,255,255,0.15); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.2);">
+                        <i class="fas fa-lock text-warning"></i>
+                        <span class="fw-bold" style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 1.35rem; letter-spacing: 0.15em;" id="mdpAutoValue">{{ mdp_auto }}</span>
+                        <button type="button" class="btn btn-sm btn-light bg-white bg-opacity-25 border-0 text-white ms-1 px-2" id="btnCopierMdp" title="Copier le mot de passe">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-md-auto">
+                    <div class="text-end d-none d-md-block">
+                        <span class="opacity-75 d-block" style="font-size: 0.72rem;"><i class="fas fa-envelope-open-text me-1"></i>Envoyé par email</span>
+                        <span class="opacity-75 d-block" style="font-size: 0.72rem;"><i class="fas fa-clock me-1"></i>Disparaît dans <strong id="mdpAutoCountdown">15</strong>s</span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-light border-white-50 opacity-75 px-2" id="btnFermerMdpAuto" title="Fermer maintenant">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function() {
+        var bandeau = document.getElementById('bandeauMdpAuto');
+        var countdown = document.getElementById('mdpAutoCountdown');
+        var progressBg = document.getElementById('mdpAutoProgressBg');
+        var btnCopier = document.getElementById('btnCopierMdp');
+        var btnFermer = document.getElementById('btnFermerMdpAuto');
+        var total = 15;
+        var remaining = total;
+
+        if (!bandeau) return;
+
+        /* Démarrer la barre de progression */
+        requestAnimationFrame(function() {
+            if (progressBg) progressBg.style.width = '0%';
+        });
+
+        /* Décompte */
+        var interval = setInterval(function() {
+            remaining--;
+            if (countdown) countdown.textContent = remaining;
+            if (remaining <= 0) {
+                clearInterval(interval);
+                fermerBandeau();
+            }
+        }, 1000);
+
+        function fermerBandeau() {
+            clearInterval(interval);
+            bandeau.style.transition = 'opacity 0.4s ease, max-height 0.4s ease, margin 0.3s ease, padding 0.3s ease';
+            bandeau.style.opacity = '0';
+            bandeau.style.maxHeight = '0';
+            bandeau.style.marginBottom = '0';
+            bandeau.style.paddingTop = '0';
+            bandeau.style.paddingBottom = '0';
+            bandeau.style.overflow = 'hidden';
+            setTimeout(function() { bandeau.remove(); }, 450);
+        }
+
+        /* Bouton fermer */
+        if (btnFermer) btnFermer.addEventListener('click', fermerBandeau);
+
+        /* Bouton copier */
+        if (btnCopier) {
+            btnCopier.addEventListener('click', function() {
+                var mdp = document.getElementById('mdpAutoValue');
+                if (mdp && navigator.clipboard) {
+                    navigator.clipboard.writeText(mdp.textContent.trim()).then(function() {
+                        btnCopier.innerHTML = '<i class="fas fa-check"></i>';
+                        btnCopier.classList.add('bg-success', 'text-white');
+                        setTimeout(function() {
+                            btnCopier.innerHTML = '<i class="fas fa-copy"></i>';
+                            btnCopier.classList.remove('bg-success');
+                        }, 1500);
+                    });
+                }
+            });
+        }
+
+        /* Pause au survol */
+        bandeau.addEventListener('mouseenter', function() {
+            clearInterval(interval);
+            if (progressBg) {
+                var computed = window.getComputedStyle(progressBg).width;
+                progressBg.style.transition = 'none';
+                progressBg.style.width = computed;
+            }
+        });
+        bandeau.addEventListener('mouseleave', function() {
+            if (progressBg) {
+                progressBg.style.transition = 'width ' + remaining + 's linear';
+                progressBg.style.width = '0%';
+            }
+            interval = setInterval(function() {
+                remaining--;
+                if (countdown) countdown.textContent = remaining;
+                if (remaining <= 0) {
+                    clearInterval(interval);
+                    fermerBandeau();
+                }
+            }, 1000);
+        });
+    })();
+    </script>
+    {% endif %}
+
+    <!-- ======================================================= -->
     <!-- 📊 CARTES D'INDICATEURS (KPIS)                          -->
     <!-- ======================================================= -->
     <div class="row g-3 mb-4">
@@ -128,7 +257,7 @@
                         <th>Coordonnées</th>
                         <th class="text-center">Métriques</th>
                         <th>Statut</th>
-                        <th class="text-end pe-4" style="width: 220px;">Actions</th>
+                        <th class="text-end pe-4" style="width: 275px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="schoolsTableBody">
@@ -141,14 +270,43 @@
                         </td>
                         <td>
                             <div class="d-flex align-items-center gap-2.5">
-                                <div class="school-avatar rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm" style="background: linear-gradient(135deg, {{ '#4361ee, #3a0ca3' if not is_blocked else '#ef4444, #991b1b' }}); width: 40px; height: 40px; font-size: 0.95rem;">
+                                {% set bg_color = "linear-gradient(135deg, #4361ee, #3a0ca3)" if not is_blocked else "linear-gradient(135deg, #ef4444, #991b1b)" %}
+                                <div class="school-avatar rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm" style="background: {{ bg_color }}; width: 40px; height: 40px; font-size: 0.95rem;">
                                     {{ ecole.nom[:2]|upper }}
                                 </div>
                                 <div>
-                                    <span class="d-block fw-bold text-dark">{{ ecole.nom }}</span>
+                                    <a href="#" class="d-block fw-bold text-dark text-decoration-none"
+                                       data-bs-toggle="modal" data-bs-target="#modalDetailsEcole"
+                                       data-id="{{ ecole.id }}"
+                                       data-nom="{{ ecole.nom }}"
+                                       data-logo="{{ url_for('static', filename=ecole.logo_path) if ecole.logo_path and ecole.logo_path != 'default_logo.png' else '' }}"
+                                       data-devise="{{ ecole.slogan or ecole.devise or '' }}"
+                                       data-adresse="{{ ecole.adresse|default('') }}"
+                                       data-ville="{{ ecole.ville|default('') }}"
+                                       data-telephone="{{ ecole.telephone|default('') }}"
+                                       data-email="{{ ecole.email|default('') }}"
+                                       data-directeur="{{ ecole.directeur|default('') }}"
+                                       data-statut="{{ ecole.statut }}"
+                                       data-is-blocked="{{ '1' if is_blocked else '0' }}"
+                                       data-motif-blocage="{{ ecole.motif_blocage|default('') }}"
+                                       data-date-creation="{{ ecole.date_creation.strftime('%d/%m/%Y à %H:%M') if ecole.date_creation else 'N/A' }}"
+                                       data-annee-active="{{ ecole.annee_active|default('Non configurée') }}"
+                                       data-onboarding="{{ '1' if ecole.onboarding_complete else '0' }}"
+                                       data-eleves="{{ ecole.nb_eleves|default(0) }}"
+                                       data-classes="{{ ecole.nb_classes|default(0) }}"
+                                       data-profs="{{ ecole.nb_profs|default(0) }}"
+                                       data-admin-nom="{{ ecole.admin_user.nom if ecole.admin_user else '' }}"
+                                       data-admin-email="{{ ecole.admin_user.email if ecole.admin_user else '' }}"
+                                       title="Cliquez pour voir tous les détails">
+                                        {{ ecole.nom }}
+                                    </a>
                                     {% if ecole.adresse %}
-                                    <span class="d-block text-muted small text-truncate" style="max-width: 230px;" title="{{ ecole.adresse }}">
-                                        <i class="fas fa-map-marker-alt text-danger me-1"></i>{{ ecole.adresse }}
+                                    <span class="d-block text-muted small text-truncate" style="max-width: 230px;" title="{{ ecole.adresse }}{% if ecole.ville %} ({{ ecole.ville }}){% endif %}">
+                                        <i class="fas fa-map-marker-alt text-danger me-1"></i>{{ ecole.adresse }}{% if ecole.ville %} <span class="fw-medium">({{ ecole.ville }})</span>{% endif %}
+                                    </span>
+                                    {% elif ecole.ville %}
+                                    <span class="d-block text-muted small text-truncate" style="max-width: 230px;" title="{{ ecole.ville }}">
+                                        <i class="fas fa-map-marker-alt text-danger me-1"></i>{{ ecole.ville }}
                                     </span>
                                     {% else %}
                                     <span class="text-muted small fst-italic">Adresse non renseignée</span>
@@ -212,15 +370,48 @@
                         </td>
                         <td class="text-end pe-4">
                             <div class="btn-group btn-group-sm shadow-sm" role="group">
+                                <!-- Voir plus -->
+                                <button type="button" class="btn btn-outline-info btn-details-ecole" title="Voir les informations complètes de l'école"
+                                        data-bs-toggle="modal" data-bs-target="#modalDetailsEcole"
+                                        data-id="{{ ecole.id }}"
+                                        data-nom="{{ ecole.nom }}"
+                                        data-logo="{{ url_for('static', filename=ecole.logo_path) if ecole.logo_path and ecole.logo_path != 'default_logo.png' else '' }}"
+                                        data-devise="{{ ecole.slogan or ecole.devise or '' }}"
+                                        data-adresse="{{ ecole.adresse|default('') }}"
+                                        data-ville="{{ ecole.ville|default('') }}"
+                                        data-telephone="{{ ecole.telephone|default('') }}"
+                                        data-email="{{ ecole.email|default('') }}"
+                                        data-statut="{{ ecole.statut }}"
+                                        data-is-blocked="{{ '1' if is_blocked else '0' }}"
+                                        data-motif-blocage="{{ ecole.motif_blocage|default('') }}"
+                                        data-date-creation="{{ ecole.date_creation.strftime('%d/%m/%Y à %H:%M') if ecole.date_creation else 'N/A' }}"
+                                        data-annee-active="{{ ecole.annee_active|default('Non configurée') }}"
+                                        data-onboarding="{{ '1' if ecole.onboarding_complete else '0' }}"
+                                        data-eleves="{{ ecole.nb_eleves|default(0) }}"
+                                        data-classes="{{ ecole.nb_classes|default(0) }}"
+                                        data-profs="{{ ecole.nb_profs|default(0) }}">
+                                    <i class="fas fa-eye me-1"></i>Voir plus
+                                </button>
+
                                 <!-- Modifier -->
                                 <button type="button" class="btn btn-outline-primary" title="Modifier l'école"
                                         data-bs-toggle="modal" data-bs-target="#modalModifierEcole"
                                         data-id="{{ ecole.id }}"
                                         data-nom="{{ ecole.nom }}"
                                         data-adresse="{{ ecole.adresse|default('') }}"
+                                        data-ville="{{ ecole.ville|default('') }}"
                                         data-telephone="{{ ecole.telephone|default('') }}"
                                         data-email="{{ ecole.email|default('') }}">
                                     <i class="fas fa-edit"></i>
+                                </button>
+
+                                <!-- Réinitialiser mot de passe -->
+                                <button type="button" class="btn btn-outline-secondary" title="Réinitialiser le mot de passe"
+                                        data-bs-toggle="modal" data-bs-target="#modalResetMdp"
+                                        data-id="{{ ecole.id }}"
+                                        data-nom="{{ ecole.nom }}"
+                                        data-email="{{ ecole.email|default('') }}">
+                                    <i class="fas fa-key"></i>
                                 </button>
 
                                 <!-- Bloquer / Débloquer -->
@@ -284,7 +475,8 @@
                 <!-- En-tête carte -->
                 <div class="d-flex align-items-start justify-content-between gap-2 mb-2.5">
                     <div class="d-flex align-items-center gap-2.5">
-                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm flex-shrink-0" style="background: linear-gradient(135deg, {{ '#4361ee, #3a0ca3' if not is_blocked else '#ef4444, #991b1b' }}); width: 42px; height: 42px; font-size: 0.95rem;">
+                        {% set bg_color = "linear-gradient(135deg, #4361ee, #3a0ca3)" if not is_blocked else "linear-gradient(135deg, #ef4444, #991b1b)" %}
+                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-sm flex-shrink-0" style="background: {{ bg_color }}; width: 42px; height: 42px; font-size: 0.95rem;">
                             {{ ecole.nom[:2]|upper }}
                         </div>
                         <div>
@@ -325,15 +517,17 @@
                 <!-- Informations -->
                 <div class="small text-muted mb-3">
                     {% if ecole.adresse %}
-                    <div class="mb-1"><i class="fas fa-map-marker-alt text-danger me-1.5"></i>{{ ecole.adresse }}</div>
+                    <div class="mb-1"><i class="fas fa-map-marker-alt text-danger me-1.5"></i>{{ ecole.adresse }}{% if ecole.ville %} <span class="fw-medium">({{ ecole.ville }})</span>{% endif %}</div>
+                    {% elif ecole.ville %}
+                    <div class="mb-1"><i class="fas fa-map-marker-alt text-danger me-1.5"></i>{{ ecole.ville }}</div>
                     {% endif %}
 
-                    <div class="d-flex gap-3 mt-1">
+                    <div class="d-flex flex-wrap gap-3 mt-1">
                         {% if ecole.email %}
                         <a href="mailto:{{ ecole.email }}" class="text-decoration-none text-primary"><i class="fas fa-envelope me-1"></i>Email</a>
                         {% endif %}
                         {% if ecole.telephone %}
-                        <a href="tel:{{ ecole.telephone }}" class="text-decoration-none text-success"><i class="fas fa-phone me-1"></i>Appeler</a>
+                        <a href="tel:{{ ecole.telephone }}" class="text-decoration-none text-success"><i class="fas fa-phone me-1"></i>{{ ecole.telephone }}</a>
                         {% endif %}
                     </div>
                 </div>
@@ -352,15 +546,47 @@
                 </div>
 
                 <!-- Actions tactiles -->
-                <div class="d-flex gap-2">
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-outline-info btn-sm flex-fill d-flex align-items-center justify-content-center gap-1 btn-details-ecole"
+                            data-bs-toggle="modal" data-bs-target="#modalDetailsEcole"
+                            data-id="{{ ecole.id }}"
+                            data-nom="{{ ecole.nom }}"
+                            data-logo="{{ url_for('static', filename=ecole.logo_path) if ecole.logo_path and ecole.logo_path != 'default_logo.png' else '' }}"
+                            data-devise="{{ ecole.slogan or ecole.devise or '' }}"
+                            data-adresse="{{ ecole.adresse|default('') }}"
+                            data-ville="{{ ecole.ville|default('') }}"
+                            data-telephone="{{ ecole.telephone|default('') }}"
+                            data-email="{{ ecole.email|default('') }}"
+                            data-statut="{{ ecole.statut }}"
+                            data-is-blocked="{{ '1' if is_blocked else '0' }}"
+                            data-motif-blocage="{{ ecole.motif_blocage|default('') }}"
+                            data-date-creation="{{ ecole.date_creation.strftime('%d/%m/%Y à %H:%M') if ecole.date_creation else 'N/A' }}"
+                            data-annee-active="{{ ecole.annee_active|default('Non configurée') }}"
+                            data-onboarding="{{ '1' if ecole.onboarding_complete else '0' }}"
+                            data-eleves="{{ ecole.nb_eleves|default(0) }}"
+                            data-classes="{{ ecole.nb_classes|default(0) }}"
+                            data-profs="{{ ecole.nb_profs|default(0) }}">
+                        <i class="fas fa-eye"></i>
+                        <span>Voir plus</span>
+                    </button>
+
                     <button type="button" class="btn btn-outline-primary btn-sm flex-fill"
                             data-bs-toggle="modal" data-bs-target="#modalModifierEcole"
                             data-id="{{ ecole.id }}"
                             data-nom="{{ ecole.nom }}"
                             data-adresse="{{ ecole.adresse|default('') }}"
+                            data-ville="{{ ecole.ville|default('') }}"
                             data-telephone="{{ ecole.telephone|default('') }}"
                             data-email="{{ ecole.email|default('') }}">
                         <i class="fas fa-edit me-1"></i>Modifier
+                    </button>
+
+                    <button type="button" class="btn btn-outline-secondary btn-sm flex-fill"
+                            data-bs-toggle="modal" data-bs-target="#modalResetMdp"
+                            data-id="{{ ecole.id }}"
+                            data-nom="{{ ecole.nom }}"
+                            data-email="{{ ecole.email|default('') }}">
+                        <i class="fas fa-key me-1"></i>MDP
                     </button>
 
                     {% if is_blocked %}
@@ -395,6 +621,146 @@
         {% endfor %}
     </div>
 
+<!-- ======================================================= -->
+<!-- 👁️ MODAL : VOIR PLUS (FICHE DÉTAILLÉE DE L'ÉCOLE)       -->
+<!-- ======================================================= -->
+<div class="modal fade" id="modalDetailsEcole" tabindex="-1" aria-labelledby="modalDetailsEcoleLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <!-- Header épuré et moderne -->
+            <div class="modal-header border-bottom py-3 px-4 text-white position-relative" style="background: linear-gradient(135deg, #1e293b, #0f172a) !important;">
+                <div class="d-flex align-items-center gap-3 w-100 pe-4">
+                    <div id="detailsAvatarContainer" class="flex-shrink-0">
+                        <img id="detailsLogoImg" src="" alt="Logo" class="rounded-3 border border-2 border-white shadow-sm d-none" style="width: 54px; height: 54px; object-fit: contain; background: #fff; padding: 2px;">
+                        <div id="detailsAvatarFallback" class="rounded-3 d-flex align-items-center justify-content-center text-white fw-bold shadow-sm" style="width: 54px; height: 54px; font-size: 1.3rem; background: linear-gradient(135deg, #4361ee, #3a0ca3);">
+                            EC
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-0.5">
+                            <h5 class="modal-title fw-bold text-white mb-0 text-truncate" id="detailsEcoleNom">Nom de l'école</h5>
+                            <span class="badge bg-white-subtle text-white border border-white-subtle px-2 py-0.5 small" id="detailsEcoleIdBadge">#ID</span>
+                            <span class="badge rounded-pill px-2.5 py-0.5" id="detailsEcoleStatutBadge">Active</span>
+                        </div>
+                        <div class="text-warning small fst-italic text-truncate" id="detailsEcoleDevise">
+                            Devise de l'établissement
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white position-absolute top-50 end-0 translate-middle-y me-3" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+
+            <div class="modal-body p-3 p-md-4 bg-light bg-opacity-50">
+                <!-- Alerte conditionnelle si l'école est bloquée/suspendue -->
+                <div id="detailsBlocageAlert" class="alert alert-danger d-flex align-items-start gap-2.5 rounded-3 mb-3 d-none">
+                    <i class="fas fa-exclamation-triangle fa-lg mt-0.5 flex-shrink-0 text-danger"></i>
+                    <div class="small">
+                        <strong class="d-block mb-0.5">Établissement actuellement suspendu / bloqué</strong>
+                        <span id="detailsBlocageMotif">Motif inconnu</span>
+                    </div>
+                </div>
+
+                <!-- Ligne 1 : Statistiques académiques clés -->
+                <div class="row g-2.5 mb-3">
+                    <div class="col-4">
+                        <div class="p-2.5 rounded-3 bg-white border text-center shadow-xs">
+                            <span class="d-block text-muted small" style="font-size: 0.75rem;"><i class="fas fa-user-graduate text-primary me-1"></i>Élèves</span>
+                            <strong class="fs-5 text-dark" id="detailsNbEleves">0</strong>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-2.5 rounded-3 bg-white border text-center shadow-xs">
+                            <span class="d-block text-muted small" style="font-size: 0.75rem;"><i class="fas fa-chalkboard text-info me-1"></i>Classes</span>
+                            <strong class="fs-5 text-dark" id="detailsNbClasses">0</strong>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="p-2.5 rounded-3 bg-white border text-center shadow-xs">
+                            <span class="d-block text-muted small" style="font-size: 0.75rem;"><i class="fas fa-chalkboard-teacher text-success me-1"></i>Professeurs</span>
+                            <strong class="fs-5 text-dark" id="detailsNbProfs">0</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ligne 2 : Grille 2 colonnes Coordonnées & Administration -->
+                <div class="row g-3">
+                    <!-- Colonne Gauche : Coordonnées & Localisation -->
+                    <div class="col-12 col-md-6">
+                        <div class="p-3 rounded-3 bg-white border h-100 shadow-xs">
+                            <div class="fw-bold text-dark small text-uppercase mb-2.5 pb-1 border-bottom d-flex align-items-center gap-1.5">
+                                <i class="fas fa-map-marker-alt text-danger"></i>
+                                <span>Coordonnées & Emplacement</span>
+                            </div>
+                            <div class="d-flex flex-column gap-2 small">
+                                <div>
+                                    <span class="text-muted d-block" style="font-size: 0.72rem;">Ville / Localité :</span>
+                                    <span class="fw-semibold text-dark" id="detailsVille">Non renseignée</span>
+                                </div>
+                                <div>
+                                    <span class="text-muted d-block" style="font-size: 0.72rem;">Adresse physique :</span>
+                                    <span class="text-dark" id="detailsAdresse">Non renseignée</span>
+                                </div>
+                                <div>
+                                    <span class="text-muted d-block" style="font-size: 0.72rem;">Téléphone officiel :</span>
+                                    <a href="#" id="detailsTelLink" class="text-decoration-none fw-semibold text-primary">
+                                        <i class="fas fa-phone-alt me-1 text-success"></i><span id="detailsTelephone">Non renseigné</span>
+                                    </a>
+                                </div>
+                                <div>
+                                    <span class="text-muted d-block" style="font-size: 0.72rem;">Email officiel :</span>
+                                    <a href="#" id="detailsEmailLink" class="text-decoration-none text-dark">
+                                        <i class="fas fa-envelope me-1 text-primary"></i><span id="detailsEmail">Non renseigné</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Colonne Droite : Statut & Configuration de l'Établissement -->
+                    <div class="col-12 col-md-6">
+                        <div class="p-3 rounded-3 bg-white border h-100 shadow-xs">
+                            <div class="fw-bold text-dark small text-uppercase mb-2.5 pb-1 border-bottom d-flex align-items-center gap-1.5">
+                                <i class="fas fa-sliders-h text-primary"></i>
+                                <span>Statut & Configuration</span>
+                            </div>
+                            <div class="d-flex flex-column gap-2 small">
+                                <div>
+                                    <span class="text-muted d-block" style="font-size: 0.72rem;">Statut opérationnel :</span>
+                                    <span class="fw-semibold" id="detailsStatutLibelle">Active</span>
+                                </div>
+                                <div>
+                                    <span class="text-muted d-block" style="font-size: 0.72rem;">Année scolaire active :</span>
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold" id="detailsAnneeActive">Non configurée</span>
+                                </div>
+                                <div>
+                                    <span class="text-muted d-block" style="font-size: 0.72rem;">Configuration initiale :</span>
+                                    <span class="badge" id="detailsOnboardingBadge">Terminé</span>
+                                </div>
+                                <div>
+                                    <span class="text-muted d-block" style="font-size: 0.72rem;">Inscrite sur KLASORA depuis :</span>
+                                    <span class="text-dark fw-medium" id="detailsDateCreation">N/A</span>
+                                </div>
+                                <div>
+                                    <span class="text-muted d-block" style="font-size: 0.72rem;">Identifiant système :</span>
+                                    <span class="badge bg-light text-dark border fw-bold" id="detailsEcoleIdNum">#0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer avec actions rapides -->
+            <div class="modal-footer border-top py-2.5 px-4 bg-light rounded-bottom-4 d-flex justify-content-between align-items-center">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-3" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Fermer
+                </button>
+                <button type="button" class="btn btn-primary btn-sm px-3 fw-semibold shadow-sm" id="btnDetailsVersModifier">
+                    <i class="fas fa-edit me-1.5"></i>Modifier cette école
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- ======================================================= -->
@@ -437,11 +803,18 @@
                             <input type="tel" class="form-control" id="edit_telephone" name="telephone" placeholder="+212 600 000 000">
                         </div>
                     </div>
-                    <div class="mb-2">
+                    <div class="mb-3">
                         <label for="edit_adresse" class="form-label small fw-bold text-dark">Adresse physique</label>
                         <div class="input-group">
                             <span class="input-group-text bg-light text-muted"><i class="fas fa-map-marker-alt"></i></span>
-                            <input type="text" class="form-control" id="edit_adresse" name="adresse" placeholder="Rue, quartier, ville, pays">
+                            <input type="text" class="form-control" id="edit_adresse" name="adresse" placeholder="Rue, quartier, localité">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label for="edit_ville" class="form-label small fw-bold text-dark">Ville</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted"><i class="fas fa-city"></i></span>
+                            <input type="text" class="form-control" id="edit_ville" name="ville" placeholder="Ex : Niamey">
                         </div>
                     </div>
                 </div>
@@ -613,6 +986,94 @@
 </div>
 
 <!-- ======================================================= -->
+<!-- 🔑 MODAL : RÉINITIALISER MOT DE PASSE                   -->
+<!-- ======================================================= -->
+<div class="modal fade" id="modalResetMdp" tabindex="-1" aria-labelledby="modalResetMdpLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-bottom py-3 px-4" style="background: linear-gradient(135deg, #1e3a5f, #1e40af); color: #fff;">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-circle bg-white bg-opacity-25 text-white d-flex align-items-center justify-content-center shadow-sm" style="width: 38px; height: 38px;">
+                        <i class="fas fa-key"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="modalResetMdpLabel">Réinitialiser le mot de passe</h5>
+                        <small class="opacity-75" id="resetMdpEcoleNom"></small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body p-4" id="resetMdpConfirmBody">
+                <div class="alert alert-warning py-2.5 px-3 rounded-3 small mb-3">
+                    <div class="fw-bold mb-1"><i class="fas fa-exclamation-triangle me-1"></i>Attention</div>
+                    <div>
+                        Le mot de passe actuel de l'administrateur de l'école <strong id="resetMdpNomInline"></strong>
+                        sera remplacé par un nouveau code sécurisé de <strong>8 chiffres</strong>.
+                    </div>
+                </div>
+                <div class="p-3 rounded-3 border bg-light small">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="fas fa-info-circle text-primary mt-0.5"></i>
+                        <div>
+                            <div class="mb-1">Le nouveau mot de passe sera :</div>
+                            <ul class="mb-0 ps-3">
+                                <li>Affiché immédiatement pour que vous puissiez le <strong>copier</strong></li>
+                                <li>Envoyé par <strong>email</strong> à l'administrateur de l'école</li>
+                                <li>L'ancien mot de passe ne fonctionnera plus</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-muted small mt-3">
+                    <i class="fas fa-envelope me-1"></i>Email de l'école : <strong id="resetMdpEmail"></strong>
+                </div>
+            </div>
+            <!-- Zone de résultat (masquée par défaut) -->
+            <div class="modal-body p-4 d-none" id="resetMdpResultBody">
+                <div class="text-center mb-3">
+                    <div class="rounded-circle mx-auto d-flex align-items-center justify-content-center mb-2" style="width: 56px; height: 56px; background: linear-gradient(135deg, #16a34a, #15803d);">
+                        <i class="fas fa-check fa-lg text-white"></i>
+                    </div>
+                    <h6 class="fw-bold text-success mb-1">Mot de passe réinitialisé avec succès</h6>
+                    <small class="text-muted" id="resetMdpResultNom"></small>
+                </div>
+                <div class="p-3 rounded-3 text-center mb-3" style="background: linear-gradient(135deg, #1e3a5f, #1e40af);">
+                    <div class="text-white-50 small mb-1"><i class="fas fa-key me-1"></i>Nouveau mot de passe</div>
+                    <div class="d-flex align-items-center justify-content-center gap-2">
+                        <span class="fw-bold text-white" style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 1.6rem; letter-spacing: 0.2em;" id="resetMdpNewValue"></span>
+                        <button type="button" class="btn btn-sm btn-light bg-white bg-opacity-25 border-0 text-white px-2" id="btnCopierResetMdp" title="Copier">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="d-flex flex-column gap-2">
+                    <div class="d-flex align-items-center gap-2 small text-muted p-2 bg-light rounded-3">
+                        <i class="fas fa-envelope text-primary flex-shrink-0"></i>
+                        <span id="resetMdpEmailStatus">Envoyé par email à l'administrateur</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 small text-muted p-2 bg-light rounded-3">
+                        <i class="fab fa-whatsapp text-success flex-shrink-0"></i>
+                        <span>Vous pouvez copier ce mot de passe et l'envoyer par WhatsApp</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-top py-2.5 px-4 bg-light rounded-bottom-4" id="resetMdpConfirmFooter">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary btn-sm fw-semibold shadow-sm" id="btnConfirmResetMdp">
+                    <i class="fas fa-sync-alt me-1"></i>Réinitialiser le mot de passe
+                </button>
+            </div>
+            <div class="modal-footer border-top py-2.5 px-4 bg-light rounded-bottom-4 d-none" id="resetMdpResultFooter">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" class="btn btn-success btn-sm fw-semibold shadow-sm" id="btnCopierEtFermer">
+                    <i class="fas fa-copy me-1"></i>Copier et fermer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ======================================================= -->
 <!-- ⚙️ LOGIQUE JS VANILLA FILTRES, RECHERCHE & MODALES     -->
 <!-- ======================================================= -->
 <script>
@@ -658,6 +1119,185 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // 0. Modale Voir Plus (Détails complets de l'établissement)
+    const modalDetails = document.getElementById('modalDetailsEcole');
+    let currentSchoolDetails = {};
+
+    if (modalDetails) {
+        modalDetails.addEventListener('show.bs.modal', function (event) {
+            const btn = event.relatedTarget;
+            if (!btn) return;
+
+            currentSchoolDetails = {
+                id: btn.getAttribute('data-id') || '',
+                nom: btn.getAttribute('data-nom') || '',
+                logo: btn.getAttribute('data-logo') || '',
+                devise: btn.getAttribute('data-devise') || '',
+                adresse: btn.getAttribute('data-adresse') || '',
+                ville: btn.getAttribute('data-ville') || '',
+                telephone: btn.getAttribute('data-telephone') || '',
+                email: btn.getAttribute('data-email') || '',
+                statut: btn.getAttribute('data-statut') || 'actif',
+                isBlocked: btn.getAttribute('data-is-blocked') === '1',
+                motifBlocage: btn.getAttribute('data-motif-blocage') || '',
+                dateCreation: btn.getAttribute('data-date-creation') || 'N/A',
+                anneeActive: btn.getAttribute('data-annee-active') || 'Non configurée',
+                onboarding: btn.getAttribute('data-onboarding') === '1',
+                eleves: btn.getAttribute('data-eleves') || '0',
+                classes: btn.getAttribute('data-classes') || '0',
+                profs: btn.getAttribute('data-profs') || '0',
+            };
+
+            // Nom & ID
+            document.getElementById('detailsEcoleNom').textContent = currentSchoolDetails.nom;
+            document.getElementById('detailsEcoleIdBadge').textContent = '#' + currentSchoolDetails.id;
+
+            // Logo ou Initiales
+            const logoImg = document.getElementById('detailsLogoImg');
+            const avatarFallback = document.getElementById('detailsAvatarFallback');
+            if (currentSchoolDetails.logo) {
+                logoImg.src = currentSchoolDetails.logo;
+                logoImg.classList.remove('d-none');
+                avatarFallback.classList.add('d-none');
+            } else {
+                logoImg.classList.add('d-none');
+                avatarFallback.classList.remove('d-none');
+                avatarFallback.textContent = (currentSchoolDetails.nom.substring(0, 2) || 'EC').toUpperCase();
+            }
+
+            // Statut Badge
+            const statutBadge = document.getElementById('detailsEcoleStatutBadge');
+            if (currentSchoolDetails.isBlocked) {
+                statutBadge.className = 'badge rounded-pill px-2.5 py-0.5 bg-danger text-white border border-danger';
+                statutBadge.innerHTML = '<i class="fas fa-ban me-1"></i>Bloquée / Suspendue';
+            } else if (currentSchoolDetails.statut === 'inactive') {
+                statutBadge.className = 'badge rounded-pill px-2.5 py-0.5 bg-secondary text-white border border-secondary';
+                statutBadge.innerHTML = '<i class="fas fa-power-off me-1"></i>Inactive';
+            } else {
+                statutBadge.className = 'badge rounded-pill px-2.5 py-0.5 bg-success text-white border border-success';
+                statutBadge.innerHTML = '<i class="fas fa-check-circle me-1"></i>Active';
+            }
+
+            // Devise / Slogan
+            const deviseEl = document.getElementById('detailsEcoleDevise');
+            if (currentSchoolDetails.devise) {
+                deviseEl.textContent = '« ' + currentSchoolDetails.devise + ' »';
+                deviseEl.classList.remove('d-none');
+            } else {
+                deviseEl.textContent = 'Aucune devise renseignée';
+                deviseEl.classList.remove('d-none');
+            }
+
+            // Alerte blocage
+            const blocageAlert = document.getElementById('detailsBlocageAlert');
+            if (currentSchoolDetails.isBlocked && currentSchoolDetails.motifBlocage) {
+                document.getElementById('detailsBlocageMotif').textContent = currentSchoolDetails.motifBlocage;
+                blocageAlert.classList.remove('d-none');
+            } else {
+                blocageAlert.classList.add('d-none');
+            }
+
+            // Métriques
+            document.getElementById('detailsNbEleves').textContent = currentSchoolDetails.eleves;
+            document.getElementById('detailsNbClasses').textContent = currentSchoolDetails.classes;
+            document.getElementById('detailsNbProfs').textContent = currentSchoolDetails.profs;
+
+            // Localisation & Contacts
+            document.getElementById('detailsVille').textContent = currentSchoolDetails.ville || 'Non renseignée';
+            document.getElementById('detailsAdresse').textContent = currentSchoolDetails.adresse || 'Non renseignée';
+
+            const telSpan = document.getElementById('detailsTelephone');
+            const telLink = document.getElementById('detailsTelLink');
+            if (currentSchoolDetails.telephone) {
+                telSpan.textContent = currentSchoolDetails.telephone;
+                telLink.href = 'tel:' + currentSchoolDetails.telephone;
+                telLink.classList.remove('text-muted');
+                telLink.style.pointerEvents = 'auto';
+            } else {
+                telSpan.textContent = 'Non renseigné';
+                telLink.href = '#';
+                telLink.classList.add('text-muted');
+                telLink.style.pointerEvents = 'none';
+            }
+
+            const emailSpan = document.getElementById('detailsEmail');
+            const emailLink = document.getElementById('detailsEmailLink');
+            if (currentSchoolDetails.email) {
+                emailSpan.textContent = currentSchoolDetails.email;
+                emailLink.href = 'mailto:' + currentSchoolDetails.email;
+                emailLink.classList.remove('text-muted');
+                emailLink.style.pointerEvents = 'auto';
+            } else {
+                emailSpan.textContent = 'Non renseigné';
+                emailLink.href = '#';
+                emailLink.classList.add('text-muted');
+                emailLink.style.pointerEvents = 'none';
+            }
+
+            // Statut & Configuration de l'établissement
+            const statutLibelle = document.getElementById('detailsStatutLibelle');
+            if (statutLibelle) {
+                if (currentSchoolDetails.isBlocked) {
+                    statutLibelle.className = 'fw-bold text-danger';
+                    statutLibelle.innerHTML = '<i class="fas fa-ban me-1"></i>Suspendue / Bloquée';
+                } else if (currentSchoolDetails.statut === 'inactive') {
+                    statutLibelle.className = 'fw-semibold text-secondary';
+                    statutLibelle.innerHTML = '<i class="fas fa-power-off me-1"></i>Inactive';
+                } else {
+                    statutLibelle.className = 'fw-bold text-success';
+                    statutLibelle.innerHTML = '<i class="fas fa-check-circle me-1"></i>Active / Opérationnelle';
+                }
+            }
+
+            const anneeEl = document.getElementById('detailsAnneeActive');
+            if (anneeEl) anneeEl.textContent = currentSchoolDetails.anneeActive || 'Non configurée';
+
+            const onbBadge = document.getElementById('detailsOnboardingBadge');
+            if (onbBadge) {
+                if (currentSchoolDetails.onboarding) {
+                    onbBadge.className = 'badge bg-success-subtle text-success border border-success-subtle';
+                    onbBadge.innerHTML = '<i class="fas fa-check-circle me-1"></i>Terminé';
+                } else {
+                    onbBadge.className = 'badge bg-warning-subtle text-warning-emphasis border border-warning-subtle';
+                    onbBadge.innerHTML = '<i class="fas fa-hourglass-half me-1"></i>En cours';
+                }
+            }
+
+            const dateCreationEl = document.getElementById('detailsDateCreation');
+            if (dateCreationEl) dateCreationEl.textContent = currentSchoolDetails.dateCreation || 'N/A';
+
+            const idNumEl = document.getElementById('detailsEcoleIdNum');
+            if (idNumEl) idNumEl.textContent = '#' + currentSchoolDetails.id;
+        });
+
+        // Bouton de bascule vers "Modifier cette école" depuis la modale Voir Plus
+        const btnVersModifier = document.getElementById('btnDetailsVersModifier');
+        if (btnVersModifier) {
+            btnVersModifier.addEventListener('click', function () {
+                const bsModalDetails = bootstrap.Modal.getInstance(modalDetails);
+                if (bsModalDetails) {
+                    bsModalDetails.hide();
+                }
+
+                setTimeout(function () {
+                    const modalModifierEl = document.getElementById('modalModifierEcole');
+                    if (modalModifierEl) {
+                        document.getElementById('edit_nom').value = currentSchoolDetails.nom || '';
+                        document.getElementById('edit_email').value = currentSchoolDetails.email || '';
+                        document.getElementById('edit_telephone').value = currentSchoolDetails.telephone || '';
+                        document.getElementById('edit_adresse').value = currentSchoolDetails.adresse || '';
+                        const villeInput = document.getElementById('edit_ville');
+                        if (villeInput) villeInput.value = currentSchoolDetails.ville || '';
+                        document.getElementById('formModifierEcole').action = '/admin/ecoles/' + currentSchoolDetails.id + '/modifier';
+
+                        const bsModalModifier = new bootstrap.Modal(modalModifierEl);
+                        bsModalModifier.show();
+                    }
+                }, 300);
+            });
+        }
+    }
+
     // 1. Modale Modifier
     const modalModifier = document.getElementById('modalModifierEcole');
     if (modalModifier) {
@@ -668,11 +1308,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const email = btn.getAttribute('data-email') || '';
             const telephone = btn.getAttribute('data-telephone') || '';
             const adresse = btn.getAttribute('data-adresse') || '';
+            const ville = btn.getAttribute('data-ville') || '';
 
             document.getElementById('edit_nom').value = nom;
             document.getElementById('edit_email').value = email;
             document.getElementById('edit_telephone').value = telephone;
             document.getElementById('edit_adresse').value = adresse;
+            const villeInput = document.getElementById('edit_ville');
+            if (villeInput) villeInput.value = ville;
 
             document.getElementById('formModifierEcole').action = '/admin/ecoles/' + id + '/modifier';
         });
@@ -759,6 +1402,112 @@ document.addEventListener('DOMContentLoaded', function () {
         if (confirmInput && confirmPhrase && deleteBtn) {
             confirmInput.addEventListener('input', refreshDeleteButton);
             confirmPhrase.addEventListener('input', refreshDeleteButton);
+        }
+    }
+
+    // 5. Modale Réinitialiser Mot de Passe
+    var modalResetMdp = document.getElementById('modalResetMdp');
+    var resetEcoleId = null;
+    if (modalResetMdp) {
+        modalResetMdp.addEventListener('show.bs.modal', function (event) {
+            var btn = event.relatedTarget;
+            if (!btn) return;
+            resetEcoleId = btn.getAttribute('data-id');
+            var nom = btn.getAttribute('data-nom') || '';
+            var email = btn.getAttribute('data-email') || '';
+
+            document.getElementById('resetMdpEcoleNom').textContent = nom;
+            document.getElementById('resetMdpNomInline').textContent = nom;
+            document.getElementById('resetMdpEmail').textContent = email || 'Non renseigné';
+
+            /* Réinitialiser l'état de la modale (confirmation visible, résultat masqué) */
+            document.getElementById('resetMdpConfirmBody').classList.remove('d-none');
+            document.getElementById('resetMdpResultBody').classList.add('d-none');
+            document.getElementById('resetMdpConfirmFooter').classList.remove('d-none');
+            document.getElementById('resetMdpResultFooter').classList.add('d-none');
+            document.getElementById('btnConfirmResetMdp').disabled = false;
+            document.getElementById('btnConfirmResetMdp').innerHTML = '<i class="fas fa-sync-alt me-1"></i>Réinitialiser le mot de passe';
+        });
+
+        var btnConfirm = document.getElementById('btnConfirmResetMdp');
+        if (btnConfirm) {
+            btnConfirm.addEventListener('click', function () {
+                if (!resetEcoleId) return;
+                btnConfirm.disabled = true;
+                btnConfirm.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Réinitialisation...';
+
+                /* AJAX POST vers le backend */
+                var csrfToken = document.querySelector('input[name="csrf_token"]');
+                var formData = new FormData();
+                if (csrfToken) formData.append('csrf_token', csrfToken.value);
+
+                fetch('/admin/ecoles/' + resetEcoleId + '/reset-mdp', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        /* Basculer vers l'affichage du résultat */
+                        document.getElementById('resetMdpConfirmBody').classList.add('d-none');
+                        document.getElementById('resetMdpResultBody').classList.remove('d-none');
+                        document.getElementById('resetMdpConfirmFooter').classList.add('d-none');
+                        document.getElementById('resetMdpResultFooter').classList.remove('d-none');
+
+                        document.getElementById('resetMdpNewValue').textContent = data.nouveau_mdp;
+                        document.getElementById('resetMdpResultNom').textContent = data.ecole_nom + ' — ' + data.email;
+
+                        var statusEl = document.getElementById('resetMdpEmailStatus');
+                        if (data.email_envoye) {
+                            statusEl.innerHTML = '<i class="fas fa-check-circle text-success me-1"></i>Email envoyé avec succès à <strong>' + data.email + '</strong>';
+                        } else {
+                            statusEl.innerHTML = '<i class="fas fa-exclamation-triangle text-warning me-1"></i>Email non envoyé — communiquez le mot de passe manuellement';
+                        }
+                    } else {
+                        alert(data.message || 'Erreur lors de la réinitialisation.');
+                        btnConfirm.disabled = false;
+                        btnConfirm.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Réinitialiser le mot de passe';
+                    }
+                })
+                .catch(function(err) {
+                    alert('Erreur réseau. Veuillez réessayer.');
+                    btnConfirm.disabled = false;
+                    btnConfirm.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Réinitialiser le mot de passe';
+                });
+            });
+        }
+
+        /* Copier le nouveau mot de passe */
+        function copierResetMdp(btnEl) {
+            var mdpEl = document.getElementById('resetMdpNewValue');
+            if (mdpEl && navigator.clipboard) {
+                navigator.clipboard.writeText(mdpEl.textContent.trim()).then(function() {
+                    btnEl.innerHTML = '<i class="fas fa-check"></i>';
+                    btnEl.classList.add('bg-success');
+                    setTimeout(function() {
+                        btnEl.innerHTML = '<i class="fas fa-copy"></i>';
+                        btnEl.classList.remove('bg-success');
+                    }, 1500);
+                });
+            }
+        }
+
+        var btnCopierReset = document.getElementById('btnCopierResetMdp');
+        if (btnCopierReset) {
+            btnCopierReset.addEventListener('click', function() { copierResetMdp(this); });
+        }
+
+        var btnCopierFermer = document.getElementById('btnCopierEtFermer');
+        if (btnCopierFermer) {
+            btnCopierFermer.addEventListener('click', function() {
+                var mdpEl = document.getElementById('resetMdpNewValue');
+                if (mdpEl && navigator.clipboard) {
+                    navigator.clipboard.writeText(mdpEl.textContent.trim()).then(function() {
+                        var bsModal = bootstrap.Modal.getInstance(modalResetMdp);
+                        if (bsModal) bsModal.hide();
+                    });
+                }
+            });
         }
     }
 });
