@@ -19,6 +19,7 @@
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -539,7 +540,7 @@
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" href="{{ url_for('main.eleves') }}"><i class="fas fa-list me-2"></i>Liste des élèves</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.ajouter_eleve') }}"><i class="fas fa-plus me-2"></i>Ajouter un élève</a></li>
-
+                                    <li><a class="dropdown-item" href="{{ url_for('main.qrcodes_etudiants') }}"><i class="fas fa-qrcode me-2"></i>Badges & QR Codes</a></li>
                                 </ul>
                             </li>
 
@@ -580,7 +581,7 @@
                             </li>
 
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ('main.config_email', 'main.gestion_annees', 'main.gestion_utilisateurs') }}" href="#" role="button" data-bs-toggle="dropdown">
+                                <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ('main.config_email', 'main.gestion_annees', 'main.gestion_utilisateurs', 'main.profil_ecole', 'main.sync_hors_ligne') }}" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-cog me-1"></i>Paramètres
                                 </a>
                                 <ul class="dropdown-menu">
@@ -607,6 +608,12 @@
                                             {% else %}
                                                 <span class="badge bg-warning text-dark ms-2" style="font-size: 0.65rem;">À connecter</span>
                                             {% endif %}
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ url_for('main.sync_hors_ligne') }}">
+                                            <span><i class="fas fa-sync-alt me-2 text-primary"></i>Synchronisation hors-ligne</span>
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-2" style="font-size: 0.65rem;">PWA</span>
                                         </a>
                                     </li>
                                 </ul>

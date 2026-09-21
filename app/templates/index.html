@@ -223,40 +223,40 @@
             <span class="section-badge d-none d-lg-inline-flex"><i class="fas fa-layer-group me-1"></i>8 modules</span>
         </div>
         <div class="home-action-grid">
-            <a href="{{ url_for('main.gestion_periodes') }}" class="home-action-card">
-                <span class="home-action-icon periods"><i class="fas fa-calendar-alt"></i></span>
+            <a href="{{ url_for('main.point_du_jour') }}" class="home-action-card">
+                <span class="home-action-icon warning"><i class="bi bi-clipboard-check"></i></span>
                 <div class="home-action-info">
-                    <strong>Périodes</strong>
-                    <small>Publier les bulletins</small>
+                    <strong>Point du jour</strong>
+                    <small>Appel & présences</small>
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
-            <a href="{{ url_for('main.gestion_annees') }}" class="home-action-card" data-tour="annees">
-                <span class="home-action-icon success"><i class="fas fa-calendar-check"></i></span>
+            <a href="{{ url_for('main.notes') }}" class="home-action-card">
+                <span class="home-action-icon primary"><i class="bi bi-pencil-square"></i></span>
                 <div class="home-action-info">
-                    <strong>Années scolaires</strong>
-                    <small>Gérer l'année active</small>
+                    <strong>Saisie des notes</strong>
+                    <small>Devoirs & examens</small>
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
-            <a href="{{ url_for('main.ajouter_emploi') }}" class="home-action-card" data-tour="emplois">
-                <span class="home-action-icon schedule"><i class="fas fa-calendar-plus"></i></span>
+            <a href="{{ url_for('main.bulletins') }}" class="home-action-card">
+                <span class="home-action-icon success"><i class="bi bi-file-earmark-pdf"></i></span>
+                <div class="home-action-info">
+                    <strong>Bulletins</strong>
+                    <small>Calcul & impression</small>
+                </div>
+                <i class="fas fa-chevron-right action-card-arrow"></i>
+            </a>
+            <a href="{{ url_for('main.admin_emplois') }}" class="home-action-card" data-tour="emplois">
+                <span class="home-action-icon schedule"><i class="bi bi-calendar3"></i></span>
                 <div class="home-action-info">
                     <strong>Emploi du temps</strong>
-                    <small>Ajouter un créneau</small>
-                </div>
-                <i class="fas fa-chevron-right action-card-arrow"></i>
-            </a>
-            <a href="{{ url_for('main.rapports') }}" class="home-action-card" data-tour="rapports">
-                <span class="home-action-icon reports"><i class="fas fa-chart-pie"></i></span>
-                <div class="home-action-info">
-                    <strong>Rapports & Stats</strong>
-                    <small>Voir les indicateurs</small>
+                    <small>Plannings & créneaux</small>
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
             <a href="{{ url_for('main.qrcodes_etudiants') }}" class="home-action-card">
-                <span class="home-action-icon dark"><i class="fas fa-qrcode"></i></span>
+                <span class="home-action-icon dark"><i class="bi bi-qr-code"></i></span>
                 <div class="home-action-info">
                     <strong>QR Codes</strong>
                     <small>Badges élèves</small>
@@ -264,26 +264,26 @@
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
             <a href="{{ url_for('main.liste_classes') }}" class="home-action-card" data-tour="classes">
-                <span class="home-action-icon classes"><i class="fas fa-list-alt"></i></span>
+                <span class="home-action-icon classes"><i class="bi bi-collection-fill"></i></span>
                 <div class="home-action-info">
                     <strong>Classes</strong>
                     <small>Liste des classes</small>
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
-            <a href="{{ url_for('main.ajouter_classe') }}" class="home-action-card">
-                <span class="home-action-icon new-class"><i class="fas fa-plus-circle"></i></span>
+            <a href="{{ url_for('main.absences') }}" class="home-action-card">
+                <span class="home-action-icon absences"><i class="bi bi-calendar-x"></i></span>
                 <div class="home-action-info">
-                    <strong>Nouvelle classe</strong>
-                    <small>Créer une classe</small>
+                    <strong>Absences</strong>
+                    <small>Suivi & justifications</small>
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
-            <a href="{{ url_for('main.sync_hors_ligne') }}" class="home-action-card">
-                <span class="home-action-icon warning"><i class="fas fa-sync-alt"></i></span>
+            <a href="{{ url_for('main.rapports') }}" class="home-action-card" data-tour="rapports">
+                <span class="home-action-icon reports"><i class="bi bi-pie-chart-fill"></i></span>
                 <div class="home-action-info">
-                    <strong>Synchronisation</strong>
-                    <small>Données hors-ligne</small>
+                    <strong>Rapports & Stats</strong>
+                    <small>Indicateurs & bilans</small>
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>

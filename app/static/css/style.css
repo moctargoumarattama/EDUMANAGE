@@ -3962,7 +3962,9 @@ body.auth-layout .main-content > .container {
 .home-stat-icon.courses  { background: linear-gradient(135deg, #06b6d4, #0284c7); }
 .home-stat-icon.payments { background: linear-gradient(135deg, #10b981, #059669); }
 
+.home-action-icon.primary   { background: linear-gradient(135deg, #4361ee, #3a0ca3); }
 .home-action-icon.periods   { background: linear-gradient(135deg, #4361ee, #3a0ca3); }
+.home-action-icon.absences  { background: linear-gradient(135deg, #6366f1, #4338ca); }
 .home-action-icon.success   { background: linear-gradient(135deg, #10b981, #059669); }
 .home-action-icon.schedule  { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
 .home-action-icon.reports   { background: linear-gradient(135deg, #ec4899, #be185d); }
