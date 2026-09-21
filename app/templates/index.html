@@ -16,6 +16,15 @@
     overflow: hidden !important;
     text-overflow: ellipsis !important;
 }
+.home-stat-card.card-guide-pulse .home-stat-info {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+.home-stat-card.card-guide-pulse .home-stat-info small {
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+}
 @media (max-width: 767.98px) {
     .home-stat-subtitle,
     .home-action-card small {
@@ -195,34 +204,57 @@
 
     {% else %}
     <!-- 🔹 Vue pour les autres rôles -->
+    {% set active_guide_step = none %}
+    {% if current_user.role == 'admin' and stats %}
+        {% if not stats.total_professeurs or stats.total_professeurs == 0 %}
+            {% set active_guide_step = 'professeurs' %}
+        {% elif not stats.total_cours_affectes or stats.total_cours_affectes == 0 %}
+            {% set active_guide_step = 'cours' %}
+        {% elif not stats.total_eleves or stats.total_eleves == 0 %}
+            {% set active_guide_step = 'eleves' %}
+        {% endif %}
+    {% endif %}
+
     <section class="home-section">
         <div class="home-stat-grid">
-            <a href="{{ url_for('main.eleves') }}" class="home-stat-card" data-tour="eleves">
+            <a href="{{ url_for('main.eleves') }}" class="home-stat-card {% if active_guide_step == 'eleves' %}card-guide-pulse{% endif %}" data-tour="eleves">
                 <span class="home-stat-icon students"><i class="fas fa-user-graduate"></i></span>
                 <div class="home-stat-info">
                     <strong>{{ stats.total_eleves }}</strong>
                     <small>Élèves inscrits</small>
                     <span class="home-stat-subtitle">Annuaire & dossiers</span>
                 </div>
+                {% if active_guide_step == 'eleves' %}
+                <span class="card-guide-badge badge-guide-action"><span class="guide-ping-dot"></span> Étape 3 : Inscrire</span>
+                {% else %}
                 <i class="fas fa-chevron-right home-card-arrow"></i>
+                {% endif %}
             </a>
-            <a href="{{ url_for('main.professeurs') }}" class="home-stat-card" data-tour="professeurs">
+            <a href="{{ url_for('main.professeurs') }}" class="home-stat-card {% if active_guide_step == 'professeurs' %}card-guide-pulse{% endif %}" data-tour="professeurs">
                 <span class="home-stat-icon teachers"><i class="fas fa-chalkboard-teacher"></i></span>
                 <div class="home-stat-info">
                     <strong>{{ stats.total_professeurs }}</strong>
                     <small>Professeurs actifs</small>
                     <span class="home-stat-subtitle">Affectations & cours</span>
                 </div>
+                {% if active_guide_step == 'professeurs' %}
+                <span class="card-guide-badge badge-guide-action"><span class="guide-ping-dot"></span> Étape 1 : + Ajouter</span>
+                {% else %}
                 <i class="fas fa-chevron-right home-card-arrow"></i>
+                {% endif %}
             </a>
-            <a href="{{ url_for('main.cours') }}" class="home-stat-card" data-tour="cours">
+            <a href="{{ url_for('main.cours') }}" class="home-stat-card {% if active_guide_step == 'cours' %}card-guide-pulse{% endif %}" data-tour="cours">
                 <span class="home-stat-icon courses"><i class="fas fa-book"></i></span>
                 <div class="home-stat-info">
                     <strong>{{ stats.total_cours }}</strong>
                     <small>Cours enseignés</small>
                     <span class="home-stat-subtitle">Matières & coefficients</span>
                 </div>
+                {% if active_guide_step == 'cours' %}
+                <span class="card-guide-badge badge-guide-action"><span class="guide-ping-dot"></span> Étape 2 : Affecter</span>
+                {% else %}
                 <i class="fas fa-chevron-right home-card-arrow"></i>
+                {% endif %}
             </a>
             <a href="{{ url_for('main.paiements') }}" class="home-stat-card" data-tour="paiements">
                 <span class="home-stat-icon payments"><i class="fas fa-money-bill-wave"></i></span>

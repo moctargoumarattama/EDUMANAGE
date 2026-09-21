@@ -8180,3 +8180,132 @@ body.support-modal-open {
 #accordionMatieres .accordion-button:not(.collapsed) .accordion-icon-arrow {
     transform: rotate(180deg);
 }
+
+/* =======================================================
+   ✨ GUIDAGE HAUTE VISIBILITÉ (PULSATION ATTENTION & BADGE)
+   ======================================================= */
+@keyframes cardAttentionPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.55), 0 4px 12px rgba(0, 0, 0, 0.05);
+        transform: translateY(-2px);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(79, 70, 229, 0), 0 6px 16px rgba(79, 70, 229, 0.25);
+        transform: translateY(-2px);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(79, 70, 229, 0), 0 4px 12px rgba(0, 0, 0, 0.05);
+        transform: translateY(-2px);
+    }
+}
+
+.home-stat-card.card-guide-pulse {
+    border: 2px solid #4f46e5 !important;
+    animation: cardAttentionPulse 1.8s infinite ease-in-out;
+    background: #ffffff;
+    min-height: 86px;
+    position: relative;
+}
+
+.home-stat-card.card-guide-pulse .home-stat-info {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.home-stat-card.card-guide-pulse .home-stat-info small {
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+}
+
+.badge-guide-action,
+.card-guide-badge {
+    position: absolute;
+    top: 0.52rem;
+    right: 0.65rem;
+    margin-left: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 3.5px 10px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: #ffffff !important;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-decoration: none;
+    z-index: 2;
+}
+
+.home-stat-card.card-guide-pulse:hover .badge-guide-action,
+.home-stat-card.card-guide-pulse:hover .card-guide-badge {
+    transform: scale(1.04);
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.45);
+}
+
+/* Pastille radar animée (effet ping) */
+.guide-ping-dot {
+    position: relative;
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: #22c55e;
+    flex-shrink: 0;
+}
+
+.guide-ping-dot::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background-color: #22c55e;
+    opacity: 0.75;
+    animation: guidePing 1.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes guidePing {
+    0% {
+        transform: scale(0.8);
+        opacity: 0.9;
+    }
+    70%, 100% {
+        transform: scale(2.4);
+        opacity: 0;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .home-stat-card.card-guide-pulse .badge-guide-action,
+    .badge-guide-action,
+    .card-guide-badge {
+        top: 0.45rem;
+        right: 0.45rem;
+        padding: 2.5px 7px;
+        font-size: 0.62rem;
+        border-radius: 12px;
+        gap: 0.25rem;
+        box-shadow: 0 1px 4px rgba(79, 70, 229, 0.25);
+    }
+
+    .badge-guide-action .guide-ping-dot,
+    .card-guide-badge .guide-ping-dot {
+        width: 6px;
+        height: 6px;
+    }
+
+    .badge-guide-action .guide-ping-dot::after,
+    .card-guide-badge .guide-ping-dot::after {
+        width: 10px;
+        height: 10px;
+    }
+}

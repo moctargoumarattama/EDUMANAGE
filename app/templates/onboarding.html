@@ -241,8 +241,9 @@
                                    class="form-control"
                                    id="fin_semestre_1"
                                    name="fin_semestre_1"
-                                   min="{{ active_year.date_debut.strftime('%Y-%m-%d') if active_year else '' }}"
-                                   max="{{ active_year.date_fin.strftime('%Y-%m-%d') if active_year else '' }}"
+                                   value="{{ form_data.get('fin_semestre_1') or (active_year.default_fin_semestre_1.strftime('%Y-%m-%d') if active_year and active_year.default_fin_semestre_1 else '') }}"
+                                   min="{{ active_year.min_fin_semestre_1.strftime('%Y-%m-%d') if active_year and active_year.min_fin_semestre_1 else '' }}"
+                                   max="{{ active_year.max_fin_semestre_1.strftime('%Y-%m-%d') if active_year and active_year.max_fin_semestre_1 else '' }}"
                                    required>
                             <div class="form-text small text-muted">Le Semestre 2 démarrera automatiquement le lendemain.</div>
                         </div>
@@ -417,6 +418,38 @@
                     </form>
 
                     <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            var classCheckboxes = document.querySelectorAll('input[name="classes_selected"]');
+                            classCheckboxes.forEach(function(cb) {
+                                cb.addEventListener('change', function() {
+                                    var valParts = this.value.split(':');
+                                    var niveauId = valParts[0];
+                                    var secCode = valParts[1];
+
+                                    if (this.checked) {
+                                        if (secCode === 'U') {
+                                            // Si "Unique" est coché, on décoche toutes les autres sections de ce niveau
+                                            classCheckboxes.forEach(function(otherCb) {
+                                                var otherParts = otherCb.value.split(':');
+                                                if (otherParts[0] === niveauId && otherParts[1] !== 'U' && otherCb.checked) {
+                                                    otherCb.checked = false;
+                                                }
+                                            });
+                                        } else {
+                                            // Si une autre section (A, B, C...) est cochée, on décoche "Unique"
+                                            classCheckboxes.forEach(function(otherCb) {
+                                                var otherParts = otherCb.value.split(':');
+                                                if (otherParts[0] === niveauId && otherParts[1] === 'U' && otherCb.checked) {
+                                                    otherCb.checked = false;
+                                                }
+                                            });
+                                        }
+                                    }
+                                    updateOnboardingClassesCount();
+                                });
+                            });
+                        });
+
                         function updateOnboardingClassesCount() {
                             var checked = document.querySelectorAll('input[name="classes_selected"]:checked').length;
                             var text = document.getElementById('btnCreerText');

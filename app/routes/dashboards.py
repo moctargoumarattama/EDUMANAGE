@@ -561,9 +561,8 @@ def onboarding():
             elif n.cycle == "lycee" and code_upper in ("2NDE", "SECONDE"):
                 sections = [
                     {"code": "A", "label": "A"},
-                    {"code": "B", "label": "B"},
                     {"code": "C", "label": "C"},
-                    {"code": "S", "label": "S"},
+                    {"code": "D", "label": "D"},
                 ]
                 libelle = "Sections"
             else:

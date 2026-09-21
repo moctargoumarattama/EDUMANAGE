@@ -27,6 +27,7 @@ def _empty_admin_stats():
         "total_eleves": 0,
         "total_professeurs": 0,
         "total_cours": 0,
+        "total_cours_affectes": 0,
         "paiements_attente": 0,
         "eleves_nouveaux": 0,
     }
@@ -97,6 +98,15 @@ def get_dashboard_admin_annuel(ecole_id, annee):
     stats["total_professeurs"] = Professeur.query.filter_by(ecole_id=ecole_id).count()
     stats["total_cours"] = (
         Cours.query.filter(Cours.ecole_id == ecole_id, Cours.classe_id.in_(classe_ids)).count()
+        if classe_ids
+        else 0
+    )
+    stats["total_cours_affectes"] = (
+        Cours.query.filter(
+            Cours.ecole_id == ecole_id,
+            Cours.classe_id.in_(classe_ids),
+            Cours.professeur_id.isnot(None),
+        ).count()
         if classe_ids
         else 0
     )

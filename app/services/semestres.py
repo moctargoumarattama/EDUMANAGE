@@ -47,7 +47,10 @@ def calculer_bornes_semestres(annee, fin_semestre_1):
     if not annee.date_debut or not annee.date_fin:
         return None, "Les dates de l'année scolaire sont obligatoires."
     if not (annee.date_debut < fin_semestre_1 < annee.date_fin):
-        return None, "La fin du Semestre 1 doit être comprise entre le début et la fin de l'année."
+        return None, (
+            f"La date de fin du Semestre 1 ({fin_semestre_1.strftime('%d/%m/%Y')}) doit être strictement "
+            f"comprise dans l'intervalle de l'année scolaire {annee.nom} (du {annee.date_debut.strftime('%d/%m/%Y')} au {annee.date_fin.strftime('%d/%m/%Y')})."
+        )
 
     debut_semestre_2 = fin_semestre_1 + timedelta(days=1)
     return {

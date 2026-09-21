@@ -34,6 +34,7 @@ from app.services.classes_annuelles import classe_est_ouverte
 from app.services.cours_uniqueness import find_duplicate_cours, normalize_cours_nom
 from app.access_codes import generate_access_code, is_valid_access_code
 from app.models import Note
+from sqlalchemy.exc import IntegrityError
 
 
 def _matieres_affectation_professeur(professeur):
@@ -212,7 +213,12 @@ def ajouter_professeur():
             # ---------------- Commit unique ----------------
             db.session.add(utilisateur)
             db.session.add(nouveau_professeur)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                flash("Ce code d'accès est déjà utilisé dans votre établissement.", "danger")
+                return redirect(url_for('main.ajouter_professeur'))
 
             # ---------------- Journalisation ----------------
             current_app.log_correction(
@@ -319,7 +325,13 @@ def modifier_professeur(id):
             professeur.utilisateur.email = professeur.email
             professeur.utilisateur.telephone = professeur.telephone
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash("Ce code d'accès est déjà utilisé dans votre établissement.", "danger")
+            return redirect(url_for('main.modifier_professeur', id=professeur.id))
+
         flash("Professeur modifié avec succès.", "success")
         return redirect(url_for('main.professeur_details', id=professeur.id))
 

@@ -374,8 +374,9 @@
                             <label class="form-label fw-bold">Date de fin du Semestre 1 <span class="text-danger">*</span></label>
                             <input type="date" name="fin_semestre_1" class="form-control form-control-lg fw-bold text-primary input-fin-s1"
                                    value="{{ ns.s1.date_fin.strftime('%Y-%m-%d') if ns.s1 and ns.s1.date_fin else '' }}"
-                                   min="{{ annee.date_debut.strftime('%Y-%m-%d') }}"
-                                   max="{{ annee.date_fin.strftime('%Y-%m-%d') }}" required>
+                                   min="{{ annee.min_fin_semestre_1.strftime('%Y-%m-%d') if annee.min_fin_semestre_1 else '' }}"
+                                   max="{{ annee.max_fin_semestre_1.strftime('%Y-%m-%d') if annee.max_fin_semestre_1 else '' }}" required>
+                            <div class="form-text small text-muted">Le Semestre 2 démarrera automatiquement le lendemain.</div>
                         </div>
 
                         <div class="p-3 border rounded bg-light">

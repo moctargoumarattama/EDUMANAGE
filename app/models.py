@@ -77,6 +77,20 @@ class AnneeScolaire(db.Model):
         db.Index('idx_ecole_id', 'ecole_id'),
     )
 
+    @property
+    def min_fin_semestre_1(self):
+        if self.date_debut:
+            from datetime import timedelta
+            return self.date_debut + timedelta(days=1)
+        return None
+
+    @property
+    def max_fin_semestre_1(self):
+        if self.date_fin:
+            from datetime import timedelta
+            return self.date_fin - timedelta(days=1)
+        return None
+
     def __repr__(self):
         return f'<AnneeScolaire {self.nom} - {self.ecole.nom if self.ecole else "Sans école"}>'
 
@@ -390,7 +404,7 @@ class Professeur(db.Model):
     photo = db.Column(db.String(200), default='default_prof.png')
     date_embauche = db.Column(db.DateTime, default=datetime.utcnow)
     planning = db.Column(db.JSON)
-    code_prof = db.Column(db.String(50), unique=True)
+    code_prof = db.Column(db.String(50))
     mot_de_passe = db.Column(db.String(200))
 
     # Utilisateur 1-1 (force la liaison utilisateur <-> professeur)
@@ -406,6 +420,7 @@ class Professeur(db.Model):
 
     __table_args__ = (
         db.Index('ix_professeur_utilisateur_ecole', 'utilisateur_id', 'ecole_id'),
+        db.UniqueConstraint('code_prof', 'ecole_id', name='uq_professeur_code_ecole'),
     )
 
     utilisateur = db.relationship('Utilisateur', back_populates='professeur_rel', uselist=False)

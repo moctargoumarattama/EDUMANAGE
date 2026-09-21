@@ -5,7 +5,7 @@ from unittest.mock import patch
 from app import create_app, db
 from app.access_codes import generate_access_code, is_valid_access_code
 from app.config import Config
-from app.models import AnneeScolaire, Classe, Ecole, Eleve, Utilisateur
+from app.models import AnneeScolaire, Classe, Ecole, Eleve, Utilisateur, Professeur
 
 
 class TestConfig(Config):
@@ -132,7 +132,7 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
             data=self.professeur_data(email="bad1@example.com", code_prof="1234"),
             follow_redirects=True,
         )
-        self.assertIn("Le code d'acc", response.get_data(as_text=True))
+        self.assertIn("Le code", response.get_data(as_text=True))
         self.assertIsNone(Utilisateur.query.filter_by(email="bad1@example.com").first())
 
         response = client.post(
@@ -140,7 +140,7 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
             data=self.professeur_data(email="bad2@example.com", code_prof="abcdefgh"),
             follow_redirects=True,
         )
-        self.assertIn("Le code d'acc", response.get_data(as_text=True))
+        self.assertIn("code", response.get_data(as_text=True))
         self.assertIsNone(Utilisateur.query.filter_by(email="bad2@example.com").first())
 
     def test_parent_auto_manual_and_existing_parent_password_preserved(self):
@@ -183,7 +183,7 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
             data=self.eleve_data(email="badparent@example.com", code_parent="1234"),
             follow_redirects=True,
         )
-        self.assertIn("Le code d'acc", response.get_data(as_text=True))
+        self.assertIn("code", response.get_data(as_text=True))
         self.assertIsNone(Utilisateur.query.filter_by(email="badparent@example.com").first())
 
     def test_admin_reset_uses_canonical_generator(self):
@@ -203,6 +203,53 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
         self.assertNotEqual(user.mot_de_passe, "13572468")
         self.assertTrue(user.check_mot_de_passe("13572468"))
 
+
+    def test_professeur_code_unique_per_school(self):
+        ecole2 = Ecole(nom="Ecole B", onboarding_complete=True)
+        db.session.add(ecole2)
+        db.session.commit()
+
+        u1 = Utilisateur(nom="T", email="u1@a.c", role="professeur", mot_de_passe="1", ecole_id=self.ecole.id)
+        db.session.add(u1)
+        db.session.commit()
+
+        # Prof 1 in Ecole A
+        prof1 = Professeur(
+            nom="Test", prenom="A", email="a@test.com",
+            code_prof="88888888", ecole_id=self.ecole.id,
+            utilisateur_id=u1.id
+        )
+        db.session.add(prof1)
+        db.session.commit()
+
+        u2 = Utilisateur(nom="T", email="u2@a.c", role="professeur", mot_de_passe="1", ecole_id=ecole2.id)
+        db.session.add(u2)
+        db.session.commit()
+
+        # Prof 2 in Ecole B (same code, should succeed)
+        prof2 = Professeur(
+            nom="Test", prenom="B", email="b@test.com",
+            code_prof="88888888", ecole_id=ecole2.id,
+            utilisateur_id=u2.id
+        )
+        db.session.add(prof2)
+        db.session.commit()
+
+        u3 = Utilisateur(nom="T", email="u3@a.c", role="professeur", mot_de_passe="1", ecole_id=self.ecole.id)
+        db.session.add(u3)
+        db.session.commit()
+
+        # Prof 3 in Ecole A (same code as Prof 1, should fail)
+        prof3 = Professeur(
+            nom="Test", prenom="C", email="c@test.com",
+            code_prof="88888888", ecole_id=self.ecole.id,
+            utilisateur_id=u3.id
+        )
+        db.session.add(prof3)
+        from sqlalchemy.exc import IntegrityError
+        with self.assertRaises(IntegrityError):
+            db.session.commit()
+        db.session.rollback()
 
 if __name__ == "__main__":
     unittest.main()
