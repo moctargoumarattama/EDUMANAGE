@@ -1,0 +1,612 @@
+{% extends "base.html" %}
+
+{% block title %}Traçabilité des Paiements - {{ annee_consultee.nom }} - KLASORA{% endblock %}
+
+{% block content %}
+<style>
+/* ==========================================================================
+   KLASORA — TRAÇABILITÉ DES PAIEMENTS (STYLE ULTRA-MODERNE & RESPONSIVE)
+   ========================================================================== */
+.audit-container {
+    max-width: 1440px;
+    margin: 0 auto;
+}
+
+
+/* Filter Chips */
+.filter-chip-group {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+    -webkit-overflow-scrolling: touch;
+}
+.filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.42rem 0.95rem;
+    border-radius: 50rem;
+    font-size: 0.84rem;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    color: #475569;
+}
+.filter-chip:hover {
+    background-color: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+.filter-chip.active {
+    background-color: #4361ee;
+    border-color: #4361ee;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(67, 97, 238, 0.28);
+}
+.filter-chip.active .chip-count {
+    background-color: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+}
+.chip-count {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 50rem;
+    background-color: #f1f5f9;
+    color: #64748b;
+    font-weight: 600;
+}
+
+/* Mobile Transaction Feed Cards */
+.audit-feed-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1rem 1.15rem;
+    margin-bottom: 0.85rem;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+    position: relative;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.audit-feed-card:hover {
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.07);
+}
+.audit-feed-card.is-cancellation {
+    border-left: 4px solid #ef4444;
+}
+.audit-feed-card.is-creation {
+    border-left: 4px solid #10b981;
+}
+.audit-feed-card.is-other {
+    border-left: 4px solid #6366f1;
+}
+
+/* Initials Avatar */
+.student-avatar-circle {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    color: #4338ca;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.82rem;
+    flex-shrink: 0;
+}
+.student-avatar-circle.danger {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    color: #b91c1c;
+}
+
+/* Detail / Reason box */
+.audit-reason-box {
+    background-color: #f8fafc;
+    border-left: 3px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.82rem;
+    color: #334155;
+}
+.audit-reason-box.is-cancel {
+    background-color: #fff1f2;
+    border-left-color: #f43f5e;
+    color: #9f1239;
+}
+
+/* Desktop Audit Table */
+.audit-table {
+    font-size: 0.88rem;
+}
+.audit-table thead th {
+    background-color: #f8fafc;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+.audit-table tbody td {
+    padding: 0.85rem 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f5f9;
+}
+.audit-table tbody tr:hover td {
+    background-color: #f8fafc;
+}
+
+/* Custom Scroll for table */
+.audit-table-wrapper {
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    overflow: hidden;
+}
+</style>
+
+<div class="container-fluid px-2 px-sm-3 px-lg-4 py-3 py-lg-4 audit-container">
+
+    <!-- En-tête de navigation : Retour + Année + Badge Lecture Seule -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <a href="{{ url_for('main.paiements') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-sm">
+            <i class="fas fa-arrow-left me-1"></i>Retour aux paiements
+        </a>
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <span class="badge bg-white text-dark border px-3 py-2 rounded-pill shadow-xs">
+                <i class="fas fa-calendar-alt me-1 text-primary"></i>Année : <strong>{{ annee_consultee.nom }}</strong>
+                {% if annee_consultee.statut == 'archivee' %}
+                    <span class="badge bg-secondary ms-1">Archivée</span>
+                {% elif annee_consultee.statut == 'active' %}
+                    <span class="badge bg-success ms-1">Active</span>
+                {% else %}
+                    <span class="badge bg-info ms-1">{{ annee_consultee.statut }}</span>
+                {% endif %}
+            </span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill">
+                <i class="fas fa-shield-alt me-1"></i>Lecture seule & Audit certifié
+            </span>
+        </div>
+    </div>
+
+    <!-- Bannière / Titre de la page -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden bg-white">
+        <div class="card-body p-3 p-sm-4">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-3 p-3 bg-info-subtle text-info fs-3 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px;">
+                    <i class="fas fa-history"></i>
+                </div>
+                <div class="flex-grow-1 min-w-0">
+                    <h1 class="h4 fw-bold mb-1 text-dark">Traçabilité des Paiements & Annulations</h1>
+                    <p class="text-muted small mb-0 d-none d-sm-block">
+                        Journal d'audit certifié, horodaté et nominatif pour l'année scolaire <strong>{{ annee_consultee.nom }}</strong>.
+                    </p>
+                    <p class="text-muted small mb-0 d-sm-none">
+                        Audit financier de l'année <strong>{{ annee_consultee.nom }}</strong>.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Barre d'action : Recherche ergonomique + Filtres en puces tactiles -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
+        <div class="card-body p-3">
+            <div class="row g-3 align-items-center">
+                <!-- Champ de recherche -->
+                <div class="col-12 col-lg-6">
+                    <form method="GET" action="{{ url_for('main.tracabilite_paiements') }}" class="w-100">
+                        {% if action_filter %}
+                        <input type="hidden" name="action" value="{{ action_filter }}">
+                        {% endif %}
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0 text-muted ps-3">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text"
+                                   name="search"
+                                   class="form-control border-start-0 ps-1"
+                                   placeholder="Rechercher élève, opérateur, réf, motif..."
+                                   value="{{ search }}">
+                            {% if search %}
+                            <a href="{{ url_for('main.tracabilite_paiements', action=action_filter) }}" class="btn btn-outline-secondary border-start-0 border-end-0 text-muted" title="Effacer la recherche">
+                                <i class="fas fa-times"></i>
+                            </a>
+                            {% endif %}
+                            <button type="submit" class="btn btn-primary px-3">
+                                <span class="d-none d-sm-inline">Rechercher</span>
+                                <i class="fas fa-search d-sm-none"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Filtres sous forme de chips tactiles scrollables sur mobile -->
+                <div class="col-12 col-lg-6 d-flex justify-content-lg-end align-items-center">
+                    <div class="filter-chip-group w-100 justify-content-start justify-content-lg-end">
+                        <a href="{{ url_for('main.tracabilite_paiements', search=search, action='') }}" class="filter-chip {% if not action_filter %}active{% endif %}">
+                            <i class="fas fa-list"></i>Toutes
+                            <span class="chip-count">{{ total_operations }}</span>
+                        </a>
+                        <a href="{{ url_for('main.tracabilite_paiements', search=search, action='creation') }}" class="filter-chip {% if action_filter == 'creation' %}active{% endif %}">
+                            <i class="fas fa-check-circle text-success"></i>Encaissements
+                            <span class="chip-count">{{ nb_creations }}</span>
+                        </a>
+                        <a href="{{ url_for('main.tracabilite_paiements', search=search, action='annulation') }}" class="filter-chip {% if action_filter == 'annulation' %}active{% endif %}">
+                            <i class="fas fa-ban text-danger"></i>Annulations
+                            <span class="chip-count">{{ nb_annulations }}</span>
+                        </a>
+                        {% if search or action_filter %}
+                        <a href="{{ url_for('main.tracabilite_paiements') }}" class="filter-chip text-danger border-danger-subtle" title="Réinitialiser tous les filtres">
+                            <i class="fas fa-undo"></i>Réinitialiser
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- En-tête de liste / Résumé -->
+    <div class="d-flex justify-content-between align-items-center px-1 mb-2">
+        <div class="small text-muted fw-semibold">
+            <i class="fas fa-clipboard-list me-1 text-primary"></i>Journal des opérations :
+            <span class="text-dark">{{ pagination.total }} enregistrement(s)</span>
+        </div>
+        <div class="small text-muted d-none d-sm-block">
+            <i class="fas fa-lock me-1"></i>Registre inaltérable en lecture seule
+        </div>
+    </div>
+
+    {% if pagination.items %}
+
+        <!-- ============================================================== -->
+        <!-- 1. VUE MOBILE & TABLETTE (< 992px) : CARTES DE TRANSACTIONS    -->
+        <!-- ============================================================== -->
+        <div class="d-lg-none">
+            {% for log, p, eleve, classe, user in pagination.items %}
+            {% set is_cancel = log.action in ['annulation_paiement', 'annule', 'PAIEMENT_ANNULE'] %}
+            {% set is_create = log.action in ['PAIEMENT_CREE', 'paiement_cree', 'creation_paiement'] %}
+            <div class="audit-feed-card {% if is_cancel %}is-cancellation{% elif is_create %}is-creation{% else %}is-other{% endif %}">
+
+                <!-- Rangée 1 : Opération, Horodatage et Montant -->
+                <div class="d-flex justify-content-between align-items-start gap-2 mb-2 pb-2 border-bottom">
+                    <div>
+                        {% if is_cancel %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill">
+                                <i class="fas fa-ban me-1"></i>Annulation
+                            </span>
+                        {% elif is_create %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">
+                                <i class="fas fa-check-circle me-1"></i>Encaissement
+                            </span>
+                        {% else %}
+                            <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 rounded-pill">
+                                <i class="fas fa-info-circle me-1"></i>{{ log.action }}
+                            </span>
+                        {% endif %}
+                        <div class="small text-muted mt-1" style="font-size: 0.78rem;">
+                            <i class="far fa-calendar-alt me-1"></i>{{ log.date.strftime('%d/%m/%Y') }}
+                            <i class="far fa-clock ms-1 me-1"></i>{{ log.date.strftime('%H:%M:%S') }}
+                        </div>
+                    </div>
+
+                    <div class="text-end">
+                        <div class="fs-5 fw-bold {% if is_cancel %}text-danger text-decoration-line-through{% else %}text-success{% endif %}">
+                            {{ "{:,.0f}".format(p.montant) }} FCFA
+                        </div>
+                        <div>
+                            {% if p.statut == 'annule' %}
+                                <span class="badge bg-danger text-white rounded-pill" style="font-size: 0.68rem;">Statut : Annulé</span>
+                            {% elif p.statut == 'payé' %}
+                                <span class="badge bg-success text-white rounded-pill" style="font-size: 0.68rem;">Statut : Payé</span>
+                            {% else %}
+                                <span class="badge bg-secondary text-white rounded-pill" style="font-size: 0.68rem;">Statut : {{ p.statut|upper }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rangée 2 : Élève & Détails financiers -->
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <div class="student-avatar-circle {% if is_cancel %}danger{% endif %}">
+                        {{ (eleve.prenom[:1] + eleve.nom[:1])|upper }}
+                    </div>
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="fw-bold text-dark text-truncate">
+                            <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="text-dark text-decoration-none">
+                                {{ eleve.prenom }} {{ eleve.nom }}
+                            </a>
+                        </div>
+                        <div class="d-flex align-items-center gap-1 flex-wrap" style="font-size: 0.75rem;">
+                            <span class="badge bg-light text-dark border">{{ classe.nom if classe else 'Sans classe' }}</span>
+                            <span class="badge bg-light text-secondary border">{{ p.mois }} {{ p.annee }}</span>
+                            {% if p.reference %}
+                            <span class="text-muted"><i class="fas fa-hashtag me-1"></i>{{ p.reference }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rangée 3 : Compte opérateur & Motif -->
+                <div class="p-2 rounded-2 bg-light bg-opacity-75 mb-2" style="font-size: 0.8rem;">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+                        <span class="text-muted">
+                            <i class="fas fa-user-shield me-1 text-primary"></i>Opérateur :
+                            {% if user %}
+                                <strong class="text-dark">{{ user.prenom or '' }} {{ user.nom or '' }}</strong>
+                                <span class="badge bg-secondary-subtle text-secondary ms-1" style="font-size: 0.68rem;">{{ (user.role or 'admin')|upper }}</span>
+                            {% else %}
+                                <span class="fst-italic text-muted">Système / Inconnu</span>
+                            {% endif %}
+                        </span>
+                        {% if user and user.email %}
+                        <span class="text-muted small">({{ user.email }})</span>
+                        {% endif %}
+                    </div>
+
+                    {% if log.description %}
+                    <div class="mt-2 pt-1 border-top border-secondary-subtle">
+                        <div class="audit-reason-box {% if is_cancel %}is-cancel{% endif %}">
+                            <strong>Détail / Motif :</strong> {{ log.description }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Rangée 4 : Action Reçu canonique -->
+                <div class="d-flex justify-content-end align-items-center pt-1">
+                    <a href="{{ url_for('main.recu_paiement', id=p.id) }}"
+                       class="btn btn-sm btn-outline-info rounded-pill px-3"
+                       title="Consulter le reçu officiel"
+                       target="_blank"
+                       rel="noopener">
+                        <i class="fas fa-receipt me-1"></i>Reçu officiel
+                    </a>
+                </div>
+
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- 2. VUE DESKTOP (>= 992px) : TABLEAU D'AUDIT MODERNE & AÉRÉ      -->
+        <!-- ============================================================== -->
+        <div class="d-none d-lg-block">
+            <div class="audit-table-wrapper shadow-sm">
+                <div class="table-responsive">
+                    <table class="table audit-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 13%;">Date & Heure</th>
+                                <th style="width: 17%;">Compte opérateur</th>
+                                <th style="width: 12%;">Opération</th>
+                                <th style="width: 18%;">Élève & Classe</th>
+                                <th style="width: 12%;" class="text-end">Montant</th>
+                                <th style="width: 12%;">Mois / Réf</th>
+                                <th style="width: 16%;">Détails / Motif</th>
+                                <th style="width: 8%;" class="text-center">Statut</th>
+                                <th style="width: 7%;" class="text-center">Reçu</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log, p, eleve, classe, user in pagination.items %}
+                            {% set is_cancel = log.action in ['annulation_paiement', 'annule', 'PAIEMENT_ANNULE'] %}
+                            {% set is_create = log.action in ['PAIEMENT_CREE', 'paiement_cree', 'creation_paiement'] %}
+                            <tr>
+                                <!-- Date & Heure -->
+                                <td>
+                                    <div class="fw-semibold text-dark">
+                                        <i class="far fa-calendar-alt text-muted me-1"></i>{{ log.date.strftime('%d/%m/%Y') }}
+                                    </div>
+                                    <div class="small text-muted">
+                                        <i class="far fa-clock me-1"></i>{{ log.date.strftime('%H:%M:%S') }}
+                                    </div>
+                                </td>
+
+                                <!-- Compte opérateur -->
+                                <td>
+                                    {% if user %}
+                                        <div class="fw-semibold text-dark text-truncate" style="max-width: 190px;">
+                                            {{ user.prenom or '' }} {{ user.nom or '' }}
+                                        </div>
+                                        <div class="small text-muted text-truncate" style="max-width: 190px;" title="{{ user.email }}">
+                                            {{ user.email }}
+                                        </div>
+                                        <span class="badge bg-secondary-subtle text-secondary border mt-1" style="font-size: 0.68rem;">
+                                            {{ (user.role or 'admin')|upper }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted fst-italic">
+                                            <i class="fas fa-robot me-1"></i>Système / Inconnu
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Opération -->
+                                <td>
+                                    {% if is_cancel %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-pill">
+                                            <i class="fas fa-ban me-1"></i>Annulation
+                                        </span>
+                                    {% elif is_create %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">
+                                            <i class="fas fa-check-circle me-1"></i>Encaissement
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 rounded-pill">
+                                            <i class="fas fa-info-circle me-1"></i>{{ log.action }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Élève & Classe -->
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="student-avatar-circle {% if is_cancel %}danger{% endif %}" style="width: 32px; height: 32px; font-size: 0.75rem;">
+                                            {{ (eleve.prenom[:1] + eleve.nom[:1])|upper }}
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="fw-bold text-dark text-truncate" style="max-width: 160px;">
+                                                <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="text-decoration-none text-dark">
+                                                    {{ eleve.prenom }} {{ eleve.nom }}
+                                                </a>
+                                            </div>
+                                            <span class="badge bg-light text-dark border small" style="font-size: 0.72rem;">
+                                                {{ classe.nom if classe else 'Sans classe' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- Montant -->
+                                <td class="text-end">
+                                    <strong class="{% if is_cancel %}text-danger text-decoration-line-through{% else %}text-success{% endif %}">
+                                        {{ "{:,.0f}".format(p.montant) }} FCFA
+                                    </strong>
+                                </td>
+
+                                <!-- Mois / Réf -->
+                                <td>
+                                    <div><span class="badge bg-light text-dark border">{{ p.mois }} {{ p.annee }}</span></div>
+                                    {% if p.reference %}
+                                        <div class="small text-muted mt-1 text-truncate" style="max-width: 140px;" title="{{ p.reference }}">
+                                            <i class="fas fa-hashtag me-1"></i>{{ p.reference }}
+                                        </div>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Détails / Motif -->
+                                <td>
+                                    <div class="small text-dark text-break">
+                                        {{ log.description or '-' }}
+                                    </div>
+                                </td>
+
+                                <!-- Statut actuel -->
+                                <td class="text-center">
+                                    {% if p.statut == 'annule' %}
+                                        <span class="badge bg-danger text-white rounded-pill px-2">Annulé</span>
+                                    {% elif p.statut == 'payé' %}
+                                        <span class="badge bg-success text-white rounded-pill px-2">Payé</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary text-white rounded-pill px-2">{{ p.statut|upper }}</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Reçu officiel -->
+                                <td class="text-center">
+                                    <a href="{{ url_for('main.recu_paiement', id=p.id) }}"
+                                       class="btn btn-sm btn-outline-info rounded-pill"
+                                       title="Consulter le reçu officiel"
+                                       target="_blank"
+                                       rel="noopener">
+                                        <i class="fas fa-receipt"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+        <!-- État vide (Empty state moderne) -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-5 text-center">
+            <div class="py-4">
+                <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center p-4 mb-3 text-muted" style="width: 80px; height: 80px;">
+                    <i class="fas fa-clipboard-check fa-2x opacity-50"></i>
+                </div>
+                <h5 class="fw-bold text-dark mb-2">Aucune opération trouvée</h5>
+                <p class="text-muted small mb-3 mx-auto" style="max-width: 480px;">
+                    {% if search or action_filter %}
+                        Aucune opération ne correspond à vos critères de recherche pour l'année <strong>{{ annee_consultee.nom }}</strong>.
+                    {% else %}
+                        Aucune opération de paiement ou annulation n'a encore été enregistrée pour l'année <strong>{{ annee_consultee.nom }}</strong>.
+                    {% endif %}
+                </p>
+                {% if search or action_filter %}
+                <a href="{{ url_for('main.tracabilite_paiements') }}" class="btn btn-outline-primary btn-sm rounded-pill px-4">
+                    <i class="fas fa-undo me-1"></i>Réinitialiser les filtres
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Pagination Moderne & Responsive -->
+    {% if pagination.total > 0 %}
+    <div class="card border-0 shadow-sm rounded-4 bg-white mt-4 p-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="small text-muted">
+                Affichage de <strong>{{ pagination.items|length }}</strong> sur <strong>{{ pagination.total }}</strong> opération(s)
+                {% if pagination.pages > 1 %}
+                <span class="d-none d-sm-inline">(Page {{ pagination.page }} sur {{ pagination.pages }})</span>
+                {% endif %}
+            </div>
+
+            {% if pagination.pages > 1 %}
+            <nav aria-label="Pagination traçabilité">
+                <ul class="pagination pagination-sm mb-0">
+                    <!-- Page précédente -->
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link rounded-start-pill" href="{{ url_for('main.tracabilite_paiements', page=pagination.prev_num, search=search, action=action_filter) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link rounded-start-pill"><i class="fas fa-chevron-left"></i></span></li>
+                    {% endif %}
+
+                    <!-- Numéros de page sur desktop/tablette -->
+                    {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
+                        {% if p %}
+                            {% if p == pagination.page %}
+                            <li class="page-item active d-none d-sm-inline-block"><span class="page-link">{{ p }}</span></li>
+                            {% else %}
+                            <li class="page-item d-none d-sm-inline-block">
+                                <a class="page-link" href="{{ url_for('main.tracabilite_paiements', page=p, search=search, action=action_filter) }}">{{ p }}</a>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                            <li class="page-item disabled d-none d-sm-inline-block"><span class="page-link">…</span></li>
+                        {% endif %}
+                    {% endfor %}
+
+                    <!-- Indicateur compact sur mobile -->
+                    <li class="page-item disabled d-sm-none">
+                        <span class="page-link border-0 fw-semibold">{{ pagination.page }} / {{ pagination.pages }}</span>
+                    </li>
+
+                    <!-- Page suivante -->
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link rounded-end-pill" href="{{ url_for('main.tracabilite_paiements', page=pagination.next_num, search=search, action=action_filter) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link rounded-end-pill"><i class="fas fa-chevron-right"></i></span></li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% else %}
+            <div class="small text-muted">
+                <i class="fas fa-check-circle me-1 text-success"></i>Toutes les opérations de la page sont affichées (limite : 25 par page)
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -28,6 +28,8 @@ from .common import (
     url_for,
 )
 from flask import abort, jsonify, make_response
+from sqlalchemy import or_
+from app.models import JournalCorrection, Utilisateur
 from app.services.annees_scolaires import get_annee_consultee
 from app.utils import sanitize_internal_url
 from app.services.structure_annuelle import get_niveaux_annee
@@ -608,3 +610,130 @@ def configurer_mensualites():
         flash("Erreur lors de la sauvegarde.", "danger")
 
     return redirect(context_url)
+
+
+@main.route('/paiements/historique', methods=['GET'])
+@main.route('/paiements/tracabilite', methods=['GET'])
+@login_required
+@role_required('admin', 'super_admin')
+def tracabilite_paiements():
+    """Journal d'audit et de traçabilité des paiements et annulations en lecture seule."""
+    annee = get_annee_consultee(current_user.ecole_id)
+    if not annee:
+        flash("Aucune année scolaire configurée.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    # Backfill idempotent des paiements existants de l'année sans trace d'audit
+    try:
+        paiements_sans_log = (
+            db.session.query(Paiement)
+            .join(Inscription, Paiement.inscription_id == Inscription.id)
+            .outerjoin(
+                JournalCorrection,
+                (JournalCorrection.cible_type == 'paiement') & (JournalCorrection.cible_id == Paiement.id)
+            )
+            .filter(
+                Paiement.ecole_id == current_user.ecole_id,
+                Inscription.annee_scolaire_id == annee.id,
+                JournalCorrection.id.is_(None)
+            )
+            .all()
+        )
+        if paiements_sans_log:
+            for p in paiements_sans_log:
+                correction = JournalCorrection(
+                    action="PAIEMENT_CREE",
+                    description=f"Paiement #{p.id} de {p.montant:,.0f} FCFA ({p.mois} {p.annee})",
+                    ecole_id=p.ecole_id,
+                    user_id=None,
+                    cible_type="paiement",
+                    cible_id=p.id,
+                    ancienne_valeur=None,
+                    nouvelle_valeur=f"Montant: {p.montant}, Statut: {p.statut}",
+                    niveau="info",
+                    date=p.date_paiement or datetime.utcnow()
+                )
+                db.session.add(correction)
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.warning(f"Backfill tracabilite paiements: {e}")
+
+    search = (request.args.get('search') or request.args.get('q') or '').strip()
+    action_filter = (request.args.get('action') or '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = 25
+
+    query = (
+        db.session.query(
+            JournalCorrection,
+            Paiement,
+            Eleve,
+            Classe,
+            Utilisateur
+        )
+        .join(Paiement, JournalCorrection.cible_id == Paiement.id)
+        .join(Inscription, Paiement.inscription_id == Inscription.id)
+        .join(Eleve, Paiement.eleve_id == Eleve.id)
+        .outerjoin(Classe, Inscription.classe_id == Classe.id)
+        .outerjoin(Utilisateur, JournalCorrection.user_id == Utilisateur.id)
+        .filter(
+            JournalCorrection.ecole_id == current_user.ecole_id,
+            JournalCorrection.cible_type == 'paiement',
+            Inscription.annee_scolaire_id == annee.id
+        )
+    )
+
+    if action_filter == 'creation':
+        query = query.filter(JournalCorrection.action.in_(['PAIEMENT_CREE', 'paiement_cree', 'creation_paiement']))
+    elif action_filter == 'annulation':
+        query = query.filter(JournalCorrection.action.in_(['annulation_paiement', 'annule', 'PAIEMENT_ANNULE']))
+
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            or_(
+                Eleve.nom.ilike(search_pattern),
+                Eleve.prenom.ilike(search_pattern),
+                Paiement.reference.ilike(search_pattern),
+                Paiement.mois.ilike(search_pattern),
+                JournalCorrection.description.ilike(search_pattern),
+                JournalCorrection.nouvelle_valeur.ilike(search_pattern),
+                Utilisateur.nom.ilike(search_pattern),
+                Utilisateur.prenom.ilike(search_pattern),
+                Utilisateur.email.ilike(search_pattern),
+            )
+        )
+
+    # Statistiques globales de l'année consultée
+    base_stats_query = (
+        db.session.query(JournalCorrection.action, func.count(JournalCorrection.id))
+        .join(Paiement, JournalCorrection.cible_id == Paiement.id)
+        .join(Inscription, Paiement.inscription_id == Inscription.id)
+        .filter(
+            JournalCorrection.ecole_id == current_user.ecole_id,
+            JournalCorrection.cible_type == 'paiement',
+            Inscription.annee_scolaire_id == annee.id
+        )
+        .group_by(JournalCorrection.action)
+        .all()
+    )
+    stats_dict = {action: count for action, count in base_stats_query}
+    nb_creations = stats_dict.get('PAIEMENT_CREE', 0) + stats_dict.get('paiement_cree', 0) + stats_dict.get('creation_paiement', 0)
+    nb_annulations = stats_dict.get('annulation_paiement', 0) + stats_dict.get('annule', 0) + stats_dict.get('PAIEMENT_ANNULE', 0)
+    total_operations = sum(stats_dict.values())
+
+    pagination = query.order_by(JournalCorrection.date.desc(), JournalCorrection.id.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    return render_template(
+        'tracabilite_paiements.html',
+        pagination=pagination,
+        annee_consultee=annee,
+        search=search,
+        action_filter=action_filter,
+        nb_creations=nb_creations,
+        nb_annulations=nb_annulations,
+        total_operations=total_operations,
+    )

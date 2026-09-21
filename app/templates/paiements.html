@@ -28,6 +28,9 @@
                     <i class="fas fa-plus-circle me-2"></i>Nouveau paiement
                 </button>
                 {% endif %}
+                <a href="{{ url_for('main.tracabilite_paiements') }}" class="btn btn-outline-info shadow-sm" title="Consulter l'historique et la traçabilité des opérations de paiement">
+                    <i class="fas fa-history me-1"></i>Traçabilité
+                </a>
                 <button type="button" class="btn btn-outline-secondary shadow-sm" data-bs-toggle="modal" data-bs-target="#configMensualitesModal" title="Configurer les mensualités (Juillet, etc.)">
                     <i class="fas fa-cog me-1"></i>Configurer
                 </button>
