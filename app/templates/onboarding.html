@@ -14,19 +14,24 @@
                 <span class="fw-semibold text-dark text-truncate" style="max-width: 240px;">{{ ecole.nom if ecole else 'Votre etablissement' }}</span>
             </div>
             <div class="onboarding-mobile-steps d-flex justify-content-center align-items-center gap-2 mt-1">
-                <div class="m-step-chip {% if step in ['year', 'semestres', 'pedagogie', 'complete'] %}active{% endif %} {% if step in ['semestres', 'pedagogie', 'complete'] %}done{% endif %}">
-                    <span class="m-step-badge">{% if step in ['semestres', 'pedagogie', 'complete'] %}<i class="fas fa-check"></i>{% else %}1{% endif %}</span>
+                <div class="m-step-chip {% if step in ['year', 'semestres', 'pedagogie', 'classes', 'complete'] %}active{% endif %} {% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}done{% endif %}">
+                    <span class="m-step-badge">{% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}<i class="fas fa-check"></i>{% else %}1{% endif %}</span>
                     <span class="m-step-label">Annee</span>
                 </div>
-                <div class="m-step-divider {% if step in ['semestres', 'pedagogie', 'complete'] %}done{% endif %}"></div>
-                <div class="m-step-chip {% if step in ['semestres', 'pedagogie', 'complete'] %}active{% endif %} {% if step in ['pedagogie', 'complete'] %}done{% endif %}">
-                    <span class="m-step-badge">{% if step in ['pedagogie', 'complete'] %}<i class="fas fa-check"></i>{% else %}2{% endif %}</span>
+                <div class="m-step-divider {% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}done{% endif %}"></div>
+                <div class="m-step-chip {% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}active{% endif %} {% if step in ['pedagogie', 'classes', 'complete'] %}done{% endif %}">
+                    <span class="m-step-badge">{% if step in ['pedagogie', 'classes', 'complete'] %}<i class="fas fa-check"></i>{% else %}2{% endif %}</span>
                     <span class="m-step-label">Semestres</span>
                 </div>
-                <div class="m-step-divider {% if step in ['pedagogie', 'complete'] %}done{% endif %}"></div>
-                <div class="m-step-chip {% if step in ['pedagogie', 'complete'] %}active{% endif %} {% if step == 'complete' %}done{% endif %}">
-                    <span class="m-step-badge">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}3{% endif %}</span>
+                <div class="m-step-divider {% if step in ['pedagogie', 'classes', 'complete'] %}done{% endif %}"></div>
+                <div class="m-step-chip {% if step in ['pedagogie', 'classes', 'complete'] %}active{% endif %} {% if step in ['classes', 'complete'] %}done{% endif %}">
+                    <span class="m-step-badge">{% if step in ['classes', 'complete'] %}<i class="fas fa-check"></i>{% else %}3{% endif %}</span>
                     <span class="m-step-label">Niveaux</span>
+                </div>
+                <div class="m-step-divider {% if step in ['classes', 'complete'] %}done{% endif %}"></div>
+                <div class="m-step-chip {% if step in ['classes', 'complete'] %}active{% endif %} {% if step == 'complete' %}done{% endif %}">
+                    <span class="m-step-badge">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}4{% endif %}</span>
+                    <span class="m-step-label">Classes</span>
                 </div>
                 <div class="m-step-divider {% if step == 'complete' %}done{% endif %}"></div>
                 <div class="m-step-chip {% if step == 'complete' %}active done{% endif %}">
@@ -48,27 +53,35 @@
                     </div>
 
                     <div class="onboarding-vertical-stepper mb-4">
-                        <div class="v-step-item {% if step in ['year', 'semestres', 'pedagogie', 'complete'] %}active{% endif %} {% if step in ['semestres', 'pedagogie', 'complete'] %}completed{% endif %}">
-                            <div class="v-step-marker">{% if step in ['semestres', 'pedagogie', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>1</span>{% endif %}</div>
+                        <div class="v-step-item {% if step in ['year', 'semestres', 'pedagogie', 'classes', 'complete'] %}active{% endif %} {% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}completed{% endif %}">
+                            <div class="v-step-marker">{% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>1</span>{% endif %}</div>
                             <div class="v-step-content">
                                 <div class="v-step-title">Annee scolaire</div>
                                 <div class="v-step-desc">Periode active obligatoire</div>
                             </div>
                         </div>
-                        <div class="v-step-line {% if step in ['semestres', 'pedagogie', 'complete'] %}completed{% endif %}"></div>
-                        <div class="v-step-item {% if step in ['semestres', 'pedagogie', 'complete'] %}active{% endif %} {% if step in ['pedagogie', 'complete'] %}completed{% endif %}">
-                            <div class="v-step-marker">{% if step in ['pedagogie', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>2</span>{% endif %}</div>
+                        <div class="v-step-line {% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}completed{% endif %}"></div>
+                        <div class="v-step-item {% if step in ['semestres', 'pedagogie', 'classes', 'complete'] %}active{% endif %} {% if step in ['pedagogie', 'classes', 'complete'] %}completed{% endif %}">
+                            <div class="v-step-marker">{% if step in ['pedagogie', 'classes', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>2</span>{% endif %}</div>
                             <div class="v-step-content">
                                 <div class="v-step-title">Semestres</div>
                                 <div class="v-step-desc">Calendrier S1 et S2</div>
                             </div>
                         </div>
-                        <div class="v-step-line {% if step in ['pedagogie', 'complete'] %}completed{% endif %}"></div>
-                        <div class="v-step-item {% if step in ['pedagogie', 'complete'] %}active{% endif %} {% if step == 'complete' %}completed{% endif %}">
-                            <div class="v-step-marker">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}<span>3</span>{% endif %}</div>
+                        <div class="v-step-line {% if step in ['pedagogie', 'classes', 'complete'] %}completed{% endif %}"></div>
+                        <div class="v-step-item {% if step in ['pedagogie', 'classes', 'complete'] %}active{% endif %} {% if step in ['classes', 'complete'] %}completed{% endif %}">
+                            <div class="v-step-marker">{% if step in ['classes', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>3</span>{% endif %}</div>
                             <div class="v-step-content">
                                 <div class="v-step-title">Offre pedagogique</div>
                                 <div class="v-step-desc">Cycles et niveaux proposes</div>
+                            </div>
+                        </div>
+                        <div class="v-step-line {% if step in ['classes', 'complete'] %}completed{% endif %}"></div>
+                        <div class="v-step-item {% if step in ['classes', 'complete'] %}active{% endif %} {% if step == 'complete' %}completed{% endif %}">
+                            <div class="v-step-marker">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}<span>4</span>{% endif %}</div>
+                            <div class="v-step-content">
+                                <div class="v-step-title">Classes</div>
+                                <div class="v-step-desc">Sections et series en 1 clic</div>
                             </div>
                         </div>
                         <div class="v-step-line {% if step == 'complete' %}completed{% endif %}"></div>
@@ -91,9 +104,11 @@
                             {% elif step == 'semestres' %}
                                 Les semestres cadrent les notes, absences et bulletins. Configurez-les avant de continuer.
                             {% elif step == 'pedagogie' %}
-                                Les niveaux definissent votre offre. Les classes reelles seront creees ensuite selon vos besoins.
+                                Les niveaux definissent votre offre. Vous pourrez ensuite generer rapidement les classes correspondantes.
+                            {% elif step == 'classes' %}
+                                Cochez les sections existantes pour chaque niveau actif. Vous pouvez aussi ignorer cette etape et creer vos classes plus tard.
                             {% else %}
-                                Votre etablissement est pret. Vous pouvez creer vos classes depuis les menus habituels.
+                                Votre etablissement est pret. Vous pouvez commencer a inscrire vos eleves.
                             {% endif %}
                         </p>
                     </div>
@@ -112,7 +127,7 @@
                 {% if step == 'year' %}
                     <div class="onboarding-pane-header mb-3 mb-sm-4">
                         <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
-                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 1 sur 3</span>
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 1 sur 4</span>
                             <span class="text-muted small"><i class="fas fa-calendar-alt text-primary me-1"></i>Annee scolaire</span>
                         </div>
                         <h1 class="onboarding-title h4 fw-bold text-dark mb-1">Bienvenue sur KLASORA</h1>
@@ -171,7 +186,7 @@
                 {% elif step == 'semestres' %}
                     <div class="onboarding-pane-header mb-3 mb-sm-4">
                         <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
-                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 2 sur 3</span>
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 2 sur 4</span>
                             <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1"><i class="fas fa-check me-1"></i>Annee {{ active_year.nom if active_year else 'active' }}</span>
                         </div>
                         <h1 class="onboarding-title h4 fw-bold text-dark mb-1">Configurer les semestres</h1>
@@ -210,7 +225,7 @@
                 {% elif step == 'pedagogie' %}
                     <div class="onboarding-pane-header mb-3 mb-sm-4">
                         <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
-                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 3 sur 3</span>
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 3 sur 4</span>
                             <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1"><i class="fas fa-check me-1"></i>Annee {{ active_year.nom if active_year else 'active' }}</span>
                         </div>
                         <h1 class="onboarding-title h4 fw-bold text-dark mb-1">Configurer l'offre pedagogique</h1>
@@ -266,6 +281,94 @@
                         });
                     </script>
 
+                {% elif step == 'classes' %}
+                    <div class="onboarding-pane-header mb-3 mb-sm-4">
+                        <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 4 sur 4</span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1"><i class="fas fa-check me-1"></i>Niveaux enregistres</span>
+                        </div>
+                        <h1 class="onboarding-title h4 fw-bold text-dark mb-1">Creation rapide de vos classes</h1>
+                        <p class="text-muted small mb-0">Cochez simplement les sections ou series souhaitees pour generer vos classes en 1 clic.</p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('main.onboarding') }}" class="onboarding-form" id="onboardingClassesForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="generer_classes_onboarding" id="classesFormAction">
+
+                        <div class="classes-scroll-container mb-3" style="max-height: 52vh; overflow-y: auto; padding-right: 4px;">
+                            {% set cycle_titles = {'primaire': 'Cycle Primaire', 'college': 'Cycle College', 'lycee': 'Cycle Lycee'} %}
+                            {% for cycle_key in ['primaire', 'college', 'lycee'] %}
+                                {% set items = grouped_niveaux_classes.get(cycle_key, []) %}
+                                {% if items|length > 0 %}
+                                    <div class="mb-3">
+                                        <div class="d-flex align-items-center gap-2 mb-2 pb-1 border-bottom">
+                                            <span class="fw-bold text-dark small text-uppercase" style="letter-spacing: 0.5px;">
+                                                {{ cycle_titles.get(cycle_key, cycle_key) }}
+                                            </span>
+                                            <span class="badge bg-light text-muted border small">{{ items|length }} niveau(x)</span>
+                                        </div>
+                                        <div class="row g-2">
+                                            {% for item in items %}
+                                                <div class="col-12 col-md-6">
+                                                    <div class="border rounded-3 p-2.5 bg-light bg-opacity-50 h-100">
+                                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                                            <span class="fw-bold text-dark small">
+                                                                <i class="fas fa-tag text-primary me-1"></i>{{ item.niveau.nom }}
+                                                            </span>
+                                                            <span class="text-muted" style="font-size: 0.75rem;">{{ item.libelle }}</span>
+                                                        </div>
+                                                        <div class="d-flex flex-wrap gap-1.5">
+                                                            {% for sec_info in item.sections %}
+                                                                {% set sec = sec_info.code %}
+                                                                {% set label = sec_info.label %}
+                                                                {% set is_existing = sec in item.existing_sections %}
+                                                                {% if is_existing %}
+                                                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 rounded-2 small" title="Classe deja creee">
+                                                                        <i class="fas fa-check"></i> {{ label }}
+                                                                    </span>
+                                                                {% else %}
+                                                                    <label class="btn btn-outline-primary btn-sm rounded-2 px-2.5 py-1 d-inline-flex align-items-center gap-1.5 cursor-pointer" style="font-size: 0.82rem;">
+                                                                        <input type="checkbox" name="classes_selected" value="{{ item.niveau.id }}:{{ sec }}" class="form-check-input mt-0 m-0" onchange="updateOnboardingClassesCount()">
+                                                                        <span>{{ label }}</span>
+                                                                    </label>
+                                                                {% endif %}
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+
+                        <!-- Bouton principal vert et option d'ignorance discrete -->
+                        <div class="d-grid gap-2 mt-3 pt-2 border-top">
+                            <button type="submit" class="btn btn-success btn-lg fw-semibold shadow-sm py-2.5 py-sm-3" id="btnCreerClasses">
+                                <i class="fas fa-check-circle me-2"></i><span id="btnCreerText">Creer les classes et continuer</span>
+                            </button>
+
+                            <button type="button" class="btn btn-link text-muted text-decoration-none py-1 small text-center" onclick="document.getElementById('classesFormAction').value='ignorer_classes'; document.getElementById('onboardingClassesForm').submit();">
+                                Ignorer cette etape (creer mes classes plus tard) <i class="fas fa-arrow-right ms-1"></i>
+                            </button>
+                        </div>
+                    </form>
+
+                    <script>
+                        function updateOnboardingClassesCount() {
+                            var checked = document.querySelectorAll('input[name="classes_selected"]:checked').length;
+                            var text = document.getElementById('btnCreerText');
+                            if (text) {
+                                if (checked > 0) {
+                                    text.textContent = 'Creer ' + checked + ' classe(s) et continuer';
+                                } else {
+                                    text.textContent = 'Creer les classes et continuer';
+                                }
+                            }
+                        }
+                    </script>
+
                 {% else %}
                     <div class="onboarding-success-pane text-center py-3 py-sm-4">
                         <div class="success-badge-icon d-inline-flex align-items-center justify-content-center rounded-circle bg-success-subtle text-success mb-3 shadow-sm" style="width: 68px; height: 68px; font-size: 1.8rem;"><i class="fas fa-check-double"></i></div>
@@ -274,6 +377,9 @@
                         <div class="onboarding-summary d-flex flex-wrap justify-content-center gap-2 mb-4">
                             <div class="summary-pill px-3 py-1.5 bg-light rounded-pill border small text-dark"><i class="fas fa-calendar-check text-success me-1"></i>Annee : {{ active_year.nom if active_year else 'Active' }}</div>
                             <div class="summary-pill px-3 py-1.5 bg-light rounded-pill border small text-dark"><i class="fas fa-layer-group text-primary me-1"></i>Niveaux configures</div>
+                            {% if setup_state.has_class %}
+                            <div class="summary-pill px-3 py-1.5 bg-light rounded-pill border small text-dark"><i class="fas fa-chalkboard text-info me-1"></i>Classes pretes</div>
+                            {% endif %}
                         </div>
                         <div class="d-grid gap-2 col-12 col-md-10 mx-auto">
                             <form method="POST" action="{{ url_for('main.onboarding') }}" class="m-0">

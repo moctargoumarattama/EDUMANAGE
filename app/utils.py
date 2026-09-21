@@ -234,6 +234,16 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
             ).with_entities(Classe.id).first() is not None
             has_semestres = calendrier_configure(target_ecole_id, active_year.id)
 
+            skip_classes = False
+            try:
+                from flask import session
+                skip_classes = bool(
+                    session.get(f'onboarding_skip_classes_{target_ecole_id}') or
+                    session.get('onboarding_skip_classes')
+                )
+            except (RuntimeError, AttributeError):
+                skip_classes = False
+
             if not has_semestres:
                 result = {
                     'has_active_year': True,
@@ -253,6 +263,16 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
                     'has_semestres': True,
                     'setup_complete': False,
                     'current_step': 'pedagogie'
+                }
+            elif not has_class and not skip_classes:
+                result = {
+                    'has_active_year': True,
+                    'active_year': active_year,
+                    'has_class': False,
+                    'has_pedagogie': True,
+                    'has_semestres': True,
+                    'setup_complete': False,
+                    'current_step': 'classes'
                 }
             else:
                 result = {

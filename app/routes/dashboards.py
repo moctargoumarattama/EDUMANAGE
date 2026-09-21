@@ -265,6 +265,8 @@ def onboarding():
 
             ecole.onboarding_complete = True
             db.session.commit()
+            session.pop(f'onboarding_skip_classes_{ecole.id}', None)
+            session.pop('onboarding_skip_classes', None)
             flash("Configuration initiale de votre établissement terminée avec succès ! Bienvenue sur votre tableau de bord.", "success")
 
             session['onboarding_just_completed'] = True
@@ -359,10 +361,115 @@ def onboarding():
                 return redirect(url_for('main.onboarding'))
 
             db.session.commit()
+            if hasattr(g, '_school_setup_cache'):
+                g._school_setup_cache.pop(ecole.id, None)
             flash("Configuration pedagogique enregistree avec succes.", "success")
             return redirect(url_for('main.onboarding'))
 
+        elif action == 'generer_classes_onboarding':
+            if not active_year:
+                flash("Veuillez d'abord configurer une année scolaire active.", "warning")
+                return redirect(url_for('main.onboarding'))
+
+            selected_items = request.form.getlist("classes_selected")
+            configurations = []
+            for item in selected_items:
+                if ":" in item:
+                    parts = item.split(":", 1)
+                    nid_str = parts[0].strip()
+                    sec = parts[1].strip().upper()
+                    if nid_str.isdigit() and sec:
+                        configurations.append({
+                            "niveau_id": int(nid_str),
+                            "section": sec,
+                            "capacite": 35
+                        })
+
+            if not configurations:
+                flash("Veuillez cocher au moins une classe à créer, ou cliquez sur « Ignorer cette étape ».", "warning")
+                return redirect(url_for('main.onboarding'))
+
+            from app.services.pedagogie_standard import generer_classes_batch
+            classes_creees, classes_existantes, erreur = generer_classes_batch(
+                ecole_id=ecole.id,
+                annee_id=active_year.id,
+                configurations=configurations
+            )
+
+            if erreur:
+                flash(erreur, "danger")
+                return redirect(url_for('main.onboarding'))
+
+            if classes_creees:
+                msg = f"{len(classes_creees)} classe(s) créée(s) avec succès pour l'année {active_year.nom} ! 🎉"
+                if classes_existantes:
+                    msg += f" ({len(classes_existantes)} classe(s) existai(en)t déjà)."
+                flash(msg, "success")
+            else:
+                flash("Les classes sélectionnées existent déjà pour cette année.", "info")
+
+            session[f'onboarding_skip_classes_{ecole.id}'] = True
+            if hasattr(g, '_school_setup_cache'):
+                g._school_setup_cache.pop(ecole.id, None)
+
+            return redirect(url_for('main.onboarding'))
+
+        elif action == 'ignorer_classes':
+            session[f'onboarding_skip_classes_{ecole.id}'] = True
+            if hasattr(g, '_school_setup_cache'):
+                g._school_setup_cache.pop(ecole.id, None)
+            flash("Étape de création des classes ignorée. Vous pourrez créer vos classes ultérieurement.", "info")
+            return redirect(url_for('main.onboarding'))
+
     niveau_configs_grouped = get_niveaux_catalogue_grouped_for_onboarding(ecole.id, active_year.id if active_year else None)
+
+    grouped_niveaux_classes = {"primaire": [], "college": [], "lycee": []}
+    if active_year:
+        from app.services.structure_annuelle import get_niveaux_annee
+        from app.models import Classe
+        niveaux_actifs = get_niveaux_annee(ecole.id, active_year.id)
+        existing_classes = Classe.query.filter_by(
+            ecole_id=ecole.id,
+            annee_scolaire_id=active_year.id
+        ).all()
+        existing_map = {(c.niveau_id, (c.section or "").upper()) for c in existing_classes}
+
+        for n in niveaux_actifs:
+            code_upper = (n.code or "").upper()
+            if n.cycle == "lycee" and code_upper in ("1ERE", "TERMINALE", "TLE"):
+                sections = [
+                    {"code": "A", "label": "A (Littéraire)"},
+                    {"code": "D", "label": "D (Scientifique)"},
+                    {"code": "C", "label": "C (Maths/PC)"},
+                ]
+                libelle = "Séries"
+            elif n.cycle == "lycee" and code_upper in ("2NDE", "SECONDE"):
+                sections = [
+                    {"code": "A", "label": "A"},
+                    {"code": "B", "label": "B"},
+                    {"code": "C", "label": "C"},
+                    {"code": "S", "label": "S"},
+                ]
+                libelle = "Sections"
+            else:
+                sections = [
+                    {"code": "A", "label": "A"},
+                    {"code": "B", "label": "B"},
+                    {"code": "C", "label": "C"},
+                    {"code": "U", "label": "Unique"},
+                ]
+                libelle = "Sections"
+
+            cycle_key = n.cycle or "college"
+            if cycle_key not in grouped_niveaux_classes:
+                grouped_niveaux_classes[cycle_key] = []
+
+            grouped_niveaux_classes[cycle_key].append({
+                "niveau": n,
+                "sections": sections,
+                "libelle": libelle,
+                "existing_sections": [sec for (nid, sec) in existing_map if nid == n.id]
+            })
 
     return render_template(
         'onboarding.html',
@@ -371,6 +478,7 @@ def onboarding():
         step=step,
         active_year=active_year,
         niveau_configs_grouped=niveau_configs_grouped,
+        grouped_niveaux_classes=grouped_niveaux_classes,
         form_data=form_data
     )
 

@@ -222,6 +222,105 @@ def liste_classes():
         end_item=end_item
     )
 
+
+@main.route('/classes/generation-rapide', methods=['GET', 'POST'])
+@login_required
+@role_required('admin')
+@ecole_required
+def generation_rapide_classes():
+    """Génération par lot et accélérée des classes pour l'année scolaire active."""
+    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
+    if not ecole_id:
+        flash("Veuillez sélectionner un établissement.", "warning")
+        return redirect(url_for("main.index"))
+
+    annee_consultee = get_annee_consultee(ecole_id)
+    if not annee_consultee:
+        flash("Veuillez d'abord configurer une année scolaire pour votre établissement.", "warning")
+        return redirect(url_for("main.gestion_annees"))
+
+    if annee_consultee.statut == "archivee":
+        flash("Impossible de générer des classes dans une année scolaire archivée.", "warning")
+        return redirect(url_for("main.liste_classes"))
+
+    from app.services.structure_annuelle import get_niveaux_annee
+    from app.services.pedagogie_standard import generer_classes_batch
+
+    niveaux = get_niveaux_annee(ecole_id, annee_consultee.id)
+
+    if request.method == "POST":
+        selected_items = request.form.getlist("classes_selected")
+        configurations = []
+        for item in selected_items:
+            if ":" in item:
+                parts = item.split(":", 1)
+                nid_str = parts[0].strip()
+                sec = parts[1].strip().upper()
+                if nid_str.isdigit() and sec:
+                    configurations.append({
+                        "niveau_id": int(nid_str),
+                        "section": sec,
+                        "capacite": 35
+                    })
+
+        if not configurations:
+            flash("Veuillez cocher au moins une classe à créer.", "warning")
+            return redirect(url_for("main.generation_rapide_classes"))
+
+        classes_creees, classes_existantes, erreur = generer_classes_batch(
+            ecole_id=ecole_id,
+            annee_id=annee_consultee.id,
+            configurations=configurations
+        )
+
+        if erreur:
+            flash(erreur, "danger")
+            return redirect(url_for("main.generation_rapide_classes"))
+
+        if classes_creees:
+            msg = f"{len(classes_creees)} classe(s) créée(s) avec succès pour l'année {annee_consultee.nom}."
+            if classes_existantes:
+                msg += f" ({len(classes_existantes)} classe(s) existai(en)t déjà et ont été ignorée(s))."
+            flash(msg, "success")
+        else:
+            flash(f"Toutes les classes sélectionnées ({len(classes_existantes)}) existent déjà pour cette année.", "info")
+
+        return redirect(url_for("main.liste_classes"))
+
+    # GET
+    existing_classes = Classe.query.filter_by(
+        ecole_id=ecole_id,
+        annee_scolaire_id=annee_consultee.id
+    ).all()
+    existing_map = {(c.niveau_id, (c.section or "").upper()) for c in existing_classes}
+
+    grouped_niveaux = {"primaire": [], "college": [], "lycee": []}
+    for n in niveaux:
+        if n.cycle == "lycee" and (n.code or "").upper() in ("1ERE", "TERMINALE"):
+            sections = ["A", "C", "D"]
+            libelle = "Série"
+        elif n.cycle == "lycee" and (n.code or "").upper() in ("2NDE", "SECONDE"):
+            sections = ["A", "B", "C", "S"]
+            libelle = "Section / Série"
+        else:
+            sections = ["A", "B", "C", "D"]
+            libelle = "Section"
+
+        grouped_niveaux.setdefault(n.cycle or "college", []).append({
+            "niveau": n,
+            "sections": sections,
+            "libelle": libelle,
+            "existing_sections": [sec for (nid, sec) in existing_map if nid == n.id]
+        })
+
+    return render_template(
+        "classes_generation_rapide.html",
+        grouped_niveaux=grouped_niveaux,
+        annee_consultee=annee_consultee,
+        total_niveaux=len(niveaux)
+    )
+
+
 @main.route("/classes/add", methods=["GET", "POST"])
 @login_required
 @role_required('admin')

@@ -17,6 +17,7 @@ from .common import (
     current_user,
     datetime,
     db,
+    ecole_required,
     filtre_par_ecole,
     flash,
     get_ecole_courante,
@@ -805,4 +806,58 @@ def supprimer_cours(id):
             return jsonify({'success': False, 'message': message}), 500
         flash(message, "danger")
         return redirect(url_for('main.cours'))
+
+
+@main.route('/classe/<int:classe_id>/charger-matieres-standard', methods=['POST'])
+@login_required
+@role_required('admin')
+@ecole_required
+def charger_matieres_standard(classe_id):
+    """Charge automatiquement les matières et coefficients standard pour une classe."""
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
+
+    classe = Classe.query.get(classe_id)
+    if not classe:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Classe introuvable.'}), 404
+        flash("Classe introuvable.", "danger")
+        return redirect(url_for('main.liste_classes'))
+
+    if classe.ecole_id != current_user.ecole_id:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Accès non autorisé.'}), 403
+        abort(403)
+
+    from app.services.pedagogie_standard import injecter_matieres_standard
+    cours_crees, err = injecter_matieres_standard(
+        ecole_id=current_user.ecole_id,
+        annee_id=classe.annee_scolaire_id,
+        classe_id=classe.id
+    )
+
+    if err:
+        if is_ajax:
+            return jsonify({'success': False, 'message': err}), 400
+        flash(err, "warning")
+        return redirect(url_for('main.detail_classe', classe_id=classe.id))
+
+    count = len(cours_crees)
+    if count > 0:
+        msg = f"{count} matière(s) standard ajoutée(s) à la classe {classe.nom}."
+        if is_ajax:
+            return jsonify({
+                'success': True,
+                'message': msg,
+                'count': count,
+                'cours': [{'id': c.id, 'nom': c.nom, 'coefficient': c.coefficient} for c in cours_crees]
+            })
+        flash(msg, "success")
+    else:
+        msg = f"Toutes les matières standards sont déjà configurées pour la classe {classe.nom}."
+        if is_ajax:
+            return jsonify({'success': True, 'message': msg, 'count': 0, 'cours': []})
+        flash(msg, "info")
+
+    next_url = request.form.get('next') or url_for('main.detail_classe', classe_id=classe.id)
+    return redirect(next_url)
 

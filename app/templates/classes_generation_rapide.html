@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Génération rapide des classes - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-lg-4 py-4">
+
+    <!-- En-tête de page -->
+    <section class="page-header mb-4">
+        <div class="page-header-body">
+            <div class="page-title-group">
+                <div class="page-icon bg-primary bg-opacity-10 text-primary">
+                    <i class="fas fa-bolt" aria-hidden="true"></i>
+                </div>
+                <div>
+                    <h1 class="page-title">Génération rapide des classes</h1>
+                    <p class="page-subtitle text-muted mb-0">
+                        Configurez la structure de vos classes en quelques clics pour l'année 
+                        <strong>{{ annee_consultee.nom }}</strong>.
+                    </p>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <a href="{{ url_for('main.liste_classes') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Retour aux classes
+                </a>
+                <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-plus me-2"></i>Ajout unitaire
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Info banner -->
+    <div class="alert alert-info border-0 shadow-sm rounded-4 d-flex align-items-center gap-3 mb-4" role="alert">
+        <div class="fs-4 text-info flex-shrink-0">
+            <i class="fas fa-info-circle"></i>
+        </div>
+        <div class="small">
+            <strong>Gain de temps :</strong> Cochez simplement les sections souhaitées pour chaque niveau scolaire.
+            Les classes déjà existantes sont signalées et ne seront jamais dupliquées. Vous pourrez ensuite ajouter les matières standards en 1 clic !
+        </div>
+    </div>
+
+    {% if not total_niveaux or total_niveaux == 0 %}
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center">
+        <div class="empty-state-icon text-muted mb-3" style="font-size: 3rem;">
+            <i class="fas fa-layer-group"></i>
+        </div>
+        <h3 class="h5 fw-bold mb-2">Aucun niveau scolaire actif pour cette année</h3>
+        <p class="text-muted small mx-auto mb-4" style="max-width: 480px;">
+            Vous devez d'abord activer les niveaux scolaires (Primaire, Collège ou Lycée) dans la structure de l'année scolaire.
+        </p>
+        <div>
+            <a href="{{ url_for('main.gestion_annees') }}" class="btn btn-primary px-4 rounded-pill">
+                <i class="fas fa-sliders-h me-2"></i>Configurer la structure annuelle
+            </a>
+        </div>
+    </div>
+    {% else %}
+
+    <form method="POST" action="{{ url_for('main.generation_rapide_classes') }}" id="fastClassesForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {% set cycle_labels = {
+            'primaire': {'title': 'Cycle Primaire', 'icon': 'fa-child', 'color': 'success'},
+            'college': {'title': 'Cycle Collège', 'icon': 'fa-graduation-cap', 'color': 'primary'},
+            'lycee': {'title': 'Cycle Lycée', 'icon': 'fa-university', 'color': 'indigo'}
+        } %}
+
+        {% for cycle_key in ['primaire', 'college', 'lycee'] %}
+            {% set items = grouped_niveaux.get(cycle_key, []) %}
+            {% if items|length > 0 %}
+            {% set c_info = cycle_labels.get(cycle_key, {'title': cycle_key|capitalize, 'icon': 'fa-school', 'color': 'primary'}) %}
+
+            <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+                <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge rounded-circle p-2 bg-{{ c_info.color }}-subtle text-{{ c_info.color }}">
+                            <i class="fas {{ c_info.icon }}"></i>
+                        </span>
+                        <h2 class="h6 fw-bold mb-0 text-dark">{{ c_info.title }}</h2>
+                        <span class="badge bg-light text-muted border ms-1">{{ items|length }} niveau(x)</span>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectCycle('{{ cycle_key }}', true)">
+                            <i class="fas fa-check-double me-1"></i>Cocher A & B
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectCycle('{{ cycle_key }}', false)">
+                            <i class="fas fa-times me-1"></i>Tout décocher
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card-body p-3 p-md-4">
+                    <div class="row g-3">
+                        {% for item in items %}
+                        <div class="col-12 col-md-6 col-xl-4">
+                            <div class="p-3 rounded-3 border bg-light bg-opacity-50 h-100 d-flex flex-column justify-content-between">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="fw-bold text-dark fs-6">
+                                        <i class="fas fa-tag me-1 text-muted small"></i>{{ item.niveau.nom }}
+                                    </span>
+                                    <span class="badge bg-white text-muted border small">{{ item.libelle }}s</span>
+                                </div>
+
+                                <div class="d-flex flex-wrap gap-2 my-2">
+                                    {% for sec in item.sections %}
+                                        {% set is_existing = sec in item.existing_sections %}
+                                        {% if is_existing %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-3 d-inline-flex align-items-center gap-1" title="Cette classe existe déjà">
+                                            <i class="fas fa-check-circle"></i> {{ sec }} (Créée)
+                                        </span>
+                                        {% else %}
+                                        <label class="btn btn-outline-primary btn-sm rounded-3 px-3 py-2 text-nowrap d-flex align-items-center gap-2 cursor-pointer section-checkbox-label">
+                                            <input type="checkbox" 
+                                                   name="classes_selected" 
+                                                   value="{{ item.niveau.id }}:{{ sec }}" 
+                                                   class="form-check-input mt-0 cycle-check-{{ cycle_key }} sec-check-{{ sec }}"
+                                                   onchange="updateCounter()">
+                                            <span>{{ item.libelle }} <strong>{{ sec }}</strong></span>
+                                        </label>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+
+        <!-- Barre d'action sticky en bas -->
+        <div class="card border-0 shadow-lg rounded-4 p-3 bg-white sticky-bottom mb-4 d-flex flex-row justify-content-between align-items-center flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="badge bg-primary rounded-pill fs-6 px-3 py-2" id="selectedCounter">
+                    0 classe(s) sélectionnée(s)
+                </div>
+                <span class="text-muted small d-none d-md-inline">
+                    Capacité par défaut : 35 élèves par classe (modifiable à tout moment).
+                </span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button type="reset" class="btn btn-light border" onclick="setTimeout(updateCounter, 50)">
+                    Réinitialiser
+                </button>
+                <button type="submit" class="btn btn-primary px-4 fw-semibold shadow-sm" id="submitBtn" disabled>
+                    <i class="fas fa-bolt me-2"></i>Générer les classes sélectionnées
+                </button>
+            </div>
+        </div>
+
+    </form>
+    {% endif %}
+
+</div>
+
+<script>
+function updateCounter() {
+    const checkboxes = document.querySelectorAll('input[name="classes_selected"]:checked');
+    const count = checkboxes.length;
+    const badge = document.getElementById('selectedCounter');
+    const btn = document.getElementById('submitBtn');
+    
+    if (badge) {
+        badge.textContent = count + ' classe(s) sélectionnée(s)';
+        if (count > 0) {
+            badge.className = 'badge bg-success rounded-pill fs-6 px-3 py-2';
+        } else {
+            badge.className = 'badge bg-secondary rounded-pill fs-6 px-3 py-2';
+        }
+    }
+    if (btn) {
+        btn.disabled = (count === 0);
+    }
+}
+
+function selectCycle(cycleKey, selectCommon) {
+    const checkboxes = document.querySelectorAll('.cycle-check-' + cycleKey);
+    checkboxes.forEach(cb => {
+        if (selectCommon) {
+            // Coche A et B en priorité
+            const val = cb.value;
+            if (val.endsWith(':A') || val.endsWith(':B')) {
+                cb.checked = true;
+            } else {
+                cb.checked = false;
+            }
+        } else {
+            cb.checked = false;
+        }
+    });
+    updateCounter();
+}
+
+document.addEventListener('DOMContentLoaded', updateCounter);
+</script>
+
+<style>
+.cursor-pointer {
+    cursor: pointer;
+}
+.section-checkbox-label {
+    transition: all 0.15s ease-in-out;
+}
+.section-checkbox-label:hover {
+    transform: translateY(-1px);
+}
+.section-checkbox-label input[type="checkbox"]:checked + span {
+    font-weight: bold;
+}
+</style>
+{% endblock %}
+
