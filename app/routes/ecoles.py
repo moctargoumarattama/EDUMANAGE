@@ -581,22 +581,16 @@ def profil_ecole():
             if hasattr(ecole, 'ville'):
                 ecole.ville = ville or None
 
-            school_dir = os.path.join(current_app.static_folder, 'ecoles', str(ecole.id))
-            os.makedirs(school_dir, exist_ok=True)
-
-            allowed_extensions = {'png', 'jpg', 'jpeg', 'webp'}
-            def allowed_file(filename):
-                return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
-
             if 'logo' in request.files:
                 file = request.files['logo']
-                if file and file.filename and allowed_file(file.filename):
-                    filename = f"logo_{secure_filename(file.filename)}"
-                    save_path = os.path.join(school_dir, filename)
-                    file.save(save_path)
-                    rel_path = f"ecoles/{ecole.id}/{filename}"
-                    ecole.logo_path = rel_path
-                    ecole.logo = filename
+                if file and file.filename:
+                    from app.utils import validate_and_save_school_logo
+                    ok, err = validate_and_save_school_logo(
+                        file, ecole, current_app.static_folder
+                    )
+                    if not ok:
+                        flash(err, "danger")
+                        return redirect(url_for('main.profil_ecole'))
 
             db.session.commit()
             flash("Identité et profil de l'établissement mis à jour avec succès ✅", "success")

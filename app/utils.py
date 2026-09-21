@@ -963,3 +963,94 @@ def log_action(user_id, action, details=None):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"[log_action] Erreur : {e}")
+
+
+# ====================================================================
+# 🖼️ VALIDATION SÉCURISÉE DU LOGO ÉCOLE
+# ====================================================================
+
+# Mapping Pillow format string -> extension canonique sur disque
+_LOGO_ALLOWED_FORMATS = {
+    'PNG': 'png',
+    'JPEG': 'jpg',
+    'WEBP': 'webp',
+}
+
+# Taille maximale du logo en octets (2 Mo)
+_LOGO_MAX_SIZE = 2 * 1024 * 1024
+
+
+def validate_and_save_school_logo(file_storage, ecole, static_folder):
+    """Valide le contenu binaire d'un logo uploadé et le sauvegarde de
+    manière sécurisée.
+
+    Retourne ``(True, None)`` en cas de succès, ou ``(False, message_erreur)``
+    en cas d'échec.  Aucun fichier n'est écrit sur le disque en cas d'erreur.
+
+    Sécurité :
+    - Le contenu est inspecté avec ``PIL.Image`` (pas seulement l'extension).
+    - Seuls PNG, JPEG et WEBP sont acceptés (SVG interdit).
+    - Le nom de fichier d'origine est ignoré ; un UUID est généré.
+    - L'ancien logo physique est supprimé si un remplacement réussit.
+    """
+    import os
+    import uuid
+    from PIL import Image, UnidentifiedImageError
+
+    if not file_storage or not file_storage.filename:
+        return False, "Aucun fichier sélectionné."
+
+    # Lecture du flux en mémoire pour éviter d'écrire avant validation
+    file_storage.seek(0, 2)  # seek end
+    size = file_storage.tell()
+    file_storage.seek(0)
+
+    if size == 0:
+        return False, "Le fichier est vide."
+
+    if size > _LOGO_MAX_SIZE:
+        return False, "Le fichier dépasse la taille maximale autorisée (2 Mo)."
+
+    # Inspection du contenu réel avec Pillow
+    try:
+        img = Image.open(file_storage)
+        img.verify()  # valide les en-têtes sans charger les pixels
+    except (UnidentifiedImageError, Exception):
+        return False, "Le fichier n'est pas une image valide (PNG, JPEG ou WEBP requis)."
+
+    pil_format = img.format  # disponible après verify() sur l'objet initial
+    if pil_format not in _LOGO_ALLOWED_FORMATS:
+        return False, (
+            f"Format « {pil_format or 'inconnu'} » non autorisé. "
+            "Seuls PNG, JPEG et WEBP sont acceptés."
+        )
+
+    ext = _LOGO_ALLOWED_FORMATS[pil_format]
+
+    # Générer un nom aléatoire sécurisé
+    safe_name = f"logo_{uuid.uuid4().hex[:16]}.{ext}"
+
+    school_dir = os.path.join(static_folder, 'ecoles', str(ecole.id))
+    os.makedirs(school_dir, exist_ok=True)
+    save_path = os.path.join(school_dir, safe_name)
+
+    # Sauvegarder le nouveau fichier (relire depuis le début)
+    file_storage.seek(0)
+    file_storage.save(save_path)
+
+    # Nettoyage de l'ancien logo physique
+    old_logo = getattr(ecole, 'logo', None)
+    if old_logo and old_logo != 'default_logo.png':
+        old_path = os.path.join(school_dir, old_logo)
+        if os.path.isfile(old_path) and os.path.abspath(old_path) != os.path.abspath(save_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass  # nettoyage best-effort, pas bloquant
+
+    # Mettre à jour le modèle
+    rel_path = f"ecoles/{ecole.id}/{safe_name}"
+    ecole.logo_path = rel_path
+    ecole.logo = safe_name
+
+    return True, None
