@@ -735,23 +735,40 @@ def imports_historique():
     return render_template("imports_historique.html", historiques=historiques)
 
 @main.route('/cours/<int:id>/supprimer', methods=['POST'])
+@main.route('/matiere/<int:id>/supprimer', methods=['POST'])
+@main.route('/matieres/<int:id>/supprimer', methods=['POST'])
 @login_required
 @role_required('admin')
 def supprimer_cours(id):
-    # âœ… Sécurisation multi-écoles
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-    cours = filtre_par_ecole(Cours.query, Cours).filter_by(id=id).first()
+    from app.models import Absence, EmploiTemps
+    is_ajax = (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.is_json
+        or request.accept_mimetypes.best == 'application/json'
+    )
+    cours = Cours.query.get(id)
     if not cours:
         if is_ajax:
-            return jsonify({'success': False, 'message': 'Cours introuvable.'}), 404
+            return jsonify({'success': False, 'message': 'Matière/cours introuvable.'}), 404
         abort(404)
 
+    # 🛡️ Sécurité multi-écoles : contrôle strict cross-tenant
+    if cours.ecole_id != current_user.ecole_id:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
+        abort(403)
+
     try:
-        # Vérifier s'il y a des notes ou absences associées
-        if cours.notes or cours.absences:
+        # Vérifier si la matière/cours est rattachée à des évaluations (notes), absences ou emplois du temps
+        has_notes = Note.query.filter_by(cours_id=cours.id).first() is not None
+        has_absences = Absence.query.filter_by(cours_id=cours.id).first() is not None
+        has_emplois = EmploiTemps.query.filter_by(cours_id=cours.id).first() is not None
+
+        if has_notes or has_absences or has_emplois:
+            msg = "Impossible de supprimer cette matière car elle contient des évaluations, absences ou séances d'emploi du temps associées."
             if is_ajax:
-                return jsonify({'success': False, 'message': 'Impossible de supprimer ce cours car il a des données associées.'}), 409
-            flash("Impossible de supprimer ce cours car il a des données associées.", "danger")
+                return jsonify({'success': False, 'message': msg}), 400
+            flash(msg, "warning")
             return redirect(url_for('main.cours'))
 
         deleted_id = cours.id
@@ -762,21 +779,22 @@ def supprimer_cours(id):
         db.session.delete(cours)
         db.session.commit()
 
-        # âœ… Journalisation
-        current_app.log_correction(
-            action="suppression_cours",
-            description=f"Cours supprimé : {cours_nom}",
-            ecole_id=cours_ecole_id,
-            cible_type="cours",
-            cible_id=id,
-            ancienne_valeur=ancienne_valeur,
-            nouvelle_valeur=None,
-            niveau="info"
-        )
+        # Journalisation
+        if hasattr(current_app, "log_correction"):
+            current_app.log_correction(
+                action="suppression_cours",
+                description=f"Cours supprimé : {cours_nom}",
+                ecole_id=cours_ecole_id,
+                cible_type="cours",
+                cible_id=id,
+                ancienne_valeur=ancienne_valeur,
+                nouvelle_valeur=None,
+                niveau="info"
+            )
 
         if is_ajax:
-            return jsonify({'success': True, 'message': 'Cours supprimé.', 'deleted_id': deleted_id})
-        flash("Cours supprimé avec succès.", "success")
+            return jsonify({'success': True, 'message': 'Matière/cours supprimé avec succès.', 'deleted_id': deleted_id})
+        flash("Matière supprimée avec succès.", "success")
         return redirect(url_for('main.cours'))
 
     except Exception as e:

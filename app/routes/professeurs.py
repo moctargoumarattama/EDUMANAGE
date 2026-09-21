@@ -33,6 +33,7 @@ from app.services.annees_scolaires import get_annee_consultee
 from app.services.classes_annuelles import classe_est_ouverte
 from app.services.cours_uniqueness import find_duplicate_cours, normalize_cours_nom
 from app.access_codes import generate_access_code, is_valid_access_code
+from app.models import Note
 
 
 def _matieres_affectation_professeur(professeur):
@@ -325,44 +326,55 @@ def modifier_professeur(id):
     return render_template('modifier_professeur.html', form=form, professeur=professeur)
 
 @main.route('/professeur/<int:id>/supprimer', methods=['POST'])
+@main.route('/professeurs/<int:id>/supprimer', methods=['POST'])
 @login_required
 @role_required('admin')
 def supprimer_professeur(id):
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-    professeur = Professeur.query.filter_by(id=id, ecole_id=current_user.ecole_id).first()
+    is_ajax = (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.is_json
+        or request.accept_mimetypes.best == 'application/json'
+    )
+    professeur = Professeur.query.get(id)
     if not professeur:
         if is_ajax:
             return jsonify({'success': False, 'message': 'Professeur introuvable.'}), 404
         abort(404)
 
-    # ðŸ›¡ï¸ Sécurité multi-écoles : empêche la suppression inter-écoles
-    if current_user.role != 'super_admin' and professeur.ecole_id != current_user.ecole_id:
+    # 🛡️ Sécurité multi-écoles : contrôle strict cross-tenant
+    if professeur.ecole_id != current_user.ecole_id:
         if is_ajax:
             return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
-        flash("Action non autorisée : ce professeur appartient ? une autre école.", "danger")
-        return redirect(url_for('main.professeurs'))
+        abort(403)
 
-    # Vérifier s'il y a des cours associés
-    if professeur.cours:
+    # Vérifier s'il est rattaché à des cours existants ou s'il a des notes/évaluations
+    has_cours = Cours.query.filter_by(professeur_id=professeur.id).first() is not None
+    has_notes = Note.query.join(Cours, Note.cours_id == Cours.id).filter(Cours.professeur_id == professeur.id).first() is not None
+    has_emplois = bool(professeur.emplois_du_temps)
+
+    if has_cours or has_notes or has_emplois:
+        msg = "Cet enseignant possède un historique de cours ou d'évaluations. Veuillez désactiver son compte plutôt que de le supprimer."
         if is_ajax:
-            return jsonify({'success': False, 'message': 'Impossible de supprimer ce professeur car il a des cours associés.'}), 409
-        flash("Impossible de supprimer ce professeur car il a des cours associés.", "danger")
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, "warning")
         return redirect(url_for('main.professeurs'))
 
+    # Si l'enseignant n'a aucun cours ni note (compte vierge) : SUPPRESSION AUTORISÉE
     try:
         deleted_id = professeur.id
-        nom_professeur = professeur.nom
-        # Supprimer aussi l'utilisateur associé si existe
+        nom_professeur = f"{professeur.prenom} {professeur.nom}"
+        
+        # Supprimer aussi l'utilisateur associé si c'est un compte enseignant dédié
         if professeur.utilisateur_id:
             utilisateur = Utilisateur.query.get(professeur.utilisateur_id)
-            if utilisateur:
+            if utilisateur and utilisateur.role == 'professeur':
                 db.session.delete(utilisateur)
 
         db.session.delete(professeur)
         db.session.commit()
         current_app.logger.info(f"Professeur supprimé : {nom_professeur} (ID={deleted_id}) par {current_user.email}")
         if is_ajax:
-            return jsonify({'success': True, 'message': 'Professeur supprimé.', 'deleted_id': deleted_id})
+            return jsonify({'success': True, 'message': 'Professeur supprimé avec succès.', 'deleted_id': deleted_id})
         flash("Professeur supprimé avec succès.", "success")
     except Exception as e:
         db.session.rollback()
@@ -373,28 +385,6 @@ def supprimer_professeur(id):
         flash(message, "danger")
 
     return redirect(url_for('main.professeurs'))
-
-@login_required
-@role_required('admin')
-def supprimer_professeur_route(id):
-    """Supprimer un professeur"""
-    professeur = Professeur.query.get_or_404(id)
-    
-    # Vérifier s'il y a des cours associés
-    if professeur.cours:
-        flash("Impossible de supprimer ce professeur car il a des cours associés.", "danger")
-        return redirect(url_for('main.profile'))
-    
-    # Supprimer aussi l'utilisateur associé si existe
-    if professeur.utilisateur_id:
-        utilisateur = Utilisateur.query.get(professeur.utilisateur_id)
-        if utilisateur:
-            db.session.delete(utilisateur)
-    
-    db.session.delete(professeur)
-    db.session.commit()
-    flash("Professeur supprimé avec succès.", "success")
-    return redirect(url_for('main.profile'))
 
 @main.route('/professeur/<int:id>/assigner_classes', methods=['GET', 'POST'])
 @login_required

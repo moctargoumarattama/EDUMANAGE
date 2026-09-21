@@ -537,30 +537,43 @@ def parametres_pedagogiques():
 
 
 @main.route("/classes/<int:classe_id>/supprimer", methods=["POST"])
+@main.route("/classe/<int:classe_id>/supprimer", methods=["POST"])
 @login_required
 @role_required('admin')
 def supprimer_classe(classe_id):
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-    classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first()
+    is_ajax = (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.is_json
+        or request.accept_mimetypes.best == 'application/json'
+    )
+    classe = Classe.query.get(classe_id)
     if not classe:
         if is_ajax:
             return jsonify({'success': False, 'message': 'Classe introuvable.'}), 404
         abort(404)
-    if classe.annee_scolaire and classe.annee_scolaire.statut == "archivee":
+
+    # 🛡️ Contrôle strict multi-tenant
+    if classe.ecole_id != current_user.ecole_id:
         if is_ajax:
-            return jsonify({'success': False, 'message': "Impossible de supprimer une classe d'une année archivée."}), 409
-        flash("Impossible de supprimer une classe d'une annee archivee.", "warning")
+            return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
+        abort(403)
+
+    if classe.annee_scolaire and classe.annee_scolaire.statut == "archivee":
+        msg = "Impossible de supprimer une classe d'une année archivée."
+        if is_ajax:
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, "warning")
         return redirect(url_for("main.liste_classes"))
 
-    has_dependencies = bool(
-        classe.cours
-        or classe.emplois
-        or Inscription.query.filter_by(classe_id=classe.id).first()
-    )
-    if has_dependencies:
+    has_inscriptions = Inscription.query.filter_by(classe_id=classe.id).first() is not None
+    has_cours = Cours.query.filter_by(classe_id=classe.id).first() is not None
+    has_emplois = bool(classe.emplois)
+
+    if has_inscriptions or has_cours or has_emplois:
+        msg = "Impossible de supprimer une classe contenant des élèves ou des cours associés."
         if is_ajax:
-            return jsonify({'success': False, 'message': 'Cette classe contient encore des élèves, cours ou emplois du temps.'}), 409
-        flash("Impossible de supprimer une classe contenant des élèves, cours ou emplois du temps.", "warning")
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, "warning")
         return redirect(url_for("main.liste_classes"))
 
     try:
@@ -568,7 +581,7 @@ def supprimer_classe(classe_id):
         db.session.delete(classe)
         db.session.commit()
         if is_ajax:
-            return jsonify({'success': True, 'message': 'Classe supprimée.', 'deleted_id': deleted_id})
+            return jsonify({'success': True, 'message': 'Classe supprimée avec succès.', 'deleted_id': deleted_id})
         flash("Classe supprimée avec succès.", "success")
     except Exception as e:
         db.session.rollback()
