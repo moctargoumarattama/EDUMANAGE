@@ -965,12 +965,12 @@ def voir_eleve(eleve_id):
     else:
         paiements = sorted(eleve.paiements, key=lambda p: p.date_paiement or datetime.min, reverse=True)
         total_frais = float(eleve.frais_annuels or 150000.0)
-        total_paye = float(sum(p.montant or 0 for p in paiements))
+        total_paye = float(sum(p.montant or 0 for p in paiements if (getattr(p, 'statut', None) or 'payé') != 'annule'))
         reste_a_payer = max(0.0, total_frais - total_paye)
         pourcentage_paye = round((total_paye / total_frais) * 100, 1) if total_frais > 0 else 0.0
 
         mois_scolaires = get_mois_scolaires(inscription_active.annee_scolaire if inscription_active else None)
-        mois_payes_set = set(p.mois for p in paiements if p.mois)
+        mois_payes_set = set(p.mois for p in paiements if p.mois and (getattr(p, 'statut', None) or 'payé') != 'annule')
         echeancier = [{'mois': m, 'paye': (m in mois_payes_set)} for m in mois_scolaires]
         mois_impayes_list = [m for m in mois_scolaires if m not in mois_payes_set]
 

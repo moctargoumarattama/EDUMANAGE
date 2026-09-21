@@ -1,4 +1,4 @@
-﻿import pandas as pd
+import pandas as pd
 from . import main
 from .common import (
     Classe,
@@ -27,7 +27,7 @@ from .common import (
     send_file,
     url_for,
 )
-from flask import jsonify, make_response
+from flask import abort, jsonify, make_response
 from app.services.annees_scolaires import get_annee_consultee
 from app.utils import sanitize_internal_url
 from app.services.structure_annuelle import get_niveaux_annee
@@ -482,45 +482,98 @@ def export_paiements_excel():
 
 @main.route('/paiement/<int:id>/supprimer', methods=['POST'])
 @main.route('/paiements/<int:id>/supprimer', methods=['POST'])
+@main.route('/paiement/<int:id>/annuler', methods=['POST'])
+@main.route('/paiements/<int:id>/annuler', methods=['POST'])
 @login_required
-@role_required('admin')
+@role_required('admin', 'super_admin')
 def supprimer_paiement(id):
+    is_ajax = (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.is_json
+        or request.accept_mimetypes.best == 'application/json'
+    )
     context_url = _paiements_return_url()
+
+    paiement = db.session.get(Paiement, id)
+    if not paiement:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Paiement introuvable.'}), 404
+        abort(404)
+
+    # 🛡️ Protection multi-tenant stricte : 403 si cross-tenant
+    if current_user.role != 'super_admin' and paiement.ecole_id != current_user.ecole_id:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Action non autorisée : ce paiement appartient à un autre établissement.'}), 403
+        abort(403)
+
     annee = get_annee_consultee(current_user.ecole_id)
     if not annee or annee.statut == 'archivee':
-        flash("L'année scolaire est archivée : suppression de paiement interdite (lecture seule).", "danger")
+        msg = "L'année scolaire est archivée : suppression/annulation de paiement interdite (lecture seule)."
+        if is_ajax:
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, "danger")
         return redirect(context_url)
     if annee.statut == 'planifiee':
-        flash("Opération non autorisée sur une année planifiée.", "danger")
+        msg = "Opération non autorisée sur une année planifiée."
+        if is_ajax:
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, "danger")
         return redirect(context_url)
-
-    paiement = filtre_par_ecole(Paiement.query, Paiement).filter_by(id=id).first_or_404()
 
     if paiement.inscription and paiement.inscription.annee_scolaire_id != annee.id:
-        flash("Ce paiement n'appartient pas à l'année scolaire consultée.", "danger")
+        msg = "Ce paiement n'appartient pas à l'année scolaire consultée."
+        if is_ajax:
+            return jsonify({'success': False, 'message': msg}), 400
+        flash(msg, "danger")
         return redirect(context_url)
 
+    # Vérification double annulation
+    if paiement.statut == 'annule':
+        msg_deja = "Ce paiement a déjà été annulé."
+        if is_ajax:
+            return jsonify({'success': False, 'message': msg_deja}), 400
+        flash(msg_deja, "warning")
+        return redirect(context_url)
+
+    # Récupération du motif
+    motif = None
+    if request.is_json and request.json:
+        motif = request.json.get('motif')
+    if not motif and request.form:
+        motif = request.form.get('motif')
+    motif = (motif or "").strip() or "Annulation administrative"
+
     try:
-        ancienne_valeur = f"Paiement ID {paiement.id} (Élève: {paiement.eleve_id}, Montant: {paiement.montant})"
-        db.session.delete(paiement)
+        ancienne_valeur = f"statut: {paiement.statut or 'payé'}, montant: {paiement.montant}"
+        nouvelle_valeur = f"statut: annule, motif: {motif}"
+
+        paiement.statut = 'annule'
         db.session.commit()
 
-        current_app.log_correction(
-            action="suppression_paiement",
-            description=f"Paiement supprimé ID {paiement.id}",
-            ecole_id=paiement.ecole_id,
-            cible_type="paiement",
-            cible_id=id,
-            ancienne_valeur=ancienne_valeur,
-            nouvelle_valeur=None,
-            niveau="info"
-        )
-        flash("Paiement supprimé avec succès.", "success")
+        if hasattr(current_app, "log_correction"):
+            current_app.log_correction(
+                action="annulation_paiement",
+                description=f"Paiement #{paiement.id} de {paiement.montant} annulé. Motif: {motif}",
+                ecole_id=paiement.ecole_id,
+                cible_type="paiement",
+                cible_id=paiement.id,
+                ancienne_valeur=ancienne_valeur,
+                nouvelle_valeur=nouvelle_valeur,
+                niveau="info"
+            )
+
+        if is_ajax:
+            return jsonify({'success': True, 'message': 'Paiement annulé avec succès'})
+        flash('Le paiement a été annulé avec succès.', 'success')
+        return redirect(context_url)
+
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erreur suppression paiement {id}: {e}")
-        flash(f"Erreur lors de la suppression: {str(e)}", "danger")
-    return redirect(context_url)
+        current_app.logger.error(f"Erreur annulation paiement {id}: {e}")
+        if is_ajax:
+            return jsonify({'success': False, 'message': f"Erreur lors de l'annulation: {str(e)}"}), 500
+        flash(f"Erreur lors de l'annulation: {str(e)}", "danger")
+        return redirect(context_url)
 
 
 @main.route('/paiements/configurer_mensualites', methods=['POST'])

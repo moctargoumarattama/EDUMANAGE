@@ -237,7 +237,7 @@ def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
 
         # 3. Alertes Paiements (Retards de scolarité de l'année consultée)
         frais_annuels = float(ins.frais_annuels if ins.frais_annuels is not None else (eleve.frais_annuels or 150000.0))
-        paiements_valides = [p for p in ins.paiements if p.statut != 'rejete']
+        paiements_valides = [p for p in ins.paiements if p.statut not in ('rejete', 'annule')]
         total_paye = sum(float(p.montant or 0) for p in paiements_valides)
         mois_payes = [p.mois for p in paiements_valides if p.mois]
 

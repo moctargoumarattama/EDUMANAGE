@@ -579,7 +579,7 @@ class Eleve(db.Model):
                 return code
 
     def total_paye(self):
-        return sum(p.montant for p in self.paiements)
+        return sum(p.montant for p in self.paiements if getattr(p, 'statut', 'payé') != 'annule')
 
     def reste_a_payer(self):
         return max(0, self.frais_annuels - self.total_paye())

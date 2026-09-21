@@ -89,7 +89,7 @@ def get_finances_inscription(inscription):
     frais = float(frais)
 
     paiements = getattr(inscription, "paiements", [])
-    total_paye = float(sum(p.montant for p in paiements if p.montant))
+    total_paye = float(sum(p.montant for p in paiements if p.montant and (getattr(p, 'statut', None) or 'payé') != 'annule'))
     reste = max(0.0, frais - total_paye)
     if frais == 0:
         reste = 0.0
