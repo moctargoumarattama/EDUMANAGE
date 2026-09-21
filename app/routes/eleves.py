@@ -1180,41 +1180,76 @@ def supprimer_eleve(id):
 
 @main.route('/eleve/<int:id>/supprimer-cascade', methods=['POST'])
 @login_required
-@role_required('admin')
+@role_required('admin', 'super_admin')
 def supprimer_eleve_cascade(id):
-    """Supprime un élève et toutes ses données associées, avec journalisation."""
-    eleve = filtre_par_ecole(Eleve.query, Eleve).filter_by(id=id).first_or_404()
+    """Supprime un élève uniquement s'il n'a aucun historique scolaire ou comptable (erreur de saisie)."""
+    is_ajax = (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.is_json
+        or request.accept_mimetypes.best == 'application/json'
+    )
+    eleve = db.session.get(Eleve, id)
+    if not eleve:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Élève introuvable.'}), 404
+        abort(404)
 
+    # 🛡️ Sécurité multi-écoles : empêche la suppression inter-écoles
+    if current_user.role != 'super_admin' and eleve.ecole_id != current_user.ecole_id:
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Action non autorisée : cet élève appartient à une autre école.'}), 403
+        abort(403)
+
+    # 1. Vérification de l'historique scolaire ou comptable
+    has_notes = Note.query.filter_by(eleve_id=id).first() is not None
+    has_paiements = Paiement.query.filter_by(eleve_id=id).first() is not None
+    has_absences = Absence.query.filter_by(eleve_id=id).first() is not None
+
+    if has_notes or has_paiements or has_absences:
+        msg_refus = "Impossible de supprimer un élève ayant un historique scolaire ou comptable. Veuillez changer son statut (radié/inactif)."
+        if is_ajax:
+            return jsonify({'success': False, 'message': msg_refus}), 400
+        flash(msg_refus, "danger")
+        return redirect(url_for('main.eleves'))
+
+    # 2. Suppression autorisée uniquement si coquille vide (erreur de saisie)
     try:
         ancienne_valeur = f"{eleve.nom} {eleve.prenom} (ID: {eleve.id})"
+        ecole_id = eleve.ecole_id
+        eleve_nom = eleve.nom
+        eleve_prenom = eleve.prenom
 
-        # Supprimer toutes les données associées
-        Note.query.filter_by(eleve_id=id).delete(synchronize_session=False)
-        Paiement.query.filter_by(eleve_id=id).delete(synchronize_session=False)
-        Absence.query.filter_by(eleve_id=id).delete(synchronize_session=False)
-        Inscription.query.filter_by(eleve_id=id).delete(synchronize_session=False)  # <-- Ajouté
+        # Supprimer les inscriptions associées
+        Inscription.query.filter_by(eleve_id=id).delete(synchronize_session=False)
 
+        # Supprimer l'élève
         db.session.delete(eleve)
         db.session.commit()
 
-        # ✅ Journalisation complète
-        current_app.log_correction(
-            action="suppression_cascade",
-            description=f"Élève et données associées supprimés : {eleve.nom} {eleve.prenom}",
-            ecole_id=eleve.ecole_id,
-            cible_type="eleve",
-            cible_id=id,
-            ancienne_valeur=ancienne_valeur,
-            nouvelle_valeur=None,
-            niveau="info"
-        )
+        # Journalisation d'audit
+        if hasattr(current_app, "log_correction"):
+            current_app.log_correction(
+                action="suppression_cascade",
+                description=f"Élève créé par erreur supprimé : {eleve_nom} {eleve_prenom}",
+                ecole_id=ecole_id,
+                cible_type="eleve",
+                cible_id=id,
+                ancienne_valeur=ancienne_valeur,
+                nouvelle_valeur=None,
+                niveau="info"
+            )
 
-        flash("Élève et toutes ses données associées supprimés avec succès.", "success")
+        msg_succes = "Élève créé par erreur supprimé avec succès."
+        if is_ajax:
+            return jsonify({'success': True, 'message': msg_succes, 'deleted_id': id})
+        flash(msg_succes, "success")
         return redirect(url_for('main.eleves'))
 
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erreur suppression cascade élève {id}: {e}")
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Erreur inattendue lors de la suppression.'}), 500
         flash("Erreur inattendue lors de la suppression.", "danger")
         return redirect(url_for('main.eleves'))
 
