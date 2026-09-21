@@ -236,6 +236,7 @@ def onboarding():
         sauvegarder_structure_annee,
         get_niveaux_catalogue_grouped_for_onboarding,
     )
+    from app.services.semestres import configurer_semestres_annee
 
     ecole = current_user.ecole
     if not ecole:
@@ -266,8 +267,7 @@ def onboarding():
             db.session.commit()
             flash("Configuration initiale de votre établissement terminée avec succès ! Bienvenue sur votre tableau de bord.", "success")
 
-            # On nettoie la session existante juste au cas où
-            session.pop('onboarding_just_completed', None)
+            session['onboarding_just_completed'] = True
 
             # Nettoyer le cache
             if hasattr(g, '_school_setup_cache'):
@@ -317,6 +317,28 @@ def onboarding():
                 form_data = request.form
 
         # Étape 2 : Création de la première classe
+        elif action == 'configurer_semestres':
+            if not active_year:
+                flash("Veuillez d'abord configurer une année scolaire active.", "warning")
+                return redirect(url_for('main.onboarding'))
+
+            fin_semestre_1_str = request.form.get('fin_semestre_1', '').strip()
+            try:
+                fin_semestre_1 = datetime.strptime(fin_semestre_1_str, '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                flash("Date de fin du Semestre 1 invalide.", "danger")
+                return redirect(url_for('main.onboarding'))
+
+            _periodes, error_msg = configurer_semestres_annee(ecole.id, active_year.id, fin_semestre_1)
+            if error_msg:
+                flash(error_msg, "danger")
+                return redirect(url_for('main.onboarding'))
+
+            if hasattr(g, '_school_setup_cache'):
+                g._school_setup_cache.pop(ecole.id, None)
+            flash("Calendrier des semestres enregistré avec succès.", "success")
+            return redirect(url_for('main.onboarding'))
+
         elif action == 'configurer_pedagogie':
             if not active_year:
                 flash("Veuillez d'abord configurer une année scolaire active.", "warning")

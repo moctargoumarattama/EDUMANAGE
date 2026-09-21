@@ -189,9 +189,15 @@
                                     </a>
                                     {% endif %}
                                     {% if annee.statut == 'planifiee' %}
-                                    <a href="{{ url_for('main.activation_annee_confirmation', annee_id=annee.id) }}" class="btn btn-outline-primary">
-                                        <i class="fas fa-power-off me-1"></i>Activer
-                                    </a>
+                                        {% if ns.s1 and ns.s1.date_debut and ns.s1.date_fin and ns.s2 and ns.s2.date_debut and ns.s2.date_fin %}
+                                        <a href="{{ url_for('main.activation_annee_confirmation', annee_id=annee.id) }}" class="btn btn-outline-primary">
+                                            <i class="fas fa-power-off me-1"></i>Activer
+                                        </a>
+                                        {% else %}
+                                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalSemestres{{ annee.id }}">
+                                            <i class="fas fa-calendar-week me-1"></i>Semestres requis
+                                        </button>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                             </td>
@@ -314,9 +320,15 @@
                     {% endif %}
 
                     {% if annee.statut == 'planifiee' %}
-                    <a href="{{ url_for('main.activation_annee_confirmation', annee_id=annee.id) }}" class="btn btn-outline-primary py-2">
-                        <i class="fas fa-power-off me-2"></i>Activer l'année
-                    </a>
+                        {% if ns.s1 and ns.s1.date_debut and ns.s1.date_fin and ns.s2 and ns.s2.date_debut and ns.s2.date_fin %}
+                        <a href="{{ url_for('main.activation_annee_confirmation', annee_id=annee.id) }}" class="btn btn-outline-primary py-2">
+                            <i class="fas fa-power-off me-2"></i>Activer l'année
+                        </a>
+                        {% else %}
+                        <button type="button" class="btn btn-outline-danger py-2" data-bs-toggle="modal" data-bs-target="#modalSemestres{{ annee.id }}">
+                            <i class="fas fa-calendar-week me-2"></i>Configurer les semestres avant activation
+                        </button>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>

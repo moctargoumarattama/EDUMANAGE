@@ -74,11 +74,13 @@ def index():
         ecole_id = current_user.ecole_id  # ✅ Filtrage multi-écoles
         annee_consultee = get_annee_consultee(ecole_id)
         stats = get_dashboard_admin_annuel(ecole_id, annee_consultee)
+        force_tour_prompt = bool(session.pop('onboarding_just_completed', False))
         return render_template(
             'index.html',
             stats=stats,
             school_setup_state=setup_state,
-            annee_consultee=annee_consultee
+            annee_consultee=annee_consultee,
+            force_tour_prompt=force_tour_prompt
         )
 
     # -----------------------------

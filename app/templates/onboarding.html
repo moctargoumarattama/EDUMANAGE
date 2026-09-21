@@ -14,13 +14,18 @@
                 <span class="fw-semibold text-dark text-truncate" style="max-width: 240px;">{{ ecole.nom if ecole else 'Votre etablissement' }}</span>
             </div>
             <div class="onboarding-mobile-steps d-flex justify-content-center align-items-center gap-2 mt-1">
-                <div class="m-step-chip {% if step in ['year', 'pedagogie', 'complete'] %}active{% endif %} {% if step in ['pedagogie', 'complete'] %}done{% endif %}">
-                    <span class="m-step-badge">{% if step in ['pedagogie', 'complete'] %}<i class="fas fa-check"></i>{% else %}1{% endif %}</span>
+                <div class="m-step-chip {% if step in ['year', 'semestres', 'pedagogie', 'complete'] %}active{% endif %} {% if step in ['semestres', 'pedagogie', 'complete'] %}done{% endif %}">
+                    <span class="m-step-badge">{% if step in ['semestres', 'pedagogie', 'complete'] %}<i class="fas fa-check"></i>{% else %}1{% endif %}</span>
                     <span class="m-step-label">Annee</span>
+                </div>
+                <div class="m-step-divider {% if step in ['semestres', 'pedagogie', 'complete'] %}done{% endif %}"></div>
+                <div class="m-step-chip {% if step in ['semestres', 'pedagogie', 'complete'] %}active{% endif %} {% if step in ['pedagogie', 'complete'] %}done{% endif %}">
+                    <span class="m-step-badge">{% if step in ['pedagogie', 'complete'] %}<i class="fas fa-check"></i>{% else %}2{% endif %}</span>
+                    <span class="m-step-label">Semestres</span>
                 </div>
                 <div class="m-step-divider {% if step in ['pedagogie', 'complete'] %}done{% endif %}"></div>
                 <div class="m-step-chip {% if step in ['pedagogie', 'complete'] %}active{% endif %} {% if step == 'complete' %}done{% endif %}">
-                    <span class="m-step-badge">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}2{% endif %}</span>
+                    <span class="m-step-badge">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}3{% endif %}</span>
                     <span class="m-step-label">Niveaux</span>
                 </div>
                 <div class="m-step-divider {% if step == 'complete' %}done{% endif %}"></div>
@@ -43,16 +48,24 @@
                     </div>
 
                     <div class="onboarding-vertical-stepper mb-4">
-                        <div class="v-step-item {% if step in ['year', 'pedagogie', 'complete'] %}active{% endif %} {% if step in ['pedagogie', 'complete'] %}completed{% endif %}">
-                            <div class="v-step-marker">{% if step in ['pedagogie', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>1</span>{% endif %}</div>
+                        <div class="v-step-item {% if step in ['year', 'semestres', 'pedagogie', 'complete'] %}active{% endif %} {% if step in ['semestres', 'pedagogie', 'complete'] %}completed{% endif %}">
+                            <div class="v-step-marker">{% if step in ['semestres', 'pedagogie', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>1</span>{% endif %}</div>
                             <div class="v-step-content">
                                 <div class="v-step-title">Annee scolaire</div>
                                 <div class="v-step-desc">Periode active obligatoire</div>
                             </div>
                         </div>
+                        <div class="v-step-line {% if step in ['semestres', 'pedagogie', 'complete'] %}completed{% endif %}"></div>
+                        <div class="v-step-item {% if step in ['semestres', 'pedagogie', 'complete'] %}active{% endif %} {% if step in ['pedagogie', 'complete'] %}completed{% endif %}">
+                            <div class="v-step-marker">{% if step in ['pedagogie', 'complete'] %}<i class="fas fa-check"></i>{% else %}<span>2</span>{% endif %}</div>
+                            <div class="v-step-content">
+                                <div class="v-step-title">Semestres</div>
+                                <div class="v-step-desc">Calendrier S1 et S2</div>
+                            </div>
+                        </div>
                         <div class="v-step-line {% if step in ['pedagogie', 'complete'] %}completed{% endif %}"></div>
                         <div class="v-step-item {% if step in ['pedagogie', 'complete'] %}active{% endif %} {% if step == 'complete' %}completed{% endif %}">
-                            <div class="v-step-marker">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}<span>2</span>{% endif %}</div>
+                            <div class="v-step-marker">{% if step == 'complete' %}<i class="fas fa-check"></i>{% else %}<span>3</span>{% endif %}</div>
                             <div class="v-step-content">
                                 <div class="v-step-title">Offre pedagogique</div>
                                 <div class="v-step-desc">Cycles et niveaux proposes</div>
@@ -75,6 +88,8 @@
                         <p class="text-muted mb-0" style="font-size: 0.8rem; line-height: 1.4;">
                             {% if step == 'year' %}
                                 L'annee active permettra de rattacher chaque classe, inscription et operation a la bonne periode.
+                            {% elif step == 'semestres' %}
+                                Les semestres cadrent les notes, absences et bulletins. Configurez-les avant de continuer.
                             {% elif step == 'pedagogie' %}
                                 Les niveaux definissent votre offre. Les classes reelles seront creees ensuite selon vos besoins.
                             {% else %}
@@ -97,7 +112,7 @@
                 {% if step == 'year' %}
                     <div class="onboarding-pane-header mb-3 mb-sm-4">
                         <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
-                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 1 sur 2</span>
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 1 sur 3</span>
                             <span class="text-muted small"><i class="fas fa-calendar-alt text-primary me-1"></i>Annee scolaire</span>
                         </div>
                         <h1 class="onboarding-title h4 fw-bold text-dark mb-1">Bienvenue sur KLASORA</h1>
@@ -153,10 +168,49 @@
                         });
                     </script>
 
+                {% elif step == 'semestres' %}
+                    <div class="onboarding-pane-header mb-3 mb-sm-4">
+                        <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 2 sur 3</span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1"><i class="fas fa-check me-1"></i>Annee {{ active_year.nom if active_year else 'active' }}</span>
+                        </div>
+                        <h1 class="onboarding-title h4 fw-bold text-dark mb-1">Configurer les semestres</h1>
+                        <p class="text-muted small mb-0">Indiquez la date de fin du Semestre 1. Le Semestre 2 commencera automatiquement le lendemain.</p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('main.onboarding') }}" class="onboarding-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="configurer_semestres">
+
+                        <div class="alert alert-info small mb-3">
+                            <i class="fas fa-info-circle me-1"></i>
+                            L'année scolaire s'étend du <strong>{{ active_year.date_debut.strftime('%d/%m/%Y') if active_year else '-' }}</strong>
+                            au <strong>{{ active_year.date_fin.strftime('%d/%m/%Y') if active_year else '-' }}</strong>.
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="fin_semestre_1" class="form-label small fw-bold text-dark mb-1">Date de fin du Semestre 1 <span class="text-danger">*</span></label>
+                            <input type="date"
+                                   class="form-control"
+                                   id="fin_semestre_1"
+                                   name="fin_semestre_1"
+                                   min="{{ active_year.date_debut.strftime('%Y-%m-%d') if active_year else '' }}"
+                                   max="{{ active_year.date_fin.strftime('%Y-%m-%d') if active_year else '' }}"
+                                   required>
+                            <div class="form-text small text-muted">Le Semestre 2 démarrera automatiquement le lendemain.</div>
+                        </div>
+
+                        <div class="d-grid mt-3 mt-sm-4">
+                            <button type="submit" class="btn btn-primary btn-lg fw-semibold shadow-sm py-2.5 py-sm-3">
+                                <i class="fas fa-calendar-week me-2"></i>Enregistrer les semestres
+                            </button>
+                        </div>
+                    </form>
+
                 {% elif step == 'pedagogie' %}
                     <div class="onboarding-pane-header mb-3 mb-sm-4">
                         <div class="d-none d-lg-flex align-items-center justify-content-between mb-2">
-                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 2 sur 2</span>
+                            <span class="badge bg-primary px-3 py-1.5 text-uppercase fw-semibold" style="font-size: 0.75rem;">Etape 3 sur 3</span>
                             <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1"><i class="fas fa-check me-1"></i>Annee {{ active_year.nom if active_year else 'active' }}</span>
                         </div>
                         <h1 class="onboarding-title h4 fw-bold text-dark mb-1">Configurer l'offre pedagogique</h1>

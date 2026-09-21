@@ -292,7 +292,7 @@
 
     {% if school_setup_state and school_setup_state.setup_complete and (current_user.admin_tour_version or 0) < ADMIN_TOUR_VERSION %}
     <!-- Modal Invitation Visite Guidée (Facultative) -->
-    <div class="modal fade" id="tourPromptModal" tabindex="-1" aria-labelledby="tourPromptModalLabel" aria-hidden="true" data-bs-backdrop="true">
+    <div class="modal fade" id="tourPromptModal" tabindex="-1" aria-labelledby="tourPromptModalLabel" aria-hidden="true" data-bs-backdrop="true" {% if force_tour_prompt %}data-force-show="1"{% endif %}>
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content tour-prompt-modal p-3">
                 <div class="modal-body text-center p-4">

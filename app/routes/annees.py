@@ -53,7 +53,7 @@ from app.services.activation_annee import (
     preparer_activation_annee,
     activer_annee_scolaire,
 )
-from app.services.semestres import configurer_semestres_annee, get_semestres_annee
+from app.services.semestres import calendrier_configure, configurer_semestres_annee, get_semestres_annee
 
 
 def _current_ecole_id_for_annees():
@@ -104,6 +104,9 @@ def gestion_annees():
         if action == 'activer' and annee_id:
             annee = AnneeScolaire.query.get(int(annee_id))
             if annee and annee.ecole_id in [e.id for e in ecoles]:
+                if not calendrier_configure(annee.ecole_id, annee.id):
+                    flash("Configurez les semestres S1 et S2 avant d'activer cette année.", "danger")
+                    return redirect(url_for('main.gestion_annees'))
                 return redirect(url_for('main.activation_annee_confirmation', annee_id=annee.id))
             else:
                 flash("Action non autorisée pour cette école.", "danger")
@@ -498,6 +501,8 @@ def activation_annee_confirmation(annee_id):
     prep, err = preparer_activation_annee(ecole_id, annee.id)
     if err:
         flash(err, "danger")
+        if "semestres" in err.lower():
+            return redirect(url_for('main.gestion_annees'))
         return redirect(url_for('main.preparation_annee', annee_id=annee.id))
 
     csrf_form = CSRFForm()

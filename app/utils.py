@@ -168,6 +168,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
     """
     from app.models import AnneeNiveauConfig, AnneeScolaire, Classe, NiveauScolaire, Ecole
     from app.middleware import get_ecole_id
+    from app.services.semestres import calendrier_configure
 
     target_ecole_id = ecole_id or get_ecole_id()
     if not target_ecole_id:
@@ -176,6 +177,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
             'active_year': None,
             'has_class': False,
             'has_pedagogie': False,
+            'has_semestres': False,
             'setup_complete': False,
             'current_step': 'year'
         }
@@ -200,6 +202,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
             'active_year': active_year,
             'has_class': True,  # Valeurs non bloquantes
             'has_pedagogie': True,
+            'has_semestres': True,
             'setup_complete': True,
             'current_step': 'complete'
         }
@@ -210,6 +213,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
                 'active_year': None,
                 'has_class': False,
                 'has_pedagogie': False,
+                'has_semestres': False,
                 'setup_complete': False,
                 'current_step': 'year'
             }
@@ -228,13 +232,25 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
                 ecole_id=target_ecole_id,
                 annee_scolaire_id=active_year.id
             ).with_entities(Classe.id).first() is not None
+            has_semestres = calendrier_configure(target_ecole_id, active_year.id)
 
-            if not has_pedagogie:
+            if not has_semestres:
                 result = {
                     'has_active_year': True,
                     'active_year': active_year,
                     'has_class': False,
                     'has_pedagogie': False,
+                    'has_semestres': False,
+                    'setup_complete': False,
+                    'current_step': 'semestres'
+                }
+            elif not has_pedagogie:
+                result = {
+                    'has_active_year': True,
+                    'active_year': active_year,
+                    'has_class': False,
+                    'has_pedagogie': False,
+                    'has_semestres': True,
                     'setup_complete': False,
                     'current_step': 'pedagogie'
                 }
@@ -244,6 +260,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
                     'active_year': active_year,
                     'has_class': has_class,
                     'has_pedagogie': True,
+                    'has_semestres': True,
                     'setup_complete': False, # Pas encore validé manuellement
                     'current_step': 'complete'
                 }

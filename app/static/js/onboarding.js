@@ -85,6 +85,25 @@
         });
     }
 
+    function closeMobileMenuBeforeTour(callback) {
+        const navbarCollapse = document.getElementById('navbarNav');
+        const isOpen = navbarCollapse && navbarCollapse.classList.contains('show');
+
+        if (!isOpen || typeof bootstrap === 'undefined' || !bootstrap.Collapse) {
+            callback();
+            return;
+        }
+
+        const startAfterClose = function () {
+            navbarCollapse.removeEventListener('hidden.bs.collapse', startAfterClose);
+            document.body.classList.remove('mobile-menu-open');
+            setTimeout(callback, 80);
+        };
+
+        navbarCollapse.addEventListener('hidden.bs.collapse', startAfterClose);
+        bootstrap.Collapse.getOrCreateInstance(navbarCollapse, { toggle: false }).hide();
+    }
+
     function createOverlayElements() {
         if (!spotlightEl) {
             spotlightEl = document.createElement('div');
@@ -221,6 +240,14 @@
     }
 
     function startTour(isManual) {
+        const navbarCollapse = document.getElementById('navbarNav');
+        if (navbarCollapse && navbarCollapse.classList.contains('show')) {
+            closeMobileMenuBeforeTour(function () {
+                startTour(isManual);
+            });
+            return;
+        }
+
         validSteps = findValidSteps();
         if (validSteps.length === 0) {
             console.warn('[KlasoraTour] Aucun élément cible disponible pour le tour.');
@@ -265,7 +292,8 @@
 
         const promptModalEl = document.getElementById('tourPromptModal');
         if (promptModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-            if (!sessionStorage.getItem('klasora_tour_dismissed_session')) {
+            const forceShow = promptModalEl.getAttribute('data-force-show') === '1';
+            if (forceShow || !sessionStorage.getItem('klasora_tour_dismissed_session')) {
                 setTimeout(function () {
                     const modal = new bootstrap.Modal(promptModalEl);
                     modal.show();

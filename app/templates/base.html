@@ -745,14 +745,14 @@
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 py-1 rounded-3" aria-labelledby="userDropdown" style="min-width: 200px;">
                             {% if current_user.role == 'admin' %}
 
-                            <li>
+                            <li class="d-none d-lg-block">
                                 <a class="dropdown-item d-flex align-items-center py-2" href="{{ url_for('main.index', start_tour=1) }}" onclick="if(window.KlasoraTour){window.KlasoraTour.start(true);return false;}">
                                     <i class="fas fa-question-circle text-primary me-2"></i>Revoir la visite guidée
                                 </a>
                             </li>
-                            <li><hr class="dropdown-divider my-1"></li>
+                            <li class="d-none d-lg-block"><hr class="dropdown-divider my-1"></li>
                             {% endif %}
-                            <li>
+                            <li class="d-none d-lg-block">
                                 <a class="dropdown-item d-flex align-items-center py-2 btn-install-klasora-trigger d-none" href="#" role="button">
                                     <i class="fas fa-download text-primary me-2"></i>Installer l'application
                                 </a>
@@ -811,14 +811,14 @@
                             {% endif %}
 
                             <!-- Installer l'application -->
-                            <li>
+                            <li class="d-none d-lg-block">
                                 <a class="dropdown-item d-flex align-items-center btn-install-klasora-trigger d-none" href="#" role="button">
                                     <i class="fas fa-download text-primary me-2"></i>Installer l'application
                                 </a>
                             </li>
 
                             <!-- Aide commune -->
-                            <li><a class="dropdown-item" href="{{ url_for('main.aide') }}"><i class="fas fa-question-circle me-2"></i>Centre d'Aide</a></li>
+                            <li class="d-none d-lg-block"><a class="dropdown-item" href="{{ url_for('main.aide') }}"><i class="fas fa-question-circle me-2"></i>Centre d'Aide</a></li>
 
                             <!-- Déconnexion -->
                             <li><hr class="dropdown-divider"></li>
@@ -841,6 +841,30 @@
 
                     {% endif %}
                 </ul>
+                {% if current_user.is_authenticated %}
+                <div class="mobile-menu-assist d-lg-none">
+                    <div class="mobile-menu-assist-copy">
+                        <strong>Besoin d'aide ?</strong>
+                        <span>Gardez le fil sans quitter cette page.</span>
+                    </div>
+                    <div class="mobile-menu-assist-actions">
+                        {% if current_user.role == 'admin' %}
+                        <a href="{{ url_for('main.index', start_tour=1) }}" class="mobile-menu-assist-btn" onclick="if(window.KlasoraTour){window.KlasoraTour.start(true);return false;}">
+                            <i class="fas fa-route"></i>
+                            <span>Visite</span>
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('main.aide') }}" class="mobile-menu-assist-btn">
+                            <i class="fas fa-circle-question"></i>
+                            <span>Aide</span>
+                        </a>
+                        <a href="#" class="mobile-menu-assist-btn btn-install-klasora-trigger d-none" role="button">
+                            <i class="fas fa-download"></i>
+                            <span>Installer</span>
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </nav>
@@ -1012,6 +1036,7 @@
                 });
 
                 mobileOverlay.addEventListener('click', closeMobileMenu);
+                mobileOverlay.addEventListener('pointerdown', closeMobileMenu);
 
                 navbarCollapse.querySelectorAll('a[href]:not([data-bs-toggle])').forEach(link => {
                     link.addEventListener('click', () => {
@@ -1020,6 +1045,13 @@
                         }
                     });
                 });
+
+                document.addEventListener('pointerdown', event => {
+                    if (!isMobileMenuOpen() || window.innerWidth >= 992) return;
+                    const target = event.target;
+                    if (navbarCollapse.contains(target) || (navbarToggler && navbarToggler.contains(target))) return;
+                    closeMobileMenu();
+                }, true);
 
                 document.addEventListener('click', event => {
                     if (!isMobileMenuOpen() || window.innerWidth >= 992) return;
@@ -1035,6 +1067,11 @@
                 });
 
                 window.addEventListener('beforeunload', closeMobileMenu);
+                window.addEventListener('resize', () => {
+                    if (window.innerWidth >= 992) {
+                        closeMobileMenu();
+                    }
+                });
             }
         });
     </script>
