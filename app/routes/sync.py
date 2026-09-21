@@ -32,6 +32,7 @@ from .common import (
     send_from_directory,
 )
 from app.services.annees_scolaires import get_annee_consultee
+from app.utils_classes import classes_triees_pedagogique
 from app.services.absences_annuelles import (
     resolve_annee_absence,
     statut_annee_absences,
@@ -1298,7 +1299,7 @@ def api_admin_offline_data():
         annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut='active').first()
 
         # 2. Classes de l'établissement
-        classes_query = Classe.query.filter_by(ecole_id=ecole_id).order_by(Classe.nom).all()
+        classes_query = classes_triees_pedagogique(Classe.query.filter_by(ecole_id=ecole_id)).all()
         classes_data = [
             {
                 'id': cl.id,

@@ -1,4 +1,5 @@
 from . import main
+from app.utils_classes import classes_triees_pedagogique
 from .common import (
     abort,
     AnneeScolaire,
@@ -77,7 +78,7 @@ def api_classes():
     if search:
         classes_query = classes_query.filter(Classe.nom.ilike(f"%{search}%"))
 
-    classes = classes_query.order_by(Classe.nom).all()
+    classes = classes_triees_pedagogique(classes_query).all()
 
     return jsonify([{'id': c.id, 'nom': c.nom, 'niveau': c.niveau} for c in classes])
 
@@ -168,7 +169,7 @@ def liste_classes():
     elif sort_by == 'niveau':
         base_query = base_query.order_by(Classe.niveau)
     else:  # tri par nom par défaut
-        base_query = base_query.order_by(Classe.nom)
+        base_query = classes_triees_pedagogique(base_query)
 
     # Pagination
     classes_paginated = base_query.paginate(
@@ -752,7 +753,7 @@ def get_classes(annee_id):
                 )
             )
         )
-    classes = classes_query.order_by(Classe.nom).all()
+    classes = classes_triees_pedagogique(classes_query).all()
 
     classes_list = [{'id': c.id, 'nom': c.nom or c.nom_complet} for c in classes]
 
@@ -765,10 +766,10 @@ def api_classes_par_annee(annee_id):
     from app.models import Classe
     from app.services.classes_annuelles import precharger_effectifs_classes
 
-    classes = Classe.query.filter(
+    classes = classes_triees_pedagogique(Classe.query.filter(
         Classe.ecole_id == current_user.ecole_id,
         Classe.annee_scolaire_id == annee_id
-    ).order_by(Classe.nom).all()
+    )).all()
 
     precharger_effectifs_classes(classes, current_user.ecole_id, annee_id)
 

@@ -16,6 +16,7 @@ from app.models import (
     Inscription,
     AnneeScolaire,
 )
+from app.utils_classes import classes_triees_pedagogique
 from app.services.coherence_temporelle import (
     intervalles_se_chevauchent,
     valider_intervalle_heures,
@@ -319,9 +320,9 @@ def get_classes_pour_utilisateur(ecole_id, annee, user):
 
     if user.role in ('admin', 'super_admin'):
         return (
-            Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
-            .order_by(Classe.nom)
-            .all()
+            classes_triees_pedagogique(
+                Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
+            ).all()
         )
 
     if user.role == 'professeur':
@@ -352,7 +353,7 @@ def get_classes_pour_utilisateur(ecole_id, annee, user):
         ids = [cid[0] for cid in classes_ids if cid[0]]
         if not ids:
             return []
-        return Classe.query.filter(Classe.id.in_(ids)).order_by(Classe.nom).all()
+        return classes_triees_pedagogique(Classe.query.filter(Classe.id.in_(ids))).all()
 
     if user.role == 'parent':
         # Découplage strict de Eleve.classe_id : source de vérité = Inscription
@@ -372,7 +373,7 @@ def get_classes_pour_utilisateur(ecole_id, annee, user):
         for ins in inscriptions:
             if ins.classe and ins.classe.ecole_id == ecole_id:
                 classes_dict[ins.classe.id] = ins.classe
-        return sorted(list(classes_dict.values()), key=lambda c: c.nom)
+        return sorted(list(classes_dict.values()), key=lambda c: (c.niveau_scolaire.ordre if getattr(c, 'niveau_scolaire', None) else 999, c.nom or ""))
 
     return []
 

@@ -29,6 +29,7 @@ from app.models import (
     Inscription,
     NiveauScolaire,
 )
+from app.utils_classes import classes_triees_pedagogique
 from app.services.classes_annuelles import classe_est_ouverte
 from app.services.passage_annee import valider_contexte_passage
 
@@ -111,12 +112,9 @@ def get_etat_preparation_annee(ecole_id, annee_id):
     # -------------------------------------------------------------
     # 2. Classes
     # -------------------------------------------------------------
-    classes_annee = (
-        Classe.query
-        .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
-        .order_by(Classe.nom.asc())
-        .all()
-    )
+    classes_annee = classes_triees_pedagogique(
+        Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
+    ).all()
     classes_ouvertes = [c for c in classes_annee if classe_est_ouverte(c)]
     classes_fermees = [c for c in classes_annee if not classe_est_ouverte(c)]
 

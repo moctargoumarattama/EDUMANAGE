@@ -21,6 +21,7 @@ from .common import (
     jsonify,
 )
 from app.utils import get_annee_consultee
+from app.utils_classes import classes_triees_pedagogique
 from app.services.emploi_temps_annuel import (
     MESSAGE_ANNEE_ARCHIVEE,
     MESSAGE_ANNEE_PLANIFIEE,
@@ -172,7 +173,7 @@ def ajouter_emploi():
     form = AjouterEmploiForm(annee=annee_consultee)
 
     # Menus déroulants strictement filtrés sur l'école et l'année consultée
-    classes_annee = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_consultee.id).order_by(Classe.nom).all()
+    classes_annee = classes_triees_pedagogique(Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_consultee.id)).all()
     form.classe_id.choices = [(c.id, c.nom) for c in classes_annee]
     form.professeur_id.choices = [(p.id, f"{p.prenom} {p.nom}") for p in Professeur.query.filter_by(ecole_id=ecole_id).order_by(Professeur.nom).all()]
     
@@ -234,7 +235,7 @@ def modifier_emploi(id):
         return redirect(url_for('main.admin_emplois'))
 
     form = AjouterEmploiForm(obj=emploi, annee=annee_consultee)
-    classes_annee = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_consultee.id).order_by(Classe.nom).all()
+    classes_annee = classes_triees_pedagogique(Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_consultee.id)).all()
     form.classe_id.choices = [(c.id, c.nom) for c in classes_annee]
     form.professeur_id.choices = [(p.id, f"{p.prenom} {p.nom}") for p in Professeur.query.filter_by(ecole_id=ecole_id).order_by(Professeur.nom).all()]
     

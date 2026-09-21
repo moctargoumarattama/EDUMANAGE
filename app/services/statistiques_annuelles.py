@@ -20,6 +20,7 @@ from app.models import (
 from app.services.bulletins_annuels import calculer_bulletin_data
 from app.services.notes_annuelles import SEMESTRE_1, SEMESTRE_2
 from app.services.paiements_annuels import get_finances_inscription
+from app.utils_classes import classes_triees_pedagogique
 
 
 def _empty_admin_stats():
@@ -60,11 +61,9 @@ def _classes_annee(ecole_id, annee_id):
     except RuntimeError:
         pass
 
-    classes = (
+    classes = classes_triees_pedagogique(
         Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_id)
-        .order_by(Classe.nom.asc())
-        .all()
-    )
+    ).all()
     try:
         if hasattr(g, '_classes_annee_cache'):
             g._classes_annee_cache[key] = classes

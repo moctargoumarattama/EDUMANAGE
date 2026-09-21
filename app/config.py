@@ -1,9 +1,33 @@
 import os
+import sys
 from urllib.parse import urlsplit
+from dotenv import load_dotenv
+
+# Charger immédiatement les variables d'environnement (.env)
+load_dotenv()
 
 
 class ConfigError(RuntimeError):
     pass
+
+
+def is_testing_environment():
+    """Detect if running under automated tests (pytest / unittest / TESTING flag)."""
+    return (
+        "pytest" in sys.modules
+        or "unittest" in sys.modules
+        or os.environ.get("TESTING", "").lower() in {"1", "true", "yes"}
+        or os.environ.get("APP_ENV", "").lower() in {"test", "testing"}
+        or os.environ.get("FLASK_ENV", "").lower() in {"test", "testing"}
+        or os.environ.get("ENV", "").lower() in {"test", "testing"}
+    )
+
+
+def is_production_environment(env=None):
+    """Detect if environment is explicitly production."""
+    if env is None:
+        env = os.environ.get("APP_ENV", os.environ.get("FLASK_ENV", os.environ.get("ENV", "development"))).lower()
+    return env in {"prod", "production"}
 
 
 def _env_bool(name, default=False):
@@ -94,6 +118,16 @@ class Config:
 
     @classmethod
     def validate(cls):
+        if getattr(cls, "TESTING", False) or is_testing_environment():
+            return True
+        env = getattr(cls, "APP_ENV", os.environ.get("APP_ENV", os.environ.get("FLASK_ENV", os.environ.get("ENV", "development")))).lower()
+        if is_production_environment(env) or getattr(cls, "APP_ENV", "") == "production":
+            db_url = getattr(cls, "SQLALCHEMY_DATABASE_URI", "") or os.environ.get("DATABASE_URL", "").strip()
+            if not db_url or db_url.startswith("sqlite://") or db_url.startswith("sqlite:///"):
+                raise RuntimeError(
+                    "ERREUR CRITIQUE DE CONFIGURATION : DATABASE_URL (PostgreSQL) est obligatoire en production. "
+                    "Le repli sur SQLite est formellement interdit."
+                )
         return True
 
 
@@ -102,6 +136,10 @@ class DevelopmentConfig(Config):
     DEBUG = True
     SESSION_COOKIE_SECURE = False
     REMEMBER_COOKIE_SECURE = False
+
+    @classmethod
+    def validate(cls):
+        return True
 
 
 class ProductionConfig(Config):
@@ -115,6 +153,14 @@ class ProductionConfig(Config):
 
     @classmethod
     def validate(cls):
+        # 1. Verification DATABASE_URL obligatoire (PostgreSQL) - Repli SQLite formellement interdit
+        db_url = os.environ.get("DATABASE_URL", "").strip()
+        if not db_url or db_url.startswith("sqlite://") or db_url.startswith("sqlite:///"):
+            raise RuntimeError(
+                "ERREUR CRITIQUE DE CONFIGURATION : DATABASE_URL (PostgreSQL) est obligatoire en production. "
+                "Le repli sur SQLite est formellement interdit."
+            )
+        # 2. Verification SECRET_KEY
         weak_values = {
             "",
             "ma_cle_ultra_secrete",
@@ -136,9 +182,15 @@ class TestingConfig(Config):
     SESSION_COOKIE_SECURE = False
     REMEMBER_COOKIE_SECURE = False
 
+    @classmethod
+    def validate(cls):
+        return True
+
 
 def get_config():
-    env = os.environ.get("APP_ENV", os.environ.get("FLASK_ENV", "development")).lower()
+    if is_testing_environment():
+        return TestingConfig
+    env = os.environ.get("APP_ENV", os.environ.get("FLASK_ENV", os.environ.get("ENV", "development"))).lower()
     if env in {"prod", "production"}:
         return ProductionConfig
     if env in {"test", "testing"}:

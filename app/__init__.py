@@ -5,7 +5,7 @@ from logging.handlers import RotatingFileHandler
 import os
 from werkzeug.security import generate_password_hash
 from datetime import datetime
-from .config import get_config
+from .config import get_config, is_production_environment, is_testing_environment
 from dotenv import load_dotenv
 import threading
 
@@ -57,11 +57,23 @@ def setup_logging(app):
 # Création de l'application
 # -------------------
 def create_app(config_class=None):
+    load_dotenv()
     app = Flask(__name__)
     config_class = config_class or get_config()
     if hasattr(config_class, "validate"):
         config_class.validate()
     app.config.from_object(config_class)
+
+    # Fail-Fast : interdiction absolue du repli sur SQLite en production
+    is_testing = app.config.get("TESTING", False) or is_testing_environment()
+    app_env = (app.config.get("APP_ENV") or app.config.get("ENV") or os.environ.get("APP_ENV") or os.environ.get("FLASK_ENV") or "").lower()
+    if not is_testing and is_production_environment(app_env):
+        db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        if not db_uri or db_uri.startswith("sqlite://") or db_uri.startswith("sqlite:///"):
+            raise RuntimeError(
+                "ERREUR CRITIQUE DE CONFIGURATION : DATABASE_URL (PostgreSQL) est obligatoire en production. "
+                "Le repli sur SQLite est formellement interdit."
+            )
 
     # Initialisation des extensions
     db.init_app(app)

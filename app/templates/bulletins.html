@@ -224,6 +224,7 @@
              id="cardClasse{{ classe.id }}"
              data-classe-id="{{ classe.id }}"
              data-classe-nom="{{ classe.nom|lower }}"
+             data-niveau-ordre="{{ classe.niveau_scolaire.ordre if classe.niveau_scolaire else 999 }}"
              data-effectif="{{ effectif }}"
              data-moyenne="{{ moyenne_classe }}"
              data-taux="{{ taux_reussite }}"
@@ -812,6 +813,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const sorted = classCards.slice().sort((a, b) => {
             const nomA = (a.dataset.classeNom || '').toLowerCase();
             const nomB = (b.dataset.classeNom || '').toLowerCase();
+            const ordA = parseInt(a.dataset.niveauOrdre || 999, 10);
+            const ordB = parseInt(b.dataset.niveauOrdre || 999, 10);
             const moyA = parseFloat(a.dataset.moyenne) || 0;
             const moyB = parseFloat(b.dataset.moyenne) || 0;
             const effA = parseInt(a.dataset.effectif) || 0;
@@ -820,12 +823,18 @@ document.addEventListener('DOMContentLoaded', function() {
             const tauxB = parseFloat(b.dataset.taux) || 0;
 
             switch (sortVal) {
-                case 'name_asc': return nomA.localeCompare(nomB);
-                case 'name_desc': return nomB.localeCompare(nomA);
+                case 'name_asc':
+                    if (ordA !== ordB) return ordA - ordB;
+                    return nomA.localeCompare(nomB);
+                case 'name_desc':
+                    if (ordA !== ordB) return ordB - ordA;
+                    return nomB.localeCompare(nomA);
                 case 'moyenne_desc': return moyB - moyA;
                 case 'effectif_desc': return effB - effA;
                 case 'taux_desc': return tauxB - tauxA;
-                default: return 0;
+                default:
+                    if (ordA !== ordB) return ordA - ordB;
+                    return 0;
             }
         });
 

@@ -8221,8 +8221,8 @@ body.support-modal-open {
 .badge-guide-action,
 .card-guide-badge {
     position: absolute;
-    top: 0.52rem;
-    right: 0.65rem;
+    top: -0.65rem;
+    right: 0.5rem;
     margin-left: 0;
     display: inline-flex;
     align-items: center;
@@ -8288,8 +8288,8 @@ body.support-modal-open {
     .home-stat-card.card-guide-pulse .badge-guide-action,
     .badge-guide-action,
     .card-guide-badge {
-        top: 0.45rem;
-        right: 0.45rem;
+        top: -0.6rem;
+        right: 0.5rem;
         padding: 2.5px 7px;
         font-size: 0.62rem;
         border-radius: 12px;

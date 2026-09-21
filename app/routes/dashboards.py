@@ -589,11 +589,14 @@ def onboarding():
     if active_year:
         from app.models import Classe, NiveauScolaire
         from app.services.pedagogie_standard import obtenir_matieres_standard
+        from app.utils_classes import classes_triees_pedagogique
 
-        classes_annee = Classe.query.filter_by(
-            ecole_id=ecole.id,
-            annee_scolaire_id=active_year.id
-        ).order_by(Classe.niveau_id, Classe.nom).all()
+        classes_annee = classes_triees_pedagogique(
+            Classe.query.filter_by(
+                ecole_id=ecole.id,
+                annee_scolaire_id=active_year.id
+            )
+        ).all()
 
         groups = {}
         for c in classes_annee:

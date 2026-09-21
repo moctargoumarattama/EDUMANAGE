@@ -28,6 +28,7 @@ from app.services.annees_scolaires import (
     MESSAGE_ANNEE_ARCHIVEE_MODIF,
 )
 from app.services.structure_annuelle import get_niveaux_candidats_annuels
+from app.utils_classes import classes_triees_pedagogique
 from app.models import Classe, Cours, Eleve, Inscription
 from app.services.niveaux_annuels import (
     get_selection_annuelle,
@@ -581,12 +582,9 @@ def structure_annee(annee_id):
             flash("Structure annuelle enregistree.", "success")
         return redirect(url_for('main.structure_annee', annee_id=annee.id))
 
-    classes = (
-        Classe.query
-        .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
-        .order_by(Classe.niveau_id.asc(), Classe.nom.asc(), Classe.id.asc())
-        .all()
-    )
+    classes = classes_triees_pedagogique(
+        Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
+    ).all()
     cours_counts = dict(
         db.session.query(Cours.classe_id, db.func.count(Cours.id))
         .filter(Cours.ecole_id == ecole_id, Cours.classe_id.in_([c.id for c in classes] or [-1]))
@@ -769,11 +767,11 @@ def passage_annee(source_id, cible_id):
 
     classes_source_disponibles = sorted(
         list(classes_source_set),
-        key=lambda c: (c.nom or "")
+        key=lambda c: (c.niveau_scolaire.ordre if getattr(c, 'niveau_scolaire', None) else 999, c.nom or "")
     )
 
     classes_cible_ouvertes = [
-        c for c in Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_cible.id).order_by(Classe.nom).all()
+        c for c in classes_triees_pedagogique(Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_cible.id)).all()
         if classe_est_ouverte(c)
     ]
 

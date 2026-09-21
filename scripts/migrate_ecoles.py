@@ -1,4 +1,9 @@
 # scripts/migrate_ecoles.py
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
 def migrer_donnees_existantes():
     """Assigner l'école 1 à toutes les données existantes ayant un ecole_id"""
     from app import create_app, db

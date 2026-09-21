@@ -18,6 +18,7 @@ from .common import (
 from app.authorization import can_access_class, check_parent_access
 from app.services import PER_PAGE_ALERTES, generer_alertes_automatiques, notifier_alertes
 from app.services.annees_scolaires import get_annee_consultee
+from app.utils_classes import classes_triees_pedagogique
 
 
 @main.route('/alertes')
@@ -56,7 +57,7 @@ def alertes():
         )
 
     # Classes de l'école pour l'année consultée
-    classes_query = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id).order_by(Classe.nom.asc())
+    classes_query = classes_triees_pedagogique(Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id))
 
     # Génération des alertes scolaires pour l'année consultée
     all_alertes = generer_alertes_automatiques(ecole_id=ecole_id, annee=annee)
@@ -69,7 +70,7 @@ def alertes():
     elif current_user.role == 'parent':
         all_alertes = [a for a in all_alertes if a.get('eleve_id') and check_parent_access(a['eleve_id'])]
         eleves_classes_ids = {a.get('classe_id') for a in all_alertes if a.get('classe_id')}
-        classes = Classe.query.filter(Classe.id.in_(eleves_classes_ids)).order_by(Classe.nom.asc()).all() if eleves_classes_ids else []
+        classes = classes_triees_pedagogique(Classe.query.filter(Classe.id.in_(eleves_classes_ids))).all() if eleves_classes_ids else []
     else:
         # Admin : toutes les classes de l'année consultée
         classes = classes_query.all()

@@ -218,6 +218,7 @@
                          data-id="{{ c.id }}"
                          data-nom="{{ c.nom }}"
                          data-niveau="{{ c.niveau or '' }}"
+                         data-niveau-ordre="{{ c.niveau_scolaire.ordre if c.niveau_scolaire else 999 }}"
                          data-total-creneaux="{{ total_creneaux }}"
                          data-cours="{{ cours_str }}"
                          data-profs="{{ profs_str }}"
@@ -734,6 +735,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 matched.push({
                     card: card,
                     nom: cardNom,
+                    niveauOrdre: parseInt(card.dataset.niveauOrdre || 999, 10),
                     totalCreneaux: parseInt(card.dataset.totalCreneaux, 10) || 0,
                     matchingSlots: classMatchingSlots
                 });
@@ -745,14 +747,17 @@ document.addEventListener('DOMContentLoaded', function() {
         // Tri des classes
         matched.sort((a, b) => {
             if (sortMode === 'nom-asc') {
+                if (a.niveauOrdre !== b.niveauOrdre) return a.niveauOrdre - b.niveauOrdre;
                 return a.nom.localeCompare(b.nom, 'fr', { numeric: true });
             } else if (sortMode === 'nom-desc') {
+                if (a.niveauOrdre !== b.niveauOrdre) return b.niveauOrdre - a.niveauOrdre;
                 return b.nom.localeCompare(a.nom, 'fr', { numeric: true });
             } else if (sortMode === 'slots-desc') {
                 return b.totalCreneaux - a.totalCreneaux || a.nom.localeCompare(b.nom, 'fr');
             } else if (sortMode === 'slots-asc') {
                 return a.totalCreneaux - b.totalCreneaux || a.nom.localeCompare(b.nom, 'fr');
             }
+            if (a.niveauOrdre !== b.niveauOrdre) return a.niveauOrdre - b.niveauOrdre;
             return 0;
         });
 

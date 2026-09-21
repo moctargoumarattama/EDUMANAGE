@@ -27,6 +27,7 @@ from app.models import (
     Note,
     Professeur,
 )
+from app.utils_classes import classes_triees_pedagogique
 from app.notifications import envoyer_email
 
 
@@ -927,7 +928,7 @@ def get_classes_notes(ecole_id, annee, user=None):
         if not classe_ids:
             return []
         query = query.filter(Classe.id.in_(classe_ids))
-    return query.order_by(Classe.nom).all()
+    return classes_triees_pedagogique(query).all()
 
 
 def saisir_notes_classe(

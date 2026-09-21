@@ -2,6 +2,7 @@ from flask import g, has_request_context
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.models import Absence, AnneeScolaire, Classe, Cours, Eleve, Inscription
+from app.utils_classes import classes_triees_pedagogique
 
 
 MESSAGE_ANNEE_PLANIFIEE = "Les absences pourront être saisies lorsque cette année sera active."
@@ -134,7 +135,7 @@ def get_classes_absences(ecole_id, annee, user):
             return []
         query = query.filter(Classe.id.in_(classe_ids))
 
-    return query.order_by(Classe.nom.asc()).all()
+    return classes_triees_pedagogique(query).all()
 
 
 def get_cours_absences(ecole_id, annee, user, classe_ids=None):

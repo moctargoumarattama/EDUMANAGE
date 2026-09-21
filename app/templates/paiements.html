@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}Gestion des Paiements par Classe - KLASORA{% endblock %}
 
 {% block content %}
@@ -247,6 +247,7 @@
                          data-id="{{ c.id }}"
                          data-nom="{{ c.nom }}"
                          data-niveau="{{ c.niveau or '' }}"
+                         data-niveau-ordre="{{ c.niveau_scolaire.ordre if c.niveau_scolaire else 999 }}"
                          data-eleves-count="{{ total_eleves_classe }}"
                          data-total-frais="{{ c_frais }}"
                          data-total-paye="{{ c_paye }}"
@@ -801,6 +802,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 matched.push({
                     card: card,
                     nom: cardNom,
+                    niveauOrdre: parseInt(card.dataset.niveauOrdre || 999, 10),
                     elevesCount: parseInt(card.dataset.elevesCount, 10) || 0,
                     totalReste: totalReste,
                     taux: parseFloat(card.dataset.taux) || 0,
@@ -814,8 +816,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Tri des classes
         matched.sort((a, b) => {
             if (sortMode === 'nom-asc') {
+                if (a.niveauOrdre !== b.niveauOrdre) return a.niveauOrdre - b.niveauOrdre;
                 return a.nom.localeCompare(b.nom, 'fr', { numeric: true });
             } else if (sortMode === 'nom-desc') {
+                if (a.niveauOrdre !== b.niveauOrdre) return b.niveauOrdre - a.niveauOrdre;
                 return b.nom.localeCompare(a.nom, 'fr', { numeric: true });
             } else if (sortMode === 'reste-desc') {
                 return b.totalReste - a.totalReste || a.nom.localeCompare(b.nom, 'fr');
@@ -826,6 +830,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (sortMode === 'taux-asc') {
                 return a.taux - b.taux || a.nom.localeCompare(b.nom, 'fr');
             }
+            if (a.niveauOrdre !== b.niveauOrdre) return a.niveauOrdre - b.niveauOrdre;
             return 0;
         });
 

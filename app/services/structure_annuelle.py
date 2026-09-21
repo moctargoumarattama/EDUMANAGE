@@ -21,8 +21,8 @@ from app.models import (
     Paiement,
 )
 
-
 from flask import g
+from app.utils_classes import classes_triees_pedagogique
 
 def get_niveaux_annee(ecole_id: int, annee_scolaire_id: int):
     if not ecole_id or not annee_scolaire_id:
@@ -87,7 +87,7 @@ def get_classes_niveau_annee(ecole_id: int, annee_scolaire_id: int, niveau_id: i
     )
     if statut:
         query = query.filter_by(statut=statut)
-    return query.order_by(Classe.nom.asc()).all()
+    return classes_triees_pedagogique(query).all()
 
 
 def peut_retirer_niveau_structure(ecole_id: int, annee_scolaire_id: int, niveau_id: int):

@@ -1,5 +1,9 @@
-﻿# scripts/init_superadmin.py
+# scripts/init_superadmin.py
 import sys, os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 sys.path.insert(0, os.path.abspath('.'))
 
 from app import create_app

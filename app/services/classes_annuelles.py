@@ -1,6 +1,7 @@
 from app import db
 from app.models import AnneeScolaire, Classe, Inscription
 from app.services.structure_annuelle import niveau_est_dans_structure
+from app.utils_classes import classes_triees_pedagogique
 
 
 STATUT_CLASSE_OUVERTE = "ouverte"
@@ -40,12 +41,9 @@ def _classe_identity(classe):
 
 
 def _source_classes_autorisees(ecole_id, source_annee_id):
-    return (
-        Classe.query
-        .filter_by(ecole_id=ecole_id, annee_scolaire_id=source_annee_id)
-        .order_by(Classe.niveau_id.asc(), Classe.nom.asc(), Classe.id.asc())
-        .all()
-    )
+    return classes_triees_pedagogique(
+        Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=source_annee_id)
+    ).all()
 
 
 def _resolve_source_annee(ecole_id, annee_cible, source_annee_id=None):

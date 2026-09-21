@@ -32,6 +32,7 @@ from .common import (
 )
 from app.services import get_cache, set_cache
 from app.services.annees_scolaires import get_annee_consultee
+from app.utils_classes import classes_triees_pedagogique
 from app.services.statistiques_annuelles import (
     get_absences_par_mois_annuelles,
     get_notes_moyennes_annuelles,
@@ -490,7 +491,7 @@ def recherche():
     elif current_user.role not in {'admin', 'super_admin'}:
         type_recherche = 'all'
 
-    classes_recherche = classes_query.order_by(Classe.nom.asc()).all()
+    classes_recherche = classes_triees_pedagogique(classes_query).all()
     classes_recherche_ids = {classe.id for classe in classes_recherche}
     if classe_id and classe_id not in classes_recherche_ids:
         classe_id = None

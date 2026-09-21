@@ -119,6 +119,7 @@
                  data-id="{{ classe.id }}"
                  data-nom="{{ classe.nom }}"
                  data-niveau="{{ classe.niveau or '' }}"
+                 data-niveau-ordre="{{ classe.niveau_scolaire.ordre if classe.niveau_scolaire else 999 }}"
                  data-search="{{ classe.nom|lower }} {{ (classe.niveau or '')|lower }}"
                  data-effectif="{{ effectif_actuel }}">
             <div class="class-card-header">
@@ -262,11 +263,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         matched.sort((a, b) => {
+            const ordA = parseInt(a.dataset.niveauOrdre || 999, 10);
+            const ordB = parseInt(b.dataset.niveauOrdre || 999, 10);
             if (srt === 'effectif') {
                 return (parseInt(b.dataset.effectif, 10) || 0) - (parseInt(a.dataset.effectif, 10) || 0);
-            } else if (srt === 'niveau') {
-                return (a.dataset.niveau || '').localeCompare(b.dataset.niveau || '', 'fr');
+            } else if (srt === 'nom') {
+                return (a.dataset.nom || '').localeCompare(b.dataset.nom || '', 'fr');
             }
+            if (ordA !== ordB) return ordA - ordB;
             return (a.dataset.nom || '').localeCompare(b.dataset.nom || '', 'fr');
         });
 

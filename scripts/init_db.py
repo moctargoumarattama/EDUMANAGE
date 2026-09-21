@@ -1,4 +1,11 @@
 # scripts/init_db.py
+import os
+import sys
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement avant toute initialisation
+load_dotenv()
+
 from app import create_app, db
 from app.services.niveaux import ensure_standard_niveaux
 from app.init_superadmin import ensure_canonical_superadmin

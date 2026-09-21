@@ -31,6 +31,7 @@ from .common import (
 from app.models import Bulletin, Inscription, JournalCorrection
 from app.services import generer_bulletin_pdf
 from app.services.annees_scolaires import get_annee_consultee
+from app.utils_classes import classes_triees_pedagogique
 from app.utils import sanitize_internal_url
 from app.services.bulletins_annuels import (
     statut_annee_bulletins,
@@ -310,10 +311,12 @@ def bulletins():
         )
 
     # Récupérer les classes de l'année scolaire consultée
-    classes = Classe.query.filter_by(
-        ecole_id=ecole_id,
-        annee_scolaire_id=annee.id
-    ).order_by(Classe.nom.asc()).all()
+    classes = classes_triees_pedagogique(
+        Classe.query.filter_by(
+            ecole_id=ecole_id,
+            annee_scolaire_id=annee.id
+        )
+    ).all()
     class_ids = [c.id for c in classes]
 
     # Pré-chargement des cours par classe pour éviter N+1

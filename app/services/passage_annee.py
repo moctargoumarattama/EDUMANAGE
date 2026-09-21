@@ -34,6 +34,7 @@ from datetime import datetime
 
 from app import db
 from app.models import AnneeScolaire, Classe, Eleve, Inscription
+from app.utils_classes import classes_triees_pedagogique
 from app.services.classes_annuelles import classe_est_ouverte
 from app.services.inscriptions_annuelles import (
     DECISIONS_FIN_ANNEE,
@@ -167,7 +168,7 @@ def get_classes_candidates_passage(ecole_id, annee_cible_id, niveau_id):
     if not niveau_actif_pour_annee(ecole_id, annee_cible_id, niveau_id):
         return []
 
-    classes = (
+    classes = classes_triees_pedagogique(
         Classe.query
         .filter_by(
             ecole_id=ecole_id,
@@ -175,9 +176,7 @@ def get_classes_candidates_passage(ecole_id, annee_cible_id, niveau_id):
             niveau_id=niveau_id,
             statut="ouverte",
         )
-        .order_by(Classe.nom.asc(), Classe.id.asc())
-        .all()
-    )
+    ).all()
     return classes
 
 

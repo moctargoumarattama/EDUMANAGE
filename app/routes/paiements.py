@@ -31,6 +31,7 @@ from flask import abort, jsonify, make_response
 from sqlalchemy import or_
 from app.models import JournalCorrection, Utilisateur
 from app.services.annees_scolaires import get_annee_consultee
+from app.utils_classes import classes_triees_pedagogique
 from app.utils import sanitize_internal_url
 from app.services.structure_annuelle import get_niveaux_annee
 from app.services.paiements_annuels import (
@@ -141,9 +142,11 @@ def paiements():
             flash(f"Erreur lors de l'enregistrement du paiement: {e}", "danger")
 
     # Classes de l'année consultée
-    classes = filtre_par_ecole(
-        Classe.query.filter_by(annee_scolaire_id=annee.id).order_by(Classe.nom),
-        Classe
+    classes = classes_triees_pedagogique(
+        filtre_par_ecole(
+            Classe.query.filter_by(annee_scolaire_id=annee.id),
+            Classe
+        )
     ).all()
 
     # Inscriptions filtrées par classe, niveau, statut financier ou recherche

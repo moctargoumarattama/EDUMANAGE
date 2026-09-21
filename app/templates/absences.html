@@ -189,6 +189,7 @@
                      data-id="{{ classe.id }}"
                      data-nom="{{ classe.nom }}"
                      data-niveau="{{ classe.niveau or '' }}"
+                     data-niveau-ordre="{{ classe.niveau_scolaire.ordre if classe.niveau_scolaire else 999 }}"
                      data-total-absences="{{ total_classe_abs }}"
                      data-eleves-count="{{ eleves_absents_count }}"
                      data-justifiees="{{ just_classe_count }}"
@@ -711,9 +712,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Trier
         matched.sort(function(a, b) {
+            const ordA = parseInt(a.dataset.niveauOrdre || 999, 10);
+            const ordB = parseInt(b.dataset.niveauOrdre || 999, 10);
             if (sortMode === 'nom-asc') {
+                if (ordA !== ordB) return ordA - ordB;
                 return a.dataset.nom.localeCompare(b.dataset.nom, 'fr', { sensitivity: 'base' });
             } else if (sortMode === 'nom-desc') {
+                if (ordA !== ordB) return ordB - ordA;
                 return b.dataset.nom.localeCompare(a.dataset.nom, 'fr', { sensitivity: 'base' });
             } else if (sortMode === 'abs-desc') {
                 return parseInt(b.dataset.totalAbsences || 0, 10) - parseInt(a.dataset.totalAbsences || 0, 10);
@@ -722,6 +727,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (sortMode === 'nonjust-desc') {
                 return parseInt(b.dataset.nonJustifiees || 0, 10) - parseInt(a.dataset.nonJustifiees || 0, 10);
             }
+            if (ordA !== ordB) return ordA - ordB;
             return 0;
         });
 

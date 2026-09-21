@@ -1,3 +1,5 @@
+from app.utils_classes import classes_triees_pedagogique, ordre_pedagogique_classe
+from app.models import NiveauScolaire
 from . import main
 from .common import (
     BytesIO,
@@ -116,6 +118,7 @@ def cours():
                 'id': cours_item.classe.id,
                 'nom': cours_item.classe.nom,
                 'niveau': cours_item.classe.niveau,
+                'niveau_ordre': (cours_item.classe.niveau_scolaire.ordre if cours_item.classe.niveau_scolaire else 999),
                 'statut': cours_item.classe.statut,
                 'annee_scolaire_id': cours_item.classe.annee_scolaire_id,
             } if cours_item.classe else None,
@@ -137,14 +140,12 @@ def cours():
     if current_user.role in ('admin', 'super_admin'):
         form = CoursForm()
         professeurs = _professeurs_affectables(ecole_courante.id)
-        classes = (
+        classes = classes_triees_pedagogique(
             Classe.query
             .filter_by(ecole_id=ecole_courante.id, statut="ouverte")
             .filter(~Classe.annee_scolaire.has(statut="archivee"))
             .filter(Classe.annee_scolaire_id == annee_consultee.id if annee_consultee else False)
-            .order_by(Classe.niveau, Classe.nom)
-            .all()
-        )
+        ).all()
         base_query = _cours_annee_query(ecole_courante.id, annee_consultee.id if annee_consultee else None)
 
         if search:
@@ -173,7 +174,7 @@ def cours():
         elif affectation == 'sans_prof':
             base_query = base_query.filter(Cours.professeur_id.is_(None))
 
-        tous_cours = base_query.order_by(Classe.nom.asc(), Cours.nom.asc()).all()
+        tous_cours = base_query.outerjoin(NiveauScolaire, Classe.niveau_id == NiveauScolaire.id).order_by(*ordre_pedagogique_classe(), Cours.nom.asc()).all()
         form.professeur_id.choices = _professeur_choices(professeurs)
         form.classe_id.choices = [
             (classe.id, f"{classe.nom} ({classe.niveau})")
@@ -212,7 +213,7 @@ def cours():
         if niveau:
             prof_query = prof_query.filter(Classe.niveau == niveau)
 
-        mes_cours = prof_query.order_by(Classe.nom.asc(), Cours.nom.asc()).all()
+        mes_cours = prof_query.outerjoin(NiveauScolaire, Classe.niveau_id == NiveauScolaire.id).order_by(*ordre_pedagogique_classe(), Cours.nom.asc()).all()
         notes_total = sum(len(c.notes) for c in mes_cours if hasattr(c, 'notes'))
         cours_total = len(mes_cours)
         professeurs_actifs = 1
@@ -290,15 +291,12 @@ def ajouter_cours():
     # Choix restreints ? l'école courante
     form.professeur_id.choices = _professeur_choices(_professeurs_affectables(ecole_courante.id))
     form.classe_id.choices = [
-        (c.id, f"{c.nom} ({c.niveau})") 
-        for c in (
+        (c.id, f"{c.nom} ({c.niveau})") for c in classes_triees_pedagogique(
             Classe.query
             .filter_by(ecole_id=ecole_courante.id, statut="ouverte")
             .filter(~Classe.annee_scolaire.has(statut="archivee"))
             .filter(Classe.annee_scolaire_id == annee_consultee.id if annee_consultee else False)
-            .order_by(Classe.nom)
-            .all()
-        )
+        ).all()
     ]
 
     if form.validate_on_submit():
@@ -403,7 +401,7 @@ def modifier_cours(id):
     cours = Cours.query.filter_by(id=id, ecole_id=ecole_courante.id).first_or_404()
     form = CoursForm(obj=cours)
     professeurs = Professeur.query.filter_by(ecole_id=ecole_courante.id).order_by(Professeur.nom).all()
-    classes = Classe.query.filter_by(ecole_id=ecole_courante.id).order_by(Classe.nom).all()
+    classes = classes_triees_pedagogique(Classe.query.filter_by(ecole_id=ecole_courante.id)).all()
     form.professeur_id.choices = [(p.id, f"{p.prenom} {p.nom}") for p in professeurs]
     form.classe_id.choices = [(c.id, f"{c.nom} ({c.niveau})") for c in classes]
 

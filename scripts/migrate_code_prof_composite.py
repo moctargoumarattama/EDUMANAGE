@@ -1,6 +1,9 @@
 import sqlite3
 import os
 import sys
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def migrate():
     # Adjust path if needed

@@ -1,4 +1,6 @@
 from . import main
+from app.utils_classes import classes_triees_pedagogique, ordre_pedagogique_classe
+from app.models import NiveauScolaire
 from .common import (
     AnneeScolaire,
     AssignerClassesForm,
@@ -71,7 +73,7 @@ def professeurs():
     statut = (request.args.get('statut') or '').strip().lower()
 
     annee = get_annee_consultee(current_user.ecole_id)
-    classes = Classe.query.filter_by(ecole_id=current_user.ecole_id, annee_scolaire_id=annee.id).order_by(Classe.nom).all() if annee else []
+    classes = classes_triees_pedagogique(Classe.query.filter_by(ecole_id=current_user.ecole_id, annee_scolaire_id=annee.id)).all() if annee else []
 
     # Filtrage par école de l'utilisateur
     profs_query = Professeur.query.filter_by(ecole_id=current_user.ecole_id)
@@ -422,25 +424,24 @@ def assigner_classes_professeur(id):
     )
     matieres_professeur = _matieres_affectation_professeur(professeur)
     matiere_professeur = matieres_professeur[0] if matieres_professeur else ""
-    classes_annee = (
+    classes_annee = classes_triees_pedagogique(
         Classe.query
         .filter(
             Classe.ecole_id == current_user.ecole_id,
             Classe.annee_scolaire_id == annee_consultee.id,
         )
-        .order_by(Classe.nom.asc())
-        .all()
-    )
+    ).all()
     cours_annee = (
         Cours.query
         .join(Classe, Classe.id == Cours.classe_id)
+        .outerjoin(NiveauScolaire, Classe.niveau_id == NiveauScolaire.id)
         .options(joinedload(Cours.classe), joinedload(Cours.professeur))
         .filter(
             Cours.ecole_id == current_user.ecole_id,
             Classe.ecole_id == current_user.ecole_id,
             Classe.annee_scolaire_id == annee_consultee.id,
         )
-        .order_by(Classe.nom.asc(), Cours.nom.asc())
+        .order_by(NiveauScolaire.ordre.asc(), Classe.nom.asc(), Cours.nom.asc())
         .all()
     )
 
@@ -617,13 +618,13 @@ def mes_classes():
         .all()
     ]
     classes = (
-        Classe.query.filter(
-            Classe.ecole_id == current_user.ecole_id,
-            Classe.annee_scolaire_id == annee_consultee.id,
-            Classe.id.in_(classe_ids),
-        )
-        .order_by(Classe.nom.asc())
-        .all()
+        classes_triees_pedagogique(
+            Classe.query.filter(
+                Classe.ecole_id == current_user.ecole_id,
+                Classe.annee_scolaire_id == annee_consultee.id,
+                Classe.id.in_(classe_ids),
+            )
+        ).all()
         if classe_ids
         else []
     )
@@ -672,6 +673,7 @@ def mes_enseignements():
     cours_prof = (
         Cours.query
         .join(Classe, Classe.id == Cours.classe_id)
+        .outerjoin(NiveauScolaire, Classe.niveau_id == NiveauScolaire.id)
         .options(joinedload(Cours.classe), joinedload(Cours.notes), joinedload(Cours.absences))
         .filter(
             Cours.ecole_id == ecole_id,
@@ -679,7 +681,7 @@ def mes_enseignements():
             Classe.ecole_id == ecole_id,
             Classe.annee_scolaire_id == annee_consultee.id,
         )
-        .order_by(Classe.nom.asc(), Cours.nom.asc())
+        .order_by(NiveauScolaire.ordre.asc(), Classe.nom.asc(), Cours.nom.asc())
         .all()
     )
 
@@ -691,15 +693,15 @@ def mes_enseignements():
     classe_ids = sorted(set(cours_par_classe.keys()))
 
     classes = (
-        Classe.query
-        .options(joinedload(Classe.niveau_scolaire))
-        .filter(
-            Classe.ecole_id == ecole_id,
-            Classe.annee_scolaire_id == annee_consultee.id,
-            Classe.id.in_(classe_ids),
-        )
-        .order_by(Classe.nom.asc())
-        .all()
+        classes_triees_pedagogique(
+            Classe.query
+            .options(joinedload(Classe.niveau_scolaire))
+            .filter(
+                Classe.ecole_id == ecole_id,
+                Classe.annee_scolaire_id == annee_consultee.id,
+                Classe.id.in_(classe_ids),
+            )
+        ).all()
         if classe_ids
         else []
     )

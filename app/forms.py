@@ -11,6 +11,7 @@ from wtforms import SelectMultipleField
 from wtforms.validators import DataRequired
 from app.models import Ecole, AnneeScolaire
 from wtforms import HiddenField
+from app.utils_classes import classes_triees_pedagogique
 
 # app/forms.py
 
@@ -98,7 +99,7 @@ class EleveForm(FlaskForm):
         # ---------------- Filtrage des classes ----------------
         if ecole:
             classes_query = filtre_par_ecole(Classe.query, Classe)
-            self.classe_id.choices = [(c.id, f"{c.nom} ({c.niveau})") for c in classes_query.order_by(Classe.nom).all()]
+            self.classe_id.choices = [(c.id, f"{c.nom} ({c.niveau})") for c in classes_triees_pedagogique(classes_query).all()]
         else:
             self.classe_id.choices = []
 
@@ -349,7 +350,7 @@ class AjouterEmploiForm(FlaskForm):
             classes_query = filtre_par_ecole(Classe.query, Classe)
             if annee:
                 classes_query = classes_query.filter_by(annee_scolaire_id=annee.id)
-            self.classe_id.choices = [(c.id, f"{c.nom} ({c.niveau})") for c in classes_query.order_by(Classe.nom).all()]
+            self.classe_id.choices = [(c.id, f"{c.nom} ({c.niveau})") for c in classes_triees_pedagogique(classes_query).all()]
             
             profs_query = filtre_par_ecole(Professeur.query, Professeur)
             self.professeur_id.choices = [(p.id, f"{p.prenom} {p.nom}") for p in profs_query.order_by(Professeur.nom).all()]

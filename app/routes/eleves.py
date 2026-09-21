@@ -1,4 +1,6 @@
 from . import main
+from app.utils_classes import classes_triees_pedagogique, ordre_pedagogique_classe
+from app.models import NiveauScolaire
 from .common import (
     Absence,
     AnneeScolaire,
@@ -204,7 +206,7 @@ def eleves():
                 )
             )
         )
-    classes = classes_query.order_by(Classe.nom.asc()).all()
+    classes = classes_triees_pedagogique(classes_query).all()
     inscriptions = []
     if annee_consultee and all_eleves:
         inscriptions = (
@@ -351,7 +353,7 @@ def ajouter_eleve():
     classes_query = Classe.query.filter_by(ecole_id=ecole_id).filter(db.false())
     if annee_classes:
         classes_query = get_classes_ouvertes_annee(ecole_id, annee_classes.id)
-    classes = classes_query.order_by(Classe.nom).all()
+    classes = classes_triees_pedagogique(classes_query).all()
     form.classe_id.choices = [(c.id, c.nom_complet) for c in classes]
     if not classes:
         flash("⚠️ Aucune classe disponible dans votre établissement. Un élève doit obligatoirement être inscrit dans une classe. Veuillez d'abord créer une classe.", "warning")
@@ -706,7 +708,8 @@ def export_eleves_excel():
                 Inscription.annee_scolaire_id == annee_consultee.id,
                 Eleve.ecole_id == ecole_id,
             )
-            .order_by(Classe.nom.asc(), Eleve.nom.asc(), Eleve.prenom.asc())
+            .outerjoin(NiveauScolaire, Classe.niveau_id == NiveauScolaire.id)
+            .order_by(*ordre_pedagogique_classe(), Eleve.nom.asc(), Eleve.prenom.asc())
             .all()
         )
         eleves_rows = [(ins.eleve, ins.classe) for ins in inscriptions if ins.eleve]
@@ -1018,7 +1021,7 @@ def modifier_eleve(eleve_id):
     classes_query = Classe.query.filter_by(ecole_id=current_user.ecole_id)
     if annee_active:
         classes_query = classes_query.filter_by(annee_scolaire_id=annee_active.id)
-    classes = classes_query.order_by(Classe.nom).all()
+    classes = classes_triees_pedagogique(classes_query).all()
     parents = Utilisateur.query.filter_by(ecole_id=current_user.ecole_id, role='parent').order_by(Utilisateur.nom).all()
 
     if request.method == 'POST':

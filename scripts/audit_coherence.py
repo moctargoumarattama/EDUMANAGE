@@ -7,6 +7,9 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))

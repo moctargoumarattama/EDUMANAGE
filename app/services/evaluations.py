@@ -17,6 +17,7 @@ from app.models import (
     Note,
     PeriodeBulletin,
 )
+from app.utils_classes import classes_triees_pedagogique
 from app.services.notes_annuelles import (
     TYPES_CONTROLE_CONTINU,
     TYPE_COMPOSITION,
@@ -626,11 +627,9 @@ def verifier_eligibilite_publication_periode(ecole_id, annee_id, periode_nom):
             "message_resume": "Paramètres d'école ou d'année invalides.",
         }
 
-    classes = (
+    classes = classes_triees_pedagogique(
         Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_id)
-        .order_by(Classe.nom.asc())
-        .all()
-    )
+    ).all()
 
     details_par_classe = defaultdict(list)
     total_incomplets = 0
