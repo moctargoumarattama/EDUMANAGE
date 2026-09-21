@@ -14,8 +14,10 @@ from .common import (
     get_ecole_filter_query,
     jsonify,
     login_required,
+    nettoyer_repertoire_ecole,
     redirect,
     render_template,
+
     request,
     role_required,
     session,
@@ -378,7 +380,18 @@ def safe_delete_ecole(ecole_id):
     # 9. Supprimer l'école elle-même
     db.session.delete(ecole)
     db.session.commit()
+
+    # 10. Nettoyage physique du répertoire des fichiers de l'école
+    try:
+        from app.utils import nettoyer_repertoire_ecole
+        nettoyer_repertoire_ecole(ecole_id)
+    except Exception as e:
+        current_app.logger.error(
+            f"Erreur lors du nettoyage du répertoire de l'école {ecole_id}: {e}"
+        )
+
     return nom_ecole
+
 
 
 @main.route('/admin/ecoles/<int:ecole_id>/modifier', methods=['POST'])

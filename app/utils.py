@@ -1054,3 +1054,59 @@ def validate_and_save_school_logo(file_storage, ecole, static_folder):
     ecole.logo = safe_name
 
     return True, None
+
+
+def nettoyer_repertoire_ecole(ecole_id: int, static_folder: Optional[str] = None) -> bool:
+    """Supprime physiquement et de façon sécurisée le dossier d'uploads/fichiers
+
+    d'une école (`app/static/ecoles/<ecole_id>/`) lors de sa suppression définitive.
+
+    Garde-fous de sécurité :
+    1. Validation stricte du type et de la positivité de `ecole_id`.
+    2. Résolution des chemins absolus via `os.path.abspath`.
+    3. Protection anti-path-traversal : vérifie que la cible est bien un sous-dossier
+       strict de `dossier_base` (`static/ecoles/`) et n'est pas le dossier racine lui-même.
+    4. Suppression récursive tolérante aux erreurs via `shutil.rmtree` sans bloquer
+       les transactions de base de données.
+    """
+    import os
+    import shutil
+
+    if not isinstance(ecole_id, int) or ecole_id <= 0:
+        current_app.logger.warning(
+            f"[nettoyer_repertoire_ecole] ecole_id invalide : {ecole_id}"
+        )
+        return False
+
+    base_dir = static_folder or getattr(current_app, 'static_folder', None)
+    if not base_dir:
+        base_dir = os.path.join(current_app.root_path, 'static')
+
+    dossier_base = os.path.abspath(os.path.join(base_dir, 'ecoles'))
+    dossier_cible = os.path.abspath(os.path.join(dossier_base, str(ecole_id)))
+
+    # Vérification anti-traversal stricte
+    if not dossier_cible.startswith(dossier_base + os.sep) or dossier_cible == dossier_base:
+        current_app.logger.error(
+            f"[nettoyer_repertoire_ecole] Détection tentative path-traversal ou cible interdite : {dossier_cible}"
+        )
+        return False
+
+    if not os.path.exists(dossier_cible):
+        current_app.logger.info(
+            f"[nettoyer_repertoire_ecole] Dossier inexistant pour l'école {ecole_id}, rien à supprimer : {dossier_cible}"
+        )
+        return True
+
+    try:
+        shutil.rmtree(dossier_cible, ignore_errors=False)
+        current_app.logger.info(
+            f"[nettoyer_repertoire_ecole] Dossier supprimé avec succès pour l'école {ecole_id} : {dossier_cible}"
+        )
+        return True
+    except Exception as e:
+        current_app.logger.error(
+            f"[nettoyer_repertoire_ecole] Erreur suppression dossier école {ecole_id} ({dossier_cible}): {e}"
+        )
+        # Ne pas lever d'exception pour préserver la transaction en DB
+        return False

@@ -1,4 +1,4 @@
-﻿# Shared imports and compatibility helpers for the main route package.
+# Shared imports and compatibility helpers for the main route package.
 from __future__ import annotations
 
 import base64
@@ -125,8 +125,10 @@ from app.utils import (
     bulletins_accessible_pour_parent,
     get_ecole_filter_query,
     log_action,
+    nettoyer_repertoire_ecole,
     validate_sort_param,
 )
+
 
 
 bcrypt = Bcrypt()
