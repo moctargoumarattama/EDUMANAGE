@@ -3,6 +3,26 @@
 {% block title %}Tableau de bord - KLASORA{% endblock %}
 
 {% block content %}
+<style>
+.home-stat-subtitle,
+.home-action-card small {
+    display: block !important;
+    color: #0f172a !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    line-height: 1.25 !important;
+    margin-top: 0.08rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+@media (max-width: 767.98px) {
+    .home-stat-subtitle,
+    .home-action-card small {
+        font-size: 0.72rem !important;
+    }
+}
+</style>
 <div class="home-page">
     <section class="home-hero admin-welcome-hero">
         <div class="home-hero-content">
@@ -178,36 +198,40 @@
     <section class="home-section">
         <div class="home-stat-grid">
             <a href="{{ url_for('main.eleves') }}" class="home-stat-card" data-tour="eleves">
-                <span class="home-stat-icon students"><i class="fas fa-users"></i></span>
+                <span class="home-stat-icon students"><i class="fas fa-user-graduate"></i></span>
                 <div class="home-stat-info">
                     <strong>{{ stats.total_eleves }}</strong>
                     <small>Élèves inscrits</small>
+                    <span class="home-stat-subtitle">Annuaire & dossiers</span>
                 </div>
-                <i class="fas fa-arrow-right home-card-arrow"></i>
+                <i class="fas fa-chevron-right home-card-arrow"></i>
             </a>
             <a href="{{ url_for('main.professeurs') }}" class="home-stat-card" data-tour="professeurs">
                 <span class="home-stat-icon teachers"><i class="fas fa-chalkboard-teacher"></i></span>
                 <div class="home-stat-info">
                     <strong>{{ stats.total_professeurs }}</strong>
                     <small>Professeurs actifs</small>
+                    <span class="home-stat-subtitle">Affectations & cours</span>
                 </div>
-                <i class="fas fa-arrow-right home-card-arrow"></i>
+                <i class="fas fa-chevron-right home-card-arrow"></i>
             </a>
             <a href="{{ url_for('main.cours') }}" class="home-stat-card" data-tour="cours">
                 <span class="home-stat-icon courses"><i class="fas fa-book"></i></span>
                 <div class="home-stat-info">
                     <strong>{{ stats.total_cours }}</strong>
                     <small>Cours enseignés</small>
+                    <span class="home-stat-subtitle">Matières & coefficients</span>
                 </div>
-                <i class="fas fa-arrow-right home-card-arrow"></i>
+                <i class="fas fa-chevron-right home-card-arrow"></i>
             </a>
             <a href="{{ url_for('main.paiements') }}" class="home-stat-card" data-tour="paiements">
                 <span class="home-stat-icon payments"><i class="fas fa-money-bill-wave"></i></span>
                 <div class="home-stat-info">
                     <strong>{{ stats.paiements_attente }}</strong>
                     <small>Élèves en impayé</small>
+                    <span class="home-stat-subtitle">Recouvrement & reçus</span>
                 </div>
-                <i class="fas fa-arrow-right home-card-arrow"></i>
+                <i class="fas fa-chevron-right home-card-arrow"></i>
             </a>
         </div>
     </section>
