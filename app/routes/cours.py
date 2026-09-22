@@ -636,6 +636,7 @@ def import_notes_excel(id):
 
 @main.route('/imports/telecharger/<filename>')
 @login_required
+@role_required('admin', 'professeur')
 def telecharger_import(filename):
     """Télécharger le fichier d'erreurs d'import"""
 

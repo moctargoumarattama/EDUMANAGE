@@ -645,9 +645,6 @@ def supprimer_ecole(ecole_id):
 @role_required('super_admin')
 def toggle_ecole_status(ecole_id):
     """Changer le statut d'une école (API bascule active/inactive)"""
-    if current_user.role != 'super_admin':
-        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
-
     ecole = Ecole.query.get_or_404(ecole_id)
     if ecole.statut in ('active', 'actif'):
         ecole.statut = 'inactive'
@@ -664,6 +661,7 @@ def toggle_ecole_status(ecole_id):
 
 @main.route('/profil-ecole', methods=['GET', 'POST'])
 @login_required
+@role_required('admin', 'super_admin')
 def profil_ecole():
     """Gestion du profil et de l'identité visuelle de l'établissement par son administrateur"""
     ecole = getattr(current_user, 'ecole', None)

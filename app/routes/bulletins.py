@@ -252,6 +252,7 @@ def bulletin_eleve(id=None, inscription_id=None):
 
 @main.route('/bulletins')
 @login_required
+@role_required('admin', 'professeur', 'parent')
 @tenant_required
 def bulletins():
     """

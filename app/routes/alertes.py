@@ -280,6 +280,7 @@ def marquer_alerte_lue(alert_id):
 
 @main.route('/api/notifications/test', methods=['POST'])
 @login_required
+@role_required('admin')
 def envoyer_notification_test():
     try:
         data = request.get_json() or {}

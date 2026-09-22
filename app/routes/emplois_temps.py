@@ -337,6 +337,7 @@ def imprimer_classe(classe_id):
 
 @main.route('/api/cours_classe/<int:classe_id>')
 @login_required
+@role_required('admin', 'professeur')
 @tenant_required
 def api_cours_classe(classe_id):
     """

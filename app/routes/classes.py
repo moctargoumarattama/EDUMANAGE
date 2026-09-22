@@ -110,6 +110,7 @@ def api_niveaux():
 
 @main.route("/classes")
 @login_required
+@role_required('admin', 'professeur')
 @tenant_required
 def liste_classes():
     page = request.args.get('page', 1, type=int)

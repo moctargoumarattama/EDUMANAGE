@@ -623,11 +623,9 @@ def journaux_corrections():
 
 @main.route('/api/users/<int:user_id>/status', methods=['PUT'])
 @login_required
+@role_required('admin')
 def toggle_user_status(user_id):
     """Changer le statut d'un utilisateur"""
-    if current_user.role not in ['admin']:
-        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
-
     user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
 
     # Vérifier les permissions
@@ -645,13 +643,9 @@ def toggle_user_status(user_id):
 
 @main.route('/api/users/<int:user_id>', methods=['DELETE'])
 @login_required
+@role_required('admin')
 def delete_user(user_id):
     """Supprimer un utilisateur et toutes ses dépendances (enfants + inscriptions)"""
-
-    # Vérification des rôles
-    if current_user.role not in ['admin']:
-        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
-
     user = Utilisateur.query.filter_by(id=user_id).first_or_404()
 
     if user.role == 'super_admin':
