@@ -125,40 +125,6 @@ def get_annee_courante():
         return None
 
 
-def set_ecole_courante(ecole_id):
-    """Définit l'école courante (super-admin uniquement)"""
-    if not getattr(current_user, 'is_authenticated', False):
-        return False
-    if getattr(current_user, 'role', None) != 'super_admin':
-        return False
-
-    try:
-        ecole = Ecole.query.get(int(ecole_id))
-    except (TypeError, ValueError):
-        return False
-
-    if ecole:
-        try:
-            session['ecole_id'] = int(ecole_id)
-        except (TypeError, ValueError):
-            session['ecole_id'] = ecole_id
-        session['ecole_courante'] = {'id': ecole.id, 'nom': ecole.nom}
-        session['ecole_nom'] = ecole.nom
-        g.ecole_courante = ecole
-        current_app.logger.info(f"Super-admin {getattr(current_user, 'email', '')} a sélectionné l'école {ecole.nom}")
-        return True
-    return False
-
-
-def clear_ecole_courante():
-    """Efface l'école courante de la session"""
-    session.pop('ecole_id', None)
-    session.pop('ecole_courante', None)
-    session.pop('ecole_nom', None)
-    for attr in ('ecole_courante', 'annee_courante', '_school_setup_cache', '_annee_active_cache', '_annee_consultee_cache'):
-        if hasattr(g, attr):
-            delattr(g, attr)
-
 
 # ====================================================================
 # 🔒 DÉCORATEURS DE SÉCURITÉ
@@ -304,30 +270,6 @@ def check_ecole_access(model_class, object_id=None, ecole_field='ecole_id'):
 
     return True
 
-
-def ecole_access_required(model_class, id_param_name='id', ecole_field='ecole_id'):
-    """
-    Décorateur pour bloquer l'accès à une ressource d'une autre école.
-    """
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            object_id = kwargs.get(id_param_name)
-
-            if not check_ecole_access(model_class, object_id, ecole_field):
-                try:
-                    current_app.logger.warning(
-                        f"Tentative d'accès non autorisé: {getattr(current_user, 'email', '')} "
-                        f"vers {model_class.__name__} ID={object_id}"
-                    )
-                except Exception as e:
-                    current_app.logger.debug(f"Impossible de journaliser un accès refusé: {e}")
-                flash("Accès non autorisé à cette ressource.", "danger")
-                return redirect(url_for('main.index'))
-
-            return f(*args, **kwargs)
-        return decorated_function
-    return decorator
 
 
 # ====================================================================
@@ -650,17 +592,3 @@ def after_request_handler(response):
     return response
 
 
-# ====================================================================
-# 🚀 INITIALISATION
-# ====================================================================
-
-def init_middleware(app):
-    """Initialise le middleware avec l'application Flask"""
-    app.before_request(before_request_handler)
-    app.after_request(after_request_handler)
-    setup_template_context()
-
-    # Ajouter la fonction de log au contexte de l'app
-    app.log_action = log_action
-
-    app.logger.info("Middleware multi-écoles initialisé avec succès")

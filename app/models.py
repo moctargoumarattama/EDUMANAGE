@@ -30,23 +30,6 @@ professeur_classes = db.Table(
     db.Column('ecole_id', db.Integer, db.ForeignKey('ecole.id'), nullable=False)
 )
 
-# -----------------------
-# Fonction utilitaire
-# -----------------------
-def generer_code_parent_unique(self):
-    """Génère un code parent unique et sauvegarde l'élève."""
-    while True:
-        code = generate_access_code()
-        if not Eleve.query.filter_by(code_parent=code).first():
-            self.code_parent = code
-            db.session.commit()
-            return code
-
-def assigner_code_parent(self):
-    """Si l'élève a un parent et pas de code, génère et sauvegarde le code parent."""
-    if self.parent and not self.code_parent:
-        return self.generer_code_parent_unique()
-    return self.code_parent
 
 # -----------------------
 # Année Scolaire
@@ -442,9 +425,6 @@ class Professeur(db.Model):
 
         return f'<Professeur {self.prenom} {self.nom}>'
 
-    @staticmethod
-    def generer_code(length=6):
-        return generate_access_code()
 
     def to_dict(self):
         return {
@@ -1247,11 +1227,6 @@ class Inscription(db.Model):
             "motif_sortie": self.motif_sortie,
             "decision_fin_annee": self.decision_fin_annee
         }
-
-@event.listens_for(Eleve, "after_insert")
-def creer_inscription(mapper, connection, target):
-    # Phase 2A: inscriptions are created by the central service.
-    return
 
 # -----------------------
 # JournalCorrection

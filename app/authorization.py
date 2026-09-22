@@ -296,24 +296,3 @@ def role_required(*roles):
         return decorated_function
     return decorator
 
-# -----------------------
-# Décorateur pour injecter l'année active
-# -----------------------
-def with_annee_active(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        ecole = get_ecole_courante()
-        if isinstance(ecole, tuple) or not ecole:
-            flash("Veuillez choisir une école pour continuer.", "warning")
-            return redirect(url_for('main.choisir_ecole'))
-
-        # Import local pour éviter les dépendances circulaires
-        from app.utils import get_annee_active
-        annee_active = get_annee_active(ecole.id)
-        if not annee_active:
-            flash("Aucune année scolaire active n'est configurée pour cette école.", "warning")
-            return redirect(url_for('main.gestion_annees'))
-
-        g.annee_active = annee_active
-        return f(*args, **kwargs)
-    return decorated_function
