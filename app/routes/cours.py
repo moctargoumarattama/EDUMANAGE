@@ -1,6 +1,8 @@
 from app.utils_classes import classes_triees_pedagogique, ordre_pedagogique_classe
 from app.models import NiveauScolaire
 from . import main
+from flask import g
+from app.authorization import tenant_required
 from .common import (
     BytesIO,
     Classe,
@@ -18,7 +20,6 @@ from .common import (
     current_app,
     current_user,
     db,
-    ecole_required,
     flash,
     get_ecole_courante,
     io,
@@ -806,7 +807,7 @@ def supprimer_cours(id):
 @main.route('/classe/<int:classe_id>/charger-matieres-standard', methods=['POST'])
 @login_required
 @role_required('admin')
-@ecole_required
+@tenant_required
 def charger_matieres_standard(classe_id):
     """Charge automatiquement les matières et coefficients standard pour une classe."""
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json

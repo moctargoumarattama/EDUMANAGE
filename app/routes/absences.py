@@ -25,7 +25,8 @@ from .common import (
     send_file,
     url_for,
 )
-from flask import jsonify
+from flask import g, jsonify
+from app.authorization import tenant_required
 from app.services.annees_scolaires import get_annee_consultee
 from app.services.structure_annuelle import get_niveaux_annee
 from app.services.absences_annuelles import (
@@ -40,7 +41,7 @@ from app.services.absences_annuelles import (
 
 
 def _ecole_id_courante():
-    return getattr(current_user, "ecole_id", None)
+    return getattr(g, "ecole_id", getattr(current_user, "ecole_id", None))
 
 
 def _remplir_choix_absence(form, ecole_id, annee):
@@ -64,6 +65,7 @@ def _niveaux_depuis_classes(classes):
 @main.route('/absences', methods=['GET', 'POST'])
 @login_required
 @role_required('admin', 'professeur')
+@tenant_required
 def absences():
     if request.method == 'POST':
         flash("L'enregistrement initial des absences est réservé aux professeurs lors de la prise d'appel.", "warning")
@@ -190,6 +192,7 @@ def absences():
 @main.route('/absences/export_excel')
 @login_required
 @role_required('admin')
+@tenant_required
 def export_absences_excel():
     ecole_id = _ecole_id_courante()
     annee_consultee = get_annee_consultee(ecole_id)
@@ -222,6 +225,7 @@ def export_absences_excel():
 @main.route('/absences/edit/<int:absence_id>', methods=['GET', 'POST'])
 @login_required
 @role_required('admin', 'professeur')
+@tenant_required
 def edit_absence(absence_id):
     absence = Absence.query.get_or_404(absence_id)
     ecole_id = _ecole_id_courante()
@@ -277,6 +281,7 @@ def edit_absence(absence_id):
 @main.route('/absences/delete/<int:absence_id>', methods=['POST'])
 @login_required
 @role_required('admin', 'professeur')
+@tenant_required
 def delete_absence(absence_id):
     absence = Absence.query.get_or_404(absence_id)
     ecole_id = _ecole_id_courante()
@@ -316,6 +321,7 @@ def presence():
 @main.route("/absences/appel", methods=["GET", "POST"])
 @login_required
 @role_required("professeur")
+@tenant_required
 def faire_appel():
     ecole_id = _ecole_id_courante()
     annee_consultee = get_annee_consultee(ecole_id)

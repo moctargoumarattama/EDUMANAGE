@@ -2,10 +2,11 @@ import io
 import pandas as pd
 from types import SimpleNamespace
 from datetime import datetime
-from flask import abort, flash, jsonify, redirect, render_template, request, send_file, url_for
+from flask import abort, flash, g, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 
 from . import main
+from app.authorization import tenant_required
 from .common import (
     AnneeScolaire,
     Cours,
@@ -72,8 +73,9 @@ def _niveaux_depuis_classes(classes):
 @main.route('/notes', methods=['GET', 'POST'])
 @login_required
 @role_required('admin', 'professeur', 'parent')
+@tenant_required
 def notes():
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     context_url = _notes_return_url()
 
     # ------------------- Contexte annuel unique (Règle 2C-5D) -------------------
@@ -357,9 +359,10 @@ def notes():
 @main.route('/notes/export_excel')
 @login_required
 @role_required('admin')
+@tenant_required
 def export_notes_excel():
     """Export Excel de toutes les notes avec jointures élèves/cours pour l'année consultée."""
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
 
     notes = get_notes_annee(
@@ -401,9 +404,10 @@ def export_notes_excel():
 @main.route('/notes/saisie_classe', methods=['GET', 'POST'], endpoint='saisie_notes_classe')
 @login_required
 @role_required('professeur')
+@tenant_required
 def saisie_notes_classe():
     """Saisie rapide des notes par classe entière (Phase 5C)."""
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     context_url = _notes_return_url()
     annee_consultee = get_annee_consultee(ecole_id)
     message_annee = statut_annee_notes(annee_consultee)
@@ -493,13 +497,14 @@ def saisie_notes_classe():
 @main.route('/note/<int:note_id>/modifier', methods=['GET', 'POST'])
 @login_required
 @role_required('admin', 'professeur')
+@tenant_required
 def modifier_note(note_id):
     context_url = _notes_return_url()
     note = Note.query.get_or_404(note_id)
     if not can_manage_note(note):
         abort(403)
 
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     if note.ecole_id != ecole_id:
         abort(403)
 
@@ -576,13 +581,14 @@ def modifier_note(note_id):
 @main.route('/notes/supprimer/<int:note_id>', methods=['POST'])
 @login_required
 @role_required('admin', 'professeur')
+@tenant_required
 def supprimer_note(note_id):
     context_url = _notes_return_url()
     note = Note.query.get_or_404(note_id)
     if not can_manage_note(note):
         abort(403)
 
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     if note.ecole_id != ecole_id:
         abort(403)
 

@@ -1,6 +1,8 @@
 from . import main
 from app.utils_classes import classes_triees_pedagogique
 from app.models import NiveauScolaire
+from flask import g
+from app.authorization import tenant_required
 from .common import (
     abort,
     Classe,
@@ -59,8 +61,10 @@ def _matiere_affectation_professeur(professeur):
 @main.route('/professeurs')
 @login_required
 @role_required('admin')
+@tenant_required
 def professeurs():
     """Liste de tous les professeurs avec pagination filtrée par école et recherche multi-critères"""
+    ecole_id = g.ecole_id
     page = request.args.get('page', 1, type=int)
     per_page = 50
     search = (request.args.get('search') or request.args.get('q') or '').strip()
@@ -68,11 +72,11 @@ def professeurs():
     matiere = (request.args.get('matiere') or '').strip()
     statut = (request.args.get('statut') or '').strip().lower()
 
-    annee = get_annee_consultee(current_user.ecole_id)
-    classes = classes_triees_pedagogique(Classe.query.filter_by(ecole_id=current_user.ecole_id, annee_scolaire_id=annee.id)).all() if annee else []
+    annee = get_annee_consultee(ecole_id)
+    classes = classes_triees_pedagogique(Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)).all() if annee else []
 
     # Filtrage par école de l'utilisateur
-    profs_query = Professeur.query.filter_by(ecole_id=current_user.ecole_id)
+    profs_query = Professeur.query.filter_by(ecole_id=ecole_id)
 
     # Recherche multi-champs
     if search:
@@ -91,7 +95,7 @@ def professeurs():
 
     # Filtre par classe
     if classe_id:
-        classe_valide = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first()
+        classe_valide = Classe.query.filter_by(id=classe_id, ecole_id=ecole_id).first()
         if not classe_valide:
             profs_query = profs_query.filter(Professeur.id == -1)
         else:
@@ -159,10 +163,11 @@ def professeurs():
 @main.route('/ajouter_professeur', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
+@tenant_required
 def ajouter_professeur():
     """Ajout d'un professeur avec contrôle de cohérence et notifications"""
     form = ProfesseurForm()
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
 
     if form.validate_on_submit():
         try:
@@ -259,17 +264,19 @@ def ajouter_professeur():
             db.session.rollback()
             import traceback
             current_app.logger.error(f"Erreur ajout professeur: {e}\n{traceback.format_exc()}")
-            flash("âŒ Erreur lors de l'ajout du professeur.", "danger")
+            flash("â Œ Erreur lors de l'ajout du professeur.", "danger")
 
     return render_template('ajouter_professeur.html', form=form)
 
 @main.route('/professeur/<int:id>')
 @login_required
 @role_required('admin')
+@tenant_required
 def professeur_details(id):
+    ecole_id = g.ecole_id
     professeur = Professeur.query.options(
         joinedload(Professeur.cours).joinedload(Cours.notes)
-    ).filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
+    ).filter_by(id=id, ecole_id=ecole_id).first_or_404()
 
     if not check_ecole_access(professeur, "professeur"):
         return redirect(url_for('main.profile'))
@@ -286,8 +293,10 @@ def professeur_details(id):
 @main.route('/professeur/<int:id>/modifier', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
+@tenant_required
 def modifier_professeur(id):
-    professeur = Professeur.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
+    ecole_id = g.ecole_id
+    professeur = Professeur.query.filter_by(id=id, ecole_id=ecole_id).first_or_404()
     form = ProfesseurForm(obj=professeur)
 
     if form.validate_on_submit():
@@ -296,7 +305,7 @@ def modifier_professeur(id):
             doublon_prof = Professeur.query.filter(
                 Professeur.email == email,
                 Professeur.id != professeur.id,
-                Professeur.ecole_id == current_user.ecole_id
+                Professeur.ecole_id == ecole_id
             ).first()
             doublon_user = Utilisateur.query.filter(
                 Utilisateur.email == email,
@@ -339,7 +348,9 @@ def modifier_professeur(id):
 @main.route('/professeurs/<int:id>/supprimer', methods=['POST'])
 @login_required
 @role_required('admin')
+@tenant_required
 def supprimer_professeur(id):
+    ecole_id = g.ecole_id
     is_ajax = (
         request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         or request.is_json
@@ -352,7 +363,7 @@ def supprimer_professeur(id):
         abort(404)
 
     # 🛡️ Sécurité multi-écoles : contrôle strict cross-tenant
-    if professeur.ecole_id != current_user.ecole_id:
+    if professeur.ecole_id != ecole_id:
         if is_ajax:
             return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
         abort(403)
@@ -399,14 +410,16 @@ def supprimer_professeur(id):
 @main.route('/professeur/<int:id>/assigner_classes', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
+@tenant_required
 def assigner_classes_professeur(id):
-    professeur = Professeur.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
+    ecole_id = g.ecole_id
+    professeur = Professeur.query.filter_by(id=id, ecole_id=ecole_id).first_or_404()
 
-    if professeur.ecole_id != current_user.ecole_id:
+    if professeur.ecole_id != ecole_id:
         flash("Acces refuse : ce professeur appartient a une autre ecole", "danger")
         return redirect(url_for("main.professeurs"))
 
-    annee_consultee = get_annee_consultee(current_user.ecole_id)
+    annee_consultee = get_annee_consultee(ecole_id)
     if not annee_consultee:
         flash("Aucune annee scolaire configuree pour votre etablissement.", "warning")
         return redirect(url_for("main.professeurs"))
@@ -589,13 +602,15 @@ def assigner_classes_professeur(id):
 @main.route("/mes_classes")
 @login_required
 @role_required('professeur')
+@tenant_required
 def mes_classes():
+    ecole_id = g.ecole_id
     prof = current_user.professeur_rel
     if not prof:
         flash("Aucune information de professeur trouvée.", "warning")
         return redirect(url_for('main.index'))
 
-    annee_consultee = get_annee_consultee(current_user.ecole_id)
+    annee_consultee = get_annee_consultee(ecole_id)
     if not annee_consultee:
         return render_template("mes_classes.html", classes=[])
 
@@ -605,9 +620,9 @@ def mes_classes():
         .join(Classe, Classe.id == Cours.classe_id)
         .filter(
             Cours.professeur_id == prof.id,
-            Cours.ecole_id == current_user.ecole_id,
+            Cours.ecole_id == ecole_id,
             Cours.classe_id.isnot(None),
-            Classe.ecole_id == current_user.ecole_id,
+            Classe.ecole_id == ecole_id,
             Classe.annee_scolaire_id == annee_consultee.id,
         )
         .distinct()
@@ -616,7 +631,7 @@ def mes_classes():
     classes = (
         classes_triees_pedagogique(
             Classe.query.filter(
-                Classe.ecole_id == current_user.ecole_id,
+                Classe.ecole_id == ecole_id,
                 Classe.annee_scolaire_id == annee_consultee.id,
                 Classe.id.in_(classe_ids),
             )
@@ -627,7 +642,7 @@ def mes_classes():
 
     inscriptions = (
         Inscription.query.filter(
-            Inscription.ecole_id == current_user.ecole_id,
+            Inscription.ecole_id == ecole_id,
             Inscription.annee_scolaire_id == annee_consultee.id,
             Inscription.classe_id.in_(classe_ids),
             Inscription.statut != 'desinscrit'
@@ -649,8 +664,10 @@ def mes_classes():
 @main.route("/mes_enseignements")
 @login_required
 @role_required("professeur")
+@tenant_required
 def mes_enseignements():
     """Hub professeur : classes et cours autorises pour l'annee consultee."""
+    ecole_id = g.ecole_id
     professeur = current_user.professeur_rel
     if not professeur:
         flash("Aucune information de professeur trouvee.", "warning")

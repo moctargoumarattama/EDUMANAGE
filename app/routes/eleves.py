@@ -1,6 +1,8 @@
 from . import main
 from app.utils_classes import classes_triees_pedagogique, ordre_pedagogique_classe
 from app.models import NiveauScolaire
+from flask import g
+from app.authorization import tenant_required
 from .common import (
     Absence,
     AnneeScolaire,
@@ -17,7 +19,6 @@ from .common import (
     current_user,
     datetime,
     db,
-    ecole_required,
     filtre_par_ecole,
     flash,
     io,
@@ -31,7 +32,6 @@ from .common import (
     request,
     role_required,
     send_file,
-    session,
     url_for,
 )
 from app.services.paiements_annuels import get_mois_scolaires
@@ -83,6 +83,7 @@ def _safe_return_url(fallback):
 @main.route('/eleves')
 @login_required
 @role_required('admin', 'professeur')
+@tenant_required
 def eleves():
     """Gestion et liste des élèves organisée par classe avec recherche et filtres"""
     page = request.args.get('page', 1, type=int)
@@ -92,9 +93,7 @@ def eleves():
     niveau_param = request.args.get('niveau_id') or request.args.get('niveau') or ''
     genre = (request.args.get('genre') or '').strip().upper()
     statut = (request.args.get('statut') or '').strip()
-    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
-    if not ecole_id:
-        abort(403)
+    ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
     annees_ecole = get_annees_ecole(ecole_id)
 
@@ -319,18 +318,12 @@ def eleves():
 @main.route('/ajouter_eleve', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
+@tenant_required
 def ajouter_eleve():
     """Ajout d’un élève avec contrôle de cohérence, sécurité multi-écoles et notifications parent."""
     form = EleveForm()
 
-    # ---------------- École courante ----------------
-    if current_user.role == 'super_admin':
-        ecole_id = session.get('ecole_id')
-        if not ecole_id:
-            flash("⚠️ Aucune école sélectionnée pour le super-admin.", "danger")
-            return redirect(url_for('main.eleves'))
-    else:
-        ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
 
     annee_consultee = get_annee_consultee(ecole_id)
     if annee_consultee and annee_consultee.statut == "archivee":
@@ -522,12 +515,10 @@ def ajouter_eleve():
 @main.route('/api/eleves/classe/<int:classe_id>')
 @login_required
 @role_required('admin', 'professeur')
-@ecole_required
+@tenant_required
 def api_eleves_par_classe(classe_id):
     """Retourne la liste des élèves d'une classe filtrée par école et année consultée (JSON)"""
-    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
-    if not ecole_id:
-        return jsonify({'eleves': []}), 403
+    ecole_id = g.ecole_id
 
     classe = Classe.query.filter_by(id=classe_id, ecole_id=ecole_id).first()
     if not classe:
@@ -689,8 +680,9 @@ def export_notes_eleve_pdf(id):
 @main.route('/eleves/export_excel')
 @login_required
 @role_required('admin')
+@tenant_required
 def export_eleves_excel():
-    ecole_id = current_user.ecole_id if current_user.role == "admin" else session.get("ecole_id")
+    ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
 
     if annee_consultee:
@@ -774,11 +766,10 @@ def modele_excel_eleves():
 @main.route('/eleves/import', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
+@tenant_required
 def import_excel_form():
     """Prévisualisation et validation de l'import Excel."""
-    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
-    if not ecole_id:
-        abort(403)
+    ecole_id = g.ecole_id
     
     annee_consultee = get_annee_consultee(ecole_id)
     if not annee_consultee:
