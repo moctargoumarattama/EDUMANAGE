@@ -16,7 +16,7 @@ from flask import (
 from flask_login import current_user, login_required
 
 from . import main
-from app.models import Ecole
+from app.models import Ecole, db
 from app.services.google_mail import (
     GoogleOAuthError,
     SchoolMailNotConfiguredError,
@@ -213,7 +213,7 @@ def envoyer_email_test_ecole():
         )
         return redirect(url_for("main.config_email"))
 
-    ecole = Ecole.query.get(current_user.ecole_id)
+    ecole = db.session.get(Ecole, current_user.ecole_id)
     school_name = ecole.nom if ecole else "Votre établissement"
     recipient = status["email"]
 

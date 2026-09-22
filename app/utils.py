@@ -172,7 +172,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
     Returns:
         dict avec setup_complete et current_step.
     """
-    from app.models import AnneeNiveauConfig, AnneeScolaire, Classe, Cours, NiveauScolaire, Ecole
+    from app.models import AnneeNiveauConfig, AnneeScolaire, Classe, Cours, NiveauScolaire, Ecole, db
     from app.middleware import get_ecole_id
     from app.services.semestres import calendrier_configure
 
@@ -200,7 +200,7 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
     except RuntimeError:
         pass
 
-    ecole = Ecole.query.get(target_ecole_id)
+    ecole = db.session.get(Ecole, target_ecole_id)
     onboarding_complete = getattr(ecole, 'onboarding_complete', False) if ecole else False
     active_year = get_annee_active(target_ecole_id)
 

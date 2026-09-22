@@ -1,7 +1,7 @@
 from flask import abort, flash, redirect, url_for, current_app, request, jsonify, g, session
 from flask_login import current_user
 from functools import wraps
-from app.models import Eleve
+from app.models import Eleve, db
 from app.middleware import get_ecole_courante, log_action
 
 
@@ -13,7 +13,7 @@ def check_parent_access(eleve_id):
     if current_user.role != 'parent':
         return True
 
-    eleve = Eleve.query.get(eleve_id)
+    eleve = db.session.get(Eleve, eleve_id)
     if not eleve:
         return False
     if getattr(current_user, "ecole_id", None) and getattr(eleve, "ecole_id", None) != current_user.ecole_id:

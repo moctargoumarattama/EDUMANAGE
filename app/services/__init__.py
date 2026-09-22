@@ -338,7 +338,7 @@ def notifier_alertes(alertes):
         with flask_app.app_context():
             for a in alertes_to_notify:
                 if a['type'] in ['danger', 'warning'] and not a.get('notifie'):
-                    eleve = Eleve.query.get(a['eleve_id'])
+                    eleve = db.session.get(Eleve, a['eleve_id'])
 
                     message = (
                         f"{a['titre']}\n"

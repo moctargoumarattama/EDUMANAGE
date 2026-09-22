@@ -303,7 +303,7 @@ def gerer_ecoles_utilisateur(user_id):
             for ecole_id in ecoles_decocher:
                 nb_eleves = Eleve.query.filter_by(ecole_id=ecole_id).count()
                 if nb_eleves > 0:
-                    ecole = Ecole.query.get(ecole_id)
+                    ecole = db.session.get(Ecole, ecole_id)
                     erreurs.append(f"L'école '{ecole.nom}' contient encore {nb_eleves} élèves et ne peut pas être retirée.")
 
             if erreurs:
@@ -668,7 +668,7 @@ def profil_ecole():
     """Gestion du profil et de l'identité visuelle de l'établissement par son administrateur"""
     ecole = getattr(current_user, 'ecole', None)
     if not ecole and getattr(current_user, 'ecole_id', None):
-        ecole = Ecole.query.get(current_user.ecole_id)
+        ecole = db.session.get(Ecole, current_user.ecole_id)
     if not ecole:
         flash("Aucun établissement associé à votre compte.", "warning")
         return redirect(url_for('main.index'))

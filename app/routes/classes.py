@@ -632,7 +632,7 @@ def supprimer_classe(classe_id):
         or request.is_json
         or request.accept_mimetypes.best == 'application/json'
     )
-    classe = Classe.query.get(classe_id)
+    classe = db.session.get(Classe, classe_id)
     if not classe:
         if is_ajax:
             return jsonify({'success': False, 'message': 'Classe introuvable.'}), 404

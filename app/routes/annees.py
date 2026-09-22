@@ -102,7 +102,7 @@ def gestion_annees():
         annee_id = request.form.get('annee_id')
 
         if action == 'activer' and annee_id:
-            annee = AnneeScolaire.query.get(int(annee_id))
+            annee = db.session.get(AnneeScolaire, int(annee_id))
             if annee and annee.ecole_id in [e.id for e in ecoles]:
                 if not calendrier_configure(annee.ecole_id, annee.id):
                     flash("Configurez les semestres S1 et S2 avant d'activer cette année.", "danger")
@@ -184,7 +184,7 @@ def gestion_annees():
                 flash("Identifiant d'année invalide.", "danger")
                 return redirect(url_for('main.gestion_annees'))
 
-            annee = AnneeScolaire.query.get(annee_id)
+            annee = db.session.get(AnneeScolaire, annee_id)
             if not annee or annee.ecole_id not in [e.id for e in ecoles]:
                 flash("Année introuvable ou accès non autorisé.", "danger")
                 return redirect(url_for('main.gestion_annees'))

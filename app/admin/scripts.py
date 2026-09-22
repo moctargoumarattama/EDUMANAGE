@@ -799,7 +799,7 @@ def create_school_backup(ecole_id, backup_type="manual"):
                     continue
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    ecole = Ecole.query.get(ecole_id)
+    ecole = db.session.get(Ecole, ecole_id)
     if not ecole:
         raise ValueError("Ã‰cole non trouvÃ©e")
 
@@ -931,7 +931,7 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
         if not code_valid:
             raise ValueError("RESTORE REFUSÃ‰ : Code de confirmation incorrect. Saisissez 'RESTAURER' ou le nom de l'Ã©cole.")
 
-    target_ecole = Ecole.query.get(ecole_id)
+    target_ecole = db.session.get(Ecole, ecole_id)
     if not target_ecole:
         raise ValueError(f"Ã‰cole cible (ID #{ecole_id}) introuvable.")
 
@@ -1030,7 +1030,7 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
 
         if data.get('ecole'):
             ec = _deserialize_row(Ecole, data['ecole'])
-            existing = Ecole.query.get(ecole_id)
+            existing = db.session.get(Ecole, ecole_id)
             if existing:
                 for col in Ecole.__table__.columns:
                     if col.name != 'id':

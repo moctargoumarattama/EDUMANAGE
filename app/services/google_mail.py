@@ -412,7 +412,7 @@ def send_school_email(
     Utilise l'API REST Gmail (users.messages.send) avec encodage base64url du RFC 2822.
     """
     access_token, sender_email = get_valid_access_token(ecole_id)
-    ecole = Ecole.query.get(ecole_id)
+    ecole = db.session.get(Ecole, ecole_id)
     school_name = ecole.nom if ecole else "Établissement scolaire"
 
     # Construction du message MIME

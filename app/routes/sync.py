@@ -59,8 +59,8 @@ def _get_sync_eleve_cours(eleve_id, cours_id):
         cours_id = int(cours_id) if cours_id is not None else None
     except (TypeError, ValueError):
         cours_id = None
-    eleve = Eleve.query.get(eleve_id) if eleve_id else None
-    cours = Cours.query.get(cours_id) if cours_id else None
+    eleve = db.session.get(Eleve, eleve_id) if eleve_id else None
+    cours = db.session.get(Cours, cours_id) if cours_id else None
     return eleve, cours
 
 

@@ -402,7 +402,7 @@ def donnees_impression_classe(ecole_id, annee, classe_id, user=None):
             return None, "Accès non autorisé à l'emploi du temps de cette classe."
 
     creneaux = get_creneaux_annee(ecole_id, annee, classe_id=classe.id)
-    ecole = Ecole.query.get(ecole_id)
+    ecole = db.session.get(Ecole, ecole_id)
 
     return {
         "ecole_nom": ecole.nom if ecole else "Établissement",

@@ -258,7 +258,7 @@ def check_ecole_access(model_class, object_id=None, ecole_field='ecole_id'):
 
     try:
         if object_id:
-            obj = model_class.query.get(object_id)
+            obj = db.session.get(model_class, object_id)
             if not obj:
                 return False
 

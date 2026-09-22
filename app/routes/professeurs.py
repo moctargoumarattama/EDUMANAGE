@@ -356,7 +356,7 @@ def supprimer_professeur(id):
         or request.is_json
         or request.accept_mimetypes.best == 'application/json'
     )
-    professeur = Professeur.query.get(id)
+    professeur = db.session.get(Professeur, id)
     if not professeur:
         if is_ajax:
             return jsonify({'success': False, 'message': 'Professeur introuvable.'}), 404
@@ -387,7 +387,7 @@ def supprimer_professeur(id):
         
         # Supprimer aussi l'utilisateur associé si c'est un compte enseignant dédié
         if professeur.utilisateur_id:
-            utilisateur = Utilisateur.query.get(professeur.utilisateur_id)
+            utilisateur = db.session.get(Utilisateur, professeur.utilisateur_id)
             if utilisateur and utilisateur.role == 'professeur':
                 db.session.delete(utilisateur)
 

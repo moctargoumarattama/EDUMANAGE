@@ -743,7 +743,7 @@ def supprimer_cours(id):
         or request.is_json
         or request.accept_mimetypes.best == 'application/json'
     )
-    cours = Cours.query.get(id)
+    cours = db.session.get(Cours, id)
     if not cours:
         if is_ajax:
             return jsonify({'success': False, 'message': 'Matière/cours introuvable.'}), 404
@@ -812,7 +812,7 @@ def charger_matieres_standard(classe_id):
     """Charge automatiquement les matières et coefficients standard pour une classe."""
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
 
-    classe = Classe.query.get(classe_id)
+    classe = db.session.get(Classe, classe_id)
     if not classe:
         if is_ajax:
             return jsonify({'success': False, 'message': 'Classe introuvable.'}), 404

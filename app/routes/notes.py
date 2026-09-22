@@ -14,6 +14,7 @@ from .common import (
     NoteForm,
     Professeur,
     can_manage_note,
+    db,
     role_required,
 )
 from app.services.annees_scolaires import get_annee_consultee
@@ -512,7 +513,7 @@ def modifier_note(note_id):
     if not annee_note and note.inscription:
         annee_note = note.inscription.annee_scolaire
     if not annee_note and note.annee_id:
-        annee_note = AnneeScolaire.query.get(note.annee_id)
+        annee_note = db.session.get(AnneeScolaire, note.annee_id)
 
     # Contrôle de cycle de vie annuel
     if not annee_note or annee_note.statut != 'active':
@@ -595,7 +596,7 @@ def supprimer_note(note_id):
     if not annee_note and note.inscription:
         annee_note = note.inscription.annee_scolaire
     if not annee_note and note.annee_id:
-        annee_note = AnneeScolaire.query.get(note.annee_id)
+        annee_note = db.session.get(AnneeScolaire, note.annee_id)
 
     succes, err = service_supprimer_note(
         ecole_id=ecole_id,
