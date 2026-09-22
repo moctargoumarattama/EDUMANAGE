@@ -18,7 +18,6 @@ from .common import (
     datetime,
     db,
     flash,
-    func,
     get_ecole_filter_query,
     joinedload,
     login_required,
@@ -38,11 +37,9 @@ from app.services.bulletins_annuels import (
     bulletins_modifiables,
     get_inscriptions_bulletins,
     calculer_bulletin_data,
-    generer_ou_recuperer_bulletin,
     modifier_appreciation_bulletin,
     supprimer_bulletin,
     MESSAGE_ANNEE_PLANIFIEE,
-    MESSAGE_ANNEE_ARCHIVEE,
 )
 from app.services.evaluations import (
     calculer_completude_inscription,

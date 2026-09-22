@@ -364,7 +364,7 @@ def safe_delete_ecole(ecole_id):
     """Supprime proprement et en cascade toutes les données liées à une école"""
     from app.models import (
         Absence, Alerte, AnneeScolaire, ArchiveAbsence, ArchiveNote,
-        Bulletin, Classe, Cours, EcoleGoogleMailConfig, Eleve, EmploiTemps, HistoriqueImport,
+        Bulletin, Classe, Cours, Eleve, EmploiTemps, HistoriqueImport,
         Inscription, JournalCorrection, Log, Note, Paiement,
         PeriodeBulletin, Presence, Professeur, Utilisateur
     )
@@ -666,9 +666,6 @@ def toggle_ecole_status(ecole_id):
 @login_required
 def profil_ecole():
     """Gestion du profil et de l'identité visuelle de l'établissement par son administrateur"""
-    from werkzeug.utils import secure_filename
-    import os
-
     ecole = getattr(current_user, 'ecole', None)
     if not ecole and getattr(current_user, 'ecole_id', None):
         ecole = Ecole.query.get(current_user.ecole_id)

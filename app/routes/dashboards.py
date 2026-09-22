@@ -1,30 +1,20 @@
 from . import main
 from .common import (
     Absence,
-    AnneeScolaire,
-    Bulletin,
     Classe,
-    Cours,
     Eleve,
-    EmploiTemps,
     Note,
-    Paiement,
     Professeur,
     Utilisateur,
     current_user,
-    date,
     datetime,
     db,
-    filtre_par_ecole,
     flash,
-    func,
-    get_ecole_filter_query,
     login_required,
     redirect,
     render_template,
     request,
     role_required,
-    timedelta,
     url_for,
 )
 
@@ -51,7 +41,7 @@ def parent_dashboard():
     from datetime import datetime
     from collections import defaultdict
     from sqlalchemy.orm import selectinload, joinedload
-    from app.models import Inscription, Eleve, Note, Absence, Paiement
+    from app.models import Inscription, Eleve, Note, Absence
     from app.services.annees_scolaires import get_annee_consultee
     from app.services.paiements_annuels import get_finances_inscription
 

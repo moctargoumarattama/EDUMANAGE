@@ -6,8 +6,6 @@ from .common import (
     Inscription,
     Paiement,
     PaiementForm,
-    ajouter_ecole_id,
-    aliased,
     check_parent_access,
     current_app,
     current_user,
@@ -37,9 +35,7 @@ from app.services.structure_annuelle import get_niveaux_annee
 from app.services.paiements_annuels import (
     get_inscriptions_paiements,
     get_finances_inscription,
-    get_paiements_annee,
     enregistrer_paiement,
-    supprimer_paiement_securise,
     get_mois_scolaires,
 )
 from app.services.payment_receipts import (

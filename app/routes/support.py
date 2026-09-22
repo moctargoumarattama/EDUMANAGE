@@ -1,4 +1,3 @@
-import re
 from datetime import datetime, timedelta
 from flask import request, jsonify, session
 from flask_login import login_required, current_user

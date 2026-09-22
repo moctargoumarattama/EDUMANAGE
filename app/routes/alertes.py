@@ -16,7 +16,7 @@ from .common import (
     url_for,
 )
 from app.authorization import can_access_class, check_parent_access
-from app.services import PER_PAGE_ALERTES, generer_alertes_automatiques, notifier_alertes
+from app.services import generer_alertes_automatiques, notifier_alertes
 from app.services.annees_scolaires import get_annee_consultee
 from app.utils_classes import classes_triees_pedagogique
 

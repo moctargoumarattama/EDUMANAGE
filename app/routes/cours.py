@@ -17,10 +17,8 @@ from .common import (
     can_manage_cours,
     current_app,
     current_user,
-    datetime,
     db,
     ecole_required,
-    filtre_par_ecole,
     flash,
     get_ecole_courante,
     io,
@@ -38,7 +36,6 @@ from .common import (
 )
 from unidecode import unidecode
 import pandas as pd
-from app.services import check_ecole_access
 from app.services.annees_scolaires import get_annee_consultee
 from app.services.classes_annuelles import classe_est_ouverte
 from app.services.cours_annuels import valider_classe_pour_nouveau_cours

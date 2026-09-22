@@ -5,7 +5,6 @@ from .common import (
     Eleve,
     IntegrityError,
     JournalCorrection,
-    Professeur,
     User,
     Utilisateur,
     ajouter_ecole_id,

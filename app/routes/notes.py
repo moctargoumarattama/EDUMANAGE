@@ -2,23 +2,17 @@ import io
 import pandas as pd
 from types import SimpleNamespace
 from datetime import datetime
-from flask import abort, current_app, flash, jsonify, redirect, render_template, request, send_file, url_for
+from flask import abort, flash, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
-from sqlalchemy.orm import joinedload
 
 from . import main
 from .common import (
     AnneeScolaire,
-    Classe,
     Cours,
-    Eleve,
-    Inscription,
     Note,
     NoteForm,
     Professeur,
     can_manage_note,
-    db,
-    get_ecole_courante,
     role_required,
 )
 from app.services.annees_scolaires import get_annee_consultee

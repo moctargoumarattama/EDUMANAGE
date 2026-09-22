@@ -4,7 +4,6 @@ from app.models import NiveauScolaire
 from .common import (
     Absence,
     AnneeScolaire,
-    can_access_class,
     can_access_eleve,
     Classe,
     Eleve,
@@ -14,7 +13,6 @@ from .common import (
     Paiement,
     Utilisateur,
     abort,
-    check_parent_access,
     current_app,
     current_user,
     datetime,
@@ -22,7 +20,6 @@ from .common import (
     ecole_required,
     filtre_par_ecole,
     flash,
-    get_ecole_filter_query,
     io,
     joinedload,
     jsonify,
@@ -43,12 +40,11 @@ from app.services.classes_annuelles import get_classes_ouvertes_annee
 from app.services.inscriptions_annuelles import creer_inscription_annuelle, get_inscription_active, get_parcours_eleve, modifier_inscription_annuelle
 from app.access_codes import generate_access_code, is_valid_access_code
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, letter
+from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 import pandas as pd
 import uuid
-from app.services import check_ecole_access
 from app.utils import sanitize_internal_url
 from app.services.import_eleves_service import (
     generer_modele_excel_eleves,
@@ -885,7 +881,7 @@ def voir_eleve(eleve_id):
     eleve.parcours_scolaire = parcours_scolaire
     eleve.classe_actuelle = inscription_active.classe if inscription_active else None
 
-    from app.services.evaluations import calculer_completude_inscription, STATUS_COMPLETE, STATUS_PROVISOIRE
+    from app.services.evaluations import calculer_completude_inscription
 
     annee_id = inscription_active.annee_scolaire_id if inscription_active else None
 

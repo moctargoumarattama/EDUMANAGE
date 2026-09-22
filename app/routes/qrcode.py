@@ -12,13 +12,11 @@ from .common import (
     jsonify,
     login_required,
     limiter,
-    os,
     render_template,
     role_required,
     send_file,
     professeur_classes,
 )
-import qrcode
 from flask import url_for, make_response
 from app.services import get_qr_cache_path
 from app.services.bulletin_verification import (
@@ -97,7 +95,6 @@ def api_qr_info(eleve_id):
 @login_required
 @role_required('admin', 'professeur')
 def qrcodes_etudiants():
-    from collections import defaultdict
     import base64
     from app.models import Cours
 

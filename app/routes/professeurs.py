@@ -1,9 +1,7 @@
 from . import main
-from app.utils_classes import classes_triees_pedagogique, ordre_pedagogique_classe
+from app.utils_classes import classes_triees_pedagogique
 from app.models import NiveauScolaire
 from .common import (
-    AnneeScolaire,
-    AssignerClassesForm,
     abort,
     Classe,
     Cours,
@@ -15,7 +13,6 @@ from .common import (
     Utilisateur,
     current_app,
     current_user,
-    datetime,
     db,
     flash,
     generate_password_hash,
@@ -23,7 +20,6 @@ from .common import (
     json,
     jsonify,
     login_required,
-    professeur_classes,
     redirect,
     render_template,
     request,

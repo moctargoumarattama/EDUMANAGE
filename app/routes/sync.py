@@ -5,7 +5,6 @@ from datetime import date, datetime
 
 from flask_wtf.csrf import generate_csrf
 
-from app.extensions import csrf
 from . import main
 from .common import (
     Absence,
@@ -15,18 +14,14 @@ from .common import (
     Eleve,
     Inscription,
     Note,
-    Paiement,
     SyncOperationLog,
     can_access_eleve,
-    can_manage_cours,
     current_app,
     current_user,
     db,
-    joinedload,
     jsonify,
     login_required,
     render_template,
-    render_template_string,
     request,
     role_required,
     send_from_directory,

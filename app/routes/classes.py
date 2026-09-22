@@ -3,7 +3,6 @@ from app.utils_classes import classes_triees_pedagogique
 from .common import (
     abort,
     AnneeScolaire,
-    can_access_class,
     Classe,
     ClasseForm,
     Cours,
@@ -18,7 +17,6 @@ from .common import (
     ecole_required,
     flash,
     get_ecole_filter_query,
-    joinedload,
     jsonify,
     login_required,
     redirect,

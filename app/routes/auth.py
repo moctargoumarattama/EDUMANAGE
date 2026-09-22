@@ -1,13 +1,7 @@
 from . import main
 from .common import (
-    Classe,
-    Cours,
     Ecole,
-    Eleve,
-    EmploiTemps,
     LoginForm,
-    Paiement,
-    Professeur,
     URLSafeTimedSerializer,
     Utilisateur,
     check_password_hash,
@@ -28,7 +22,6 @@ from .common import (
     render_template,
     request,
     role_required,
-    selectinload,
     session,
     url_for,
 )

@@ -6,10 +6,8 @@ from .common import (
     DeleteForm,
     EmploiTemps,
     Professeur,
-    current_app,
     current_user,
     datetime,
-    db,
     flash,
     log_action,
     login_required,
@@ -25,7 +23,6 @@ from app.utils_classes import classes_triees_pedagogique
 from app.services.emploi_temps_annuel import (
     MESSAGE_ANNEE_ARCHIVEE,
     MESSAGE_ANNEE_PLANIFIEE,
-    JOURS_ORDRE,
     statut_annee_emploi,
     peut_modifier_emploi_temps,
     get_creneaux_annee,

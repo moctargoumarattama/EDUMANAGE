@@ -38,7 +38,6 @@ from app.services.niveaux_annuels import (
 from app.services.inscriptions_annuelles import get_inscription
 from app.services.passage_annee import (
     valider_contexte_passage,
-    get_classes_candidates_passage,
     preparer_passage_eleve,
     executer_passage_eleve,
     preparer_passage_masse,

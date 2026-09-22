@@ -16,8 +16,6 @@ from .common import (
     current_user,
     datetime,
     db,
-    filtre_par_ecole,
-    func,
     get_ecole_filter_query,
     jsonify,
     literal,
@@ -30,7 +28,6 @@ from .common import (
     timedelta,
     url_for,
 )
-from app.services import get_cache, set_cache
 from app.services.annees_scolaires import get_annee_consultee
 from app.utils_classes import classes_triees_pedagogique
 from app.services.statistiques_annuelles import (
