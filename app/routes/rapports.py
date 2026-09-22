@@ -1,4 +1,6 @@
 from . import main
+from flask import g
+from app.authorization import tenant_required
 from .common import (
     Absence,
     AnneeScolaire,
@@ -24,7 +26,6 @@ from .common import (
     request,
     role_required,
     send_file,
-    session,
     timedelta,
     url_for,
 )
@@ -51,19 +52,23 @@ CACHE_DURATION = 60
 @main.route('/api/stats/notes_moyennes')
 @login_required
 @role_required('admin', 'professeur')
+@tenant_required
 def api_stats_notes_moyennes():
-    annee_consultee = get_annee_consultee(current_user.ecole_id)
+    ecole_id = g.ecole_id
+    annee_consultee = get_annee_consultee(ecole_id)
     professeur_id = None
     if current_user.role == 'professeur':
         professeur_id = getattr(getattr(current_user, 'professeur_rel', None), 'id', None)
-    return jsonify(get_notes_moyennes_annuelles(current_user.ecole_id, annee_consultee, professeur_id=professeur_id))
+    return jsonify(get_notes_moyennes_annuelles(ecole_id, annee_consultee, professeur_id=professeur_id))
 
 @main.route('/api/stats/absences_par_mois')
 @login_required
 @role_required('admin')
+@tenant_required
 def api_stats_absences_par_mois():
-    annee_consultee = get_annee_consultee(current_user.ecole_id)
-    return jsonify(get_absences_par_mois_annuelles(current_user.ecole_id, annee_consultee))
+    ecole_id = g.ecole_id
+    annee_consultee = get_annee_consultee(ecole_id)
+    return jsonify(get_absences_par_mois_annuelles(ecole_id, annee_consultee))
 
 @main.route('/profile')
 @login_required
@@ -212,22 +217,27 @@ def profile():
 @main.route('/rapport/notes_par_classe')
 @login_required
 @role_required('admin')
+@tenant_required
 def rapport_notes_par_classe():
-    annee_consultee = get_annee_consultee(current_user.ecole_id)
-    return jsonify(get_rapport_notes_par_classe_annuel(current_user.ecole_id, annee_consultee))
+    ecole_id = g.ecole_id
+    annee_consultee = get_annee_consultee(ecole_id)
+    return jsonify(get_rapport_notes_par_classe_annuel(ecole_id, annee_consultee))
 
 @main.route('/rapport/absences_par_classe')
 @login_required
 @role_required('admin')
+@tenant_required
 def rapport_absences_par_classe():
-    annee_consultee = get_annee_consultee(current_user.ecole_id)
-    return jsonify(get_rapport_absences_par_classe_annuel(current_user.ecole_id, annee_consultee))
+    ecole_id = g.ecole_id
+    annee_consultee = get_annee_consultee(ecole_id)
+    return jsonify(get_rapport_absences_par_classe_annuel(ecole_id, annee_consultee))
 
 @main.route('/rapports')
 @login_required
 @role_required('admin')
+@tenant_required
 def rapports():
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
     donnees = get_rapports_annuels(ecole_id, annee_consultee)
     return render_template(
@@ -270,10 +280,11 @@ def _rapport_export_rows(donnees):
 @main.route('/rapports/export_excel')
 @login_required
 @role_required('admin')
+@tenant_required
 def export_rapports_excel():
     import pandas as pd
 
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
     donnees = get_rapports_annuels(ecole_id, annee_consultee)
     stats = donnees["statistiques"]
@@ -307,13 +318,14 @@ def export_rapports_excel():
 @main.route('/rapports/export_pdf')
 @login_required
 @role_required('admin')
+@tenant_required
 def export_rapports_pdf():
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
     from reportlab.lib.styles import getSampleStyleSheet
 
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
     donnees = get_rapports_annuels(ecole_id, annee_consultee)
     stats = donnees["statistiques"]
@@ -451,6 +463,7 @@ def notifications():
 
 @main.route('/recherche')
 @login_required
+@tenant_required
 def recherche():
     terme = request.args.get('q', '').strip()
     type_recherche = request.args.get('type', 'all')
@@ -458,11 +471,7 @@ def recherche():
     page = max(request.args.get('page', 1, type=int) or 1, 1)
     per_page = min(max(request.args.get('per_page', 10, type=int) or 10, 1), 30)
 
-    ecole_id = None
-    if current_user.role in ['admin', 'professeur', 'parent']:
-        ecole_id = current_user.ecole_id
-    elif current_user.role == 'super_admin':
-        ecole_id = session.get('ecole_id')
+    ecole_id = g.ecole_id
 
     annee_consultee = get_annee_consultee(ecole_id) if ecole_id else None
     classes_query = Classe.query.filter_by(ecole_id=ecole_id) if ecole_id else Classe.query.filter(db.false())

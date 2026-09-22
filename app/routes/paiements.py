@@ -25,7 +25,8 @@ from .common import (
     send_file,
     url_for,
 )
-from flask import abort, jsonify, make_response
+from flask import abort, jsonify, make_response, g
+from app.authorization import tenant_required
 from sqlalchemy import or_
 from app.models import JournalCorrection, Utilisateur
 from app.services.annees_scolaires import get_annee_consultee
@@ -67,8 +68,10 @@ def _paiements_return_url():
 @main.route('/paiements', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
+@tenant_required
 def paiements():
-    annee = get_annee_consultee(current_user.ecole_id)
+    ecole_id = g.ecole_id
+    annee = get_annee_consultee(ecole_id)
     context_url = _paiements_return_url()
     if not annee:
         flash("Aucune année scolaire configurée pour cet établissement.", "warning")
@@ -86,10 +89,10 @@ def paiements():
     niveau_param = (request.args.get('niveau') or request.args.get('niveau_id') or '').strip()
 
     from app.services.structure_annuelle import get_niveaux_annee
-    niveaux_annee = get_niveaux_annee(current_user.ecole_id, annee.id) if annee else []
+    niveaux_annee = get_niveaux_annee(ecole_id, annee.id) if annee else []
 
     # Récupérer toutes les inscriptions de l'année scolaire consultée
-    inscriptions_annee = get_inscriptions_paiements(current_user.ecole_id, annee, current_user)
+    inscriptions_annee = get_inscriptions_paiements(ecole_id, annee, current_user)
 
     # Remplir les choix du formulaire d'encaissement avec les élèves inscrits dans l'année consultée
     form.eleve_id.choices = [
@@ -115,7 +118,7 @@ def paiements():
             return redirect(context_url)
 
         paiement, error = enregistrer_paiement(
-            ecole_id=current_user.ecole_id,
+            ecole_id=ecole_id,
             annee=annee,
             user=current_user,
             eleve_id=form.eleve_id.data,
@@ -259,7 +262,7 @@ def paiements():
     if ins_ids:
         query_paiements = (
             Paiement.query.filter(
-                Paiement.ecole_id == current_user.ecole_id,
+                Paiement.ecole_id == ecole_id,
                 Paiement.inscription_id.in_(ins_ids)
             )
             .options(
@@ -323,6 +326,7 @@ def paiements():
 @main.route('/parent/paiements')
 @login_required
 @role_required('parent')
+@tenant_required
 def paiements_parent():
     """Route obsolète, redirige vers parent_dashboard car les paiements sont affichés dans voir_eleve"""
     return redirect(url_for('main.parent_dashboard'))
@@ -334,6 +338,7 @@ def paiements_parent():
 @main.route('/paiements/<int:id>/recu')
 @login_required
 @role_required('admin', 'parent')
+@tenant_required
 def recu_paiement(id):
     paiement = (
         filtre_par_ecole(Paiement.query, Paiement)
@@ -363,6 +368,7 @@ def recu_paiement(id):
 @main.route('/paiements/<int:id>/pdf')
 @login_required
 @role_required('admin', 'parent')
+@tenant_required
 def generer_recu_pdf(id):
     paiement = (
         filtre_par_ecole(Paiement.query, Paiement)
@@ -421,14 +427,16 @@ def verifier_recu_public(token):
 @main.route('/paiements/export/excel')
 @login_required
 @role_required('admin')
+@tenant_required
 def export_paiements_excel():
     context_url = _paiements_return_url()
-    annee = get_annee_consultee(current_user.ecole_id)
+    ecole_id = g.ecole_id
+    annee = get_annee_consultee(ecole_id)
     if not annee:
         flash("Aucune année scolaire configurée.", "warning")
         return redirect(context_url)
 
-    inscriptions = get_inscriptions_paiements(current_user.ecole_id, annee, current_user)
+    inscriptions = get_inscriptions_paiements(ecole_id, annee, current_user)
     ins_ids = [ins.id for ins in inscriptions]
 
     if ins_ids:
@@ -439,7 +447,7 @@ def export_paiements_excel():
                 joinedload(Paiement.eleve),
             )
             .filter(
-                Paiement.ecole_id == current_user.ecole_id,
+                Paiement.ecole_id == ecole_id,
                 Paiement.inscription_id.in_(ins_ids)
             )
             .order_by(Paiement.date_paiement.desc(), Paiement.id.desc())
@@ -487,6 +495,7 @@ def export_paiements_excel():
 @main.route('/paiements/<int:id>/annuler', methods=['POST'])
 @login_required
 @role_required('admin', 'super_admin')
+@tenant_required
 def supprimer_paiement(id):
     is_ajax = (
         request.headers.get('X-Requested-With') == 'XMLHttpRequest'
@@ -502,12 +511,13 @@ def supprimer_paiement(id):
         abort(404)
 
     # 🛡️ Protection multi-tenant stricte : 403 si cross-tenant
-    if current_user.role != 'super_admin' and paiement.ecole_id != current_user.ecole_id:
+    ecole_id = g.ecole_id
+    if current_user.role != 'super_admin' and paiement.ecole_id != ecole_id:
         if is_ajax:
             return jsonify({'success': False, 'message': 'Action non autorisée : ce paiement appartient à un autre établissement.'}), 403
         abort(403)
 
-    annee = get_annee_consultee(current_user.ecole_id)
+    annee = get_annee_consultee(ecole_id)
     if not annee or annee.statut == 'archivee':
         msg = "L'année scolaire est archivée : suppression/annulation de paiement interdite (lecture seule)."
         if is_ajax:
@@ -580,10 +590,11 @@ def supprimer_paiement(id):
 @main.route('/paiements/configurer_mensualites', methods=['POST'])
 @login_required
 @role_required('admin', 'super_admin')
+@tenant_required
 def configurer_mensualites():
     context_url = _paiements_return_url()
     # Protection multi-tenant et rôles
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     annee = get_annee_consultee(ecole_id)
     
     if not annee:
@@ -615,9 +626,11 @@ def configurer_mensualites():
 @main.route('/paiements/tracabilite', methods=['GET'])
 @login_required
 @role_required('admin', 'super_admin')
+@tenant_required
 def tracabilite_paiements():
     """Journal d'audit et de traçabilité des paiements et annulations en lecture seule."""
-    annee = get_annee_consultee(current_user.ecole_id)
+    ecole_id = g.ecole_id
+    annee = get_annee_consultee(ecole_id)
     if not annee:
         flash("Aucune année scolaire configurée.", "warning")
         return redirect(url_for('main.gestion_annees'))
@@ -632,7 +645,7 @@ def tracabilite_paiements():
                 (JournalCorrection.cible_type == 'paiement') & (JournalCorrection.cible_id == Paiement.id)
             )
             .filter(
-                Paiement.ecole_id == current_user.ecole_id,
+                Paiement.ecole_id == ecole_id,
                 Inscription.annee_scolaire_id == annee.id,
                 JournalCorrection.id.is_(None)
             )
@@ -677,7 +690,7 @@ def tracabilite_paiements():
         .outerjoin(Classe, Inscription.classe_id == Classe.id)
         .outerjoin(Utilisateur, JournalCorrection.user_id == Utilisateur.id)
         .filter(
-            JournalCorrection.ecole_id == current_user.ecole_id,
+            JournalCorrection.ecole_id == ecole_id,
             JournalCorrection.cible_type == 'paiement',
             Inscription.annee_scolaire_id == annee.id
         )
@@ -710,7 +723,7 @@ def tracabilite_paiements():
         .join(Paiement, JournalCorrection.cible_id == Paiement.id)
         .join(Inscription, Paiement.inscription_id == Inscription.id)
         .filter(
-            JournalCorrection.ecole_id == current_user.ecole_id,
+            JournalCorrection.ecole_id == ecole_id,
             JournalCorrection.cible_type == 'paiement',
             Inscription.annee_scolaire_id == annee.id
         )

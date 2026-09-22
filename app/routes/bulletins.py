@@ -1,5 +1,6 @@
 from collections import defaultdict
-from flask import request, jsonify
+from flask import g, jsonify, request
+from app.authorization import tenant_required
 from . import main
 import os
 from .common import (
@@ -75,6 +76,7 @@ def _bulletins_return_url():
 @main.route('/bulletin/inscription/<int:inscription_id>')
 @login_required
 @role_required('admin', 'professeur', 'parent')
+@tenant_required
 def bulletin_eleve(id=None, inscription_id=None):
     """
     Génère le bulletin PDF d’un élève ancré à son Inscription annuelle :
@@ -85,7 +87,7 @@ def bulletin_eleve(id=None, inscription_id=None):
     - Année planifiée : génération interdite.
     - Règle 2C-5D : Ne mute jamais session["annee_consultee"].
     """
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     req_inscription_id = inscription_id or request.args.get('inscription_id', type=int)
 
     inscription = None
@@ -250,12 +252,13 @@ def bulletin_eleve(id=None, inscription_id=None):
 
 @main.route('/bulletins')
 @login_required
+@tenant_required
 def bulletins():
     """
     Page d'accueil des bulletins organisés par classe et année scolaire consultée.
     Règle 2C-5D : Consomme get_annee_consultee(ecole_id) sans modifier la session.
     """
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     context_url = _bulletins_return_url()
     annee = get_annee_consultee(ecole_id)
 
@@ -318,7 +321,6 @@ def bulletins():
 
     # Pré-chargement des cours par classe pour éviter N+1
     if class_ids:
-        from flask import g
         if not hasattr(g, '_cours_attendus_cache'):
             g._cours_attendus_cache = {}
         tous_cours = Cours.query.filter(
@@ -581,11 +583,13 @@ def bulletins():
 @main.route('/bulletins/<int:id>/supprimer', methods=['POST'])
 @login_required
 @role_required('admin')
+@tenant_required
 def route_supprimer_bulletin(id):
     context_url = _bulletins_return_url()
     """Supprime un bulletin persistant (interdit sur année archivée ou planifiée)."""
-    annee = get_annee_consultee(current_user.ecole_id)
-    succes, err = supprimer_bulletin(current_user.ecole_id, annee, current_user, id)
+    ecole_id = g.ecole_id
+    annee = get_annee_consultee(ecole_id)
+    succes, err = supprimer_bulletin(ecole_id, annee, current_user, id)
     if not succes:
         flash(err or "Impossible de supprimer ce bulletin.", "danger")
     else:
@@ -596,12 +600,14 @@ def route_supprimer_bulletin(id):
 @main.route('/bulletin/<int:id>/appreciation', methods=['POST'])
 @login_required
 @role_required('admin', 'professeur')
+@tenant_required
 def route_modifier_appreciation(id):
     context_url = _bulletins_return_url()
     """Modifie l'appréciation générale d'un bulletin (interdit sur année archivée)."""
-    annee = get_annee_consultee(current_user.ecole_id)
+    ecole_id = g.ecole_id
+    annee = get_annee_consultee(ecole_id)
     nouvelle_appreciation = request.form.get('appreciation', '')
-    bulletin_mod, err = modifier_appreciation_bulletin(current_user.ecole_id, annee, current_user, id, nouvelle_appreciation)
+    bulletin_mod, err = modifier_appreciation_bulletin(ecole_id, annee, current_user, id, nouvelle_appreciation)
     if err:
         flash(err, "danger")
     else:
@@ -612,8 +618,10 @@ def route_modifier_appreciation(id):
 @main.route('/toggle_periode/<int:id>', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
+@tenant_required
 def toggle_periode(id):
-    periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
+    ecole_id = g.ecole_id
+    periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=ecole_id).first_or_404()
 
     # Si la période n'est pas encore publiée, l'administrateur demande sa publication officielle
     if not periode.publie:
@@ -656,7 +664,7 @@ def toggle_periode(id):
     journal = JournalCorrection(
         action=action_name,
         description=desc,
-        ecole_id=current_user.ecole_id,
+        ecole_id=ecole_id,
         user_id=current_user.id,
         cible_type="periode_bulletin",
         cible_id=periode.id,
@@ -672,15 +680,17 @@ def toggle_periode(id):
 @main.route('/reouvrir_periode/<int:id>', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
+@tenant_required
 def reouvrir_periode(id):
     """Réouverture administrative explicite d'un bulletin / semestre."""
-    periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
+    ecole_id = g.ecole_id
+    periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=ecole_id).first_or_404()
     periode.publie = False
 
     journal = JournalCorrection(
         action="BULLETIN_REOUVERT",
         description=f"Réouverture administrative explicite du bulletin {periode.nom}",
-        ecole_id=current_user.ecole_id,
+        ecole_id=ecole_id,
         user_id=current_user.id,
         cible_type="periode_bulletin",
         cible_id=periode.id,
@@ -696,8 +706,10 @@ def reouvrir_periode(id):
 @main.route('/periodes')
 @login_required
 @role_required('admin')
+@tenant_required
 def gestion_periodes():
-    annee = get_annee_consultee(current_user.ecole_id)
+    ecole_id = g.ecole_id
+    annee = get_annee_consultee(ecole_id)
     query = get_ecole_filter_query(PeriodeBulletin)
     if annee:
         query = query.filter_by(annee_id=annee.id)
@@ -708,16 +720,18 @@ def gestion_periodes():
 @main.route('/activer_periode/<int:id>')
 @login_required
 @role_required('admin')
+@tenant_required
 def activer_periode(id):
     """Rendre une période active (période de travail) sans forcer sa publication officielle."""
-    annee = get_annee_consultee(current_user.ecole_id)
-    filter_kwargs = {'ecole_id': current_user.ecole_id}
+    ecole_id = g.ecole_id
+    annee = get_annee_consultee(ecole_id)
+    filter_kwargs = {'ecole_id': ecole_id}
     if annee:
         filter_kwargs['annee_id'] = annee.id
 
     PeriodeBulletin.query.filter_by(**filter_kwargs).update({'periode_active': False})
     
-    periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=current_user.ecole_id).first_or_404()
+    periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=ecole_id).first_or_404()
     periode.periode_active = True
     # IMPORTANT : Ne force PAS periode.publie = True (activation != publication)
     
@@ -729,15 +743,17 @@ def activer_periode(id):
 @main.route('/creer_periode', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
+@tenant_required
 def creer_periode():
     """Créer une nouvelle période de bulletin"""
+    ecole_id = g.ecole_id
     form = PeriodeForm()
-    form.annee_id.choices = [(a.id, a.nom) for a in AnneeScolaire.query.filter_by(ecole_id=current_user.ecole_id).all()]
+    form.annee_id.choices = [(a.id, a.nom) for a in AnneeScolaire.query.filter_by(ecole_id=ecole_id).all()]
     
     if form.validate_on_submit():
         nom = form.nom.data
         annee_id = form.annee_id.data
-        annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=current_user.ecole_id).first()
+        annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
         if not annee:
             flash("Année scolaire invalide pour cette école.", "danger")
             return redirect(url_for('main.creer_periode'))
@@ -745,7 +761,7 @@ def creer_periode():
         nouvelle_periode = PeriodeBulletin(
             nom=nom,
             annee_id=annee_id,
-            ecole_id=current_user.ecole_id,
+            ecole_id=ecole_id,
             publie=False,
             periode_active=False
         )

@@ -1,4 +1,6 @@
 from . import main
+from flask import g
+from app.authorization import tenant_required
 from .common import (
     AjouterEmploiForm,
     Classe,
@@ -38,12 +40,13 @@ from app.services.emploi_temps_annuel import (
 @main.route('/admin/emplois')
 @login_required
 @role_required('admin', 'professeur', 'parent')
+@tenant_required
 def admin_emplois():
     """
     Liste des emplois du temps organisés par classe - filtrée par école et année consultée.
     Respecte la règle 2C-5D : consomme get_annee_consultee() sans muter la session.
     """
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
 
     delete_form = DeleteForm()
@@ -151,12 +154,13 @@ def admin_emplois():
 @main.route('/admin/ajouter_emploi', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
+@tenant_required
 def ajouter_emploi():
     """
     Ajout d'un créneau d'emploi du temps - filtré par école et année consultée.
     Autorisé en année active et planifiée. Rejeté en année archivée.
     """
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
 
     if not annee_consultee:
@@ -214,12 +218,13 @@ def ajouter_emploi():
 @main.route('/emploi/<int:id>/modifier', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
+@tenant_required
 def modifier_emploi(id):
     """
     Modification d'un créneau d'emploi du temps.
     Autorisé en année active et planifiée. Rejeté en année archivée.
     """
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
     emploi = EmploiTemps.query.filter_by(id=id, ecole_id=ecole_id).first_or_404()
 
@@ -268,12 +273,13 @@ def modifier_emploi(id):
 @main.route('/emploi/<int:id>/supprimer', methods=['POST'])
 @login_required
 @role_required('admin')
+@tenant_required
 def supprimer_emploi(id):
     """
     Suppression d'un créneau d'emploi du temps.
     Autorisé en année active et planifiée. Rejeté en année archivée.
     """
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
 
     if not annee_consultee:
@@ -293,11 +299,12 @@ def supprimer_emploi(id):
 @main.route('/emploi/classe/<int:classe_id>/export_json')
 @login_required
 @role_required('admin', 'professeur', 'parent')
+@tenant_required
 def export_json_classe(classe_id):
     """
     Export JSON de l'emploi du temps d'une classe pour l'année consultée.
     """
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
     donnees, error = donnees_impression_classe(ecole_id, annee_consultee, classe_id, user=current_user)
     if error:
@@ -308,11 +315,12 @@ def export_json_classe(classe_id):
 @main.route('/emploi/classe/<int:classe_id>/imprimer')
 @login_required
 @role_required('admin', 'professeur', 'parent')
+@tenant_required
 def imprimer_classe(classe_id):
     """
     Vue imprimable de l'emploi du temps d'une classe pour l'année consultée.
     """
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
     donnees, error = donnees_impression_classe(ecole_id, annee_consultee, classe_id, user=current_user)
     if error:
@@ -329,11 +337,12 @@ def imprimer_classe(classe_id):
 
 @main.route('/api/cours_classe/<int:classe_id>')
 @login_required
+@tenant_required
 def api_cours_classe(classe_id):
     """
     API AJAX pour charger dynamiquement les cours d'une classe dans l'année consultée.
     """
-    ecole_id = current_user.ecole_id
+    ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
     classe = Classe.query.filter_by(id=classe_id, ecole_id=ecole_id).first()
     if not classe or not annee_consultee or classe.annee_scolaire_id != annee_consultee.id:
