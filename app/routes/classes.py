@@ -1,5 +1,7 @@
 from . import main
 from app.utils_classes import classes_triees_pedagogique
+from flask import g
+from app.authorization import tenant_required
 from .common import (
     abort,
     AnneeScolaire,
@@ -14,7 +16,6 @@ from .common import (
     current_app,
     current_user,
     db,
-    ecole_required,
     flash,
     get_ecole_filter_query,
     jsonify,
@@ -23,7 +24,6 @@ from .common import (
     render_template,
     request,
     role_required,
-    session,
     url_for,
 )
 from app.services import get_statistics
@@ -35,13 +35,10 @@ from app.services.niveaux import creer_classe_depuis_niveau, get_niveau_configs_
 @main.route('/api/classes')
 @login_required
 @role_required('admin', 'professeur')
-@ecole_required
+@tenant_required
 def api_classes():
     """Retourne la liste des classes filtrée par école et année active (JSON)"""
-    # Détermination de l'école
-    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
-    if not ecole_id:
-        return jsonify([]), 403  # Super-admin sans école sélectionnée
+    ecole_id = g.ecole_id
 
     # Récupération de l'année scolaire active
     annee_consultee = get_annee_consultee(ecole_id)
@@ -84,12 +81,10 @@ def api_classes():
 @main.route('/api/niveaux')
 @login_required
 @role_required('admin', 'professeur')
-@ecole_required
+@tenant_required
 def api_niveaux():
     """Retourne la liste des niveaux scolaires actifs pour l'année consultée ou spécifiée (JSON)"""
-    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
-    if not ecole_id:
-        return jsonify([]), 403
+    ecole_id = g.ecole_id
 
     annee_id = request.args.get('annee_id', type=int)
     if annee_id:
@@ -115,6 +110,7 @@ def api_niveaux():
 
 @main.route("/classes")
 @login_required
+@tenant_required
 def liste_classes():
     page = request.args.get('page', 1, type=int)
     per_page = 25  # Affichage confortable pour les longues listes
@@ -125,10 +121,7 @@ def liste_classes():
     sort_by = request.args.get('sort', 'nom')
 
     # Base query pour l'école de l'utilisateur
-    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
-    if not ecole_id:
-        flash("Veuillez selectionner une ecole.", "warning")
-        return redirect(url_for("main.index"))
+    ecole_id = g.ecole_id
 
     annee_consultee = get_annee_consultee(ecole_id)
     base_query = get_classes_annee(ecole_id, annee_consultee.id) if annee_consultee else Classe.query.filter_by(ecole_id=ecole_id).filter(db.false())
@@ -225,13 +218,10 @@ def liste_classes():
 @main.route('/classes/generation-rapide', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
-@ecole_required
+@tenant_required(message="Veuillez sélectionner un établissement.")
 def generation_rapide_classes():
     """Génération par lot et accélérée des classes pour l'année scolaire active."""
-    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
-    if not ecole_id:
-        flash("Veuillez sélectionner un établissement.", "warning")
-        return redirect(url_for("main.index"))
+    ecole_id = g.ecole_id
 
     annee_consultee = get_annee_consultee(ecole_id)
     if not annee_consultee:
@@ -610,11 +600,9 @@ def modifier_classe(classe_id):
 @main.route("/parametres-pedagogiques", methods=["GET", "POST"])
 @login_required
 @role_required('admin', 'super_admin')
+@tenant_required(message="Veuillez selectionner une ecole avant de modifier les parametres pedagogiques.")
 def parametres_pedagogiques():
-    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
-    if not ecole_id:
-        flash("Veuillez selectionner une ecole avant de modifier les parametres pedagogiques.", "warning")
-        return redirect(url_for("main.index"))
+    ecole_id = g.ecole_id
 
     if request.method == "POST":
         action = request.form.get("action")
@@ -695,14 +683,9 @@ def supprimer_classe(classe_id):
 @main.route("/classes/<int:classe_id>/statut", methods=["POST"])
 @login_required
 @role_required('admin', 'super_admin')
+@tenant_required(redirect_endpoint="main.liste_classes")
 def changer_statut_classe(classe_id):
-    ecole_id = current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
-    if not ecole_id:
-        message = "Veuillez selectionner une ecole."
-        if request.is_json:
-            return jsonify({"success": False, "message": message}), 403
-        flash(message, "warning")
-        return redirect(url_for("main.liste_classes"))
+    ecole_id = g.ecole_id
 
     payload = request.get_json(silent=True) or {}
     statut = payload.get("statut") or request.form.get("statut")

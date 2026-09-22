@@ -1,4 +1,4 @@
-from flask import abort, flash, redirect, url_for, current_app, request, jsonify, g
+from flask import abort, flash, redirect, url_for, current_app, request, jsonify, g, session
 from flask_login import current_user
 from functools import wraps
 from app.models import Eleve
@@ -294,5 +294,51 @@ def role_required(*roles):
 
             return f(*args, **kwargs)
         return decorated_function
+    return decorator
+
+
+def tenant_required(f=None, *, redirect_endpoint='main.index', message="Veuillez selectionner une ecole.", flash_category="warning"):
+    """
+    Décorateur garantissant qu'une école active (tenant) est sélectionnée.
+    - Résout ecole_id depuis current_user.ecole_id (utilisateurs normaux) ou session.get('ecole_id') (super_admin).
+    - En cas d'absence d'école :
+        * Requêtes API / JSON : retourne JSON 403 (ou [] pour endpoints de listing).
+        * Requêtes HTML : flash le message et redirige vers redirect_endpoint (par défaut main.index).
+    - Si l'école est valide : l'attache à `g.ecole_id` sous forme d'entier et synchronise session['ecole_id'].
+    """
+    def decorator(func):
+        @wraps(func)
+        def decorated_function(*args, **kwargs):
+            if not getattr(current_user, 'is_authenticated', False):
+                if request.is_json or request.path.startswith('/api/'):
+                    return jsonify({"error": "Vous devez être connecté pour accéder à cette ressource."}), 401
+                flash("Vous devez être connecté pour accéder à cette ressource.", "warning")
+                return redirect(url_for('main.login'))
+
+            ecole_id = getattr(current_user, 'ecole_id', None) if getattr(current_user, 'role', None) != 'super_admin' else session.get('ecole_id')
+            if not ecole_id:
+                ecole_id = session.get('ecole_id') or getattr(current_user, 'ecole_id', None)
+
+            if not ecole_id:
+                if request.is_json or request.path.startswith('/api/'):
+                    if request.path.startswith('/api/classes') or request.path.startswith('/api/niveaux'):
+                        return jsonify([]), 403
+                    return jsonify({"success": False, "message": message, "error": message}), 403
+                flash(message, flash_category)
+                return redirect(url_for(redirect_endpoint))
+
+            try:
+                g.ecole_id = int(ecole_id)
+            except (TypeError, ValueError):
+                g.ecole_id = ecole_id
+
+            if session.get('ecole_id') != g.ecole_id:
+                session['ecole_id'] = g.ecole_id
+
+            return func(*args, **kwargs)
+        return decorated_function
+
+    if f is not None and callable(f):
+        return decorator(f)
     return decorator
 
