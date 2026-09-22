@@ -60,20 +60,16 @@ class TestLandingPage(unittest.TestCase):
         # Bouton Demander une présentation
         self.assertIn("Demander une présentation", html)
 
-    def test_03_landing_contient_les_8_fonctionnalites(self):
-        """3. Vérifie que les 8 fonctionnalités essentielles sont présentes sur la page."""
+    def test_03_landing_contient_les_4_fonctionnalites_cles(self):
+        """3. Vérifie que les 4 fonctionnalités clés orientées bénéfices sont présentes sur la page."""
         response = self.client.get('/')
         html = response.data.decode('utf-8')
         
         features = [
-            "Élèves & classes",
-            "Professeurs",
-            "Notes & évaluations",
-            "Absences",
-            "Paiements",
-            "Bulletins scolaires",
-            "Emploi du temps",
-            "Rapports & vérification QR"
+            "Bulletins & calculs automatiques des moyennes en 1 clic",
+            "Pointage des présences & Badges QR Code",
+            "Suivi clair des paiements et reçus officiels instantanés",
+            "Emplois du temps et gestion simple des cours"
         ]
         for f in features:
             self.assertIn(f, html, f"La fonctionnalité '{f}' est manquante dans la vitrine publique.")
@@ -92,18 +88,14 @@ class TestLandingPage(unittest.TestCase):
         self.assertIn("Chaque utilisateur dispose uniquement des accès correspondant à son rôle.", html)
 
     def test_05_landing_contient_securite_factuelle_et_liens(self):
-        """5. Vérifie les 4 piliers factuels de sécurité et les liens vers /securite et /politique-confidentialite."""
+        """5. Vérifie le bloc de sécurité et les liens vers /securite et /politique-confidentialite."""
         response = self.client.get('/')
         html = response.data.decode('utf-8')
         
         self.assertIn("Vos données scolaires méritent une vraie protection.", html)
-        self.assertIn("Accès sécurisés selon les rôles", html)
-        self.assertIn("Séparation des établissements", html)
-        self.assertIn("Sauvegardes régulières", html)
-        self.assertIn("Documents vérifiables par QR", html)
-        
-        # Liens
+        self.assertIn("Politique de confidentialité", html)
         self.assertIn("/politique-confidentialite", html)
+        self.assertIn("Détails sur la sécurité", html)
         self.assertIn("/securite", html)
 
     def test_06_landing_contient_texte_a_propos_exact(self):

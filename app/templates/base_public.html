@@ -56,30 +56,32 @@
                     <i class="fas fa-bars text-dark fs-4"></i>
                 </button>
 
-                <!-- Menu de Navigation Collapsible -->
+                <!-- Menu de Navigation Collapsible (Sécurité & Confidentialité) -->
                 <div class="collapse navbar-collapse" id="publicNavCollapse">
-                    <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-1">
+                    <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-2 kl-nav-list">
                         <li class="nav-item">
-                            <a class="kl-nav-link" href="{{ url_for('main.index') }}#fonctionnalites">Fonctionnalités</a>
+                            <a class="kl-nav-link" href="{{ url_for('main.securite') }}">
+                                <i class="fas fa-shield-alt text-primary me-2"></i>
+                                <span>Sécurité</span>
+                                <i class="fas fa-chevron-right d-lg-none text-muted small ms-auto"></i>
+                            </a>
                         </li>
                         <li class="nav-item">
-                            <a class="kl-nav-link" href="{{ url_for('main.index') }}#utilisateurs">Utilisateurs</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="kl-nav-link" href="{{ url_for('main.index') }}#securite">Sécurité</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="kl-nav-link" href="{{ url_for('main.index') }}#a-propos">À propos</a>
+                            <a class="kl-nav-link" href="{{ url_for('main.politique_confidentialite') }}">
+                                <i class="fas fa-file-contract text-primary me-2"></i>
+                                <span>Confidentialité</span>
+                                <i class="fas fa-chevron-right d-lg-none text-muted small ms-auto"></i>
+                            </a>
                         </li>
                     </ul>
 
-                    <!-- Actions à Droite : Présentation & Se connecter -->
-                    <div class="d-flex align-items-stretch align-items-lg-center flex-column flex-lg-row gap-2 mt-3 mt-lg-0">
-                        <button type="button" class="kl-btn-demo-nav border-0" data-bs-toggle="modal" data-bs-target="#demoModal">
+                    <!-- Actions à Droite (Desktop Uniquement) -->
+                    <div class="kl-nav-actions d-none d-lg-flex align-items-center gap-2">
+                        <button type="button" class="kl-btn-demo-nav border-0 justify-content-center" data-bs-toggle="modal" data-bs-target="#demoModal">
                             <i class="fas fa-calendar-check text-primary"></i>
                             <span>Demander une présentation</span>
                         </button>
-                        <a href="{{ url_for('main.login') }}" class="kl-btn-login text-center">
+                        <a href="{{ url_for('main.login') }}" class="kl-btn-login text-center justify-content-center">
                             <i class="fas fa-sign-in-alt"></i>
                             <span>Se connecter</span>
                         </a>

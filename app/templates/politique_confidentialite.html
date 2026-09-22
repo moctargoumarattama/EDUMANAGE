@@ -3,7 +3,7 @@
 {% block title %}Politique de Confidentialité — KLASORA{% endblock %}
 
 {% block content %}
-<div class="container py-5">
+<div class="container py-4 py-lg-5">
     <!-- Fil d'Ariane -->
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb small">
@@ -12,60 +12,165 @@
         </ol>
     </nav>
 
-    <div class="kl-page-content-box mx-auto" style="max-width: 860px;">
-        <span class="kl-kicker mb-2">Protection des Données</span>
-        <h1 class="kl-title-h1 fs-2 mb-3">Politique de Confidentialité</h1>
-        <p class="text-muted small">Dernière mise à jour : Septembre 2026</p>
+    <div class="kl-page-content-box mx-auto" style="max-width: 880px;">
+        <!-- En-tête de la page -->
+        <div class="text-start mb-4">
+            <span class="kl-kicker mb-2">
+                <i class="fas fa-shield-alt"></i> Protection des Données
+            </span>
+            <h1 class="kl-title-h1 fs-2 mb-2">Politique de Confidentialité</h1>
+            <p class="text-muted mb-3">
+                L’engagement de KLASORA pour la protection, la souveraineté et le respect absolu de la vie privée des établissements scolaires, des élèves et de leurs familles.
+            </p>
+            <div class="d-inline-flex align-items-center gap-2 small text-secondary bg-light border px-3 py-1.5 rounded-pill">
+                <i class="fas fa-clock text-primary"></i> Dernière mise à jour : Septembre 2026
+            </div>
+        </div>
 
         <hr class="my-4">
 
-        <h2>1. Engagement Général</h2>
-        <p>
-            KLASORA est une plateforme logicielle conçue pour accompagner les établissements scolaires dans leur gestion administrative et pédagogique. La protection de la vie privée des élèves, des parents et du personnel éducatif est au cœur de notre conception logicielle.
-        </p>
+        <!-- 1. Responsabilité & Propriété -->
+        <div class="kl-policy-card">
+            <div class="kl-policy-header">
+                <div class="kl-policy-icon">
+                    <i class="fas fa-school"></i>
+                </div>
+                <div>
+                    <h2>1. Rôle de l'Établissement & Propriété des Données</h2>
+                </div>
+            </div>
+            <p class="mb-2">
+                L’établissement scolaire abonné à KLASORA demeure <strong>l'unique propriétaire et responsable du traitement</strong> des données de ses élèves, de leurs parents et de son personnel éducatif.
+            </p>
+            <p class="mb-0 text-muted small">
+                KLASORA agit exclusivement en qualité de prestataire technique et sous-traitant sécurisé. Aucune donnée n'est la propriété de la plateforme.
+            </p>
+        </div>
 
-        <h2>2. Rôle de l'Établissement et de KLASORA</h2>
-        <p>
-            L’établissement scolaire abonné à KLASORA demeure l'unique responsable du traitement des données personnelles de ses élèves, de leurs familles et de son personnel. KLASORA intervient exclusivement en qualité de prestataire technique et sous-traitant sécurisé.
-        </p>
+        <!-- 2. Données traitées & Finalités scolaires -->
+        <div class="kl-policy-card">
+            <div class="kl-policy-header">
+                <div class="kl-policy-icon">
+                    <i class="fas fa-clipboard-list"></i>
+                </div>
+                <div>
+                    <h2>2. Données Traitées & Finalités Scolaires</h2>
+                </div>
+            </div>
+            <p class="mb-3">
+                Les informations renseignées sur KLASORA sont limitées à ce qui est strictement nécessaire au fonctionnement quotidien et administratif de l’école :
+            </p>
 
-        <h2>3. Données Traitées & Finalités</h2>
-        <p>Les données renseignées par l'établissement sont limitées à ce qui est strictement nécessaire au fonctionnement de la scolarité :</p>
-        <ul>
-            <li><strong>Dossier de l'élève :</strong> Nom, prénom, date de naissance, classe, matricule interne, photo facultative.</li>
-            <li><strong>Parcours pédagogique :</strong> Notes, moyennes, appréciations, coefficients, rangs et décisions du conseil de classe.</li>
-            <li><strong>Assiduité :</strong> Enregistrement des retards et absences en classe.</li>
-            <li><strong>Coordonnées des parents ou tuteurs :</strong> Nom, numéro de téléphone / WhatsApp et email pour la transmission des avis scolaires et reçus.</li>
-            <li><strong>Scolarité et finances scolaires :</strong> Échéances de frais scolaires, enregistrement des règlements et édition des reçus.</li>
-        </ul>
+            <div class="kl-policy-grid">
+                <div class="kl-policy-item">
+                    <div class="kl-policy-item-icon text-primary">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div>
+                        <strong>Dossier de l'élève</strong>
+                        <small>Nom, prénom, date de naissance, classe, matricule interne et photo facultative.</small>
+                    </div>
+                </div>
 
-        <h2>4. Non-Commercialisation des Données</h2>
-        <p>
-            <strong>KLASORA ne vend, ne loue et ne commercialise aucune donnée personnelle.</strong> Aucune donnée scolaire n'est exploitée à des fins publicitaires, commerciales ou de profilage.
-        </p>
+                <div class="kl-policy-item">
+                    <div class="kl-policy-item-icon text-success">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div>
+                        <strong>Parcours pédagogique</strong>
+                        <small>Notes, coefficients, moyennes, appréciations et bulletins scolaires officiels.</small>
+                    </div>
+                </div>
 
-        <h2>5. Cloisonnement Multi-Établissements</h2>
-        <p>
-            L'architecture de KLASORA assure une séparation hermétique des bases et requêtes par identifiant d'établissement (<code>ecole_id</code>). Aucun utilisateur d'un établissement ne peut consulter, rechercher ou modifier les données d'un autre établissement.
-        </p>
+                <div class="kl-policy-item">
+                    <div class="kl-policy-item-icon text-warning">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div>
+                        <strong>Assiduité & discipline</strong>
+                        <small>Suivi de l'appel en classe, retards et motifs des absences justifiées.</small>
+                    </div>
+                </div>
 
-        <h2>6. Vérification Publique des Bulletins (QR Code)</h2>
-        <p>
-            Les bulletins édités intègrent un QR code permettant de vérifier publiquement l'authenticité du document officiel. La page de vérification affiche uniquement les données académiques publiques du bulletin (nom, prénom, classe, moyenne et mention) sous l'identité de l'école émettrice, sans jamais divulguer les contacts personnels ou coordonnées privées de la famille.
-        </p>
+                <div class="kl-policy-item">
+                    <div class="kl-policy-item-icon text-info">
+                        <i class="fas fa-user-friends"></i>
+                    </div>
+                    <div>
+                        <strong>Coordonnées des parents</strong>
+                        <small>Numéro WhatsApp, téléphone et email pour l'envoi des avis scolaires et reçus.</small>
+                    </div>
+                </div>
 
-        <h2>7. Droits d'Accès et de Rectification</h2>
-        <p>
-            Conformément aux réglementations relatives à la protection des données personnelles, les parents et élèves peuvent exercer leurs droits d'accès, de rectification ou d'effacement de leurs informations scolaires directement auprès de la direction de leur établissement.
-        </p>
+                <div class="kl-policy-item">
+                    <div class="kl-policy-item-icon text-danger">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                    <div>
+                        <strong>Finances scolaires</strong>
+                        <small>Échéanciers de scolarité, enregistrement des règlements et reçus officiels.</small>
+                    </div>
+                </div>
 
-        <div class="mt-5 pt-4 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-sm">
+                <div class="kl-policy-item">
+                    <div class="kl-policy-item-icon text-secondary">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <div>
+                        <strong>Vérification académique (QR)</strong>
+                        <small>Authentification publique du bulletin sans jamais divulguer les coordonnées privées.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Bannière Zéro Vente & Non-Commercialisation -->
+        <div class="kl-policy-banner-safe">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <span class="fs-4 text-success"><i class="fas fa-shield-check"></i></span>
+                <h2 class="fs-5 fw-bold text-success-emphasis mb-0">3. Engagement Zéro Commercialisation</h2>
+            </div>
+            <p class="mb-0 text-dark" style="font-size: 0.95rem;">
+                <strong>KLASORA ne vend, ne loue et ne commercialise aucune donnée personnelle.</strong> Aucune donnée scolaire n'est exploitée à des fins publicitaires, commerciales, de reciblage ou de profilage. Les données appartiennent à l'établissement et à lui seul.
+            </p>
+        </div>
+
+        <!-- 4. Droits d'Accès, Rectification & Suppression -->
+        <div class="kl-policy-card">
+            <div class="kl-policy-header">
+                <div class="kl-policy-icon">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div>
+                    <h2>4. Droits d'Accès, de Rectification et d'Effacement</h2>
+                </div>
+            </div>
+            <p class="mb-2">
+                Conformément aux réglementations relatives à la protection de la vie privée, les parents, tuteurs légaux et élèves disposent des droits suivants :
+            </p>
+            <ul class="mb-3 ps-3 small text-muted">
+                <li><strong>Droit d'accès et d'information :</strong> Consulter à tout moment les données enregistrées sur l'espace élève.</li>
+                <li><strong>Droit de rectification :</strong> Corriger toute information inexacte ou obsolète (adresse, téléphone, orthographe).</li>
+                <li><strong>Droit d'archivage ou d'effacement :</strong> En cas de départ de l'établissement, selon les obligations légales d'archivage scolaire.</li>
+            </ul>
+            <p class="mb-0 small text-muted">
+                <i class="fas fa-info-circle text-primary me-1"></i>Pour exercer ces droits, la famille s'adresse directement au secrétariat ou à la direction de son établissement.
+            </p>
+        </div>
+
+        <!-- Actions de Bas de Page -->
+        <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <a href="{{ url_for('main.index') }}" class="btn btn-outline-secondary btn-sm rounded-3">
                 <i class="fas fa-arrow-left me-1"></i>Retour à l'accueil
             </a>
-            <a href="{{ url_for('main.securite') }}" class="btn btn-primary btn-sm">
-                <i class="fas fa-shield-alt me-1"></i>Consulter la page Sécurité
-            </a>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('main.securite') }}" class="btn btn-outline-primary btn-sm rounded-3">
+                    <i class="fas fa-shield-alt me-1"></i>Consulter la page Sécurité
+                </a>
+                <button type="button" class="btn btn-primary btn-sm rounded-3" data-bs-toggle="modal" data-bs-target="#demoModal">
+                    <i class="fas fa-play-circle me-1"></i>Demander une présentation
+                </button>
+            </div>
         </div>
     </div>
 </div>

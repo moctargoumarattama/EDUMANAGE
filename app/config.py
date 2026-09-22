@@ -11,15 +11,22 @@ class ConfigError(RuntimeError):
     pass
 
 
+def _get_default_sqlite_uri():
+    base_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+    instance_db = os.path.join(base_dir, "instance", "ecole.db")
+    if os.path.exists(instance_db):
+        return f"sqlite:///{instance_db.replace(os.sep, '/')}"
+    return "sqlite:///instance/ecole.db"
+
+
 def is_testing_environment():
-    """Detect if running under automated tests (pytest / unittest / TESTING flag)."""
+    """Detect if running under automated tests (pytest / testing flag)."""
     return (
-        "pytest" in sys.modules
-        or "unittest" in sys.modules
-        or os.environ.get("TESTING", "").lower() in {"1", "true", "yes"}
+        os.environ.get("TESTING", "").lower() in {"1", "true", "yes"}
         or os.environ.get("APP_ENV", "").lower() in {"test", "testing"}
         or os.environ.get("FLASK_ENV", "").lower() in {"test", "testing"}
         or os.environ.get("ENV", "").lower() in {"test", "testing"}
+        or "PYTEST_CURRENT_TEST" in os.environ
     )
 
 
@@ -81,7 +88,7 @@ class Config:
     REMEMBER_COOKIE_SAMESITE = "Lax"
 
     # Base de donnees
-    SQLALCHEMY_DATABASE_URI = normalize_database_url(os.environ.get("DATABASE_URL", "sqlite:///ecole.db"))
+    SQLALCHEMY_DATABASE_URI = normalize_database_url(os.environ.get("DATABASE_URL") or _get_default_sqlite_uri())
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = get_engine_options(SQLALCHEMY_DATABASE_URI)
 
