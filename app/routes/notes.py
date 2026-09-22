@@ -300,7 +300,6 @@ def notes():
     # Pré-chargement des cours attendus par classe pour la complétude
     classe_ids_ins = {ins.classe_id for ins in inscriptions if ins.classe_id}
     if classe_ids_ins and annee_consultee:
-        from flask import g
         if not hasattr(g, '_cours_attendus_cache'):
             g._cours_attendus_cache = {}
         missing_cids = [cid for cid in classe_ids_ins if (ecole_id, cid, annee_consultee.id) not in g._cours_attendus_cache]
