@@ -98,10 +98,30 @@ def preparer_activation_annee(ecole_id, annee_id):
 
     nb_synchronises = 0
     nb_sans_inscription = 0
+    nb_promus = 0
+    nb_redoublants = 0
+    nb_nouveaux = 0
+
+    inscriptions_source = {}
+    if ancienne_active:
+        inscriptions_source = {
+            insc.eleve_id: insc
+            for insc in Inscription.query
+            .filter_by(ecole_id=ecole_id, annee_scolaire_id=ancienne_active.id)
+            .all()
+        }
+
     for el in eleves_ecole:
         insc = inscriptions_cible.get(el.id)
-        if insc and insc.statut == "inscrit" and insc.classe_id:
+        if insc and insc.statut in ("inscrit", "actif") and insc.classe_id:
             nb_synchronises += 1
+            insc_s = inscriptions_source.get(el.id)
+            if not insc_s:
+                nb_nouveaux += 1
+            elif getattr(insc_s, "decision_fin_annee", None) == "redoublement":
+                nb_redoublants += 1
+            else:
+                nb_promus += 1
         else:
             nb_sans_inscription += 1
 
@@ -113,6 +133,9 @@ def preparer_activation_annee(ecole_id, annee_id):
         "total_eleves": len(eleves_ecole),
         "nb_synchronises": nb_synchronises,
         "nb_sans_inscription": nb_sans_inscription,
+        "nb_promus": nb_promus,
+        "nb_redoublants": nb_redoublants,
+        "nb_nouveaux": nb_nouveaux,
     }, None
 
 

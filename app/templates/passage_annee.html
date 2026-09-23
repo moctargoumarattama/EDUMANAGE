@@ -184,12 +184,18 @@
                         <label class="form-label small fw-semibold">Motif (optionnel) :</label>
                         <input type="text" name="motif_sortie" id="input-motif-sortie" class="form-control form-control-sm" placeholder="Ex: Déménagement, fin de scolarité...">
                     </div>
-                    <div class="col-12 col-md-5 d-flex gap-2">
+                    <div class="col-12 col-md-5 d-flex flex-wrap gap-2">
                         <button type="submit" class="btn btn-sm btn-primary" id="btn-submit-masse">
                             <i class="fas fa-arrow-right me-1"></i>Aperçu avant confirmation
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-select-non-traites">
-                            Sélectionner non traités
+                            Non traités
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success" id="btn-select-admis" title="Sélectionner les élèves non traités ayant une moyenne ≥ 10/20">
+                            <i class="fas fa-user-check me-1"></i>Admis (≥ 10)
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-warning text-dark" id="btn-select-redoublants" title="Sélectionner les élèves non traités ayant une moyenne < 10/20">
+                            <i class="fas fa-user-clock me-1"></i>Redoublants (&lt; 10)
                         </button>
                     </div>
                 </div>
@@ -218,6 +224,7 @@
                             {% endif %}
                             <th>Élève</th>
                             <th>Classe source</th>
+                            <th>Résultat annuel</th>
                             <th>Situation cible</th>
                             <th>État</th>
                             <th class="text-end">Action</th>
@@ -228,7 +235,7 @@
                         <tr>
                             {% if annee_source.statut != 'archivee' %}
                             <td class="text-center">
-                                <input type="checkbox" name="eleve_ids" value="{{ item.eleve.id }}" class="form-check-input check-eleve" {% if item.est_traite %}data-deja-traite="true"{% endif %}>
+                                <input type="checkbox" name="eleve_ids" value="{{ item.eleve.id }}" class="form-check-input check-eleve" {% if item.est_traite %}data-deja-traite="true"{% endif %} data-moyenne="{{ item.moyenne if item.moyenne is not none else '' }}" data-suggestion="{{ item.suggestion or '' }}">
                             </td>
                             {% endif %}
                             <td>
@@ -239,6 +246,28 @@
                                     <span class="badge bg-light text-dark border">{{ item.classe_source.nom }}</span>
                                 {% else %}
                                     <span class="text-muted small">Sans classe</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.moyenne is not none %}
+                                    <div class="d-inline-flex align-items-center gap-1">
+                                        <span class="fw-bold {% if item.moyenne >= 10.0 %}text-success{% else %}text-danger{% endif %}">
+                                            {{ "%.2f"|format(item.moyenne) }}/20
+                                        </span>
+                                        {% if item.moyenne >= 10.0 %}
+                                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25" title="Moyenne ≥ 10.00 : Passage suggéré">
+                                                <i class="fas fa-arrow-up me-1"></i>Passage suggéré
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning bg-opacity-10 text-warning-emphasis border border-warning border-opacity-25" title="Moyenne < 10.00 : Redoublement suggéré">
+                                                <i class="fas fa-redo me-1"></i>Redoublement suggéré
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted small fst-italic">
+                                        <i class="fas fa-minus me-1"></i>Non noté
+                                    </span>
                                 {% endif %}
                             </td>
                             <td>
@@ -346,12 +375,49 @@
             });
         });
 
+        const btnSelectAdmis = document.getElementById('btn-select-admis');
+        const btnSelectRedoublants = document.getElementById('btn-select-redoublants');
+
         if (btnSelectNonTraites) {
             btnSelectNonTraites.addEventListener('click', function() {
                 eleveChecks.forEach(c => {
                     c.checked = !c.getAttribute('data-deja-traite');
                 });
                 if (checkAll) checkAll.checked = false;
+                updateCount();
+            });
+        }
+
+        if (btnSelectAdmis) {
+            btnSelectAdmis.addEventListener('click', function() {
+                eleveChecks.forEach(c => {
+                    const nonTraite = !c.getAttribute('data-deja-traite');
+                    const moyStr = c.getAttribute('data-moyenne');
+                    const moy = moyStr !== '' ? parseFloat(moyStr) : null;
+                    c.checked = nonTraite && (moy !== null && moy >= 10.0);
+                });
+                if (checkAll) checkAll.checked = false;
+                if (selectDecision) {
+                    selectDecision.value = 'passage';
+                    updateFormState();
+                }
+                updateCount();
+            });
+        }
+
+        if (btnSelectRedoublants) {
+            btnSelectRedoublants.addEventListener('click', function() {
+                eleveChecks.forEach(c => {
+                    const nonTraite = !c.getAttribute('data-deja-traite');
+                    const moyStr = c.getAttribute('data-moyenne');
+                    const moy = moyStr !== '' ? parseFloat(moyStr) : null;
+                    c.checked = nonTraite && (moy !== null && moy < 10.0);
+                });
+                if (checkAll) checkAll.checked = false;
+                if (selectDecision) {
+                    selectDecision.value = 'redoublement';
+                    updateFormState();
+                }
                 updateCount();
             });
         }

@@ -33,7 +33,8 @@ Ce module ne définit aucune route Flask.
 from datetime import datetime
 
 from app import db
-from app.models import AnneeScolaire, Classe, Eleve, Inscription
+from app.models import AnneeScolaire, Bulletin, Classe, Eleve, Inscription, Note
+from sqlalchemy import func
 from app.utils_classes import classes_triees_pedagogique
 from app.services.classes_annuelles import classe_est_ouverte
 from app.services.inscriptions_annuelles import (
@@ -936,4 +937,73 @@ def executer_passage_masse(
         "details": details,
     }
     return rapport, None
+
+
+# ---------------------------------------------------------------------------
+# 7. Récupération des résultats académiques annuels (Quick Wins Ergonomiques)
+# ---------------------------------------------------------------------------
+
+def get_moyennes_annuelles_eleves(ecole_id, annee_id):
+    """
+    Récupère en requêtes SQL groupées hautement optimisées (zéro N+1) la moyenne
+    annuelle de chaque élève pour éclairer les décisions de passage.
+
+    Stratégie sans N+1 :
+    1. Si des Bulletins existent pour l'élève dans l'année scolaire,
+       calcule la moyenne globale de ses bulletins validés.
+    2. Pour les élèves sans bulletin validé, calcule en requête groupée la moyenne pondérée
+       directement depuis la table Note (valeur * coefficient / total_coefficients).
+
+    Retourne : dict {eleve_id: float_arrondi_2_decimales}
+    """
+    if not ecole_id or not annee_id:
+        return {}
+
+    moyennes = {}
+
+    # 1. Requête groupée sur les bulletins
+    bulletin_rows = (
+        db.session.query(
+            Bulletin.eleve_id,
+            func.avg(Bulletin.moyenne_generale)
+        )
+        .filter(
+            Bulletin.ecole_id == ecole_id,
+            Bulletin.annee_scolaire_id == annee_id,
+            Bulletin.moyenne_generale.isnot(None)
+        )
+        .group_by(Bulletin.eleve_id)
+        .all()
+    )
+    for eleve_id, moy in bulletin_rows:
+        if moy is not None:
+            try:
+                moyennes[eleve_id] = round(float(moy), 2)
+            except (ValueError, TypeError):
+                pass
+
+    # 2. Requête groupée de secours sur les notes pour les élèves sans bulletin
+    note_rows = (
+        db.session.query(
+            Note.eleve_id,
+            func.sum(Note.valeur * func.coalesce(Note.coefficient, 1.0))
+            / func.nullif(func.sum(func.coalesce(Note.coefficient, 1.0)), 0)
+        )
+        .filter(
+            Note.ecole_id == ecole_id,
+            Note.annee_id == annee_id,
+            Note.valeur.isnot(None)
+        )
+        .group_by(Note.eleve_id)
+        .all()
+    )
+    for eleve_id, moy in note_rows:
+        if eleve_id not in moyennes and moy is not None:
+            try:
+                moyennes[eleve_id] = round(float(moy), 2)
+            except (ValueError, TypeError):
+                pass
+
+    return moyennes
+
 

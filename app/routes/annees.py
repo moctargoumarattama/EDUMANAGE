@@ -42,6 +42,7 @@ from app.services.passage_annee import (
     executer_passage_eleve,
     preparer_passage_masse,
     executer_passage_masse,
+    get_moyennes_annuelles_eleves,
 )
 
 
@@ -513,6 +514,9 @@ def activation_annee_confirmation(annee_id):
         etat_preparation=prep['etat_preparation'],
         nb_synchronises=prep['nb_synchronises'],
         nb_sans_inscription=prep['nb_sans_inscription'],
+        nb_promus=prep.get('nb_promus', 0),
+        nb_redoublants=prep.get('nb_redoublants', 0),
+        nb_nouveaux=prep.get('nb_nouveaux', 0),
         prep=prep,
         csrf_form=csrf_form,
     )
@@ -704,7 +708,8 @@ def passage_annee(source_id, cible_id):
         .all()
     }
 
-    # Préparation des lignes
+    # Préparation des lignes avec moyennes annuelles
+    moyennes_eleves = get_moyennes_annuelles_eleves(ecole_id, source_id)
     items = []
     classes_source_set = set()
     for insc_src in inscriptions_source:
@@ -738,6 +743,9 @@ def passage_annee(source_id, cible_id):
             est_traite = True
             detail_statut = insc_src.statut.capitalize()
 
+        moyenne = moyennes_eleves.get(eleve.id)
+        suggestion = "passage" if (moyenne is not None and moyenne >= 10.0) else ("redoublement" if moyenne is not None else None)
+
         items.append({
             "eleve": eleve,
             "inscription_source": insc_src,
@@ -745,6 +753,8 @@ def passage_annee(source_id, cible_id):
             "inscription_cible": insc_cible,
             "est_traite": est_traite,
             "detail_statut": detail_statut,
+            "moyenne": moyenne,
+            "suggestion": suggestion,
         })
 
     # Compteurs globaux
@@ -887,6 +897,10 @@ def passage_eleve(source_id, cible_id, eleve_id):
 
     inscription_cible = get_inscription(eleve, annee_cible)
 
+    moyennes_eleves = get_moyennes_annuelles_eleves(ecole_id, source_id)
+    moyenne = moyennes_eleves.get(eleve.id)
+    suggestion = "passage" if (moyenne is not None and moyenne >= 10.0) else ("redoublement" if moyenne is not None else None)
+
     return render_template(
         'passage_eleve.html',
         annee_source=annee_source,
@@ -902,6 +916,8 @@ def passage_eleve(source_id, cible_id, eleve_id):
         peut_passer=peut_passer,
         peut_diplome=peut_diplome,
         inscription_cible=inscription_cible,
+        moyenne=moyenne,
+        suggestion=suggestion,
         csrf_form=csrf_form,
     )
 
