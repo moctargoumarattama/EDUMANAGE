@@ -90,94 +90,85 @@ def notes():
             flash("La saisie des notes est réservée aux professeurs.", "warning")
             return redirect(context_url)
 
-    # Inscriptions et cours rattachés pour les formulaires et l'affichage
-    inscriptions = get_inscriptions_notes(ecole_id, annee_consultee, user=current_user)
-    tous_les_cours = get_cours_annee(ecole_id, annee_consultee, user=current_user)
-
-    form = NoteForm() if current_user.role == 'professeur' else None
-
-    # ------------------- Choix élèves et cours pour le professeur -------------------
-    if form and annee_consultee:
-        seen_choices = set()
-        eleve_choices = []
-        for ins in inscriptions:
-            if not ins.eleve or ins.eleve.id in seen_choices:
-                continue
-            seen_choices.add(ins.eleve.id)
-            classe_nom = ins.classe.nom if ins.classe else "Sans classe"
-            label = f"{ins.eleve.prenom} {ins.eleve.nom} - {classe_nom}"
-            eleve_choices.append((ins.eleve.id, label))
-        form.eleve_id.choices = eleve_choices or [(0, "--- Aucun élève disponible ---")]
-
-        cours_choices = []
-        for c in tous_les_cours:
-            classe_nom = c.classe.nom if c.classe else "Sans classe"
-            label = f"{c.nom} ({classe_nom})"
-            cours_choices.append((c.id, label))
-        form.cours_id.choices = cours_choices or [(0, "--- Aucun cours disponible ---")]
-
-        if hasattr(form, 'annee_id'):
-            form.annee_id.choices = [(annee_consultee.id, annee_consultee.nom)]
-            form.annee_id.data = annee_consultee.id
-    elif form:
-        form.eleve_id.choices = [(0, "--- Aucun élève disponible ---")]
-        form.cours_id.choices = [(0, "--- Aucun cours disponible ---")]
-        if hasattr(form, 'annee_id'):
-            form.annee_id.choices = [(0, "--- Aucune année disponible ---")]
-
-    # ------------------- Ajout d'une note (POST professeur) -------------------
-    if form and form.validate_on_submit():
-        if not peut_modifier:
-            if annee_consultee and annee_consultee.statut == 'archivee':
-                flash(MESSAGE_ANNEE_ARCHIVEE, "warning")
-            elif annee_consultee and annee_consultee.statut == 'planifiee':
-                flash(MESSAGE_ANNEE_PLANIFIEE, "warning")
-            else:
-                flash("Action non autorisée pour cette année scolaire.", "danger")
-            return redirect(context_url)
-
-        nouvelle_note, err = creer_note(
-            ecole_id=ecole_id,
-            annee=annee_consultee,
-            user=current_user,
-            eleve_id=form.eleve_id.data,
-            cours_id=form.cours_id.data,
-            valeur=form.valeur.data,
-            coefficient=form.coefficient.data,
-            type_evaluation=form.type_evaluation.data,
-            periode=form.periode.data,
-            date_evaluation=datetime.utcnow(),
-        )
-
-        if err:
-            flash(err, "danger")
-        else:
-            flash("Note ajoutée avec succès", "success")
-        return redirect(context_url)
-
-    # ------------------- Récupération des notes et statistiques -------------------
-    toutes_notes = get_notes_annee(
-        ecole_id=ecole_id,
-        annee=annee_consultee,
-        user=current_user,
-    )
+    # ------------------- Classes et Niveaux (Requis pour filtres) -------------------
+    classes_list = get_classes_notes(ecole_id, annee_consultee, user=current_user)
+    if current_user.role == "professeur":
+        niveaux_annee = _niveaux_depuis_classes(classes_list)
+    else:
+        from app.services.structure_annuelle import get_niveaux_annee
+        niveaux_annee = get_niveaux_annee(ecole_id, annee_consultee.id) if annee_consultee else []
 
     # ------------------- Filtres de recherche temps réel (Phase 5F) -------------------
     search = (request.args.get('search') or request.args.get('q') or '').strip()
-    classe_id = request.args.get('classe_id', type=int)
+    classe_param = (request.args.get('classe') or request.args.get('classe_id') or '').strip()
+    cours_param = (request.args.get('cours') or request.args.get('cours_id') or '').strip()
     cours_id = request.args.get('cours_id', type=int)
     eleve_id = request.args.get('eleve_id', type=int)
     niveau_param = (request.args.get('niveau') or request.args.get('niveau_id') or '').strip()
     periode = (request.args.get('periode') or '').strip()
     type_evaluation = (request.args.get('type_evaluation') or '').strip()
 
+    # Résolution intelligente de classe_id à partir du nom ou de l'ID
+    classe_id = None
+    if classe_param and classe_param.lower() != 'all':
+        if str(classe_param).isdigit():
+            target_id = int(classe_param)
+            matched_cl = next((cl for cl in classes_list if cl.id == target_id), None)
+            if matched_cl:
+                classe_id = matched_cl.id
+        else:
+            matched_cl = next((cl for cl in classes_list if cl.nom.strip().lower() == classe_param.lower()), None)
+            if matched_cl:
+                classe_id = matched_cl.id
+
+    # Si aucune classe spécifique n'a été trouvée, mais qu'un niveau est demandé
+    if not classe_id and niveau_param and classes_list:
+        matched_niv_cl = next((cl for cl in classes_list if (cl.niveau or '').strip().lower() == niveau_param.strip().lower()), None)
+        if matched_niv_cl:
+            classe_id = matched_niv_cl.id
+
+    # Toujours cibler une classe valide par défaut pour garantir fluidité (<50ms) et cohérence UX
+    if not classe_id and classes_list:
+        classe_id = classes_list[0].id
+
+    # Inscriptions et cours rattachés (optimisés par classe_id)
+    inscriptions = get_inscriptions_notes(ecole_id, annee_consultee, user=current_user, classe_id=classe_id)
+    tous_les_cours = get_cours_annee(ecole_id, annee_consultee, user=current_user, classe_id=classe_id)
+
+    # Résolution de cours_id si cours_param est un nom de cours
+    if cours_param and not cours_id:
+        if str(cours_param).isdigit():
+            cours_id = int(cours_param)
+        else:
+            matched_crs = next((c for c in tous_les_cours if c.nom.strip().lower() == cours_param.lower()), None)
+            if matched_crs:
+                cours_id = matched_crs.id
+
+    form = NoteForm() if current_user.role == 'professeur' else None
+
+    # ------------------- Récupération des notes et statistiques -------------------
+    toutes_notes = get_notes_annee(
+        ecole_id=ecole_id,
+        annee=annee_consultee,
+        user=current_user,
+        classe_id=classe_id,
+        cours_id=cours_id,
+        eleve_id=eleve_id,
+    )
+
     notes_filtrees = toutes_notes
     if periode:
         notes_filtrees = [n for n in notes_filtrees if (n.periode or '').strip().lower() == periode.lower()]
     if type_evaluation:
         notes_filtrees = [n for n in notes_filtrees if (n.type_evaluation or '').strip().lower() == type_evaluation.lower()]
-    if cours_id:
-        notes_filtrees = [n for n in notes_filtrees if n.cours_id == cours_id]
+    if cours_id or cours_param:
+        def note_match_cours(n):
+            if cours_id and n.cours_id == cours_id:
+                return True
+            if cours_param and n.cours and n.cours.nom.strip().lower() == cours_param.lower():
+                return True
+            return False
+        notes_filtrees = [n for n in notes_filtrees if note_match_cours(n)]
     if eleve_id:
         notes_filtrees = [n for n in notes_filtrees if n.eleve_id == eleve_id]
     if classe_id:
@@ -207,13 +198,6 @@ def notes():
         notes_filtrees = [n for n in notes_filtrees if note_match_search(n)]
 
     stats = calculer_statistiques_notes(notes_filtrees)
-
-    classes_list = get_classes_notes(ecole_id, annee_consultee, user=current_user)
-    if current_user.role == "professeur":
-        niveaux_annee = _niveaux_depuis_classes(classes_list)
-    else:
-        from app.services.structure_annuelle import get_niveaux_annee
-        niveaux_annee = get_niveaux_annee(ecole_id, annee_consultee.id) if annee_consultee else []
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
         return jsonify({
@@ -326,6 +310,12 @@ def notes():
                     notes=ins_notes,
                 )
 
+    selected_classe_nom = ""
+    if classe_id:
+        matched_cl = next((cl for cl in classes_list if cl.id == classe_id), None)
+        if matched_cl:
+            selected_classe_nom = matched_cl.nom
+
     return render_template(
         'notes.html',
         form=form if peut_modifier else None,
@@ -341,6 +331,7 @@ def notes():
         classes=classes_list,
         niveaux_annee=niveaux_annee,
         classe_id=classe_id,
+        selected_classe_nom=selected_classe_nom,
         cours_id=cours_id,
         eleve_id=eleve_id,
         niveau_id=niveau_param,

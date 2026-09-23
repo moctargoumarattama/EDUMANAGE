@@ -4,7 +4,8 @@
 
 {% block content %}
 <div class="container-fluid px-3 px-lg-4 py-4">
-    <section class="page-header">
+    <!-- En-tête de page principal -->
+    <section class="page-header mb-4">
         <div class="page-header-body">
             <div class="page-title-group">
                 <div class="page-icon">
@@ -12,15 +13,15 @@
                 </div>
                 <div>
                     <h1 class="page-title">Classes</h1>
-                    <p class="page-subtitle d-none d-md-block">Liste des classes de votre établissement.</p>
+                    <p class="page-subtitle d-none d-md-block">Gestion et suivi des classes de votre établissement.</p>
                 </div>
             </div>
             {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                <a href="{{ url_for('main.generation_rapide_classes') }}" class="btn btn-outline-primary">
+                <a href="{{ url_for('main.generation_rapide_classes') }}" class="btn btn-outline-primary rounded-pill px-3">
                     <i class="fas fa-bolt me-1"></i>Génération rapide
                 </a>
-                <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary">
+                <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary rounded-pill px-3">
                     <i class="fas fa-plus me-1"></i>Nouvelle classe
                 </a>
             </div>
@@ -29,280 +30,665 @@
     </section>
 
     {% if annee_consultee and annee_consultee.statut == 'archivee' %}
-    <div class="alert alert-warning" role="alert">
-        Vous consultez une année archivée : {{ annee_consultee.nom }}
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-4" role="alert">
+        <i class="fas fa-archive fa-lg"></i>
+        <span>Vous consultez une année archivée : <strong>{{ annee_consultee.nom }}</strong> (lecture seule).</span>
     </div>
     {% endif %}
 
+    <!-- Cartes de statistiques globales -->
     {% if current_user.role == 'admin' %}
-    <div class="row g-2 mb-4 flex-nowrap">
-        <div class="col">
-            <div class="stat-card h-100 d-flex flex-column align-items-center justify-content-center text-center p-2">
-                <div class="stat-icon bg-primary bg-opacity-10 text-primary mb-2"><i class="fas fa-chalkboard"></i></div>
+    <div class="row g-2 mb-4">
+        <div class="col-4">
+            <div class="stat-card h-100 d-flex flex-column align-items-center justify-content-center text-center p-2.5">
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary mb-1.5"><i class="fas fa-chalkboard"></i></div>
                 <div>
-                    <h3 class="stat-number mb-0">{{ pagination.total if pagination else classes|length }}</h3>
-                    <p class="stat-label small mb-0 text-uppercase">Classes</p>
+                    <h3 class="stat-number mb-0">{{ classes|length }}</h3>
+                    <p class="stat-label small mb-0 text-uppercase text-muted">Classes</p>
                 </div>
             </div>
         </div>
-        <div class="col">
-            <div class="stat-card h-100 d-flex flex-column align-items-center justify-content-center text-center p-2">
-                <div class="stat-icon bg-success bg-opacity-10 text-success mb-2"><i class="fas fa-users"></i></div>
+        <div class="col-4">
+            <div class="stat-card h-100 d-flex flex-column align-items-center justify-content-center text-center p-2.5">
+                <div class="stat-icon bg-success bg-opacity-10 text-success mb-1.5"><i class="fas fa-user-graduate"></i></div>
                 <div>
                     <h3 class="stat-number mb-0">{{ total_eleves }}</h3>
-                    <p class="stat-label small mb-0 text-uppercase">Élèves</p>
+                    <p class="stat-label small mb-0 text-uppercase text-muted">Élèves insc.</p>
                 </div>
             </div>
         </div>
-        <div class="col">
-            <div class="stat-card h-100 d-flex flex-column align-items-center justify-content-center text-center p-2">
-                <div class="stat-icon bg-warning bg-opacity-10 text-warning mb-2"><i class="fas fa-triangle-exclamation"></i></div>
+        <div class="col-4">
+            <div class="stat-card h-100 d-flex flex-column align-items-center justify-content-center text-center p-2.5">
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning mb-1.5"><i class="fas fa-exclamation-circle"></i></div>
                 <div>
                     <h3 class="stat-number mb-0">{{ classes_pleines }}</h3>
-                    <p class="stat-label small mb-0 text-uppercase">Pleines</p>
+                    <p class="stat-label small mb-0 text-uppercase text-muted">Pleines</p>
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="filter-card mb-4">
-        <form method="get" action="{{ url_for('main.liste_classes') }}" class="responsive-form-grid">
-
-            <div>
-                <label for="search" class="form-label">Recherche</label>
-                <input id="search" name="search" type="search" class="form-control" value="{{ current_filters.search }}" placeholder="Nom de classe">
-            </div>
-            <div>
-                <label for="niveau" class="form-label">Niveau</label>
-                <select id="niveau" name="niveau" class="form-select">
-                    <option value="">Tous les niveaux</option>
-                    {% if niveaux_annee %}
-                        {% for n in niveaux_annee %}
-                        <option value="{{ n.nom }}" {% if current_filters.niveau == n.nom or current_filters.niveau == n.id|string %}selected{% endif %}>{{ n.nom }}</option>
-                        {% endfor %}
-                    {% endif %}
-                </select>
-            </div>
-            <div>
-                <label for="sort" class="form-label">Tri</label>
-                <select id="sort" name="sort" class="form-select">
-                    <option value="nom" {% if current_filters.sort == 'nom' %}selected{% endif %}>Nom</option>
-                    <option value="effectif" {% if current_filters.sort == 'effectif' %}selected{% endif %}>Effectif</option>
-                    <option value="niveau" {% if current_filters.sort == 'niveau' %}selected{% endif %}>Niveau</option>
-                </select>
-            </div>
-            <div class="d-flex align-items-end gap-2 flex-wrap">
-                <button type="submit" class="btn btn-outline-primary">
-                    <i class="fas fa-search me-2"></i>Filtrer
-                </button>
-                <a href="{{ url_for('main.liste_classes') }}" id="btnResetClassesFilter" class="btn btn-outline-secondary">Réinitialiser</a>
-            </div>
-        </form>
     </div>
     {% endif %}
 
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-        <span class="text-muted">Classes affichées : <span class="badge bg-primary" id="classesCountBadge">{{ pagination.total if pagination else classes|length }}</span></span>
-        {% if pagination and pagination.pages > 1 %}
-        <span class="text-muted small">Page {{ pagination.page }} / {{ pagination.pages }}</span>
-        {% endif %}
+    <!-- Navigation Rapide par Puces (Chips horizontales) -->
+    <div class="class-quick-pills-bar mb-3" id="classChipsBar">
+        <button type="button" class="class-filter-chip active" data-cycle-chip="all">
+            <i class="fas fa-layer-group me-1"></i>Toutes ({{ classes|length }})
+        </button>
+        <button type="button" class="class-filter-chip" data-cycle-chip="primaire">
+            <i class="fas fa-child me-1"></i>Primaire
+        </button>
+        <button type="button" class="class-filter-chip" data-cycle-chip="college">
+            <i class="fas fa-school me-1"></i>Collège
+        </button>
+        <button type="button" class="class-filter-chip" data-cycle-chip="lycee">
+            <i class="fas fa-user-graduate me-1"></i>Lycée
+        </button>
     </div>
 
+    <!-- Barre d'outils et de recherche réactive (Style eleves.html) -->
+    <div class="course-toolbar-card mb-3">
+        <div class="row g-2 align-items-center">
+            <!-- Champ de recherche live -->
+            <div class="col-12 col-md-6 col-lg-5">
+                <div class="course-search-box">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="classSearchInput" class="form-control" placeholder="Rechercher classe, niveau, salle, prof..." autocomplete="off">
+                    <button type="button" id="classSearchClear" class="clear-btn" title="Effacer la recherche" style="display: none;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Boutons Filtres & Réinitialiser -->
+            <div class="col-12 col-md-6 col-lg-7">
+                <div class="d-flex align-items-center justify-content-between justify-content-md-end gap-2">
+                    <button class="btn btn-sm btn-outline-primary py-1.5 px-3 d-inline-flex align-items-center gap-1.5 rounded-pill" 
+                            type="button" data-bs-toggle="collapse" data-bs-target="#classFiltersCollapse" aria-expanded="false" aria-controls="classFiltersCollapse">
+                        <i class="fas fa-sliders-h"></i>
+                        <span class="fw-semibold small">Filtres</span>
+                        <span class="badge bg-primary text-white rounded-pill d-none" id="classFilterBadge">0</span>
+                    </button>
+
+                    <button type="button" id="btnResetFilter" class="btn btn-sm btn-outline-secondary py-1.5 px-3 rounded-pill d-inline-flex align-items-center gap-1" style="display: none;">
+                        <i class="fas fa-undo me-1"></i>Réinitialiser
+                    </button>
+                </div>
+            </div>
+
+            <!-- Section Filtres Avancés (Collapsible) -->
+            <div class="col-12 collapse pt-3 border-top mt-2" id="classFiltersCollapse">
+                <div class="row g-2 align-items-center">
+                    <!-- Filtre Niveau -->
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Niveau scolaire</label>
+                        <select id="filterClassNiveauSelect" class="form-select form-select-sm">
+                            <option value="">Tous les niveaux</option>
+                            {% if niveaux_annee %}
+                                {% for n in niveaux_annee %}
+                                <option value="{{ n.nom }}">{{ n.nom }}</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+
+                    <!-- Filtre Remplissage -->
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Disponibilité</label>
+                        <select id="filterClassStatusSelect" class="form-select form-select-sm">
+                            <option value="">Tous les statuts</option>
+                            <option value="disponible">Places disponibles</option>
+                            <option value="complet">Classes complètes</option>
+                        </select>
+                    </div>
+
+                    <!-- Tri des classes -->
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Trier par</label>
+                        <select id="sortClassSelect" class="form-select form-select-sm">
+                            <option value="pedagogique">Ordre pédagogique</option>
+                            <option value="nom-asc">Nom (A &rarr; Z)</option>
+                            <option value="nom-desc">Nom (Z &rarr; A)</option>
+                            <option value="effectif-desc">Plus d'élèves &darr;</option>
+                            <option value="effectif-asc">Moins d'élèves &uarr;</option>
+                        </select>
+                    </div>
+
+                    <!-- Classes / page -->
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Affichage</label>
+                        <select id="classPageSizeSelect" class="form-select form-select-sm">
+                            <option value="15">15 par page</option>
+                            <option value="30">30 par page</option>
+                            <option value="all" selected>Toutes les classes</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info-bar sous les filtres -->
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 pt-2 border-top">
+            <div class="text-muted small">
+                <i class="fas fa-layer-group me-1 text-primary"></i>
+                <span id="classFilterStats">Chargement des classes...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- GRILLE ET CARTES COMPACTES DES CLASSES -->
     {% if classes %}
     <div class="class-grid" id="classGridContainer">
         {% for classe in classes %}
-        {% set is_lycee = (classe.niveau_scolaire and classe.niveau_scolaire.cycle == 'lycee') or (classe.niveau and ('2nde' in classe.niveau.lower() or '1ere' in classe.niveau.lower() or '1ère' in classe.niveau.lower() or 'terminale' in classe.niveau.lower())) %}
-        {% set capacite = classe.capacite or classe.capacite_max or 35 %}
-        {% set effectif_actuel = classe.effectif_reel %}
-        {% set capacity_percentage = ((effectif_actuel / capacite * 100)|round(0, 'floor')) if capacite else 0 %}
-        <article class="class-card" id="classe-card-{{ classe.id }}"
-                 data-id="{{ classe.id }}"
-                 data-nom="{{ classe.nom }}"
-                 data-niveau="{{ classe.niveau or '' }}"
-                 data-niveau-ordre="{{ classe.niveau_scolaire.ordre if classe.niveau_scolaire else 999 }}"
-                 data-search="{{ classe.nom|lower }} {{ (classe.niveau or '')|lower }}"
-                 data-effectif="{{ effectif_actuel }}">
-            <div class="class-card-header">
-                <div class="class-card-icon">
-                    <i class="fas fa-chalkboard"></i>
-                </div>
-                <div class="min-w-0">
-                    <h2>{{ classe.nom }}</h2>
-                    <p>
-                        {{ classe.niveau or 'Niveau non renseigné' }}
-                        {% if classe.section %}
-                            — <span class="badge bg-light text-dark border">{{ 'Série' if is_lycee else 'Section' }} {{ classe.section }}</span>
+            {% set nom_lower = (classe.nom or '')|lower %}
+            {% set niv_lower = (classe.niveau or '')|lower %}
+            {% set is_primaire = ('ci' in nom_lower or 'cp' in nom_lower or 'ce1' in nom_lower or 'ce2' in nom_lower or 'cm1' in nom_lower or 'cm2' in nom_lower or 'primaire' in niv_lower) %}
+            {% set is_lycee = ('2nde' in nom_lower or '1ere' in nom_lower or '1ère' in nom_lower or 'terminale' in nom_lower or 'tle' in nom_lower or 'lycee' in niv_lower or 'lycée' in niv_lower) %}
+            {% set cycle_name = 'primaire' if is_primaire else ('lycee' if is_lycee else 'college') %}
+            
+            {% set capacite = classe.capacite or classe.capacite_max or 35 %}
+            {% set effectif_actuel = classe.effectif_reel %}
+            {% set capacity_percentage = ((effectif_actuel / capacite * 100)|round(0, 'floor')) if capacite else 0 %}
+            {% set prof_nom = (classe.professeur.prenom ~ ' ' ~ classe.professeur.nom) if classe.professeur else 'Non assigné' %}
+            {% set salle_nom = classe.salle or ('Salle ' ~ classe.nom) %}
+            {% set cours_count = classe.cours|length if classe.cours else 0 %}
+
+            <article class="class-card" id="classe-card-{{ classe.id }}"
+                     data-id="{{ classe.id }}"
+                     data-nom="{{ classe.nom }}"
+                     data-niveau="{{ classe.niveau or '' }}"
+                     data-cycle="{{ cycle_name }}"
+                     data-niveau-ordre="{{ classe.niveau_scolaire.ordre if classe.niveau_scolaire else 999 }}"
+                     data-search="{{ classe.nom|lower }} {{ (classe.niveau or '')|lower }} {{ prof_nom|lower }} {{ salle_nom|lower }}"
+                     data-effectif="{{ effectif_actuel }}"
+                     data-percentage="{{ capacity_percentage }}">
+
+                <!-- En-tête de la carte -->
+                <div class="class-card-header">
+                    <div class="class-card-icon cycle-{{ cycle_name }}">
+                        {% if cycle_name == 'primaire' %}
+                            <i class="fas fa-child"></i>
+                        {% elif cycle_name == 'lycee' %}
+                            <i class="fas fa-user-graduate"></i>
+                        {% else %}
+                            <i class="fas fa-school"></i>
                         {% endif %}
-                    </p>
+                    </div>
+                    <div class="min-w-0 flex-grow-1">
+                        <h2>{{ classe.nom }}</h2>
+                        <p>
+                            <span class="badge bg-light text-secondary border me-1">{{ classe.niveau or 'Niveau' }}</span>
+                            {% if classe.section %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ 'Série' if is_lycee else 'Sec.' }} {{ classe.section }}</span>
+                            {% endif %}
+                        </p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="class-card-meta">
-                <span><strong>Niveau</strong>{{ classe.niveau or 'N/A' }}</span>
-                <span><strong>{{ 'Série' if is_lycee else 'Section' }}</strong>{{ classe.section or 'Unique' }}</span>
-                <span><strong>Inscrits</strong>{{ effectif_actuel }} élève(s)</span>
-                <span><strong>Capacité</strong>{{ capacite }} max</span>
-            </div>
-
-            <div>
-                <div class="class-progress">
-                    <span class="{% if capacity_percentage >= 100 %}bg-danger{% elif capacity_percentage >= 80 %}bg-warning{% else %}bg-success{% endif %}" data-progress="{{ [capacity_percentage, 100]|min }}"></span>
+                <!-- Jauge de capacité et ratio -->
+                <div>
+                    <div class="class-progress">
+                        <span class="{% if capacity_percentage >= 100 %}bg-danger{% elif capacity_percentage >= 80 %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ [capacity_percentage, 100]|min }}%;"></span>
+                    </div>
+                    <div class="class-status">
+                        <span class="fw-semibold text-gray-700">{{ effectif_actuel }} / {{ capacite }} élèves</span>
+                        {% if capacity_percentage >= 100 %}
+                            <span class="badge bg-danger">Complet</span>
+                        {% elif capacity_percentage >= 80 %}
+                            <span class="badge bg-warning text-dark">Quasi complet</span>
+                        {% else %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">Disponible</span>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="class-status">
-                    {% if capacity_percentage >= 100 %}
-                    <span class="badge bg-danger">Complet ({{ effectif_actuel }}/{{ capacite }})</span>
-                    {% elif capacity_percentage >= 80 %}
-                    <span class="badge bg-warning text-dark">Presque complet ({{ effectif_actuel }}/{{ capacite }})</span>
-                    {% else %}
-                    <span class="badge bg-success">Disponible ({{ effectif_actuel }}/{{ capacite }})</span>
+
+                <!-- Métadonnées utiles -->
+                <div class="class-card-meta">
+                    <span class="class-card-meta-item" title="Professeur principal">
+                        <i class="fas fa-user-tie text-primary"></i> {{ prof_nom }}
+                    </span>
+                    <span class="class-card-meta-item" title="Salle de classe">
+                        <i class="fas fa-door-open text-muted"></i> {{ salle_nom }}
+                    </span>
+                    <span class="class-card-meta-item" title="Nombre de cours">
+                        <i class="fas fa-book text-muted"></i> {{ cours_count }} matière{{ 's' if cours_count > 1 else '' }}
+                    </span>
+                </div>
+
+                <!-- Actions de la carte -->
+                <div class="class-card-actions">
+                    <a href="{{ url_for('main.detail_classe', classe_id=classe.id) }}" class="btn btn-sm btn-outline-primary" title="Fiche complète">
+                        <i class="fas fa-eye me-1"></i>Voir
+                    </a>
+                    <a href="{{ url_for('main.admin_emplois', classe=classe.nom) }}" class="btn btn-sm btn-outline-info" title="Emploi du temps">
+                        <i class="fas fa-calendar-alt me-1"></i>Horaire
+                    </a>
+                    {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
+                    <a href="{{ url_for('main.modifier_classe', classe_id=classe.id) }}" class="btn btn-sm btn-outline-warning" title="Modifier">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <form method="POST" action="{{ url_for('main.supprimer_classe', classe_id=classe.id) }}" class="d-inline js-confirm-form" data-confirm="Voulez-vous vraiment supprimer la classe {{ classe.nom }} ?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </form>
                     {% endif %}
                 </div>
-            </div>
-
-            <div class="class-card-actions">
-                <a href="{{ url_for('main.detail_classe', classe_id=classe.id) }}" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-eye me-1"></i>Voir
-                </a>
-                {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
-                <a href="{{ url_for('main.modifier_classe', classe_id=classe.id) }}" class="btn btn-sm btn-outline-warning">
-                    <i class="fas fa-edit me-1"></i>Modifier
-                </a>
-                <form method="POST" action="{{ url_for('main.supprimer_classe', classe_id=classe.id) }}" data-klasora-form data-klasora-ajax="true" data-remove-target="#classe-card-{{ classe.id }}" data-confirm="Supprimer cette classe ?" data-loading="Suppression...">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-sm btn-outline-danger">
-                        <i class="fas fa-trash me-1"></i>Supprimer
-                    </button>
-                </form>
-                {% endif %}
-            </div>
-        </article>
+            </article>
         {% endfor %}
     </div>
 
-    {% if current_user.role == 'admin' and pagination and pagination.pages > 1 %}
-    <nav class="mt-4" aria-label="Pagination classes">
-        <ul class="pagination justify-content-center">
-            <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('main.liste_classes', page=pagination.prev_num, search=current_filters.search, niveau=current_filters.niveau, sort=current_filters.sort) if pagination.has_prev else '#' }}">Précédent</a>
-            </li>
-            {% for page_num in pagination.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
-                {% if page_num %}
-                <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                    <a class="page-link" href="{{ url_for('main.liste_classes', page=page_num, search=current_filters.search, niveau=current_filters.niveau, sort=current_filters.sort) }}">{{ page_num }}</a>
-                </li>
-                {% else %}
-                <li class="page-item disabled"><span class="page-link">...</span></li>
-                {% endif %}
-            {% endfor %}
-            <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('main.liste_classes', page=pagination.next_num, search=current_filters.search, niveau=current_filters.niveau, sort=current_filters.sort) if pagination.has_next else '#' }}">Suivant</a>
-            </li>
+    <!-- Message aucun résultat -->
+    <div id="noClassResults" class="empty-state py-5" style="display: none;">
+        <div class="empty-state-icon text-muted mb-3">
+            <i class="fas fa-chalkboard fa-3x"></i>
+        </div>
+        <h3 class="empty-state-title fs-5 fw-bold">Aucune classe trouvée</h3>
+        <p class="empty-state-text text-muted mb-3">Aucune classe ne correspond à vos critères de recherche ou de filtre.</p>
+        <button type="button" class="btn btn-outline-primary rounded-pill px-3" id="btnResetEmpty">
+            <i class="fas fa-undo me-2"></i>Réinitialiser les filtres
+        </button>
+    </div>
+
+    <!-- Barre de pagination dynamique -->
+    <nav id="classPaginationBar" class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-4" aria-label="Pagination des classes" style="display: none;">
+        <div class="text-muted small" id="classPageInfoText">
+            Affichage des classes...
+        </div>
+        <ul class="pagination mb-0" id="classPaginationList">
+            <!-- Pagination générée par JS -->
         </ul>
     </nav>
-    {% endif %}
     {% else %}
-    <div class="empty-state">
-        <div class="empty-state-icon"><i class="fas fa-chalkboard"></i></div>
-        <h2 class="empty-state-title">Aucune classe créée pour cette année</h2>
-        <p class="empty-state-text">
+    <div class="empty-state py-5">
+        <div class="empty-state-icon text-muted mb-3"><i class="fas fa-chalkboard fa-4x"></i></div>
+        <h2 class="empty-state-title fs-4 fw-bold mb-2">Aucune classe créée pour cette année</h2>
+        <p class="empty-state-text text-muted mb-3" style="max-width: 480px;">
             {% if annee_consultee %}
-                Aucune classe n'est enregistrée pour l'année scolaire {{ annee_consultee.nom }}.
+                Aucune classe n'est enregistrée pour l'année scolaire <strong>{{ annee_consultee.nom }}</strong>.
             {% else %}
-                Aucune classe trouvée.
+                Aucune classe trouvée dans votre établissement.
             {% endif %}
         </p>
         {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
-        <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary">
-            <i class="fas fa-plus me-2"></i>Ajouter une classe
+        <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary rounded-pill px-4">
+            <i class="fas fa-plus me-2"></i>Créer une classe
         </a>
         {% endif %}
     </div>
     {% endif %}
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('search');
-    const niveauSelect = document.getElementById('niveau');
-    const sortSelect = document.getElementById('sort');
-    const resetBtn = document.getElementById('btnResetClassesFilter');
-    const cards = Array.from(document.querySelectorAll('.class-card'));
-    const badge = document.getElementById('classesCountBadge');
-    const grid = document.getElementById('classGridContainer');
+    'use strict';
 
-    function syncUrl(q, niv, srt) {
-        const params = new URLSearchParams();
-        if (q) params.set('search', q);
-        if (niv) params.set('niveau', niv);
-        if (srt && srt !== 'nom') params.set('sort', srt);
+    function normalize(str) {
+        return (str || '')
+            .toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim();
+    }
+
+    // Éléments du DOM
+    const searchInput = document.getElementById('classSearchInput');
+    const searchClear = document.getElementById('classSearchClear');
+    const filterNiveau = document.getElementById('filterClassNiveauSelect');
+    const filterStatus = document.getElementById('filterClassStatusSelect');
+    const sortSelect = document.getElementById('sortClassSelect');
+    const pageSizeSelect = document.getElementById('classPageSizeSelect');
+    const filterStats = document.getElementById('classFilterStats');
+    const filterBadge = document.getElementById('classFilterBadge');
+    const btnReset = document.getElementById('btnResetFilter');
+    const btnResetEmpty = document.getElementById('btnResetEmpty');
+    const noResults = document.getElementById('noClassResults');
+    const classGrid = document.getElementById('classGridContainer');
+    const paginationBar = document.getElementById('classPaginationBar');
+    const paginationList = document.getElementById('classPaginationList');
+    const pageInfoText = document.getElementById('classPageInfoText');
+
+    // Chips
+    const classChips = Array.from(document.querySelectorAll('.class-filter-chip'));
+    let selectedCycle = 'all';
+
+    // Cartes des classes
+    const classCards = Array.from(document.querySelectorAll('.class-card'));
+    let currentPage = 1;
+    let pageSize = 9999; // Par défaut toutes affichées sur la grille
+
+    function updateFilterBadge() {
+        let activeCount = 0;
+        if (filterNiveau && filterNiveau.value) activeCount++;
+        if (filterStatus && filterStatus.value) activeCount++;
+        if (sortSelect && sortSelect.value !== 'pedagogique') activeCount++;
+        if (pageSizeSelect && pageSizeSelect.value !== 'all') activeCount++;
+
+        if (filterBadge) {
+            if (activeCount > 0) {
+                filterBadge.textContent = activeCount;
+                filterBadge.classList.remove('d-none');
+            } else {
+                filterBadge.classList.add('d-none');
+            }
+        }
+    }
+
+    function render() {
+        const query = normalize(searchInput ? searchInput.value : '');
+        const selectedNiveau = filterNiveau ? filterNiveau.value : '';
+        const selectedStatus = filterStatus ? filterStatus.value : '';
+        const sortMode = sortSelect ? sortSelect.value : 'pedagogique';
+
+        if (searchClear) {
+            searchClear.style.display = query ? 'block' : 'none';
+        }
+
+        updateFilterBadge();
+
+        const isFiltered = !!(query || selectedNiveau || selectedStatus || (selectedCycle && selectedCycle !== 'all') || sortMode !== 'pedagogique' || (pageSizeSelect && pageSizeSelect.value !== 'all'));
+        if (btnReset) btnReset.style.display = isFiltered ? 'inline-flex' : 'none';
+
+        let matched = [];
+        let totalElevesMatched = 0;
+
+        classCards.forEach(card => {
+            const cardNom = card.dataset.nom || '';
+            const cardNiveau = card.dataset.niveau || '';
+            const cardCycle = card.dataset.cycle || '';
+            const cardSearch = normalize(card.dataset.search || '');
+            const effectif = parseInt(card.dataset.effectif || 0, 10);
+            const percentage = parseFloat(card.dataset.percentage || 0);
+
+            // Filtrage Puce Cycle
+            if (selectedCycle && selectedCycle !== 'all') {
+                if (cardCycle !== selectedCycle) {
+                    card.style.display = 'none';
+                    return;
+                }
+            }
+
+            // Filtrage Niveau
+            if (selectedNiveau && cardNiveau !== selectedNiveau) {
+                card.style.display = 'none';
+                return;
+            }
+
+            // Filtrage Statut / Disponibilité
+            if (selectedStatus === 'disponible' && percentage >= 100) {
+                card.style.display = 'none';
+                return;
+            }
+            if (selectedStatus === 'complet' && percentage < 100) {
+                card.style.display = 'none';
+                return;
+            }
+
+            // Filtrage Recherche
+            const matchQuery = !query || cardSearch.includes(query);
+            if (!matchQuery) {
+                card.style.display = 'none';
+                return;
+            }
+
+            matched.push({
+                card: card,
+                nom: cardNom,
+                niveauOrdre: parseInt(card.dataset.niveauOrdre || 999, 10),
+                effectif: effectif,
+                percentage: percentage
+            });
+            totalElevesMatched += effectif;
+        });
+
+        // Tri des cartes
+        matched.sort((a, b) => {
+            if (sortMode === 'nom-asc') {
+                return a.nom.localeCompare(b.nom, 'fr', { numeric: true });
+            } else if (sortMode === 'nom-desc') {
+                return b.nom.localeCompare(a.nom, 'fr', { numeric: true });
+            } else if (sortMode === 'effectif-desc') {
+                return b.effectif - a.effectif || a.nom.localeCompare(b.nom, 'fr');
+            } else if (sortMode === 'effectif-asc') {
+                return a.effectif - b.effectif || a.nom.localeCompare(b.nom, 'fr');
+            }
+            // Ordre pédagogique par défaut
+            if (a.niveauOrdre !== b.niveauOrdre) return a.niveauOrdre - b.niveauOrdre;
+            return a.nom.localeCompare(b.nom, 'fr', { numeric: true });
+        });
+
+        const count = matched.length;
+
+        if (filterStats) {
+            filterStats.textContent = `Affichage de ${count} classe${count > 1 ? 's' : ''} (${totalElevesMatched} élèves inscrits)`;
+        }
+
+        if (count === 0) {
+            if (noResults) noResults.style.display = 'block';
+            if (classGrid) classGrid.style.display = 'none';
+            if (paginationBar) paginationBar.style.display = 'none';
+            return;
+        } else {
+            if (noResults) noResults.style.display = 'none';
+            if (classGrid) classGrid.style.display = 'grid';
+        }
+
+        // Pagination
+        const totalPages = Math.ceil(count / pageSize) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const pageItems = matched.slice(startIndex, endIndex);
+        const visibleIds = new Set(pageItems.map(item => item.card.dataset.id));
+
+        classCards.forEach(card => {
+            card.style.display = visibleIds.has(card.dataset.id) ? 'flex' : 'none';
+        });
+
+        if (classGrid) {
+            pageItems.forEach(item => classGrid.appendChild(item.card));
+        }
+
+        renderPagination(count, totalPages, startIndex, endIndex);
+    }
+
+    function renderPagination(count, totalPages, startIndex, endIndex) {
+        if (!paginationBar || !paginationList) return;
+
+        if (totalPages <= 1) {
+            paginationBar.style.display = 'none';
+            return;
+        }
+
+        paginationBar.style.display = 'flex';
+        const actualEnd = Math.min(endIndex, count);
+        if (pageInfoText) {
+            pageInfoText.textContent = `Affichage ${startIndex + 1} - ${actualEnd} sur ${count} classes (Page ${currentPage} / ${totalPages})`;
+        }
+
+        let html = '';
+
+        html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <button type="button" class="page-link" data-page="${currentPage - 1}" aria-label="Précédent" ${currentPage === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </li>`;
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (startPage > 1) {
+            html += `<li class="page-item"><button type="button" class="page-link" data-page="1">1</button></li>`;
+            if (startPage > 2) {
+                html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
+            }
+        }
+
+        for (let p = startPage; p <= endPage; p++) {
+            html += `<li class="page-item ${p === currentPage ? 'active' : ''}">
+                <button type="button" class="page-link" data-page="${p}">${p}</button>
+            </li>`;
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
+            }
+            html += `<li class="page-item"><button type="button" class="page-link" data-page="${totalPages}">${totalPages}</button></li>`;
+        }
+
+        html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <button type="button" class="page-link" data-page="${currentPage + 1}" aria-label="Suivant" ${currentPage === totalPages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </li>`;
+
+        paginationList.innerHTML = html;
+
+        paginationList.querySelectorAll('button.page-link').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const targetPage = parseInt(this.dataset.page, 10);
+                if (targetPage && targetPage !== currentPage && targetPage >= 1 && targetPage <= totalPages) {
+                    currentPage = targetPage;
+                    render();
+                    const targetEl = document.querySelector('.course-toolbar-card');
+                    if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    }
+
+    // Confirmation de suppression
+    document.querySelectorAll('.js-confirm-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const confirmMsg = this.dataset.confirm || 'Voulez-vous vraiment supprimer cette classe ?';
+            if (!window.confirm(confirmMsg)) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    function syncUrl() {
+        const params = new URLSearchParams(window.location.search);
+        if (searchInput && searchInput.value.trim()) params.set('q', searchInput.value.trim()); else params.delete('q');
+        if (filterNiveau && filterNiveau.value) params.set('niveau', filterNiveau.value); else params.delete('niveau');
+        if (filterStatus && filterStatus.value) params.set('statut', filterStatus.value); else params.delete('statut');
+        if (selectedCycle && selectedCycle !== 'all') params.set('cycle', selectedCycle); else params.delete('cycle');
+        if (sortSelect && sortSelect.value !== 'pedagogique') params.set('sort', sortSelect.value); else params.delete('sort');
         const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         window.history.replaceState({}, '', newUrl);
     }
 
-    function filterAndSort() {
-        const q = (searchInput ? searchInput.value : '').toLowerCase().trim();
-        const niv = (niveauSelect ? niveauSelect.value : '').trim();
-        const srt = sortSelect ? sortSelect.value : 'nom';
-
-        syncUrl(q, niv, srt);
-
-        let matched = [];
-        cards.forEach(card => {
-            const cardSearch = (card.dataset.search || '').toLowerCase();
-            const cardNiveau = (card.dataset.niveau || '').trim();
-
-            const matchQ = !q || cardSearch.includes(q);
-            const matchN = !niv || cardNiveau === niv;
-
-            if (matchQ && matchN) {
-                card.style.display = '';
-                matched.push(card);
+    function resetFilters() {
+        if (searchInput) searchInput.value = '';
+        if (filterNiveau) filterNiveau.value = '';
+        if (filterStatus) filterStatus.value = '';
+        if (sortSelect) sortSelect.value = 'pedagogique';
+        if (pageSizeSelect) pageSizeSelect.value = 'all';
+        pageSize = 9999;
+        selectedCycle = 'all';
+        classChips.forEach(chip => {
+            if (chip.dataset.cycleChip === 'all') {
+                chip.classList.add('active');
             } else {
-                card.style.display = 'none';
+                chip.classList.remove('active');
             }
         });
-
-        matched.sort((a, b) => {
-            const ordA = parseInt(a.dataset.niveauOrdre || 999, 10);
-            const ordB = parseInt(b.dataset.niveauOrdre || 999, 10);
-            if (srt === 'effectif') {
-                return (parseInt(b.dataset.effectif, 10) || 0) - (parseInt(a.dataset.effectif, 10) || 0);
-            } else if (srt === 'nom') {
-                return (a.dataset.nom || '').localeCompare(b.dataset.nom || '', 'fr');
-            }
-            if (ordA !== ordB) return ordA - ordB;
-            return (a.dataset.nom || '').localeCompare(b.dataset.nom || '', 'fr');
-        });
-
-        if (grid) {
-            matched.forEach(card => grid.appendChild(card));
-        }
-
-        if (badge) {
-            badge.textContent = matched.length;
-        }
+        currentPage = 1;
+        render();
+        syncUrl();
     }
 
-    let debounceTimer;
+    classChips.forEach(chip => {
+        chip.addEventListener('click', function() {
+            classChips.forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            selectedCycle = this.dataset.cycleChip || 'all';
+            currentPage = 1;
+            render();
+            syncUrl();
+        });
+    });
+
+    let debounceTimer = null;
     if (searchInput) {
         searchInput.addEventListener('input', function() {
             clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(filterAndSort, 300);
+            debounceTimer = setTimeout(() => {
+                currentPage = 1;
+                render();
+                syncUrl();
+            }, 300);
         });
     }
 
-    if (niveauSelect) niveauSelect.addEventListener('change', filterAndSort);
-    if (sortSelect) sortSelect.addEventListener('change', filterAndSort);
-
-    if (resetBtn) {
-        resetBtn.addEventListener('click', function(e) {
-            e.preventDefault();
+    if (searchClear) {
+        searchClear.addEventListener('click', function() {
             if (searchInput) searchInput.value = '';
-            if (niveauSelect) niveauSelect.value = '';
-            if (sortSelect) sortSelect.value = 'nom';
-            filterAndSort();
+            currentPage = 1;
+            render();
+            syncUrl();
+            if (searchInput) searchInput.focus();
         });
     }
+
+    if (filterNiveau) {
+        filterNiveau.addEventListener('change', function() {
+            currentPage = 1;
+            render();
+            syncUrl();
+        });
+    }
+
+    if (filterStatus) {
+        filterStatus.addEventListener('change', function() {
+            currentPage = 1;
+            render();
+            syncUrl();
+        });
+    }
+
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function() {
+            currentPage = 1;
+            render();
+            syncUrl();
+        });
+    }
+
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function() {
+            pageSize = (this.value === 'all') ? 9999 : (parseInt(this.value, 10) || 15);
+            currentPage = 1;
+            render();
+        });
+    }
+
+    if (btnReset) btnReset.addEventListener('click', resetFilters);
+    if (btnResetEmpty) btnResetEmpty.addEventListener('click', resetFilters);
+
+    // Initialisation depuis l'URL
+    const initParams = new URLSearchParams(window.location.search);
+    if (initParams.has('q') && searchInput) searchInput.value = initParams.get('q');
+    if (initParams.has('niveau') && filterNiveau) filterNiveau.value = initParams.get('niveau');
+    if (initParams.has('statut') && filterStatus) filterStatus.value = initParams.get('statut');
+    if (initParams.has('sort') && sortSelect) sortSelect.value = initParams.get('sort');
+    if (initParams.has('cycle')) {
+        const initialCycle = initParams.get('cycle');
+        const targetChip = classChips.find(c => c.dataset.cycleChip === initialCycle);
+        if (targetChip) {
+            classChips.forEach(c => c.classList.remove('active'));
+            targetChip.classList.add('active');
+            selectedCycle = initialCycle;
+        }
+    }
+
+    render();
 });
 </script>
 {% endblock %}

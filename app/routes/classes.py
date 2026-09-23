@@ -114,7 +114,7 @@ def api_niveaux():
 @tenant_required
 def liste_classes():
     page = request.args.get('page', 1, type=int)
-    per_page = 25  # Affichage confortable pour les longues listes
+    per_page = 500  # Permet d'afficher toutes les classes pour le filtrage réactif instantané
 
     # Filtres
     search = request.args.get('search', '')

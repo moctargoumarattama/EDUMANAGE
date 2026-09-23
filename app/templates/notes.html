@@ -4,6 +4,13 @@
 {% block content %}
 <div class="container-fluid px-3 px-lg-4 py-4">
 
+    {% set ns_inc = namespace(count=0) %}
+    {% for e_id, comp in (completude_par_eleve or {}).items() %}
+        {% if comp and comp.expected_subjects > 0 and comp.evaluated_subjects < comp.expected_subjects %}
+            {% set ns_inc.count = ns_inc.count + 1 %}
+        {% endif %}
+    {% endfor %}
+
     <!-- En-tête de page standardisé KLASORA -->
     <section class="page-header mb-4">
         <div class="page-header-body">
@@ -33,22 +40,31 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllAccordions" title="Déplier ou replier tous les élèves">
-                    <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
+                {% if ns_inc.count > 0 %}
+                <button type="button" class="btn btn-sm btn-outline-warning fw-semibold py-1.5 px-3 rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5" id="btnFilterIncomplets" title="Afficher uniquement les élèves avec évaluations incomplètes">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span><strong>{{ ns_inc.count }}</strong> incomplet{{ 's' if ns_inc.count > 1 else '' }}</span>
                 </button>
+                {% endif %}
+
+                <button type="button" class="btn btn-sm btn-outline-primary fw-semibold py-1.5 px-3 rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5" id="btnToggleAllAccordions" title="Déplier ou replier tous les élèves">
+                    <i class="fas fa-chevron-down" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
+                </button>
+
                 {% if current_user.role == 'professeur' and notes_modifiables %}
-                <a href="{{ url_for('main.saisie_notes_classe', return_url=return_url) }}" class="btn btn-success shadow-sm" id="btnSaisieNotesClasse" title="Saisie rapide des notes par classe entière">
-                    <i class="fas fa-table-list me-2"></i>Saisie par classe
+                <a href="{{ url_for('main.saisie_notes_classe', return_url=return_url) }}" class="btn btn-sm btn-success rounded-pill px-3 shadow-xs" id="btnSaisieNotesClasse" title="Saisie rapide des notes par classe entière">
+                    <i class="fas fa-table-list me-1"></i>Saisie par classe
                 </a>
                 {% if form %}
-                <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseFormNote" aria-expanded="false" aria-controls="collapseFormNote" id="btnToggleAddNote" title="Saisie individuelle d'une note">
-                    <i class="fas fa-plus-circle me-2"></i>Saisie individuelle
+                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-xs" data-bs-toggle="collapse" data-bs-target="#collapseFormNote" aria-expanded="false" aria-controls="collapseFormNote" id="btnToggleAddNote" title="Saisie individuelle d'une note">
+                    <i class="fas fa-plus-circle me-1"></i>Saisie individuelle
                 </button>
                 {% endif %}
                 {% endif %}
+
                 {% if current_user.role == 'admin' %}
-                <a href="{{ url_for('main.export_notes_excel') }}" class="btn btn-outline-success shadow-sm" title="Exporter toutes les notes vers Excel">
-                    <i class="fas fa-file-excel me-2"></i>Exporter Excel
+                <a href="{{ url_for('main.export_notes_excel') }}" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-xs" title="Exporter toutes les notes vers Excel">
+                    <i class="fas fa-file-excel me-1"></i>Exporter Excel
                 </a>
                 {% endif %}
             </div>
@@ -169,95 +185,122 @@
         </div>
     </div>
     {% endif %}
+    <!-- Barre de puces rapides par classe (Chips horizontaux défilants) -->
+    {% if classes %}
+    <div class="class-quick-pills-bar mb-3" id="classChipsBar">
+        {% for cl in classes %}
+        <button type="button" 
+                class="class-filter-chip {% if selected_classe_nom == cl.nom or (not selected_classe_nom and loop.first) %}active{% endif %}" 
+                data-class-chip="{{ cl.nom }}"
+                data-classe-id="{{ cl.id }}"
+                data-niveau="{{ cl.niveau or '' }}">
+            {{ cl.nom }}
+        </button>
+        {% endfor %}
+    </div>
+    {% endif %}
 
-    <!-- Barre d'outils : recherche, filtres et tri -->
-    <div class="course-toolbar-card">
+    <!-- Barre d'outils et de recherche réactive (Style eleves.html) -->
+    <div class="course-toolbar-card mb-3">
         <div class="row g-2 align-items-center">
-            <!-- Recherche rapide -->
-            <div class="col-12 col-md-3">
+            <!-- Champ de recherche live -->
+            <div class="col-12 col-md-6 col-lg-5">
                 <div class="course-search-box">
                     <i class="fas fa-search search-icon"></i>
                     <input type="text" id="studentSearchInput" class="form-control" placeholder="Rechercher élève, matière..." value="{{ search }}" autocomplete="off">
-                    <button type="button" id="studentSearchClear" class="clear-btn" title="Effacer la recherche">
+                    <button type="button" id="studentSearchClear" class="clear-btn" title="Effacer la recherche" style="display: none;">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
 
-            {% if current_user.role != 'professeur' %}
-            <!-- Filtre par niveau -->
-            <div class="col-6 col-md-2 col-lg-2">
-                <select id="filterNiveauSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Tous niveaux</option>
-                    {% for niv in niveaux_annee %}
-                    <option value="{{ niv.nom }}" {% if niveau_id|string == niv.nom|string or niveau_id|string == niv.id|string %}selected{% endif %}>{{ niv.nom }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
+            <!-- Boutons d'action Filtres & Réinitialiser -->
+            <div class="col-12 col-md-6 col-lg-7">
+                <div class="d-flex align-items-center justify-content-between justify-content-md-end gap-2">
+                    <button class="btn btn-sm btn-outline-primary py-1.5 px-3 d-inline-flex align-items-center gap-1.5 rounded-pill" 
+                            type="button" data-bs-toggle="collapse" data-bs-target="#notesFiltersCollapse" aria-expanded="false" aria-controls="notesFiltersCollapse">
+                        <i class="fas fa-sliders-h"></i>
+                        <span class="fw-semibold small">Filtres</span>
+                        <span class="badge bg-primary text-white rounded-pill d-none" id="notesFilterBadge">0</span>
+                    </button>
 
-            {% if current_user.role != 'professeur' %}
-            <!-- Filtre par classe -->
-            <div class="col-6 col-md-2 col-lg-2">
-                <select id="filterClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Toutes classes</option>
-                    {% for cl in classes %}
-                    <option value="{{ cl.nom }}" data-id="{{ cl.id }}" data-niveau="{{ cl.niveau_scolaire.nom if cl.niveau_scolaire else (cl.niveau or '') }}" {% if classe_id == cl.id or (request.args.get('classe') == cl.nom) %}selected{% endif %}>{{ cl.nom }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
-
-            <!-- Filtre par matière / cours -->
-            <div class="col-6 col-md-2 col-lg-2">
-                <select id="filterCoursSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Toutes matières</option>
-                    {% for c in tous_les_cours %}
-                    <option value="{{ c.nom }}" data-id="{{ c.id }}" data-classe-id="{{ c.classe_id }}" data-classe-nom="{{ c.classe.nom if c.classe else '' }}" {% if cours_id == c.id or (request.args.get('cours') == c.nom) %}selected{% endif %}>{{ c.nom }}</option>
-                    {% endfor %}
-                </select>
+                    <button type="button" id="btnResetFilter" class="btn btn-sm btn-outline-secondary py-1.5 px-3 rounded-pill d-inline-flex align-items-center gap-1" style="display: none;">
+                        <i class="fas fa-undo me-1"></i>Réinitialiser
+                    </button>
+                </div>
             </div>
 
-            <!-- Filtre par période (Semestres) -->
-            <div class="col-6 col-md-2 col-lg-1">
-                <select id="filterPeriodeSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Périodes</option>
-                    <option value="Semestre 1" {% if periode == 'Semestre 1' %}selected{% endif %}>Semestre 1</option>
-                    <option value="Semestre 2" {% if periode == 'Semestre 2' %}selected{% endif %}>Semestre 2</option>
-                </select>
-            </div>
+            <!-- Section Filtres Avancés (Collapsible, parfaitement aligné) -->
+            <div class="col-12 collapse pt-3 border-top mt-2" id="notesFiltersCollapse">
+                <div class="row g-2 align-items-center">
+                    {% if current_user.role != 'professeur' %}
+                    <!-- Filtre par niveau -->
+                    <div class="col-6 col-md-4 col-lg">
+                        <select id="filterNiveauSelect" class="form-select form-select-sm">
+                            <option value="">Tous niveaux</option>
+                            {% for niv in niveaux_annee %}
+                            <option value="{{ niv.nom }}" {% if niveau_id|string == niv.nom|string or niveau_id|string == niv.id|string or request.args.get('niveau') == niv.nom %}selected{% endif %}>{{ niv.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
 
-            <!-- Filtre par type d'évaluation -->
-            <div class="col-6 col-md-2 col-lg-1">
-                <select id="filterTypeEvalSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Types</option>
-                    <option value="Devoir" {% if type_evaluation == 'Devoir' %}selected{% endif %}>Devoir</option>
-                    <option value="Interrogation" {% if type_evaluation == 'Interrogation' %}selected{% endif %}>Interrogation</option>
-                    <option value="Composition" {% if type_evaluation == 'Composition' %}selected{% endif %}>Composition</option>
-                </select>
-            </div>
+                    <!-- Filtre par matière / cours -->
+                    <div class="col-6 col-md-4 col-lg">
+                        <select id="filterCoursSelect" class="form-select form-select-sm">
+                            <option value="">Toutes matières</option>
+                            {% for c in tous_les_cours %}
+                            <option value="{{ c.nom }}" data-id="{{ c.id }}" data-classe-id="{{ c.classe_id }}" data-classe-nom="{{ c.classe.nom if c.classe else '' }}" {% if (cours_id and cours_id == c.id) or (request.args.get('cours') == c.nom) %}selected{% endif %}>{{ c.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
 
-            <!-- Tri des élèves -->
-            {% if current_user.role != 'professeur' %}
-            <div class="col-6 col-md-2 col-lg-1">
-                <select id="sortStudentsSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="nom-asc">A &rarr; Z</option>
-                    <option value="nom-desc">Z &rarr; A</option>
-                    <option value="notes-desc">Notes &darr;</option>
-                </select>
+                    <!-- Filtre par période (Semestres) -->
+                    <div class="col-6 col-md-4 col-lg">
+                        <select id="filterPeriodeSelect" class="form-select form-select-sm">
+                            <option value="">Toutes périodes</option>
+                            <option value="Semestre 1" {% if periode == 'Semestre 1' or request.args.get('periode') == 'Semestre 1' %}selected{% endif %}>Semestre 1</option>
+                            <option value="Semestre 2" {% if periode == 'Semestre 2' or request.args.get('periode') == 'Semestre 2' %}selected{% endif %}>Semestre 2</option>
+                        </select>
+                    </div>
+
+                    <!-- Filtre par type d'évaluation -->
+                    <div class="col-6 col-md-4 col-lg">
+                        <select id="filterTypeEvalSelect" class="form-select form-select-sm">
+                            <option value="">Tous types</option>
+                            <option value="Devoir" {% if type_evaluation == 'Devoir' or request.args.get('type_evaluation') == 'Devoir' %}selected{% endif %}>Devoir</option>
+                            <option value="Interrogation" {% if type_evaluation == 'Interrogation' or request.args.get('type_evaluation') == 'Interrogation' %}selected{% endif %}>Interrogation</option>
+                            <option value="Composition" {% if type_evaluation == 'Composition' or request.args.get('type_evaluation') == 'Composition' %}selected{% endif %}>Composition</option>
+                        </select>
+                    </div>
+
+                    {% if current_user.role != 'professeur' %}
+                    <!-- Tri des élèves -->
+                    <div class="col-6 col-md-4 col-lg">
+                        <select id="sortStudentsSelect" class="form-select form-select-sm">
+                            <option value="nom-asc" {% if request.args.get('sort') == 'nom-asc' %}selected{% endif %}>Tri : Nom (A &rarr; Z)</option>
+                            <option value="nom-desc" {% if request.args.get('sort') == 'nom-desc' %}selected{% endif %}>Tri : Nom (Z &rarr; A)</option>
+                            <option value="notes-desc" {% if request.args.get('sort') == 'notes-desc' %}selected{% endif %}>Tri : Nb notes (&darr;)</option>
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <!-- Bouton Réinitialiser interne au tiroir -->
+                    <div class="col-6 col-md-auto ms-auto">
+                        <button type="button" class="btn btn-sm btn-outline-secondary w-100 rounded-pill px-3" id="btnResetFilterDrawer" title="Réinitialiser tous les filtres">
+                            <i class="fas fa-undo me-1"></i>Réinitialiser
+                        </button>
+                    </div>
+                </div>
             </div>
-            {% endif %}
         </div>
 
         <!-- Info-bar sous les filtres -->
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 pt-2 border-top">
             <div class="text-muted small">
                 <i class="fas fa-users me-1 text-primary"></i>
-                <span id="studentFilterStats">Chargement des dossiers élèves...</span>
+                <span id="studentFilterStats">Chargement...</span>
             </div>
-            <button type="button" id="btnResetFilter" class="btn btn-link btn-sm text-decoration-none text-muted p-0" style="display: none;">
-                <i class="fas fa-undo me-1"></i>Réinitialiser les filtres
-            </button>
         </div>
     </div>
 
@@ -267,13 +310,15 @@
             {% set eleve = group.list[0].eleve %}
             {% set eleve_full = (eleve.prenom ~ ' ' ~ eleve.nom) %}
             {% set first_note = group.list[0] %}
-            {% set classe_nom = (first_note.inscription.classe.nom if (first_note.inscription and first_note.inscription.classe) else (first_note.cours.classe.nom if (first_note.cours and first_note.cours.classe) else 'Sans classe')) %}
+            {% set classe_obj = first_note.inscription.classe if (first_note.inscription and first_note.inscription.classe) else (first_note.cours.classe if (first_note.cours and first_note.cours.classe) else None) %}
+            {% set classe_nom = classe_obj.nom if classe_obj else 'Sans classe' %}
+            {% set niveau_nom = classe_obj.niveau if classe_obj else '' %}
             {% set student_notes_count = group.list|length %}
 
             <!-- Filtres pour l'élève -->
             {% set ns = namespace(matieres=[], types=[], periodes=[]) %}
             {% for n in group.list %}
-                {% if n.cours and n.cours.nom not in ns.matieres %}
+                {% if n.cours and n.cours.nom and n.cours.nom not in ns.matieres %}
                     {% set _ = ns.matieres.append(n.cours.nom) %}
                 {% endif %}
                 {% if n.type_evaluation and n.type_evaluation not in ns.types %}
@@ -283,11 +328,11 @@
                     {% set _ = ns.periodes.append(n.periode) %}
                 {% endif %}
             {% endfor %}
-            {% set matieres_str = ns.matieres|join(' ') %}
-            {% set types_str = ns.types|join(' ') %}
-            {% set periodes_str = ns.periodes|join(' ') %}
-            {% set classe_obj = (first_note.inscription.classe if first_note.inscription else (first_note.cours.classe if first_note.cours else None)) %}
-            {% set niveau_nom = (classe_obj.niveau if classe_obj else '') %}
+            {% set matieres_str = ns.matieres|join(';;;') %}
+            {% set types_str = ns.types|join(';;;') %}
+            {% set periodes_str = ns.periodes|join(';;;') %}
+            {% set comp = (completude_par_eleve or {}).get(eleve.id) %}
+            {% set is_incomplet = '1' if (comp and comp.expected_subjects > 0 and comp.evaluated_subjects < comp.expected_subjects) else '0' %}
 
             <article class="student-note-card"
                      data-id="{{ eleve.id }}"
@@ -298,6 +343,7 @@
                      data-matieres="{{ matieres_str }}"
                      data-types="{{ types_str }}"
                      data-periodes="{{ periodes_str }}"
+                     data-incomplet="{{ is_incomplet }}"
                      data-notes-count="{{ student_notes_count }}">
 
                 <!-- En-tête cliquable pour déplier/replier les notes de l'élève -->
@@ -334,16 +380,16 @@
                         {% set comp = (completude_par_eleve or {}).get(eleve.id) %}
                         {% if comp and comp.expected_subjects > 0 %}
                             {% if comp.evaluated_subjects >= comp.expected_subjects %}
-                                <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size: 0.82rem;" title="Toutes les matières obligatoires ont été évaluées">
-                                    <i class="fas fa-check-circle me-1"></i>{{ comp.expected_subjects }}/{{ comp.expected_subjects }} matières renseignées
+                                <span class="badge bg-success-subtle text-success border border-success-subtle d-none d-sm-inline-flex" style="font-size: 0.82rem;" title="Toutes les matières obligatoires ont été évaluées">
+                                    <i class="fas fa-check-circle me-1"></i>{{ comp.expected_subjects }}/{{ comp.expected_subjects }} <span class="d-none d-md-inline ms-1">matières</span>
                                 </span>
                             {% elif comp.evaluated_subjects > 0 %}
-                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size: 0.82rem;" title="Matières évaluées pour cette période">
-                                    <i class="fas fa-clock me-1"></i>{{ comp.evaluated_subjects }}/{{ comp.expected_subjects }} matière{{ 's' if comp.expected_subjects > 1 else '' }} renseignée{{ 's' if comp.evaluated_subjects > 1 else '' }}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle d-none d-sm-inline-flex" style="font-size: 0.82rem;" title="Matières évaluées pour cette période">
+                                    <i class="fas fa-clock me-1"></i>{{ comp.evaluated_subjects }}/{{ comp.expected_subjects }} <span class="d-none d-md-inline ms-1">matières</span>
                                 </span>
                             {% else %}
-                                <span class="badge bg-light text-muted border" style="font-size: 0.82rem;" title="Aucune matière évaluée pour cette période">
-                                    <i class="fas fa-circle-question me-1 text-muted"></i>0/{{ comp.expected_subjects }} matière{{ 's' if comp.expected_subjects > 1 else '' }} renseignée{{ 's' if comp.expected_subjects > 1 else '' }}
+                                <span class="badge bg-light text-muted border d-none d-sm-inline-flex" style="font-size: 0.82rem;" title="Aucune matière évaluée pour cette période">
+                                    <i class="fas fa-circle-question me-1 text-muted"></i>0/{{ comp.expected_subjects }} <span class="d-none d-md-inline ms-1">matières</span>
                                 </span>
                             {% endif %}
                         {% endif %}
@@ -355,7 +401,7 @@
                     </div>
                 </div>
 
-                <!-- Contenu dépliable : notes regroupées par matière avec moyenne de chaque matière -->
+                <!-- Contenu dépliable : vue synthétique par matière -->
                 <div class="collapse student-note-content p-3" id="collapseEleve{{ eleve.id }}">
                     {% set comp = (completude_par_eleve or {}).get(eleve.id) %}
                     {% if comp and comp.missing_subjects_names %}
@@ -369,150 +415,184 @@
 
                     {% set eleve_dossier = dossiers_notes_par_eleve.get(eleve.id, []) if dossiers_notes_par_eleve else [] %}
                     {% if eleve_dossier %}
-                        <div class="d-flex flex-column gap-3">
+                        <!-- 1. TABLEAU SYNTHÉTIQUE COMPACT SUR DESKTOP (d-none d-md-block) -->
+                        <div class="student-summary-table-wrap d-none d-md-block">
+                            <table class="table student-summary-table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 26%;">Matière</th>
+                                        <th style="width: 50%;">Évaluations &amp; Notes</th>
+                                        <th style="width: 14%;" class="text-center">Moyenne</th>
+                                        <th style="width: 10%;" class="text-end pe-3">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for mat in eleve_dossier %}
+                                    <tr>
+                                        <!-- Matière -->
+                                        <td>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="subject-icon-box">
+                                                    <i class="fas fa-book text-primary"></i>
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <div class="fw-bold text-dark text-truncate" title="{{ mat.cours_nom }}">{{ mat.cours_nom }}</div>
+                                                    <span class="badge bg-light text-muted border" style="font-size: 0.72rem;">Coeff. x{{ mat.coefficient }}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <!-- Notes en pilules interactives -->
+                                        <td>
+                                            <div class="note-pill-group">
+                                                {% for note in mat.notes %}
+                                                {% set date_str = note.date_evaluation.strftime('%d/%m/%Y') if note.date_evaluation else '' %}
+                                                {% set grade_color = 'top' if note.valeur >= 16 else ('high' if note.valeur >= 14 else ('good' if note.valeur >= 12 else ('pass' if note.valeur >= 10 else 'danger'))) %}
+
+                                                <button type="button" 
+                                                        class="note-pill note-pill-{{ grade_color }}" 
+                                                        data-note-id="{{ note.id }}"
+                                                        data-cours="{{ mat.cours_nom }}"
+                                                        data-type="{{ note.type_evaluation }}"
+                                                        data-valeur="{{ note.valeur }}"
+                                                        data-periode="{{ note.periode or '—' }}"
+                                                        data-date="{{ date_str or '—' }}"
+                                                        data-eleve="{{ eleve_full }}"
+                                                        onclick="openNoteDetail(this)"
+                                                        title="Note : {{ note.valeur }}/20 ({{ note.type_evaluation }}) - Cliquez pour détails">
+                                                    <span class="note-pill-val">{{ note.valeur }}</span>
+                                                    <span class="note-pill-type">{{ (note.type_evaluation[:3] if note.type_evaluation else 'Ev')|upper }}</span>
+                                                </button>
+                                                {% endfor %}
+                                            </div>
+                                        </td>
+
+                                        <!-- Moyenne matière -->
+                                        <td class="text-center">
+                                            {% if mat.moyenne_matiere is not none %}
+                                                {% set moy = mat.moyenne_matiere %}
+                                                <span class="badge {{ 'bg-success-subtle text-success border border-success-subtle' if moy >= 14 else ('bg-primary-subtle text-primary border border-primary-subtle' if moy >= 10 else 'bg-danger-subtle text-danger border border-danger-subtle') }} fs-6 fw-bold px-2 py-1">
+                                                    {{ "%.2f"|format(moy) }}/20
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-light text-muted border px-2 py-1">En attente</span>
+                                            {% endif %}
+                                        </td>
+
+                                        <!-- Nombre de notes -->
+                                        <td class="text-end pe-3">
+                                            <span class="badge bg-light text-secondary border">
+                                                {{ mat.notes_count }} note{{ 's' if mat.notes_count > 1 else '' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- 2. CARTES MATIÈRES SYNTHÉTIQUES SUR MOBILE (d-md-none) -->
+                        <div class="student-mobile-subjects d-md-none d-flex flex-column gap-2">
                             {% for mat in eleve_dossier %}
-                            <div class="border rounded-3 p-3 bg-light bg-opacity-25">
-                                <!-- En-tête Matière -->
-                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2 pb-2 border-bottom">
-                                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                                        <i class="fas fa-book text-primary opacity-75"></i>
-                                        <span class="fw-bold text-dark fs-6">{{ mat.cours_nom }}</span>
-                                        <span class="badge bg-light text-muted border">Coeff. x{{ mat.coefficient }}</span>
-                                        <span class="badge bg-white text-muted border">{{ mat.notes_count }} note{{ 's' if mat.notes_count > 1 else '' }}</span>
+                            <div class="student-mobile-subject-card">
+                                <!-- En-tête matière + moyenne -->
+                                <div class="student-mobile-subject-header">
+                                    <div class="d-flex align-items-center gap-1.5 min-w-0">
+                                        <i class="fas fa-book text-primary opacity-75 small"></i>
+                                        <span class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;">{{ mat.cours_nom }}</span>
+                                        <span class="badge bg-light text-muted border" style="font-size: 0.68rem;">x{{ mat.coefficient }}</span>
                                     </div>
                                     <div>
                                         {% if mat.moyenne_matiere is not none %}
-                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-6 py-1 px-2 fw-semibold">
-                                                Moyenne matière : {{ "%.2f"|format(mat.moyenne_matiere) }}/20
+                                            {% set moy = mat.moyenne_matiere %}
+                                            <span class="badge {{ 'bg-success-subtle text-success border border-success-subtle' if moy >= 14 else ('bg-primary-subtle text-primary border border-primary-subtle' if moy >= 10 else 'bg-danger-subtle text-danger border border-danger-subtle') }} fw-bold" style="font-size: 0.8rem;">
+                                                {{ "%.2f"|format(moy) }}/20
                                             </span>
                                         {% else %}
-                                            <span class="badge bg-light text-muted border fs-6 py-1 px-2">
-                                                Moyenne matière : En attente
-                                            </span>
+                                            <span class="badge bg-light text-muted border" style="font-size: 0.72rem;">En attente</span>
                                         {% endif %}
                                     </div>
                                 </div>
 
-                                <!-- Tableau sur Desktop -->
-                                <div class="student-eval-table-wrap">
-                                    <table class="table student-eval-table align-middle mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>Évaluation</th>
-                                                <th>Note</th>
-                                                <th>Période</th>
-                                                <th>Date</th>
-                                                {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
-                                                <th class="text-end pe-3">Actions</th>
-                                                {% endif %}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for note in mat.notes %}
-                                            {% set date_str = note.date_evaluation.strftime('%d/%m/%Y') if note.date_evaluation else '' %}
-                                            <tr>
-                                                <td>
-                                                    <span class="badge bg-light text-dark border">{{ note.type_evaluation }}</span>
-                                                </td>
-                                                <td>
-                                                    {% if note.valeur >= 16 %}
-                                                        <span class="badge bg-success fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
-                                                    {% elif note.valeur >= 14 %}
-                                                        <span class="badge bg-info text-dark fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
-                                                    {% elif note.valeur >= 12 %}
-                                                        <span class="badge bg-primary fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
-                                                    {% elif note.valeur >= 10 %}
-                                                        <span class="badge bg-warning text-dark fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
-                                                    {% else %}
-                                                        <span class="badge bg-danger fs-6 fw-bold shadow-sm">{{ note.valeur }}/20</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td>
-                                                    <span class="text-muted small">{{ note.periode or '—' }}</span>
-                                                </td>
-                                                <td>
-                                                    <span class="text-muted small">{{ date_str }}</span>
-                                                </td>
-                                                {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
-                                                <td class="text-end pe-3">
-                                                    <div class="d-inline-flex gap-1">
-                                                        <a href="{{ url_for('main.modifier_note', note_id=note.id, return_url=return_url) }}" class="btn btn-sm btn-outline-primary" title="Modifier la note">
-                                                            <i class="fas fa-edit"></i>
-                                                        </a>
-                                                        <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette note pour {{ eleve_full }} ?');">
-                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                                            <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer la note">
-                                                                <i class="fas fa-trash"></i>
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                </td>
-                                                {% endif %}
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <!-- Cartes sur Mobile (Zéro défilement horizontal) -->
-                                <div class="student-eval-cards">
+                                <!-- Pilules de notes -->
+                                <div class="note-pill-group pt-1">
                                     {% for note in mat.notes %}
                                     {% set date_str = note.date_evaluation.strftime('%d/%m/%Y') if note.date_evaluation else '' %}
-                                    <div class="student-eval-card">
-                                        <div class="student-eval-card-top">
-                                            <div class="d-flex align-items-center gap-2 min-w-0">
-                                                <span class="badge bg-light text-dark border">{{ note.type_evaluation }}</span>
-                                                {% if note.periode %}
-                                                <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ note.periode }}</span>
-                                                {% endif %}
-                                            </div>
-                                            <div>
-                                                {% if note.valeur >= 16 %}
-                                                    <span class="badge bg-success fs-6 fw-bold">{{ note.valeur }}/20</span>
-                                                {% elif note.valeur >= 14 %}
-                                                    <span class="badge bg-info text-dark fs-6 fw-bold">{{ note.valeur }}/20</span>
-                                                {% elif note.valeur >= 12 %}
-                                                    <span class="badge bg-primary fs-6 fw-bold">{{ note.valeur }}/20</span>
-                                                {% elif note.valeur >= 10 %}
-                                                    <span class="badge bg-warning text-dark fs-6 fw-bold">{{ note.valeur }}/20</span>
-                                                {% else %}
-                                                    <span class="badge bg-danger fs-6 fw-bold">{{ note.valeur }}/20</span>
-                                                {% endif %}
-                                            </div>
-                                        </div>
+                                    {% set grade_color = 'top' if note.valeur >= 16 else ('high' if note.valeur >= 14 else ('good' if note.valeur >= 12 else ('pass' if note.valeur >= 10 else 'danger'))) %}
 
-                                        <div class="d-flex align-items-center justify-content-between text-muted" style="font-size: 0.78rem;">
-                                            <span>Date d'évaluation</span>
-                                            <span>{{ date_str }}</span>
-                                        </div>
-
-                                        {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
-                                        <div class="student-eval-card-bottom">
-                                            <div class="student-eval-card-actions">
-                                                <a href="{{ url_for('main.modifier_note', note_id=note.id, return_url=return_url) }}" class="btn btn-outline-primary btn-sm" title="Modifier">
-                                                    <i class="fas fa-edit me-1"></i>Modifier
-                                                </a>
-                                                <form action="{{ url_for('main.supprimer_note', note_id=note.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette note ?');">
-                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                                            <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
-                                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
-                                                        <i class="fas fa-trash me-1"></i>Supprimer
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </div>
-                                        {% endif %}
-                                    </div>
+                                    <button type="button" 
+                                            class="note-pill note-pill-{{ grade_color }}" 
+                                            data-note-id="{{ note.id }}"
+                                            data-cours="{{ mat.cours_nom }}"
+                                            data-type="{{ note.type_evaluation }}"
+                                            data-valeur="{{ note.valeur }}"
+                                            data-periode="{{ note.periode or '—' }}"
+                                            data-date="{{ date_str or '—' }}"
+                                            data-eleve="{{ eleve_full }}"
+                                            onclick="openNoteDetail(this)">
+                                        <span class="note-pill-val">{{ note.valeur }}</span>
+                                        <span class="note-pill-type">{{ (note.type_evaluation[:3] if note.type_evaluation else 'Ev')|upper }}</span>
+                                    </button>
                                     {% endfor %}
                                 </div>
                             </div>
                             {% endfor %}
                         </div>
+                    {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-info-circle me-1"></i>Aucune note enregistrée pour cet élève.
+                        </div>
                     {% endif %}
                 </div>
             </article>
         {% endfor %}
+    </div>
+
+    <!-- Modal Détails & Actions d'Évaluation (Au clic sur une note) -->
+    <div class="modal fade" id="modalNoteDetail" tabindex="-1" aria-labelledby="modalNoteCoursNom" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header border-bottom py-2.5 px-3 bg-light">
+                    <div class="min-w-0">
+                        <h6 class="modal-title fw-bold text-dark text-truncate mb-0" id="modalNoteCoursNom">Matière</h6>
+                        <span class="small text-primary fw-semibold" id="modalNoteTypeEval">Évaluation</span>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                        <span class="text-muted small">Élève</span>
+                        <span class="fw-bold text-dark text-truncate small text-end ps-2" id="modalNoteEleveNom">Élève</span>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted small">Note obtenue</span>
+                        <span class="badge fs-5 fw-bold px-3 py-1" id="modalNoteValeurBadge">--/20</span>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted small">Période</span>
+                        <span class="fw-semibold text-dark small" id="modalNotePeriode">--</span>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between">
+                        <span class="text-muted small">Date d'évaluation</span>
+                        <span class="fw-semibold text-dark small" id="modalNoteDate">--</span>
+                    </div>
+                </div>
+                {% if current_user.role in ['admin', 'professeur'] and notes_modifiables %}
+                <div class="modal-footer border-top p-2.5 bg-light bg-opacity-50 d-flex gap-2">
+                    <a href="#" id="modalNoteBtnModifier" class="btn btn-sm btn-outline-primary flex-fill rounded-pill py-1.5 fw-semibold">
+                        <i class="fas fa-edit me-1"></i>Modifier
+                    </a>
+                    <form id="modalNoteFormSupprimer" action="#" method="POST" class="flex-fill m-0" onsubmit="return confirm('Supprimer définitivement cette note ?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
+                        <button type="submit" class="btn btn-sm btn-outline-danger w-100 rounded-pill py-1.5 fw-semibold">
+                            <i class="fas fa-trash me-1"></i>Supprimer
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 
     <!-- État vide après filtrage -->
@@ -559,7 +639,52 @@
 
 <!-- Contrôleur JavaScript réactif pour la gestion des notes par élève -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+// Ouverture interactive des détails et actions d'une note au clic sur une pilule
+window.openNoteDetail = function(btn) {
+    if (!btn) return;
+    const d = btn.dataset;
+    const coursEl = document.getElementById('modalNoteCoursNom');
+    const typeEl = document.getElementById('modalNoteTypeEval');
+    const eleveEl = document.getElementById('modalNoteEleveNom');
+    const badgeEl = document.getElementById('modalNoteValeurBadge');
+    const perEl = document.getElementById('modalNotePeriode');
+    const dateEl = document.getElementById('modalNoteDate');
+    const btnMod = document.getElementById('modalNoteBtnModifier');
+    const formDel = document.getElementById('modalNoteFormSupprimer');
+
+    if (coursEl) coursEl.textContent = d.cours || 'Matière';
+    if (typeEl) typeEl.textContent = d.type || 'Évaluation';
+    if (eleveEl) eleveEl.textContent = d.eleve || 'Élève';
+
+    if (badgeEl) {
+        const val = parseFloat(d.valeur) || 0;
+        badgeEl.textContent = `${d.valeur}/20`;
+        badgeEl.className = 'badge fs-5 fw-bold px-3 py-1.5 ' + (
+            val >= 16 ? 'bg-success' :
+            val >= 14 ? 'bg-info text-dark' :
+            val >= 12 ? 'bg-primary' :
+            val >= 10 ? 'bg-warning text-dark' : 'bg-danger'
+        );
+    }
+
+    if (perEl) perEl.textContent = d.periode || '—';
+    if (dateEl) dateEl.textContent = d.date || '—';
+
+    if (btnMod && d.noteId) {
+        btnMod.href = `/notes/modifier/${d.noteId}?return_url=${encodeURIComponent(window.location.href)}`;
+    }
+    if (formDel && d.noteId) {
+        formDel.action = `/notes/supprimer/${d.noteId}`;
+    }
+
+    const modalEl = document.getElementById('modalNoteDetail');
+    if (modalEl) {
+        const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        bsModal.show();
+    }
+};
+
+function initNotesPage() {
     // Normalisation de texte (insensible casse et accents)
     function normalizeStr(str) {
         if (!str) return '';
@@ -685,7 +810,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('studentSearchInput');
     const searchClear = document.getElementById('studentSearchClear');
     const filterNiveau = document.getElementById('filterNiveauSelect');
-    const filterClasse = document.getElementById('filterClasseSelect');
     const filterCours = document.getElementById('filterCoursSelect');
     const filterPeriode = document.getElementById('filterPeriodeSelect');
     const filterTypeEval = document.getElementById('filterTypeEvalSelect');
@@ -693,97 +817,182 @@ document.addEventListener('DOMContentLoaded', function() {
     const pageSizeSelect = document.getElementById('pageSizeSelect');
     const filterStats = document.getElementById('studentFilterStats');
     const btnReset = document.getElementById('btnResetFilter');
+    const btnResetDrawer = document.getElementById('btnResetFilterDrawer');
     const btnResetEmpty = document.getElementById('btnResetFiltersEmpty');
     const noResults = document.getElementById('noStudentsFoundState');
     const studentContainer = document.getElementById('studentAccordionList');
     const paginationBar = document.getElementById('studentPaginationBar');
     const paginationList = document.getElementById('paginationList');
     const pageInfoText = document.getElementById('pageInfoText');
+    const notesFilterBadge = document.getElementById('notesFilterBadge');
 
-    // Sauvegarder les options complètes pour filtrage dépendant
-    const allClasseOptions = filterClasse ? Array.from(filterClasse.querySelectorAll('option')) : [];
-    const allCoursOptions = filterCours ? Array.from(filterCours.querySelectorAll('option')) : [];
+    // Puces rapides de classe (Chips)
+    const classChips = Array.from(document.querySelectorAll('#classChipsBar .class-filter-chip'));
 
-    function updateDependentClassesAndCourses() {
-        const selectedNiveau = filterNiveau ? filterNiveau.value.trim() : '';
-        const currentClasse = filterClasse ? filterClasse.value : '';
-
-        if (filterClasse) {
-            filterClasse.innerHTML = '';
-            allClasseOptions.forEach(opt => {
-                if (!opt.value) {
-                    filterClasse.appendChild(opt.cloneNode(true));
-                } else {
-                    const optNiveau = opt.dataset.niveau || '';
-                    if (!selectedNiveau || optNiveau === selectedNiveau) {
-                        filterClasse.appendChild(opt.cloneNode(true));
-                    }
-                }
-            });
-            const stillExists = Array.from(filterClasse.options).some(o => o.value === currentClasse);
-            filterClasse.value = stillExists ? currentClasse : '';
-        }
-
-        const selectedClasseNow = filterClasse ? filterClasse.value : '';
-        if (filterCours) {
-            const currentCours = filterCours.value;
-            filterCours.innerHTML = '';
-            allCoursOptions.forEach(opt => {
-                if (!opt.value) {
-                    filterCours.appendChild(opt.cloneNode(true));
-                } else {
-                    const optClasseNom = opt.dataset.classeNom || '';
-                    if (!selectedClasseNow || optClasseNom === selectedClasseNow) {
-                        filterCours.appendChild(opt.cloneNode(true));
-                    }
-                }
-            });
-            const coursExists = Array.from(filterCours.options).some(o => o.value === currentCours);
-            filterCours.value = coursExists ? currentCours : '';
-        }
-    }
-
-    // Bouton tout déplier / tout replier
+    // Boutons tout déplier / tout replier (Desktop & Mobile)
     const btnToggleAll = document.getElementById('btnToggleAllAccordions');
     const iconToggleAll = document.getElementById('iconToggleAll');
     const textToggleAll = document.getElementById('textToggleAll');
+    const btnToggleAllMob = document.getElementById('btnToggleAllAccordionsMob');
+    const iconToggleAllMob = document.getElementById('iconToggleAllMob');
+    const textToggleAllMob = document.getElementById('textToggleAllMob');
+
+    // Filtre d'alerte 1-clic Incomplets
+    const btnFilterIncomplets = document.getElementById('btnFilterIncomplets');
+    const btnFilterIncompletsMob = document.getElementById('btnFilterIncompletsMob');
+    let filterIncompletsActive = false;
     let allExpanded = false;
-
-    // Cartes des élèves
-    const studentCards = Array.from(document.querySelectorAll('.student-note-card'));
-    const totalStudents = studentCards.length;
-
-    if (totalStudents === 0) {
-        if (paginationBar) paginationBar.style.display = 'none';
-        return;
-    }
 
     // État courant
     let currentPage = 1;
     let pageSize = parseInt(pageSizeSelect ? pageSizeSelect.value : 20, 10) || 20;
 
-    // Filtrage et Tri des élèves
+    // Cartes des élèves
+    const studentCards = Array.from(document.querySelectorAll('.student-note-card'));
+    const totalStudents = studentCards.length;
+
+    // Récupérer le nom de la classe active
+    function getActiveClasseNom() {
+        const activeChip = classChips.find(c => c.classList.contains('active'));
+        if (activeChip) return activeChip.getAttribute('data-class-chip') || '';
+        return new URLSearchParams(window.location.search).get('classe') || '';
+    }
+
+    // Gestion du bouton "Déplier tout / Replier tout"
+    function updateAllToggleButtons(expanded) {
+        allExpanded = expanded;
+        [btnToggleAll, btnToggleAllMob].forEach(btn => {
+            if (!btn) return;
+            const icon = btn.querySelector('i');
+            const text = btn.querySelector('span');
+            if (expanded) {
+                btn.className = 'btn btn-sm btn-primary fw-semibold py-1.5 px-3 rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5';
+                if (icon) icon.className = 'fas fa-chevron-up';
+                if (text) text.textContent = 'Tout replier';
+            } else {
+                btn.className = 'btn btn-sm btn-outline-primary fw-semibold py-1.5 px-3 rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5';
+                if (icon) icon.className = 'fas fa-chevron-down';
+                if (text) text.textContent = 'Tout déplier';
+            }
+        });
+    }
+
+    function toggleAllAccordions() {
+        const nextState = !allExpanded;
+        const visibleCards = studentCards.filter(card => card.style.display !== 'none');
+
+        visibleCards.forEach(card => {
+            const collapseEl = card.querySelector('.collapse');
+            const headerEl = card.querySelector('.student-note-header');
+            if (collapseEl) {
+                const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+                if (nextState) {
+                    bsCollapse.show();
+                    if (headerEl) headerEl.setAttribute('aria-expanded', 'true');
+                } else {
+                    bsCollapse.hide();
+                    if (headerEl) headerEl.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+
+        updateAllToggleButtons(nextState);
+    }
+
+    if (btnToggleAll) btnToggleAll.addEventListener('click', toggleAllAccordions);
+    if (btnToggleAllMob) btnToggleAllMob.addEventListener('click', toggleAllAccordions);
+
+    // Basculement Filtre 1-Clic Évaluations Incomplètes
+    function toggleIncompletsFilter() {
+        filterIncompletsActive = !filterIncompletsActive;
+        [btnFilterIncomplets, btnFilterIncompletsMob].forEach(btn => {
+            if (!btn) return;
+            if (filterIncompletsActive) {
+                btn.classList.remove('btn-outline-warning');
+                btn.classList.add('btn-warning', 'text-dark', 'shadow-sm');
+            } else {
+                btn.classList.remove('btn-warning', 'shadow-sm');
+                btn.classList.add('btn-outline-warning');
+            }
+        });
+
+        currentPage = 1;
+        render();
+    }
+
+    if (btnFilterIncomplets) btnFilterIncomplets.addEventListener('click', toggleIncompletsFilter);
+    if (btnFilterIncompletsMob) btnFilterIncompletsMob.addEventListener('click', toggleIncompletsFilter);
+
+    // --- 1. Gestion des clics sur les puces de classe ---
+    classChips.forEach(chip => {
+        chip.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetClass = this.getAttribute('data-class-chip') || '';
+            if (!targetClass) return;
+
+            const url = new URL(window.location.href);
+            url.searchParams.set('classe', targetClass);
+            if (filterNiveau && filterNiveau.value) {
+                url.searchParams.set('niveau', filterNiveau.value);
+            }
+            if (filterCours && filterCours.value) url.searchParams.set('cours', filterCours.value);
+            if (filterPeriode && filterPeriode.value) url.searchParams.set('periode', filterPeriode.value);
+            if (filterTypeEval && filterTypeEval.value) url.searchParams.set('type_evaluation', filterTypeEval.value);
+
+            window.location.href = url.toString();
+        });
+    });
+
+    // --- 2. Synchronisation du filtre Niveau avec les puces de classe ("Le filtre suit") ---
+    function syncNiveauWithClassChips(shouldNavigateOnMismatch) {
+        if (!filterNiveau) return;
+        const selectedNiv = filterNiveau.value.trim();
+        const normNiv = normalizeStr(selectedNiv);
+
+        let firstVisibleChip = null;
+        let activeIsVisible = false;
+
+        classChips.forEach(chip => {
+            const chipNiveau = normalizeStr(chip.getAttribute('data-niveau') || '');
+            const visible = (!normNiv || chipNiveau === normNiv);
+            chip.style.display = visible ? 'inline-block' : 'none';
+            if (visible) {
+                if (!firstVisibleChip) firstVisibleChip = chip;
+                if (chip.classList.contains('active')) activeIsVisible = true;
+            }
+        });
+
+        // Si l'utilisateur choisit un niveau et que la classe active n'en fait pas partie,
+        // basculer automatiquement vers la première classe de ce niveau
+        if (selectedNiv && !activeIsVisible && firstVisibleChip && shouldNavigateOnMismatch) {
+            const targetClass = firstVisibleChip.getAttribute('data-class-chip');
+            const url = new URL(window.location.href);
+            url.searchParams.set('classe', targetClass);
+            url.searchParams.set('niveau', selectedNiv);
+            window.location.href = url.toString();
+            return true;
+        }
+        return false;
+    }
+
+    // Filtrage et Tri des élèves (mémoire client ultra-rapide)
     function getFilteredAndSortedStudents() {
         const query = normalizeStr(searchInput ? searchInput.value.trim() : '');
-        const selectedNiveau = normalizeStr(filterNiveau ? filterNiveau.value.trim() : '');
-        const selectedClasse = filterClasse ? filterClasse.value.trim() : '';
-        const selectedCours = filterCours ? normalizeStr(filterCours.value.trim()) : '';
-        const selectedPeriode = filterPeriode ? filterPeriode.value.trim() : '';
-        const selectedType = filterTypeEval ? filterTypeEval.value.trim() : '';
+        const selectedNiv = normalizeStr(filterNiveau ? filterNiveau.value.trim() : '');
+        const selectedCours = normalizeStr(filterCours ? filterCours.value.trim() : '');
+        const selectedPeriode = (filterPeriode ? filterPeriode.value.trim() : '').toLowerCase();
+        const selectedType = (filterTypeEval ? filterTypeEval.value.trim() : '').toLowerCase();
         const sortMode = sortSelect ? sortSelect.value : 'nom-asc';
 
-        // Synchroniser l'URL sans recharger
-        const params = new URLSearchParams();
-        if (query) params.set('search', query);
-        if (selectedNiveau) params.set('niveau', filterNiveau.value);
-        if (selectedClasse && filterClasse && filterClasse.selectedOptions.length) {
-            params.set('classe_id', filterClasse.selectedOptions[0].dataset.id || selectedClasse);
-        }
-        if (selectedCours && filterCours && filterCours.selectedOptions.length) {
-            params.set('cours_id', filterCours.selectedOptions[0].dataset.id || filterCours.value);
-        }
-        if (selectedPeriode) params.set('periode', selectedPeriode);
-        if (selectedType) params.set('type_evaluation', selectedType);
+        // Synchroniser l'URL sans recharger la page
+        const params = new URLSearchParams(window.location.search);
+        if (query) params.set('search', searchInput.value.trim()); else params.delete('search');
+        if (filterNiveau && filterNiveau.value) params.set('niveau', filterNiveau.value); else params.delete('niveau');
+        if (filterCours && filterCours.value) params.set('cours', filterCours.value); else params.delete('cours');
+        if (filterPeriode && filterPeriode.value) params.set('periode', filterPeriode.value); else params.delete('periode');
+        if (filterTypeEval && filterTypeEval.value) params.set('type_evaluation', filterTypeEval.value); else params.delete('type_evaluation');
+        if (sortSelect && sortSelect.value !== 'nom-asc') params.set('sort', sortSelect.value); else params.delete('sort');
+
         const cleanUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
         window.history.replaceState({}, '', cleanUrl);
         document.querySelectorAll('[data-return-url-field]').forEach(field => {
@@ -792,32 +1001,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
         let matched = studentCards.filter(function(card) {
             const nom = normalizeStr(card.dataset.nom);
-            const classe = normalizeStr(card.dataset.classe);
+            const classe = card.dataset.classe || '';
             const niveau = normalizeStr(card.dataset.niveau || '');
-            const matieres = normalizeStr(card.dataset.matieres);
-            const types = card.dataset.types || '';
-            const periodes = card.dataset.periodes || '';
+            const matieres = (card.dataset.matieres || '').split(';;;').map(normalizeStr);
+            const types = (card.dataset.types || '').split(';;;').map(s => s.trim().toLowerCase());
+            const periodes = (card.dataset.periodes || '').split(';;;').map(s => s.trim().toLowerCase());
+            const isIncomplet = card.dataset.incomplet === '1';
 
             // Recherche texte
             if (query) {
                 const textMatch = nom.includes(query) ||
-                                  classe.includes(query) ||
-                                  matieres.includes(query);
+                                  normalizeStr(classe).includes(query) ||
+                                  matieres.some(m => m.includes(query));
                 if (!textMatch) return false;
             }
 
-            // Filtre niveau
-            if (selectedNiveau && niveau !== selectedNiveau) {
+            // Filtre 1-Clic Incomplets
+            if (filterIncompletsActive && !isIncomplet) {
                 return false;
             }
 
-            // Filtre classe
-            if (selectedClasse && card.dataset.classe !== selectedClasse) {
+            // Filtre niveau
+            if (selectedNiv && niveau && niveau !== selectedNiv) {
                 return false;
             }
 
             // Filtre matière
-            if (selectedCours && !matieres.includes(selectedCours)) {
+            if (selectedCours && !matieres.some(m => m === selectedCours || m.includes(selectedCours))) {
                 return false;
             }
 
@@ -859,25 +1069,45 @@ document.addEventListener('DOMContentLoaded', function() {
             searchClear.style.display = searchInput.value.trim().length > 0 ? 'inline-block' : 'none';
         }
 
-        // Bouton réinitialiser
-        const isFiltered = (searchInput && searchInput.value.trim().length > 0) ||
-                           (filterNiveau && filterNiveau.value !== '') ||
-                           (filterClasse && filterClasse.value !== '') ||
-                           (filterCours && filterCours.value !== '') ||
-                           (filterPeriode && filterPeriode.value !== '') ||
-                           (filterTypeEval && filterTypeEval.value !== '') ||
-                           (sortSelect && sortSelect.value !== 'nom-asc');
+        // Compteur de filtres avancés actifs et mise à jour du badge
+        let activeFiltersCount = 0;
+        if (filterNiveau && filterNiveau.value !== '') activeFiltersCount++;
+        if (filterCours && filterCours.value !== '') activeFiltersCount++;
+        if (filterPeriode && filterPeriode.value !== '') activeFiltersCount++;
+        if (filterTypeEval && filterTypeEval.value !== '') activeFiltersCount++;
+        if (sortSelect && sortSelect.value !== 'nom-asc') activeFiltersCount++;
 
-        if (btnReset) {
-            btnReset.style.display = isFiltered ? 'inline-block' : 'none';
+        if (notesFilterBadge) {
+            if (activeFiltersCount > 0) {
+                notesFilterBadge.textContent = activeFiltersCount;
+                notesFilterBadge.classList.remove('d-none');
+            } else {
+                notesFilterBadge.classList.add('d-none');
+            }
         }
 
-        // Compteur
+        // Boutons réinitialiser
+        const isFiltered = (searchInput && searchInput.value.trim().length > 0) ||
+                           filterIncompletsActive ||
+                           activeFiltersCount > 0;
+
+        [btnReset, btnResetDrawer].forEach(btn => {
+            if (btn) btn.style.display = isFiltered ? 'inline-block' : 'none';
+        });
+
+        // Info-bar compteur
+        const activeClasse = getActiveClasseNom();
         if (filterStats) {
-            if (count === totalStudents) {
-                filterStats.innerHTML = `Affichage de <strong>${count}</strong> dossiers élèves`;
+            if (totalStudents === 0) {
+                filterStats.innerHTML = activeClasse 
+                    ? `Classe <strong>${activeClasse}</strong> : 0 note enregistrée`
+                    : `0 dossier élève`;
+            } else if (filterIncompletsActive) {
+                filterStats.innerHTML = `<span class="badge bg-warning text-dark me-1"><i class="fas fa-exclamation-triangle me-1"></i>Évaluations incomplètes</span> <strong>${count}</strong> élève${count > 1 ? 's' : ''} à relancer (${activeClasse})`;
+            } else if (count === totalStudents) {
+                filterStats.innerHTML = `Affichage de <strong>${count}</strong> dossiers élèves (${activeClasse})`;
             } else {
-                filterStats.innerHTML = `<strong>${count}</strong> élève${count > 1 ? 's' : ''} trouvé${count > 1 ? 's' : ''} sur ${totalStudents}`;
+                filterStats.innerHTML = `<strong>${count}</strong> élève${count > 1 ? 's' : ''} trouvé${count > 1 ? 's' : ''} sur ${totalStudents} (${activeClasse})`;
             }
         }
 
@@ -906,6 +1136,21 @@ document.addEventListener('DOMContentLoaded', function() {
         studentCards.forEach(card => {
             card.style.display = visibleIds.has(card.dataset.id) ? 'block' : 'none';
         });
+
+        // Déplier automatiquement si un filtre ciblé est actif (incomplet ou recherche)
+        const shouldAutoExpand = filterIncompletsActive || (searchInput && searchInput.value.trim().length > 0);
+        if (shouldAutoExpand) {
+            pageItems.forEach(card => {
+                const collapseEl = card.querySelector('.collapse');
+                const headerEl = card.querySelector('.student-note-header');
+                if (collapseEl) {
+                    const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+                    bsCollapse.show();
+                    if (headerEl) headerEl.setAttribute('aria-expanded', 'true');
+                }
+            });
+            updateAllToggleButtons(true);
+        }
 
         // Réordonner les cartes dans le DOM selon le tri
         if (studentContainer) {
@@ -985,50 +1230,32 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Gestion du bouton Tout Déplier / Tout Replier
-    if (btnToggleAll) {
-        btnToggleAll.addEventListener('click', function() {
-            allExpanded = !allExpanded;
-            const collapses = document.querySelectorAll('.student-note-content');
-            const headers = document.querySelectorAll('.student-note-header');
-
-            collapses.forEach(el => {
-                const bsCollapse = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
-                if (allExpanded) {
-                    bsCollapse.show();
-                } else {
-                    bsCollapse.hide();
-                }
-            });
-
-            headers.forEach(h => {
-                h.setAttribute('aria-expanded', allExpanded ? 'true' : 'false');
-            });
-
-            if (textToggleAll) textToggleAll.textContent = allExpanded ? 'Tout replier' : 'Tout déplier';
-            if (iconToggleAll) iconToggleAll.className = allExpanded ? 'fas fa-chevron-up me-1' : 'fas fa-chevron-down me-1';
-        });
-    }
-
-    // Réinitialisation des filtres
+    // Réinitialisation instantanée des filtres (sans rechargement de page)
     function resetFilters() {
         if (searchInput) searchInput.value = '';
         if (filterNiveau) filterNiveau.value = '';
-        updateDependentClassesAndCourses();
-        if (filterClasse) filterClasse.value = '';
         if (filterCours) filterCours.value = '';
         if (filterPeriode) filterPeriode.value = '';
         if (filterTypeEval) filterTypeEval.value = '';
         if (sortSelect) sortSelect.value = 'nom-asc';
+        filterIncompletsActive = false;
         currentPage = 1;
+        syncNiveauWithClassChips(false);
         render();
     }
 
-    // Événements de recherche et filtres
+    // Événements de recherche instantanée (frappe au clavier)
     if (searchInput) {
         searchInput.addEventListener('input', function() {
             currentPage = 1;
             render();
+        });
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                currentPage = 1;
+                render();
+            }
         });
     }
 
@@ -1041,26 +1268,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Changement de Niveau : synchronise les puces de classe
     if (filterNiveau) {
-        filterNiveau.addEventListener('change', () => {
-            updateDependentClassesAndCourses();
-            currentPage = 1;
-            render();
+        filterNiveau.addEventListener('change', function() {
+            const navigated = syncNiveauWithClassChips(true);
+            if (!navigated) {
+                currentPage = 1;
+                render();
+            }
         });
     }
 
-    if (filterClasse) {
-        filterClasse.addEventListener('change', () => {
-            updateDependentClassesAndCourses();
-            currentPage = 1;
-            render();
-        });
-    }
-
-    if (filterCours) filterCours.addEventListener('change', () => { currentPage = 1; render(); });
-    if (filterPeriode) filterPeriode.addEventListener('change', () => { currentPage = 1; render(); });
-    if (filterTypeEval) filterTypeEval.addEventListener('change', () => { currentPage = 1; render(); });
-    if (sortSelect) sortSelect.addEventListener('change', () => { currentPage = 1; render(); });
+    // Changement instantané des autres filtres
+    if (filterCours) filterCours.addEventListener('change', function() { currentPage = 1; render(); });
+    if (filterPeriode) filterPeriode.addEventListener('change', function() { currentPage = 1; render(); });
+    if (filterTypeEval) filterTypeEval.addEventListener('change', function() { currentPage = 1; render(); });
+    if (sortSelect) sortSelect.addEventListener('change', function() { currentPage = 1; render(); });
     if (pageSizeSelect) pageSizeSelect.addEventListener('change', function() {
         pageSize = parseInt(this.value, 10) || 20;
         currentPage = 1;
@@ -1068,10 +1291,31 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     if (btnReset) btnReset.addEventListener('click', resetFilters);
+    if (btnResetDrawer) btnResetDrawer.addEventListener('click', resetFilters);
     if (btnResetEmpty) btnResetEmpty.addEventListener('click', resetFilters);
 
     // Initialisation
+    syncNiveauWithClassChips(false);
     render();
-});
+
+    // Auto-déplier le tiroir de filtres si un filtre avancé est déjà actif au chargement
+    const activeAdvancedInit = (filterNiveau && filterNiveau.value !== '') ||
+                               (filterCours && filterCours.value !== '') ||
+                               (filterPeriode && filterPeriode.value !== '') ||
+                               (filterTypeEval && filterTypeEval.value !== '');
+    if (activeAdvancedInit) {
+        const filtersCollapseEl = document.getElementById('notesFiltersCollapse');
+        if (filtersCollapseEl) {
+            const bsCollapse = bootstrap.Collapse.getOrCreateInstance(filtersCollapseEl, { toggle: false });
+            bsCollapse.show();
+        }
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initNotesPage);
+} else {
+    initNotesPage();
+}
 </script>
 {% endblock %}

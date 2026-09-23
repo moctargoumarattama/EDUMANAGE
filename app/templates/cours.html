@@ -28,24 +28,60 @@
                     </p>
                 </div>
             </div>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-
-                {% if current_user.role in ['admin', 'super_admin'] %}
-                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning-subtle">
-                    {{ cours_sans_professeur }} sans professeur
-                </span>
+            <!-- Actions Desktop -->
+            <div class="d-none d-md-flex align-items-center gap-2 flex-wrap">
+                {% if current_user.role in ['admin', 'super_admin'] and cours_sans_professeur > 0 %}
+                <button type="button" class="btn btn-sm btn-outline-warning text-dark border-warning-subtle rounded-pill py-1.5 px-3 fw-semibold shadow-xs" id="btnFilterSansProf" title="Cliquer pour afficher uniquement les cours sans professeur">
+                    <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                    <span id="textFilterSansProf">{{ cours_sans_professeur }} sans professeur</span>
+                </button>
                 {% endif %}
-                <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllClassAccordions" title="Déplier ou replier toutes les classes">
-                    <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
+                <button type="button" class="btn btn-sm btn-outline-primary fw-semibold py-1.5 px-3 rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5" id="btnToggleAllClassAccordions" title="Déplier ou replier toutes les classes">
+                    <i class="fas fa-chevron-down" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
                 {% if form and current_user.role in ['admin', 'super_admin'] and affectations_modifiables %}
-                <button type="button" class="btn btn-primary shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours" aria-expanded="false" aria-controls="collapseAjouterCours" id="btnToggleAddCourse">
-                    <i class="fas fa-plus-circle me-2"></i>Nouveau cours
+                <button type="button" class="btn btn-sm btn-primary fw-semibold py-1.5 px-3 rounded-pill shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours" aria-expanded="false" aria-controls="collapseAjouterCours" id="btnToggleAddCourse">
+                    <i class="fas fa-plus-circle me-1"></i>Nouveau cours
+                </button>
+                {% endif %}
+            </div>
+
+            <!-- Actions Mobile Épurées -->
+            <div class="d-flex d-md-none align-items-center gap-1.5 w-100 mt-2 flex-wrap">
+                {% if current_user.role in ['admin', 'super_admin'] and cours_sans_professeur > 0 %}
+                <button type="button" class="btn btn-xs btn-outline-warning text-dark border-warning-subtle rounded-pill py-1 px-2 fw-semibold" id="btnFilterSansProfMob" title="Filtrer les cours sans professeur">
+                    <i class="fas fa-exclamation-triangle text-warning me-1"></i>{{ cours_sans_professeur }} sans prof
+                </button>
+                {% endif %}
+                <button type="button" class="btn btn-xs btn-outline-primary fw-semibold py-1 px-2.5 rounded-pill d-inline-flex align-items-center gap-1" id="btnToggleAllClassAccordionsMob">
+                    <i class="fas fa-chevron-down" id="iconToggleAllMob"></i><span id="textToggleAllMob">Déplier</span>
+                </button>
+                {% if form and current_user.role in ['admin', 'super_admin'] and affectations_modifiables %}
+                <button type="button" class="btn btn-xs btn-primary fw-semibold py-1 px-2.5 rounded-pill ms-auto" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours" aria-expanded="false" aria-controls="collapseAjouterCours">
+                    <i class="fas fa-plus me-1"></i>+ Cours
                 </button>
                 {% endif %}
             </div>
         </div>
     </section>
+
+    <!-- Barre de défilement rapide des classes (Chips réutilisées) -->
+    {% set seen_classes_chips = {} %}
+    {% for c in cours %}
+        {% if c.classe and c.classe.nom not in seen_classes_chips %}
+            {% set _ = seen_classes_chips.update({c.classe.nom: c.classe.niveau}) %}
+        {% endif %}
+    {% endfor %}
+    <div class="class-quick-pills-bar mb-3" id="classChipsBar">
+        <button type="button" class="class-filter-chip active" data-class-chip="">
+            <i class="fas fa-layer-group me-1"></i>Toutes ({{ seen_classes_chips|length }})
+        </button>
+        {% for cl, niv in seen_classes_chips.items()|sort %}
+        <button type="button" class="class-filter-chip" data-class-chip="{{ cl }}">
+            {{ cl }}
+        </button>
+        {% endfor %}
+    </div>
 
     <!-- Formulaire d'ajout (admin, rétractable pour préserver le confort mobile) -->
     {% if form and current_user.role in ['admin', 'super_admin'] and affectations_modifiables %}
@@ -99,7 +135,7 @@
     <div class="course-toolbar-card">
         <div class="row g-2 align-items-center">
             <!-- Recherche rapide -->
-            <div class="col-12 col-md-5 col-lg-5">
+            <div class="col-12 col-md-6 col-lg-5">
                 <div class="course-search-box">
                     <i class="fas fa-search search-icon"></i>
                     <input type="text" id="classCourseSearchInput" class="form-control" placeholder="Rechercher classe, niveau, matière..." autocomplete="off">
@@ -109,27 +145,9 @@
                 </div>
             </div>
 
-
-
-            <!-- Filtre par classe / niveau -->
-            <div class="col-12 col-md-4 col-lg-3">
-                <select id="filterClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Toutes les classes</option>
-                    {% set seen_classes = {} %}
-                    {% for c in cours %}
-                        {% if c.classe and c.classe.nom not in seen_classes %}
-                            {% set _ = seen_classes.update({c.classe.nom: c.classe.niveau}) %}
-                        {% endif %}
-                    {% endfor %}
-                    {% for cl, niv in seen_classes.items()|sort %}
-                        <option value="{{ cl }}" data-niveau="{{ niv or '' }}">{{ cl }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
             <!-- Filtre par professeur (admin) -->
             {% if current_user.role in ['admin', 'super_admin'] %}
-            <div class="col-12 col-md-3 col-lg-2">
+            <div class="col-12 col-md-6 col-lg-4">
                 <select id="filterProfSelect" class="form-select form-select-sm" style="min-height: 42px;">
                     <option value="">Tous les professeurs</option>
                     {% set profs_list = [] %}
@@ -182,10 +200,13 @@
             {% set classe_cours_count = classe_cours|length %}
 
             <!-- Calculs agrégés pour la classe -->
-            {% set ns = namespace(coeffs=0, profs=[], matieres=[], notes_total=0) %}
+            {% set ns = namespace(coeffs=0, profs=[], matieres=[], notes_total=0, sans_prof=0) %}
             {% for c in classe_cours %}
                 {% set ns.coeffs = ns.coeffs + (c.coefficient or 1) %}
                 {% set ns.notes_total = ns.notes_total + (c.notes_count or 0) %}
+                {% if not c.professeur %}
+                    {% set ns.sans_prof = ns.sans_prof + 1 %}
+                {% endif %}
                 {% if c.professeur %}
                     {% set prof_nom = c.professeur.prenom ~ ' ' ~ c.professeur.nom %}
                     {% if prof_nom not in ns.profs %}
@@ -205,6 +226,7 @@
                      data-niveau="{{ classe.niveau or '' }}"
                      data-niveau-ordre="{{ classe.niveau_ordre or (classe.niveau_scolaire.ordre if classe.niveau_scolaire else 999) }}"
                      data-cours-count="{{ classe_cours_count }}"
+                     data-sans-prof="{{ ns.sans_prof }}"
                      data-matieres="{{ matieres_str }}"
                      data-profs="{{ profs_str }}"
                      data-coeff-total="{{ ns.coeffs }}">
@@ -242,6 +264,13 @@
                     </div>
 
                     <div class="class-course-stats">
+                        <!-- Alerte sans prof si existant -->
+                        {% if ns.sans_prof > 0 %}
+                        <span class="badge bg-warning bg-opacity-25 text-dark border border-warning-subtle" title="{{ ns.sans_prof }} matière(s) sans professeur assigné">
+                            <i class="fas fa-exclamation-circle text-warning me-1"></i>{{ ns.sans_prof }} sans prof
+                        </span>
+                        {% endif %}
+
                         <!-- Badge nombre de cours -->
                         <span class="badge bg-light text-dark border" style="font-size: 0.82rem;">
                             <i class="fas fa-book-open text-primary me-1"></i>{{ classe_cours_count }} matière{{ 's' if classe_cours_count > 1 else '' }}
@@ -267,19 +296,20 @@
                         <table class="table class-course-table align-middle">
                             <thead>
                                 <tr>
-                                    <th style="width: 70px;">ID</th>
+                                    <th class="d-none d-lg-table-cell" style="width: 70px;">ID</th>
                                     <th>Matière / Cours</th>
                                     <th>Coeff.</th>
-                                    {% if current_user.role in ['admin', 'super_admin'] %}<th>Professeur</th>{% endif %}
-                                    <th>Description</th>
+                                    {% if current_user.role in ['admin', 'super_admin'] %}<th>Professeur assigné</th>{% endif %}
+                                    <th class="d-none d-xl-table-cell">Description</th>
                                     <th class="text-center">Notes</th>
                                     <th class="text-end pe-4">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for c in classe_cours %}
-                                <tr>
-                                    <td><span class="badge bg-secondary bg-opacity-10 text-secondary border">#{{ c.id }}</span></td>
+                                {% set prof_full = (c.professeur.prenom ~ ' ' ~ c.professeur.nom) if c.professeur else 'Non assigné' %}
+                                <tr class="course-item-row" data-has-prof="{{ '1' if c.professeur else '0' }}" data-prof-nom="{{ prof_full }}">
+                                    <td class="d-none d-lg-table-cell"><span class="badge bg-secondary bg-opacity-10 text-secondary border">#{{ c.id }}</span></td>
                                     <td>
                                         <div class="d-flex align-items-center gap-2">
                                             <i class="fas fa-book text-primary opacity-75"></i>
@@ -294,23 +324,24 @@
                                     {% if current_user.role in ['admin', 'super_admin'] %}
                                     <td>
                                         {% set can_assign = affectations_modifiables and c.classe and c.classe.statut == 'ouverte' %}
-                                        <form method="POST" action="{{ url_for('main.affecter_professeur_cours', cours_id=c.id) }}" class="d-flex gap-2 align-items-center">
+                                        <form method="POST" action="{{ url_for('main.affecter_professeur_cours', cours_id=c.id) }}" class="d-flex gap-2 align-items-center form-affecter-prof" data-cours-id="{{ c.id }}">
                                             {{ delete_form.hidden_tag() }}
-                                            <select name="professeur_id" class="form-select form-select-sm" {% if not can_assign %}disabled{% endif %}>
-                                                <option value="0" {% if not c.professeur %}selected{% endif %}>Non affect&eacute;</option>
+                                            <select name="professeur_id" class="form-select form-select-sm select-prof-auto-save" {% if not can_assign %}disabled{% endif %}>
+                                                <option value="0" {% if not c.professeur %}selected{% endif %}>⚠️ Non affecté</option>
                                                 {% for prof in professeurs %}
                                                 <option value="{{ prof.id }}" {% if c.professeur and c.professeur.id == prof.id %}selected{% endif %}>
                                                     {{ prof.prenom }} {{ prof.nom }}
                                                 </option>
                                                 {% endfor %}
                                             </select>
+                                            <span class="auto-save-status d-none"><i class="fas fa-check-circle text-success"></i></span>
                                             {% if can_assign %}
-                                            <button type="submit" class="btn btn-sm btn-outline-primary">OK</button>
+                                            <button type="submit" class="btn btn-sm btn-outline-primary btn-save-prof-fallback d-none">OK</button>
                                             {% endif %}
                                         </form>
                                     </td>
                                     {% endif %}
-                                    <td>
+                                    <td class="d-none d-xl-table-cell">
                                         <span class="text-muted small text-truncate d-inline-block" style="max-width: 250px;" title="{{ c.description or '' }}">
                                             {{ c.description or "?" }}
                                         </span>
@@ -346,71 +377,76 @@
                         </table>
                     </div>
 
-                    <!-- Cartes sur Mobile (Zéro défilement horizontal) -->
+                    <!-- Cartes sur Mobile (Ultra-compactes et sans défilement horizontal) -->
                     <div class="class-course-cards">
                         {% for c in classe_cours %}
                         {% set prof_full = (c.professeur.prenom ~ ' ' ~ c.professeur.nom) if c.professeur else 'Non assigné' %}
-                        <div class="class-course-mini-card">
-                            <div class="class-course-mini-top">
+                        <div class="class-course-mini-card course-item-row" data-has-prof="{{ '1' if c.professeur else '0' }}" data-prof-nom="{{ prof_full }}">
+                            <div class="d-flex align-items-center justify-content-between gap-2">
                                 <div class="d-flex align-items-center gap-2 min-w-0">
                                     <i class="fas fa-book text-primary"></i>
                                     <a href="{{ url_for('main.cours_details', id=c.id) }}" class="fw-bold text-dark text-truncate text-decoration-none">
                                         {{ c.nom }}
                                     </a>
+                                    <span class="badge bg-primary">x{{ c.coefficient|int if (c.coefficient == c.coefficient|int) else c.coefficient }}</span>
                                 </div>
-                                <span class="badge bg-primary">x{{ c.coefficient|int if (c.coefficient == c.coefficient|int) else c.coefficient }}</span>
-                            </div>
 
-                            <div class="d-flex align-items-center gap-2 flex-wrap text-muted small">
-                                {% if current_user.role in ['admin', 'super_admin'] %}
-                                <span>
-                                    <i class="fas fa-user-tie me-1"></i>{{ prof_full }}
-                                </span>
-                                {% endif %}
-                                <span class="badge bg-light text-muted border">
-                                    <i class="fas fa-file-signature me-1"></i>{{ c.notes_count }} note{{ 's' if c.notes_count > 1 else '' }}
-                                </span>
-                            </div>
-
-                            {% if current_user.role in ['admin', 'super_admin'] %}
-                            {% set can_assign = affectations_modifiables and c.classe and c.classe.statut == 'ouverte' %}
-                            <form method="POST" action="{{ url_for('main.affecter_professeur_cours', cours_id=c.id) }}" class="d-flex gap-2 align-items-center">
-                                {{ delete_form.hidden_tag() }}
-                                <select name="professeur_id" class="form-select form-select-sm" {% if not can_assign %}disabled{% endif %}>
-                                    <option value="0" {% if not c.professeur %}selected{% endif %}>Non affect&eacute;</option>
-                                    {% for prof in professeurs %}
-                                    <option value="{{ prof.id }}" {% if c.professeur and c.professeur.id == prof.id %}selected{% endif %}>
-                                        {{ prof.prenom }} {{ prof.nom }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                                {% if can_assign %}
-                                <button type="submit" class="btn btn-sm btn-outline-primary">OK</button>
-                                {% endif %}
-                            </form>
-                            {% endif %}
-
-                            {% if c.description %}
-                            <div class="text-muted small text-truncate" style="font-size: 0.8rem;">
-                                {{ c.description }}
-                            </div>
-                            {% endif %}
-
-                            <div class="class-course-mini-actions">
-                                <a href="{{ url_for('main.cours_details', id=c.id) }}" class="btn btn-outline-primary btn-sm" title="Détails">
-                                    <i class="fas fa-eye me-1"></i>Détails
-                                </a>
-                                {% if current_user.role in ['admin', 'super_admin'] %}
-                                <a href="{{ url_for('main.modifier_cours', id=c.id) }}" class="btn btn-outline-warning btn-sm" title="Modifier">
-                                    <i class="fas fa-edit me-1"></i>Modifier
-                                </a>
-                                <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" class="d-inline" data-klasora-form data-klasora-ajax="true" data-remove-closest=".class-course-mini-card, tr" data-confirm="Supprimer ce cours ?" data-loading="Suppression...">
-                                    {{ delete_form.hidden_tag() }}
-                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
-                                        <i class="fas fa-trash me-1"></i>Supprimer
+                                <!-- Menu mobile 3 points ⋮ -->
+                                <div class="dropdown">
+                                    <button class="btn btn-xs btn-light text-muted border-0 py-1 px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions">
+                                        <i class="fas fa-ellipsis-v"></i>
                                     </button>
-                                </form>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1">
+                                        <li>
+                                            <a class="dropdown-item py-2 small" href="{{ url_for('main.cours_details', id=c.id) }}">
+                                                <i class="fas fa-eye text-primary me-2"></i>Détails du cours
+                                            </a>
+                                        </li>
+                                        {% if current_user.role in ['admin', 'super_admin'] %}
+                                        <li>
+                                            <a class="dropdown-item py-2 small" href="{{ url_for('main.modifier_cours', id=c.id) }}">
+                                                <i class="fas fa-edit text-warning me-2"></i>Modifier
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li>
+                                            <form method="POST" action="{{ url_for('main.supprimer_cours', id=c.id) }}" data-klasora-form data-klasora-ajax="true" data-remove-closest=".class-course-mini-card" data-confirm="Supprimer ce cours ?" data-loading="Suppression...">
+                                                {{ delete_form.hidden_tag() }}
+                                                <button type="submit" class="dropdown-item py-2 small text-danger">
+                                                    <i class="fas fa-trash me-2"></i>Supprimer
+                                                </button>
+                                            </form>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Ligne Affectation & Notes -->
+                            <div class="d-flex align-items-center justify-content-between gap-2 mt-2 pt-1 border-top">
+                                {% if current_user.role in ['admin', 'super_admin'] %}
+                                <div class="flex-grow-1 min-w-0">
+                                    {% set can_assign = affectations_modifiables and c.classe and c.classe.statut == 'ouverte' %}
+                                    <form method="POST" action="{{ url_for('main.affecter_professeur_cours', cours_id=c.id) }}" class="d-flex gap-1.5 align-items-center form-affecter-prof" data-cours-id="{{ c.id }}">
+                                        {{ delete_form.hidden_tag() }}
+                                        <select name="professeur_id" class="form-select form-select-sm select-prof-auto-save py-1" style="font-size: 0.82rem;" {% if not can_assign %}disabled{% endif %}>
+                                            <option value="0" {% if not c.professeur %}selected{% endif %}>⚠️ Non affecté</option>
+                                            {% for prof in professeurs %}
+                                            <option value="{{ prof.id }}" {% if c.professeur and c.professeur.id == prof.id %}selected{% endif %}>
+                                                {{ prof.prenom }} {{ prof.nom }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        <span class="auto-save-status d-none"><i class="fas fa-check-circle text-success"></i></span>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <span class="small text-muted text-truncate"><i class="fas fa-user-tie me-1"></i>{{ prof_full }}</span>
                                 {% endif %}
+
+                                <span class="badge bg-light text-muted border text-nowrap" style="font-size: 0.74rem;">
+                                    <i class="fas fa-file-signature me-1 text-primary"></i>{{ c.notes_count }} note{{ 's' if c.notes_count > 1 else '' }}
+                                </span>
                             </div>
                         </div>
                         {% endfor %}
@@ -644,8 +680,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Éléments du DOM
     const searchInput = document.getElementById('classCourseSearchInput');
     const searchClear = document.getElementById('classCourseSearchClear');
-    const filterClasse = document.getElementById('filterClasseSelect');
-    const filterNiveau = document.getElementById('filterNiveauSelect');
+    let selectedClasse = new URLSearchParams(window.location.search).get('classe') || '';
     const filterProf = document.getElementById('filterProfSelect');
     const sortSelect = document.getElementById('sortClassesSelect');
     const pageSizeSelect = document.getElementById('pageSizeSelect');
@@ -658,10 +693,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const paginationList = document.getElementById('paginationList');
     const pageInfoText = document.getElementById('pageInfoText');
 
-    // Bouton Tout déplier / Tout replier
+    // Bouton Tout déplier / Tout replier (Desktop & Mobile)
     const btnToggleAll = document.getElementById('btnToggleAllClassAccordions');
     const iconToggleAll = document.getElementById('iconToggleAll');
     const textToggleAll = document.getElementById('textToggleAll');
+    const btnToggleAllMob = document.getElementById('btnToggleAllClassAccordionsMob');
+    const iconToggleAllMob = document.getElementById('iconToggleAllMob');
+    const textToggleAllMob = document.getElementById('textToggleAllMob');
+
+    // Filtre 1-clic Sans Professeur (Desktop & Mobile)
+    const btnFilterSansProf = document.getElementById('btnFilterSansProf');
+    const btnFilterSansProfMob = document.getElementById('btnFilterSansProfMob');
     let allExpanded = false;
 
     // Récupération de tous les éléments accordéons de classes
@@ -684,7 +726,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentPage = 1;
     let pageSize = parseInt(pageSizeSelect.value, 10) || 20;
 
-    // Normalisation de chaîne (insensible ? la casse et aux accents)
+    // Normalisation de chaîne (insensible à la casse et aux accents)
     function normalizeStr(str) {
         if (!str) return '';
         return str.toString().toLowerCase()
@@ -696,23 +738,20 @@ document.addEventListener('DOMContentLoaded', function() {
     function syncUrl() {
         const params = new URLSearchParams();
         const q = searchInput ? searchInput.value.trim() : '';
-        const cl = filterClasse ? filterClasse.value.trim() : '';
-        const niv = filterNiveau ? filterNiveau.value.trim() : '';
         const pr = filterProf ? filterProf.value.trim() : '';
         if (q) params.set('search', q);
-        if (cl) params.set('classe', cl);
-        if (niv) params.set('niveau', niv);
+        if (selectedClasse) params.set('classe', selectedClasse);
         if (pr) params.set('professeur', pr);
         const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         window.history.replaceState({}, '', newUrl);
     }
 
     // Filtrage et Tri
+    let filterSansProfActive = false;
+
     function getFilteredAndSortedItems() {
         syncUrl();
         const query = normalizeStr(searchInput.value.trim());
-        const selectedClasse = filterClasse ? filterClasse.value.trim() : '';
-        const selectedNiveau = filterNiveau ? filterNiveau.value.trim() : '';
         const selectedProf = filterProf ? normalizeStr(filterProf.value.trim()) : '';
         const sortMode = sortSelect ? sortSelect.value : 'nom-asc';
 
@@ -737,14 +776,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
 
-            // Filtre par niveau
-            if (selectedNiveau && card.dataset.niveau !== selectedNiveau) {
-                return false;
-            }
-
             // Filtre par professeur
             if (selectedProf && !profs.includes(selectedProf)) {
                 return false;
+            }
+
+            // Filtre 1-Clic : Uniquement les classes avec cours sans professeur
+            if (filterSansProfActive) {
+                const sansProfCount = parseInt(card.dataset.sansProf || '0', 10);
+                if (sansProfCount <= 0) return false;
             }
 
             return true;
@@ -777,16 +817,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const matched = getFilteredAndSortedItems();
         const count = matched.length;
 
-        // Mise ? jour de l'icône d'effacement
+        // Mise à jour de l'icône d'effacement
         if (searchClear) {
             searchClear.style.display = searchInput.value.trim().length > 0 ? 'inline-block' : 'none';
         }
 
+        // Synchroniser les puces de classe
+        // Synchroniser les puces de classe
+        document.querySelectorAll('#classChipsBar .class-filter-chip').forEach(c => {
+            c.classList.toggle('active', (c.dataset.classChip || '') === selectedClasse);
+        });
+
         // Bouton réinitialiser
         const isFiltered = searchInput.value.trim().length > 0 ||
-                           (filterClasse && filterClasse.value !== '') ||
-                           (filterNiveau && filterNiveau.value !== '') ||
+                           selectedClasse !== '' ||
                            (filterProf && filterProf.value !== '') ||
+                           filterSansProfActive ||
                            (sortSelect && sortSelect.value !== 'nom-asc');
 
         if (btnReset) {
@@ -800,7 +846,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         if (filterStats) {
-            if (count === totalClasses) {
+            if (filterSansProfActive) {
+                filterStats.innerHTML = `<span class="badge bg-warning text-dark me-1"><i class="fas fa-filter me-1"></i>Filtre sans professeur</span> <strong>${count}</strong> classe${count > 1 ? 's' : ''} avec des cours non assignés`;
+            } else if (count === totalClasses) {
                 filterStats.innerHTML = `Affichage de <strong>${count}</strong> classe${count > 1 ? 's' : ''} (<strong>${totalCourses}</strong> cours)`;
             } else {
                 filterStats.innerHTML = `<strong>${count}</strong> classe${count > 1 ? 's' : ''} trouvée${count > 1 ? 's' : ''} (<strong>${visibleCourses}</strong> cours) sur ${totalClasses}`;
@@ -828,10 +876,41 @@ document.addEventListener('DOMContentLoaded', function() {
         const pageItems = matched.slice(startIndex, endIndex);
         const visibleIds = new Set(pageItems.map(item => item.dataset.id));
 
-        // Afficher / masquer les accordéons
+        // Récupérer le prof sélectionné pour filtrer les lignes internes
+        const selectedProf = filterProf ? normalizeStr(filterProf.value.trim()) : '';
+
+        // Afficher / masquer les accordéons et leurs cours internes
         classCards.forEach(card => {
-            card.style.display = visibleIds.has(card.dataset.id) ? 'block' : 'none';
+            const isVisible = visibleIds.has(card.dataset.id);
+            card.style.display = isVisible ? 'block' : 'none';
+
+            if (isVisible) {
+                const rows = card.querySelectorAll('.course-item-row');
+                rows.forEach(row => {
+                    const profNom = normalizeStr(row.dataset.profNom || '');
+                    if (selectedProf && profNom !== selectedProf) {
+                        row.style.setProperty('display', 'none', 'important');
+                    } else {
+                        row.style.removeProperty('display');
+                    }
+                });
+            }
         });
+
+        // Déplier automatiquement les classes si un filtre ciblé est actif (prof ou sans prof)
+        const shouldAutoExpand = filterSansProfActive || selectedProf !== '';
+        if (shouldAutoExpand) {
+            pageItems.forEach(card => {
+                const collapseEl = card.querySelector('.collapse');
+                const headerEl = card.querySelector('.class-course-header');
+                if (collapseEl) {
+                    const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+                    bsCollapse.show();
+                    if (headerEl) headerEl.setAttribute('aria-expanded', 'true');
+                }
+            });
+            updateAllToggleButtons(true);
+        }
 
         // Réordonner les éléments dans le DOM selon le tri
         if (classList) {
@@ -912,36 +991,167 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Gestion du bouton "Tout déplier / Tout replier"
-    if (btnToggleAll) {
-        btnToggleAll.addEventListener('click', function() {
-            allExpanded = !allExpanded;
-            const visibleCards = classCards.filter(card => card.style.display !== 'none');
-
-            visibleCards.forEach(card => {
-                const collapseEl = card.querySelector('.collapse');
-                const headerEl = card.querySelector('.class-course-header');
-                if (collapseEl) {
-                    const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
-                    if (allExpanded) {
-                        bsCollapse.show();
-                        if (headerEl) headerEl.setAttribute('aria-expanded', 'true');
-                    } else {
-                        bsCollapse.hide();
-                        if (headerEl) headerEl.setAttribute('aria-expanded', 'false');
-                    }
-                }
-            });
-
-            if (allExpanded) {
-                if (iconToggleAll) iconToggleAll.className = 'fas fa-chevron-up me-1';
+    // Gestion dynamique du bouton "Tout déplier / Tout replier" (Desktop & Mobile)
+    function updateAllToggleButtons(expanded) {
+        allExpanded = expanded;
+        if (btnToggleAll) {
+            if (expanded) {
+                btnToggleAll.className = 'btn btn-sm btn-primary fw-semibold py-1.5 px-3 rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5';
+                if (iconToggleAll) iconToggleAll.className = 'fas fa-chevron-up';
                 if (textToggleAll) textToggleAll.textContent = 'Tout replier';
             } else {
-                if (iconToggleAll) iconToggleAll.className = 'fas fa-chevron-down me-1';
+                btnToggleAll.className = 'btn btn-sm btn-outline-primary fw-semibold py-1.5 px-3 rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5';
+                if (iconToggleAll) iconToggleAll.className = 'fas fa-chevron-down';
                 if (textToggleAll) textToggleAll.textContent = 'Tout déplier';
             }
-        });
+        }
+        if (btnToggleAllMob) {
+            if (expanded) {
+                btnToggleAllMob.className = 'btn btn-xs btn-primary fw-semibold py-1 px-2.5 rounded-pill d-inline-flex align-items-center gap-1 shadow-xs';
+                if (iconToggleAllMob) iconToggleAllMob.className = 'fas fa-chevron-up';
+                if (textToggleAllMob) textToggleAllMob.textContent = 'Replier';
+            } else {
+                btnToggleAllMob.className = 'btn btn-xs btn-outline-primary fw-semibold py-1 px-2.5 rounded-pill d-inline-flex align-items-center gap-1';
+                if (iconToggleAllMob) iconToggleAllMob.className = 'fas fa-chevron-down';
+                if (textToggleAllMob) textToggleAllMob.textContent = 'Déplier';
+            }
+        }
     }
+
+    function toggleAllAccordions() {
+        const nextState = !allExpanded;
+        const visibleCards = classCards.filter(card => card.style.display !== 'none');
+
+        visibleCards.forEach(card => {
+            const collapseEl = card.querySelector('.collapse');
+            const headerEl = card.querySelector('.class-course-header');
+            if (collapseEl) {
+                const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+                if (nextState) {
+                    bsCollapse.show();
+                    if (headerEl) headerEl.setAttribute('aria-expanded', 'true');
+                } else {
+                    bsCollapse.hide();
+                    if (headerEl) headerEl.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+
+        updateAllToggleButtons(nextState);
+    }
+
+    if (btnToggleAll) btnToggleAll.addEventListener('click', toggleAllAccordions);
+    if (btnToggleAllMob) btnToggleAllMob.addEventListener('click', toggleAllAccordions);
+
+    // Gestion du filtre 1-Clic "Sans Professeur" (Desktop & Mobile)
+    function toggleSansProfFilter() {
+        filterSansProfActive = !filterSansProfActive;
+
+        [btnFilterSansProf, btnFilterSansProfMob].forEach(btn => {
+            if (!btn) return;
+            if (filterSansProfActive) {
+                btn.classList.remove('btn-outline-warning');
+                btn.classList.add('btn-warning', 'text-dark', 'shadow-sm');
+            } else {
+                btn.classList.remove('btn-warning', 'shadow-sm');
+                btn.classList.add('btn-outline-warning');
+            }
+        });
+
+        currentPage = 1;
+        render();
+    }
+
+    if (btnFilterSansProf) btnFilterSansProf.addEventListener('click', toggleSansProfFilter);
+    if (btnFilterSansProfMob) btnFilterSansProfMob.addEventListener('click', toggleSansProfFilter);
+
+    // Gestion des puces rapides de classe (Chips)
+    document.querySelectorAll('#classChipsBar .class-filter-chip').forEach(chip => {
+        chip.addEventListener('click', function() {
+            const targetClass = this.dataset.classChip || '';
+            selectedClasse = targetClass;
+            currentPage = 1;
+            render();
+
+            if (targetClass) {
+                const matchedCard = classCards.find(card => card.dataset.nom === targetClass);
+                if (matchedCard) {
+                    const collapseEl = matchedCard.querySelector('.collapse');
+                    const headerEl = matchedCard.querySelector('.class-course-header');
+                    if (collapseEl) {
+                        const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+                        bsCollapse.show();
+                        if (headerEl) headerEl.setAttribute('aria-expanded', 'true');
+                    }
+                    matchedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        });
+    });
+
+    // Affectation automatique du professeur en AJAX avec retour visuel immédiat (Sans rechargement de page)
+    document.addEventListener('change', function(e) {
+        const select = e.target.closest('.select-prof-auto-save');
+        if (!select) return;
+
+        const coursId = select.dataset.coursId;
+        const profId = select.value;
+        const form = select.closest('form');
+        const actionUrl = form ? form.getAttribute('action') : `/cours/${coursId}/affecter-professeur`;
+
+        const container = select.closest('.d-flex') || select.parentElement;
+        const statusEl = container ? container.querySelector('.auto-save-status') : null;
+
+        if (statusEl) {
+            statusEl.innerHTML = '<span class="spinner-border spinner-border-sm text-primary" role="status" style="width: 0.85rem; height: 0.85rem;"></span>';
+        }
+
+        const csrfInput = form ? form.querySelector('input[name="csrf_token"]') : null;
+        const csrfToken = csrfInput ? csrfInput.value : '';
+
+        fetch(actionUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ professeur_id: profId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (statusEl) {
+                    statusEl.innerHTML = '<i class="fas fa-check-circle text-success" title="Enregistré avec succès"></i>';
+                    setTimeout(() => {
+                        if (statusEl) statusEl.innerHTML = '';
+                    }, 2500);
+                }
+                // Synchroniser l'autre sélecteur si présent (table vs vue mobile)
+                document.querySelectorAll(`.select-prof-auto-save[data-cours-id="${coursId}"]`).forEach(other => {
+                    if (other !== select) other.value = profId;
+                });
+                const miniCard = select.closest('.class-course-mini-card');
+                if (miniCard) {
+                    miniCard.setAttribute('data-has-prof', profId ? '1' : '0');
+                }
+            } else {
+                if (statusEl) {
+                    statusEl.innerHTML = '<i class="fas fa-times-circle text-danger" title="Erreur lors de l\'enregistrement"></i>';
+                }
+                alert(data.message || 'Erreur lors de l\'affectation du professeur.');
+            }
+        })
+        .catch(err => {
+            console.error('Erreur affectation professeur:', err);
+            if (statusEl) {
+                statusEl.innerHTML = '<i class="fas fa-exclamation-triangle text-danger" title="Erreur réseau"></i>';
+            }
+            if (form && confirm('L\'enregistrement rapide a rencontré un problème réseau. Souhaitez-vous recharger la page pour enregistrer ?')) {
+                form.submit();
+            }
+        });
+    });
 
     // Synchronisation de l'icône chevron avec l'état Bootstrap Collapse
     document.querySelectorAll('.class-course-content').forEach(collapseEl => {
@@ -964,10 +1174,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Réinitialisation des filtres
     function resetFilters() {
         if (searchInput) searchInput.value = '';
-        if (filterClasse) filterClasse.value = '';
-        if (filterNiveau) filterNiveau.value = '';
+        selectedClasse = '';
         if (filterProf) filterProf.value = '';
         if (sortSelect) sortSelect.value = 'nom-asc';
+        filterSansProfActive = false;
+        [btnFilterSansProf, btnFilterSansProfMob].forEach(btn => {
+            if (!btn) return;
+            btn.classList.remove('btn-warning', 'text-dark', 'shadow-sm');
+            btn.classList.add('btn-outline-warning');
+        });
         currentPage = 1;
         render();
     }
@@ -980,25 +1195,15 @@ document.addEventListener('DOMContentLoaded', function() {
             debounceTimer = setTimeout(() => {
                 currentPage = 1;
                 render();
-            }, 300);
+            }, 150);
         });
-    }
-
-    if (filterNiveau) {
-        filterNiveau.addEventListener('change', function() {
-            const niv = this.value;
-            if (filterClasse) {
-                Array.from(filterClasse.options).forEach(opt => {
-                    if (!opt.value) return;
-                    const optNiv = opt.dataset.niveau || '';
-                    opt.hidden = (niv && optNiv && optNiv !== niv);
-                });
-                if (filterClasse.selectedOptions.length && filterClasse.selectedOptions[0].hidden) {
-                    filterClasse.value = '';
-                }
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(debounceTimer);
+                currentPage = 1;
+                render();
             }
-            currentPage = 1;
-            render();
         });
     }
 
@@ -1008,20 +1213,6 @@ document.addEventListener('DOMContentLoaded', function() {
             currentPage = 1;
             render();
             if (searchInput) searchInput.focus();
-        });
-    }
-
-    if (filterClasse) {
-        filterClasse.addEventListener('change', function() {
-            currentPage = 1;
-            render();
-        });
-    }
-
-    if (filterNiveau) {
-        filterNiveau.addEventListener('change', function() {
-            currentPage = 1;
-            render();
         });
     }
 

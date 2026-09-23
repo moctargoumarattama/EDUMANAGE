@@ -270,13 +270,13 @@ def get_notes_annee(ecole_id, annee, user=None, classe_id=None, cours_id=None, e
 
     query = (
         Note.query.options(
-            joinedload(Note.eleve),
-            joinedload(Note.cours).joinedload(Cours.classe),
-            joinedload(Note.inscription).joinedload(Inscription.classe),
+            selectinload(Note.eleve),
+            selectinload(Note.cours).selectinload(Cours.classe),
+            selectinload(Note.inscription).selectinload(Inscription.classe),
         )
         .filter(
             Note.ecole_id == ecole_id,
-            Note.annee_id == annee.id,
+            db.or_(Note.annee_id == annee.id, Note.annee_id.is_(None)),
         )
     )
 

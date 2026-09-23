@@ -63,12 +63,12 @@
                         <p class="mb-0 opacity-75">Résultats académiques et bulletins officiels organisés par classe {% if annee_consultee %}— <strong>{{ annee_consultee.nom }}</strong>{% endif %}</p>
                     </div>
                     <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2 w-100 w-md-auto">
-                        <button type="button" class="btn btn-light btn-sm fw-bold shadow-sm text-center" id="btnToggleAllClasses">
+                        <button type="button" class="btn btn-light btn-sm fw-bold shadow-sm text-center rounded-pill px-3 py-1.5" id="btnToggleAllClasses">
                             <i class="fas fa-expand-alt me-1" id="btnToggleAllIcon"></i>
                             <span id="btnToggleAllText">Tout déplier</span>
                         </button>
                         {% if current_user.role == 'admin' %}
-                        <a href="{{ url_for('main.gestion_periodes') }}" class="btn btn-outline-light btn-sm fw-bold shadow-sm text-center">
+                        <a href="{{ url_for('main.gestion_periodes') }}" class="btn btn-outline-light btn-sm fw-bold shadow-sm text-center rounded-pill px-3 py-1.5">
                             <i class="fas fa-calendar-alt me-1"></i>
                             <span>Périodes{% if periode_active %} : {{ periode_active.nom }}{% endif %}</span>
                         </a>
@@ -101,11 +101,11 @@
                     </div>
                     <div>
                         <h6 class="alert-heading mb-1 fw-bold text-dark">Période non publiée — Évaluations en cours</h6>
-                        <p class="mb-0 text-muted small">Tant que la période n'est pas clôturée et publiée par l'administration, les moyennes et bulletins sont strictement <strong>provisoires</strong>. Les rangs, mentions et statistiques de classe seront calculés lors de la publication.</p>
+                        <p class="mb-0 text-muted small">Tant que la période n'est pas clôturée et publiée par l'administration, les moyennes et bulletins sont strictly <strong>provisoires</strong>. Les rangs, mentions et statistiques de classe seront calculés lors de la publication.</p>
                     </div>
                 </div>
                 {% if current_user.role == 'admin' %}
-                <a href="{{ url_for('main.gestion_periodes') }}" class="btn btn-warning btn-sm fw-bold shadow-sm text-nowrap w-100 w-md-auto text-center mt-1 mt-md-0">
+                <a href="{{ url_for('main.gestion_periodes') }}" class="btn btn-warning btn-sm fw-bold shadow-sm text-nowrap rounded-pill px-3 py-1.5 w-100 w-md-auto text-center mt-1 mt-md-0">
                     <i class="fas fa-bullhorn me-1"></i>Gérer les périodes
                 </a>
                 {% endif %}
@@ -114,86 +114,106 @@
     </div>
     {% endif %}
 
+    <!-- Barre de filtrage par puces (Chips) pour les classes -->
+    <div class="class-chips-bar-wrapper mb-3" id="classChipsBar">
+        <div class="class-chips-container d-flex align-items-center gap-2 overflow-x-auto pb-2" style="scrollbar-width: thin;">
+            <button type="button" class="btn btn-sm class-filter-chip active rounded-pill px-3 py-1 text-nowrap fw-semibold border shadow-sm" data-class-chip="">
+                <i class="fas fa-th-large me-1"></i>Toutes les classes
+            </button>
+            {% if classes %}
+                {% for cl in classes %}
+                    <button type="button" class="btn btn-sm class-filter-chip rounded-pill px-3 py-1 text-nowrap border bg-white text-dark shadow-sm" data-class-chip="{{ cl.id }}">
+                        {{ cl.nom }}
+                    </button>
+                {% endfor %}
+            {% endif %}
+            {% if eleves_sans_classe %}
+                <button type="button" class="btn btn-sm class-filter-chip rounded-pill px-3 py-1 text-nowrap border bg-white text-dark shadow-sm" data-class-chip="orphan">
+                    Sans classe
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
     <!-- Barre d'outils et de filtres temps réel -->
     <div class="card course-toolbar-card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
-            <div class="row g-3 align-items-center">
+            <div class="row g-2 align-items-center">
                 <!-- Recherche instantanée -->
-                <div class="col-12 col-md-4">
-                    <label for="bulletinSearchInput" class="form-label small text-muted fw-semibold mb-1">Recherche</label>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-light border-end-0">
-                            <i class="fas fa-search text-muted"></i>
-                        </span>
-                        <input type="text" class="form-control border-start-0 ps-0" id="bulletinSearchInput" placeholder="Élève, matricule, classe, mention...">
-                        <button type="button" class="btn btn-outline-secondary border-start-0 d-none" id="btnClearSearch" title="Effacer la recherche">
+                <div class="col-12 col-md-7 col-lg-8">
+                    <div class="course-search-box">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="bulletinSearchInput" class="form-control" placeholder="Rechercher élève, matricule, classe, mention..." autocomplete="off">
+                        <button type="button" id="btnClearSearch" class="clear-btn d-none" title="Effacer la recherche">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- Filtre par classe -->
-                <div class="col-6 col-md-2">
-                    <label for="filterClasseSelect" class="form-label small text-muted fw-semibold mb-1">Classe</label>
-                    <select class="form-select form-select-sm" id="filterClasseSelect">
-                        <option value="">Toutes les classes</option>
-                        {% for c in classes %}
-                        <option value="{{ c.id }}">{{ c.nom }}</option>
-                        {% endfor %}
-                        {% if eleves_sans_classe %}
-                        <option value="orphan">Sans classe</option>
-                        {% endif %}
-                    </select>
-                </div>
-
-                <!-- Filtre par appréciation/mention -->
-                <div class="col-6 col-md-2">
-                    <label for="filterMentionSelect" class="form-label small text-muted fw-semibold mb-1">Mention</label>
-                    <select class="form-select form-select-sm" id="filterMentionSelect">
-                        <option value="">Toutes les mentions</option>
-                        <option value="excellent">Excellent (≥ 16)</option>
-                        <option value="tres-bien">Très bien (14 - 15.9)</option>
-                        <option value="bien">Bien (12 - 13.9)</option>
-                        <option value="assez-bien">Assez bien (10 - 11.9)</option>
-                        <option value="insuffisant">Insuffisant (&lt; 10)</option>
-                        <option value="non-evalue">Non évalué</option>
-                    </select>
-                </div>
-
-                <!-- Tri dynamique -->
-                <div class="col-6 col-md-2">
-                    <label for="sortClasseSelect" class="form-label small text-muted fw-semibold mb-1">Trier par</label>
-                    <select class="form-select form-select-sm" id="sortClasseSelect">
-                        <option value="name_asc">Nom classe (A-Z)</option>
-                        <option value="name_desc">Nom classe (Z-A)</option>
-                        <option value="moyenne_desc">Moyenne (↓)</option>
-                        <option value="effectif_desc">Effectif (↓)</option>
-                        <option value="taux_desc">Taux réussite (↓)</option>
-                    </select>
-                </div>
-
-                <!-- Pagination & Réinitialisation -->
-                <div class="col-6 col-md-2 d-flex align-items-end gap-2">
-                    <div class="flex-grow-1">
-                        <label for="classePageSizeSelect" class="form-label small text-muted fw-semibold mb-1">Par page</label>
-                        <select class="form-select form-select-sm" id="classePageSizeSelect">
-                            <option value="5">5</option>
-                            <option value="10" selected>10</option>
-                            <option value="20">20</option>
-                            <option value="all">Toutes</option>
-                        </select>
-                    </div>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnResetFilters" title="Réinitialiser les filtres">
-                        <i class="fas fa-undo"></i>
+                <!-- Bouton pour ouvrir le tiroir des filtres -->
+                <div class="col-12 col-md-5 col-lg-4 d-flex justify-content-md-end gap-2">
+                    <button type="button" class="btn btn-outline-primary rounded-pill px-3 py-2 d-inline-flex align-items-center justify-content-center gap-2 flex-grow-1 flex-md-grow-0" data-bs-toggle="collapse" data-bs-target="#bulletinFiltersCollapse" aria-expanded="false" aria-controls="bulletinFiltersCollapse" id="btnToggleBulletinFilters">
+                        <i class="fas fa-filter"></i>
+                        <span>Filtres</span>
+                        <span class="badge bg-primary text-white rounded-pill ms-1" id="bulletinFilterBadge" style="display: none;">0</span>
                     </button>
                 </div>
             </div>
 
-            <!-- Compteur dynamique -->
-            <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
-                <span class="small text-muted" id="classeCountBadge">
-                    Chargement des classes...
-                </span>
+            <!-- Tiroir de filtres repliable -->
+            <div class="collapse mt-3 pt-3 border-top" id="bulletinFiltersCollapse">
+                <!-- Champ caché pour la sync de classe avec les puces -->
+                <input type="hidden" id="filterClasseSelect" value="">
+
+                <div class="row g-3">
+                    <!-- Filtre par appréciation/mention -->
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <label for="filterMentionSelect" class="form-label small text-muted fw-semibold mb-1">Mention / Appréciation</label>
+                        <select class="form-select form-select-sm" id="filterMentionSelect">
+                            <option value="">Toutes les mentions</option>
+                            <option value="excellent">Excellent (&ge; 16)</option>
+                            <option value="tres-bien">Très bien (14 - 15.9)</option>
+                            <option value="bien">Bien (12 - 13.9)</option>
+                            <option value="assez-bien">Assez bien (10 - 11.9)</option>
+                            <option value="insuffisant">Insuffisant (&lt; 10)</option>
+                            <option value="non-evalue">Non évalué</option>
+                        </select>
+                    </div>
+
+                    <!-- Tri dynamique -->
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <label for="sortClasseSelect" class="form-label small text-muted fw-semibold mb-1">Trier par</label>
+                        <select class="form-select form-select-sm" id="sortClasseSelect">
+                            <option value="name_asc">Nom classe (A &rarr; Z)</option>
+                            <option value="name_desc">Nom classe (Z &rarr; A)</option>
+                            <option value="moyenne_desc">Moyenne (&darr;)</option>
+                            <option value="effectif_desc">Effectif (&darr;)</option>
+                            <option value="taux_desc">Taux réussite (&darr;)</option>
+                        </select>
+                    </div>
+
+                    <!-- Pagination par page -->
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <label for="classePageSizeSelect" class="form-label small text-muted fw-semibold mb-1">Affichage par page</label>
+                        <select class="form-select form-select-sm" id="classePageSizeSelect">
+                            <option value="5">5 classes / page</option>
+                            <option value="10" selected>10 classes / page</option>
+                            <option value="20">20 classes / page</option>
+                            <option value="all">Toutes les classes</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compteur dynamique & Reset -->
+            <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top text-muted small flex-wrap gap-2">
+                <div>
+                    <i class="fas fa-info-circle me-1 text-primary"></i>
+                    <span id="classeCountBadge">Chargement des classes...</span>
+                </div>
+                <button type="button" id="btnResetFilters" class="btn btn-link btn-sm text-decoration-none text-muted p-0" style="display: none;">
+                    <i class="fas fa-undo me-1"></i>Réinitialiser tous les filtres
+                </button>
             </div>
         </div>
     </div>
@@ -497,12 +517,11 @@
                                 </div>
                             </div>
 
-                            <div class="bulletin-student-mini-actions pt-2 border-top">
+                            <div class="bulletin-student-mini-actions pt-2 border-top d-flex justify-content-end">
                                 <a href="{{ url_for('main.bulletin_eleve', id=eleve.id, inscription_id=item.inscription.id if item.inscription else None) }}" 
-                                   class="btn btn-primary btn-sm fw-bold w-100" 
+                                   class="btn btn-primary btn-sm rounded-pill px-3 py-1.5 fw-semibold shadow-sm text-nowrap" 
                                    target="_blank" 
-                                   rel="noopener"
-                                   style="min-height: 38px; display: inline-flex; align-items: center; justify-content: center;">
+                                   rel="noopener">
                                     <i class="fas fa-file-pdf me-1"></i>Bulletin PDF
                                 </a>
                             </div>
@@ -643,6 +662,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const paginationWrapper = document.getElementById('classePaginationWrapper');
     const paginationList = document.getElementById('classePaginationList');
     const paginationInfo = document.getElementById('classePaginationInfo');
+    const classChips = document.querySelectorAll('.class-filter-chip');
 
     const btnToggleAll = document.getElementById('btnToggleAllClasses');
     const btnToggleIcon = document.getElementById('btnToggleAllIcon');
@@ -659,6 +679,48 @@ document.addEventListener('DOMContentLoaded', function() {
     if (filterMention && initialParams.has('mention')) filterMention.value = initialParams.get('mention') || '';
     const initialStatutBulletin = initialParams.get('statut_bulletin') || '';
     const initialPeriode = initialParams.get('periode') || '';
+
+    // Synchronisation des puces de classes
+    function syncChips(selectedClasse) {
+        classChips.forEach(chip => {
+            const chipVal = chip.dataset.classChip || '';
+            if (chipVal === selectedClasse) {
+                chip.classList.add('active', 'btn-primary', 'text-white', 'fw-semibold');
+                chip.classList.remove('bg-white', 'text-dark');
+            } else {
+                chip.classList.remove('active', 'btn-primary', 'text-white', 'fw-semibold');
+                chip.classList.add('bg-white', 'text-dark');
+            }
+        });
+    }
+
+    // Mise à jour du badge des filtres actifs
+    function updateFilterBadge() {
+        const q = searchInput ? searchInput.value.trim() : '';
+        const cl = filterClasse ? filterClasse.value : '';
+        const men = filterMention ? filterMention.value : '';
+        const sortVal = sortSelect ? sortSelect.value : 'name_asc';
+
+        let activeCount = 0;
+        if (q) activeCount++;
+        if (cl) activeCount++;
+        if (men) activeCount++;
+        if (sortVal !== 'name_asc') activeCount++;
+
+        const filterBadge = document.getElementById('bulletinFilterBadge');
+        if (filterBadge) {
+            if (activeCount > 0) {
+                filterBadge.textContent = activeCount;
+                filterBadge.style.display = 'inline-block';
+            } else {
+                filterBadge.style.display = 'none';
+            }
+        }
+
+        if (btnReset) {
+            btnReset.style.display = activeCount > 0 ? 'inline-flex' : 'none';
+        }
+    }
 
     // Synchronisation de la rotation du chevron sur ouverture / fermeture
     classCards.forEach(card => {
@@ -712,6 +774,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const query = normalize(searchInput ? searchInput.value : '');
         const selectedClasse = filterClasse ? filterClasse.value : '';
         const selectedMention = filterMention ? filterMention.value : '';
+
+        syncChips(selectedClasse);
+        updateFilterBadge();
+
         const params = new URLSearchParams();
         if (searchInput && searchInput.value.trim()) params.set('search', searchInput.value.trim());
         if (selectedClasse) params.set('classe_id', selectedClasse);
@@ -929,11 +995,25 @@ document.addEventListener('DOMContentLoaded', function() {
         paginationList.appendChild(nextLi);
     }
 
-    // Événements
-    if (searchInput) {
-        searchInput.addEventListener('input', () => {
+    // Écouteurs pour les puces de classe
+    classChips.forEach(chip => {
+        chip.addEventListener('click', function() {
+            const chipVal = this.dataset.classChip || '';
+            if (filterClasse) filterClasse.value = chipVal;
             currentPage = 1;
             applyFilters();
+        });
+    });
+
+    // Événements
+    if (searchInput) {
+        let debounceTimer;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                currentPage = 1;
+                applyFilters();
+            }, 300);
         });
     }
 

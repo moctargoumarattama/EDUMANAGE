@@ -19,22 +19,48 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-
-                <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllPayments" title="Déplier ou replier toutes les classes">
+                <button type="button" class="btn btn-outline-secondary shadow-sm rounded-pill px-3 py-1.5" id="btnToggleAllPayments" title="Déplier ou replier toutes les classes">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
                 {% if not annee_consultee or annee_consultee.statut == 'active' %}
-                <button type="button" class="btn btn-success shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseNouveauPaiement" aria-expanded="false" aria-controls="collapseNouveauPaiement" id="btnToggleAddPayment">
-                    <i class="fas fa-plus-circle me-2"></i>Nouveau paiement
+                <button type="button" class="btn btn-success shadow-sm rounded-pill px-3 py-1.5" data-bs-toggle="collapse" data-bs-target="#collapseNouveauPaiement" aria-expanded="false" aria-controls="collapseNouveauPaiement" id="btnToggleAddPayment">
+                    <i class="fas fa-plus-circle me-1"></i>Nouveau paiement
                 </button>
                 {% endif %}
-                <a href="{{ url_for('main.tracabilite_paiements') }}" class="btn btn-outline-info shadow-sm" title="Consulter l'historique et la traçabilité des opérations de paiement">
+
+                <!-- Menu d'actions secondaires pour Mobile (d-md-none) -->
+                <div class="dropdown d-md-none">
+                    <button class="btn btn-outline-secondary shadow-sm rounded-pill px-3 py-1.5 dropdown-toggle" type="button" id="dropdownPaymentActionsMobile" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-ellipsis-v me-1"></i>Plus
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 mt-1" aria-labelledby="dropdownPaymentActionsMobile">
+                        <li>
+                            <a class="dropdown-item py-2 d-flex align-items-center gap-2" href="{{ url_for('main.tracabilite_paiements') }}">
+                                <i class="fas fa-history text-info"></i><span>Traçabilité</span>
+                            </a>
+                        </li>
+                        <li>
+                            <button type="button" class="dropdown-item py-2 d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#configMensualitesModal">
+                                <i class="fas fa-cog text-secondary"></i><span>Configurer</span>
+                            </button>
+                        </li>
+                        <li><hr class="dropdown-divider my-1"></li>
+                        <li>
+                            <a class="dropdown-item py-2 d-flex align-items-center gap-2 text-primary fw-semibold" href="{{ url_for('main.export_paiements_excel') }}">
+                                <i class="fas fa-file-excel text-primary"></i><span>Exporter Excel</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Boutons individuels sur Desktop / Tablette (d-none d-md-inline-flex) -->
+                <a href="{{ url_for('main.tracabilite_paiements') }}" class="btn btn-outline-info shadow-sm rounded-pill px-3 py-1.5 d-none d-md-inline-flex align-items-center" title="Consulter l'historique et la traçabilité des opérations de paiement">
                     <i class="fas fa-history me-1"></i>Traçabilité
                 </a>
-                <button type="button" class="btn btn-outline-secondary shadow-sm" data-bs-toggle="modal" data-bs-target="#configMensualitesModal" title="Configurer les mensualités (Juillet, etc.)">
+                <button type="button" class="btn btn-outline-secondary shadow-sm rounded-pill px-3 py-1.5 d-none d-md-inline-flex align-items-center" data-bs-toggle="modal" data-bs-target="#configMensualitesModal" title="Configurer les mensualités (Juillet, etc.)">
                     <i class="fas fa-cog me-1"></i>Configurer
                 </button>
-                <a href="{{ url_for('main.export_paiements_excel') }}" class="btn btn-outline-primary shadow-sm" title="Exporter les paiements au format Excel">
+                <a href="{{ url_for('main.export_paiements_excel') }}" class="btn btn-outline-primary shadow-sm rounded-pill px-3 py-1.5 d-none d-md-inline-flex align-items-center" title="Exporter les paiements au format Excel">
                     <i class="fas fa-file-excel me-2"></i>Exporter Excel
                 </a>
             </div>
@@ -133,8 +159,8 @@
                             {{ form.reference(class="form-control", id="form_reference", placeholder="Ex: VIR-2026-004 ou Reçu N° 128") }}
                         </div>
                         <div class="col-12 d-flex justify-content-end gap-2 pt-2">
-                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#collapseNouveauPaiement">Annuler</button>
-                            <button type="submit" class="btn btn-success px-4">
+                            <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-toggle="collapse" data-bs-target="#collapseNouveauPaiement">Annuler</button>
+                            <button type="submit" class="btn btn-success rounded-pill px-4">
                                 <i class="fas fa-check me-2"></i>Valider le paiement
                             </button>
                         </div>
@@ -145,11 +171,27 @@
     </div>
     {% endif %}
 
-    <!-- Barre d'outils : recherche, filtres et tri -->
+    <!-- Barre de filtrage par puces (Chips) pour les classes -->
+    <div class="class-chips-bar-wrapper mb-3" id="classChipsBar">
+        <div class="class-chips-container d-flex align-items-center gap-2 overflow-x-auto pb-2" style="scrollbar-width: thin;">
+            <button type="button" class="btn btn-sm class-filter-chip active rounded-pill px-3 py-1 text-nowrap fw-semibold border shadow-sm" data-class-chip="">
+                <i class="fas fa-th-large me-1"></i>Toutes les classes
+            </button>
+            {% if classes %}
+                {% for cl in classes %}
+                    <button type="button" class="btn btn-sm class-filter-chip rounded-pill px-3 py-1 text-nowrap border bg-white text-dark shadow-sm" data-class-chip="{{ cl.nom }}">
+                        {{ cl.nom }}
+                    </button>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Barre d'outils : recherche, filtres escamotables et tri -->
     <div class="course-toolbar-card mb-4">
         <div class="row g-2 align-items-center">
             <!-- Recherche rapide -->
-            <div class="col-12 col-md-6 col-lg-5">
+            <div class="col-12 col-md-7 col-lg-8">
                 <div class="course-search-box">
                     <i class="fas fa-search search-icon"></i>
                     <input type="text" id="paymentSearchInput" class="form-control" placeholder="Rechercher classe, élève, reçu..." autocomplete="off">
@@ -159,49 +201,67 @@
                 </div>
             </div>
 
-            <!-- Filtre par classe -->
-            <div class="col-12 col-md-3 col-lg-4">
-                <select id="filterPaymentClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Toutes les classes</option>
-                    {% if classes %}
-                        {% for cl in classes %}
-                            <option value="{{ cl.nom }}" data-niveau="{{ cl.niveau or '' }}" data-id="{{ cl.id }}">{{ cl.nom }}</option>
-                        {% endfor %}
-                    {% endif %}
-                </select>
+            <!-- Bouton pour ouvrir le tiroir des filtres -->
+            <div class="col-12 col-md-5 col-lg-4 d-flex justify-content-md-end gap-2">
+                <button type="button" class="btn btn-outline-primary rounded-pill px-3 py-2 d-inline-flex align-items-center justify-content-center gap-2 flex-grow-1 flex-md-grow-0" data-bs-toggle="collapse" data-bs-target="#paymentFiltersCollapse" aria-expanded="false" aria-controls="paymentFiltersCollapse" id="btnTogglePaymentFilters">
+                    <i class="fas fa-filter"></i>
+                    <span>Filtres</span>
+                    <span class="badge bg-primary text-white rounded-pill ms-1" id="paymentFilterBadge" style="display: none;">0</span>
+                </button>
             </div>
+        </div>
 
-            <!-- Tri des classes -->
-            <div class="col-12 col-md-3 col-lg-3">
-                <select id="sortPaymentSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="nom-asc">Classe (A &rarr; Z)</option>
-                    <option value="nom-desc">Classe (Z &rarr; A)</option>
-                    <option value="reste-desc">Reste le plus élevé &darr;</option>
-                    <option value="eleves-desc">Plus d'élèves &darr;</option>
-                    <option value="taux-desc">Meilleur recouvrement &darr;</option>
-                    <option value="taux-asc">Moins bon recouvrement &uarr;</option>
-                </select>
-            </div>
+        <!-- Tiroir de filtres repliable (sans le doublon Classe) -->
+        <div class="collapse mt-3 pt-3 border-top" id="paymentFiltersCollapse">
+            <!-- Champ caché conservé pour le fonctionnement des puces de classe et la sync URL -->
+            <input type="hidden" id="filterPaymentClasseSelect" value="">
 
-            <!-- Pagination par page -->
-            <div class="col-6 col-md-12 col-lg-3 d-flex justify-content-lg-end">
-                <select id="paymentPageSizeSelect" class="form-select form-select-sm" style="min-height: 42px; max-width: 170px;">
-                    <option value="5">5 classes / page</option>
-                    <option value="10">10 classes / page</option>
-                    <option value="20" selected>20 classes / page</option>
-                    <option value="all">Toutes les classes</option>
-                </select>
+            <div class="row g-3">
+                <!-- Filtre statut de paiement -->
+                <div class="col-12 col-sm-6 col-md-4">
+                    <label class="form-label text-muted small fw-semibold mb-1" for="filterPaymentStatutSelect">Statut de versement</label>
+                    <select id="filterPaymentStatutSelect" class="form-select form-select-sm">
+                        <option value="">Tous les élèves</option>
+                        <option value="reste_a_payer">Reste à payer (> 0 FCFA)</option>
+                        <option value="complet">Soldés (100%)</option>
+                        <option value="aucun">Aucun versement</option>
+                    </select>
+                </div>
+
+                <!-- Tri des classes -->
+                <div class="col-12 col-sm-6 col-md-4">
+                    <label class="form-label text-muted small fw-semibold mb-1" for="sortPaymentSelect">Tri par</label>
+                    <select id="sortPaymentSelect" class="form-select form-select-sm">
+                        <option value="nom-asc">Classe (A &rarr; Z)</option>
+                        <option value="nom-desc">Classe (Z &rarr; A)</option>
+                        <option value="reste-desc">Reste le plus élevé &darr;</option>
+                        <option value="eleves-desc">Plus d'élèves &darr;</option>
+                        <option value="taux-desc">Meilleur recouvrement &darr;</option>
+                        <option value="taux-asc">Moins bon recouvrement &uarr;</option>
+                    </select>
+                </div>
+
+                <!-- Pagination par page -->
+                <div class="col-12 col-sm-6 col-md-4">
+                    <label class="form-label text-muted small fw-semibold mb-1" for="paymentPageSizeSelect">Affichage par page</label>
+                    <select id="paymentPageSizeSelect" class="form-select form-select-sm">
+                        <option value="5">5 classes / page</option>
+                        <option value="10">10 classes / page</option>
+                        <option value="20" selected>20 classes / page</option>
+                        <option value="all">Toutes les classes</option>
+                    </select>
+                </div>
             </div>
         </div>
 
         <!-- Ligne résumé des résultats -->
-        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top text-muted small flex-wrap gap-2">
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top text-muted small flex-wrap gap-2">
             <div>
                 <i class="fas fa-info-circle me-1 text-primary"></i>
                 <span id="paymentFilterStats">Chargement de la situation financière...</span>
             </div>
             <button type="button" id="btnResetFilter" class="btn btn-link btn-sm text-decoration-none text-muted p-0" style="display: none;">
-                <i class="fas fa-undo me-1"></i>Réinitialiser les filtres
+                <i class="fas fa-undo me-1"></i>Réinitialiser tous les filtres
             </button>
         </div>
     </div>
@@ -676,6 +736,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const sortSelect = document.getElementById('sortPaymentSelect');
     const pageSizeSelect = document.getElementById('paymentPageSizeSelect');
     const filterStats = document.getElementById('paymentFilterStats');
+    const filterBadge = document.getElementById('paymentFilterBadge');
     const btnReset = document.getElementById('btnResetFilter');
     const btnResetEmpty = document.getElementById('btnResetEmpty');
     const noResults = document.getElementById('noPaymentResults');
@@ -686,12 +747,50 @@ document.addEventListener('DOMContentLoaded', function() {
     const paginationBar = document.getElementById('paymentPaginationBar');
     const paginationList = document.getElementById('paymentPaginationList');
     const pageInfoText = document.getElementById('paymentPageInfoText');
+    const classChips = document.querySelectorAll('.class-filter-chip');
 
     // Cartes des classes
     const classCards = Array.from(document.querySelectorAll('.class-payment-card'));
     let allExpanded = false;
     let currentPage = 1;
     let pageSize = 20;
+
+    // Synchronisation des puces de classes
+    function syncChips(selectedClasse) {
+        classChips.forEach(chip => {
+            const chipVal = chip.dataset.classChip || '';
+            if (chipVal === selectedClasse) {
+                chip.classList.add('active', 'btn-primary', 'text-white', 'fw-semibold');
+                chip.classList.remove('bg-white', 'text-dark');
+            } else {
+                chip.classList.remove('active', 'btn-primary', 'text-white', 'fw-semibold');
+                chip.classList.add('bg-white', 'text-dark');
+            }
+        });
+    }
+
+    // Mise à jour du badge des filtres actifs
+    function updateFilterBadge() {
+        const q = searchInput ? searchInput.value.trim() : '';
+        const cl = filterClasse ? filterClasse.value : '';
+        const st = filterStatut ? filterStatut.value : '';
+        const sortVal = sortSelect ? sortSelect.value : 'nom-asc';
+
+        let activeCount = 0;
+        if (q) activeCount++;
+        if (cl) activeCount++;
+        if (st) activeCount++;
+        if (sortVal !== 'nom-asc') activeCount++;
+
+        if (filterBadge) {
+            if (activeCount > 0) {
+                filterBadge.textContent = activeCount;
+                filterBadge.style.display = 'inline-block';
+            } else {
+                filterBadge.style.display = 'none';
+            }
+        }
+    }
 
     // Synchronisation URL
     function syncUrl() {
@@ -722,6 +821,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (searchClear) {
             searchClear.style.display = query ? 'block' : 'none';
         }
+
+        syncChips(selectedClasse);
+        updateFilterBadge();
 
         const isFiltered = !!(query || selectedNiveau || selectedClasse || selectedStatut || sortMode !== 'nom-asc');
         if (btnReset) btnReset.style.display = isFiltered ? 'inline-flex' : 'none';
@@ -946,6 +1048,16 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    // Écouteurs pour les puces de classe
+    classChips.forEach(chip => {
+        chip.addEventListener('click', function() {
+            const chipVal = this.dataset.classChip || '';
+            if (filterClasse) filterClasse.value = chipVal;
+            currentPage = 1;
+            render();
+        });
+    });
 
     // Gestion du bouton "Tout déplier / Tout replier"
     if (btnToggleAll) {

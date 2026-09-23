@@ -319,16 +319,91 @@ def get_rapports_annuels(ecole_id, annee):
     if not ecole_id or not annee:
         return _empty_rapports(classes)
 
+    from sqlalchemy.orm import selectinload
+    from app.services.evaluations import (
+        calculer_completude_inscription,
+        calculer_stats_et_classements_classe,
+        STATUS_COMPLETE,
+        PeriodeBulletin,
+    )
+
     inscriptions = (
-        Inscription.query.options(
-            joinedload(Inscription.eleve),
-            joinedload(Inscription.classe),
-            joinedload(Inscription.notes),
-            joinedload(Inscription.absences),
+        Inscription.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
+        .options(
+            selectinload(Inscription.eleve),
+            selectinload(Inscription.paiements),
         )
-        .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
         .all()
     )
+    ins_ids = [i.id for i in inscriptions]
+
+    # Bulk fetch absences aggregate
+    abs_map = {}
+    if ins_ids:
+        abs_stats = (
+            db.session.query(
+                Absence.inscription_id,
+                db.func.count(Absence.id).label("total"),
+                db.func.sum(db.case((Absence.justifiee == True, 1), else_=0)).label("just"),
+            )
+            .filter(
+                Absence.ecole_id == ecole_id,
+                Absence.inscription_id.in_(ins_ids),
+            )
+            .group_by(Absence.inscription_id)
+            .all()
+        )
+        for row in abs_stats:
+            tot = int(row[1] or 0)
+            jst = int(row[2] or 0)
+            abs_map[row[0]] = {
+                "nb_abs": tot,
+                "nb_just": jst,
+                "nb_non_just": tot - jst,
+            }
+
+    # Bulk fetch cours par classe
+    classe_ids = [c.id for c in classes]
+    all_cours = (
+        Cours.query.filter(
+            Cours.ecole_id == ecole_id,
+            Cours.classe_id.in_(classe_ids),
+        ).all()
+        if classe_ids
+        else []
+    )
+    cours_par_classe = defaultdict(list)
+    for c in all_cours:
+        cours_par_classe[c.classe_id].append(c)
+
+    # Bulk fetch notes par inscription
+    all_notes = (
+        Note.query.filter(
+            Note.ecole_id == ecole_id,
+            Note.annee_id == annee.id,
+            Note.inscription_id.in_(ins_ids),
+        ).all()
+        if ins_ids
+        else []
+    )
+    notes_par_inscription = defaultdict(list)
+    for n in all_notes:
+        notes_par_inscription[n.inscription_id].append(n)
+
+    # Periode bulletin statut publication
+    p_obj = PeriodeBulletin.query.filter_by(
+        ecole_id=ecole_id,
+        annee_id=annee.id,
+        periode_active=True,
+    ).first()
+    if not p_obj:
+        p_obj = PeriodeBulletin.query.filter_by(
+            ecole_id=ecole_id,
+            annee_id=annee.id,
+            publie=True,
+        ).first()
+    est_publiee = bool(p_obj and p_obj.publie)
+
     inscriptions_par_classe = defaultdict(list)
     for inscription in inscriptions:
         inscriptions_par_classe[inscription.classe_id].append(inscription)
@@ -360,7 +435,6 @@ def get_rapports_annuels(ecole_id, annee):
         justifiees_classe = 0
         non_justifiees_classe = 0
         eleves_stats = []
-        moyennes_classe = []
         finances_classe = {
             "frais_attendus": 0.0,
             "total_encaisse": 0.0,
@@ -370,23 +444,35 @@ def get_rapports_annuels(ecole_id, annee):
             "eleves_soldes": 0,
         }
 
+        cours_c = cours_par_classe.get(classe.id, [])
+        precomputed_evals_c = []
+
         for inscription in classe_inscriptions:
             eleve = inscription.eleve
             if not eleve:
                 continue
-            absences = getattr(inscription, "absences", []) or []
-            nb_abs = len(absences)
-            nb_just = sum(1 for a in absences if a.justifiee)
-            nb_non_just = nb_abs - nb_just
+            abs_info = abs_map.get(inscription.id, {"nb_abs": 0, "nb_just": 0, "nb_non_just": 0})
+            nb_abs = abs_info["nb_abs"]
+            nb_just = abs_info["nb_just"]
+            nb_non_just = abs_info["nb_non_just"]
+
             total_absences_classe += nb_abs
             justifiees_classe += nb_just
             non_justifiees_classe += nb_non_just
 
-            from app.services.evaluations import calculer_completude_inscription, STATUS_COMPLETE
-            eval_info = calculer_completude_inscription(ecole_id, annee.id, inscription)
+            notes_i = notes_par_inscription.get(inscription.id, [])
+            eval_info = calculer_completude_inscription(
+                ecole_id,
+                annee.id,
+                inscription,
+                periode_publiee=est_publiee,
+                notes=notes_i,
+                cours_attendus=cours_c,
+            )
+            precomputed_evals_c.append({"inscription": inscription, "eval_info": eval_info})
+
             moyenne_eleve = eval_info["average"] if eval_info["status"] == STATUS_COMPLETE else None
             if moyenne_eleve is not None:
-                moyennes_classe.append(moyenne_eleve)
                 moyennes_ecole.append(moyenne_eleve)
 
             finances = get_finances_inscription(inscription)
@@ -410,8 +496,13 @@ def get_rapports_annuels(ecole_id, annee):
         total_absences_justifiees_ecole += justifiees_classe
         total_absences_non_justifiees_ecole += non_justifiees_classe
 
-        from app.services.evaluations import calculer_stats_et_classements_classe
-        stats_c = calculer_stats_et_classements_classe(ecole_id, classe.id, annee.id)
+        stats_c = calculer_stats_et_classements_classe(
+            ecole_id,
+            classe.id,
+            annee.id,
+            periode_publiee=est_publiee,
+            precomputed_evals=precomputed_evals_c,
+        )
         moyenne_classe = stats_c["moyenne_classe_officielle"]
         taux_absenteisme = round(total_absences_classe / effectif, 1) if effectif > 0 else 0.0
         top_absents = sorted(

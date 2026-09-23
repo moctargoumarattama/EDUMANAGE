@@ -33,12 +33,12 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllSchedule" title="Déplier ou replier toutes les classes">
+                <button type="button" class="btn btn-outline-secondary shadow-sm rounded-pill py-1.5 px-3" id="btnToggleAllSchedule" title="Déplier ou replier toutes les classes">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
                 {% if peut_modifier and current_user.role in ('admin', 'super_admin') %}
-                <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary shadow-sm" id="btnAddEmploi">
-                    <i class="fas fa-plus-circle me-2"></i>Nouveau créneau
+                <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary shadow-sm rounded-pill py-1.5 px-3" id="btnAddEmploi">
+                    <i class="fas fa-plus me-1.5"></i>Nouveau créneau
                 </a>
                 {% endif %}
             </div>
@@ -109,76 +109,99 @@
         {% endfor %}
     {% endif %}
 
-    <!-- Barre d'outils : recherche, filtres et tri -->
-    <div class="course-toolbar-card mb-4">
+    <!-- Barre de navigation rapide des Classes (Chips horizontales défilantes) -->
+    {% if classes %}
+    <div class="class-quick-pills-bar mb-3" id="classChipsBar">
+        <button type="button" class="class-filter-chip active" data-class-chip="all">
+            <i class="fas fa-layer-group me-1"></i>Toutes ({{ classes|length }})
+        </button>
+        {% for cl in classes %}
+            <button type="button" class="class-filter-chip" data-class-chip="{{ cl.nom }}" data-niveau="{{ cl.niveau or '' }}">
+                {{ cl.nom }}
+            </button>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Barre d'outils et de recherche réactive (Style eleves.html & absences.html) -->
+    <div class="course-toolbar-card mb-3">
         <div class="row g-2 align-items-center">
-            <!-- Recherche rapide -->
-            <div class="col-12 col-md-4 col-lg-3">
+            <!-- Champ de recherche live -->
+            <div class="col-12 col-md-6 col-lg-5">
                 <div class="course-search-box">
                     <i class="fas fa-search search-icon"></i>
                     <input type="text" id="scheduleSearchInput" class="form-control" placeholder="Rechercher classe, matière, prof, salle..." autocomplete="off">
-                    <button type="button" id="scheduleSearchClear" class="clear-btn" title="Effacer la recherche">
+                    <button type="button" id="scheduleSearchClear" class="clear-btn" title="Effacer la recherche" style="display: none;">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- Filtre par jour -->
-            <div class="col-6 col-md-3 col-lg-2">
-                <select id="filterScheduleDaySelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Tous les jours</option>
-                    <option value="Lundi">Lundi</option>
-                    <option value="Mardi">Mardi</option>
-                    <option value="Mercredi">Mercredi</option>
-                    <option value="Jeudi">Jeudi</option>
-                    <option value="Vendredi">Vendredi</option>
-                    <option value="Samedi">Samedi</option>
-                    <option value="Dimanche">Dimanche</option>
-                </select>
+            <!-- Boutons d'action Filtres & Réinitialiser -->
+            <div class="col-12 col-md-6 col-lg-7">
+                <div class="d-flex align-items-center justify-content-between justify-content-md-end gap-2">
+                    <button class="btn btn-sm btn-outline-primary py-1.5 px-3 d-inline-flex align-items-center gap-1.5 rounded-pill" 
+                            type="button" data-bs-toggle="collapse" data-bs-target="#scheduleFiltersCollapse" aria-expanded="false" aria-controls="scheduleFiltersCollapse">
+                        <i class="fas fa-sliders-h"></i>
+                        <span class="fw-semibold small">Filtres</span>
+                        <span class="badge bg-primary text-white rounded-pill d-none" id="scheduleFilterBadge">0</span>
+                    </button>
+
+                    <button type="button" id="btnResetFilter" class="btn btn-sm btn-outline-secondary py-1.5 px-3 rounded-pill d-inline-flex align-items-center gap-1" style="display: none;">
+                        <i class="fas fa-undo me-1"></i>Réinitialiser
+                    </button>
+                </div>
             </div>
 
-            <!-- Filtre par classe -->
-            <div class="col-6 col-md-3 col-lg-2">
-                <select id="filterScheduleClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Toutes les classes</option>
-                    {% if classes %}
-                        {% for cl in classes %}
-                            <option value="{{ cl.nom }}">{{ cl.nom }}</option>
-                        {% endfor %}
-                    {% endif %}
-                </select>
-            </div>
+            <!-- Section Filtres Avancés (Collapsible) -->
+            <div class="col-12 collapse pt-3 border-top mt-2" id="scheduleFiltersCollapse">
+                <div class="row g-2 align-items-center">
+                    <!-- Filtre par jour -->
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small fw-semibold text-muted mb-1">Jour de la semaine</label>
+                        <select id="filterScheduleDaySelect" class="form-select form-select-sm">
+                            <option value="">Tous les jours</option>
+                            <option value="Lundi">Lundi</option>
+                            <option value="Mardi">Mardi</option>
+                            <option value="Mercredi">Mercredi</option>
+                            <option value="Jeudi">Jeudi</option>
+                            <option value="Vendredi">Vendredi</option>
+                            <option value="Samedi">Samedi</option>
+                            <option value="Dimanche">Dimanche</option>
+                        </select>
+                    </div>
 
-            <!-- Tri des classes -->
-            <div class="col-6 col-md-2 col-lg-2">
-                <select id="sortScheduleSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="nom-asc">Classe (A &rarr; Z)</option>
-                    <option value="nom-desc">Classe (Z &rarr; A)</option>
-                    <option value="slots-desc">Plus de créneaux &darr;</option>
-                    <option value="slots-asc">Moins de créneaux &uarr;</option>
-                </select>
-            </div>
+                    <!-- Tri des classes -->
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small fw-semibold text-muted mb-1">Trier par</label>
+                        <select id="sortScheduleSelect" class="form-select form-select-sm">
+                            <option value="nom-asc">Classe (A &rarr; Z)</option>
+                            <option value="nom-desc">Classe (Z &rarr; A)</option>
+                            <option value="slots-desc">Plus de créneaux &darr;</option>
+                            <option value="slots-asc">Moins de créneaux &uarr;</option>
+                        </select>
+                    </div>
 
-            <!-- Pagination par page -->
-            <div class="col-6 col-md-2 col-lg-3 d-flex justify-content-md-end">
-                <select id="schedulePageSizeSelect" class="form-select form-select-sm" style="min-height: 42px; max-width: 170px;">
-                    <option value="5">5 classes / page</option>
-                    <option value="10">10 classes / page</option>
-                    <option value="20" selected>20 classes / page</option>
-                    <option value="all">Toutes les classes</option>
-                </select>
+                    <!-- Classes / page -->
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small fw-semibold text-muted mb-1">Classes / page</label>
+                        <select id="schedulePageSizeSelect" class="form-select form-select-sm">
+                            <option value="5">5 classes / page</option>
+                            <option value="10">10 classes / page</option>
+                            <option value="20" selected>20 classes / page</option>
+                            <option value="all">Toutes les classes</option>
+                        </select>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Ligne résumé des résultats -->
-        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top text-muted small flex-wrap gap-2">
-            <div>
-                <i class="fas fa-info-circle me-1 text-primary"></i>
+        <!-- Info-bar sous les filtres -->
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 pt-2 border-top">
+            <div class="text-muted small">
+                <i class="fas fa-layer-group me-1 text-primary"></i>
                 <span id="scheduleFilterStats">Chargement des emplois du temps...</span>
             </div>
-            <button type="button" id="btnResetFilter" class="btn btn-link btn-sm text-decoration-none text-muted p-0" style="display: none;">
-                <i class="fas fa-undo me-1"></i>Réinitialiser les filtres
-            </button>
         </div>
     </div>
 
@@ -584,7 +607,9 @@
                     </div>
                 </div>
             </article>
-        {% else %}
+        {% endif %}
+
+        {% if not classes and not emplois_sans_classe %}
             <div class="card border-0 shadow-sm text-center py-5 my-4">
                 <div class="card-body">
                     <i class="fas fa-calendar-times text-muted fa-4x mb-3 opacity-50"></i>
@@ -593,8 +618,8 @@
                         Aucune classe n'est disponible pour planifier des emplois du temps pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong>.
                     </p>
                     {% if current_user.role in ('admin', 'super_admin') %}
-                    <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary btn-sm">
-                        <i class="fas fa-plus me-1"></i>Ajouter un creneau
+                    <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary btn-sm rounded-pill px-3">
+                        <i class="fas fa-plus me-1"></i>Ajouter un créneau
                     </a>
                     {% endif %}
                 </div>
@@ -645,10 +670,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('scheduleSearchInput');
     const searchClear = document.getElementById('scheduleSearchClear');
     const filterDay = document.getElementById('filterScheduleDaySelect');
-    const filterClasse = document.getElementById('filterScheduleClasseSelect');
     const sortSelect = document.getElementById('sortScheduleSelect');
     const pageSizeSelect = document.getElementById('schedulePageSizeSelect');
     const filterStats = document.getElementById('scheduleFilterStats');
+    const filterBadge = document.getElementById('scheduleFilterBadge');
     const btnReset = document.getElementById('btnResetFilter');
     const btnResetEmpty = document.getElementById('btnResetEmpty');
     const noResults = document.getElementById('noScheduleResults');
@@ -660,24 +685,46 @@ document.addEventListener('DOMContentLoaded', function() {
     const paginationList = document.getElementById('schedulePaginationList');
     const pageInfoText = document.getElementById('schedulePageInfoText');
 
+    // Chips des classes
+    const classChips = Array.from(document.querySelectorAll('.class-filter-chip'));
+    let selectedClasse = 'all';
+
     // Cartes des classes
     const classCards = Array.from(document.querySelectorAll('.class-schedule-card'));
     let allExpanded = false;
     let currentPage = 1;
     let pageSize = 20;
 
+    // Mise à jour du badge des filtres avancés
+    function updateFilterBadge() {
+        let activeCount = 0;
+        if (filterDay && filterDay.value) activeCount++;
+        if (sortSelect && sortSelect.value !== 'nom-asc') activeCount++;
+        if (pageSizeSelect && pageSizeSelect.value !== '20') activeCount++;
+
+        if (filterBadge) {
+            if (activeCount > 0) {
+                filterBadge.textContent = activeCount;
+                filterBadge.classList.remove('d-none');
+            } else {
+                filterBadge.classList.add('d-none');
+            }
+        }
+    }
+
     // Fonction de filtrage et rendu principal
     function render() {
         const query = normalize(searchInput ? searchInput.value : '');
         const selectedDay = filterDay ? filterDay.value : '';
-        const selectedClasse = filterClasse ? filterClasse.value : '';
         const sortMode = sortSelect ? sortSelect.value : 'nom-asc';
 
         if (searchClear) {
             searchClear.style.display = query ? 'block' : 'none';
         }
 
-        const isFiltered = !!(query || selectedDay || selectedClasse || sortMode !== 'nom-asc');
+        updateFilterBadge();
+
+        const isFiltered = !!(query || selectedDay || (selectedClasse && selectedClasse !== 'all') || sortMode !== 'nom-asc' || pageSize !== 20);
         if (btnReset) btnReset.style.display = isFiltered ? 'inline-flex' : 'none';
 
         let matched = [];
@@ -688,10 +735,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const cardSearch = normalize(card.dataset.search || '');
             const cardId = card.dataset.id || '';
 
-            // Filtrage par classe sélectionnée
-            if (selectedClasse && cardNom !== selectedClasse && cardId !== selectedClasse) {
-                card.style.display = 'none';
-                return;
+            // Filtrage par puce de classe
+            if (selectedClasse && selectedClasse !== 'all') {
+                if (cardNom !== selectedClasse && cardId !== selectedClasse) {
+                    card.style.display = 'none';
+                    return;
+                }
             }
 
             // Gestion des créneaux horaires à l'intérieur de la classe
@@ -716,7 +765,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
 
-            // La classe est-elle éligible 
+            // La classe est-elle éligible ?
             let isClassMatch = false;
             if (slotItems.length === 0) {
                 // Classe sans créneau
@@ -768,6 +817,9 @@ document.addEventListener('DOMContentLoaded', function() {
             let slotText = totalVisibleSlots + ' créneau' + (totalVisibleSlots > 1 ? 'x' : '') + ' planifié' + (totalVisibleSlots > 1 ? 's' : '');
             if (selectedDay) {
                 slotText += ' (' + selectedDay + ')';
+            }
+            if (selectedClasse && selectedClasse !== 'all') {
+                slotText += ' · ' + selectedClasse;
             }
             filterStats.textContent = `Affichage de ${count} classe${count > 1 ? 's' : ''} (${slotText})`;
         }
@@ -940,7 +992,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const params = new URLSearchParams(window.location.search);
         if (searchInput && searchInput.value.trim()) params.set('q', searchInput.value.trim()); else params.delete('q');
         if (filterDay && filterDay.value) params.set('jour', filterDay.value); else params.delete('jour');
-        if (filterClasse && filterClasse.value) params.set('classe', filterClasse.value); else params.delete('classe');
+        if (selectedClasse && selectedClasse !== 'all') params.set('classe', selectedClasse); else params.delete('classe');
         if (sortSelect && sortSelect.value !== 'nom-asc') params.set('sort', sortSelect.value); else params.delete('sort');
         const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         window.history.replaceState({}, '', newUrl);
@@ -950,12 +1002,33 @@ document.addEventListener('DOMContentLoaded', function() {
     function resetFilters() {
         if (searchInput) searchInput.value = '';
         if (filterDay) filterDay.value = '';
-        if (filterClasse) filterClasse.value = '';
         if (sortSelect) sortSelect.value = 'nom-asc';
+        if (pageSizeSelect) pageSizeSelect.value = '20';
+        pageSize = 20;
+        selectedClasse = 'all';
+        classChips.forEach(chip => {
+            if (chip.dataset.classChip === 'all') {
+                chip.classList.add('active');
+            } else {
+                chip.classList.remove('active');
+            }
+        });
         currentPage = 1;
         render();
         syncUrl();
     }
+
+    // Écouteurs pour les chips de classes
+    classChips.forEach(chip => {
+        chip.addEventListener('click', function() {
+            classChips.forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            selectedClasse = this.dataset.classChip || 'all';
+            currentPage = 1;
+            render();
+            syncUrl();
+        });
+    });
 
     // Écouteurs d'événements avec debouncing ~300ms
     let debounceTimer = null;
@@ -988,14 +1061,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    if (filterClasse) {
-        filterClasse.addEventListener('change', function() {
-            currentPage = 1;
-            render();
-            syncUrl();
-        });
-    }
-
     if (sortSelect) {
         sortSelect.addEventListener('change', function() {
             currentPage = 1;
@@ -1019,8 +1084,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const initParams = new URLSearchParams(window.location.search);
     if (initParams.has('q') && searchInput) searchInput.value = initParams.get('q');
     if (initParams.has('jour') && filterDay) filterDay.value = initParams.get('jour');
-    if (initParams.has('classe') && filterClasse) filterClasse.value = initParams.get('classe');
     if (initParams.has('sort') && sortSelect) sortSelect.value = initParams.get('sort');
+    if (initParams.has('classe')) {
+        const initialClass = initParams.get('classe');
+        const targetChip = classChips.find(c => c.dataset.classChip === initialClass);
+        if (targetChip) {
+            classChips.forEach(c => c.classList.remove('active'));
+            targetChip.classList.add('active');
+            selectedClasse = initialClass;
+        }
+    }
 
     // Rendu initial
     render();

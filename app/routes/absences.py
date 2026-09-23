@@ -168,7 +168,7 @@ def absences():
 
     return render_template(
         'absences.html',
-        absences=absences_paginated,
+        absences=filtrees,
         absences_justifiees=absences_justifiees,
         absences_non_justifiees=absences_non_justifiees,
         show_form=show_form,

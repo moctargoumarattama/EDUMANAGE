@@ -405,6 +405,7 @@ def preparer_dossier_notes_eleve(notes_eleve):
     for c_id, c_notes in notes_par_cours.items():
         c_obj = c_notes[0].cours if (c_notes and getattr(c_notes[0], "cours", None)) else None
         c_nom = c_obj.nom if c_obj else "Autre matière"
+        c_coeff = c_obj.coefficient if (c_obj and getattr(c_obj, "coefficient", None)) else (getattr(c_notes[0], "coefficient", None) or 1)
         moy_mat = calculer_moyenne_matiere(c_notes)
         sorted_notes = sorted(
             c_notes,
@@ -414,6 +415,7 @@ def preparer_dossier_notes_eleve(notes_eleve):
         matieres.append({
             "cours": c_obj,
             "cours_nom": c_nom,
+            "coefficient": c_coeff,
             "notes_count": len(c_notes),
             "moyenne_matiere": moy_mat,
             "notes": sorted_notes,

@@ -2,9 +2,11 @@ from flask import send_file, current_app, g
 from app.utils import get_ecole_filter_query
 import hashlib
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
+import unicodedata
 from datetime import datetime, timedelta, date, time
 from app import db
 from app.models import Log, ParametreSysteme
@@ -20,6 +22,19 @@ os.makedirs(BACKUP_DIR, exist_ok=True)
 DB_PATH = os.path.join(BASE_DIR, "instance", "ecole.db")
 DEPLOY_SCRIPT = 'scripts/deploy.sh'
 os.makedirs('scripts', exist_ok=True)
+
+
+def slugify_school_name(nom: str) -> str:
+    """Transforme le nom d'une école en slug lisible pour les noms de fichier."""
+    if not nom:
+        return "ecole"
+    # Normalisation NFKD puis suppression des accents (caractères non-ASCII)
+    slug = unicodedata.normalize("NFKD", nom).encode("ascii", "ignore").decode("ascii")
+    # Minuscules, remplacement des non-alphanumériques par des tirets
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", slug).strip("-").lower()
+    # Tronquer à 35 caractères max (sans couper au milieu d'un tiret)
+    slug = slug[:35].rstrip("-")
+    return slug or "ecole"
 
 
 def _sha256_file(path):
@@ -865,7 +880,8 @@ def create_school_backup(ecole_id, backup_type="manual"):
         'data': data,
     }
 
-    backup_file = os.path.join(BACKUP_DIR, f"school_{ecole.id}_{timestamp}_{backup_type}.json")
+    school_slug = slugify_school_name(ecole.nom)
+    backup_file = os.path.join(BACKUP_DIR, f"school_{ecole.id}_{school_slug}_{timestamp}_{backup_type}.json")
     with open(backup_file, 'w', encoding='utf-8') as f:
         json.dump(backup_data, f, indent=2, ensure_ascii=False)
 

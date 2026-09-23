@@ -36,6 +36,7 @@ from .common import (
     url_for,
 )
 from unidecode import unidecode
+from sqlalchemy import func
 import pandas as pd
 from app.services.annees_scolaires import get_annee_consultee
 from app.services.classes_annuelles import classe_est_ouverte
@@ -63,7 +64,10 @@ def _cours_annee_query(ecole_id, annee_id):
     query = (
         Cours.query
         .join(Classe, Classe.id == Cours.classe_id)
-        .options(joinedload(Cours.classe), joinedload(Cours.professeur), joinedload(Cours.notes))
+        .options(
+            joinedload(Cours.classe).joinedload(Classe.niveau_scolaire),
+            joinedload(Cours.professeur)
+        )
         .filter(Cours.ecole_id == ecole_id, Classe.ecole_id == ecole_id)
     )
     if annee_id:
@@ -106,6 +110,14 @@ def cours():
     delete_form = DeleteForm()
     annee_consultee = get_annee_consultee(ecole_courante.id)
 
+    # Comptage direct et ultra-rapide des notes en SQL (évite de charger des dizaines de milliers d'objets Note)
+    notes_count_map = dict(
+        db.session.query(Note.cours_id, func.count(Note.id))
+        .filter(Note.ecole_id == ecole_courante.id)
+        .group_by(Note.cours_id)
+        .all()
+    )
+
     def cours_to_dict(cours_item):
         return {
             'id': cours_item.id,
@@ -125,7 +137,7 @@ def cours():
                 'prenom': cours_item.professeur.prenom,
                 'nom': cours_item.professeur.nom,
             } if cours_item.professeur else None,
-            'notes_count': len(cours_item.notes) if hasattr(cours_item, 'notes') else 0,
+            'notes_count': notes_count_map.get(cours_item.id, 0),
             'ecole_id': cours_item.ecole_id,
         }
 
@@ -179,7 +191,7 @@ def cours():
             for classe in classes
         ]
         professeurs_actifs = len({c.professeur_id for c in tous_cours if c.professeur_id})
-        notes_total = sum(len(c.notes) for c in tous_cours if hasattr(c, 'notes'))
+        notes_total = sum(notes_count_map.get(c.id, 0) for c in tous_cours)
         cours_total = len(tous_cours)
         cours_json = [cours_to_dict(c) for c in tous_cours]
         cours_source = tous_cours
@@ -212,7 +224,7 @@ def cours():
             prof_query = prof_query.filter(Classe.niveau == niveau)
 
         mes_cours = prof_query.outerjoin(NiveauScolaire, Classe.niveau_id == NiveauScolaire.id).order_by(*ordre_pedagogique_classe(), Cours.nom.asc()).all()
-        notes_total = sum(len(c.notes) for c in mes_cours if hasattr(c, 'notes'))
+        notes_total = sum(notes_count_map.get(c.id, 0) for c in mes_cours)
         cours_total = len(mes_cours)
         professeurs_actifs = 1
         cours_json = [cours_to_dict(c) for c in mes_cours]

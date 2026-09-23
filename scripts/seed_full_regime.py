@@ -22,8 +22,9 @@ from app import create_app, db
 from app.models import (
     Utilisateur, Ecole, AnneeScolaire, NiveauScolaire, Classe,
     Professeur, Eleve, Inscription, Cours, Note, Paiement, Absence,
-    PeriodeBulletin, AnneeNiveauConfig, professeur_classes
+    PeriodeBulletin, AnneeNiveauConfig, professeur_classes, EmploiTemps
 )
+from scripts.seed_emplois_temps import generer_emplois_pour_ecole
 from app.services.semestres import configurer_semestres_annee, get_periode_semestre
 from werkzeug.security import generate_password_hash
 
@@ -371,6 +372,7 @@ def run_seed():
                                 eleve_id=insc.eleve_id,
                                 cours_id=c.id,
                                 ecole_id=ecole_id,
+                                annee_id=annee.id,
                                 inscription_id=insc.id
                             )
                             notes_a_ajouter.append(n)
@@ -428,6 +430,10 @@ def run_seed():
             db.session.bulk_save_objects(absences)
             db.session.commit()
 
+        # 10. Génération des Emplois du Temps
+        print("Génération des emplois du temps hebdomadaires...")
+        generer_emplois_pour_ecole(ecole_id=ecole_id, reset=False)
+
         print(f"=== PEUPLEMENT PLEIN RÉGIME TERMINÉ AVEC SUCCÈS ! ===")
         print(f"- École : {ecole.nom} (ID={ecole_id})")
         print(f"- Élèves : {Eleve.query.filter_by(ecole_id=ecole_id).count()}")
@@ -436,6 +442,7 @@ def run_seed():
         print(f"- Cours : {Cours.query.filter_by(ecole_id=ecole_id).count()}")
         print(f"- Notes : {Note.query.filter_by(ecole_id=ecole_id).count()}")
         print(f"- Paiements : {Paiement.query.filter_by(ecole_id=ecole_id).count()}")
+        print(f"- Emplois du temps : {EmploiTemps.query.filter_by(ecole_id=ecole_id).count()} créneaux")
 
 if __name__ == "__main__":
     run_seed()

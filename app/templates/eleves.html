@@ -5,21 +5,24 @@
 {% block content %}
 <div class="container-fluid py-3 px-md-4">
     <!-- En-tête Principal -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 gap-md-3 mb-3 mb-md-4">
         <div>
             <div class="d-flex align-items-center gap-2 mb-1">
-                <h1 class="h4 mb-0 fw-bold text-gray-800">
+                <h1 class="h5 h4-md mb-0 fw-bold text-gray-800">
                     <i class="fas fa-user-graduate text-primary me-2"></i>Gestion des Élèves par Classe
                 </h1>
                 <span class="badge bg-primary rounded-pill px-2 py-1 small">
                     {{ total_eleves }} élève{{ 's' if total_eleves > 1 else '' }}
                 </span>
             </div>
-            <p class="text-muted mb-0 small">
+            <!-- Masqué sur mobile pour éviter l'encombrement vertical -->
+            <p class="text-muted mb-0 small d-none d-md-block">
                 Consultez l'effectif, gérez les inscriptions et accédez aux dossiers annuels complets par classe.
             </p>
         </div>
-        <div class="d-flex align-items-center gap-2 flex-wrap">
+
+        <!-- Boutons Desktop (Inchangés pour PC) -->
+        <div class="d-none d-md-flex align-items-center gap-2 flex-wrap">
             {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
             <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-sm btn-success fw-semibold">
                 <i class="fas fa-plus me-1"></i>Ajouter un élève
@@ -40,17 +43,58 @@
                 <i class="fas fa-home me-1"></i>Accueil
             </a>
         </div>
+
+        <!-- Boutons Mobile Épurés (Ultra-compacts : + Élève + Menu Actions) -->
+        <div class="d-flex d-md-none align-items-center gap-2 w-100">
+            {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
+            <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-sm btn-success fw-bold flex-grow-1">
+                <i class="fas fa-plus me-1"></i>+ Élève
+            </a>
+            {% endif %}
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-ellipsis-v me-1"></i>Actions
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-2">
+                    {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
+                    <li>
+                        <a class="dropdown-item py-2 small" href="{{ url_for('main.import_excel_form') }}">
+                            <i class="fas fa-file-import text-primary me-2"></i>Importer Excel
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item py-2 small" href="{{ url_for('main.modele_excel_eleves') }}">
+                            <i class="fas fa-download text-muted me-2"></i>Modèle Excel
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if current_user.role == 'admin' %}
+                    <li>
+                        <a class="dropdown-item py-2 small" href="{{ url_for('main.export_eleves_excel') }}">
+                            <i class="fas fa-file-excel text-success me-2"></i>Exporter Excel
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li>
+                        <a class="dropdown-item py-2 small" href="{{ url_for('main.index') }}">
+                            <i class="fas fa-home text-secondary me-2"></i>Accueil
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
     </div>
 
-    <!-- 3 Cartes d'Indicateurs Clés (KPIs) -->
     {% if annee_consultee and annee_consultee.statut == 'archivee' %}
-    <div class="alert alert-warning" role="alert">
-        Vous consultez une année archivée : {{ annee_consultee.nom }}
+    <div class="alert alert-warning py-2 mb-3" role="alert">
+        <i class="fas fa-archive me-1"></i>Vous consultez une année archivée : {{ annee_consultee.nom }}
     </div>
     {% endif %}
 
-    <div class="row g-2 g-md-3 mb-3 mb-md-4">
-        <div class="col-4 d-none d-md-block">
+    <!-- 3 Cartes d'Indicateurs Clés (KPIs) - Desktop -->
+    <div class="row g-2 g-md-3 mb-3 mb-md-4 d-none d-md-flex">
+        <div class="col-4">
             <div class="card border-0 shadow-sm h-100 p-2 p-md-3 bg-white">
                 <div class="d-flex align-items-center gap-2 gap-md-3">
                     <div class="rounded-3 p-1 p-sm-2 p-md-3 bg-primary-subtle text-primary fs-5 fs-md-4 d-flex align-items-center justify-content-center flex-shrink-0" style="width: clamp(32px, 5vw, 48px); height: clamp(32px, 5vw, 48px);">
@@ -64,7 +108,7 @@
             </div>
         </div>
 
-        <div class="col-6 col-md-4">
+        <div class="col-4">
             <div class="card border-0 shadow-sm h-100 p-2 p-md-3 bg-white">
                 <div class="d-flex align-items-center gap-2 gap-md-3">
                     <div class="rounded-3 p-1 p-sm-2 p-md-3 bg-info-subtle text-info fs-5 fs-md-4 d-flex align-items-center justify-content-center flex-shrink-0" style="width: clamp(32px, 5vw, 48px); height: clamp(32px, 5vw, 48px);">
@@ -78,7 +122,7 @@
             </div>
         </div>
 
-        <div class="col-6 col-md-4">
+        <div class="col-4">
             <div class="card border-0 shadow-sm h-100 p-2 p-md-3 bg-white">
                 <div class="d-flex align-items-center gap-2 gap-md-3">
                     <div class="rounded-3 p-1 p-sm-2 p-md-3 bg-success-subtle text-success fs-5 fs-md-4 d-flex align-items-center justify-content-center flex-shrink-0" style="width: clamp(32px, 5vw, 48px); height: clamp(32px, 5vw, 48px);">
@@ -87,8 +131,7 @@
                     <div class="overflow-hidden">
                         <h3 class="fw-bold mb-0 text-gray-800 text-truncate" style="font-size: clamp(0.85rem, 2.3vw, 1.4rem);">{{ stats.total_garcons }} G • {{ stats.total_filles }} F</h3>
                         <div class="text-muted small text-truncate" style="font-size: clamp(0.68rem, 1.8vw, 0.85rem);">
-                            <span class="d-none d-md-inline">Répartition Garçons / Filles</span>
-                            <span class="d-md-none">Garçons / Filles</span>
+                            Répartition Garçons / Filles
                         </div>
                     </div>
                 </div>
@@ -96,9 +139,36 @@
         </div>
     </div>
 
+    <!-- Micro-barre KPIs sur Mobile (1 seule ligne horizontale compacte) -->
+    <div class="d-flex d-md-none align-items-center gap-2 mb-2 overflow-x-auto pb-1 text-nowrap">
+        <div class="badge bg-white text-secondary border shadow-xs py-2 px-2.5 rounded-pill d-inline-flex align-items-center gap-1">
+            <i class="fas fa-chalkboard text-info"></i>
+            <span class="text-dark fw-bold">{{ stats.total_classes }}</span>
+            <span class="text-muted small">classes</span>
+        </div>
+        <div class="badge bg-white text-secondary border shadow-xs py-2 px-2.5 rounded-pill d-inline-flex align-items-center gap-1">
+            <i class="fas fa-venus-mars text-success"></i>
+            <span class="text-primary fw-bold">{{ stats.total_garcons }} G</span>
+            <span class="text-muted">•</span>
+            <span class="text-danger fw-bold">{{ stats.total_filles }} F</span>
+        </div>
+    </div>
+
+    <!-- Barre de navigation rapide des Classes (Chips horizontales) -->
+    <div class="class-quick-pills-bar mb-3" id="classChipsBar">
+        <button type="button" class="class-filter-chip active" data-class-chip="all">
+            <i class="fas fa-layer-group me-1"></i>Toutes ({{ total_eleves }})
+        </button>
+        {% for c in classes %}
+        <button type="button" class="class-filter-chip" data-class-chip="{{ c.id }}" data-niveau="{{ c.niveau or '' }}">
+            {{ c.nom }}
+        </button>
+        {% endfor %}
+    </div>
+
     <!-- Barre d'outils et de recherche réactive -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body p-3">
+    <div class="card border-0 shadow-sm mb-3 mb-md-4">
+        <div class="card-body p-2.5 p-md-3">
             <div class="row g-2 align-items-center">
                 <!-- Champ de recherche live -->
                 <div class="col-12 col-md-4 col-lg-3">
@@ -114,51 +184,79 @@
                     </div>
                 </div>
 
-                <!-- Filtre par niveau -->
-                <div class="col-6 col-md-3 col-lg-2">
-                    <select class="form-select form-select-sm" id="selectNiveauFilter">
-                        <option value="all">Tous niveaux</option>
-                        {% for niv in niveaux_annee %}
-                        <option value="{{ niv.nom }}" {% if niveau_id|string == niv.nom|string or niveau_id|string == niv.id|string %}selected{% endif %}>{{ niv.nom }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Sélecteur de classe -->
-                <div class="col-6 col-md-3 col-lg-2">
-                    <select class="form-select form-select-sm" id="selectClassFilter">
-                        <option value="all">Toutes classes</option>
-                        {% for c in classes %}
-                        <option value="{{ c.id }}" data-niveau="{{ c.niveau or '' }}" {% if classe_id == c.id %}selected{% endif %}>{{ c.nom }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Filtre par genre -->
-                <div class="col-6 col-md-2 col-lg-2">
-                    <select class="form-select form-select-sm" id="selectGenreFilter">
-                        <option value="all">Tous genres</option>
-                        <option value="M" {% if genre == 'M' %}selected{% endif %}>Garçons (M)</option>
-                        <option value="F" {% if genre == 'F' %}selected{% endif %}>Filles (F)</option>
-                    </select>
-                </div>
-
-                <!-- Bouton réinitialiser -->
-                <div class="col-6 col-md-auto">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnResetStudentFilter" title="Réinitialiser tous les filtres">
-                        <i class="fas fa-undo me-1"></i>Réinitialiser
-                    </button>
-                </div>
-
-                <!-- Boutons Tout Déplier / Tout Replier -->
-                <div class="col-12 col-lg-auto ms-lg-auto text-end">
-                    <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-outline-secondary" id="btnExpandAllStudents" title="Déplier toutes les classes">
-                            <i class="fas fa-chevron-down me-1"></i>Déplier tout
+                <!-- Barre d'outils mobile : bouton Filtres & Bouton unique Déplier/Replier -->
+                <div class="col-12 d-md-none">
+                    <div class="d-flex align-items-center justify-content-between gap-2 pt-1 border-top">
+                        <button class="btn btn-sm btn-outline-primary py-1 px-2.5 d-inline-flex align-items-center gap-1.5 rounded-pill" 
+                                type="button" data-bs-toggle="collapse" data-bs-target="#mobileFiltersCollapse" aria-expanded="false" aria-controls="mobileFiltersCollapse">
+                            <i class="fas fa-sliders-h"></i>
+                            <span class="fw-semibold small">Filtres</span>
+                            <span class="badge bg-primary text-white rounded-pill d-none" id="mobileFilterBadge">0</span>
                         </button>
-                        <button type="button" class="btn btn-outline-secondary" id="btnCollapseAllStudents" title="Replier toutes les classes">
-                            <i class="fas fa-chevron-up me-1"></i>Replier tout
-                        </button>
+
+                        <!-- Bouton unique dynamique (Déplier tout ⟷ Replier tout) -->
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary fw-semibold py-1 px-2.5 rounded-pill d-inline-flex align-items-center gap-1.5" id="btnToggleAllStudentsMob">
+                                <i class="fas fa-chevron-down" id="toggleMobIcon"></i>
+                                <span class="small" id="toggleMobText">Déplier tout</span>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-light border text-secondary py-1 px-2 rounded-circle" id="btnResetStudentFilterMob" title="Réinitialiser les filtres" aria-label="Réinitialiser">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtres avancés : toujours visibles sur Desktop, en accordéon sur Mobile -->
+                <div class="col-12 col-md-8 col-lg-9 collapse d-md-block" id="mobileFiltersCollapse">
+                    <div class="row g-2 align-items-center pt-2 pt-md-0">
+                        <!-- Filtre par niveau -->
+                        <div class="col-6 col-md-3 col-lg-3">
+                            <select class="form-select form-select-sm" id="selectNiveauFilter">
+                                <option value="all">Tous niveaux</option>
+                                {% for niv in niveaux_annee %}
+                                <option value="{{ niv.nom }}" {% if niveau_id|string == niv.nom|string or niveau_id|string == niv.id|string %}selected{% endif %}>{{ niv.nom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Sélecteur de classe -->
+                        <div class="col-6 col-md-3 col-lg-3">
+                            <select class="form-select form-select-sm" id="selectClassFilter">
+                                <option value="all">Toutes classes</option>
+                                {% for c in classes %}
+                                <option value="{{ c.id }}" data-niveau="{{ c.niveau or '' }}" {% if classe_id == c.id %}selected{% endif %}>{{ c.nom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Filtre par genre -->
+                        <div class="col-6 col-md-2 col-lg-2">
+                            <select class="form-select form-select-sm" id="selectGenreFilter">
+                                <option value="all">Tous genres</option>
+                                <option value="M" {% if genre == 'M' %}selected{% endif %}>Garçons (M)</option>
+                                <option value="F" {% if genre == 'F' %}selected{% endif %}>Filles (F)</option>
+                            </select>
+                        </div>
+
+                        <!-- Bouton réinitialiser (Desktop) -->
+                        <div class="col-6 col-md-auto d-none d-md-block">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnResetStudentFilter" title="Réinitialiser tous les filtres">
+                                <i class="fas fa-undo me-1"></i>Réinitialiser
+                            </button>
+                        </div>
+
+                        <!-- Boutons Tout Déplier / Tout Replier (Desktop) -->
+                        <div class="col-12 col-lg-auto ms-lg-auto text-end d-none d-md-block">
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-secondary" id="btnExpandAllStudents" title="Déplier toutes les classes">
+                                    <i class="fas fa-chevron-down me-1"></i>Déplier tout
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="btnCollapseAllStudents" title="Replier toutes les classes">
+                                    <i class="fas fa-chevron-up me-1"></i>Replier tout
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -227,45 +325,87 @@
                         {% if grp.eleves %}
                         <div class="student-list-group">
                             {% for eleve in grp.eleves %}
+                            {% set tel_raw = eleve.contact_parent or (eleve.parent.telephone if eleve.parent else '') %}
+                            {% set tel_digits = (tel_raw | replace(' ', '') | replace('-', '') | replace('.', '') | replace('(', '') | replace(')', '')) if tel_raw else '' %}
+                            {% set wa_number = tel_digits | replace('+', '') if tel_digits else '' %}
                             <div class="student-entry-card" id="eleve-card-{{ eleve.id }}"
                                  data-student-id="{{ eleve.id }}"
                                  data-class-id="{{ grp.id }}"
                                  data-search="{{ (eleve.nom ~ ' ' ~ eleve.prenom ~ ' ' ~ (eleve.code_parent or '') ~ ' ' ~ (eleve.contact_parent or '') ~ ' ' ~ grp.nom) | lower }}">
                                 
-                                <div class="d-flex align-items-center gap-3 min-w-0">
+                                <div class="student-card-main">
                                     <div class="student-entry-avatar">
                                         {{ eleve.prenom[:1] | upper }}{{ eleve.nom[:1] | upper }}
                                     </div>
                                     <div class="student-entry-info">
-                                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                                            <h3 class="student-entry-name">{{ eleve.prenom }} {{ eleve.nom }}</h3>
-                                            <span class="badge {% if eleve.genre == 'F' %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} small">
-                                                {{ 'Fille' if eleve.genre == 'F' else 'Garçon' }}
-                                            </span>
-                                            {% if eleve.statut == 'actif' %}
-                                            <span class="badge bg-success-subtle text-success border border-success-subtle small">Actif</span>
+                                        <div class="d-flex align-items-center justify-content-between gap-1 flex-wrap">
+                                            <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                                                <h3 class="student-entry-name mb-0">{{ eleve.prenom }} {{ eleve.nom }}</h3>
+                                                <span class="badge {% if eleve.genre == 'F' %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} small">
+                                                    {{ 'Fille' if eleve.genre == 'F' else 'Garçon' }}
+                                                </span>
+                                                {% if eleve.statut == 'actif' %}
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle small d-none d-sm-inline-block">Actif</span>
+                                                {% endif %}
+                                            </div>
+
+                                            <!-- Menu d'action mobile (3 points verticaux) -->
+                                            {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
+                                            <div class="dropdown d-md-none ms-auto">
+                                                <button class="btn btn-xs btn-light border-0 py-1 px-2 text-muted" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions">
+                                                    <i class="fas fa-ellipsis-v"></i>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1">
+                                                    <li>
+                                                        <a class="dropdown-item py-2 small" href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url) }}">
+                                                            <i class="fas fa-edit text-warning me-2"></i>Modifier
+                                                        </a>
+                                                    </li>
+                                                    <li><hr class="dropdown-divider my-1"></li>
+                                                    <li>
+                                                        <form method="post" action="{{ url_for('main.supprimer_eleve', id=eleve.id) }}" data-klasora-form data-klasora-ajax="true" data-remove-target="#eleve-card-{{ eleve.id }}" data-confirm="Supprimer cet élève ?" data-loading="Suppression...">
+                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                            <button type="submit" class="dropdown-item py-2 small text-danger">
+                                                                <i class="fas fa-trash-alt me-2"></i>Supprimer
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                </ul>
+                                            </div>
                                             {% endif %}
                                         </div>
+
                                         <div class="student-entry-meta mt-1">
                                             <span>
                                                 <i class="fas fa-id-badge text-muted me-1"></i>
                                                 {{ eleve.code_parent or ('ELV-' ~ eleve.id) }}
                                             </span>
-                                            <span>
+                                            <span class="text-truncate" style="max-width: 180px;">
                                                 <i class="fas fa-user-friends text-muted me-1"></i>
-                                                Parent : {{ eleve.parent.nom ~ ' ' ~ eleve.parent.prenom if eleve.parent else (eleve.contact_parent or 'Non assigné') }}
+                                                {{ eleve.parent.nom ~ ' ' ~ eleve.parent.prenom if eleve.parent else (eleve.contact_parent or 'Parent non assigné') }}
                                             </span>
-                                            {% if eleve.contact_parent or (eleve.parent and eleve.parent.telephone) %}
-                                            <span>
-                                                <i class="fas fa-phone text-muted me-1"></i>
-                                                {{ eleve.contact_parent or eleve.parent.telephone }}
-                                            </span>
+
+                                            <!-- Raccourcis directs Appel téléphonique et WhatsApp -->
+                                            {% if tel_digits %}
+                                            <div class="d-inline-flex align-items-center gap-1 ms-sm-1 flex-wrap">
+                                                <a href="tel:{{ tel_digits }}" class="btn-quick-contact btn-quick-tel" title="Appeler le parent ({{ tel_digits }})">
+                                                    <i class="fas fa-phone-alt"></i>
+                                                    <span>{{ tel_digits }}</span>
+                                                </a>
+                                                <a href="https://wa.me/{{ wa_number }}?text={{ ('Bonjour, concernant votre enfant ' ~ eleve.prenom ~ ' ' ~ eleve.nom ~ ' (KLASORA)') | urlencode }}" 
+                                                   target="_blank" rel="noopener noreferrer" 
+                                                   class="btn-quick-contact btn-quick-whatsapp" 
+                                                   title="Envoyer un message WhatsApp au parent">
+                                                    <i class="fab fa-whatsapp"></i>
+                                                    <span>WhatsApp</span>
+                                                </a>
+                                            </div>
                                             {% endif %}
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Barre d'actions rapides pour cet élève -->
+                                <!-- Barre d'actions pour cet élève -->
                                 <div class="student-entry-actions">
                                     <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id, return_url=return_url) }}"
                                        class="student-action-btn btn btn-sm btn-primary" 
@@ -279,11 +419,11 @@
                                     </a>
                                     {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
                                     <a href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url) }}"
-                                       class="student-action-btn btn btn-sm btn-outline-warning" 
+                                       class="student-action-btn btn btn-sm btn-outline-warning d-none d-md-inline-flex" 
                                        title="Modifier les données de l'élève">
                                         <i class="fas fa-edit me-1"></i>Modifier
                                     </a>
-                                    <form method="post" action="{{ url_for('main.supprimer_eleve', id=eleve.id) }}" class="d-inline" data-klasora-form data-klasora-ajax="true" data-remove-target="#eleve-card-{{ eleve.id }}" data-confirm="Supprimer cet élève ?" data-loading="Suppression...">
+                                    <form method="post" action="{{ url_for('main.supprimer_eleve', id=eleve.id) }}" class="d-none d-md-inline" data-klasora-form data-klasora-ajax="true" data-remove-target="#eleve-card-{{ eleve.id }}" data-confirm="Supprimer cet élève ?" data-loading="Suppression...">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="student-action-btn btn btn-sm btn-outline-danger" title="Supprimer l'élève">
                                             <i class="fas fa-trash-alt"></i>
@@ -444,6 +584,24 @@ document.addEventListener('DOMContentLoaded', () => {
             resultCount.textContent = `${totalVisibleStudents} élève${totalVisibleStudents > 1 ? 's' : ''} affiché${totalVisibleStudents > 1 ? 's' : ''}`;
         }
 
+        // Synchroniser le badge des filtres mobiles actifs
+        const activeFilterCount = (selectedNiveau !== 'all' ? 1 : 0) + (selectedClass !== 'all' ? 1 : 0) + (selectedGenre !== 'all' ? 1 : 0);
+        const mobBadge = document.getElementById('mobileFilterBadge');
+        if (mobBadge) {
+            if (activeFilterCount > 0) {
+                mobBadge.textContent = activeFilterCount;
+                mobBadge.classList.remove('d-none');
+            } else {
+                mobBadge.classList.add('d-none');
+            }
+        }
+
+        // Synchroniser les puces de classe horizontales
+        document.querySelectorAll('.class-filter-chip').forEach(chip => {
+            const isMatch = chip.dataset.classChip === selectedClass;
+            chip.classList.toggle('active', isMatch);
+        });
+
         const noMatch = document.getElementById('noStudentMatch');
         if (noMatch) {
             if (totalVisibleStudents === 0 && (query || selectedClass !== 'all' || selectedNiveau !== 'all' || selectedGenre !== 'all')) {
@@ -453,6 +611,29 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+
+    // Gestion des puces rapides de classe (Chips)
+    document.querySelectorAll('.class-filter-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const cid = chip.dataset.classChip;
+            if (classSelect) {
+                classSelect.value = cid;
+                applyStudentFilters();
+
+                if (cid !== 'all') {
+                    const card = document.getElementById(`class-card-${cid}`);
+                    if (card) {
+                        const collapseEl = card.querySelector('.collapse');
+                        if (collapseEl && !collapseEl.classList.contains('show')) {
+                            const bsC = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
+                            bsC.show();
+                        }
+                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            }
+        });
+    });
 
     if (niveauSelect) {
         niveauSelect.addEventListener('change', () => {
@@ -476,19 +657,60 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    btnExpandAll.addEventListener('click', () => {
+    const btnToggleMob = document.getElementById('btnToggleAllStudentsMob');
+    let isMobExpanded = false;
+
+    function updateMobToggleState(expanded) {
+        isMobExpanded = expanded;
+        if (!btnToggleMob) return;
+        const icon = document.getElementById('toggleMobIcon');
+        const text = document.getElementById('toggleMobText');
+        if (isMobExpanded) {
+            btnToggleMob.className = 'btn btn-sm btn-primary fw-semibold py-1 px-2.5 rounded-pill d-inline-flex align-items-center gap-1.5 shadow-xs';
+            if (icon) icon.className = 'fas fa-chevron-up';
+            if (text) text.textContent = 'Replier tout';
+        } else {
+            btnToggleMob.className = 'btn btn-sm btn-outline-primary fw-semibold py-1 px-2.5 rounded-pill d-inline-flex align-items-center gap-1.5';
+            if (icon) icon.className = 'fas fa-chevron-down';
+            if (text) text.textContent = 'Déplier tout';
+        }
+    }
+
+    const expandAction = () => {
         document.querySelectorAll('#classesStudentContainer .collapse').forEach(el => {
             const bsC = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
             bsC.show();
         });
-    });
+        updateMobToggleState(true);
+    };
 
-    btnCollapseAll.addEventListener('click', () => {
+    const collapseAction = () => {
         document.querySelectorAll('#classesStudentContainer .collapse').forEach(el => {
             const bsC = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
             bsC.hide();
         });
-    });
+        updateMobToggleState(false);
+    };
+
+    if (btnToggleMob) {
+        btnToggleMob.addEventListener('click', () => {
+            if (isMobExpanded) {
+                collapseAction();
+            } else {
+                expandAction();
+            }
+        });
+    }
+
+    if (btnExpandAll) btnExpandAll.addEventListener('click', expandAction);
+    if (btnCollapseAll) btnCollapseAll.addEventListener('click', collapseAction);
+
+    const btnResetMob = document.getElementById('btnResetStudentFilterMob');
+    if (btnResetMob) {
+        btnResetMob.addEventListener('click', () => {
+            window.resetStudentSearch();
+        });
+    }
 
     window.resetStudentSearch = function() {
         searchInput.value = '';
@@ -497,6 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
         classSelect.value = 'all';
         if (genreSelect) genreSelect.value = 'all';
         applyStudentFilters();
+        updateMobToggleState(false);
     };
 });
 </script>

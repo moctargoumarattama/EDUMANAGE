@@ -232,6 +232,26 @@ def rapport_absences_par_classe():
     annee_consultee = get_annee_consultee(ecole_id)
     return jsonify(get_rapport_absences_par_classe_annuel(ecole_id, annee_consultee))
 
+_rapports_annuels_cache = {}
+RAPPORTS_CACHE_TTL = 60
+
+
+def _get_rapports_annuels_cached(ecole_id, annee_consultee):
+    if not ecole_id or not annee_consultee:
+        return get_rapports_annuels(ecole_id, annee_consultee)
+
+    key = (ecole_id, getattr(annee_consultee, 'id', None))
+    now = datetime.utcnow().timestamp()
+    if key in _rapports_annuels_cache:
+        ts, data = _rapports_annuels_cache[key]
+        if now - ts < RAPPORTS_CACHE_TTL:
+            return data
+
+    data = get_rapports_annuels(ecole_id, annee_consultee)
+    _rapports_annuels_cache[key] = (now, data)
+    return data
+
+
 @main.route('/rapports')
 @login_required
 @role_required('admin')
@@ -239,7 +259,7 @@ def rapport_absences_par_classe():
 def rapports():
     ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
-    donnees = get_rapports_annuels(ecole_id, annee_consultee)
+    donnees = _get_rapports_annuels_cached(ecole_id, annee_consultee)
     return render_template(
         'rapports.html',
         classes=donnees["classes"],

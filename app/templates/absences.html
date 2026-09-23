@@ -29,12 +29,12 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                <button type="button" class="btn btn-outline-secondary shadow-sm" id="btnToggleAllClassAbsences" title="Déplier ou replier toutes les classes">
+                <button type="button" class="btn btn-outline-secondary shadow-sm rounded-pill py-1.5 px-3" id="btnToggleAllClassAbsences" title="Déplier ou replier toutes les classes">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
                 {% if current_user.role == 'admin' %}
-                <a href="{{ url_for('main.export_absences_excel') }}" class="btn btn-outline-success shadow-sm" title="Exporter les absences vers Excel">
-                    <i class="fas fa-file-excel me-2"></i>Exporter Excel
+                <a href="{{ url_for('main.export_absences_excel') }}" class="btn btn-outline-success shadow-sm rounded-pill py-1.5 px-3" title="Exporter les absences vers Excel">
+                    <i class="fas fa-file-excel me-1.5"></i>Exporter Excel
                 </a>
                 {% endif %}
             </div>
@@ -68,77 +68,104 @@
         {% endif %}
     {% endfor %}
 
-    <!-- Barre d'outils : recherche, filtres et tri -->
-    <div class="course-toolbar-card">
+    <!-- Barre de navigation rapide des Classes (Chips horizontales défilantes) -->
+    {% if absences_avec_classe %}
+    <div class="class-quick-pills-bar mb-3" id="classChipsBar">
+        <button type="button" class="class-filter-chip active" data-class-chip="all">
+            <i class="fas fa-layer-group me-1"></i>Toutes ({{ absences_avec_classe|groupby('annee_classe.id')|list|length }})
+        </button>
+        {% for class_group in absences_avec_classe|groupby('annee_classe.id') %}
+            {% set cl = class_group.list[0].annee_classe %}
+            <button type="button" class="class-filter-chip" data-class-chip="{{ cl.nom }}" data-niveau="{{ cl.niveau or '' }}">
+                {{ cl.nom }}
+            </button>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Barre d'outils et de recherche réactive (Style eleves.html & notes.html) -->
+    <div class="course-toolbar-card mb-3">
         <div class="row g-2 align-items-center">
-            <!-- Recherche rapide -->
-            <div class="col-12 col-md-4 col-lg-3">
+            <!-- Champ de recherche live -->
+            <div class="col-12 col-md-6 col-lg-5">
                 <div class="course-search-box">
                     <i class="fas fa-search search-icon"></i>
                     <input type="text" id="absenceSearchInput" class="form-control" placeholder="Rechercher classe, élève, cours, motif..." autocomplete="off">
-                    <button type="button" id="absenceSearchClear" class="clear-btn" title="Effacer la recherche">
+                    <button type="button" id="absenceSearchClear" class="clear-btn" title="Effacer la recherche" style="display: none;">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
 
-            {% if current_user.role != 'professeur' %}
-            <!-- Filtre par niveau -->
-            <div class="col-6 col-md-3 col-lg-2">
-                <select id="filterNiveauSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Tous les niveaux</option>
-                    {% if niveaux_annee %}
-                        {% for niv in niveaux_annee %}
-                            <option value="{{ niv.nom }}">{{ niv.nom }}</option>
-                        {% endfor %}
+            <!-- Boutons d'action Filtres & Réinitialiser -->
+            <div class="col-12 col-md-6 col-lg-7">
+                <div class="d-flex align-items-center justify-content-between justify-content-md-end gap-2">
+                    <button class="btn btn-sm btn-outline-primary py-1.5 px-3 d-inline-flex align-items-center gap-1.5 rounded-pill" 
+                            type="button" data-bs-toggle="collapse" data-bs-target="#absenceFiltersCollapse" aria-expanded="false" aria-controls="absenceFiltersCollapse">
+                        <i class="fas fa-sliders-h"></i>
+                        <span class="fw-semibold small">Filtres</span>
+                        <span class="badge bg-primary text-white rounded-pill d-none" id="absenceFilterBadge">0</span>
+                    </button>
+
+                    <button type="button" id="btnResetFilter" class="btn btn-sm btn-outline-secondary py-1.5 px-3 rounded-pill d-inline-flex align-items-center gap-1" style="display: none;">
+                        <i class="fas fa-undo me-1"></i>Réinitialiser
+                    </button>
+                </div>
+            </div>
+
+            <!-- Section Filtres Avancés (Collapsible) -->
+            <div class="col-12 collapse pt-3 border-top mt-2" id="absenceFiltersCollapse">
+                <div class="row g-2 align-items-center">
+                    {% if current_user.role != 'professeur' %}
+                    <!-- Filtre par niveau -->
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Niveau</label>
+                        <select id="filterNiveauSelect" class="form-select form-select-sm">
+                            <option value="">Tous les niveaux</option>
+                            {% if niveaux_annee %}
+                                {% for niv in niveaux_annee %}
+                                    <option value="{{ niv.nom }}">{{ niv.nom }}</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
                     {% endif %}
-                </select>
-            </div>
-            {% endif %}
 
-            {% if current_user.role != 'professeur' %}
-            <!-- Filtre par classe -->
-            <div class="col-6 col-md-3 col-lg-2">
-                <select id="filterClasseSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Toutes les classes</option>
-                    {% for cl in classes %}
-                        <option value="{{ cl.nom }}" data-niveau="{{ cl.niveau_scolaire.nom if cl.niveau_scolaire else (cl.niveau or '') }}">{{ cl.nom }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
+                    <!-- Filtre par statut -->
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Statut d'assiduité</label>
+                        <select id="filterStatutSelect" class="form-select form-select-sm">
+                            <option value="">Tous les statuts</option>
+                            <option value="non-justifiee">Avec non justifiées</option>
+                            <option value="justifiee">Toutes justifiées</option>
+                        </select>
+                    </div>
 
-            <!-- Filtre par statut -->
-            <div class="col-6 col-md-2 col-lg-2">
-                <select id="filterStatutSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="">Tous les statuts</option>
-                    <option value="non-justifiee">Avec non justifiées</option>
-                    <option value="justifiee">Toutes justifiées</option>
-                </select>
-            </div>
+                    {% if current_user.role != 'professeur' %}
+                    <!-- Tri des classes -->
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Trier par</label>
+                        <select id="sortClassesSelect" class="form-select form-select-sm">
+                            <option value="nom-asc">Classe (A &rarr; Z)</option>
+                            <option value="nom-desc">Classe (Z &rarr; A)</option>
+                            <option value="abs-desc">Plus d'absences &darr;</option>
+                            <option value="eleves-desc">Plus d'élèves absents &darr;</option>
+                            <option value="nonjust-desc">Non justifiées &darr;</option>
+                        </select>
+                    </div>
+                    {% endif %}
 
-            {% if current_user.role != 'professeur' %}
-            <!-- Tri des classes -->
-            <div class="col-6 col-md-3 col-lg-2">
-                <select id="sortClassesSelect" class="form-select form-select-sm" style="min-height: 42px;">
-                    <option value="nom-asc">Classe (A &rarr; Z)</option>
-                    <option value="nom-desc">Classe (Z &rarr; A)</option>
-                    <option value="abs-desc">Plus d'absences &darr;</option>
-                    <option value="eleves-desc">Plus d'élèves absents &darr;</option>
-                    <option value="nonjust-desc">Non justifiées &darr;</option>
-                </select>
-            </div>
-            {% endif %}
-
-            <!-- Nombre de classes par page -->
-            <div class="col-12 col-lg-auto ms-auto d-flex align-items-center justify-content-end gap-2">
-                <span class="small text-muted d-none d-sm-inline">Classes / page :</span>
-                <select id="pageSizeSelect" class="form-select form-select-sm" style="width: auto; min-height: 42px;" title="Nombre de classes par page">
-                    <option value="10">10</option>
-                    <option value="20" selected>20</option>
-                    <option value="50">50</option>
-                    <option value="99999">Toutes</option>
-                </select>
+                    <!-- Nombre de classes par page -->
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Classes / page</label>
+                        <select id="pageSizeSelect" class="form-select form-select-sm" title="Nombre de classes par page">
+                            <option value="10">10 par page</option>
+                            <option value="20" selected>20 par page</option>
+                            <option value="50">50 par page</option>
+                            <option value="99999">Toutes les classes</option>
+                        </select>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -148,9 +175,6 @@
                 <i class="fas fa-layer-group me-1 text-primary"></i>
                 <span id="absenceFilterStats">Chargement des absences par classe...</span>
             </div>
-            <button type="button" id="btnResetFilter" class="btn btn-link btn-sm text-decoration-none text-muted p-0" style="display: none;">
-                <i class="fas fa-undo me-1"></i>Réinitialiser les filtres
-            </button>
         </div>
     </div>
 
@@ -502,6 +526,41 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- Cartes Mobile pour absences sans classe -->
+                    <div class="class-student-cards">
+                        {% for a in absences_sans_classe %}
+                        <div class="class-student-mini-card">
+                            <div class="class-student-mini-top">
+                                <span class="fw-bold text-dark">{{ a.date_absence.strftime('%d/%m/%Y') if a.date_absence else '' }}</span>
+                                <span class="badge {% if a.justifiee %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ "Justifiée" if a.justifiee else "Non justifiée" }}
+                                </span>
+                            </div>
+                            <div class="small fw-semibold text-primary">
+                                <i class="fas fa-user me-1"></i>{{ a.eleve.prenom ~ ' ' ~ a.eleve.nom if a.eleve else 'Inconnu' }}
+                            </div>
+                            <div class="text-muted small">
+                                <i class="fas fa-book me-1"></i>{{ a.cours.nom if a.cours else 'N/A' }}
+                            </div>
+                            {% if a.motif %}
+                            <div class="p-2 bg-light rounded border small text-muted">
+                                <i class="fas fa-comment-alt me-1"></i>{{ a.motif }}
+                            </div>
+                            {% endif %}
+                            {% if can_mutate %}
+                            <div class="class-student-mini-actions">
+                                <form action="{{ url_for('main.delete_absence', absence_id=a.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette absence ?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                        <i class="fas fa-trash me-1"></i>Supprimer
+                                    </button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </article>
         {% endif %}
@@ -596,11 +655,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('absenceSearchInput');
     const searchClear = document.getElementById('absenceSearchClear');
     const filterNiveau = document.getElementById('filterNiveauSelect');
-    const filterClasse = document.getElementById('filterClasseSelect');
     const filterStatut = document.getElementById('filterStatutSelect');
     const sortSelect = document.getElementById('sortClassesSelect');
     const pageSizeSelect = document.getElementById('pageSizeSelect');
     const filterStats = document.getElementById('absenceFilterStats');
+    const absenceFilterBadge = document.getElementById('absenceFilterBadge');
     const btnReset = document.getElementById('btnResetFilter');
     const btnResetEmpty = document.getElementById('btnResetFiltersEmpty');
     const noResults = document.getElementById('noAbsencesFoundState');
@@ -608,6 +667,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const paginationBar = document.getElementById('absencePaginationBar');
     const paginationList = document.getElementById('paginationList');
     const pageInfoText = document.getElementById('pageInfoText');
+
+    // Chips rapides de classes
+    const classChips = Array.from(document.querySelectorAll('.class-filter-chip'));
+    let activeClassChip = 'all';
 
     // Bouton Tout déplier / Tout replier
     const btnToggleAll = document.getElementById('btnToggleAllClassAbsences');
@@ -635,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // État courant
     let currentPage = 1;
-    let pageSize = parseInt(pageSizeSelect.value, 10) || 20;
+    let pageSize = parseInt(pageSizeSelect ? pageSizeSelect.value : 20, 10) || 20;
 
     // Normalisation de chaîne (insensible à la casse et aux accents)
     function normalizeStr(str) {
@@ -650,22 +713,38 @@ document.addEventListener('DOMContentLoaded', function() {
         const params = new URLSearchParams();
         const q = searchInput ? searchInput.value.trim() : '';
         const niv = filterNiveau ? filterNiveau.value.trim() : '';
-        const cl = filterClasse ? filterClasse.value.trim() : '';
         const st = filterStatut ? filterStatut.value.trim() : '';
         if (q) params.set('search', q);
         if (niv) params.set('niveau', niv);
-        if (cl) params.set('classe', cl);
+        if (activeClassChip && activeClassChip !== 'all') params.set('classe', activeClassChip);
         if (st) params.set('justifiee', st);
         const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         window.history.replaceState({}, '', newUrl);
     }
 
+    // Mise à jour du badge compteur de filtres actifs
+    function updateFilterBadge() {
+        let activeCount = 0;
+        if (filterNiveau && filterNiveau.value !== '') activeCount++;
+        if (filterStatut && filterStatut.value !== '') activeCount++;
+        if (sortSelect && sortSelect.value !== 'nom-asc') activeCount++;
+        if (pageSizeSelect && pageSizeSelect.value !== '20') activeCount++;
+
+        if (absenceFilterBadge) {
+            if (activeCount > 0) {
+                absenceFilterBadge.textContent = activeCount;
+                absenceFilterBadge.classList.remove('d-none');
+            } else {
+                absenceFilterBadge.classList.add('d-none');
+            }
+        }
+    }
+
     // Filtrage et Tri
     function getFilteredAndSortedItems() {
         syncUrl();
-        const query = normalizeStr(searchInput.value.trim());
+        const query = searchInput ? normalizeStr(searchInput.value.trim()) : '';
         const selectedNiveau = filterNiveau ? filterNiveau.value.trim() : '';
-        const selectedClasse = filterClasse ? filterClasse.value.trim() : '';
         const selectedStatut = filterStatut ? filterStatut.value.trim() : '';
         const sortMode = sortSelect ? sortSelect.value : 'nom-asc';
 
@@ -676,8 +755,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const eleves = normalizeStr(card.dataset.eleves);
             const cours = normalizeStr(card.dataset.cours);
             const motifs = normalizeStr(card.dataset.motifs);
-            const justifiees = parseInt(card.dataset.justifiees || 0, 10);
             const nonJustifiees = parseInt(card.dataset.nonJustifiees || 0, 10);
+
+            // Filtre par puce classe active
+            if (activeClassChip && activeClassChip !== 'all') {
+                if (card.dataset.nom !== activeClassChip) {
+                    return false;
+                }
+            }
 
             // Filtre textuel global
             if (query) {
@@ -691,11 +776,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Filtre par niveau
             if (selectedNiveau && card.dataset.niveau !== selectedNiveau) {
-                return false;
-            }
-
-            // Filtre par classe exacte
-            if (selectedClasse && card.dataset.nom !== selectedClasse) {
                 return false;
             }
 
@@ -740,19 +820,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const count = matched.length;
 
         // Mise à jour de l'icône d'effacement
-        if (searchClear) {
+        if (searchClear && searchInput) {
             searchClear.style.display = searchInput.value.trim().length > 0 ? 'inline-block' : 'none';
         }
 
         // Bouton réinitialiser
-        const isFiltered = searchInput.value.trim().length > 0 ||
-                           (filterClasse && filterClasse.value !== '') ||
+        const isFiltered = (searchInput && searchInput.value.trim().length > 0) ||
+                           (filterNiveau && filterNiveau.value !== '') ||
                            (filterStatut && filterStatut.value !== '') ||
-                           (sortSelect && sortSelect.value !== 'nom-asc');
+                           (sortSelect && sortSelect.value !== 'nom-asc') ||
+                           (pageSizeSelect && pageSizeSelect.value !== '20') ||
+                           (activeClassChip !== 'all');
 
         if (btnReset) {
-            btnReset.style.display = isFiltered ? 'inline-block' : 'none';
+            btnReset.style.display = isFiltered ? 'inline-flex' : 'none';
         }
+
+        updateFilterBadge();
 
         // Compteur d'absences affichées
         let visibleAbsences = 0;
@@ -763,10 +847,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         if (filterStats) {
-            if (count === totalClasses) {
+            if (count === totalClasses && activeClassChip === 'all' && !isFiltered) {
                 filterStats.innerHTML = `Affichage de <strong>${count}</strong> classe${count > 1 ? 's' : ''} (<strong>${totalEleves}</strong> élève${totalEleves > 1 ? 's' : ''}, <strong>${totalAbsences}</strong> absence${totalAbsences > 1 ? 's' : ''})`;
             } else {
-                filterStats.innerHTML = `<strong>${count}</strong> classe${count > 1 ? 's' : ''} trouvée${count > 1 ? 's' : ''} (<strong>${visibleEleves}</strong> élève${visibleEleves > 1 ? 's' : ''}, <strong>${visibleAbsences}</strong> absence${visibleAbsences > 1 ? 's' : ''}) sur ${totalClasses}`;
+                filterStats.innerHTML = `<strong>${count}</strong> classe${count > 1 ? 's' : ''} affichée${count > 1 ? 's' : ''} (<strong>${visibleEleves}</strong> élève${visibleEleves > 1 ? 's' : ''}, <strong>${visibleAbsences}</strong> absence${visibleAbsences > 1 ? 's' : ''}) sur ${totalClasses}`;
             }
         }
 
@@ -924,16 +1008,36 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Gestion des puces rapides de classes (Class chips)
+    classChips.forEach(chip => {
+        chip.addEventListener('click', function() {
+            classChips.forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            activeClassChip = this.dataset.classChip || 'all';
+            currentPage = 1;
+            render();
+        });
+    });
+
     // Réinitialisation des filtres
     function resetFilters() {
         if (searchInput) searchInput.value = '';
         if (filterNiveau) filterNiveau.value = '';
-        if (filterClasse) {
-            filterClasse.value = '';
-            Array.from(filterClasse.options).forEach(opt => { opt.hidden = false; });
-        }
         if (filterStatut) filterStatut.value = '';
         if (sortSelect) sortSelect.value = 'nom-asc';
+        if (pageSizeSelect) pageSizeSelect.value = '20';
+        pageSize = 20;
+
+        activeClassChip = 'all';
+        classChips.forEach(chip => {
+            chip.style.display = 'inline-flex';
+            if (chip.dataset.classChip === 'all') {
+                chip.classList.add('active');
+            } else {
+                chip.classList.remove('active');
+            }
+        });
+
         currentPage = 1;
         render();
     }
@@ -946,23 +1050,32 @@ document.addEventListener('DOMContentLoaded', function() {
             debounceTimer = setTimeout(() => {
                 currentPage = 1;
                 render();
-            }, 300);
+            }, 250);
         });
     }
 
     if (filterNiveau) {
         filterNiveau.addEventListener('change', function() {
             const niv = this.value;
-            if (filterClasse) {
-                Array.from(filterClasse.options).forEach(opt => {
-                    if (!opt.value) return;
-                    const optNiv = opt.dataset.niveau || '';
-                    opt.hidden = (niv && optNiv && optNiv !== niv);
-                });
-                if (filterClasse.selectedOptions.length && filterClasse.selectedOptions[0].hidden) {
-                    filterClasse.value = '';
+            classChips.forEach(chip => {
+                if (chip.dataset.classChip === 'all') return;
+                const chipNiv = chip.dataset.niveau || '';
+                if (!niv || chipNiv === niv) {
+                    chip.style.display = 'inline-flex';
+                } else {
+                    chip.style.display = 'none';
                 }
+            });
+
+            // Si la puce active est désormais masquée, revenir à 'all'
+            const currentActiveChip = classChips.find(c => c.classList.contains('active'));
+            if (currentActiveChip && currentActiveChip.style.display === 'none') {
+                classChips.forEach(c => c.classList.remove('active'));
+                const allChip = classChips.find(c => c.dataset.classChip === 'all');
+                if (allChip) allChip.classList.add('active');
+                activeClassChip = 'all';
             }
+
             currentPage = 1;
             render();
         });
@@ -974,13 +1087,6 @@ document.addEventListener('DOMContentLoaded', function() {
             currentPage = 1;
             render();
             if (searchInput) searchInput.focus();
-        });
-    }
-
-    if (filterClasse) {
-        filterClasse.addEventListener('change', function() {
-            currentPage = 1;
-            render();
         });
     }
 
@@ -1008,6 +1114,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (btnReset) btnReset.addEventListener('click', resetFilters);
     if (btnResetEmpty) btnResetEmpty.addEventListener('click', resetFilters);
+
+    // Initialisation depuis l'URL
+    const initialUrlParams = new URLSearchParams(window.location.search);
+    const initSearch = initialUrlParams.get('search');
+    const initNiveau = initialUrlParams.get('niveau');
+    const initClasse = initialUrlParams.get('classe');
+    const initStatut = initialUrlParams.get('justifiee');
+
+    if (initSearch && searchInput) searchInput.value = initSearch;
+    if (initNiveau && filterNiveau) filterNiveau.value = initNiveau;
+    if (initStatut && filterStatut) filterStatut.value = initStatut;
+    if (initClasse) {
+        const matchingChip = classChips.find(c => c.dataset.classChip === initClasse);
+        if (matchingChip) {
+            classChips.forEach(c => c.classList.remove('active'));
+            matchingChip.classList.add('active');
+            activeClassChip = initClasse;
+        }
+    }
 
     // Rendu initial
     render();
