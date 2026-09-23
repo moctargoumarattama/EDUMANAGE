@@ -263,6 +263,8 @@ def onboarding():
             flash("Configuration initiale de votre établissement terminée avec succès ! Bienvenue sur votre tableau de bord.", "success")
 
             session['onboarding_just_completed'] = True
+            session['onboarding_complete'] = True
+            session[f'onboarding_complete_{ecole.id}'] = True
 
             # Nettoyer le cache
             if hasattr(g, '_school_setup_cache'):
