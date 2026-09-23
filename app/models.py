@@ -800,6 +800,30 @@ class Absence(db.Model):
 
     inscription = db.relationship('Inscription', backref=db.backref('absences', lazy=True))
 
+    @property
+    def annee_classe(self):
+        if hasattr(self, '_annee_classe') and self._annee_classe is not None:
+            return self._annee_classe
+        if self.inscription and getattr(self.inscription, 'classe', None):
+            return self.inscription.classe
+        if getattr(self, 'cours', None) and getattr(self.cours, 'classe', None):
+            return self.cours.classe
+        return None
+
+    @annee_classe.setter
+    def annee_classe(self, value):
+        self._annee_classe = value
+
+    @property
+    def annee_inscription(self):
+        if hasattr(self, '_annee_inscription') and self._annee_inscription is not None:
+            return self._annee_inscription
+        return self.inscription
+
+    @annee_inscription.setter
+    def annee_inscription(self, value):
+        self._annee_inscription = value
+
     def __repr__(self):
         return f'<Absence {self.date_absence} - élève {self.eleve_id}>'
 

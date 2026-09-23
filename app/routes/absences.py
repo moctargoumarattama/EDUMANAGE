@@ -26,10 +26,14 @@ from .common import (
     url_for,
 )
 from flask import g, jsonify
+from sqlalchemy import and_, func, or_
+from sqlalchemy.orm import joinedload
 from app.authorization import tenant_required
 from app.services.annees_scolaires import get_annee_consultee
 from app.services.structure_annuelle import get_niveaux_annee
 from app.services.absences_annuelles import (
+    _parent_enfant_ids,
+    _professeur_classe_ids,
     absences_modifiables,
     get_absences_annee,
     get_classes_absences,
@@ -72,73 +76,159 @@ def absences():
         return redirect(url_for('main.absences'))
 
     page = request.args.get('page', 1, type=int)
-    per_page = 50
+    per_page = request.args.get('per_page', 50, type=int)
+    if per_page < 1 or per_page > 500:
+        per_page = 50
+
     ecole_id = _ecole_id_courante()
     annee_consultee = get_annee_consultee(ecole_id)
     can_mutate = absences_modifiables(annee_consultee, current_user)
     message_annee = statut_annee_absences(annee_consultee)
 
-    absences_list = get_absences_annee(ecole_id, annee_consultee, current_user)
-
-    search = (request.args.get('search') or request.args.get('q') or '').strip().lower()
-    classe_id = request.args.get('classe_id', type=int) or request.args.get('classe', type=int)
+    search = (request.args.get('search') or request.args.get('q') or '').strip()
+    classe_param = request.args.get('classe_id') or request.args.get('classe')
+    classe_id = None
+    classe_nom = None
+    if classe_param:
+        if str(classe_param).isdigit():
+            classe_id = int(classe_param)
+        else:
+            classe_nom = str(classe_param).strip()
     niveau_param = (request.args.get('niveau') or request.args.get('niveau_id') or '').strip()
     date_debut_str = request.args.get('date_debut')
     date_fin_str = request.args.get('date_fin')
     justifiee_param = request.args.get('justifiee')
 
-    # Filtrage
-    filtrees = []
-    for a in absences_list:
-        if classe_id:
-            c = getattr(a, 'annee_classe', None)
-            if not c or c.id != classe_id:
-                continue
-        if niveau_param:
-            c = getattr(a, 'annee_classe', None)
-            if not c:
-                continue
-            if str(niveau_param).isdigit():
-                if getattr(c, 'niveau_id', None) != int(niveau_param) and str(c.niveau) != str(niveau_param):
-                    continue
-            elif str(c.niveau or '').strip().lower() != niveau_param.lower():
-                continue
-        if search:
-            eleve_str = f"{a.eleve.prenom} {a.eleve.nom}".lower() if a.eleve else ""
-            matricule = (getattr(a.eleve, 'code_parent', '') or '').lower() if a.eleve else ""
-            cours_str = (a.cours.nom if a.cours else "").lower()
-            motif_str = (a.motif or "").lower()
-            if search not in eleve_str and search not in matricule and search not in cours_str and search not in motif_str:
-                continue
-        if justifiee_param in ('1', 'true', 'yes', 'justifiee'):
-            if not a.justifiee:
-                continue
-        elif justifiee_param in ('0', 'false', 'no', 'non-justifiee'):
-            if a.justifiee:
-                continue
-        if date_debut_str:
-            try:
-                d_deb = datetime.strptime(date_debut_str, '%Y-%m-%d').date()
-                if a.date_absence and a.date_absence < d_deb:
-                    continue
-            except ValueError:
-                pass
-        if date_fin_str:
-            try:
-                d_fin = datetime.strptime(date_fin_str, '%Y-%m-%d').date()
-                if a.date_absence and a.date_absence > d_fin:
-                    continue
-            except ValueError:
-                pass
-        filtrees.append(a)
+    # Requête de base SQLAlchemy avec jointures et eager-loading optimisé
+    query = (
+        Absence.query.options(
+            joinedload(Absence.eleve),
+            joinedload(Absence.cours).joinedload(Cours.classe),
+            joinedload(Absence.inscription).joinedload(Inscription.classe).joinedload(Classe.niveau_scolaire),
+        )
+        .outerjoin(Inscription, Absence.inscription_id == Inscription.id)
+        .outerjoin(Classe, Inscription.classe_id == Classe.id)
+        .join(Eleve, Absence.eleve_id == Eleve.id)
+        .outerjoin(Cours, Absence.cours_id == Cours.id)
+        .filter(Absence.ecole_id == ecole_id)
+    )
 
-    total = len(filtrees)
-    start = (page - 1) * per_page
-    end = start + per_page
-    absences_paginated = filtrees[start:end]
+    # Ancrage strict sur l'année scolaire consultée
+    if annee_consultee:
+        query = query.filter(
+            or_(
+                Inscription.annee_scolaire_id == annee_consultee.id,
+                and_(
+                    Absence.inscription_id.is_(None),
+                    Absence.date_absence >= annee_consultee.date_debut,
+                    Absence.date_absence <= annee_consultee.date_fin,
+                ),
+            )
+        )
+    else:
+        query = query.filter(db.false())
 
-    absences_justifiees = sum(1 for a in filtrees if a.justifiee)
+    # Permissions et restrictions par rôle
+    if current_user.role == "professeur":
+        professeur = getattr(current_user, "professeur_rel", None)
+        prof_id = professeur.id if professeur else -1
+        classe_ids = _professeur_classe_ids(current_user, annee_consultee.id if annee_consultee else None)
+        query = query.filter(
+            or_(
+                Cours.professeur_id == prof_id,
+                Inscription.classe_id.in_(classe_ids) if classe_ids else db.false(),
+            )
+        )
+    elif current_user.role == "parent":
+        enfant_ids = _parent_enfant_ids(current_user)
+        query = query.filter(Absence.eleve_id.in_(enfant_ids)) if enfant_ids else query.filter(db.false())
+
+    # Filtre par classe
+    if classe_id:
+        query = query.filter(
+            or_(
+                Inscription.classe_id == classe_id,
+                and_(Absence.inscription_id.is_(None), Cours.classe_id == classe_id),
+            )
+        )
+    elif classe_nom and classe_nom.lower() != 'all':
+        query = query.filter(func.lower(Classe.nom) == classe_nom.lower())
+
+    # Filtre par niveau
+    if niveau_param:
+        if str(niveau_param).isdigit():
+            query = query.filter(
+                or_(
+                    Classe.niveau_id == int(niveau_param),
+                    Classe.niveau == str(niveau_param),
+                )
+            )
+        else:
+            query = query.filter(func.lower(Classe.niveau) == niveau_param.lower())
+
+    # Filtre par recherche texte
+    if search:
+        search_pattern = f"%{search}%"
+        words = search.split()
+        if len(words) >= 2:
+            query = query.filter(
+                or_(
+                    and_(Eleve.prenom.ilike(f"%{words[0]}%"), Eleve.nom.ilike(f"%{words[1]}%")),
+                    and_(Eleve.nom.ilike(f"%{words[0]}%"), Eleve.prenom.ilike(f"%{words[1]}%")),
+                    Eleve.code_parent.ilike(search_pattern),
+                    Cours.nom.ilike(search_pattern),
+                    Absence.motif.ilike(search_pattern),
+                )
+            )
+        else:
+            query = query.filter(
+                or_(
+                    Eleve.prenom.ilike(search_pattern),
+                    Eleve.nom.ilike(search_pattern),
+                    Eleve.code_parent.ilike(search_pattern),
+                    Cours.nom.ilike(search_pattern),
+                    Absence.motif.ilike(search_pattern),
+                )
+            )
+
+    # Filtre justification
+    if justifiee_param in ('1', 'true', 'yes', 'justifiee'):
+        query = query.filter(Absence.justifiee == True)
+    elif justifiee_param in ('0', 'false', 'no', 'non-justifiee'):
+        query = query.filter(Absence.justifiee == False)
+
+    # Filtres dates
+    if date_debut_str:
+        try:
+            d_deb = datetime.strptime(date_debut_str, '%Y-%m-%d').date()
+            query = query.filter(Absence.date_absence >= d_deb)
+        except ValueError:
+            pass
+    if date_fin_str:
+        try:
+            d_fin = datetime.strptime(date_fin_str, '%Y-%m-%d').date()
+            query = query.filter(Absence.date_absence <= d_fin)
+        except ValueError:
+            pass
+
+    # Tri par date décroissante
+    query = query.order_by(Absence.date_absence.desc(), Absence.id.desc())
+
+    # Exécution de la requête optimisée en 1 seule passe avec eager-loading (zéro N+1)
+    absences_all = query.all()
+    total = len(absences_all)
+
+    # Calcul statistique des statuts justifiées / non justifiées
+    absences_justifiees = sum(1 for a in absences_all if a.justifiee)
     absences_non_justifiees = total - absences_justifiees
+
+    # Attacher contexte annuel pour chaque absence
+    for a in absences_all:
+        if not hasattr(a, 'annee_classe') or a.annee_classe is None:
+            a.annee_classe = a.inscription.classe if (a.inscription and a.inscription.classe) else (a.cours.classe if (a.cours and a.cours.classe) else None)
+        if not hasattr(a, 'annee_scolaire') or a.annee_scolaire is None:
+            a.annee_scolaire = annee_consultee
+
     show_form = False
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
@@ -156,7 +246,7 @@ def absences():
                     'motif': a.motif or "",
                     'justifiee': bool(a.justifiee)
                 }
-                for a in absences_paginated
+                for a in absences_all
             ]
         })
 
@@ -168,12 +258,10 @@ def absences():
 
     return render_template(
         'absences.html',
-        absences=filtrees,
+        absences=absences_all,
         absences_justifiees=absences_justifiees,
         absences_non_justifiees=absences_non_justifiees,
         show_form=show_form,
-        page=page,
-        per_page=per_page,
         total=total,
         classes=classes,
         niveaux_annee=niveaux_annee,

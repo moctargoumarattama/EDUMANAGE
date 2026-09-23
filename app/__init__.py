@@ -19,6 +19,24 @@ load_dotenv()
 # -------------------
 
 # -------------------
+# Configuration SQLite : Mode WAL & Synchronous NORMAL (Développement / Local)
+# -------------------
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+import sqlite3
+
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+        finally:
+            cursor.close()
+
+
+# -------------------
 # Logging
 # -------------------
 class RequestFormatter(logging.Formatter):

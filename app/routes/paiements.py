@@ -148,10 +148,15 @@ def paiements():
         )
     ).all()
 
+    # Pré-calcul unique des finances par inscription pour éviter les recalculs redondants
+    finances_map = {ins.id: get_finances_inscription(ins) for ins in inscriptions_annee}
+
     # Inscriptions filtrées par classe, niveau, statut financier ou recherche
     inscriptions_filtrees = []
     for ins in inscriptions_annee:
-        fin = get_finances_inscription(ins)
+        fin = finances_map.get(ins.id)
+        if not fin:
+            continue
         if classe_id and ins.classe_id != classe_id:
             continue
         if niveau_param:
@@ -204,7 +209,9 @@ def paiements():
 
     # Calcul global des statistiques sur toutes les inscriptions de l'année consultée
     for ins in inscriptions_annee:
-        fin = get_finances_inscription(ins)
+        fin = finances_map.get(ins.id)
+        if not fin:
+            continue
         total_frais += fin['frais_annuels']
         total_recouvre += fin['total_paye']
         if fin['statut_solde'] == 'complet':
@@ -221,7 +228,9 @@ def paiements():
 
     # Données par élève filtré
     for ins in inscriptions_filtrees:
-        fin = get_finances_inscription(ins)
+        fin = finances_map.get(ins.id)
+        if not fin:
+            continue
         e = ins.eleve
         if not e:
             continue
