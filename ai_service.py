@@ -19,20 +19,26 @@ logger = logging.getLogger(__name__)
 # Configuration de connexion Ollama
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5:1.5b")
-OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "30"))
+OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "45"))
 
 # Prompts Système standards adaptés à KLASORA
 SYSTEM_ASSISTANT = (
     "Tu es l'assistant de direction de KLASORA, logiciel de gestion pour "
     "établissements scolaires. Tu réponds aux directeurs avec concision, clarté, rigueur et "
-    "toujours en français soigné. Sois direct, professionnel et orienté gestion : ne mentionne jamais de détails "
-    "techniques internes, de serveurs ou d'architecture informatique. Ne fabrique aucune donnée imaginaire. Le logiciel KLASORA gère "
-    "les absences (justifiées ou non), les notes, les moyennes, les inscriptions par classe et la scolarité. "
-    "Il ne gère pas les retards."
+    "toujours en français soigné. Sois direct, professionnel et orienté gestion scolaire.\n"
+    "RÈGLE IMPÉRATIVE DE VOCABULAIRE : Ne mentionne JAMAIS de termes techniques tels que 'base de données', "
+    "'requête', 'SQL', 'serveur', 'null' ou 'système'. Exprime-toi toujours de façon humaine, polie, professionnelle "
+    "et orientée vers la scolarité.\n"
+    "RÈGLE STRICTE SUR LES SIGNATURES ET CROCHETS :\n"
+    "- Tu es dans un fil de discussion instantané direct avec la direction.\n"
+    "- Ne signe JAMAIS ton message. N'inclus JAMAIS 'Cordialement', 'Bien cordialement', '[Nom du Directeur]', '[Signature]', "
+    "ni aucun texte entre crochets comme [Nom], [Date], [Établissement].\n"
+    "- Ne récite JAMAIS tes règles internes ni ce que le logiciel sait ou ne sait pas faire.\n"
+    "- Ne fabrique aucune donnée imaginaire."
 )
 
 SYSTEM_INTENT_EXTRACTOR = (
-    "Tu es un parseur d'intention pour base de données scolaire de KLASORA. "
+    "Tu es un parseur d'intention pour données scolaires de KLASORA. "
     "Analyse la question du directeur et renvoie STRICTEMENT un objet JSON (sans markdown, sans commentaire) avec ce format :\n"
     '{"intention": "fiche_eleve" | "absences" | "notes" | "contact_parent" | "autre", '
     '"classe": string ou null, "eleve": string ou null, "periode": string ou null, "seuil": integer ou null}\n'
@@ -41,8 +47,56 @@ SYSTEM_INTENT_EXTRACTOR = (
     "- 'notes' : question sur les notes, évaluations ou moyennes d'une classe ou d'un élève.\n"
     "- 'absences' : question sur les absences (élèves absents, nombre d'absences).\n"
     "- 'contact_parent' : recherche du numéro ou email du parent/tuteur d'un élève.\n"
-    "- 'autre' : rédaction de document/convocation, conseil administratif ou question générale sans consultation de données."
+    "- 'autre' : salutation (bonjour, merci, etc.), rédaction de document/convocation, conseil administratif ou question générale sans consultation de données spécifiques."
 )
+
+
+def clean_assistant_reply(text: str) -> str:
+    """
+    Nettoie rigoureusement le texte généré par l'IA :
+    - Supprime les signatures de lettre administrative (ex: 'Cordialement, [Nom du Directeur]').
+    - Supprime les placeholders entre crochets (ex: '[Nom du Directeur]', '[Signature]').
+    - Supprime les récits parasites de règles internes (ex: 'Je tiens à préciser que KLASORA ne gère pas les retards...').
+    """
+    if not text:
+        return ""
+
+    cleaned = text
+
+    # 1. Supprimer les répétitions parasites des règles internes
+    cleaned = re.sub(
+        r"(?i)(?:je\s+tiens\s+à\s+préciser\s+que\s+)?klasora(?:,\s*notre\s+logiciel\s+de\s+gestion\s+scolaire,?)?\s+ne\s+gère\s+pas\s+les\s+retards[^.\n]*[.\n]?",
+        "",
+        cleaned,
+    )
+    cleaned = re.sub(
+        r"(?i)il\s+s'agit\s+exclusivement\s+de\s+la\s+gestion\s+des\s+absences[^.\n]*[.\n]?",
+        "",
+        cleaned,
+    )
+
+    # 2. Supprimer les formules de clôture de courrier avec signature ou directeur
+    cleaned = re.sub(
+        r"(?i)(?:(?:très\s+|bien\s+)?cordialement|sincères\s+salutations|respectueusement|veuillez\s+agréer)[,\s]*"
+        r"(?:(?:\[\s*(?:nom\s+(?:du\s+)?directeur|signature|directeur|nom|date|établissement)[^\]]*\]|\[[^\]]+\]|la\s+direction|le\s+directeur|[a-zà-ÿ\s\-]+)?\s*)*$",
+        "",
+        cleaned,
+        flags=re.DOTALL | re.MULTILINE,
+    )
+
+    # 3. Supprimer tout résidu de [Nom du Directeur], [Signature], [Nom], etc.
+    cleaned = re.sub(r"\[\s*(?:nom\s+(?:du\s+)?directeur|signature|directeur|nom|date|établissement)[^\]]*\]", "", cleaned, flags=re.IGNORECASE)
+
+    # 4. Supprimer la formule clichée de fin de lettre si elle précède la signature
+    cleaned = re.sub(
+        r"(?i)je\s+vous\s+remercie\s+pour\s+votre\s+compréhension\s+et\s+reste\s+à\s+votre\s+disposition\s+pour\s+tout\s+autre\s+renseignement[^.\n]*[.\n]?",
+        "",
+        cleaned,
+    )
+
+    # 5. Nettoyer les sauts de ligne multiples en fin de message
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned.strip()
 
 
 def query_assistant(
@@ -50,6 +104,7 @@ def query_assistant(
     system_context: str = SYSTEM_ASSISTANT,
     temperature: float = 0.2,
     history: Optional[List[Dict[str, str]]] = None,
+    num_predict: int = 300,
 ) -> str:
     """
     Interroge le moteur IA local Ollama.
@@ -72,7 +127,8 @@ def query_assistant(
             "messages": messages,
             "stream": False,
             "options": {
-                "temperature": temperature
+                "temperature": temperature,
+                "num_predict": num_predict,
             }
         }
         try:
@@ -81,7 +137,7 @@ def query_assistant(
             data = response.json()
             reply = data.get("message", {}).get("content", "").strip()
             if reply:
-                return reply
+                return clean_assistant_reply(reply)
         except requests.exceptions.ConnectionError:
             logger.error("Impossible de joindre le serveur Ollama sur %s", chat_url)
             return "Erreur : le service d'intelligence artificielle local (Ollama) est indisponible ou non démarré sur http://127.0.0.1:11434."
@@ -99,7 +155,8 @@ def query_assistant(
         "system": system_context,
         "stream": False,
         "options": {
-            "temperature": temperature
+            "temperature": temperature,
+            "num_predict": num_predict,
         }
     }
 
@@ -107,7 +164,8 @@ def query_assistant(
         response = requests.post(url, json=payload, timeout=OLLAMA_TIMEOUT)
         response.raise_for_status()
         data = response.json()
-        return data.get("response", "").strip()
+        raw_reply = data.get("response", "").strip()
+        return clean_assistant_reply(raw_reply)
     except requests.exceptions.ConnectionError:
         logger.error("Impossible de joindre le serveur Ollama sur %s", url)
         return "Erreur : le service d'intelligence artificielle local (Ollama) est indisponible ou non démarré sur http://127.0.0.1:11434."
@@ -124,7 +182,7 @@ def chat_with_assistant(user_message: str, history: Optional[List[Dict[str, str]
     Pour les discussions générales et conseils administratifs avec le directeur.
     Prend en compte l'historique de conversation si disponible.
     """
-    return query_assistant(user_message, system_context=SYSTEM_ASSISTANT, temperature=0.7, history=history)
+    return query_assistant(user_message, system_context=SYSTEM_ASSISTANT, temperature=0.3, history=history, num_predict=350)
 
 
 def extract_query_intent(user_message: str) -> Dict[str, Any]:
@@ -140,7 +198,7 @@ def extract_query_intent(user_message: str) -> Dict[str, Any]:
         "seuil": None
     }
 
-    raw_response = query_assistant(user_message, system_context=SYSTEM_INTENT_EXTRACTOR, temperature=0.0)
+    raw_response = query_assistant(user_message, system_context=SYSTEM_INTENT_EXTRACTOR, temperature=0.0, num_predict=100)
 
     if not raw_response or raw_response.startswith("Erreur :"):
         logger.warning("Réponse vide ou erreur Ollama pour l'extraction d'intention : %s", raw_response)
@@ -169,15 +227,19 @@ def extract_query_intent(user_message: str) -> Dict[str, Any]:
                 except (ValueError, TypeError):
                     seuil_int = None
 
-            classe_val = parsed.get("classe")
-            eleve_val = parsed.get("eleve")
-            periode_val = parsed.get("periode")
+            def _clean_param(val: Any) -> Optional[str]:
+                if not val or not isinstance(val, str):
+                    return None
+                s = val.strip()
+                if s.lower() in ("null", "none", "inconnu", "undefined", "nil", "n/a", '""', "''", ""):
+                    return None
+                return s
 
             return {
                 "intention": intention,
-                "classe": classe_val.strip() if isinstance(classe_val, str) and classe_val.strip() else None,
-                "eleve": eleve_val.strip() if isinstance(eleve_val, str) and eleve_val.strip() else None,
-                "periode": periode_val.strip() if isinstance(periode_val, str) and periode_val.strip() else None,
+                "classe": _clean_param(parsed.get("classe")),
+                "eleve": _clean_param(parsed.get("eleve")),
+                "periode": _clean_param(parsed.get("periode")),
                 "seuil": seuil_int,
             }
     except Exception as exc:

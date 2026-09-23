@@ -193,11 +193,27 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
     use_cache = not force_refresh
     try:
         if use_cache:
+            # Vérification du cache de session pour éviter toute requête SQL si l'école a déjà validé sa configuration
+            from flask import session
+            if session.get('onboarding_complete') is True or session.get(f'onboarding_complete_{target_ecole_id}') is True:
+                active_year = get_annee_active(target_ecole_id)
+                return {
+                    'has_active_year': active_year is not None,
+                    'active_year': active_year,
+                    'has_class': True,
+                    'has_pedagogie': True,
+                    'has_semestres': True,
+                    'has_cours': True,
+                    'has_identite': True,
+                    'setup_complete': True,
+                    'current_step': 'complete'
+                }
+
             if not hasattr(g, '_school_setup_cache'):
                 g._school_setup_cache = {}
             if target_ecole_id in g._school_setup_cache:
                 return g._school_setup_cache[target_ecole_id]
-    except RuntimeError:
+    except (RuntimeError, Exception):
         pass
 
     ecole = db.session.get(Ecole, target_ecole_id)
@@ -205,6 +221,13 @@ def get_school_setup_state(ecole_id=None, force_refresh: bool = False) -> Dict[s
     active_year = get_annee_active(target_ecole_id)
 
     if onboarding_complete:
+        try:
+            from flask import session
+            session['onboarding_complete'] = True
+            session[f'onboarding_complete_{target_ecole_id}'] = True
+        except (RuntimeError, Exception):
+            pass
+
         result = {
             'has_active_year': active_year is not None,
             'active_year': active_year,

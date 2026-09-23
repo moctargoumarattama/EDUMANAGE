@@ -29,6 +29,7 @@ from app import db
 from app.ai_service import (
     SYSTEM_ASSISTANT,
     chat_with_assistant,
+    clean_assistant_reply,
     extract_query_intent,
     query_assistant,
 )
@@ -67,16 +68,81 @@ def _normalize_text(text: str) -> str:
     return re.sub(r"\s+", " ", cleaned).strip()
 
 
+# Mots-clés et salutations pour l'interception directe chitchat
+SALUTATIONS = {
+    "bonjour", "bonsoir", "salut", "coucou", "hello", "hi",
+    "merci", "merci beaucoup", "au revoir", "a bientot", "à bientôt",
+    "aide", "aide-moi", "aide moi", "qui es-tu", "qui es tu", "test"
+}
+
+SCHOOL_KEYWORDS = {
+    "classe", "classes", "eleve", "eleves", "élève", "élèves",
+    "note", "notes", "absence", "absences", "moyenne", "moyennes",
+    "bulletin", "bulletins", "parent", "parents", "cours", "matiere", "matières", "matieres",
+    "dossier", "fiche", "trimestre", "semestre", "scolarite", "scolarité",
+    "frais", "paiement", "paiements", "solde"
+}
+
+
+def _get_chitchat_response(text: str) -> Optional[str]:
+    """
+    Interception prioritaire des salutations et formules de politesse :
+    Si la question ne contient aucun terme scolaire et correspond à une salutation,
+    répondre immédiatement sans appel SQL ni appel IA.
+    """
+    if not text:
+        return None
+    raw = text.lower().strip()
+    cleaned = re.sub(r"[^\w\s]", " ", raw).strip()
+    cleaned = re.sub(r"\s+", " ", cleaned)
+    tokens = set(cleaned.split())
+
+    # S'il y a un mot-clé scolaire précis, laisser le moteur de données traiter la demande
+    if tokens & SCHOOL_KEYWORDS:
+        return None
+
+    # 1. Correspondance directe
+    is_greeting = cleaned in SALUTATIONS or raw in SALUTATIONS
+
+    # 2. Commence par une formule de politesse courte sans mention de classe ni de matière
+    if not is_greeting:
+        for sal in SALUTATIONS:
+            if cleaned == sal or cleaned.startswith(sal + " "):
+                if len(tokens) <= 6:
+                    is_greeting = True
+                    break
+
+    if not is_greeting:
+        return None
+
+    if any(m in cleaned for m in ("merci", "merci beaucoup", "remercie")):
+        return (
+            "Je vous en prie ! Je reste à votre entière disposition pour tout renseignement "
+            "sur vos élèves ou votre établissement."
+        )
+    if any(m in cleaned for m in ("au revoir", "a bientot", "à bientôt", "adieu")):
+        return "Au revoir Monsieur/Madame la Direction. Excellente journée à vous et à très bientôt sur KLASORA !"
+
+    return (
+        "Bonjour Monsieur/Madame la Direction. Je suis votre assistant KLASORA. "
+        "Comment puis-je vous aider aujourd'hui ? Vous pouvez me demander la fiche d'un élève, "
+        "un bilan d'absences, des moyennes de classe ou la rédaction d'un document administratif."
+    )
+
+
 def _clean_search_term(term: str) -> str:
     """Nettoie les stop-words et préfixes fréquents d'une question scolaire."""
     if not term:
         return ""
-    return re.sub(
+    cleaned = re.sub(
         r"^(?:l['’]eleve|l['’]élève|eleve|élève|de|d['’]|fiche|dossier|bulletin|notes?|absences?|pour|sur|donne-moi|donne\s+moi)\s+",
         "",
         term.strip(),
         flags=re.IGNORECASE,
     ).strip()
+    if cleaned.lower() in ("null", "none", "inconnu", "undefined", "nil", "n/a", ""):
+        return ""
+    return cleaned
 
 
 try:
@@ -221,7 +287,12 @@ def _build_eleve_dossier(eleve: Eleve, ecole_id: int, annee_id: Optional[int] = 
 
     classe_nom = inscr_active.classe.nom if (inscr_active and inscr_active.classe) else "Non assignée"
 
-    parent_nom = f"{eleve.parent.prenom} {eleve.parent.nom}" if eleve.parent else None
+    if eleve.parent:
+        p_prenom = (eleve.parent.prenom or "").strip()
+        p_nom = (eleve.parent.nom or "").strip()
+        parent_nom = f"{p_prenom} {p_nom}".strip() or None
+    else:
+        parent_nom = None
     parent_tel = eleve.contact_parent or (eleve.parent.telephone if eleve.parent else None) or "Non renseigné"
     parent_email = eleve.email_parent or (eleve.parent.email if eleve.parent else None) or "Non renseigné"
 
@@ -290,6 +361,172 @@ def _build_eleve_dossier(eleve: Eleve, ecole_id: int, annee_id: Optional[int] = 
     }
 
 
+def _format_fiche_eleve_markdown(d: Dict[str, Any]) -> str:
+    """Formatte le dossier complet d'un élève en présentation Markdown claire, riche et professionnelle."""
+    nom = d.get("nom_complet", "Élève")
+    classe = d.get("classe", "Non assignée")
+    matricule = d.get("matricule", "-")
+    statut = (d.get("statut") or "actif").capitalize()
+    naissance = d.get("date_naissance", "Non renseignée")
+
+    parent = d.get("parent_nom") or "Non renseigné"
+    tel = d.get("parent_tel") or "Non renseigné"
+    email = d.get("parent_email") or "Non renseigné"
+    adresse = d.get("adresse") or "Non renseignée"
+
+    total_abs = d.get("total_absences", 0)
+    just = d.get("absences_justifiees", 0)
+    non_just = d.get("absences_non_justifiees", 0)
+
+    moyenne = d.get("moyenne_generale")
+    moy_str = f"{moyenne}/20" if moyenne is not None else "Non calculée"
+
+    nb_notes = d.get("nombre_notes", 0)
+    notes_details = d.get("notes_details") or []
+    recent_evals = ", ".join(notes_details[:3]) if notes_details else "Aucune note enregistrée"
+
+    try:
+        frais = int(d.get("frais_annuels") or 0)
+        paye = int(d.get("total_paye") or 0)
+        reste = int(d.get("reste_a_payer") or 0)
+        frais_str = f"{frais:,} FCFA".replace(",", " ")
+        paye_str = f"{paye:,} FCFA".replace(",", " ")
+        reste_str = f"{reste:,} FCFA".replace(",", " ")
+    except Exception:
+        frais_str = f"{d.get('frais_annuels', 0)} FCFA"
+        paye_str = f"{d.get('total_paye', 0)} FCFA"
+        reste_str = f"{d.get('reste_a_payer', 0)} FCFA"
+
+    lines = [
+        f"### 📋 Fiche Scolaire : {nom}",
+        f"**Classe :** {classe} | **Matricule :** `{matricule}` | **Statut :** {statut}",
+        "",
+        "👤 **Informations personnelles & Responsables :**",
+        f"• **Date de naissance :** {naissance}",
+        f"• **Parent / Tuteur :** {parent}",
+        f"• **Téléphone :** `{tel}`",
+        f"• **Email :** {email}",
+        f"• **Adresse :** {adresse}",
+        "",
+        "📊 **Résultats académiques :**",
+        f"• **Moyenne générale :** **{moy_str}** ({nb_notes} évaluation(s))",
+    ]
+    if notes_details:
+        lines.append(f"• **Dernières notes :** {recent_evals}")
+
+    lines.extend([
+        "",
+        "⏱️ **Assiduité & Absences :**",
+        f"• **Total absences :** {total_abs} ({just} justifiée(s), {non_just} non justifiée(s))",
+    ])
+
+    if d.get("absences_recentes"):
+        lines.append(f"• **Derniers signalements :** {'; '.join(d['absences_recentes'][:2])}")
+
+    lines.extend([
+        "",
+        "💳 **Scolarité & Paiements :**",
+        f"• **Frais annuels :** {frais_str} | **Payé :** {paye_str} | **Reste à payer :** **{reste_str}**",
+    ])
+
+    return "\n".join(lines)
+
+
+def _format_contact_parent_markdown(d: Dict[str, Any]) -> str:
+    """Formatte les coordonnées du parent/tuteur de manière claire et instantanée."""
+    nom = d.get("nom_complet", "Élève")
+    classe = d.get("classe", "Non assignée")
+    parent = d.get("parent_nom") or "Non renseigné"
+    tel = d.get("parent_tel") or d.get("telephone_parent") or "Non renseigné"
+    email = d.get("parent_email") or d.get("email_parent") or "Non renseigné"
+    adresse = d.get("adresse") or "Non renseignée"
+
+    return (
+        f"📞 **Coordonnées du Responsable — {nom} ({classe})**\n\n"
+        f"• **Parent / Tuteur :** {parent}\n"
+        f"• **Téléphone :** `{tel}`\n"
+        f"• **Email :** {email}\n"
+        f"• **Adresse :** {adresse}"
+    )
+
+
+def _fast_detect_intent_and_entities(question: str) -> Optional[Dict[str, Any]]:
+    """
+    Classification heuristique ultra-rapide (< 0.001s) en pur Python :
+    Évite un appel réseau lourd à Ollama si la question correspond clairement
+    à l'une des requêtes scolaires courantes ou aux suggestions (pills) de l'interface.
+    """
+    if not question:
+        return None
+
+    raw = question.strip()
+    q_norm = _normalize_text(raw)
+
+    # Extraction rapide du seuil s'il existe (ex: "plus de 3 absences", "notes supérieures à 15")
+    seuil: Optional[int] = None
+    m_seuil = re.search(r"(?:plus\s+de|sup[eé]rieur[es]*\s+[aà]|au\s+moins)\s+(\d+)", raw, re.IGNORECASE)
+    if m_seuil:
+        try:
+            seuil = int(m_seuil.group(1))
+        except ValueError:
+            seuil = None
+
+    # Extraction rapide de la période (Trimestre 1, Semestre 2, etc.)
+    periode: Optional[str] = None
+    m_per = re.search(r"\b(trimestre\s+[123]|semestre\s+[12])\b", raw, re.IGNORECASE)
+    if m_per:
+        periode = m_per.group(1).title()
+
+    # Détection de l'élève par regex
+    eleve_nom: Optional[str] = None
+    eleve_patterns = [
+        r"(?:l['’]élève|l['’]eleve|eleve|élève)\s+([A-Za-zÀ-ÿ\-]+(?:\s+[A-Za-zÀ-ÿ\-]+)?)",
+        r"(?:fiche|dossier|bulletin|notes?|absences?|coordonnées|contact)\s+(?:de\s+|d['’]\s*)?([A-Za-zÀ-ÿ\-]+(?:\s+[A-Za-zÀ-ÿ\-]+)?)",
+        r"(?:pour|sur|concernant)\s+([A-Za-zÀ-ÿ\-]+(?:\s+[A-Za-zÀ-ÿ\-]+)?)",
+    ]
+    for pat in eleve_patterns:
+        m = re.search(pat, raw, re.IGNORECASE)
+        if m:
+            cand = _clean_search_term(m.group(1))
+            if cand and cand.lower() not in (
+                "la", "cette", "tous", "toutes", "chaque", "classe", "ecole", "école",
+                "son", "ses", "des", "une", "un", "mon", "notre", "leurs", "lui",
+                "null", "none", "inconnu", "undefined", "nil", "n/a", "critiques", "tout", "toutes", "complete", "complète"
+            ):
+                eleve_nom = cand
+                break
+
+    # Détection de la classe
+    classe_nom: Optional[str] = None
+    m_classe = re.search(r"\b(6e|5e|4e|3e|2nde|1ere|terminale|tle|cp1|cp2|ce1|ce2|cm1|cm2)(?:\s+([a-z]))?\b", raw, re.IGNORECASE)
+    if m_classe:
+        c_base = m_classe.group(1)
+        c_sec = m_classe.group(2)
+        classe_nom = f"{c_base} {c_sec}".strip().upper() if c_sec else c_base.upper()
+
+    # Mots-clés pour fiche élève
+    is_fiche = any(k in q_norm for k in ("fiche", "dossier", "information", "informations", "info", "infos", "profil", "tout savoir", "qui est", "statut de"))
+    # Mots-clés pour contact
+    is_contact = any(k in q_norm for k in ("contact", "contacts", "coordonnee", "coordonnees", "parent", "parents", "telephone", "telephones", "tel", "numero", "numeros", "email", "mail", "joindre", "appeler"))
+    # Mots-clés pour absences
+    is_absences = any(k in q_norm for k in ("absence", "absences", "absent", "absents", "assiduite"))
+    # Mots-clés pour notes
+    is_notes = any(k in q_norm for k in ("note", "notes", "moyenne", "moyennes", "bulletin", "bulletins", "evaluation", "evaluations", "resultat", "resultats"))
+
+    # Intentions prioritaires
+    if is_fiche or (is_notes and is_absences):
+        return {"intention": "fiche_eleve", "eleve": eleve_nom, "classe": classe_nom, "periode": periode, "seuil": seuil}
+    if is_contact and not is_notes and not is_absences:
+        return {"intention": "contact_parent", "eleve": eleve_nom, "classe": classe_nom, "periode": periode, "seuil": seuil}
+    if is_absences and not is_notes:
+        return {"intention": "absences", "eleve": eleve_nom, "classe": classe_nom, "periode": periode, "seuil": seuil}
+    if is_notes and not is_absences:
+        return {"intention": "notes", "eleve": eleve_nom, "classe": classe_nom, "periode": periode, "seuil": seuil}
+
+    # Si rien de net n'est détecté, on laisse la main au parseur Ollama
+    return None
+
+
 @assistant_bp.route("/clear-session", methods=["POST"])
 @login_required
 @role_required("admin", "directeur", "super_admin")
@@ -325,6 +562,14 @@ def api_assistant_chat():
             "success": False,
             "error": "Le champ 'message' est requis."
         }), 400
+
+    # 1. Interception prioritaire des salutations (Chitchat direct sans IA)
+    chitchat = _get_chitchat_response(user_message)
+    if chitchat:
+        return jsonify({
+            "success": True,
+            "reply": chitchat
+        })
 
     try:
         reply = chat_with_assistant(user_message, history=history)
@@ -364,21 +609,46 @@ def api_assistant_query_data():
             "error": "Le champ 'question' est requis."
         }), 400
 
+    # 1. Interception prioritaire des salutations (Chitchat direct sans SQL ni IA)
+    chitchat = _get_chitchat_response(question)
+    if chitchat:
+        return jsonify({
+            "success": True,
+            "intention": "salutation",
+            "criteres": {"intention": "salutation", "eleve": None, "classe": None},
+            "donnees_trouvees": 0,
+            "donnees": [],
+            "reply": chitchat,
+        })
+
     ecole_id = getattr(current_user, "ecole_id", None)
     annee_active = get_annee_active(ecole_id) if ecole_id else None
     annee_id = annee_active.id if annee_active else None
 
-    # 1. Extraction d'intention via l'IA locale
-    intent = extract_query_intent(question)
+    # 2. Classification heuristique ultra-rapide (< 0.001s) en Python
+    fast_intent = _fast_detect_intent_and_entities(question)
+    if fast_intent:
+        intent = fast_intent
+        logger.info("Classification intention ultra-rapide (Python) : %s", intent)
+    else:
+        # Fallback IA locale uniquement si la question est complexe ou atypique
+        intent = extract_query_intent(question)
+
     intention = intent.get("intention", "autre")
     classe_param = intent.get("classe")
     eleve_param = intent.get("eleve")
     periode_param = intent.get("periode")
     seuil_param = intent.get("seuil")
 
+    # Assainissement strict des chaînes "null" / "none"
+    if eleve_param and str(eleve_param).lower().strip() in ("null", "none", "inconnu", "undefined", "nil", "n/a", '""', "''", ""):
+        eleve_param = None
+    if classe_param and str(classe_param).lower().strip() in ("null", "none", "inconnu", "undefined", "nil", "n/a", '""', "''", ""):
+        classe_param = None
+
     q_lower = question.lower()
 
-    # 2. Détection par Regex du nom d'élève si l'IA locale l'a manqué
+    # 3. Détection par Regex du nom d'élève si l'IA locale l'a manqué
     if not eleve_param:
         patterns = [
             r"(?:l['’]élève|l['’]eleve|eleve|élève)\s+([A-Za-zÀ-ÿ\-]+(?:\s+[A-Za-zÀ-ÿ\-]+)?)",
@@ -391,13 +661,17 @@ def api_assistant_query_data():
                 cand = m.group(1).strip()
                 if cand.lower() not in (
                     "la", "cette", "tous", "toutes", "chaque", "classe", "ecole", "école",
-                    "son", "ses", "des", "une", "un", "mon", "notre", "leurs", "lui"
+                    "son", "ses", "des", "une", "un", "mon", "notre", "leurs", "lui",
+                    "null", "none", "inconnu", "undefined", "nil", "n/a"
                 ):
                     eleve_param = cand
                     break
 
-    # 3. TÂCHE 2 : Mémoire d'entité en session Flask (Résolution d'anaphores)
-    # Si la question contient un pronom ("ses", "son", "lui") ou demande un suivi, et qu'un élève est mémorisé
+    # Assainissement après regex
+    if eleve_param and str(eleve_param).lower().strip() in ("null", "none", "inconnu", "undefined", "nil", "n/a", '""', "''", ""):
+        eleve_param = None
+
+    # 4. Mémoire d'entité en session Flask (Résolution d'anaphores)
     has_anaphora = any(re.search(pat, q_lower) for pat in ANAPHORA_PATTERNS)
     last_eleve_id = session.get("ai_last_eleve_id")
 
@@ -423,6 +697,29 @@ def api_assistant_query_data():
         session.pop("ai_last_eleve_nom", None)
         session.pop("ai_last_classe", None)
         session.modified = True
+        eleve_param = None
+
+    # 5. Garde-fous ciblés : si notes/absences/fiche sont demandées sans cible élève ni classe
+    if intention in ("notes", "absences") and not eleve_param and not classe_param and not has_anaphora:
+        # Si la question ne mentionne ni classe ni élève
+        return jsonify({
+            "success": True,
+            "intention": intention,
+            "criteres": intent,
+            "donnees_trouvees": 0,
+            "donnees": [],
+            "reply": "Pour quel élève ou quelle classe souhaitez-vous consulter ces données ?",
+        })
+
+    if intention == "fiche_eleve" and not eleve_param:
+        return jsonify({
+            "success": True,
+            "intention": intention,
+            "criteres": intent,
+            "donnees_trouvees": 0,
+            "donnees": [],
+            "reply": "Pour quel élève souhaitez-vous consulter le dossier scolaire ?",
+        })
 
     # 4. Raffinement automatique de l'intention
     if eleve_param:
@@ -719,22 +1016,47 @@ def api_assistant_query_data():
             "error": f"Erreur lors de la consultation des données scolaires : {db_exc}"
         }), 500
 
-    # 6. Synthèse certifiée générée par l'IA avec injection de l'historique multi-tours court
-    data_context = "\n".join(context_lines) if context_lines else "Aucun enregistrement ne correspond aux critères demandés dans la base de données de l'établissement."
-    summary_prompt = (
-        f"Question du directeur : \"{question}\"\n\n"
-        f"Données réelles et certifiées extraites de la base de données KLASORA :\n"
-        f"{data_context}\n\n"
-        "Consignes impératives :\n"
-        "1. Rédige une réponse synthétique, claire, courtoise et très professionnelle au directeur en vous basant STRICTEMENT sur ces données réelles.\n"
-        "2. Ne mentionne JAMAIS de notion de retard : KLASORA gère uniquement les absences (justifiées ou non).\n"
-        "3. Si un élève ou une information n'a pas été trouvé, indique-le poliment sans rien inventer.\n"
-        "4. Mets en valeur les points clés (notes, moyenne, absences, contacts) avec un formatage clair et lisible.\n"
-        "5. Assure une continuité naturelle avec la conversation si la question actuelle fait suite à un échange précédent.\n"
-        "6. Ne mentionne jamais de détails techniques internes (IA, modèle, serveur, architecture) : reste purement commercial, opérationnel et orienté gestion scolaire."
-    )
+    # 6. Synthèse certifiée ou rendu direct structuré ultra-rapide
+    is_analytical = any(w in q_lower for w in ("analyse", "avis", "conseil", "conseils", "pourquoi", "explique", "rédige", "redige", "lettre", "convocation", "rapport", "comparaison"))
 
-    final_reply = query_assistant(summary_prompt, system_context=SYSTEM_ASSISTANT, temperature=0.2, history=history)
+    if intention == "fiche_eleve" and records_summary and not is_analytical:
+        final_reply = _format_fiche_eleve_markdown(records_summary[0])
+        if len(records_summary) > 1:
+            noms_autres = ", ".join(f"{r['nom_complet']} ({r['classe']})" for r in records_summary[1:3])
+            final_reply += f"\n\n*Note : D'autres élèves correspondent également : {noms_autres}.*"
+    elif intention == "contact_parent" and records_summary and not is_analytical:
+        if eleve_param or len(records_summary) == 1:
+            final_reply = _format_contact_parent_markdown(records_summary[0])
+            if len(records_summary) > 1:
+                noms_autres = ", ".join(f"{r.get('nom_complet', r.get('eleve'))}" for r in records_summary[1:3])
+                final_reply += f"\n\n*Note : Autres correspondances : {noms_autres}.*"
+        else:
+            lines = [f"📞 **Contacts des Parents — {classe_param or 'Établissement'}**\n"]
+            for r in records_summary[:15]:
+                el_nom = r.get("eleve") or r.get("nom_complet")
+                cl_nom = r.get("classe", "")
+                tel = r.get("telephone_parent") or r.get("parent_tel", "Non renseigné")
+                mail = r.get("email_parent") or r.get("parent_email", "Non renseigné")
+                lines.append(f"• **{el_nom}** ({cl_nom}) : Tél: `{tel}` | Email: {mail}")
+            final_reply = "\n".join(lines)
+    else:
+        # Synthèse IA avec injection du contexte certifié
+        data_context = "\n".join(context_lines) if context_lines else "Aucun enregistrement ne correspond aux critères demandés dans l'établissement."
+        summary_prompt = (
+            f"Question du directeur : \"{question}\"\n\n"
+            f"Données scolaires certifiées de l'établissement KLASORA :\n"
+            f"{data_context}\n\n"
+            "Consignes impératives :\n"
+            "1. Rédige une réponse synthétique, claire, structurée et très professionnelle au directeur en vous basant STRICTEMENT sur ces données réelles.\n"
+            "2. Si un élève ou une information n'a pas été trouvé, indique-le poliment sans rien inventer.\n"
+            "3. Mets en valeur les points clés (notes, moyenne, absences, contacts) avec un formatage clair et lisible.\n"
+            "4. INTERDICTION STRICTE DE SIGNATURE : Tu réponds dans une messagerie instantanée directe. Ne termine JAMAIS par 'Cordialement', 'Bien cordialement', '[Nom du Directeur]', '[Signature]', ni aucun texte entre crochets comme [Nom].\n"
+            "5. RÈGLE IMPÉRATIVE DE VOCABULAIRE : Ne mentionne JAMAIS de termes techniques tels que 'base de données', 'requête', 'SQL', 'serveur', 'null' ou 'système'. Sois direct, poli et concis."
+        )
+
+        final_reply = clean_assistant_reply(
+            query_assistant(summary_prompt, system_context=SYSTEM_ASSISTANT, temperature=0.2, history=history)
+        )
 
     return jsonify({
         "success": True,

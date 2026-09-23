@@ -150,7 +150,81 @@ class TestAssistantAdvancedFeatures(unittest.TestCase):
             self.assertNotIn("ai_last_eleve_id", sess)
             self.assertNotIn("ai_last_eleve_nom", sess)
 
+    def test_05_greeting_interception_without_db(self):
+        """Vérifie que l'envoi de 'Bonjour' renvoie une salutation claire sans recherche SQL ni IA."""
+        if not self.admin:
+            self.skipTest("Admin non trouvé")
+
+        with self.client.session_transaction() as sess:
+            sess["_user_id"] = str(self.admin.id)
+
+        # Test sur /api/assistant/query-data
+        resp = self.client.post("/api/assistant/query-data", json={"question": "Bonjour !"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["intention"], "salutation")
+        self.assertEqual(data["donnees_trouvees"], 0)
+        self.assertIn("assistant KLASORA", data["reply"])
+        self.assertNotIn("base de données", data["reply"].lower())
+        self.assertNotIn("null", data["reply"].lower())
+
+        # Test sur /api/assistant/chat
+        resp_chat = self.client.post("/api/assistant/chat", json={"message": "salut"})
+        self.assertEqual(resp_chat.status_code, 200)
+        data_chat = resp_chat.get_json()
+        self.assertTrue(data_chat["success"])
+        self.assertIn("assistant KLASORA", data_chat["reply"])
+
+    def test_06_merci_and_politeness_interception(self):
+        """Vérifie l'interception des remerciements et départs."""
+        if not self.admin:
+            self.skipTest("Admin non trouvé")
+
+        with self.client.session_transaction() as sess:
+            sess["_user_id"] = str(self.admin.id)
+
+        resp = self.client.post("/api/assistant/query-data", json={"question": "Merci beaucoup"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["success"])
+        self.assertIn("Je vous en prie", data["reply"])
+
+    def test_07_null_sanitization_and_no_target_guard(self):
+        """Vérifie qu'une intention avec 'null' comme élève ne cherche jamais d'élève 'null' en base."""
+        if not self.admin:
+            self.skipTest("Admin non trouvé")
+
+        with self.client.session_transaction() as sess:
+            sess["_user_id"] = str(self.admin.id)
+            sess.pop("ai_last_eleve_id", None)
+
+        with patch("app.routes.assistant.extract_query_intent", return_value={
+            "intention": "notes",
+            "classe": "null",
+            "eleve": "null",
+            "periode": None,
+            "seuil": None
+        }):
+            resp = self.client.post("/api/assistant/query-data", json={
+                "question": "Quelles sont les notes ?"
+            })
+            self.assertEqual(resp.status_code, 200)
+            data = resp.get_json()
+            self.assertTrue(data["success"])
+            self.assertEqual(data["donnees_trouvees"], 0)
+            self.assertIn("Pour quel élève ou quelle classe", data["reply"])
+            self.assertNotIn("null", data["reply"].lower())
+
+    def test_08_system_prompt_vocabulary_rules(self):
+        """Vérifie la présence de la règle impérative de vocabulaire dans SYSTEM_ASSISTANT."""
+        from app.ai_service import SYSTEM_ASSISTANT
+        self.assertIn("RÈGLE IMPÉRATIVE DE VOCABULAIRE", SYSTEM_ASSISTANT)
+        self.assertIn("Ne mentionne JAMAIS de termes techniques", SYSTEM_ASSISTANT)
+        self.assertIn("base de données", SYSTEM_ASSISTANT)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

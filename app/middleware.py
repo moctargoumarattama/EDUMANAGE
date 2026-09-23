@@ -490,45 +490,52 @@ def before_request_handler():
         if getattr(current_user, 'role', None) == 'admin':
             ecole_id = getattr(current_user, 'ecole_id', None)
             if ecole_id:
-                try:
-                    from app.utils import get_school_setup_state
-                    setup_state = get_school_setup_state(ecole_id)
-                    allowed_endpoints = {
-                        'main.onboarding',
-                        'main.login',
-                        'main.logout',
-                        'main.choisir_ecole',
-                        'main.creer_support_ticket',
-                        'main.structure_annee',
-                    }
-                    current_ep = request.endpoint or ''
-                    if not setup_state.get('setup_complete', False):
+                # Optimisation session : évite d'interroger la base à chaque clic si l'école a déjà validé sa configuration
+                if session.get('onboarding_complete') is True or session.get(f'onboarding_complete_{ecole_id}') is True:
+                    pass
+                else:
+                    try:
+                        from app.utils import get_school_setup_state
+                        setup_state = get_school_setup_state(ecole_id)
+                        allowed_endpoints = {
+                            'main.onboarding',
+                            'main.login',
+                            'main.logout',
+                            'main.choisir_ecole',
+                            'main.creer_support_ticket',
+                            'main.structure_annee',
+                        }
+                        current_ep = request.endpoint or ''
+                        if not setup_state.get('setup_complete', False):
+                            if current_ep not in allowed_endpoints and not current_ep.startswith('static') and current_ep != 'admin.static' and not request.path.startswith('/static/'):
+                                if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
+                                    return jsonify({
+                                        'error': 'school_setup_required',
+                                        'current_step': setup_state.get('current_step', 'year')
+                                    }), 403
+                                return redirect(url_for('main.onboarding'))
+                        else:
+                            session['onboarding_complete'] = True
+                            session[f'onboarding_complete_{ecole_id}'] = True
+                    except Exception as e:
+                        current_app.logger.exception(f"Erreur vérification onboarding admin: {e}")
+                        # Comportement fail-safe (fermé) : en cas d'erreur de vérification, on ne laisse pas passer l'admin vers les routes métier
+                        allowed_endpoints = {
+                            'main.onboarding',
+                            'main.login',
+                            'main.logout',
+                            'main.choisir_ecole',
+                            'main.creer_support_ticket',
+                            'main.structure_annee',
+                        }
+                        current_ep = request.endpoint or ''
                         if current_ep not in allowed_endpoints and not current_ep.startswith('static') and current_ep != 'admin.static' and not request.path.startswith('/static/'):
                             if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
                                 return jsonify({
                                     'error': 'school_setup_required',
-                                    'current_step': setup_state.get('current_step', 'year')
+                                    'current_step': 'year'
                                 }), 403
                             return redirect(url_for('main.onboarding'))
-                except Exception as e:
-                    current_app.logger.exception(f"Erreur vérification onboarding admin: {e}")
-                    # Comportement fail-safe (fermé) : en cas d'erreur de vérification, on ne laisse pas passer l'admin vers les routes métier
-                    allowed_endpoints = {
-                        'main.onboarding',
-                        'main.login',
-                        'main.logout',
-                        'main.choisir_ecole',
-                        'main.creer_support_ticket',
-                        'main.structure_annee',
-                    }
-                    current_ep = request.endpoint or ''
-                    if current_ep not in allowed_endpoints and not current_ep.startswith('static') and current_ep != 'admin.static' and not request.path.startswith('/static/'):
-                        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
-                            return jsonify({
-                                'error': 'school_setup_required',
-                                'current_step': 'year'
-                            }), 403
-                        return redirect(url_for('main.onboarding'))
 
 
 def after_request_handler(response):

@@ -496,6 +496,8 @@ def modifier_ecole(ecole_id):
             admin.nom = nom
 
         db.session.commit()
+        session.pop('onboarding_complete', None)
+        session.pop(f'onboarding_complete_{ecole_id}', None)
         flash(f"L'école « {ecole.nom} » a été modifiée avec succès ✅", "success")
     except Exception as e:
         db.session.rollback()
@@ -708,6 +710,8 @@ def profil_ecole():
                         return redirect(url_for('main.profil_ecole'))
 
             db.session.commit()
+            session.pop('onboarding_complete', None)
+            session.pop(f'onboarding_complete_{ecole.id}', None)
             flash("Identité et profil de l'établissement mis à jour avec succès ✅", "success")
         except Exception as e:
             db.session.rollback()

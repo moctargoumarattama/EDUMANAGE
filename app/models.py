@@ -588,6 +588,7 @@ class Eleve(db.Model):
 
     __table_args__ = (
         db.Index('ix_eleve_parent_id', 'parent_id'),
+        db.Index('ix_eleve_ecole_id', 'ecole_id'),
     )
 
     @staticmethod
@@ -721,6 +722,7 @@ class Paiement(db.Model):
 
     __table_args__ = (
         db.Index('ix_paiement_ecole_statut', 'ecole_id', 'statut'),
+        db.Index('ix_paiement_eleve_id', 'eleve_id'),
     )
 
     inscription = db.relationship('Inscription', backref=db.backref('paiements', lazy=True))
