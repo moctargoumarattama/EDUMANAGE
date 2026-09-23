@@ -43,6 +43,7 @@ from app.services.passage_annee import (
     preparer_passage_masse,
     executer_passage_masse,
     get_moyennes_annuelles_eleves,
+    reinscrire_ancien_eleve,
 )
 
 
@@ -725,12 +726,13 @@ def passage_annee(source_id, cible_id):
         if insc_cible:
             est_traite = True
             nom_classe_cible = insc_cible.classe.nom if insc_cible.classe else "Classe inconnue"
+            suffixe = " (Préinscrit)" if insc_cible.statut == "preinscrit" else ""
             if insc_src.decision_fin_annee == "passage":
-                detail_statut = f"Passage → {nom_classe_cible}"
+                detail_statut = f"Passage → {nom_classe_cible}{suffixe}"
             elif insc_src.decision_fin_annee == "redoublement":
-                detail_statut = f"Redoublement → {nom_classe_cible}"
+                detail_statut = f"Redoublement → {nom_classe_cible}{suffixe}"
             else:
-                detail_statut = f"Inscrit → {nom_classe_cible}"
+                detail_statut = f"{'Préinscrit' if insc_cible.statut == 'preinscrit' else 'Inscrit'} → {nom_classe_cible}"
         elif insc_src.decision_fin_annee in ("transfert", "sortie", "diplome"):
             est_traite = True
             labels = {
@@ -1053,3 +1055,42 @@ def passage_masse_confirmer(source_id, cible_id):
         rapport=rapport,
         csrf_form=csrf_form,
     )
+
+
+@main.route('/annees/<int:annee_id>/reinscrire_eleve', methods=['POST'], endpoint='reinscrire_ancien_eleve')
+@login_required
+@role_required('admin', 'super_admin')
+def reinscrire_ancien_eleve_route(annee_id):
+    ecole_id = _current_ecole_id_for_annees()
+    if not ecole_id:
+        flash("Veuillez sélectionner un établissement.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    eleve_id = request.form.get('eleve_id', type=int)
+    classe_cible_id = request.form.get('classe_cible_id', type=int)
+    statut = (request.form.get('statut') or 'inscrit').strip()
+
+    if not eleve_id or not classe_cible_id:
+        flash("Informations incomplètes (élève ou classe cible manquante).", "danger")
+        return redirect(request.referrer or url_for('main.gestion_annees'))
+
+    inscription, error = reinscrire_ancien_eleve(
+        eleve_id=eleve_id,
+        annee_active_id=annee_id,
+        classe_cible_id=classe_cible_id,
+        ecole_id=ecole_id,
+        statut=statut,
+    )
+    if error:
+        flash(error, "danger")
+        return redirect(request.referrer or url_for('main.gestion_annees'))
+
+    try:
+        db.session.commit()
+        flash("Élève réinscrit avec succès pour cette année scolaire.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Erreur lors de la réinscription : {e}", "danger")
+
+    return redirect(request.referrer or url_for('main.gestion_annees'))
+

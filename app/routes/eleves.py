@@ -310,6 +310,7 @@ def eleves():
         niveaux_annee=niveaux_annee,
         eleves=eleves_pagination,
         all_eleves=all_eleves,
+        inscription_par_eleve=inscription_par_eleve,
         annee_consultee=annee_consultee,
         annees_ecole=annees_ecole,
         return_url=_eleves_context_url()

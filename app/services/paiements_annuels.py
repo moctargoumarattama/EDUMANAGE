@@ -218,6 +218,16 @@ def enregistrer_paiement(ecole_id, annee, user, eleve_id, montant, mois, annee_c
         date_paiement=datetime.utcnow(),
     )
     db.session.add(paiement)
+
+    # Conversion automatique du statut préinscrit vers inscrit lors d'un règlement
+    paiement.inscription_confirmee = False
+    if inscription and inscription.statut == "preinscrit":
+        inscription.statut = "inscrit"
+        paiement.inscription_confirmee = True
+        eleve = Eleve.query.filter_by(id=eleve_id, ecole_id=ecole_id).first()
+        if eleve and inscription.classe_id and getattr(annee, "statut", None) == "active":
+            eleve.classe_id = inscription.classe_id
+
     db.session.flush()
 
     try:

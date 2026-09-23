@@ -289,6 +289,7 @@ def executer_passage_eleve(
     decision,
     classe_cible_id=None,
     motif_sortie=None,
+    statut_cible=None,
 ):
     """
     Exécute atomiquement le passage d'année pour un élève.
@@ -467,12 +468,14 @@ def executer_passage_eleve(
         if decision in DECISIONS_AVEC_CIBLE:
             # sync_active=True uniquement si l'année cible est active
             sync = (annee_cible.statut == "active")
+            if statut_cible is None:
+                statut_cible = "preinscrit" if annee_cible.statut == "planifiee" else "inscrit"
             inscription_cible, error = creer_inscription_annuelle(
                 ecole_id=ecole_id,
                 eleve_id=eleve.id,
                 annee_scolaire_id=annee_cible.id,
                 classe_id=classe_cible.id,
-                statut="inscrit",
+                statut=statut_cible,
                 sync_active=sync,
             )
             if error:
@@ -1005,5 +1008,85 @@ def get_moyennes_annuelles_eleves(ecole_id, annee_id):
                 pass
 
     return moyennes
+
+
+# ---------------------------------------------------------------------------
+# 8. Réintégration d'un ancien élève après archivage / droit à l'erreur
+# ---------------------------------------------------------------------------
+
+def reinscrire_ancien_eleve(
+    eleve_id,
+    annee_active_id,
+    classe_cible_id,
+    ecole_id=None,
+    statut="inscrit",
+):
+    """
+    Réintègre un ancien élève (non réinscrit lors du passage ou revenant en cours d'année)
+    directement dans une classe de l'année active ou planifiée.
+    
+    Vérifications :
+      - Élève existant et lié à l'école.
+      - Année cible existante (statut active ou planifiee).
+      - Classe cible existante, ouverte et appartenant à l'année cible.
+      - Aucune inscription existante pour cet élève dans cette année.
+      - Statut valide parmi STATUTS_INSCRIPTION (défaut: 'inscrit').
+
+    Retourne : (inscription, error_str | None)
+    """
+    if statut not in STATUTS_INSCRIPTION:
+        return None, f"Statut d'inscription invalide : '{statut}'."
+
+    # Résolution et validation élève
+    if ecole_id is not None:
+        eleve = Eleve.query.filter_by(id=eleve_id, ecole_id=ecole_id).first()
+    else:
+        eleve = Eleve.query.get(eleve_id)
+        if eleve:
+            ecole_id = eleve.ecole_id
+
+    if not eleve:
+        return None, "Élève introuvable."
+
+    # Validation année
+    annee_cible = AnneeScolaire.query.filter_by(id=annee_active_id, ecole_id=ecole_id).first()
+    if not annee_cible:
+        return None, "Année scolaire introuvable pour cet établissement."
+
+    if annee_cible.statut == "archivee":
+        return None, "Impossible de réinscrire un élève dans une année archivée."
+
+    # Validation classe cible
+    classe_cible = Classe.query.filter_by(id=classe_cible_id, ecole_id=ecole_id).first()
+    if not classe_cible:
+        return None, "Classe cible introuvable pour cet établissement."
+    if classe_cible.annee_scolaire_id != annee_cible.id:
+        return None, "La classe cible n'appartient pas à l'année sélectionnée."
+    if not classe_est_ouverte(classe_cible):
+        return None, "La classe cible est fermée."
+
+    # Vérification absence d'inscription pour l'année
+    insc_existante = get_inscription(eleve, annee_cible)
+    if insc_existante:
+        return None, "L'élève a déjà une inscription pour cette année scolaire."
+
+    sync = (annee_cible.statut == "active" and statut in ("inscrit", "preinscrit"))
+    inscription, err = creer_inscription_annuelle(
+        ecole_id=ecole_id,
+        eleve_id=eleve.id,
+        annee_scolaire_id=annee_cible.id,
+        classe_id=classe_cible.id,
+        statut=statut,
+        sync_active=sync,
+    )
+    if err:
+        return None, err
+
+    if sync and eleve.classe_id != classe_cible.id:
+        eleve.classe_id = classe_cible.id
+
+    db.session.flush()
+    return inscription, None
+
 
 

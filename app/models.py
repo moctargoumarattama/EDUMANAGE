@@ -1204,8 +1204,12 @@ class SyncLog(db.Model):
 # -----------------------
 # Inscriptions
 # -----------------------
+STATUTS_INSCRIPTION = {"preinscrit", "inscrit", "termine", "sorti", "transfere", "diplome"}
+
 class Inscription(db.Model):
     __tablename__ = "inscriptions"
+
+    STATUTS = STATUTS_INSCRIPTION
 
     id = db.Column(db.Integer, primary_key=True)
     ecole_id = db.Column(db.Integer, db.ForeignKey("ecole.id"), nullable=False)

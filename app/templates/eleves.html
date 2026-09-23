@@ -155,7 +155,7 @@
     </div>
 
     <!-- Barre de navigation rapide des Classes (Chips horizontales) -->
-    <div class="class-quick-pills-bar mb-3" id="classChipsBar">
+    <div class="class-quick-pills-bar mb-2" id="classChipsBar">
         <button type="button" class="class-filter-chip active" data-class-chip="all">
             <i class="fas fa-layer-group me-1"></i>Toutes ({{ total_eleves }})
         </button>
@@ -164,6 +164,23 @@
             {{ c.nom }}
         </button>
         {% endfor %}
+    </div>
+
+    <!-- Onglets rapides de statut : Tous / Confirmés (Inscrits) / Préinscrits -->
+    <div class="d-flex align-items-center gap-2 mb-3 overflow-x-auto pb-1 text-nowrap" id="statusFilterPills">
+        <a href="{{ url_for('main.eleves', classe_id=classe_id, search=search, niveau_id=niveau_id, genre=genre) }}" 
+           class="btn btn-sm {% if not statut %}btn-dark text-white{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 py-1 fw-semibold">
+            <i class="fas fa-users me-1"></i>Tous les élèves
+        </a>
+        <a href="{{ url_for('main.eleves', classe_id=classe_id, search=search, niveau_id=niveau_id, genre=genre, statut='inscrit') }}" 
+           class="btn btn-sm {% if statut == 'inscrit' %}btn-success text-white{% else %}btn-outline-success{% endif %} rounded-pill px-3 py-1 fw-semibold">
+            <i class="fas fa-user-check me-1"></i>Confirmés (Inscrits)
+        </a>
+        <a href="{{ url_for('main.eleves', classe_id=classe_id, search=search, niveau_id=niveau_id, genre=genre, statut='preinscrit') }}" 
+           class="btn btn-sm rounded-pill px-3 py-1 fw-semibold"
+           style="{% if statut == 'preinscrit' %}background-color: #6b21a8; border-color: #6b21a8; color: #fff;{% else %}color: #6b21a8; border-color: #d8b4fe; background-color: #fcfaff;{% endif %}">
+            <i class="fas fa-clock-rotate-left me-1"></i>Préinscrits (En attente d'acompte)
+        </a>
     </div>
 
     <!-- Barre d'outils et de recherche réactive -->
@@ -328,9 +345,11 @@
                             {% set tel_raw = eleve.contact_parent or (eleve.parent.telephone if eleve.parent else '') %}
                             {% set tel_digits = (tel_raw | replace(' ', '') | replace('-', '') | replace('.', '') | replace('(', '') | replace(')', '')) if tel_raw else '' %}
                             {% set wa_number = tel_digits | replace('+', '') if tel_digits else '' %}
+                            {% set el_insc = inscription_par_eleve.get(eleve.id) if inscription_par_eleve else None %}
                             <div class="student-entry-card" id="eleve-card-{{ eleve.id }}"
                                  data-student-id="{{ eleve.id }}"
                                  data-class-id="{{ grp.id }}"
+                                 data-statut="{{ el_insc.statut if el_insc else 'inscrit' }}"
                                  data-search="{{ (eleve.nom ~ ' ' ~ eleve.prenom ~ ' ' ~ (eleve.code_parent or '') ~ ' ' ~ (eleve.contact_parent or '') ~ ' ' ~ grp.nom) | lower }}">
                                 
                                 <div class="student-card-main">
@@ -344,7 +363,13 @@
                                                 <span class="badge {% if eleve.genre == 'F' %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} small">
                                                     {{ 'Fille' if eleve.genre == 'F' else 'Garçon' }}
                                                 </span>
-                                                {% if eleve.statut == 'actif' %}
+                                                {% if el_insc and el_insc.statut == 'preinscrit' %}
+                                                <span class="badge border" style="background-color: #f3e8ff; color: #6b21a8; border-color: #d8b4fe !important; font-size: 0.72rem;">
+                                                    <i class="fas fa-clock-rotate-left me-1"></i>Préinscrit (En attente d'acompte)
+                                                </span>
+                                                {% elif el_insc and el_insc.statut == 'inscrit' %}
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle small d-none d-sm-inline-block">Inscrit</span>
+                                                {% elif eleve.statut == 'actif' %}
                                                 <span class="badge bg-success-subtle text-success border border-success-subtle small d-none d-sm-inline-block">Actif</span>
                                                 {% endif %}
                                             </div>
@@ -586,11 +611,11 @@ document.addEventListener('DOMContentLoaded', () => {
         btnClear.classList.toggle('d-none', !query);
 
         // Synchronisation de l'URL pour persistance
-        const params = new URLSearchParams();
-        if (query) params.set('search', query);
-        if (selectedNiveau && selectedNiveau !== 'all') params.set('niveau', selectedNiveau);
-        if (selectedClass && selectedClass !== 'all') params.set('classe_id', selectedClass);
-        if (selectedGenre && selectedGenre !== 'all') params.set('genre', selectedGenre);
+        const params = new URLSearchParams(window.location.search);
+        if (query) params.set('search', query); else params.delete('search');
+        if (selectedNiveau && selectedNiveau !== 'all') params.set('niveau', selectedNiveau); else params.delete('niveau');
+        if (selectedClass && selectedClass !== 'all') params.set('classe_id', selectedClass); else params.delete('classe_id');
+        if (selectedGenre && selectedGenre !== 'all') params.set('genre', selectedGenre); else params.delete('genre');
         const cleanUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
         window.history.replaceState({}, '', cleanUrl);
 

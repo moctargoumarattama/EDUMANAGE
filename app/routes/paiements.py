@@ -98,7 +98,7 @@ def paiements():
     form.eleve_id.choices = [
         (
             ins.eleve_id,
-            f"{ins.eleve.prenom} {ins.eleve.nom} ({ins.classe.nom if ins.classe else 'Sans classe'})"
+            f"{ins.eleve.prenom} {ins.eleve.nom} ({ins.classe.nom if ins.classe else 'Sans classe'}{' - Préinscrit' if ins.statut == 'preinscrit' else ''})"
         )
         for ins in inscriptions_annee if ins.eleve
     ]
@@ -134,7 +134,10 @@ def paiements():
 
         try:
             db.session.commit()
-            flash("Paiement enregistré avec succès !", "success")
+            if getattr(paiement, "inscription_confirmee", False):
+                flash("Paiement enregistré avec succès ! Inscription confirmée automatiquement suite à la réception du paiement.", "success")
+            else:
+                flash("Paiement enregistré avec succès !", "success")
             return redirect(context_url)
         except Exception as e:
             db.session.rollback()

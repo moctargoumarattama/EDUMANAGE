@@ -113,7 +113,7 @@ def preparer_activation_annee(ecole_id, annee_id):
 
     for el in eleves_ecole:
         insc = inscriptions_cible.get(el.id)
-        if insc and insc.statut in ("inscrit", "actif") and insc.classe_id:
+        if insc and insc.statut in ("inscrit", "preinscrit", "actif") and insc.classe_id:
             nb_synchronises += 1
             insc_s = inscriptions_source.get(el.id)
             if not insc_s:
@@ -141,11 +141,11 @@ def preparer_activation_annee(ecole_id, annee_id):
 
 def resynchroniser_classes_eleves_annee_active(ecole_id, annee_active_id):
     """
-    Met ? jour le cache Eleve.classe_id pour tous les élèves de l'établissement
+    Met à jour le cache Eleve.classe_id pour tous les élèves de l'établissement
     en fonction de leurs inscriptions dans l'année scolaire désormais active.
 
     Règles :
-      - Si l'élève possède une Inscription active (statut == 'inscrit') avec classe_id :
+      - Si l'élève possède une Inscription active (statut == 'inscrit' ou 'preinscrit') avec classe_id :
           eleve.classe_id = inscription.classe_id
       - Sinon (aucune inscription dans l'année active, ou inscription sortie/transférée/diplômée) :
           eleve.classe_id = None
@@ -165,9 +165,11 @@ def resynchroniser_classes_eleves_annee_active(ecole_id, annee_active_id):
 
     for el in eleves_ecole:
         insc = inscriptions_annee.get(el.id)
-        if insc and insc.statut == "inscrit" and insc.classe_id:
+        if insc and insc.statut in ("inscrit", "preinscrit", "actif") and insc.classe_id:
+            el.classe_id = insc.classe_id
             nb_synchronises += 1
         else:
+            el.classe_id = None
             nb_sans_classe += 1
 
     db.session.flush()

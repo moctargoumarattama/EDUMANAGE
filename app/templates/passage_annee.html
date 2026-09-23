@@ -272,7 +272,14 @@
                             </td>
                             <td>
                                 {% if item.est_traite %}
-                                    <span class="text-success fw-semibold small">{{ item.detail_statut }}</span>
+                                    <div class="d-flex flex-column gap-1">
+                                        <span class="{% if item.inscription_cible and item.inscription_cible.statut == 'preinscrit' %}text-primary{% else %}text-success{% endif %} fw-semibold small">{{ item.detail_statut }}</span>
+                                        {% if item.inscription_cible and item.inscription_cible.statut == 'preinscrit' %}
+                                            <span class="badge border" style="background-color: #f3e8ff; color: #6b21a8; border-color: #d8b4fe !important; font-size: 0.72rem; width: fit-content;">
+                                                <i class="fas fa-clock-rotate-left me-1"></i>Préinscrit (En attente d'acompte)
+                                            </span>
+                                        {% endif %}
+                                    </div>
                                 {% else %}
                                     <span class="text-muted small">En attente de décision</span>
                                 {% endif %}

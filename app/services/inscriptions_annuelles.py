@@ -5,7 +5,7 @@ from app.models import AnneeScolaire, Classe, Eleve, Inscription
 from app.services.classes_annuelles import classe_est_ouverte
 
 
-STATUTS_INSCRIPTION = {"inscrit", "termine", "sorti", "transfere", "diplome"}
+STATUTS_INSCRIPTION = {"preinscrit", "inscrit", "termine", "sorti", "transfere", "diplome"}
 DECISIONS_FIN_ANNEE = {"passage", "redoublement", "transfert", "sortie", "fin_cycle", "diplome"}
 
 
@@ -64,15 +64,18 @@ def _sync_classe_active(eleve, annee, classe):
     pass
 
 
-def creer_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id, statut="inscrit", sync_active=True, frais_annuels=None, allow_archived=False):
-    if statut not in STATUTS_INSCRIPTION:
-        return None, "Statut d'inscription invalide."
-
+def creer_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id, statut=None, sync_active=True, frais_annuels=None, allow_archived=False):
     eleve, annee, classe, error = _validate_inscription_context(
         ecole_id, eleve_id, annee_scolaire_id, classe_id, allow_archived=allow_archived
     )
     if error:
         return None, error
+
+    if statut is None:
+        statut = "preinscrit" if annee.statut == "planifiee" else "inscrit"
+
+    if statut not in STATUTS_INSCRIPTION:
+        return None, "Statut d'inscription invalide."
 
     existing = Inscription.query.filter_by(
         ecole_id=ecole_id,
