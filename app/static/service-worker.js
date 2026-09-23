@@ -1,17 +1,20 @@
 // static/service-worker.js - KLASORA PWA Service Worker
-const CACHE_VERSION = 'klasora-static-v11';
+const CACHE_NAME = 'klasora-cache-v14';
+const CACHE_VERSION = CACHE_NAME;
 const OFFLINE_URL = '/offline';
 
 const PRECACHE_ASSETS = [
     OFFLINE_URL,
     '/manifest.json',
     '/static/manifest.json',
-    '/static/css/style.css?v=10',
-    '/static/js/db.js',
-    '/static/js/offline-manager.js',
-    '/static/js/offline-forms.js',
-    '/static/js/pwa.js',
-    '/static/js/main.js',
+    '/static/css/style.css?v=14',
+    '/static/js/db.js?v=14',
+    '/static/js/offline-manager.js?v=14',
+    '/static/js/offline-forms.js?v=14',
+    '/static/js/pwa.js?v=14',
+    '/static/js/main.js?v=14',
+    '/static/js/klasora-ui.js?v=14',
+    '/static/js/live-filters.js?v=14',
     '/static/img/logo-klasora.png',
     '/static/img/icons/icon-192x192.png',
     '/static/img/icons/icon-512x512.png',
@@ -23,7 +26,7 @@ const PRECACHE_ASSETS = [
 
 self.addEventListener('install', event => {
     event.waitUntil(
-        caches.open(CACHE_VERSION)
+        caches.open(CACHE_NAME)
             .then(cache => cache.addAll(PRECACHE_ASSETS.map(url => new Request(url, { cache: 'reload' }))))
             .catch(err => {
                 console.warn('[SW] Pre-cache partiel:', err);
@@ -33,13 +36,13 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-    const allowedCaches = new Set([CACHE_VERSION]);
+    const allowedCaches = new Set([CACHE_NAME]);
     event.waitUntil(
         caches.keys()
             .then(cacheNames => Promise.all(
                 cacheNames.map(cacheName => {
-                    if (cacheName.startsWith('klasora-pages-') || (cacheName.startsWith('klasora-') && !allowedCaches.has(cacheName))) {
-                        console.log('[SW] Suppression ancien cache:', cacheName);
+                    if (!allowedCaches.has(cacheName)) {
+                        console.log('[SW] Purge ancien cache obsolète:', cacheName);
                         return caches.delete(cacheName);
                     }
                     return Promise.resolve();

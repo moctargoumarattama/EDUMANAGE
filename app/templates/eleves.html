@@ -363,12 +363,13 @@
                                                     </li>
                                                     <li><hr class="dropdown-divider my-1"></li>
                                                     <li>
-                                                        <form method="post" action="{{ url_for('main.supprimer_eleve', id=eleve.id) }}" data-klasora-form data-klasora-ajax="true" data-remove-target="#eleve-card-{{ eleve.id }}" data-confirm="Supprimer cet élève ?" data-loading="Suppression...">
-                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                            <button type="submit" class="dropdown-item py-2 small text-danger">
-                                                                <i class="fas fa-trash-alt me-2"></i>Supprimer
-                                                            </button>
-                                                        </form>
+                                                        <button type="button" class="dropdown-item py-2 small text-danger btn-supprimer-eleve"
+                                                                data-bs-toggle="modal" data-bs-target="#modalSupprimerEleve"
+                                                                data-id="{{ eleve.id }}"
+                                                                data-nom="{{ eleve.prenom }} {{ eleve.nom }}"
+                                                                data-action="{{ url_for('main.supprimer_eleve', id=eleve.id) }}">
+                                                            <i class="fas fa-trash-alt me-2"></i>Supprimer
+                                                        </button>
                                                     </li>
                                                 </ul>
                                             </div>
@@ -423,12 +424,14 @@
                                        title="Modifier les données de l'élève">
                                         <i class="fas fa-edit me-1"></i>Modifier
                                     </a>
-                                    <form method="post" action="{{ url_for('main.supprimer_eleve', id=eleve.id) }}" class="d-none d-md-inline" data-klasora-form data-klasora-ajax="true" data-remove-target="#eleve-card-{{ eleve.id }}" data-confirm="Supprimer cet élève ?" data-loading="Suppression...">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <button type="submit" class="student-action-btn btn btn-sm btn-outline-danger" title="Supprimer l'élève">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </button>
-                                    </form>
+                                    <button type="button" class="student-action-btn btn btn-sm btn-outline-danger d-none d-md-inline-flex align-items-center justify-content-center btn-supprimer-eleve"
+                                            data-bs-toggle="modal" data-bs-target="#modalSupprimerEleve"
+                                            data-id="{{ eleve.id }}"
+                                            data-nom="{{ eleve.prenom }} {{ eleve.nom }}"
+                                            data-action="{{ url_for('main.supprimer_eleve', id=eleve.id) }}"
+                                            title="Supprimer l'élève">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
                                     {% endif %}
                                 </div>
                             </div>
@@ -479,11 +482,66 @@
             </button>
         </div>
     </div>
+    <!-- Modale unique et dynamique de confirmation de suppression d'élève (allègement DOM) -->
+    <div class="modal fade" id="modalSupprimerEleve" tabindex="-1" aria-labelledby="modalSupprimerEleveLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header border-bottom py-2.5 px-3 bg-danger-subtle text-danger">
+                    <h6 class="modal-title fw-bold mb-0" id="modalSupprimerEleveLabel">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Supprimer l'élève
+                    </h6>
+                    <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body p-3 text-center">
+                    <p class="mb-1 text-muted small">Êtes-vous certain de vouloir supprimer l'élève :</p>
+                    <h6 class="fw-bold text-dark mb-2" id="modalDeleteEleveNom">--</h6>
+                    <p class="text-danger small mb-0"><i class="fas fa-info-circle me-1"></i>Cette action supprimera ses inscriptions et données associées.</p>
+                </div>
+                <div class="modal-footer border-top p-2 bg-light d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary flex-fill rounded-pill" data-bs-dismiss="modal">Annuler</button>
+                    <form id="modalDeleteEleveForm" method="post" action="#" data-klasora-form data-klasora-ajax="true" data-remove-target="" data-loading="Suppression..." class="flex-fill m-0">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-danger w-100 rounded-pill">
+                            <i class="fas fa-trash-alt me-1"></i>Supprimer
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
 // Recherche live et filtres réactifs KLASORA Phase 5F
 document.addEventListener('DOMContentLoaded', () => {
+    // Gestionnaire de la modale dynamique unique de suppression d'élève
+    const modalSupprimerEleve = document.getElementById('modalSupprimerEleve');
+    if (modalSupprimerEleve) {
+        modalSupprimerEleve.addEventListener('show.bs.modal', (event) => {
+            const button = event.relatedTarget;
+            if (!button) return;
+            const eleveId = button.getAttribute('data-id');
+            const eleveNom = button.getAttribute('data-nom');
+            const eleveAction = button.getAttribute('data-action');
+            const nameEl = document.getElementById('modalDeleteEleveNom');
+            const formEl = document.getElementById('modalDeleteEleveForm');
+            if (nameEl) nameEl.textContent = eleveNom || 'cet élève';
+            if (formEl && eleveAction) {
+                formEl.action = eleveAction;
+                formEl.setAttribute('data-remove-target', `#eleve-card-${eleveId}`);
+            }
+        });
+
+        const deleteForm = document.getElementById('modalDeleteEleveForm');
+        if (deleteForm) {
+            deleteForm.addEventListener('klasora:success', () => {
+                const bsModal = bootstrap.Modal.getInstance(modalSupprimerEleve);
+                if (bsModal) {
+                    bsModal.hide();
+                }
+            });
+        }
+    }
     const searchInput = document.getElementById('searchStudentInput');
     const btnClear = document.getElementById('btnClearStudentSearch');
     const niveauSelect = document.getElementById('selectNiveauFilter');
