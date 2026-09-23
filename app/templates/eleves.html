@@ -211,7 +211,7 @@
                 <div class="col-12 col-md-8 col-lg-9 collapse d-md-block" id="mobileFiltersCollapse">
                     <div class="row g-2 align-items-center pt-2 pt-md-0">
                         <!-- Filtre par niveau -->
-                        <div class="col-6 col-md-3 col-lg-3">
+                        <div class="col-6 col-md-4 col-lg-3">
                             <select class="form-select form-select-sm" id="selectNiveauFilter">
                                 <option value="all">Tous niveaux</option>
                                 {% for niv in niveaux_annee %}
@@ -220,8 +220,8 @@
                             </select>
                         </div>
 
-                        <!-- Sélecteur de classe -->
-                        <div class="col-6 col-md-3 col-lg-3">
+                        <!-- Sélecteur de classe (Masqué à la demande, conservé pour la logique JS des chips) -->
+                        <div class="d-none">
                             <select class="form-select form-select-sm" id="selectClassFilter">
                                 <option value="all">Toutes classes</option>
                                 {% for c in classes %}
@@ -231,7 +231,7 @@
                         </div>
 
                         <!-- Filtre par genre -->
-                        <div class="col-6 col-md-2 col-lg-2">
+                        <div class="col-6 col-md-4 col-lg-3">
                             <select class="form-select form-select-sm" id="selectGenreFilter">
                                 <option value="all">Tous genres</option>
                                 <option value="M" {% if genre == 'M' %}selected{% endif %}>Garçons (M)</option>

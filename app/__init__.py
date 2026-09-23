@@ -144,6 +144,9 @@ def create_app(config_class=None):
         app.register_blueprint(api_sync)
         from .admin import admin_bp
         app.register_blueprint(admin_bp)
+        from .routes.assistant import assistant_bp
+        app.register_blueprint(assistant_bp)
+        csrf.exempt(assistant_bp)
 
         # Middleware global (maintenance, auto-backup, etc.)
         from .middleware import before_request_handler, after_request_handler

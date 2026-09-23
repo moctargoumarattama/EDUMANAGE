@@ -3,10 +3,10 @@
 {% block title %}Rapports & Statistiques par Classe - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container py-4 reports-page">
+<div class="container-fluid px-2 px-md-3 px-lg-4 py-4 reports-page">
 
     <!-- Fil d'Ariane & En-tête -->
-    <nav aria-label="breadcrumb" class="mb-3">
+    <nav aria-label="breadcrumb" class="mb-3 d-print-none">
         <ol class="breadcrumb mb-0">
             <li class="breadcrumb-item">
                 <a href="{{ url_for('main.index') }}" class="text-decoration-none">
@@ -23,89 +23,90 @@
         <p class="mb-0 text-muted small">Rapport & Statistiques — Année scolaire : {{ annee_consultee.nom if annee_consultee else '' }}</p>
     </div>
 
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 pb-2 border-bottom">
-        <div>
-            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
-                <h1 class="h3 fw-bold text-gray-900 mb-0">
-                    <i class="fas fa-chart-pie text-primary me-2"></i>Rapports & Statistiques par Classe
-                </h1>
-                {% if annee_consultee %}
-                <span class="badge bg-light text-dark border">
-                    <i class="fas fa-calendar-alt me-1 text-primary"></i>{{ annee_consultee.nom }}
-                    {% if annee_consultee.statut == 'active' %}
-                    <span class="badge bg-success ms-1">ACTIVE</span>
-                    {% elif annee_consultee.statut == 'planifiee' %}
-                    <span class="badge bg-info text-dark ms-1">PLANIFIÉE</span>
-                    {% elif annee_consultee.statut == 'archivee' %}
-                    <span class="badge bg-secondary ms-1">ARCHIVÉE</span>
+    <!-- En-tête Principal de Page -->
+    <div class="card border-0 shadow-sm rounded-4 p-3 p-md-4 mb-3 mb-md-4 bg-white d-print-none">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                    <div class="p-2 bg-primary bg-opacity-10 text-primary rounded-3 d-inline-flex align-items-center justify-content-center">
+                        <i class="fas fa-chart-pie fa-lg"></i>
+                    </div>
+                    <h1 class="h4 h3-md fw-bold text-gray-900 mb-0">
+                        Rapports & Statistiques par Classe
+                    </h1>
+                    {% if annee_consultee %}
+                    <span class="badge bg-light text-dark border">
+                        <i class="fas fa-calendar-alt me-1 text-primary"></i>{{ annee_consultee.nom }}
+                        {% if annee_consultee.statut == 'active' %}
+                        <span class="badge bg-success ms-1">ACTIVE</span>
+                        {% elif annee_consultee.statut == 'planifiee' %}
+                        <span class="badge bg-info text-dark ms-1">PLANIFIÉE</span>
+                        {% elif annee_consultee.statut == 'archivee' %}
+                        <span class="badge bg-secondary ms-1">ARCHIVÉE</span>
+                        {% endif %}
+                    </span>
+                    <a href="{{ url_for('main.gestion_annees') }}" class="small text-decoration-none">Changer</a>
                     {% endif %}
-                </span>
-                <a href="{{ url_for('main.gestion_annees') }}" class="small text-decoration-none">Changer</a>
-                {% endif %}
-            </div>
-            <p class="text-muted small mb-0">
-                Vue d'ensemble analytique des performances académiques et analyse comparative de l'assiduité par classe.
-            </p>
-        </div>
-        <div class="d-flex align-items-center flex-wrap gap-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary js-print-page" title="Imprimer ce rapport">
-                <i class="fas fa-print me-1"></i>Imprimer
-            </button>
-            <a href="{{ url_for('main.export_rapports_pdf') }}" class="btn btn-sm btn-outline-danger">
-                <i class="fas fa-file-pdf me-1"></i>PDF
-            </a>
-            <a href="{{ url_for('main.export_rapports_excel') }}" class="btn btn-sm btn-outline-success">
-                <i class="fas fa-file-excel me-1"></i>Excel
-            </a>
-            <a href="{{ url_for('main.liste_classes') }}" class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-chalkboard me-1"></i>Gestion des Classes
-            </a>
-            <a href="{{ url_for('main.absences') }}" class="btn btn-sm btn-outline-danger">
-                <i class="fas fa-user-clock me-1"></i>Gestion des Absences
-            </a>
-        </div>
-    </div>
-
-    <!-- 3 Cartes d'Indicateurs Clés Globaux (KPIs) -->
-    <div class="row g-3 mb-4">
-        <div class="col-12 col-md-4">
-            <div class="card border-0 shadow-sm h-100 p-3 bg-white rounded-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-3 p-3 bg-primary-subtle text-primary fs-4">
-                        <i class="fas fa-user-graduate"></i>
-                    </div>
-                    <div>
-                        <h3 class="h4 fw-bold mb-0 text-gray-800">{{ statistiques.total_eleves }}</h3>
-                        <div class="text-muted small">Total Élèves Inscrits</div>
-                    </div>
                 </div>
+                <p class="text-muted small mb-0">
+                    Vue d'ensemble analytique des performances académiques et analyse comparative de l'assiduité par classe.
+                </p>
             </div>
-        </div>
 
-        <div class="col-12 col-md-4">
-            <div class="card border-0 shadow-sm h-100 p-3 bg-white rounded-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-3 p-3 bg-info-subtle text-info fs-4">
-                        <i class="fas fa-chalkboard-teacher"></i>
-                    </div>
-                    <div>
-                        <h3 class="h4 fw-bold mb-0 text-gray-800">{{ statistiques.total_classes }}</h3>
-                        <div class="text-muted small">Classes Analysées</div>
-                    </div>
-                </div>
+            <!-- Actions sur PC -->
+            <div class="d-none d-md-flex align-items-center gap-2 flex-wrap">
+                <button type="button" class="btn btn-sm btn-outline-secondary js-print-page rounded-pill shadow-xs" title="Imprimer ce rapport">
+                    <i class="fas fa-print me-1"></i>Imprimer
+                </button>
+                <a href="{{ url_for('main.export_rapports_pdf') }}" class="btn btn-sm btn-outline-danger rounded-pill shadow-xs">
+                    <i class="fas fa-file-pdf me-1"></i>PDF
+                </a>
+                <a href="{{ url_for('main.export_rapports_excel') }}" class="btn btn-sm btn-outline-success rounded-pill shadow-xs">
+                    <i class="fas fa-file-excel me-1"></i>Excel
+                </a>
+                <a href="{{ url_for('main.liste_classes') }}" class="btn btn-sm btn-outline-primary rounded-pill shadow-xs">
+                    <i class="fas fa-chalkboard me-1"></i>Classes
+                </a>
+                <a href="{{ url_for('main.absences') }}" class="btn btn-sm btn-outline-danger rounded-pill shadow-xs">
+                    <i class="fas fa-user-clock me-1"></i>Absences
+                </a>
             </div>
-        </div>
 
-        <div class="col-12 col-md-4">
-            <div class="card border-0 shadow-sm h-100 p-3 bg-white rounded-3">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-3 p-3 {% if statistiques.total_absences > 0 %}bg-danger-subtle text-danger{% else %}bg-success-subtle text-success{% endif %} fs-4">
-                        <i class="fas fa-user-clock"></i>
-                    </div>
-                    <div>
-                        <h3 class="h4 fw-bold mb-0 text-gray-800">{{ statistiques.total_absences }}</h3>
-                        <div class="text-muted small">
-                            Total Absences ({{ statistiques.absences_non_justifiees }} injustifiées)
+            <!-- Actions sur Mobile (Dépliable fluide & 100% fiable) -->
+            <div class="d-md-none w-100">
+                <button type="button" class="btn btn-primary rounded-pill w-100 py-2 fw-semibold shadow-sm d-flex align-items-center justify-content-center gap-2" id="btnToggleMobileActions" data-bs-toggle="collapse" data-bs-target="#mobileActionsCollapse" aria-expanded="false" aria-controls="mobileActionsCollapse">
+                    <i class="fas fa-ellipsis-h"></i>
+                    <span>Actions & Exports</span>
+                    <i class="fas fa-chevron-down ms-1" id="iconMobileActions"></i>
+                </button>
+                <div class="collapse mt-2" id="mobileActionsCollapse">
+                    <div class="card border-0 shadow-sm rounded-4 p-2 bg-light">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <button type="button" class="btn btn-sm btn-outline-secondary js-print-page w-100 py-2 rounded-3 text-start d-flex align-items-center gap-2">
+                                    <i class="fas fa-print text-secondary"></i><span>Imprimer</span>
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <a href="{{ url_for('main.export_rapports_pdf') }}" class="btn btn-sm btn-outline-danger w-100 py-2 rounded-3 text-start d-flex align-items-center gap-2">
+                                    <i class="fas fa-file-pdf text-danger"></i><span>Export PDF</span>
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="{{ url_for('main.export_rapports_excel') }}" class="btn btn-sm btn-outline-success w-100 py-2 rounded-3 text-start d-flex align-items-center gap-2">
+                                    <i class="fas fa-file-excel text-success"></i><span>Export Excel</span>
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="{{ url_for('main.liste_classes') }}" class="btn btn-sm btn-outline-primary w-100 py-2 rounded-3 text-start d-flex align-items-center gap-2">
+                                    <i class="fas fa-chalkboard text-primary"></i><span>Classes</span>
+                                </a>
+                            </div>
+                            <div class="col-12">
+                                <a href="{{ url_for('main.absences') }}" class="btn btn-sm btn-outline-danger w-100 py-2 rounded-3 text-start d-flex align-items-center gap-2">
+                                    <i class="fas fa-user-clock text-danger"></i><span>Gestion des Absences</span>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -113,73 +114,119 @@
         </div>
     </div>
 
-    <!-- Section Spotlight / Podium Comparatif Inter-Classes -->
-    <div class="row g-3 mb-4">
+    <!-- 3 Cartes d'Indicateurs Clés Globaux (KPIs) - Ultra compacts sur Mobile -->
+    <div class="row g-2 g-md-3 mb-3 mb-md-4">
+        <div class="col-4">
+            <div class="card border-0 shadow-sm h-100 p-2 p-md-3 bg-white rounded-4 text-center text-md-start">
+                <div class="d-flex flex-column flex-md-row align-items-center gap-2 gap-md-3">
+                    <div class="rounded-3 p-2 p-md-3 bg-primary bg-opacity-10 text-primary fs-5 fs-md-4 flex-shrink-0">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="h5 h4-md fw-bold mb-0 text-gray-800">{{ statistiques.total_eleves }}</h3>
+                        <div class="text-muted small text-truncate" style="font-size: 0.75rem;">Total Élèves</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-4">
+            <div class="card border-0 shadow-sm h-100 p-2 p-md-3 bg-white rounded-4 text-center text-md-start">
+                <div class="d-flex flex-column flex-md-row align-items-center gap-2 gap-md-3">
+                    <div class="rounded-3 p-2 p-md-3 bg-info bg-opacity-10 text-info fs-5 fs-md-4 flex-shrink-0">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="h5 h4-md fw-bold mb-0 text-gray-800">{{ statistiques.total_classes }}</h3>
+                        <div class="text-muted small text-truncate" style="font-size: 0.75rem;">Classes</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-4">
+            <div class="card border-0 shadow-sm h-100 p-2 p-md-3 bg-white rounded-4 text-center text-md-start">
+                <div class="d-flex flex-column flex-md-row align-items-center gap-2 gap-md-3">
+                    <div class="rounded-3 p-2 p-md-3 {% if statistiques.total_absences > 0 %}bg-danger bg-opacity-10 text-danger{% else %}bg-success bg-opacity-10 text-success{% endif %} fs-5 fs-md-4 flex-shrink-0">
+                        <i class="fas fa-user-clock"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 class="h5 h4-md fw-bold mb-0 text-gray-800">{{ statistiques.total_absences }}</h3>
+                        <div class="text-muted small text-truncate" style="font-size: 0.75rem;">
+                            Absences <span class="d-none d-sm-inline">({{ statistiques.absences_non_justifiees }} NJ)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section Spotlight / Podium Comparatif Inter-Classes (3 colonnes équilibrées) -->
+    <div class="row g-2 g-md-3 mb-3 mb-md-4">
         <!-- 1. Alerte Majeure : Classe avec le plus d'absences -->
-        <div class="col-12 col-lg-5">
-            <div class="rapport-spotlight-card alert-absent">
+        <div class="col-12 col-lg-4">
+            <div class="rapport-spotlight-card alert-absent rounded-4 p-3 h-100">
                 <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
                     <div class="d-flex align-items-center gap-2">
                         <div class="rapport-spotlight-icon bg-danger text-white">
                             <i class="fas fa-exclamation-triangle"></i>
                         </div>
                         <div>
-                            <span class="badge bg-danger text-white px-2 py-1 small fw-bold">
+                            <span class="badge bg-danger text-white px-2 py-0.5 small fw-bold">
                                 ALERTE ABSENTÉISME
                             </span>
-                            <h2 class="h5 fw-bold mb-0 mt-1 text-danger-emphasis">
+                            <h2 class="h6 fw-bold mb-0 mt-1 text-danger-emphasis">
                                 Classe la plus touchée
                             </h2>
                         </div>
                     </div>
                     {% if classe_plus_absente %}
                     <span class="badge badge-pulse-danger px-2 py-1 small fw-semibold">
-                        {{ classe_plus_absente.total_absences }} Absences
+                        {{ classe_plus_absente.total_absences }} Abs
                     </span>
                     {% endif %}
                 </div>
 
                 {% if classe_plus_absente %}
-                <div class="mt-3">
+                <div class="mt-2">
                     <div class="d-flex align-items-baseline gap-2">
-                        <h3 class="h4 fw-bolder text-gray-900 mb-0">{{ classe_plus_absente.nom }}</h3>
+                        <h3 class="h5 fw-bold text-gray-900 mb-0">{{ classe_plus_absente.nom }}</h3>
                         {% if classe_plus_absente.niveau %}
                         <span class="badge bg-light text-secondary border small">{{ classe_plus_absente.niveau }}</span>
                         {% endif %}
                     </div>
                     <p class="text-muted small mt-1 mb-2">
-                        Cette classe enregistre le volume d'absences le plus élevé de l'école (<strong>{{ classe_plus_absente.taux_absenteisme }}</strong> absences/élève en moyenne).
+                        Volume d'absences le plus élevé (<strong>{{ classe_plus_absente.taux_absenteisme }}</strong> abs/élève).
                     </p>
 
                     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 pt-2 border-top">
                         <div class="small">
-                            <span class="text-danger fw-bold"><i class="fas fa-times-circle me-1"></i>{{ classe_plus_absente.non_justifiees }}</span> injustifiées &bull; 
-                            <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i>{{ classe_plus_absente.justifiees }}</span> justifiées
+                            <span class="text-danger fw-bold"><i class="fas fa-times-circle me-1"></i>{{ classe_plus_absente.non_justifiees }}</span> NJ &bull; 
+                            <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i>{{ classe_plus_absente.justifiees }}</span> J
                         </div>
-                        <button type="button" class="btn btn-sm btn-outline-danger" data-focus-class="{{ classe_plus_absente.id }}">
-                            <i class="fas fa-eye me-1"></i>Examiner cette classe
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1" data-focus-class="{{ classe_plus_absente.id }}">
+                            <i class="fas fa-eye me-1"></i>Voir classe
                         </button>
                     </div>
                 </div>
                 {% else %}
-                <div class="py-3 text-center text-success">
-                    <i class="fas fa-check-circle fs-3 mb-2"></i>
-                    <div class="fw-bold">Assiduité Parfaite !</div>
-                    <div class="small text-muted">Aucune absence enregistrée dans tout l'établissement.</div>
+                <div class="py-2 text-center text-success">
+                    <i class="fas fa-check-circle fs-4 mb-1"></i>
+                    <div class="fw-bold small">Assiduité Parfaite !</div>
                 </div>
                 {% endif %}
             </div>
         </div>
 
         <!-- 2. Classe la plus assidue -->
-        <div class="col-12 col-sm-6 col-lg-3">
-            <div class="rapport-spotlight-card success-assiduite">
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="rapport-spotlight-card success-assiduite rounded-4 p-3 h-100">
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <div class="rapport-spotlight-icon bg-success text-white">
                         <i class="fas fa-trophy"></i>
                     </div>
                     <div>
-                        <span class="badge bg-success-subtle text-success px-2 py-1 small fw-bold">
+                        <span class="badge bg-success-subtle text-success px-2 py-0.5 small fw-bold">
                             ASSIDUITÉ EXEMPLAIRE
                         </span>
                         <h2 class="h6 fw-bold mb-0 mt-1 text-success-emphasis">
@@ -193,7 +240,7 @@
                     <div class="text-muted small mb-2">
                         Seulement <strong>{{ classe_plus_assidue.total_absences }}</strong> absence{{ 's' if classe_plus_assidue.total_absences > 1 else '' }} pour {{ classe_plus_assidue.effectif }} élève{{ 's' if classe_plus_assidue.effectif > 1 else '' }}.
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-success w-100" data-focus-class="{{ classe_plus_assidue.id }}">
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 w-100" data-focus-class="{{ classe_plus_assidue.id }}">
                         <i class="fas fa-search me-1"></i>Voir détails
                     </button>
                 </div>
@@ -205,17 +252,17 @@
 
         <!-- 3. Excellence Académique -->
         <div class="col-12 col-sm-6 col-lg-4">
-            <div class="rapport-spotlight-card primary-excellence">
+            <div class="rapport-spotlight-card primary-excellence rounded-4 p-3 h-100">
                 <div class="d-flex align-items-center gap-2 mb-2">
                     <div class="rapport-spotlight-icon bg-primary text-white">
                         <i class="fas fa-medal"></i>
                     </div>
                     <div>
-                        <span class="badge bg-primary-subtle text-primary px-2 py-1 small fw-bold">
+                        <span class="badge bg-primary-subtle text-primary px-2 py-0.5 small fw-bold">
                             EXCELLENCE ACADÉMIQUE
                         </span>
                         <h2 class="h6 fw-bold mb-0 mt-1 text-primary-emphasis">
-                            Meilleure moyenne générale
+                            Meilleure moyenne
                         </h2>
                     </div>
                 </div>
@@ -226,9 +273,9 @@
                         <span class="fs-5 fw-extrabold text-primary">{{ "%.2f"|format(classe_meilleure_moyenne.moyenne) }}/20</span>
                     </div>
                     <div class="text-muted small mb-2">
-                        Classe en tête des résultats scolaires de l'établissement.
+                        En tête des résultats scolaires de l'établissement.
                     </div>
-                    <button type="button" class="btn btn-sm btn-outline-primary w-100" data-focus-class="{{ classe_meilleure_moyenne.id }}">
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 w-100" data-focus-class="{{ classe_meilleure_moyenne.id }}">
                         <i class="fas fa-search me-1"></i>Voir détails
                     </button>
                 </div>
@@ -239,22 +286,22 @@
         </div>
     </div>
 
-    <!-- Graphiques Analytiques Interactifs (Chart.js) -->
-    <div class="row g-3 mb-4">
-        <!-- Graphique 1 : Absences par Classe avec highlight de la plus touchée -->
+    <!-- Graphiques Analytiques Interactifs (Chart.js) avec Section repliable -->
+    <div id="chartsSectionWrapper" class="row g-2 g-md-3 mb-3 mb-md-4">
+        <!-- Graphique 1 : Absences par Classe -->
         <div class="col-12 col-lg-7">
-            <div class="card border-0 shadow-sm h-100 bg-white rounded-3">
-                <div class="card-header bg-white border-bottom py-3 report-chart-header">
+            <div class="card border-0 shadow-sm h-100 bg-white rounded-4 overflow-hidden">
+                <div class="card-header bg-white border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <div class="d-flex align-items-center gap-2">
                         <i class="fas fa-user-clock text-danger"></i>
-                        <span class="fw-bold text-gray-800">Comparatif des Absences par Classe</span>
+                        <span class="fw-bold text-gray-800 small">Comparatif des Absences</span>
                     </div>
-                    <span class="badge bg-light text-muted border small">
-                        <i class="fas fa-square text-danger me-1"></i>En rouge : classe la plus touchée
+                    <span class="badge bg-light text-muted border small" style="font-size: 0.72rem;">
+                        <i class="fas fa-square text-danger me-1"></i>Rouge = plus touchée
                     </span>
                 </div>
-                <div class="card-body p-3">
-                    <div class="report-chart-box">
+                <div class="card-body p-2 p-md-3">
+                    <div class="report-chart-box" style="position: relative; height: 260px;">
                         <canvas id="chartAbsencesClasses"></canvas>
                     </div>
                 </div>
@@ -263,16 +310,16 @@
 
         <!-- Graphique 2 : Moyenne Générale par Classe -->
         <div class="col-12 col-lg-5">
-            <div class="card border-0 shadow-sm h-100 bg-white rounded-3">
-                <div class="card-header bg-white border-bottom py-3 report-chart-header">
+            <div class="card border-0 shadow-sm h-100 bg-white rounded-4 overflow-hidden">
+                <div class="card-header bg-white border-bottom py-2.5 px-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <div class="d-flex align-items-center gap-2">
                         <i class="fas fa-chart-line text-primary"></i>
-                        <span class="fw-bold text-gray-800">Moyenne Académique par Classe</span>
+                        <span class="fw-bold text-gray-800 small">Moyenne Académique</span>
                     </div>
-                    <span class="badge bg-light text-muted border small">Seuil de réussite : 10/20</span>
+                    <span class="badge bg-light text-muted border small" style="font-size: 0.72rem;">Seuil: 10/20</span>
                 </div>
-                <div class="card-body p-3">
-                    <div class="report-chart-box">
+                <div class="card-body p-2 p-md-3">
+                    <div class="report-chart-box" style="position: relative; height: 260px;">
                         <canvas id="chartMoyennesClasses"></canvas>
                     </div>
                 </div>
@@ -280,42 +327,67 @@
         </div>
     </div>
 
-    <!-- Barre d'outils et de recherche réactive -->
-    <div class="card border-0 shadow-sm mb-4 bg-white rounded-3">
+    <!-- Barre de puces (Chips) pour sélection instantanée de classe ou cycle -->
+    <div class="class-chips-bar-wrapper mb-3 d-print-none" id="classChipsBar">
+        <div class="class-chips-container d-flex align-items-center gap-2 overflow-x-auto pb-2" style="scrollbar-width: thin;">
+            <button type="button" class="btn btn-sm class-filter-chip active rounded-pill px-3 py-1 text-nowrap fw-semibold border shadow-sm" data-class-chip="all">
+                <i class="fas fa-th-large me-1"></i>Toutes les classes
+            </button>
+            <button type="button" class="btn btn-sm class-filter-chip rounded-pill px-3 py-1 text-nowrap border bg-white text-dark shadow-sm" data-cycle-chip="primaire">
+                <i class="fas fa-child me-1 text-success"></i>Primaire
+            </button>
+            <button type="button" class="btn btn-sm class-filter-chip rounded-pill px-3 py-1 text-nowrap border bg-white text-dark shadow-sm" data-cycle-chip="college">
+                <i class="fas fa-user-graduate me-1 text-primary"></i>Collège
+            </button>
+            <button type="button" class="btn btn-sm class-filter-chip rounded-pill px-3 py-1 text-nowrap border bg-white text-dark shadow-sm" data-cycle-chip="lycee">
+                <i class="fas fa-university me-1 text-purple"></i>Lycée
+            </button>
+
+            {% for cd in classes_data %}
+                <button type="button" class="btn btn-sm class-filter-chip rounded-pill px-3 py-1 text-nowrap border bg-white text-dark shadow-sm" data-class-chip="{{ cd.id }}">
+                    {{ cd.nom }} ({{ cd.effectif }})
+                </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Barre d'outils et de recherche réactive (Style Standardisé KLASORA) -->
+    <div class="card course-toolbar-card border-0 shadow-sm rounded-4 mb-4 d-print-none">
         <div class="card-body p-3">
-            <div class="row g-3 align-items-center">
+            <div class="row g-2 align-items-center">
                 <!-- Champ de recherche live -->
                 <div class="col-12 col-md-5">
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-light border-end-0 text-muted">
-                            <i class="fas fa-search"></i>
-                        </span>
-                        <input type="text" class="form-control border-start-0 ps-0" id="searchClassInput"
-                               placeholder="Rechercher une classe, un niveau, une salle...">
-                        <button class="btn btn-outline-secondary border-start-0 d-none" type="button" id="btnClearClassSearch">
+                    <div class="course-search-box">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" class="form-control" id="searchClassInput"
+                               placeholder="Rechercher une classe, un niveau, une salle..." autocomplete="off">
+                        <button class="clear-btn d-none" type="button" id="btnClearClassSearch" title="Effacer">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- Sélecteur de classe pour isoler une classe -->
-                <div class="col-12 col-md-4">
-                    <select class="form-select form-select-sm" id="selectClassFilter">
+                <!-- Sélecteur rapide de classe (Desktop & Mobile) -->
+                <div class="col-12 col-sm-6 col-md-3">
+                    <select class="form-select form-select-sm rounded-pill" id="selectClassFilter">
                         <option value="all">Toutes les classes (Vue d'ensemble)</option>
                         {% for cd in classes_data %}
-                        <option value="{{ cd.id }}">{{ cd.nom }} ({{ cd.effectif }} élèves - {{ cd.total_absences }} abs)</option>
+                        <option value="{{ cd.id }}">{{ cd.nom }} ({{ cd.effectif }} él. - {{ cd.total_absences }} abs)</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <!-- Boutons Tout Déplier / Tout Replier -->
-                <div class="col-12 col-md-3 text-md-end">
+                <!-- Boutons d'actions rapides (Graphiques, Déplier / Replier) -->
+                <div class="col-12 col-sm-6 col-md-4 d-flex justify-content-sm-end gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1.5 shadow-xs" id="btnToggleCharts">
+                        <i class="fas fa-chart-bar me-1"></i><span id="textToggleCharts">Graphiques</span>
+                    </button>
                     <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-outline-secondary" id="btnExpandAll" title="Déplier toutes les classes">
-                            <i class="fas fa-chevron-down me-1"></i>Déplier tout
+                        <button type="button" class="btn btn-outline-secondary rounded-start-pill px-2.5 py-1.5 shadow-xs" id="btnExpandAll" title="Déplier tout">
+                            <i class="fas fa-expand-alt me-1"></i>Déplier
                         </button>
-                        <button type="button" class="btn btn-outline-secondary" id="btnCollapseAll" title="Replier toutes les classes">
-                            <i class="fas fa-chevron-up me-1"></i>Replier tout
+                        <button type="button" class="btn btn-outline-secondary rounded-end-pill px-2.5 py-1.5 shadow-xs" id="btnCollapseAll" title="Replier tout">
+                            <i class="fas fa-compress-alt me-1"></i>Replier
                         </button>
                     </div>
                 </div>
@@ -327,16 +399,20 @@
     <div id="classesRapportContainer">
         {% if classes_data %}
             {% for c in classes_data %}
-            <div class="rapport-class-card {% if c.is_most_absent %}is-most-absent{% endif %}" 
-                 id="class-card-{{ c.id }}"
-                 data-class-id="{{ c.id }}"
-                 data-class-nom="{{ c.nom | lower }}">
+            {% set niveau_raw = (c.niveau or c.nom) | lower %}
+            {% set cycle_type = 'primaire' if ('ci' in niveau_raw or 'cp' in niveau_raw or 'ce1' in niveau_raw or 'ce2' in niveau_raw or 'cm1' in niveau_raw or 'cm2' in niveau_raw or 'prim' in niveau_raw or 'mater' in niveau_raw) else ('college' if ('6e' in niveau_raw or '5e' in niveau_raw or '4e' in niveau_raw or '3e' in niveau_raw or 'colle' in niveau_raw) else 'lycee') %}
 
-                <!-- En-tête de la classe cliquable pour ouvrir/fermer -->
-                <div class="rapport-class-header" data-bs-toggle="collapse" 
+            <article class="rapport-class-card rounded-4 mb-3 overflow-hidden {% if c.is_most_absent %}is-most-absent{% endif %}" 
+                     id="class-card-{{ c.id }}"
+                     data-class-id="{{ c.id }}"
+                     data-class-nom="{{ c.nom | lower }}"
+                     data-cycle="{{ cycle_type }}">
+
+                <!-- En-tête de la classe cliquable pour ouvrir/fermer (Sticky Header) -->
+                <div class="rapport-class-header sticky-class-header" data-bs-toggle="collapse" 
                      data-bs-target="#collapse-class-{{ c.id }}" 
                      aria-expanded="false">
-                    <div class="d-flex align-items-center gap-3 min-w-0 flex-grow-1">
+                    <div class="d-flex align-items-center gap-2 gap-md-3 min-w-0 flex-grow-1">
                         <div class="rapport-class-avatar {% if c.is_most_absent %}is-most-absent{% endif %}">
                             {{ c.nom[:2] | upper }}
                         </div>
@@ -347,30 +423,30 @@
                                 <span class="badge bg-light text-secondary border small">{{ c.niveau }}</span>
                                 {% endif %}
                                 {% if c.salle %}
-                                <span class="badge bg-light text-muted border small"><i class="fas fa-door-open me-1"></i>Salle {{ c.salle }}</span>
+                                <span class="badge bg-light text-muted border small d-none d-sm-inline"><i class="fas fa-door-open me-1"></i>Salle {{ c.salle }}</span>
                                 {% endif %}
 
                                 {% if c.is_most_absent and c.total_absences > 0 %}
                                 <span class="badge bg-danger text-white small fw-bold">
-                                    <i class="fas fa-exclamation-circle me-1"></i>Classe la plus touchée par les absences
+                                    <i class="fas fa-exclamation-circle me-1"></i>Plus touchée
                                 </span>
                                 {% endif %}
                             </div>
 
-                            <div class="d-flex align-items-center gap-2 flex-wrap mt-1">
-                                <span class="badge bg-primary rounded-pill">
-                                    <i class="fas fa-users me-1"></i>{{ c.effectif }} élève{{ 's' if c.effectif > 1 else '' }}
+                            <div class="d-flex align-items-center gap-1.5 gap-md-2 flex-wrap mt-1">
+                                <span class="badge bg-primary rounded-pill px-2">
+                                    <i class="fas fa-users me-1"></i>{{ c.effectif }} él.
                                 </span>
-                                <span class="badge bg-light text-muted border small">
-                                    {{ c.garcons }} Garçon{{ 's' if c.garcons > 1 else '' }} &bull; {{ c.filles }} Fille{{ 's' if c.filles > 1 else '' }}
+                                <span class="badge bg-light text-muted border small d-none d-sm-inline">
+                                    {{ c.garcons }}G &bull; {{ c.filles }}F
                                 </span>
                                 {% if c.moyenne is not none %}
                                 <span class="badge {% if c.moyenne >= 12 %}bg-success-subtle text-success border border-success-subtle{% elif c.moyenne >= 10 %}bg-info-subtle text-info border border-info-subtle{% else %}bg-warning-subtle text-warning border border-warning-subtle{% endif %} small">
-                                    Moyenne : {{ "%.2f"|format(c.moyenne) }}/20
+                                    Moy : {{ "%.2f"|format(c.moyenne) }}/20
                                 </span>
                                 {% endif %}
                                 <span class="badge {% if c.total_absences > 0 %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-success-subtle text-success border border-success-subtle{% endif %} small">
-                                    <i class="fas fa-user-clock me-1"></i>{{ c.total_absences }} absence{{ 's' if c.total_absences > 1 else '' }}
+                                    <i class="fas fa-user-clock me-1"></i>{{ c.total_absences }} abs
                                 </span>
                             </div>
                         </div>
@@ -382,12 +458,12 @@
 
                 <!-- Corps de la classe avec détails analytiques -->
                 <div class="collapse" id="collapse-class-{{ c.id }}">
-                    <div class="rapport-class-body">
-                        <!-- Mini KPIs de la classe -->
-                        <div class="rapport-mini-stats">
+                    <div class="rapport-class-body p-2.5 p-md-4">
+                        <!-- Mini KPIs de la classe (Grille 2x2 propre) -->
+                        <div class="rapport-mini-stats mb-3">
                             <div class="rapport-mini-box">
                                 <span class="rapport-mini-box-label">Effectif</span>
-                                <span class="rapport-mini-box-val">{{ c.effectif }} <small class="text-muted fs-6 fw-normal">/ {{ c.capacite }} max</small></span>
+                                <span class="rapport-mini-box-val">{{ c.effectif }} <small class="text-muted fs-6 fw-normal">/ {{ c.capacite }}</small></span>
                             </div>
 
                             <div class="rapport-mini-box">
@@ -398,14 +474,14 @@
                             </div>
 
                             <div class="rapport-mini-box">
-                                <span class="rapport-mini-box-label">Absences Justifiées</span>
+                                <span class="rapport-mini-box-label">Justifiées</span>
                                 <span class="rapport-mini-box-val text-success">
                                     {{ c.justifiees }}
                                 </span>
                             </div>
 
                             <div class="rapport-mini-box">
-                                <span class="rapport-mini-box-label">Absences Injustifiées</span>
+                                <span class="rapport-mini-box-label">Injustifiées</span>
                                 <span class="rapport-mini-box-val text-danger">
                                     {{ c.non_justifiees }}
                                 </span>
@@ -416,14 +492,15 @@
                         <div class="card border rounded-3 overflow-hidden mb-3">
                             <div class="card-header bg-light py-2 px-3 d-flex align-items-center justify-content-between">
                                 <span class="small fw-bold text-gray-700">
-                                    <i class="fas fa-list-ol me-1 text-danger"></i>Élèves les plus absents de la classe {{ c.nom }}
+                                    <i class="fas fa-list-ol me-1 text-danger"></i>Élèves les plus absents
                                 </span>
-                                <span class="badge bg-white text-muted border small">{{ c.top_absents|length }} élève{{ 's' if c.top_absents|length > 1 else '' }} concerné{{ 's' if c.top_absents|length > 1 else '' }}</span>
+                                <span class="badge bg-white text-muted border small">{{ c.top_absents|length }} élève{{ 's' if c.top_absents|length > 1 else '' }}</span>
                             </div>
 
                             {% if c.top_absents %}
-                            <div class="table-responsive">
-                                <table class="rapport-top-absents-table table table-hover">
+                            <!-- 1. Version Table sur PC -->
+                            <div class="d-none d-md-block table-responsive">
+                                <table class="rapport-top-absents-table table table-hover mb-0">
                                     <thead>
                                         <tr>
                                             <th>#</th>
@@ -476,7 +553,7 @@
                                                 {% endif %}
                                             </td>
                                             <td class="text-end">
-                                                <a href="{{ url_for('main.voir_eleve', eleve_id=s.id) }}" class="btn btn-sm btn-outline-primary py-1 px-2" title="Dossier annuel complet">
+                                                <a href="{{ url_for('main.voir_eleve', eleve_id=s.id) }}" class="btn btn-sm btn-outline-primary py-1 px-2.5 rounded-pill" title="Dossier annuel complet">
                                                     <i class="fas fa-folder-open me-1"></i>Dossier
                                                 </a>
                                             </td>
@@ -485,6 +562,42 @@
                                     </tbody>
                                 </table>
                             </div>
+
+                            <!-- 2. Version Cartes fluides sur Mobile -->
+                            <div class="d-block d-md-none p-2 bg-white">
+                                <div class="d-flex flex-column gap-2">
+                                    {% for s in c.top_absents %}
+                                    <div class="p-2.5 rounded-3 border bg-light bg-opacity-50 d-flex align-items-center justify-content-between gap-2">
+                                        <div class="d-flex align-items-center gap-2 min-w-0">
+                                            <div class="report-student-avatar flex-shrink-0" style="width: 36px; height: 36px; font-size: 0.85rem;">
+                                                {{ s.prenom[:1]|upper }}{{ s.nom[:1]|upper }}
+                                            </div>
+                                            <div class="min-w-0">
+                                                <div class="fw-semibold text-dark text-truncate small">{{ s.prenom }} {{ s.nom }}</div>
+                                                <div class="d-flex align-items-center gap-1 small text-muted">
+                                                    <span class="badge {% if s.genre == 'F' %}bg-danger-subtle text-danger{% else %}bg-primary-subtle text-primary{% endif %} py-0 px-1" style="font-size: 0.7rem;">{{ 'F' if s.genre == 'F' else 'M' }}</span>
+                                                    {% if s.moyenne is not none %}
+                                                    <span>&bull; {{ "%.2f"|format(s.moyenne) }}/20</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                            <div class="text-end">
+                                                <span class="badge bg-danger text-white rounded-pill px-2 py-0.5 small fw-bold">
+                                                    {{ s.nb_absences }} abs
+                                                </span>
+                                                <div class="text-muted" style="font-size: 0.68rem;">{{ s.nb_justifiees }}J &bull; {{ s.nb_non_justifiees }}NJ</div>
+                                            </div>
+                                            <a href="{{ url_for('main.voir_eleve', eleve_id=s.id) }}" class="btn btn-sm btn-outline-primary p-1 rounded-circle" title="Dossier" style="width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;">
+                                                <i class="fas fa-chevron-right" style="font-size: 0.75rem;"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
                             {% else %}
                             <div class="p-3 text-center text-muted small bg-white">
                                 <i class="fas fa-check-circle text-success me-1"></i>Aucune absence enregistrée dans cette classe.
@@ -494,27 +607,27 @@
 
                         <!-- Actions rapides pour cette classe -->
                         <div class="d-flex align-items-center justify-content-end gap-2 flex-wrap pt-2 border-top">
-                            <a href="{{ url_for('main.absences') }}" class="btn btn-sm btn-outline-danger">
-                                <i class="fas fa-user-clock me-1"></i>Gérer les absences
+                            <a href="{{ url_for('main.absences') }}" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                <i class="fas fa-user-clock me-1"></i>Absences
                             </a>
-                            <a href="{{ url_for('main.bulletins') }}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-file-pdf me-1"></i>Voir les bulletins
+                            <a href="{{ url_for('main.bulletins') }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                <i class="fas fa-file-pdf me-1"></i>Bulletins
                             </a>
-                            <a href="{{ url_for('main.eleves') }}" class="btn btn-sm btn-outline-secondary">
-                                <i class="fas fa-user-graduate me-1"></i>Voir les élèves
+                            <a href="{{ url_for('main.eleves') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                                <i class="fas fa-user-graduate me-1"></i>Élèves
                             </a>
                         </div>
                     </div>
                 </div>
-            </div>
+            </article>
             {% endfor %}
         {% else %}
-            <div class="card border-0 shadow-sm p-5 text-center bg-white rounded-3">
+            <div class="card border-0 shadow-sm p-5 text-center bg-white rounded-4">
                 <i class="fas fa-school fs-1 text-muted mb-3"></i>
                 <h3 class="h5 fw-bold text-gray-800">Aucune classe disponible</h3>
                 <p class="text-muted small mb-3">Créez d'abord une classe et ajoutez des élèves pour générer des rapports statistiques.</p>
                 <div>
-                    <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary btn-sm">
+                    <a href="{{ url_for('main.ajouter_classe') }}" class="btn btn-primary btn-sm rounded-pill px-4">
                         <i class="fas fa-plus-circle me-1"></i>Créer une classe
                     </a>
                 </div>
@@ -522,7 +635,59 @@
         {% endif %}
     </div>
 
+    <!-- État Aucun résultat trouvé -->
+    <div id="noRapportClassFound" class="card border-0 shadow-sm p-5 text-center bg-white rounded-4 my-3" style="display: none;">
+        <i class="fas fa-search fs-1 text-primary opacity-50 mb-3"></i>
+        <h3 class="h5 fw-bold text-gray-800">Aucune classe trouvée</h3>
+        <p class="text-muted small mb-3">Aucune classe ne correspond à votre filtre de recherche.</p>
+        <div>
+            <button type="button" class="btn btn-outline-primary rounded-pill px-4" id="btnResetRapportFilter">
+                <i class="fas fa-undo me-1"></i>Réinitialiser la recherche
+            </button>
+        </div>
+    </div>
+
 </div>
+
+<!-- Styles Sticky Header et Mobile Enhancements -->
+<style>
+.sticky-class-header {
+    position: sticky;
+    top: 70px;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.report-student-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+@media (max-width: 767.98px) {
+    .sticky-class-header {
+        top: 60px;
+        padding: 0.85rem 1rem !important;
+    }
+    .rapport-mini-stats {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.5rem !important;
+    }
+    .rapport-mini-box {
+        padding: 0.65rem 0.75rem !important;
+    }
+    .rapport-mini-box-val {
+        font-size: 1.1rem !important;
+    }
+}
+</style>
 
 <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
 <script type="application/json" id="chartDataJson">
@@ -539,7 +704,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Graphique des Absences par Classe
     const ctxAbsences = document.getElementById('chartAbsencesClasses');
     if (ctxAbsences && chartData.labels && chartData.labels.length > 0) {
-        // Définir la palette : la classe avec le plus d'absences est en ROUGE vif, les autres en indigo
         const bgColors = chartData.is_max_absence.map(isMax => isMax ? 'rgba(239, 68, 68, 0.85)' : 'rgba(99, 102, 241, 0.75)');
         const borderColors = chartData.is_max_absence.map(isMax => isMax ? '#dc2626' : '#4f46e5');
         const borderWidths = chartData.is_max_absence.map(isMax => isMax ? 2 : 1);
@@ -647,50 +811,100 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ------------------------------------------------------------------------
-    // Recherche et filtrage interactif
+    // Toggle Afficher / Masquer les Graphiques
+    // ------------------------------------------------------------------------
+    const btnToggleCharts = document.getElementById('btnToggleCharts');
+    const textToggleCharts = document.getElementById('textToggleCharts');
+    const chartsWrapper = document.getElementById('chartsSectionWrapper');
+    let chartsVisible = true;
+
+    if (btnToggleCharts && chartsWrapper) {
+        btnToggleCharts.addEventListener('click', () => {
+            chartsVisible = !chartsVisible;
+            chartsWrapper.style.display = chartsVisible ? 'flex' : 'none';
+            textToggleCharts.textContent = chartsVisible ? 'Graphiques' : 'Graphiques (Masqués)';
+            btnToggleCharts.classList.toggle('btn-outline-primary', !chartsVisible);
+            btnToggleCharts.classList.toggle('btn-outline-secondary', chartsVisible);
+        });
+    }
+
+    // ------------------------------------------------------------------------
+    // Recherche et filtrage interactif avec Barre de Puces (Chips)
     // ------------------------------------------------------------------------
     const searchInput = document.getElementById('searchClassInput');
     const btnClearSearch = document.getElementById('btnClearClassSearch');
     const selectFilter = document.getElementById('selectClassFilter');
     const classCards = document.querySelectorAll('.rapport-class-card');
+    const noResultCard = document.getElementById('noRapportClassFound');
+    const chipButtons = document.querySelectorAll('.class-filter-chip');
+
+    let activeChipClass = 'all';
+    let activeChipCycle = '';
+
+    function normalizeStr(str) {
+        if (!str) return '';
+        return str.toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
 
     function applyFilters() {
-        const query = (searchInput.value || '').trim().toLowerCase();
-        const selectedClassId = selectFilter.value;
+        const query = normalizeStr(searchInput ? searchInput.value.trim() : '');
+        const selectedClassId = selectFilter ? selectFilter.value : 'all';
 
-        btnClearSearch.classList.toggle('d-none', query.length === 0);
+        if (btnClearSearch) {
+            btnClearSearch.classList.toggle('d-none', query.length === 0);
+        }
+
+        let visibleCount = 0;
 
         classCards.forEach(card => {
             const classId = card.getAttribute('data-class-id');
-            const classNom = card.getAttribute('data-class-nom') || '';
+            const classNom = normalizeStr(card.getAttribute('data-class-nom') || '');
+            const classCycle = card.getAttribute('data-cycle') || '';
 
             const matchSearch = query === '' || classNom.includes(query);
             const matchSelect = selectedClassId === 'all' || classId === selectedClassId;
+            const matchChipClass = activeChipClass === 'all' || classId === activeChipClass;
+            const matchChipCycle = !activeChipCycle || classCycle === activeChipCycle;
 
-            if (matchSearch && matchSelect) {
-                card.classList.remove('d-none');
+            if (matchSearch && matchSelect && matchChipClass && matchChipCycle) {
+                card.style.display = '';
+                visibleCount++;
             } else {
-                card.classList.add('d-none');
+                card.style.display = 'none';
             }
         });
+
+        if (noResultCard) {
+            noResultCard.style.display = (visibleCount === 0 && classCards.length > 0) ? 'block' : 'none';
+        }
     }
 
-    function syncUrl() {
-        const params = new URLSearchParams(window.location.search);
-        if (searchInput && searchInput.value.trim()) params.set('q', searchInput.value.trim()); else params.delete('q');
-        if (selectFilter && selectFilter.value !== 'all') params.set('classe', selectFilter.value); else params.delete('classe');
-        const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
-        window.history.replaceState({}, '', newUrl);
-    }
+    // Gestion des clics sur les chips
+    chipButtons.forEach(chip => {
+        chip.addEventListener('click', () => {
+            chipButtons.forEach(c => {
+                c.classList.remove('active', 'btn-primary', 'text-white', 'fw-semibold');
+                c.classList.add('bg-white', 'text-dark');
+            });
+            chip.classList.add('active', 'btn-primary', 'text-white', 'fw-semibold');
+            chip.classList.remove('bg-white', 'text-dark');
+
+            activeChipClass = chip.dataset.classChip !== undefined ? chip.dataset.classChip : 'all';
+            activeChipCycle = chip.dataset.cycleChip !== undefined ? chip.dataset.cycleChip : '';
+
+            if (selectFilter) {
+                selectFilter.value = activeChipClass !== 'all' ? activeChipClass : 'all';
+            }
+
+            applyFilters();
+        });
+    });
 
     let searchDebounce = null;
     if (searchInput) {
         searchInput.addEventListener('input', () => {
             clearTimeout(searchDebounce);
-            searchDebounce = setTimeout(() => {
-                applyFilters();
-                syncUrl();
-            }, 300);
+            searchDebounce = setTimeout(applyFilters, 250);
         });
     }
 
@@ -698,23 +912,73 @@ document.addEventListener('DOMContentLoaded', () => {
         btnClearSearch.addEventListener('click', () => {
             searchInput.value = '';
             applyFilters();
-            syncUrl();
             searchInput.focus();
         });
     }
 
     if (selectFilter) {
         selectFilter.addEventListener('change', () => {
+            activeChipClass = selectFilter.value;
+            activeChipCycle = '';
+            // Reset chip active state to match
+            chipButtons.forEach(c => {
+                if (c.dataset.classChip === activeChipClass) {
+                    c.classList.add('active', 'btn-primary', 'text-white', 'fw-semibold');
+                    c.classList.remove('bg-white', 'text-dark');
+                } else {
+                    c.classList.remove('active', 'btn-primary', 'text-white', 'fw-semibold');
+                    c.classList.add('bg-white', 'text-dark');
+                }
+            });
             applyFilters();
-            syncUrl();
         });
     }
 
-    // Initialisation depuis les URL params
-    const initParams = new URLSearchParams(window.location.search);
-    if (initParams.has('q') && searchInput) searchInput.value = initParams.get('q');
-    if (initParams.has('classe') && selectFilter) selectFilter.value = initParams.get('classe');
-    if (initParams.has('q') || initParams.has('classe')) applyFilters();
+    const btnReset = document.getElementById('btnResetRapportFilter');
+    if (btnReset) {
+        btnReset.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            if (selectFilter) selectFilter.value = 'all';
+            activeChipClass = 'all';
+            activeChipCycle = '';
+            chipButtons.forEach((c, idx) => {
+                if (idx === 0) {
+                    c.classList.add('active', 'btn-primary', 'text-white', 'fw-semibold');
+                    c.classList.remove('bg-white', 'text-dark');
+                } else {
+                    c.classList.remove('active', 'btn-primary', 'text-white', 'fw-semibold');
+                    c.classList.add('bg-white', 'text-dark');
+                }
+            });
+            applyFilters();
+        });
+    }
+
+    // ------------------------------------------------------------------------
+    // Toggle Mobile Actions & Exports (100% garanti)
+    // ------------------------------------------------------------------------
+    const btnMobileActions = document.getElementById('btnToggleMobileActions');
+    const collapseMobileActions = document.getElementById('mobileActionsCollapse');
+    const iconMobileActions = document.getElementById('iconMobileActions');
+
+    if (btnMobileActions && collapseMobileActions) {
+        btnMobileActions.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.bootstrap && window.bootstrap.Collapse) {
+                const bsCol = bootstrap.Collapse.getOrCreateInstance(collapseMobileActions);
+                bsCol.toggle();
+            } else {
+                collapseMobileActions.classList.toggle('show');
+            }
+        });
+
+        collapseMobileActions.addEventListener('show.bs.collapse', () => {
+            if (iconMobileActions) iconMobileActions.className = 'fas fa-chevron-up ms-1';
+        });
+        collapseMobileActions.addEventListener('hide.bs.collapse', () => {
+            if (iconMobileActions) iconMobileActions.className = 'fas fa-chevron-down ms-1';
+        });
+    }
 
     // ------------------------------------------------------------------------
     // Boutons Déplier / Replier tout
@@ -756,7 +1020,7 @@ window.focusClass = function(classId) {
     const card = document.getElementById(`class-card-${classId}`);
     if (!card) return;
 
-    card.classList.remove('d-none');
+    card.style.display = '';
 
     const collapseEl = document.getElementById(`collapse-class-${classId}`);
     if (collapseEl) {

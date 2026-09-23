@@ -527,3 +527,43 @@ flowchart TD
 1. **Absence de pont entre l'Onboarding et la première Classe** : La fin de l'onboarding lâche l'utilisateur sur le dashboard général sans lui dire explicitement que sa première tâche obligatoire est d'ajouter une classe.
 2. **Effet "Cockpit d'avion"** : Le dashboard présente immédiatement tous les modules (QR codes, logs, synchro hors-ligne, périodes, rapports, paiements) au même niveau visuel, submergeant le débutant d'options prématurées.
 3. **Charge de saisie initiale des matières** : L'absence de génération groupée des cours/matières standard oblige à une configuration fastidieuse avant de pouvoir exploiter la saisie des notes et les bulletins.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+A FA5re    Niveau 3 : Assistant analytique en langage naturel (Pour les directeurs)
+ Rôle : Interroger les chiffres de l'établissement en français (« Donne-moi la liste des élèves ayant plus de 3 absences non justifiées cette semaine », « Quel est le taux de recouvrement des frais pour la classe de 6ème A ? »).
+ Fonctionnement : L'IA traduit la question en requête de données filtrée strictement sur l'ID de l'école connectée (⁠ecole_id⁠).

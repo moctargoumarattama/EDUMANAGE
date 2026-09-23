@@ -1107,6 +1107,9 @@
     {% include 'components/pwa_install_modal.html' %}
     {% include 'components/logout_warning_modal.html' %}
     {% include 'components/support_modal.html' %}
+    {% if current_user.is_authenticated and current_user.role in ['admin', 'directeur', 'super_admin'] %}
+    {% include 'components/assistant_widget.html' %}
+    {% endif %}
 
     <!-- Scripts frontend communs -->
     <script src="{{ url_for('static', filename='js/main.js', v=config.VERSION) }}"></script>

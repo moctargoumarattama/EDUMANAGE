@@ -1,0 +1,2029 @@
+<!-- ==========================================================================
+     COMPOSANT ASSISTANT IA DE DIRECTION KLASORA
+     Rôles autorisés : directeur, admin, super_admin
+     Design : Interface Déplaçable (Draggable) PC & Mobile, Bottom-sheet fluide,
+     Mode plein écran / élargi, 100% Vanilla CSS & JS sans dépendance externe.
+     ========================================================================== -->
+
+<!-- Backdrop semi-transparent pour mobile -->
+<div id="klasoraAiBackdrop" class="klasora-ai-backdrop klasora-ai-hidden" aria-hidden="true"></div>
+
+<!-- ==========================================================================
+     MENU FLOTTANT EXTENSIBLE (SPEED DIAL) ASSISTANCE & IA
+     Design Premium : 1 seul point d'ancrage déplaçable,
+     Menu fluide vers le haut avec 2 actions claires :
+     1. Support Technique & WhatsApp Direct
+     2. Assistant IA de Direction (Fiche élève, Notes, Absences)
+     ========================================================================== -->
+<div id="klasoraSpeedDial"
+     class="klasora-speed-dial"
+     role="region"
+     aria-label="Assistance KLASORA">
+
+    <!-- Menu des actions extensibles vers le haut -->
+    <div id="klasoraSpeedDialMenu" class="klasora-speed-dial-menu" aria-hidden="true">
+        <!-- Option 1 : Support Technique -->
+        <button type="button"
+                id="speedDialSupportBtn"
+                class="klasora-speed-dial-item item-support"
+                title="Support Technique &amp; WhatsApp Direct"
+                aria-label="Ouvrir le support technique">
+            <span class="speed-dial-item-card">
+                <span class="speed-dial-item-header">
+                    <span class="speed-dial-item-title">Support Technique</span>
+                    <span class="speed-dial-item-badge badge-support">Support</span>
+                </span>
+                <span class="speed-dial-item-desc">Ticket &amp; WhatsApp Direct</span>
+            </span>
+            <span class="speed-dial-item-icon-circle icon-support">
+                <i class="fas fa-headset" aria-hidden="true"></i>
+            </span>
+        </button>
+
+        <!-- Option 2 : Assistant IA -->
+        <button type="button"
+                id="speedDialAiBtn"
+                class="klasora-speed-dial-item item-ai"
+                title="Assistant IA"
+                aria-label="Ouvrir l'Assistant IA">
+            <span class="speed-dial-item-card">
+                <span class="speed-dial-item-header">
+                    <span class="speed-dial-item-title">Assistant IA</span>
+                    <span class="speed-dial-item-badge badge-ai">IA</span>
+                </span>
+                <span class="speed-dial-item-desc">Fiches, Notes &amp; Absences</span>
+            </span>
+            <span class="speed-dial-item-icon-circle icon-ai">
+                <i class="fas fa-robot" aria-hidden="true"></i>
+                <span class="klasora-ai-status-dot"></span>
+            </span>
+        </button>
+    </div>
+
+    <!-- Bouton Déclencheur Principal (Draggable FAB) -->
+    <button type="button"
+            id="klasoraSpeedDialTrigger"
+            class="klasora-speed-dial-trigger"
+            aria-expanded="false"
+            aria-haspopup="true"
+            aria-controls="klasoraSpeedDialMenu"
+            title="Assistant IA KLASORA — Cliquez pour ouvrir, glissez pour déplacer">
+        <span class="speed-dial-trigger-inner">
+            <span class="speed-dial-icon-closed">
+                <i class="fas fa-robot" aria-hidden="true"></i>
+            </span>
+            <span class="speed-dial-icon-opened">
+                <i class="fas fa-times" aria-hidden="true"></i>
+            </span>
+            <span class="klasora-ai-status-dot" aria-label="Service en ligne"></span>
+        </span>
+        <span class="speed-dial-trigger-label">Assistant IA</span>
+        <span class="speed-dial-trigger-chevron">
+            <i class="fas fa-chevron-up" aria-hidden="true"></i>
+        </span>
+    </button>
+</div>
+
+<!-- Fenêtre de Chat Flottante et Déplaçable sur PC / Bottom-sheet fluide sur Mobile -->
+<div id="klasoraAiChatWindow"
+     class="klasora-ai-window klasora-ai-hidden"
+     role="dialog"
+     aria-modal="false"
+     aria-labelledby="klasoraAiTitle">
+
+    <!-- Poignée mobile de tirage / fermeture (Drag handle) -->
+    <div class="klasora-ai-mobile-handle-wrap" id="klasoraAiMobileHandle">
+        <span class="klasora-ai-mobile-handle"></span>
+    </div>
+
+    <!-- En-tête de la Fenêtre (Draggable sur PC) -->
+    <header class="klasora-ai-header" id="klasoraAiHeader">
+        <div class="klasora-ai-header-drag-zone" id="klasoraAiDragZone" title="Glissez pour déplacer la fenêtre">
+            <div class="klasora-ai-header-info">
+                <div class="klasora-ai-avatar">
+                    <i class="fas fa-robot" aria-hidden="true"></i>
+                    <span class="klasora-ai-avatar-badge"></span>
+                </div>
+                <div>
+                    <div class="d-flex align-items-center gap-1.5">
+                        <h4 id="klasoraAiTitle" class="klasora-ai-title">Assistant KLASORA</h4>
+                        <span class="klasora-ai-header-move-icon d-none d-md-inline-block" title="Glisser pour déplacer">
+                            <i class="fas fa-grip-vertical"></i>
+                        </span>
+                    </div>
+                    <div class="klasora-ai-subtitle">
+                        <span class="klasora-ai-live-dot"></span>
+                        <span>Direction &amp; Pilotage Scolaire</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="klasora-ai-header-actions">
+            <!-- Bouton Agrandir / Réduire la largeur (PC) -->
+            <button type="button"
+                    id="klasoraAiExpandBtn"
+                    class="klasora-ai-header-btn d-none d-md-inline-flex"
+                    title="Agrandir / Réduire le panneau"
+                    aria-label="Agrandir ou réduire">
+                <i class="fas fa-expand-alt" aria-hidden="true"></i>
+            </button>
+            <!-- Bouton Recentrer la fenêtre (PC) -->
+            <button type="button"
+                    id="klasoraAiResetPosBtn"
+                    class="klasora-ai-header-btn d-none d-md-inline-flex"
+                    title="Recentrer en bas à droite"
+                    aria-label="Recentrer la position">
+                <i class="fas fa-compress-arrows-alt" aria-hidden="true"></i>
+            </button>
+            <!-- Bouton Effacer l'historique -->
+            <button type="button"
+                    id="klasoraAiClearBtn"
+                    class="klasora-ai-header-btn"
+                    title="Effacer la conversation"
+                    aria-label="Effacer la conversation">
+                <i class="fas fa-trash-alt" aria-hidden="true"></i>
+            </button>
+            <!-- Bouton Fermer -->
+            <button type="button"
+                    id="klasoraAiCloseBtn"
+                    class="klasora-ai-header-btn"
+                    title="Fermer la fenêtre (Échap)"
+                    aria-label="Fermer la fenêtre">
+                <i class="fas fa-times" aria-hidden="true"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Suggestions Rapides (Pills scrollables) -->
+    <div class="klasora-ai-pills-bar" aria-label="Suggestions rapides">
+        <button type="button" class="klasora-ai-pill" data-prompt="Donne-moi les informations complètes de l'élève ">
+            <i class="fas fa-id-card me-1"></i> Fiche complète élève
+        </button>
+        <button type="button" class="klasora-ai-pill" data-prompt="Quelles sont les notes et absences de l'élève ">
+            <i class="fas fa-chart-bar me-1"></i> Notes &amp; Absences élève
+        </button>
+        <button type="button" class="klasora-ai-pill" data-prompt="Quels sont les élèves ayant des absences critiques ?">
+            <i class="fas fa-user-clock me-1"></i> Absences critiques
+        </button>
+        <button type="button" class="klasora-ai-pill" data-prompt="Donne-moi un aperçu des moyennes et notes par classe.">
+            <i class="fas fa-graduation-cap me-1"></i> Bilan des notes
+        </button>
+        <button type="button" class="klasora-ai-pill" data-prompt="Rédige un modèle officiel de convocation parentale pour absences répétées.">
+            <i class="fas fa-envelope-open-text me-1"></i> Modèle convocation
+        </button>
+        <button type="button" class="klasora-ai-pill" data-prompt="Donne-moi les coordonnées du parent de l'élève ">
+            <i class="fas fa-phone-alt me-1"></i> Contact parent
+        </button>
+    </div>
+
+    <!-- Zone Centrale des Messages -->
+    <main class="klasora-ai-body" id="klasoraAiBody">
+        <div id="klasoraAiMessages" class="klasora-ai-messages-list">
+            <!-- Message d'accueil initial -->
+            <div class="klasora-ai-msg klasora-ai-msg-bot">
+                <div class="klasora-ai-msg-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="klasora-ai-bubble-wrap">
+                    <div class="klasora-ai-bubble">
+                        <p class="mb-1.5 fw-semibold">Bonjour 👋</p>
+                        <p class="mb-2">Je suis votre assistant de direction KLASORA. Je réponds directement à vos demandes :</p>
+                        <ul class="klasora-ai-list mb-2">
+                            <li><strong>Fiche complète élève</strong> : notes, moyenne, absences, scolarité et contacts</li>
+                            <li><strong>Résultats scolaires</strong> : moyennes par classe ou par matière</li>
+                            <li><strong>Suivi des absences</strong> : situation détaillée par élève ou par classe</li>
+                            <li><strong>Contacts parents</strong> : numéros de téléphone et adresses email</li>
+                            <li><strong>Rédaction officielle</strong> : convocations, courriers aux familles et notes</li>
+                        </ul>
+                        <p class="mb-0 small text-muted">Posez votre question ci-dessous ou cliquez sur une suggestion rapide.</p>
+                    </div>
+                    <div class="klasora-ai-msg-meta">
+                        <span class="klasora-ai-msg-time">Maintenant</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Indicateur de saisie / chargement -->
+        <div id="klasoraAiTyping" class="klasora-ai-typing-indicator klasora-ai-hidden" aria-live="polite">
+            <div class="klasora-ai-msg-avatar">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="klasora-ai-typing-bubble">
+                <span class="klasora-ai-typing-dot"></span>
+                <span class="klasora-ai-typing-dot"></span>
+                <span class="klasora-ai-typing-dot"></span>
+            </div>
+            <span class="klasora-ai-typing-label">Recherche en cours...</span>
+        </div>
+    </main>
+
+    <!-- Zone de Saisie & Envoi (Footer) -->
+    <footer class="klasora-ai-footer">
+        <form id="klasoraAiForm" class="klasora-ai-input-form" onsubmit="return false;">
+            <div class="klasora-ai-input-container">
+                <textarea id="klasoraAiInput"
+                          class="klasora-ai-textarea"
+                          rows="1"
+                          placeholder="Posez votre question (ex: fiche élève Mamadou, notes, absences, 6ème A)..."
+                          aria-label="Votre question à l'assistant"></textarea>
+                <button type="submit"
+                        id="klasoraAiSendBtn"
+                        class="klasora-ai-send-btn"
+                        title="Envoyer (Entrée)"
+                        aria-label="Envoyer le message">
+                    <i class="fas fa-paper-plane" aria-hidden="true"></i>
+                </button>
+            </div>
+        </form>
+        <div class="klasora-ai-footer-note">
+            <i class="fas fa-shield-alt text-success me-1"></i> Espace sécurisé • Données confidentielles protégées
+        </div>
+    </footer>
+</div>
+
+<!-- ==========================================================================
+     STYLES CSS DU COMPOSANT ASSISTANT IA (VANILLA CSS MODERNE & RESPONSIVE)
+     ========================================================================== -->
+<style>
+/* 1. Backdrop pour mobile */
+.klasora-ai-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 1054;
+    transition: opacity 0.24s ease;
+}
+
+/* ==========================================================================
+   MASQUAGE DU BOUTON SUPPORT INDÉPENDANT LORSQUE LE SPEED DIAL EST PRÉSENT
+   ========================================================================== */
+#klasoraSupportTriggerBtn {
+    display: none !important;
+}
+
+@media print {
+    #klasoraSpeedDial,
+    #klasoraAiChatWindow,
+    #klasoraAiBackdrop {
+        display: none !important;
+    }
+}
+
+/* ==========================================================================
+   2. CONTENEUR SPEED DIAL FLOTTANT DÉPLAÇABLE (ASSISTANCE & IA)
+   ========================================================================== */
+.klasora-speed-dial {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1055;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+/* Bouton Déclencheur Principal FAB */
+.klasora-speed-dial-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    height: 50px;
+    padding: 0 16px 0 10px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 9999px;
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #4361ee 100%);
+    color: #ffffff !important;
+    box-shadow: 0 10px 25px -4px rgba(37, 99, 235, 0.5),
+                0 4px 12px -2px rgba(15, 23, 42, 0.25);
+    cursor: grab;
+    cursor: -webkit-grab;
+    outline: none;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                background 0.2s ease;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.klasora-speed-dial-trigger * {
+    pointer-events: none;
+}
+
+.klasora-speed-dial-trigger:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 14px 30px -4px rgba(37, 99, 235, 0.65),
+                0 6px 16px -2px rgba(15, 23, 42, 0.3);
+    background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 55%, #3b82f6 100%);
+}
+
+.klasora-speed-dial.is-dragging .klasora-speed-dial-trigger {
+    cursor: grabbing !important;
+    cursor: -webkit-grabbing !important;
+    transform: scale(1.05) !important;
+    box-shadow: 0 18px 36px -4px rgba(37, 99, 235, 0.75),
+                0 8px 18px -2px rgba(15, 23, 42, 0.35) !important;
+    transition: none !important;
+}
+
+.klasora-speed-dial-trigger:focus-visible {
+    box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.6), 0 10px 25px -4px rgba(37, 99, 235, 0.5);
+}
+
+.speed-dial-trigger-inner {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.22);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    color: #ffffff;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.4);
+    flex-shrink: 0;
+}
+
+.speed-dial-trigger-label {
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #ffffff;
+    white-space: nowrap;
+}
+
+.speed-dial-trigger-chevron {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.75);
+    margin-left: 2px;
+    transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.speed-dial-icon-closed {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.24s ease;
+}
+
+.speed-dial-icon-opened {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.24s ease;
+}
+
+/* État ouvert du Speed Dial */
+.klasora-speed-dial.is-open .speed-dial-icon-closed {
+    display: none;
+}
+
+.klasora-speed-dial.is-open .speed-dial-icon-opened {
+    display: inline-flex;
+}
+
+.klasora-speed-dial.is-open .speed-dial-trigger-chevron {
+    transform: rotate(180deg);
+}
+
+.klasora-speed-dial.is-open .klasora-speed-dial-trigger {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    box-shadow: 0 8px 20px -2px rgba(30, 58, 138, 0.6);
+}
+
+/* État lorsque la fenêtre de chat IA est active */
+.klasora-speed-dial-trigger.is-chat-active {
+    background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+    border-color: rgba(147, 197, 253, 0.8);
+}
+
+/* Menu extensible Speed Dial */
+.klasora-speed-dial-menu {
+    position: absolute;
+    bottom: calc(100% + 14px);
+    right: 0;
+    display: flex;
+    flex-direction: column-reverse; /* Option 1 (Support) en haut, Option 2 (IA) au-dessus du bouton */
+    gap: 12px;
+    align-items: flex-end;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(12px) scale(0.96);
+    transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.22s;
+    transform-origin: bottom right;
+}
+
+/* Si le Speed Dial est près du haut de l'écran (expand down) */
+.klasora-speed-dial.expand-down .klasora-speed-dial-menu {
+    bottom: auto;
+    top: calc(100% + 14px);
+    flex-direction: column;
+    transform-origin: top right;
+    transform: translateY(-12px) scale(0.96);
+}
+
+.klasora-speed-dial.is-open .klasora-speed-dial-menu {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+}
+
+/* Items d'action du Speed Dial */
+.klasora-speed-dial-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    outline: none;
+    text-decoration: none;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.klasora-speed-dial-item:hover {
+    transform: translateX(-4px);
+}
+
+.klasora-speed-dial-item:focus-visible .speed-dial-item-card {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+/* Carte de texte / label de chaque option */
+.speed-dial-item-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 9px 14px;
+    box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.14),
+                0 2px 6px -1px rgba(15, 23, 42, 0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+    min-width: 195px;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.klasora-speed-dial-item:hover .speed-dial-item-card {
+    border-color: #93c5fd;
+    background-color: #f8fafc;
+    box-shadow: 0 14px 28px -4px rgba(15, 23, 42, 0.2);
+}
+
+/* Ligne supérieure : Titre + Badge alignés sans aucun chevauchement */
+.speed-dial-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    width: 100%;
+}
+
+.speed-dial-item-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.speed-dial-item-badge {
+    position: static !important; /* Aucun positionnement absolu : élimine toute collision */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 6px;
+    line-height: 1.1;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.speed-dial-item-badge.badge-ai {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.speed-dial-item-badge.badge-support {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.speed-dial-item-desc {
+    font-size: 0.72rem;
+    color: #64748b;
+    margin-top: 3px;
+    white-space: nowrap;
+}
+
+/* Pastille icône circulaire */
+.speed-dial-item-icon-circle {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    color: #ffffff;
+    box-shadow: 0 6px 16px -2px rgba(15, 23, 42, 0.18);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+    flex-shrink: 0;
+}
+
+.klasora-speed-dial-item:hover .speed-dial-item-icon-circle {
+    transform: scale(1.08);
+}
+
+/* Couleur spécifique Support */
+.icon-support {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    box-shadow: 0 6px 16px -2px rgba(3, 105, 161, 0.45);
+}
+
+/* Couleur spécifique IA */
+.icon-ai {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 6px 16px -2px rgba(37, 99, 235, 0.45);
+}
+
+/* Pastille statut animée */
+.klasora-ai-status-dot {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #10b981;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    animation: klasoraAiPulse 2s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+@keyframes klasoraAiPulse {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* 3. Fenêtre de Chat Flottante (Déplaçable sur PC & Élastique) */
+.klasora-ai-window {
+    position: fixed;
+    bottom: 86px;
+    right: 24px;
+    width: 420px;
+    max-width: calc(100vw - 32px);
+    height: 610px;
+    max-height: calc(100vh - 100px);
+    z-index: 1060;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 20px 50px -10px rgba(15, 23, 42, 0.28),
+                0 0 0 1px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+    transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.24s,
+                width 0.25s ease,
+                height 0.25s ease;
+    transform-origin: bottom right;
+}
+
+/* Mode élargi sur PC (Wide Mode) pour lire les dossiers et fiches */
+.klasora-ai-window.is-expanded {
+    width: 760px;
+    height: 680px;
+    max-height: calc(100vh - 80px);
+}
+
+.klasora-ai-window.klasora-ai-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(16px) scale(0.96);
+}
+
+.klasora-ai-window.is-dragging-window {
+    box-shadow: 0 28px 65px -10px rgba(15, 23, 42, 0.38),
+                0 0 0 1px rgba(37, 99, 235, 0.3) !important;
+    transition: none !important;
+}
+
+/* Poignée mobile (Swipe to close) */
+.klasora-ai-mobile-handle-wrap {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0 4px;
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+    cursor: grab;
+    touch-action: none;
+}
+
+.klasora-ai-mobile-handle {
+    width: 38px;
+    height: 4.5px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* En-tête */
+.klasora-ai-header {
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
+    color: #ffffff;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.klasora-ai-header-drag-zone {
+    flex: 1;
+    cursor: grab;
+    cursor: -webkit-grab;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.klasora-ai-header-drag-zone:active {
+    cursor: grabbing;
+    cursor: -webkit-grabbing;
+}
+
+.klasora-ai-header-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.klasora-ai-avatar {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    color: #ffffff;
+    flex-shrink: 0;
+}
+
+.klasora-ai-avatar-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background-color: #10b981;
+    border: 2px solid #2563eb;
+}
+
+.klasora-ai-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: #ffffff;
+}
+
+.klasora-ai-header-move-icon {
+    font-size: 0.76rem;
+    color: rgba(255, 255, 255, 0.55);
+    margin-left: 6px;
+}
+
+.klasora-ai-subtitle {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.88);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 1px;
+}
+
+.klasora-ai-live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #34d399;
+}
+
+.klasora-ai-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.klasora-ai-header-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.88);
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.klasora-ai-header-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+/* Suggestions Rapides (Pills) */
+.klasora-ai-pills-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 0;
+}
+
+.klasora-ai-pills-bar::-webkit-scrollbar {
+    display: none;
+}
+
+.klasora-ai-pill {
+    display: inline-flex;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    font-size: 0.76rem;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: all 0.18s ease;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.klasora-ai-pill:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+.klasora-ai-pill:active {
+    transform: translateY(0);
+}
+
+/* Zone Centrale des Messages */
+.klasora-ai-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+.klasora-ai-body::-webkit-scrollbar {
+    width: 6px;
+}
+.klasora-ai-body::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
+}
+
+.klasora-ai-messages-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* Bulles de Messages */
+.klasora-ai-msg {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    max-width: 90%;
+    animation: klasoraAiFadeIn 0.22s ease-out forwards;
+}
+
+@keyframes klasoraAiFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.klasora-ai-msg-bot {
+    align-self: flex-start;
+}
+
+.klasora-ai-msg-user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+.klasora-ai-msg-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.klasora-ai-bubble-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.klasora-ai-bubble {
+    padding: 12px 14px;
+    border-radius: 16px;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    word-break: break-word;
+    position: relative;
+}
+
+.klasora-ai-msg-bot .klasora-ai-bubble {
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    border-top-left-radius: 4px;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.klasora-ai-msg-user .klasora-ai-bubble {
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+    color: #ffffff;
+    border-top-right-radius: 4px;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.klasora-ai-msg-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 4px;
+    font-size: 0.72rem;
+    color: #64748b;
+}
+
+.klasora-ai-msg-user .klasora-ai-msg-meta {
+    justify-content: flex-end;
+}
+
+/* Bouton Copier pour les réponses */
+.klasora-ai-copy-btn {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.18s ease;
+}
+
+.klasora-ai-copy-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.klasora-ai-copy-btn.is-copied {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #15803d;
+}
+
+/* Listes & typographie */
+.klasora-ai-list {
+    margin: 4px 0;
+    padding-left: 1.25rem;
+}
+
+.klasora-ai-list li {
+    margin-bottom: 3px;
+}
+
+.klasora-ai-bubble strong {
+    font-weight: 600;
+}
+
+.klasora-ai-bubble code {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 0.83em;
+    font-family: Consolas, monospace;
+}
+
+/* Indicateur de saisie */
+.klasora-ai-typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+    animation: klasoraAiFadeIn 0.2s ease-out forwards;
+}
+
+.klasora-ai-typing-bubble {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    border-top-left-radius: 4px;
+    padding: 9px 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.klasora-ai-typing-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #2563eb;
+    animation: klasoraAiTypingDot 1.4s infinite ease-in-out both;
+}
+
+.klasora-ai-typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.klasora-ai-typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes klasoraAiTypingDot {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1.1); opacity: 1; }
+}
+
+.klasora-ai-typing-label {
+    font-size: 0.74rem;
+    color: #64748b;
+    font-style: italic;
+}
+
+/* Zone de Saisie (Footer) */
+.klasora-ai-footer {
+    padding: 10px 14px 10px;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+.klasora-ai-input-form {
+    margin: 0;
+}
+
+.klasora-ai-input-container {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    background: #f8fafc;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 16px;
+    padding: 6px 8px 6px 12px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.klasora-ai-input-container:focus-within {
+    background: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.klasora-ai-textarea {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #0f172a;
+    resize: none;
+    max-height: 110px;
+    min-height: 24px;
+    padding: 4px 0;
+}
+
+.klasora-ai-textarea::placeholder {
+    color: #94a3b8;
+}
+
+.klasora-ai-send-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.92rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+}
+
+.klasora-ai-send-btn:hover:not(:disabled) {
+    transform: scale(1.05);
+    background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
+}
+
+.klasora-ai-send-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.klasora-ai-footer-note {
+    font-size: 0.7rem;
+    color: #64748b;
+    text-align: center;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.klasora-ai-hidden {
+    display: none !important;
+}
+
+/* ==========================================================================
+     DESIGN MOBILE RAFFINÉ (BOTTOM SHEET HYPER CONFORTABLE)
+     ========================================================================== */
+@media (max-width: 576px) {
+    .klasora-ai-mobile-handle-wrap {
+        display: flex;
+    }
+
+    .klasora-speed-dial {
+        bottom: 20px;
+        right: 18px;
+    }
+
+    .klasora-speed-dial-trigger {
+        height: 46px;
+        padding: 0 14px 0 10px;
+    }
+
+    .speed-dial-trigger-inner {
+        width: 30px;
+        height: 30px;
+        font-size: 0.94rem;
+    }
+
+    .speed-dial-trigger-label {
+        font-size: 0.84rem;
+    }
+
+    .speed-dial-item-card {
+        min-width: 165px;
+        padding: 7px 12px;
+    }
+
+    .speed-dial-item-title {
+        font-size: 0.84rem;
+    }
+
+    .speed-dial-item-badge {
+        font-size: 0.62rem;
+        padding: 1px 5px;
+    }
+
+    .speed-dial-item-desc {
+        font-size: 0.68rem;
+    }
+
+    .speed-dial-item-icon-circle {
+        width: 40px;
+        height: 40px;
+        font-size: 1.05rem;
+    }
+
+    /* Bottom Sheet fluide sur mobile */
+    .klasora-ai-window {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 86dvh !important;
+        max-height: 86dvh !important;
+        border-radius: 22px 22px 0 0 !important;
+        transform: translateY(0);
+        box-shadow: 0 -12px 35px rgba(15, 23, 42, 0.25) !important;
+        z-index: 1060;
+        transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, visibility 0.28s !important;
+        transform-origin: bottom center;
+    }
+
+    .klasora-ai-window.klasora-ai-hidden {
+        transform: translateY(100%) !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
+
+    .klasora-ai-header {
+        padding: 10px 14px;
+    }
+
+    .klasora-ai-footer {
+        padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+    }
+
+    .klasora-ai-textarea {
+        font-size: 16px; /* Empêche le zoom automatique sur iOS */
+    }
+}
+</style>
+
+<!-- ==========================================================================
+     LOGIQUE JAVASCRIPT DU COMPOSANT ASSISTANT IA (DRAGGABLE & TOUCH-AWARE)
+     ========================================================================== -->
+<script>
+(function() {
+    'use strict';
+
+    // Clés de persistance
+    const STORAGE_KEY_MESSAGES = 'klasora_ai_chat_history_v1';
+    const STORAGE_KEY_STATE = 'klasora_ai_widget_open_v1';
+    const STORAGE_KEY_BTN_POS = 'klasora_speed_dial_pos_v1';
+    const STORAGE_KEY_WIN_POS = 'klasora_ai_win_pos_v1';
+    const STORAGE_KEY_EXPANDED = 'klasora_ai_win_expanded_v1';
+    const API_ENDPOINT = '/api/assistant/query-data';
+
+    // Éléments du DOM Speed Dial & Chat
+    const speedDial = document.getElementById('klasoraSpeedDial');
+    const triggerBtn = document.getElementById('klasoraSpeedDialTrigger');
+    const speedDialMenu = document.getElementById('klasoraSpeedDialMenu');
+    const speedDialAiBtn = document.getElementById('speedDialAiBtn');
+    const speedDialSupportBtn = document.getElementById('speedDialSupportBtn');
+    const chatWindow = document.getElementById('klasoraAiChatWindow');
+    const backdrop = document.getElementById('klasoraAiBackdrop');
+    const header = document.getElementById('klasoraAiHeader');
+    const dragZone = document.getElementById('klasoraAiDragZone');
+    const mobileHandle = document.getElementById('klasoraAiMobileHandle');
+    const closeBtn = document.getElementById('klasoraAiCloseBtn');
+    const clearBtn = document.getElementById('klasoraAiClearBtn');
+    const expandBtn = document.getElementById('klasoraAiExpandBtn');
+    const resetPosBtn = document.getElementById('klasoraAiResetPosBtn');
+    const bodyContainer = document.getElementById('klasoraAiBody');
+    const messagesList = document.getElementById('klasoraAiMessages');
+    const typingIndicator = document.getElementById('klasoraAiTyping');
+    const inputArea = document.getElementById('klasoraAiInput');
+    const sendBtn = document.getElementById('klasoraAiSendBtn');
+    const pillButtons = document.querySelectorAll('.klasora-ai-pill');
+
+    if (!speedDial || !triggerBtn || !chatWindow || !inputArea || !sendBtn) {
+        return;
+    }
+
+    let isRequestInProgress = false;
+
+    // =========================================================================
+    // 1. GESTION DU SPEED DIAL EXTENSIBLE & DU DÉPLACEMENT FLUIDE (DRAGGABLE)
+    // =========================================================================
+    let isBtnPointerDown = false;
+    let isBtnDragging = false;
+    let didBtnMove = false;
+    let btnStartX = 0, btnStartY = 0;
+    let btnInitialLeft = 0, btnInitialTop = 0;
+    let suppressBtnClickUntil = 0;
+    const DRAG_THRESHOLD = 7; // Distance minimale en px pour déclencher le glissement
+
+    // Restaurer la position sauvegardée du Speed Dial (avec rétrocompatibilité)
+    try {
+        const savedBtnPos = localStorage.getItem(STORAGE_KEY_BTN_POS) || localStorage.getItem('klasora_ai_btn_pos_v1');
+        if (savedBtnPos) {
+            const pos = JSON.parse(savedBtnPos);
+            if (typeof pos.left === 'number' && typeof pos.top === 'number') {
+                const w = speedDial.offsetWidth || 150;
+                const h = speedDial.offsetHeight || 50;
+                const maxLeft = window.innerWidth - w - 10;
+                const maxTop = window.innerHeight - h - 10;
+                const left = Math.min(Math.max(10, pos.left), Math.max(10, maxLeft));
+                const top = Math.min(Math.max(10, pos.top), Math.max(10, maxTop));
+                speedDial.style.left = left + 'px';
+                speedDial.style.top = top + 'px';
+                speedDial.style.right = 'auto';
+                speedDial.style.bottom = 'auto';
+                speedDial.classList.add('is-repositioned');
+                if (top < 220) {
+                    speedDial.classList.add('expand-down');
+                } else {
+                    speedDial.classList.remove('expand-down');
+                }
+            }
+        }
+    } catch (e) {}
+
+    function onBtnPointerDown(e) {
+        if (e.button !== undefined && e.button !== 0) return;
+        isBtnPointerDown = true;
+        isBtnDragging = false;
+        didBtnMove = false;
+
+        const coords = (e.touches && e.touches.length > 0) ? e.touches[0] : e;
+        btnStartX = coords.clientX;
+        btnStartY = coords.clientY;
+
+        const rect = speedDial.getBoundingClientRect();
+        btnInitialLeft = rect.left;
+        btnInitialTop = rect.top;
+
+        window.addEventListener('pointermove', onBtnPointerMove, { passive: false });
+        window.addEventListener('mousemove', onBtnPointerMove);
+        window.addEventListener('touchmove', onBtnPointerMove, { passive: false });
+
+        window.addEventListener('pointerup', onBtnPointerUp);
+        window.addEventListener('mouseup', onBtnPointerUp);
+        window.addEventListener('touchend', onBtnPointerUp);
+    }
+
+    function onBtnPointerMove(e) {
+        if (!isBtnPointerDown) return;
+        const coords = (e.touches && e.touches.length > 0) ? e.touches[0] : e;
+        const dx = coords.clientX - btnStartX;
+        const dy = coords.clientY - btnStartY;
+        const dist = Math.hypot(dx, dy);
+
+        if (!isBtnDragging && dist > DRAG_THRESHOLD) {
+            isBtnDragging = true;
+            didBtnMove = true;
+            speedDial.classList.add('is-dragging');
+        }
+
+        if (isBtnDragging) {
+            if (e.cancelable) e.preventDefault();
+            const w = speedDial.offsetWidth || 150;
+            const h = speedDial.offsetHeight || 50;
+            const minX = 8;
+            const minY = 8;
+            const maxX = window.innerWidth - w - 8;
+            const maxY = window.innerHeight - h - 8;
+
+            let newLeft = Math.min(Math.max(minX, btnInitialLeft + dx), maxX);
+            let newTop = Math.min(Math.max(minY, btnInitialTop + dy), maxY);
+
+            speedDial.style.left = newLeft + 'px';
+            speedDial.style.top = newTop + 'px';
+            speedDial.style.right = 'auto';
+            speedDial.style.bottom = 'auto';
+            speedDial.classList.add('is-repositioned');
+
+            if (newTop < 220) {
+                speedDial.classList.add('expand-down');
+            } else {
+                speedDial.classList.remove('expand-down');
+            }
+        }
+    }
+
+    function onBtnPointerUp() {
+        if (!isBtnPointerDown) return;
+        isBtnPointerDown = false;
+
+        window.removeEventListener('pointermove', onBtnPointerMove);
+        window.removeEventListener('mousemove', onBtnPointerMove);
+        window.removeEventListener('touchmove', onBtnPointerMove);
+        window.removeEventListener('pointerup', onBtnPointerUp);
+        window.removeEventListener('mouseup', onBtnPointerUp);
+        window.removeEventListener('touchend', onBtnPointerUp);
+
+        if (isBtnDragging) {
+            isBtnDragging = false;
+            speedDial.classList.remove('is-dragging');
+            suppressBtnClickUntil = Date.now() + 300;
+
+            const rect = speedDial.getBoundingClientRect();
+            try {
+                localStorage.setItem(STORAGE_KEY_BTN_POS, JSON.stringify({
+                    left: Math.round(rect.left),
+                    top: Math.round(rect.top)
+                }));
+            } catch (e) {}
+        }
+    }
+
+    triggerBtn.addEventListener('pointerdown', onBtnPointerDown);
+    triggerBtn.addEventListener('mousedown', onBtnPointerDown);
+    triggerBtn.addEventListener('touchstart', onBtnPointerDown, { passive: true });
+
+    // Menu Speed Dial Actions & Toggle
+    function openSpeedDial() {
+        const rect = speedDial.getBoundingClientRect();
+        if (rect.top < 220) {
+            speedDial.classList.add('expand-down');
+        } else {
+            speedDial.classList.remove('expand-down');
+        }
+        speedDial.classList.add('is-open');
+        triggerBtn.setAttribute('aria-expanded', 'true');
+        if (speedDialMenu) speedDialMenu.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeSpeedDial() {
+        speedDial.classList.remove('is-open');
+        triggerBtn.setAttribute('aria-expanded', 'false');
+        if (speedDialMenu) speedDialMenu.setAttribute('aria-hidden', 'true');
+    }
+
+    function toggleSpeedDial() {
+        if (speedDial.classList.contains('is-open')) {
+            closeSpeedDial();
+        } else {
+            openSpeedDial();
+        }
+    }
+
+    triggerBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (didBtnMove || Date.now() < suppressBtnClickUntil) {
+            didBtnMove = false;
+            return;
+        }
+        toggleSpeedDial();
+    });
+
+    triggerBtn.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleSpeedDial();
+        }
+    });
+
+    // Option 1 : Support Technique & Urgence
+    if (speedDialSupportBtn) {
+        speedDialSupportBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeSpeedDial();
+            if (!chatWindow.classList.contains('klasora-ai-hidden')) {
+                toggleChat(false);
+            }
+            if (typeof window.klasoraOpenSupportModal === 'function') {
+                window.klasoraOpenSupportModal();
+            } else {
+                const supportTrigger = document.getElementById('klasoraSupportTriggerBtn');
+                if (supportTrigger) supportTrigger.click();
+            }
+        });
+    }
+
+    // Option 2 : Assistant IA de Direction
+    if (speedDialAiBtn) {
+        speedDialAiBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeSpeedDial();
+            toggleChat(true);
+        });
+    }
+
+    // Clic en dehors pour replier le Speed Dial
+    document.addEventListener('click', function(e) {
+        if (speedDial.classList.contains('is-open') && !speedDial.contains(e.target)) {
+            closeSpeedDial();
+        }
+    });
+
+    // =========================================================================
+    // 2. GESTION DU DÉPLACEMENT DE LA FENÊTRE SUR PC (DRAGGABLE CHAT WINDOW)
+    // =========================================================================
+    let isWinPointerDown = false;
+    let isWinDragging = false;
+    let winStartX = 0, winStartY = 0;
+    let winInitialLeft = 0, winInitialTop = 0;
+
+    // Restaurer la position sauvegardée de la fenêtre (PC uniquement)
+    function restoreWindowPosition() {
+        if (window.innerWidth <= 576) return;
+        try {
+            const savedWinPos = localStorage.getItem(STORAGE_KEY_WIN_POS);
+            if (savedWinPos) {
+                const pos = JSON.parse(savedWinPos);
+                if (typeof pos.left === 'number' && typeof pos.top === 'number') {
+                    const w = chatWindow.offsetWidth || 420;
+                    const h = chatWindow.offsetHeight || 600;
+                    const maxLeft = window.innerWidth - w - 12;
+                    const maxTop = window.innerHeight - h - 12;
+                    const left = Math.min(Math.max(12, pos.left), Math.max(12, maxLeft));
+                    const top = Math.min(Math.max(12, pos.top), Math.max(12, maxTop));
+                    chatWindow.style.left = left + 'px';
+                    chatWindow.style.top = top + 'px';
+                    chatWindow.style.right = 'auto';
+                    chatWindow.style.bottom = 'auto';
+                }
+            }
+        } catch (e) {}
+    }
+
+    function onWinPointerDown(e) {
+        if (window.innerWidth <= 576) return;
+        if (e.button !== undefined && e.button !== 0) return;
+        if (e.target.closest('.klasora-ai-header-btn')) return;
+
+        isWinPointerDown = true;
+        isWinDragging = false;
+
+        const coords = (e.touches && e.touches.length > 0) ? e.touches[0] : e;
+        winStartX = coords.clientX;
+        winStartY = coords.clientY;
+
+        const rect = chatWindow.getBoundingClientRect();
+        winInitialLeft = rect.left;
+        winInitialTop = rect.top;
+
+        window.addEventListener('pointermove', onWinPointerMove, { passive: false });
+        window.addEventListener('mousemove', onWinPointerMove);
+        window.addEventListener('pointerup', onWinPointerUp);
+        window.addEventListener('mouseup', onWinPointerUp);
+    }
+
+    function onWinPointerMove(e) {
+        if (!isWinPointerDown) return;
+        const coords = (e.touches && e.touches.length > 0) ? e.touches[0] : e;
+        const dx = coords.clientX - winStartX;
+        const dy = coords.clientY - winStartY;
+
+        if (!isWinDragging && Math.hypot(dx, dy) > 6) {
+            isWinDragging = true;
+            chatWindow.classList.add('is-dragging-window');
+        }
+
+        if (isWinDragging) {
+            if (e.cancelable) e.preventDefault();
+            const w = chatWindow.offsetWidth;
+            const h = chatWindow.offsetHeight;
+            const minX = 10;
+            const minY = 10;
+            const maxX = window.innerWidth - w - 10;
+            const maxY = window.innerHeight - h - 10;
+
+            let newLeft = Math.min(Math.max(minX, winInitialLeft + dx), maxX);
+            let newTop = Math.min(Math.max(minY, winInitialTop + dy), maxY);
+
+            chatWindow.style.left = newLeft + 'px';
+            chatWindow.style.top = newTop + 'px';
+            chatWindow.style.right = 'auto';
+            chatWindow.style.bottom = 'auto';
+        }
+    }
+
+    function onWinPointerUp() {
+        if (!isWinPointerDown) return;
+        isWinPointerDown = false;
+        window.removeEventListener('pointermove', onWinPointerMove);
+        window.removeEventListener('mousemove', onWinPointerMove);
+        window.removeEventListener('pointerup', onWinPointerUp);
+        window.removeEventListener('mouseup', onWinPointerUp);
+
+        if (isWinDragging) {
+            isWinDragging = false;
+            chatWindow.classList.remove('is-dragging-window');
+            const rect = chatWindow.getBoundingClientRect();
+            try {
+                localStorage.setItem(STORAGE_KEY_WIN_POS, JSON.stringify({
+                    left: Math.round(rect.left),
+                    top: Math.round(rect.top)
+                }));
+            } catch (e) {}
+        }
+    }
+
+    if (dragZone) {
+        dragZone.addEventListener('pointerdown', onWinPointerDown);
+        dragZone.addEventListener('mousedown', onWinPointerDown);
+    }
+
+    // Réinitialiser la position de la fenêtre (bouton recentrer)
+    if (resetPosBtn) {
+        resetPosBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            localStorage.removeItem(STORAGE_KEY_WIN_POS);
+            chatWindow.style.left = '';
+            chatWindow.style.top = '';
+            chatWindow.style.right = '24px';
+            chatWindow.style.bottom = '86px';
+        });
+    }
+
+    // Agrandir / Réduire la largeur sur PC
+    if (expandBtn) {
+        try {
+            if (localStorage.getItem(STORAGE_KEY_EXPANDED) === '1') {
+                chatWindow.classList.add('is-expanded');
+                expandBtn.innerHTML = '<i class="fas fa-compress-alt"></i>';
+            }
+        } catch (e) {}
+
+        expandBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isExp = chatWindow.classList.toggle('is-expanded');
+            expandBtn.innerHTML = isExp ? '<i class="fas fa-compress-alt"></i>' : '<i class="fas fa-expand-alt"></i>';
+            try {
+                localStorage.setItem(STORAGE_KEY_EXPANDED, isExp ? '1' : '0');
+            } catch (err) {}
+            // Si la fenêtre sort de l'écran après agrandissement, on réajuste
+            setTimeout(() => {
+                const rect = chatWindow.getBoundingClientRect();
+                if (rect.right > window.innerWidth - 10) {
+                    const left = Math.max(10, window.innerWidth - chatWindow.offsetWidth - 12);
+                    chatWindow.style.left = left + 'px';
+                }
+            }, 60);
+        });
+    }
+
+    // =========================================================================
+    // 3. GLISSER VERS LE BAS POUR FERMER SUR MOBILE (SWIPE DOWN TO CLOSE)
+    // =========================================================================
+    let touchStartY = 0;
+    let touchMoveY = 0;
+
+    function onMobileTouchStart(e) {
+        if (window.innerWidth > 576) return;
+        touchStartY = e.touches[0].clientY;
+        touchMoveY = touchStartY;
+    }
+
+    function onMobileTouchMove(e) {
+        if (window.innerWidth > 576) return;
+        touchMoveY = e.touches[0].clientY;
+        const diffY = touchMoveY - touchStartY;
+        if (diffY > 0) {
+            chatWindow.style.transform = `translateY(${diffY}px)`;
+        }
+    }
+
+    function onMobileTouchEnd() {
+        if (window.innerWidth > 576) return;
+        const diffY = touchMoveY - touchStartY;
+        chatWindow.style.transform = '';
+        if (diffY > 80) {
+            toggleChat(false);
+        }
+    }
+
+    if (mobileHandle) {
+        mobileHandle.addEventListener('touchstart', onMobileTouchStart, { passive: true });
+        mobileHandle.addEventListener('touchmove', onMobileTouchMove, { passive: true });
+        mobileHandle.addEventListener('touchend', onMobileTouchEnd);
+    }
+
+    // =========================================================================
+    // 4. OUVERTURE / FERMETURE & GESTION DU BACKDROP
+    // =========================================================================
+    function toggleChat(forceOpen) {
+        const isOpen = !chatWindow.classList.contains('klasora-ai-hidden');
+        const nextState = forceOpen !== undefined ? forceOpen : !isOpen;
+
+        if (nextState) {
+            restoreWindowPosition();
+            chatWindow.classList.remove('klasora-ai-hidden');
+            triggerBtn.classList.add('is-chat-active');
+            if (backdrop && window.innerWidth <= 576) {
+                backdrop.classList.remove('klasora-ai-hidden');
+            }
+            sessionStorage.setItem(STORAGE_KEY_STATE, '1');
+            setTimeout(() => {
+                inputArea.focus();
+                scrollToBottom();
+            }, 100);
+        } else {
+            chatWindow.classList.add('klasora-ai-hidden');
+            triggerBtn.classList.remove('is-chat-active');
+            if (backdrop) {
+                backdrop.classList.add('klasora-ai-hidden');
+            }
+            sessionStorage.setItem(STORAGE_KEY_STATE, '0');
+        }
+    }
+
+    closeBtn.addEventListener('click', () => toggleChat(false));
+    if (backdrop) {
+        backdrop.addEventListener('click', () => toggleChat(false));
+    }
+
+    // Fermeture avec la touche Échap
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (speedDial.classList.contains('is-open')) {
+                closeSpeedDial();
+            } else if (!chatWindow.classList.contains('klasora-ai-hidden')) {
+                toggleChat(false);
+            }
+        }
+    });
+
+    // =========================================================================
+    // 5. GESTION DES MESSAGES, RENDU MARKDOWN ET ENVOI
+    // =========================================================================
+    function scrollToBottom() {
+        if (bodyContainer) {
+            bodyContainer.scrollTop = bodyContainer.scrollHeight;
+        }
+    }
+
+    function getFormattedTime() {
+        const now = new Date();
+        return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return text.toString().replace(/[&<>"']/g, (m) => map[m]);
+    }
+
+    function renderMarkdown(rawText) {
+        if (!rawText) return '';
+        let safe = escapeHtml(rawText);
+
+        safe = safe.replace(/```([\s\S]*?)```/g, (match, code) => `<pre><code>${code.trim()}</code></pre>`);
+        safe = safe.replace(/`([^`]+)`/g, '<code>$1</code>');
+        safe = safe.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        safe = safe.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+        const lines = safe.split('\n');
+        let inList = false;
+        let processedLines = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const bulletMatch = line.match(/^(\s*)[-*]\s+(.+)$/);
+            const numberedMatch = line.match(/^(\s*)\d+\.\s+(.+)$/);
+
+            if (bulletMatch) {
+                if (!inList) {
+                    processedLines.push('<ul class="klasora-ai-list">');
+                    inList = 'ul';
+                }
+                processedLines.push(`<li>${bulletMatch[2]}</li>`);
+            } else if (numberedMatch) {
+                if (!inList) {
+                    processedLines.push('<ol class="klasora-ai-list">');
+                    inList = 'ol';
+                }
+                processedLines.push(`<li>${numberedMatch[2]}</li>`);
+            } else {
+                if (inList) {
+                    processedLines.push(inList === 'ul' ? '</ul>' : '</ol>');
+                    inList = false;
+                }
+                processedLines.push(line);
+            }
+        }
+        if (inList) {
+            processedLines.push(inList === 'ul' ? '</ul>' : '</ol>');
+        }
+
+        let result = processedLines.join('\n');
+        result = result.replace(/([^\n>])\n([^\n<])/g, '$1<br>$2');
+        return result;
+    }
+
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta) return meta.getAttribute('content');
+        const input = document.querySelector('input[name="csrf_token"]');
+        return input ? input.value : '';
+    }
+
+    function loadSavedMessages() {
+        try {
+            const saved = sessionStorage.getItem(STORAGE_KEY_MESSAGES);
+            if (!saved) return;
+            const list = JSON.parse(saved);
+            if (Array.isArray(list) && list.length > 0) {
+                messagesList.innerHTML = '';
+                list.forEach((item) => appendMessageDom(item.role, item.text, item.time, false));
+                scrollToBottom();
+            }
+        } catch (e) {
+            console.warn('[KLASORA AI] Erreur lecture historique:', e);
+        }
+    }
+
+    function saveMessageToHistory(role, text, time) {
+        try {
+            let list = [];
+            const saved = sessionStorage.getItem(STORAGE_KEY_MESSAGES);
+            if (saved) list = JSON.parse(saved);
+            list.push({ role, text, time });
+            sessionStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(list));
+        } catch (e) {}
+    }
+
+    function appendMessageDom(role, text, time, shouldSave = true) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `klasora-ai-msg ${role === 'user' ? 'klasora-ai-msg-user' : 'klasora-ai-msg-bot'}`;
+
+        const bubbleWrap = document.createElement('div');
+        bubbleWrap.className = 'klasora-ai-bubble-wrap';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'klasora-ai-bubble';
+
+        if (role === 'user') {
+            bubble.textContent = text;
+        } else {
+            bubble.innerHTML = renderMarkdown(text);
+        }
+
+        const metaDiv = document.createElement('div');
+        metaDiv.className = 'klasora-ai-msg-meta';
+
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'klasora-ai-msg-time';
+        timeSpan.textContent = time || getFormattedTime();
+        metaDiv.appendChild(timeSpan);
+
+        if (role === 'bot') {
+            const copyBtn = document.createElement('button');
+            copyBtn.type = 'button';
+            copyBtn.className = 'klasora-ai-copy-btn';
+            copyBtn.innerHTML = '<i class="far fa-copy"></i> Copier';
+            copyBtn.title = 'Copier ce texte';
+
+            copyBtn.addEventListener('click', () => {
+                const plainText = text;
+                const setCopied = () => {
+                    copyBtn.classList.add('is-copied');
+                    copyBtn.innerHTML = '<i class="fas fa-check"></i> Copié !';
+                    setTimeout(() => {
+                        copyBtn.classList.remove('is-copied');
+                        copyBtn.innerHTML = '<i class="far fa-copy"></i> Copier';
+                    }, 2000);
+                };
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(plainText).then(setCopied);
+                } else {
+                    const ta = document.createElement('textarea');
+                    ta.value = plainText;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    setCopied();
+                }
+            });
+            metaDiv.appendChild(copyBtn);
+        }
+
+        bubbleWrap.appendChild(bubble);
+        bubbleWrap.appendChild(metaDiv);
+
+        if (role === 'bot') {
+            const avatar = document.createElement('div');
+            avatar.className = 'klasora-ai-msg-avatar';
+            avatar.innerHTML = '<i class="fas fa-robot"></i>';
+            msgDiv.appendChild(avatar);
+        }
+
+        msgDiv.appendChild(bubbleWrap);
+        messagesList.appendChild(msgDiv);
+
+        if (shouldSave) {
+            saveMessageToHistory(role, text, timeSpan.textContent);
+        }
+        scrollToBottom();
+    }
+
+    function autoResizeInput() {
+        inputArea.style.height = 'auto';
+        inputArea.style.height = Math.min(inputArea.scrollHeight, 110) + 'px';
+    }
+
+    inputArea.addEventListener('input', autoResizeInput);
+
+    async function sendMessage(customPrompt) {
+        const questionText = (customPrompt || inputArea.value || '').trim();
+        if (!questionText || isRequestInProgress) return;
+
+        // Extraire l'historique court (2 derniers échanges = 4 messages max) avant d'ajouter le nouveau
+        let historyPayload = [];
+        try {
+            const saved = sessionStorage.getItem(STORAGE_KEY_MESSAGES);
+            if (saved) {
+                const list = JSON.parse(saved);
+                if (Array.isArray(list) && list.length > 0) {
+                    const recent = list.slice(-4);
+                    historyPayload = recent.map(item => ({
+                        role: item.role === 'user' ? 'user' : 'assistant',
+                        content: item.text || ''
+                    }));
+                }
+            }
+        } catch (e) {}
+
+        inputArea.value = '';
+        inputArea.style.height = 'auto';
+        sendBtn.disabled = true;
+        isRequestInProgress = true;
+
+        appendMessageDom('user', questionText, getFormattedTime(), true);
+        typingIndicator.classList.remove('klasora-ai-hidden');
+        scrollToBottom();
+
+        try {
+            const csrfToken = getCsrfToken();
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-CSRF-Token': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    question: questionText,
+                    history: historyPayload
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success && data.reply) {
+                appendMessageDom('bot', data.reply, getFormattedTime(), true);
+            } else {
+                const errMsg = data.error || data.message || "Une erreur est survenue lors du traitement. Veuillez reformuler ou réessayer.";
+                appendMessageDom('bot', `⚠️ **Information :** ${errMsg}`, getFormattedTime(), true);
+            }
+        } catch (err) {
+            console.error('[KLASORA AI] Erreur de communication:', err);
+            appendMessageDom('bot', "⚠️ **Service momentanément indisponible :** Veuillez réessayer dans un instant ou contacter le support technique.", getFormattedTime(), true);
+        } finally {
+            typingIndicator.classList.add('klasora-ai-hidden');
+            sendBtn.disabled = false;
+            isRequestInProgress = false;
+            inputArea.focus();
+            scrollToBottom();
+        }
+    }
+
+    sendBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        sendMessage();
+    });
+
+    inputArea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    pillButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const prompt = btn.dataset.prompt;
+            if (prompt) {
+                inputArea.value = prompt;
+                autoResizeInput();
+                inputArea.focus();
+            }
+        });
+    });
+
+    clearBtn.addEventListener('click', async () => {
+        if (confirm("Voulez-vous effacer l'historique de cette conversation ?")) {
+            sessionStorage.removeItem(STORAGE_KEY_MESSAGES);
+            try {
+                const csrfToken = getCsrfToken();
+                await fetch('/api/assistant/clear-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-CSRF-Token': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+            } catch (e) {}
+            messagesList.innerHTML = `
+                <div class="klasora-ai-msg klasora-ai-msg-bot">
+                    <div class="klasora-ai-msg-avatar">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="klasora-ai-bubble-wrap">
+                        <div class="klasora-ai-bubble">
+                            <p class="mb-1"><strong>Historique réinitialisé.</strong></p>
+                            <p class="mb-0 small text-muted">Posez votre nouvelle question ou sélectionnez une suggestion pour démarrer.</p>
+                        </div>
+                        <div class="klasora-ai-msg-meta">
+                            <span class="klasora-ai-msg-time">${getFormattedTime()}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            scrollToBottom();
+        }
+    });
+
+    // =========================================================================
+    // 6. INITIALISATION & REPOSITIONNEMENT RESPONSIVE
+    // =========================================================================
+    loadSavedMessages();
+
+    // Rétablir l'état ouvert si sauvegardé
+    try {
+        if (sessionStorage.getItem(STORAGE_KEY_STATE) === '1') {
+            toggleChat(true);
+        }
+    } catch (e) {}
+
+    // Ajustement de sécurité au redimensionnement de l'écran
+    window.addEventListener('resize', function() {
+        if (speedDial.classList.contains('is-repositioned')) {
+            const rect = speedDial.getBoundingClientRect();
+            const w = speedDial.offsetWidth || 150;
+            const h = speedDial.offsetHeight || 50;
+            const maxLeft = window.innerWidth - w - 8;
+            const maxTop = window.innerHeight - h - 8;
+            if (rect.left > maxLeft || rect.top > maxTop) {
+                speedDial.style.left = Math.min(Math.max(8, rect.left), maxLeft) + 'px';
+                speedDial.style.top = Math.min(Math.max(8, rect.top), maxTop) + 'px';
+            }
+            if (rect.top < 220) {
+                speedDial.classList.add('expand-down');
+            } else {
+                speedDial.classList.remove('expand-down');
+            }
+        }
+        if (window.innerWidth <= 576) {
+            chatWindow.style.left = '';
+            chatWindow.style.top = '';
+            chatWindow.style.right = '';
+            chatWindow.style.bottom = '';
+        }
+    });
+})();
+</script>
