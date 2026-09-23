@@ -223,6 +223,64 @@ class TestAssistantAdvancedFeatures(unittest.TestCase):
         self.assertIn("Ne mentionne JAMAIS de termes techniques", SYSTEM_ASSISTANT)
         self.assertIn("base de données", SYSTEM_ASSISTANT)
 
+    def test_09_qui_est_eleve_conversational(self):
+        """Vérifie que 'Qui est [nom]' ou 'C'est qui [nom]' renvoie le profil humain avec le bouton [Voir son dossier complet]."""
+        if not self.eleve or not self.admin:
+            self.skipTest("Données insuffisantes")
+
+        with self.client.session_transaction() as sess:
+            sess["_user_id"] = str(self.admin.id)
+
+        resp = self.client.post("/api/assistant/query-data", json={
+            "question": f"Qui est {self.eleve.prenom} ?"
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["intention"], "fiche_eleve")
+        self.assertTrue(data["donnees_trouvees"] > 0)
+        self.assertIn(f"[Voir son dossier complet](/eleve/{self.eleve.id})", data["reply"])
+        self.assertIn(self.eleve.nom, data["reply"])
+
+    def test_10_qui_est_ce_anaphora_followup(self):
+        """Vérifie que la relance 'Qui est-ce ?' ou 'C'est qui ?' après une première question résout l'élève en session."""
+        if not self.eleve or not self.admin:
+            self.skipTest("Données insuffisantes")
+
+        with self.client.session_transaction() as sess:
+            sess["_user_id"] = str(self.admin.id)
+            sess["ai_last_eleve_id"] = self.eleve.id
+            sess["ai_last_eleve_nom"] = f"{self.eleve.prenom} {self.eleve.nom}"
+
+        resp = self.client.post("/api/assistant/query-data", json={
+            "question": "Qui est-ce ?"
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["intention"], "fiche_eleve")
+        self.assertTrue(data["donnees_trouvees"] > 0)
+        self.assertIn(f"[Voir son dossier complet](/eleve/{self.eleve.id})", data["reply"])
+
+    def test_11_bare_name_input_recognition(self):
+        """Vérifie que taper simplement le prénom de l'élève (ex: 'Omar') est immédiatement reconnu."""
+        if not self.eleve or not self.admin:
+            self.skipTest("Données insuffisantes")
+
+        with self.client.session_transaction() as sess:
+            sess["_user_id"] = str(self.admin.id)
+            sess.pop("ai_last_eleve_id", None)
+
+        resp = self.client.post("/api/assistant/query-data", json={
+            "question": self.eleve.prenom
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["success"])
+        self.assertEqual(data["intention"], "fiche_eleve")
+        self.assertTrue(data["donnees_trouvees"] > 0)
+        self.assertIn(f"[Voir son dossier complet](/eleve/{self.eleve.id})", data["reply"])
+
 
 if __name__ == "__main__":
     unittest.main()
