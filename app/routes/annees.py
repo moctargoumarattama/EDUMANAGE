@@ -443,41 +443,12 @@ def preparer_structure_annee_route(annee_id):
     })
 
 
-@main.route('/annees/<int:annee_id>/preparation', methods=['GET'], endpoint='preparation_annee')
+@main.route('/annees/<int:annee_id>/preparation', methods=['GET', 'POST'], endpoint='preparation_annee')
 @login_required
 @role_required('admin', 'super_admin')
 def preparation_annee(annee_id):
-    ecole_id = _current_ecole_id_for_annees()
-    if not ecole_id:
-        flash("Veuillez sélectionner un établissement.", "warning")
-        return redirect(url_for('main.gestion_annees'))
+    return onboarding_rentree(cible_id=annee_id)
 
-    annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
-    if not annee:
-        flash("Année scolaire introuvable.", "danger")
-        return redirect(url_for('main.gestion_annees'))
-
-    if annee.statut == 'archivee':
-        flash("Cette année scolaire est archivée et ne peut plus être préparée.", "warning")
-        return redirect(url_for('main.gestion_annees'))
-
-    if annee.statut == 'active':
-        flash("Cette année scolaire est déjà active.", "info")
-        return redirect(url_for('main.gestion_annees'))
-
-    etat = get_etat_preparation_annee(ecole_id, annee.id)
-    annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut='active').first()
-    annee_consultee = get_annee_consultee(ecole_id)
-    csrf_form = CSRFForm()
-
-    return render_template(
-        'preparation_annee.html',
-        annee=annee,
-        annee_active=annee_active,
-        annee_consultee=annee_consultee,
-        etat=etat,
-        csrf_form=csrf_form,
-    )
 
 
 @main.route('/annees/<int:annee_id>/activation', methods=['GET'], endpoint='activation_annee_confirmation')
@@ -789,12 +760,62 @@ def passage_annee(source_id, cible_id):
         if classe_est_ouverte(c)
     ]
 
+    # Regroupement des items par classe source (affichage par classe signature KLASORA)
+    classes_dict = {}
+    sans_classe_items = []
+
+    for it in items_affiches:
+        cl = it["classe_source"]
+        if cl:
+            if cl.id not in classes_dict:
+                classes_dict[cl.id] = {
+                    "id": cl.id,
+                    "classe": cl,
+                    "nom": cl.nom,
+                    "niveau": cl.niveau_scolaire.nom if getattr(cl, 'niveau_scolaire', None) else (cl.niveau or ""),
+                    "salle": getattr(cl, 'salle', None),
+                    "eleves": [],
+                    "total_count": 0,
+                    "traites_count": 0,
+                    "a_traiter_count": 0,
+                }
+            classes_dict[cl.id]["eleves"].append(it)
+            classes_dict[cl.id]["total_count"] += 1
+            if it["est_traite"]:
+                classes_dict[cl.id]["traites_count"] += 1
+            else:
+                classes_dict[cl.id]["a_traiter_count"] += 1
+        else:
+            sans_classe_items.append(it)
+
+    classes_groupes = []
+    for cl in classes_source_disponibles:
+        if cl.id in classes_dict:
+            classes_groupes.append(classes_dict[cl.id])
+    for cl_id, grp in classes_dict.items():
+        if grp not in classes_groupes:
+            classes_groupes.append(grp)
+
+    if sans_classe_items:
+        classes_groupes.append({
+            "id": "sans-classe",
+            "classe": None,
+            "nom": "Élèves sans classe",
+            "niveau": "",
+            "salle": "",
+            "eleves": sans_classe_items,
+            "total_count": len(sans_classe_items),
+            "traites_count": sum(1 for it in sans_classe_items if it["est_traite"]),
+            "a_traiter_count": sum(1 for it in sans_classe_items if not it["est_traite"]),
+        })
+
     csrf_form = CSRFForm()
     return render_template(
         'passage_annee.html',
         annee_source=annee_source,
         annee_cible=annee_cible,
         items=items_affiches,
+        classes_groupes=classes_groupes,
         total_eleves=total_eleves,
         nb_traites=nb_traites,
         nb_a_traiter=nb_a_traiter,
@@ -1138,7 +1159,7 @@ def dupliquer_structure_annee_route(source_id, cible_id):
     csrf_form = CSRFForm()
     if not csrf_form.validate_on_submit():
         flash("Session expirée ou jeton CSRF invalide.", "danger")
-        return redirect(request.form.get('next') or request.referrer or url_for('main.preparation_annee', annee_id=cible_id))
+        return redirect(request.form.get('next') or request.referrer or url_for('main.onboarding_rentree', cible_id=cible_id))
 
     ok, message = dupliquer_structure_annee(
         annee_source_id=source_id,
@@ -1150,13 +1171,14 @@ def dupliquer_structure_annee_route(source_id, cible_id):
     else:
         flash(message, "danger")
 
-    return redirect(request.form.get('next') or request.referrer or url_for('main.preparation_annee', annee_id=cible_id))
+    return redirect(request.form.get('next') or request.referrer or url_for('main.onboarding_rentree', cible_id=cible_id))
 
 
-@main.route('/annees/<int:cible_id>/wizard', methods=['GET'], endpoint='wizard_rentree')
+@main.route('/annees/<int:cible_id>/onboarding_rentree', methods=['GET', 'POST'], endpoint='onboarding_rentree')
+@main.route('/annees/<int:cible_id>/wizard', methods=['GET', 'POST'], endpoint='wizard_rentree')
 @login_required
 @role_required('admin', 'super_admin')
-def wizard_rentree(cible_id):
+def onboarding_rentree(cible_id):
     ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:
         flash("Veuillez sélectionner un établissement.", "warning")
@@ -1171,12 +1193,59 @@ def wizard_rentree(cible_id):
         flash("Cette année scolaire est archivée et ne peut plus être modifiée.", "warning")
         return redirect(url_for('main.gestion_annees'))
 
+    if annee_cible.statut == 'active':
+        flash("Cette année scolaire est déjà active.", "info")
+        return redirect(url_for('main.gestion_annees'))
+
     csrf_form = CSRFForm()
     toutes_annees_ecole = AnneeScolaire.query.filter_by(ecole_id=ecole_id).order_by(AnneeScolaire.date_debut.asc()).all()
     annee_source = determiner_source_passage_pour_cible(annee_cible, toutes_annees_ecole)
     annee_active = next((a for a in toutes_annees_ecole if a.statut == 'active'), None)
 
+    # Traitement des actions POST
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'configurer_semestres':
+            fin_s1_str = request.form.get('fin_semestre_1')
+            if fin_s1_str:
+                try:
+                    fin_s1 = datetime.strptime(fin_s1_str, '%Y-%m-%d').date()
+                    ok, err = configurer_semestres_annee(annee_cible, fin_s1)
+                    if ok:
+                        flash("Semestres configurés avec succès !", "success")
+                        return redirect(url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='2'))
+                    else:
+                        flash(err or "Erreur lors de la configuration des semestres.", "danger")
+                except ValueError:
+                    flash("Format de date invalide.", "danger")
+            return redirect(url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='1'))
+
+        elif action == 'dupliquer_structure' and annee_source:
+            ok, msg = dupliquer_structure_annee(annee_source.id, annee_cible.id, ecole_id)
+            if ok:
+                flash(msg, "success")
+                return redirect(url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='3'))
+            else:
+                flash(msg, "danger")
+                return redirect(url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='2'))
+
+        elif action == 'activer_annee':
+            succes, msg, details = activer_annee_scolaire(ecole_id, annee_cible.id, user_id=current_user.id)
+            if succes:
+                flash(msg, "success")
+                return redirect(url_for('main.gestion_annees'))
+            else:
+                flash(msg, "danger")
+                return redirect(url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='4'))
+
     # 1. Structure & Périodes
+    semestres_list = get_semestres_annee(ecole_id, annee_cible.id)
+    from types import SimpleNamespace
+    ns = SimpleNamespace(
+        s1=semestres_list[0] if len(semestres_list) > 0 else None,
+        s2=semestres_list[1] if len(semestres_list) > 1 else None,
+    )
     classes_cible = classes_triees_pedagogique(
         Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=cible_id)
     ).all()
@@ -1253,13 +1322,28 @@ def wizard_rentree(cible_id):
         progression = 0
     etape4_complete = (annee_cible.statut == 'active')
 
+    # Sélection intelligente de l'étape active
+    step = request.args.get('step')
+    if step not in ['1', '2', '3', '4']:
+        if not is_cal_cfg:
+            step = '1'
+        elif total_classes == 0:
+            step = '2'
+        elif nb_a_traiter > 0:
+            step = '3'
+        else:
+            step = '4'
+
     return render_template(
-        'wizard_rentree.html',
+        'onboarding_rentree.html',
+        annee=annee_cible,
         annee_cible=annee_cible,
         annee_source=annee_source,
         annee_active=annee_active,
+        step=step,
         csrf_form=csrf_form,
         # Étape 1
+        ns=ns,
         classes_cible=classes_cible,
         total_classes=total_classes,
         classes_ouvertes_count=classes_ouvertes_count,
@@ -1286,6 +1370,7 @@ def wizard_rentree(cible_id):
         progression=progression,
         etape4_complete=etape4_complete,
         etat_prep=etat_prep,
+        etat=etat_prep,
     )
 
 

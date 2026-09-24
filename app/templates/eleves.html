@@ -490,18 +490,53 @@
             </div>
             {% endfor %}
         {% else %}
-            <!-- État vide global -->
+            <!-- État vide contextualisé -->
             <div class="card border-0 shadow-sm text-center py-5">
                 <div class="card-body">
-                    <i class="fas fa-user-graduate text-muted fa-4x mb-3 opacity-50"></i>
-                    <h4 class="fw-bold text-gray-800 mb-2">Aucun élève inscrit</h4>
-                    <p class="text-muted mx-auto mb-3" style="max-width: 460px;">
-                        Aucun élève n'est inscrit pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong>.
-                    </p>
-                    {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
-                    <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-primary btn-sm px-3">
-                        <i class="fas fa-plus me-1"></i>Inscrire un premier élève
-                    </a>
+                    {% if statut == 'preinscrit' %}
+                        <div class="rounded-circle d-inline-flex align-items-center justify-content-center mb-3 shadow-xs" style="width: 68px; height: 68px; background-color: #f3e8ff; color: #6b21a8; font-size: 1.85rem;">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <h4 class="fw-bold text-gray-800 mb-2">Aucun élève préinscrit en attente d'acompte</h4>
+                        <p class="text-muted mx-auto mb-3" style="max-width: 480px;">
+                            Tous les élèves enregistrés pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong> sont déjà confirmés. Les élèves en attente d'un acompte financier lors des passages d'année ou réintégrations s'afficheront ici.
+                        </p>
+                        <a href="{{ url_for('main.eleves', classe_id=classe_id, niveau_id=niveau_id, genre=genre) }}" class="btn btn-sm btn-primary px-3 fw-semibold" style="border-radius: 8px;">
+                            <i class="fas fa-users me-1"></i>Voir tous les élèves
+                        </a>
+                    {% elif statut == 'inscrit' %}
+                        <div class="rounded-circle bg-success-subtle text-success d-inline-flex align-items-center justify-content-center mb-3 shadow-xs" style="width: 68px; height: 68px; font-size: 1.85rem;">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <h4 class="fw-bold text-gray-800 mb-2">Aucun élève confirmé</h4>
+                        <p class="text-muted mx-auto mb-3" style="max-width: 480px;">
+                            Aucun élève n'a actuellement le statut confirmé pour cette sélection.
+                        </p>
+                        <a href="{{ url_for('main.eleves') }}" class="btn btn-sm btn-primary px-3 fw-semibold" style="border-radius: 8px;">
+                            <i class="fas fa-users me-1"></i>Voir tous les élèves
+                        </a>
+                    {% elif search or classe_id or niveau_id or genre %}
+                        <div class="rounded-circle bg-light text-muted d-inline-flex align-items-center justify-content-center mb-3 shadow-xs" style="width: 68px; height: 68px; font-size: 1.85rem;">
+                            <i class="fas fa-search opacity-50"></i>
+                        </div>
+                        <h4 class="fw-bold text-gray-800 mb-2">Aucun élève trouvé</h4>
+                        <p class="text-muted mx-auto mb-3" style="max-width: 480px;">
+                            Aucun élève ne correspond aux critères de filtre sélectionnés.
+                        </p>
+                        <a href="{{ url_for('main.eleves') }}" class="btn btn-sm btn-outline-primary px-3 fw-semibold" style="border-radius: 8px;">
+                            <i class="fas fa-sync-alt me-1"></i>Réinitialiser les filtres
+                        </a>
+                    {% else %}
+                        <i class="fas fa-user-graduate text-muted fa-4x mb-3 opacity-50"></i>
+                        <h4 class="fw-bold text-gray-800 mb-2">Aucun élève inscrit</h4>
+                        <p class="text-muted mx-auto mb-3" style="max-width: 460px;">
+                            Aucun élève n'est inscrit pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong>.
+                        </p>
+                        {% if current_user.role in ['admin', 'super_admin'] and (not annee_consultee or annee_consultee.statut != 'archivee') %}
+                        <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-primary btn-sm px-3 fw-semibold" style="border-radius: 8px;">
+                            <i class="fas fa-plus me-1"></i>Inscrire un premier élève
+                        </a>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>

@@ -160,6 +160,11 @@
                             </td>
                             <td class="text-end">
                                 <div class="btn-group btn-group-sm flex-wrap gap-1" role="group">
+                                    {% if annee.statut == 'planifiee' %}
+                                    <a href="{{ url_for('main.onboarding_rentree', cible_id=annee.id) }}" class="btn btn-primary fw-semibold shadow-sm">
+                                        <i class="fas fa-magic me-1"></i>Préparer
+                                    </a>
+                                    {% endif %}
                                     {% if annee.statut != 'archivee' %}
                                     <button type="button" class="btn btn-outline-warning btn-modifier-annee"
                                         data-bs-toggle="modal" data-bs-target="#modalModifierAnnee"
@@ -171,33 +176,14 @@
                                         <i class="fas fa-edit me-1"></i>Modifier
                                     </button>
                                     {% endif %}
-                                    {% if annee.statut == 'planifiee' %}
-                                    <a href="{{ url_for('main.preparation_annee', annee_id=annee.id) }}" class="btn btn-primary">
-                                        <i class="fas fa-tasks me-1"></i>Préparer
-                                    </a>
-                                    {% endif %}
                                     <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}" class="d-inline">
                                         {{ csrf_form.hidden_tag() }}
                                         <button type="submit" class="btn btn-outline-success">Consulter</button>
                                     </form>
+                                    {% if annee.statut != 'planifiee' %}
                                     <a href="{{ url_for('main.structure_annee', annee_id=annee.id) }}" class="btn btn-outline-secondary">
                                         <i class="fas fa-layer-group me-1"></i>Structure
                                     </a>
-                                    {% if sources_passage_par_cible and sources_passage_par_cible.get(annee.id) %}
-                                    <a href="{{ url_for('main.passage_annee', source_id=sources_passage_par_cible[annee.id].id, cible_id=annee.id) }}" class="btn btn-outline-info">
-                                        <i class="fas fa-user-graduate me-1"></i>Passage
-                                    </a>
-                                    {% endif %}
-                                    {% if annee.statut == 'planifiee' %}
-                                        {% if ns.s1 and ns.s1.date_debut and ns.s1.date_fin and ns.s2 and ns.s2.date_debut and ns.s2.date_fin %}
-                                        <a href="{{ url_for('main.activation_annee_confirmation', annee_id=annee.id) }}" class="btn btn-outline-primary">
-                                            <i class="fas fa-power-off me-1"></i>Activer
-                                        </a>
-                                        {% else %}
-                                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalSemestres{{ annee.id }}">
-                                            <i class="fas fa-calendar-week me-1"></i>Semestres requis
-                                        </button>
-                                        {% endif %}
                                     {% endif %}
                                 </div>
                             </td>
@@ -280,6 +266,12 @@
                 </div>
 
                 <div class="d-grid gap-2">
+                    {% if annee.statut == 'planifiee' %}
+                    <a href="{{ url_for('main.onboarding_rentree', cible_id=annee.id) }}" class="btn btn-primary py-2.5 fw-semibold shadow-sm">
+                        <i class="fas fa-magic me-2"></i>Préparer la rentrée
+                    </a>
+                    {% endif %}
+
                     {% if annee.statut != 'archivee' %}
                     <button type="button" class="btn btn-outline-warning btn-modifier-annee w-100 py-2"
                         data-bs-toggle="modal" data-bs-target="#modalModifierAnnee"
@@ -291,14 +283,8 @@
                     </button>
                     {% endif %}
 
-                    {% if annee.statut == 'planifiee' %}
-                    <a href="{{ url_for('main.preparation_annee', annee_id=annee.id) }}" class="btn btn-primary py-2">
-                        <i class="fas fa-tasks me-2"></i>Préparer l'année
-                    </a>
-                    {% endif %}
-
                     <div class="row g-2">
-                        <div class="col-6">
+                        <div class="{% if annee.statut == 'planifiee' %}col-12{% else %}col-6{% endif %}">
                             <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}">
                                 {{ csrf_form.hidden_tag() }}
                                 <button type="submit" class="btn btn-outline-success w-100 py-2">
@@ -306,30 +292,14 @@
                                 </button>
                             </form>
                         </div>
+                        {% if annee.statut != 'planifiee' %}
                         <div class="col-6">
                             <a href="{{ url_for('main.structure_annee', annee_id=annee.id) }}" class="btn btn-outline-secondary w-100 py-2">
                                 <i class="fas fa-layer-group me-1"></i>Structure
                             </a>
                         </div>
-                    </div>
-
-                    {% if sources_passage_par_cible and sources_passage_par_cible.get(annee.id) %}
-                    <a href="{{ url_for('main.passage_annee', source_id=sources_passage_par_cible[annee.id].id, cible_id=annee.id) }}" class="btn btn-outline-info py-2">
-                        <i class="fas fa-user-graduate me-2"></i>Passage des élèves
-                    </a>
-                    {% endif %}
-
-                    {% if annee.statut == 'planifiee' %}
-                        {% if ns.s1 and ns.s1.date_debut and ns.s1.date_fin and ns.s2 and ns.s2.date_debut and ns.s2.date_fin %}
-                        <a href="{{ url_for('main.activation_annee_confirmation', annee_id=annee.id) }}" class="btn btn-outline-primary py-2">
-                            <i class="fas fa-power-off me-2"></i>Activer l'année
-                        </a>
-                        {% else %}
-                        <button type="button" class="btn btn-outline-danger py-2" data-bs-toggle="modal" data-bs-target="#modalSemestres{{ annee.id }}">
-                            <i class="fas fa-calendar-week me-2"></i>Configurer les semestres avant activation
-                        </button>
                         {% endif %}
-                    {% endif %}
+                    </div>
                 </div>
             </div>
         </article>
