@@ -57,6 +57,7 @@ from app.services.activation_annee import (
     activer_annee_scolaire,
 )
 from app.services.semestres import calendrier_configure, configurer_semestres_annee, get_semestres_annee
+from app.services.duplication_structure import dupliquer_structure_annee
 
 
 def _current_ecole_id_for_annees():
@@ -650,6 +651,7 @@ def structure_annee(annee_id):
     return render_template(
         'structure_annee.html',
         annee=annee,
+        source_annee=source_annee,
         annee_consultee=get_annee_consultee(ecole_id),
         classes=classes,
         grouped=grouped,
@@ -1122,4 +1124,31 @@ def annuler_decision_eleve(source_id, cible_id, eleve_id):
         flash(message, "danger")
 
     return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+
+@main.route('/annees/<int:source_id>/dupliquer_vers/<int:cible_id>', methods=['POST'], endpoint='dupliquer_structure_annee_route')
+@login_required
+@role_required('admin', 'super_admin')
+def dupliquer_structure_annee_route(source_id, cible_id):
+    ecole_id = _current_ecole_id_for_annees()
+    if not ecole_id:
+        flash("Veuillez sélectionner un établissement.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    csrf_form = CSRFForm()
+    if not csrf_form.validate_on_submit():
+        flash("Session expirée ou jeton CSRF invalide.", "danger")
+        return redirect(request.form.get('next') or request.referrer or url_for('main.preparation_annee', annee_id=cible_id))
+
+    ok, message = dupliquer_structure_annee(
+        annee_source_id=source_id,
+        annee_cible_id=cible_id,
+        ecole_id=ecole_id,
+    )
+    if ok:
+        flash(message, "success")
+    else:
+        flash(message, "danger")
+
+    return redirect(request.form.get('next') or request.referrer or url_for('main.preparation_annee', annee_id=cible_id))
 

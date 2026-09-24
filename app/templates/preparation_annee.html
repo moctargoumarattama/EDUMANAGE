@@ -45,6 +45,34 @@
         </div>
     </div>
 
+    {# --- ENCADRÉ 1-CLIC : RECONDUIRE LA STRUCTURE DE L'AN DERNIER --- #}
+    {% if annee.statut == 'planifiee' and etat.classes.total_classes == 0 and annee_active %}
+    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden" style="background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%); border-left: 5px solid #2563eb !important;">
+        <div class="card-body p-4 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+            <div class="d-flex align-items-start gap-3">
+                <div class="p-3 bg-white rounded-3 shadow-sm text-primary flex-shrink-0">
+                    <i class="fas fa-magic fa-2x"></i>
+                </div>
+                <div>
+                    <h2 class="h5 fw-bold text-dark mb-1">Gagnez du temps pour la rentrée</h2>
+                    <p class="text-muted mb-0">
+                        Vous pouvez reconduire à l'identique les classes et semestres de l'année précédente (<strong>{{ annee_active.nom }}</strong>) en un seul clic.
+                    </p>
+                </div>
+            </div>
+            <div class="flex-shrink-0">
+                <form method="POST" action="{{ url_for('main.dupliquer_structure_annee_route', source_id=annee_active.id, cible_id=annee.id) }}" onsubmit="return confirm('Confirmez-vous la reconduction automatique de la structure (classes, niveaux et semestres) depuis {{ annee_active.nom }} ?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="next" value="{{ url_for('main.preparation_annee', annee_id=annee.id) }}">
+                    <button type="submit" class="btn btn-primary btn-lg shadow-sm px-4 py-3 w-100 w-lg-auto d-inline-flex align-items-center justify-content-center gap-2" style="min-height: 48px; border-radius: 12px; font-weight: 600;">
+                        <i class="fas fa-copy me-2"></i>Reconduire la structure de l'an dernier
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {# --- CARTE DE PROGRESSION GLOBALE --- #}
     <div class="card shadow-sm mb-4 border-0">
         <div class="card-body">
