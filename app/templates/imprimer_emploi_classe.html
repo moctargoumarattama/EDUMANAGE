@@ -185,6 +185,39 @@
         }
 
         /* =========================================================================
+           STYLE RESPONSIVE (POUR L'AFFICHAGE SUR MOBILE AVANT IMPRESSION)
+           ========================================================================= */
+        @media screen and (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            .sheet-container {
+                padding: 16px 12px;
+            }
+            .school-header-table, .school-header-table tbody, .school-header-table tr, .school-header-table td {
+                display: block;
+                width: 100% !important;
+                text-align: center !important;
+            }
+            .school-header-table img {
+                margin: 0 auto 10px auto;
+            }
+            .school-header-table td {
+                padding-bottom: 12px;
+            }
+            .kpi-row {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            .kpi-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* =========================================================================
            STYLE D'IMPRESSION HAUTE DÉFINITION (FORMAT A4 PAYSAGE OU PORTRAIT)
            ========================================================================= */
         @media print {

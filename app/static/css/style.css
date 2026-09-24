@@ -4999,9 +4999,15 @@ body.auth-layout .main-content > .container {
     .class-schedule-header {
         padding: 0.75rem 0.85rem;
         gap: 0.5rem;
+        flex-wrap: wrap; /* Allow wrapping on mobile */
         position: sticky;
         top: 0;
         z-index: 10;
+    }
+
+    .class-schedule-profile {
+        flex: 1 1 auto;
+        min-width: 0;
     }
 
     .class-schedule-avatar {
@@ -5017,7 +5023,14 @@ body.auth-layout .main-content > .container {
     .class-schedule-stats {
         flex-direction: row;
         align-items: center;
+        flex-wrap: wrap;
         gap: 0.35rem;
+        width: 100%;
+        margin-top: 0.25rem;
+    }
+    
+    .class-schedule-chevron {
+        margin-left: auto;
     }
 
     .class-schedule-content {
