@@ -205,17 +205,17 @@
             </div>
         </div>
 
-        <!-- Indicateur de saisie / chargement -->
+        <!-- Indicateur de saisie / réflexion dynamique -->
         <div id="klasoraAiTyping" class="klasora-ai-typing-indicator klasora-ai-hidden" aria-live="polite">
-            <div class="klasora-ai-msg-avatar">
-                <i class="fas fa-robot"></i>
+            <div class="klasora-ai-msg-avatar klasora-ai-sparkle-pulse">
+                <i class="fas fa-wand-magic-sparkles text-primary"></i>
             </div>
             <div class="klasora-ai-typing-bubble">
                 <span class="klasora-ai-typing-dot"></span>
                 <span class="klasora-ai-typing-dot"></span>
                 <span class="klasora-ai-typing-dot"></span>
             </div>
-            <span class="klasora-ai-typing-label">Recherche en cours...</span>
+            <span id="klasoraAiTypingLabel" class="klasora-ai-typing-label fw-semibold">🔍 Analyse de votre demande...</span>
         </div>
     </main>
 
@@ -1053,9 +1053,19 @@
 }
 
 .klasora-ai-typing-label {
-    font-size: 0.74rem;
-    color: #64748b;
-    font-style: italic;
+    font-size: 0.76rem;
+    color: #475569;
+    font-weight: 600;
+    transition: opacity 0.15s ease-in-out;
+}
+
+.klasora-ai-sparkle-pulse {
+    animation: klasoraAiPulseGlow 1.8s infinite ease-in-out;
+}
+
+@keyframes klasoraAiPulseGlow {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(37, 99, 235, 0.3)); }
+    50% { transform: scale(1.1); filter: drop-shadow(0 0 7px rgba(37, 99, 235, 0.7)); }
 }
 
 /* Zone de Saisie (Footer) */
@@ -1910,6 +1920,42 @@
 
     inputArea.addEventListener('input', autoResizeInput);
 
+    let thinkingInterval = null;
+    const THINKING_STEPS = [
+        "🔍 Analyse de votre demande...",
+        "📊 Consultation des données scolaires...",
+        "🧠 Synthèse et calcul des informations...",
+        "✨ Rédaction de la réponse..."
+    ];
+
+    function startDynamicThinkingSteps() {
+        stopDynamicThinkingSteps();
+        const labelEl = document.getElementById('klasoraAiTypingLabel');
+        if (!labelEl) return;
+
+        let stepIdx = 0;
+        labelEl.textContent = THINKING_STEPS[0];
+        labelEl.style.opacity = '1';
+
+        thinkingInterval = setInterval(() => {
+            stepIdx++;
+            if (stepIdx < THINKING_STEPS.length) {
+                labelEl.style.opacity = '0';
+                setTimeout(() => {
+                    labelEl.textContent = THINKING_STEPS[stepIdx];
+                    labelEl.style.opacity = '1';
+                }, 150);
+            }
+        }, 1800);
+    }
+
+    function stopDynamicThinkingSteps() {
+        if (thinkingInterval) {
+            clearInterval(thinkingInterval);
+            thinkingInterval = null;
+        }
+    }
+
     async function sendMessage(customPrompt) {
         const questionText = (customPrompt || inputArea.value || '').trim();
         if (!questionText || isRequestInProgress) return;
@@ -1936,6 +1982,7 @@
         isRequestInProgress = true;
 
         appendMessageDom('user', questionText, getFormattedTime(), true);
+        startDynamicThinkingSteps();
         typingIndicator.classList.remove('klasora-ai-hidden');
         scrollToBottom();
 
@@ -1967,6 +2014,7 @@
             console.error('[KLASORA AI] Erreur de communication:', err);
             appendMessageDom('bot', "⚠️ **Service momentanément indisponible :** Veuillez réessayer dans un instant ou contacter le support technique.", getFormattedTime(), true);
         } finally {
+            stopDynamicThinkingSteps();
             typingIndicator.classList.add('klasora-ai-hidden');
             sendBtn.disabled = false;
             isRequestInProgress = false;

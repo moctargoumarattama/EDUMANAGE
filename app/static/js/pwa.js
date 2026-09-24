@@ -337,6 +337,20 @@
         }
     };
 
+    // 13. Maintien de la navigation in-app sur iOS Standalone PWA (empêche l'ouverture de Safari)
+    if (window.navigator.standalone === true) {
+        document.addEventListener('click', function (e) {
+            const anchor = e.target.closest('a');
+            if (anchor && anchor.href && !anchor.target && anchor.origin === window.location.origin) {
+                // Navigation interne au sein de l'application standalone iOS
+                if (!anchor.href.includes('#') && !anchor.getAttribute('download')) {
+                    e.preventDefault();
+                    window.location.href = anchor.href;
+                }
+            }
+        }, false);
+    }
+
     // Exposer l'état d'installation
     window.isKlasoraInstalled = isKlasoraInstalled;
 })();
