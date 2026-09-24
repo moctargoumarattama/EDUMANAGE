@@ -44,6 +44,7 @@ from app.services.passage_annee import (
     executer_passage_masse,
     get_moyennes_annuelles_eleves,
     reinscrire_ancien_eleve,
+    annuler_decision_passage,
 )
 
 
@@ -1093,4 +1094,32 @@ def reinscrire_ancien_eleve_route(annee_id):
         flash(f"Erreur lors de la réinscription : {e}", "danger")
 
     return redirect(request.referrer or url_for('main.gestion_annees'))
+
+
+@main.route('/annees/<int:source_id>/passage/<int:cible_id>/annuler/<int:eleve_id>', methods=['POST'], endpoint='annuler_decision_eleve')
+@login_required
+@role_required('admin', 'super_admin')
+def annuler_decision_eleve(source_id, cible_id, eleve_id):
+    ecole_id = _current_ecole_id_for_annees()
+    if not ecole_id:
+        flash("Veuillez sélectionner un établissement.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    csrf_form = CSRFForm()
+    if not csrf_form.validate_on_submit():
+        flash("Session expirée ou jeton CSRF invalide.", "danger")
+        return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
+
+    ok, message = annuler_decision_passage(
+        eleve_id=eleve_id,
+        annee_source_id=source_id,
+        annee_cible_id=cible_id,
+        ecole_id=ecole_id,
+    )
+    if ok:
+        flash(message, "success")
+    else:
+        flash(message, "danger")
+
+    return redirect(url_for('main.passage_annee', source_id=source_id, cible_id=cible_id))
 

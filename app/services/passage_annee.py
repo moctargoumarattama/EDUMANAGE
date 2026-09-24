@@ -1089,4 +1089,104 @@ def reinscrire_ancien_eleve(
     return inscription, None
 
 
+# ---------------------------------------------------------------------------
+# 8. Annulation de décision de passage (Chantier B - Droit au remords)
+# ---------------------------------------------------------------------------
 
+def annuler_decision_passage(eleve_id, annee_source_id, annee_cible_id, ecole_id):
+    """
+    Annule une décision de fin d'année (Passage, Redoublement, Sortie, Transfert, Diplôme)
+    tant que l'année cible est encore au statut 'planifiee'.
+
+    Actions atomiques :
+      1. Vérifier que l'élève et les deux années appartiennent à l'école.
+      2. Vérifier que l'année cible est strictement au statut 'planifiee'.
+      3. Vérifier que l'année source n'est pas archivée.
+      4. Vérifier l'inscription source de l'élève.
+      5. Si une inscription cible a été générée :
+         - Contrôler l'absence d'opérations associées (paiements, notes, absences).
+         - Supprimer l'inscription cible.
+      6. Réinitialiser l'inscription source :
+         - decision_fin_annee = None
+         - motif_sortie = None
+         - date_sortie = None
+         - statut = 'inscrit'
+      7. Valider la transaction atomiquement (commit).
+
+    Retourne : (success: bool, message: str)
+    """
+    if not ecole_id:
+        return False, "Établissement non spécifié."
+
+    # Validation élève
+    eleve = Eleve.query.filter_by(id=eleve_id, ecole_id=ecole_id).first()
+    if not eleve:
+        return False, "Élève introuvable pour cet établissement."
+
+    # Validation années scolaires
+    annee_source = AnneeScolaire.query.filter_by(id=annee_source_id, ecole_id=ecole_id).first()
+    if not annee_source:
+        return False, "Année scolaire source introuvable pour cet établissement."
+
+    annee_cible = AnneeScolaire.query.filter_by(id=annee_cible_id, ecole_id=ecole_id).first()
+    if not annee_cible:
+        return False, "Année scolaire cible introuvable pour cet établissement."
+
+    # Garde stricte : l'année cible doit impérativement être 'planifiee'
+    if annee_cible.statut != "planifiee":
+        return False, (
+            f"Impossible d'annuler la décision : l'année cible '{annee_cible.nom}' est "
+            f"au statut '{annee_cible.statut}'. L'annulation n'est autorisée que pour "
+            "les années planifiées."
+        )
+
+    # Garde : année source archivée
+    if annee_source.statut == "archivee":
+        return False, (
+            "Impossible d'annuler : l'année source est archivée et ne peut plus être modifiée."
+        )
+
+    # Inscription source
+    insc_source = get_inscription(eleve, annee_source)
+    if not insc_source:
+        return False, "Aucune inscription trouvée pour cet élève dans l'année source."
+
+    # Inscription cible (si passage ou redoublement déjà exécuté)
+    insc_cible = get_inscription(eleve, annee_cible)
+
+    try:
+        if insc_cible:
+            # Vérifications de sécurité pour ne pas perdre d'opérations
+            if hasattr(insc_cible, 'paiements') and insc_cible.paiements:
+                return False, (
+                    "Impossible d'annuler la décision : des paiements sont déjà enregistrés "
+                    "pour cette inscription dans la nouvelle année. Veuillez d'abord régulariser "
+                    "ces règlements."
+                )
+            if hasattr(insc_cible, 'notes') and insc_cible.notes:
+                return False, (
+                    "Impossible d'annuler la décision : des notes sont déjà associées à "
+                    "l'inscription dans l'année cible."
+                )
+            if hasattr(insc_cible, 'absences') and insc_cible.absences:
+                return False, (
+                    "Impossible d'annuler la décision : des absences sont déjà associées à "
+                    "l'inscription dans l'année cible."
+                )
+
+            # Suppression de l'inscription cible
+            db.session.delete(insc_cible)
+
+        # Réinitialisation de l'inscription source
+        insc_source.decision_fin_annee = None
+        insc_source.motif_sortie = None
+        insc_source.date_sortie = None
+        insc_source.statut = "inscrit"
+        insc_source.updated_at = datetime.utcnow()
+
+        db.session.commit()
+        return True, "Décision annulée avec succès. L'élève est de nouveau en attente de décision."
+
+    except Exception as exc:
+        db.session.rollback()
+        return False, f"Erreur lors de l'annulation de la décision : {exc}"

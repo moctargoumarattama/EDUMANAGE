@@ -204,6 +204,7 @@
                 </div>
             </div>
         </div>
+    </form>
     {% endif %}
 
     <div class="table-card academic-table-wrap">
@@ -235,7 +236,7 @@
                         <tr>
                             {% if annee_source.statut != 'archivee' %}
                             <td class="text-center">
-                                <input type="checkbox" name="eleve_ids" value="{{ item.eleve.id }}" class="form-check-input check-eleve" {% if item.est_traite %}data-deja-traite="true"{% endif %} data-moyenne="{{ item.moyenne if item.moyenne is not none else '' }}" data-suggestion="{{ item.suggestion or '' }}">
+                                <input type="checkbox" name="eleve_ids" value="{{ item.eleve.id }}" class="form-check-input check-eleve" form="form-passage-masse" {% if item.est_traite %}data-deja-traite="true"{% endif %} data-moyenne="{{ item.moyenne if item.moyenne is not none else '' }}" data-suggestion="{{ item.suggestion or '' }}">
                             </td>
                             {% endif %}
                             <td>
@@ -291,7 +292,7 @@
                                     <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>Non traité</span>
                                 {% endif %}
                             </td>
-                            <td class="text-end">
+                            <td class="text-end text-nowrap">
                                 {% if annee_source.statut == 'archivee' %}
                                     {% if item.est_traite %}
                                         <span class="badge bg-light text-success border"><i class="fas fa-check me-1"></i>Enregistré</span>
@@ -304,9 +305,19 @@
                                              <i class="fas fa-edit me-1"></i>Traiter
                                         </a>
                                     {% else %}
-                                        <a href="{{ url_for('main.passage_eleve', source_id=annee_source.id, cible_id=annee_cible.id, eleve_id=item.eleve.id) }}" class="btn btn-sm btn-outline-secondary">
-                                            <i class="fas fa-eye me-1"></i>Voir
-                                        </a>
+                                        <div class="d-inline-flex gap-1 align-items-center justify-content-end">
+                                            <a href="{{ url_for('main.passage_eleve', source_id=annee_source.id, cible_id=annee_cible.id, eleve_id=item.eleve.id) }}" class="btn btn-sm btn-outline-secondary" title="Consulter la décision">
+                                                <i class="fas fa-eye me-1"></i>Voir
+                                            </a>
+                                            {% if annee_cible.statut == 'planifiee' %}
+                                            <form method="POST" action="{{ url_for('main.annuler_decision_eleve', source_id=annee_source.id, cible_id=annee_cible.id, eleve_id=item.eleve.id) }}" class="d-inline" onsubmit="return confirm('Confirmez-vous l\'annulation de la décision pour cet élève ? Il repassera en attente de décision.');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-2 py-1" title="Annuler la décision et repasser en attente">
+                                                    <i class="fas fa-undo me-1"></i>Annuler
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
                                     {% endif %}
                                 {% endif %}
                             </td>
@@ -326,8 +337,6 @@
     </div>
 
     {% if annee_source.statut != 'archivee' %}
-    </form>
-
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const selectDecision = document.getElementById('select-decision');

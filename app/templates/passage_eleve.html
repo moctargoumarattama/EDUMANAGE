@@ -83,21 +83,32 @@
                 </div>
             </div>
 
-            {% if inscription_cible %}
-            <div class="alert alert-info d-flex align-items-center gap-2 mt-3 mb-0 py-2">
-                <i class="fas fa-info-circle fa-lg"></i>
-                <div>
-                    <strong>Déjà inscrit pour l'année {{ annee_cible.nom }} :</strong>
-                    Classe {{ inscription_cible.classe.nom if inscription_cible.classe else 'N/A' }} (Statut : {{ inscription_cible.statut }}).
+            {% if inscription_cible or inscription_source.decision_fin_annee %}
+            <div class="alert alert-info d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mt-3 mb-0 p-3 rounded-3 shadow-sm border-info border-opacity-25">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-info-circle fa-lg text-primary"></i>
+                    <div>
+                        {% if inscription_cible %}
+                            <strong>Déjà inscrit pour l'année {{ annee_cible.nom }} :</strong>
+                            Classe {{ inscription_cible.classe.nom if inscription_cible.classe else 'N/A' }} 
+                            (Statut : <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">{{ inscription_cible.statut }}</span>).
+                        {% else %}
+                            <strong>Décision enregistrée :</strong>
+                            <span class="badge bg-secondary">{{ inscription_source.decision_fin_annee|capitalize }}</span> 
+                            (Statut source : {{ inscription_source.statut }}).
+                        {% endif %}
+                    </div>
                 </div>
-            </div>
-            {% elif inscription_source.decision_fin_annee %}
-            <div class="alert alert-info d-flex align-items-center gap-2 mt-3 mb-0 py-2">
-                <i class="fas fa-info-circle fa-lg"></i>
-                <div>
-                    <strong>Décision enregistrée :</strong>
-                    {{ inscription_source.decision_fin_annee|capitalize }} (Statut source : {{ inscription_source.statut }}).
+                {% if annee_cible.statut == 'planifiee' and annee_source.statut != 'archivee' %}
+                <div class="text-nowrap">
+                    <form method="POST" action="{{ url_for('main.annuler_decision_eleve', source_id=annee_source.id, cible_id=annee_cible.id, eleve_id=eleve.id) }}" class="d-inline" onsubmit="return confirm('Confirmez-vous l\'annulation de la décision pour cet élève ? Il repassera en attente de décision.');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3 py-1 shadow-sm" title="Annuler la décision et repasser en attente">
+                            <i class="fas fa-undo me-1"></i>Annuler la décision
+                        </button>
+                    </form>
                 </div>
+                {% endif %}
             </div>
             {% endif %}
         </div>
