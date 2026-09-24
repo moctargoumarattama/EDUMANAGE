@@ -292,6 +292,32 @@ def eleves():
             ]
         })
 
+    annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
+    classes_ouvertes_annee_active = []
+    anciens_eleves_non_inscrits = []
+    if annee_active:
+        classes_ouvertes_annee_active = classes_triees_pedagogique(
+            Classe.query.filter_by(
+                ecole_id=ecole_id,
+                annee_scolaire_id=annee_active.id,
+                statut="ouverte",
+            )
+        ).all()
+        if current_user.role == 'admin':
+            inscrits_ids_subquery = db.session.query(Inscription.eleve_id).filter_by(
+                ecole_id=ecole_id,
+                annee_scolaire_id=annee_active.id,
+            ).subquery()
+            anciens_eleves_non_inscrits = (
+                Eleve.query
+                .filter(
+                    Eleve.ecole_id == ecole_id,
+                    ~Eleve.id.in_(inscrits_ids_subquery),
+                )
+                .order_by(Eleve.nom.asc(), Eleve.prenom.asc())
+                .all()
+            )
+
     return render_template(
         'eleves.html',
         classes=classes,
@@ -313,6 +339,9 @@ def eleves():
         inscription_par_eleve=inscription_par_eleve,
         annee_consultee=annee_consultee,
         annees_ecole=annees_ecole,
+        annee_active=annee_active,
+        classes_ouvertes_annee_active=classes_ouvertes_annee_active,
+        anciens_eleves_non_inscrits=anciens_eleves_non_inscrits,
         return_url=_eleves_context_url()
     )
 
@@ -873,6 +902,23 @@ def voir_eleve(eleve_id):
     eleve.parcours_scolaire = parcours_scolaire
     eleve.classe_actuelle = inscription_active.classe if inscription_active else None
 
+    annee_active = AnneeScolaire.query.filter_by(ecole_id=eleve.ecole_id, statut="active").first()
+    est_inscrit_annee_active = bool(
+        inscription_active
+        and inscription_active.statut in ('inscrit', 'preinscrit')
+        and annee_active
+        and inscription_active.annee_scolaire_id == annee_active.id
+    )
+    classes_ouvertes_annee_active = []
+    if annee_active:
+        classes_ouvertes_annee_active = classes_triees_pedagogique(
+            Classe.query.filter_by(
+                ecole_id=eleve.ecole_id,
+                annee_scolaire_id=annee_active.id,
+                statut="ouverte",
+            )
+        ).all()
+
     from app.services.evaluations import calculer_completude_inscription
 
     annee_id = inscription_active.annee_scolaire_id if inscription_active else None
@@ -995,6 +1041,9 @@ def voir_eleve(eleve_id):
                            pourcentage_paye=pourcentage_paye,
                            echeancier=echeancier,
                            mois_impayes_list=mois_impayes_list,
+                           annee_active=annee_active,
+                           est_inscrit_annee_active=est_inscrit_annee_active,
+                           classes_ouvertes_annee_active=classes_ouvertes_annee_active,
                            return_url=return_url,
                            detail_url=detail_url)
 

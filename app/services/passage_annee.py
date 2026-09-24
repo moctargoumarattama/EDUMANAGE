@@ -1082,7 +1082,7 @@ def reinscrire_ancien_eleve(
     if err:
         return None, err
 
-    if sync and eleve.classe_id != classe_cible.id:
+    if sync and hasattr(eleve, 'classe_id') and getattr(eleve, 'classe_id') != classe_cible.id:
         eleve.classe_id = classe_cible.id
 
     db.session.flush()

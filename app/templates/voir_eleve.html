@@ -31,6 +31,35 @@
         </div>
     </div>
 
+    {% if not est_inscrit_annee_active and annee_active and current_user.role in ['admin', 'super_admin'] %}
+    <!-- Bandeau Droit à l'erreur / Réintégration d'un ancien élève -->
+    <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%); border-left: 5px solid #4f46e5 !important; border-radius: 12px;">
+        <div class="card-body p-3 p-md-4">
+            <div class="row align-items-center g-3">
+                <div class="col-auto">
+                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm" style="width: 52px; height: 52px; background-color: #4f46e5; color: white; font-size: 1.4rem;">
+                        <i class="fas fa-user-clock"></i>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                        <h5 class="fw-bold mb-0 text-dark">Élève non inscrit pour l'année scolaire en cours ({{ annee_active.nom }})</h5>
+                        <span class="badge rounded-pill text-white px-2 py-1" style="background-color: #4f46e5; font-size: 0.75rem;">Droit à l'erreur</span>
+                    </div>
+                    <p class="mb-0 text-muted small">
+                        Cet élève faisait partie de l'établissement l'an passé. Vous pouvez réactiver son dossier en l'affectant à une classe pour cette rentrée. Son historique scolaire et financier antérieur sera intégralement conservé.
+                    </p>
+                </div>
+                <div class="col-12 col-md-auto text-md-end mt-2 mt-md-0">
+                    <button type="button" class="btn btn-primary btn-lg shadow-sm w-100 w-md-auto d-inline-flex align-items-center justify-content-center" data-bs-toggle="modal" data-bs-target="#modalReinscrireEleve" style="min-height: 48px; border-radius: 10px; font-weight: 600; font-size: 1rem;">
+                        <i class="fas fa-user-check me-2"></i>Réintégrer pour l'année en cours
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Carte Profil / Identité de l'Élève (Hero Banner) -->
     <div class="card border-0 shadow-sm mb-4 overflow-hidden">
         <div class="p-4 text-white" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #0d9488 100%);">
@@ -680,7 +709,113 @@
     </div>
 </div>
 
+{% if not est_inscrit_annee_active and annee_active and current_user.role in ['admin', 'super_admin'] %}
+<!-- Modal Réintégrer l'élève pour l'année en cours -->
+<div class="modal fade" id="modalReinscrireEleve" tabindex="-1" aria-labelledby="modalReinscrireEleveLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #1e3a8a 0%, #4f46e5 100%); padding: 1.25rem 1.5rem;">
+                <div>
+                    <h5 class="modal-title fw-bold mb-1" id="modalReinscrireEleveLabel">
+                        <i class="fas fa-user-check me-2"></i>Réintégrer {{ eleve.prenom }} {{ eleve.nom }}
+                    </h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-white text-primary fw-semibold">{{ annee_active.nom }}</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle small">
+                            <i class="fas fa-shield-alt me-1"></i>Historique conservé
+                        </span>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <form action="{{ url_for('main.reinscrire_ancien_eleve', annee_id=annee_active.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="eleve_id" value="{{ eleve.id }}">
+                
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-4">
+                        Affectez l'élève à une classe de l'année scolaire <strong>{{ annee_active.nom }}</strong>. Un dossier d'inscription sera instantanément ouvert.
+                    </p>
+
+                    <!-- Sélection de la classe cible -->
+                    <div class="mb-4">
+                        <label for="classe_cible_id" class="form-label fw-bold text-dark d-flex align-items-center gap-2">
+                            <i class="fas fa-chalkboard text-primary"></i>Classe de destination <span class="text-danger">*</span>
+                        </label>
+                        {% if classes_ouvertes_annee_active %}
+                        <select name="classe_cible_id" id="classe_cible_id" class="form-select form-select-lg shadow-sm" required style="font-size: 16px; min-height: 48px; border-radius: 10px;">
+                            <option value="" disabled selected>-- Choisissez une classe --</option>
+                            {% for c in classes_ouvertes_annee_active %}
+                            <option value="{{ c.id }}">
+                                {{ c.nom }} {% if c.niveau_scolaire %}— {{ c.niveau_scolaire.nom }}{% elif c.niveau %}— {{ c.niveau }}{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% else %}
+                        <div class="alert alert-warning mb-0 py-2 small">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Aucune classe ouverte n'est disponible pour l'année {{ annee_active.nom }}.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Tuiles radio tactiles pour le Statut -->
+                    <div class="mb-2">
+                        <label class="form-label fw-bold text-dark d-flex align-items-center gap-2 mb-2">
+                            <i class="fas fa-tag text-primary"></i>Statut de l'inscription
+                        </label>
+                        <div class="row g-2">
+                            <div class="col-12 col-sm-6">
+                                <label class="card h-100 p-3 border rounded-3 position-relative status-tile transition-all" for="statut_inscrit" style="cursor: pointer;">
+                                    <div class="form-check m-0">
+                                        <input class="form-check-input" type="radio" name="statut" id="statut_inscrit" value="inscrit" checked style="width: 1.25rem; height: 1.25rem;">
+                                        <div class="ms-2">
+                                            <div class="fw-bold text-dark">Inscrit direct</div>
+                                            <div class="text-muted small">Dossier actif immédiatement</div>
+                                            <span class="badge bg-success-subtle text-success mt-1" style="font-size: 0.75rem;">Recommandé</span>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="card h-100 p-3 border rounded-3 position-relative status-tile transition-all" for="statut_preinscrit" style="cursor: pointer;">
+                                    <div class="form-check m-0">
+                                        <input class="form-check-input" type="radio" name="statut" id="statut_preinscrit" value="preinscrit" style="width: 1.25rem; height: 1.25rem;">
+                                        <div class="ms-2">
+                                            <div class="fw-bold text-dark">Préinscrit</div>
+                                            <div class="text-muted small">En attente d'un acompte</div>
+                                            <span class="badge bg-warning-subtle text-warning-emphasis mt-1" style="font-size: 0.75rem;">Activation par paiement</span>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light px-4 py-3 border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" style="min-height: 44px; border-radius: 8px;">Annuler</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-4" {% if not classes_ouvertes_annee_active %}disabled{% endif %} style="min-height: 44px; border-radius: 8px;">
+                        <i class="fas fa-check me-2"></i>Confirmer la réintégration
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <style>
+.status-tile {
+    transition: all 0.2s ease-in-out;
+}
+.status-tile:hover {
+    border-color: #4f46e5 !important;
+    background-color: #f8fafc;
+}
+.status-tile:has(.form-check-input:checked) {
+    border-color: #4f46e5 !important;
+    background-color: #f5f3ff !important;
+    box-shadow: 0 0 0 1px #4f46e5;
+}
 @media print {
     .no-print {
         display: none !important;
