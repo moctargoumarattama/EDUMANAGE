@@ -3,17 +3,11 @@
 {% block title %}Dossier Élève - {{ eleve.prenom }} {{ eleve.nom }} - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3 px-2 px-md-4">
+<div class="container-fluid py-3 px-2 px-md-4 d-print-none screen-dossier-view">
     <!-- Barre de Navigation & Actions Supérieure -->
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4 no-print">
         <div>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-1 small">
-                    <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}" class="text-decoration-none">Accueil</a></li>
-                    <li class="breadcrumb-item"><a href="{{ url_for('main.eleves') }}" class="text-decoration-none">Élèves</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">{{ eleve.prenom }} {{ eleve.nom }}</li>
-                </ol>
-            </nav>
+
             <div class="d-flex align-items-center gap-2 flex-wrap">
                 <h1 class="h4 fw-bold text-dark mb-0">{{ eleve.prenom }} {{ eleve.nom }}</h1>
                 <span class="badge bg-white text-secondary border font-monospace small shadow-xs">Matricule: {{ eleve.code_parent or ('ELV-' ~ eleve.id) }}</span>
@@ -942,6 +936,368 @@
 </div>
 {% endif %}
 
+{% set nb_mat = matieres_stats|length if matieres_stats else 0 %}
+<div class="print-excel-view d-none d-print-block {% if nb_mat <= 6 %}print-density-aere{% elif nb_mat <= 11 %}print-density-standard{% else %}print-density-compact{% endif %}">
+    <div class="print-excel-content">
+    <!-- 1. En-tête officiel établissement (Identique à la structure des bulletins de notes) -->
+    <table class="excel-header-table mb-2">
+        <tr>
+            <!-- Grand Logo de l'École (Mêmes dimensions que le bulletin : 95px) -->
+            <td style="width: 105px; vertical-align: middle; text-align: left; padding-right: 10px;">
+                {% if eleve.ecole.logo_path and eleve.ecole.logo_path != 'default_logo.png' %}
+                <img src="{{ url_for('static', filename=eleve.ecole.logo_path) }}" alt="Logo École" style="width: 95px; height: 95px; object-fit: contain; border-radius: 50%; border: 2px solid #cbd5e1; background: #ffffff; padding: 2px; display: block;">
+                {% elif eleve.ecole.logo and eleve.ecole.logo != 'default_logo.png' %}
+                <img src="{{ url_for('static', filename='uploads/logos/' ~ eleve.ecole.logo) }}" alt="Logo École" style="width: 95px; height: 95px; object-fit: contain; border-radius: 50%; border: 2px solid #cbd5e1; background: #ffffff; padding: 2px; display: block;" onerror="this.style.display='none'">
+                {% else %}
+                <div style="width: 95px; height: 95px; border-radius: 50%; border: 2.5px solid #1e3a8a; display: flex; align-items: center; justify-content: center; font-size: 24pt; font-weight: bold; color: #1e3a8a; background: #f8fafc;">
+                    {{ (eleve.ecole.nom[:2] | upper) if eleve.ecole and eleve.ecole.nom else 'GS' }}
+                </div>
+                {% endif %}
+            </td>
+
+            <!-- Établissement (Nom, Devise & Coordonnées structurées ligne par ligne) -->
+            <td style="vertical-align: middle; padding: 0 10px;">
+                <div style="font-size: 13pt; font-weight: 800; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2; margin-bottom: 2px;">
+                    {{ eleve.ecole.nom or 'GROUPE SCOLAIRE EXCELLENCE' }}
+                </div>
+                {% if eleve.ecole.devise %}
+                <div style="font-size: 8pt; font-style: italic; color: #b45309; font-weight: 600; margin-bottom: 2px;">
+                    « {{ eleve.ecole.devise }} »
+                </div>
+                {% elif eleve.ecole.slogan %}
+                <div style="font-size: 8pt; font-style: italic; color: #b45309; font-weight: 600; margin-bottom: 2px;">
+                    « {{ eleve.ecole.slogan }} »
+                </div>
+                {% endif %}
+                {% if eleve.ecole.adresse %}
+                <div style="font-size: 7.5pt; color: #475569; margin-bottom: 1.5px; line-height: 1.25;">
+                    {{ eleve.ecole.adresse }}
+                </div>
+                {% endif %}
+                {% if eleve.ecole.telephone %}
+                <div style="font-size: 7.5pt; color: #475569; line-height: 1.25;">
+                    Tél : <strong style="color: #1e293b;">{{ eleve.ecole.telephone }}</strong>
+                </div>
+                {% endif %}
+                {% if eleve.ecole.email %}
+                <div style="font-size: 7.5pt; color: #475569; line-height: 1.25;">
+                    Email : <span style="color: #1e293b;">{{ eleve.ecole.email }}</span>
+                </div>
+                {% endif %}
+            </td>
+
+            <!-- Titre du document & Année scolaire à droite -->
+            <td style="width: 190px; vertical-align: middle; text-align: right;">
+                <div style="display: inline-block; background-color: #1e3a8a; color: #ffffff; padding: 4px 10px; font-weight: bold; font-size: 8.8pt; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px;">
+                    DOSSIER SCOLAIRE
+                </div>
+                <div style="font-size: 7.8pt; color: #1e293b; margin-top: 3px; line-height: 1.35;">
+                    <div>Année Scolaire : <strong>{{ annee_affichee.nom if annee_affichee else 'N/A' }}</strong> {% if est_annee_archivee %}<span style="color: #b45309; font-weight: bold;">(Archive)</span>{% endif %}</div>
+                    <div style="font-size: 7pt; color: #64748b; margin-top: 1px;">Édité le {{ date_impression.strftime('%d/%m/%Y à %H:%M') if date_impression else '' }}</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+    <!-- Ligne de séparation moderne (Bleu Roi) comme dans les bulletins -->
+    <div style="height: 1.5px; background-color: #1e3a8a; margin-bottom: 7px;"></div>
+
+    <!-- 2. Renseignements généraux de l'élève (Grille façon Excel) -->
+    <div class="excel-section-title">1. IDENTITÉ DE L'ÉLÈVE ET SITUATION ADMINISTRATIVE</div>
+    <table class="excel-table mb-2">
+        <tr>
+            <th style="width: 15%;">Matricule</th>
+            <td style="width: 35%; font-family: monospace; font-weight: bold;">{{ eleve.code_parent or ('ELV-' ~ eleve.id) }}</td>
+            <th style="width: 15%;">Classe</th>
+            <td style="width: 35%; font-weight: bold; color: #1e3a8a;">{{ inscription_affichee.classe.nom if inscription_affichee and inscription_affichee.classe else 'Non assigné' }}</td>
+        </tr>
+        <tr>
+            <th>Nom & Prénom</th>
+            <td style="font-weight: bold; text-transform: uppercase;">{{ eleve.nom }} <span style="text-transform: capitalize;">{{ eleve.prenom }}</span></td>
+            <th>Statut Dossier</th>
+            <td>{{ inscription_affichee.statut | capitalize if inscription_affichee else eleve.statut | capitalize }}</td>
+        </tr>
+        <tr>
+            <th>Né(e) le</th>
+            <td>{{ eleve.date_naissance.strftime('%d/%m/%Y') if eleve.date_naissance else 'Non renseigné' }}{% if age %} ({{ age }} ans){% endif %}{% if eleve.lieu_naissance %} à {{ eleve.lieu_naissance }}{% endif %}</td>
+            <th>Genre</th>
+            <td>{{ 'Masculin' if eleve.genre == 'M' else 'Féminin' if eleve.genre == 'F' else (eleve.genre or '-') }}</td>
+        </tr>
+        <tr>
+            <th>Parent / Tuteur</th>
+            <td>{{ eleve.parent.nom ~ ' ' ~ eleve.parent.prenom if eleve.parent else (eleve.contact_parent or 'Non renseigné') }}</td>
+            <th>Téléphone Parent</th>
+            <td style="font-family: monospace;">{{ parent_tel or '-' }}</td>
+        </tr>
+        <tr>
+            <th>Adresse / Quartier</th>
+            <td>{{ eleve.adresse or '-' }}</td>
+            <th>Date Inscription</th>
+            <td>{{ eleve.date_inscription.strftime('%d/%m/%Y') if eleve.date_inscription else '-' }}</td>
+        </tr>
+    </table>
+
+    <!-- 3. Bilan Synthétique Annuel (KPIs condensés) -->
+    <table class="excel-table mb-2" style="background-color: #f8fafc;">
+        <tr>
+            <th style="width: 25%; text-align: center; background-color: #e2e8f0;">Moyenne Générale</th>
+            <th style="width: 25%; text-align: center; background-color: #e2e8f0;">Mention Globale</th>
+            <th style="width: 25%; text-align: center; background-color: #e2e8f0;">Assiduité (Absences)</th>
+            <th style="width: 25%; text-align: center; background-color: #e2e8f0;">Scolarité (Reste dû)</th>
+        </tr>
+        <tr>
+            <td style="text-align: center; font-size: 10.5pt; font-weight: bold; color: #1e3a8a;">
+                {% if eval_info and eval_info.status == 'non_evalue' %}--{% else %}{{ "%.2f"|format(moyenne_generale) }} / 20{% endif %}
+            </td>
+            <td style="text-align: center; font-weight: bold;">{{ mention }}</td>
+            <td style="text-align: center;">
+                {% if total_absences == 0 %}
+                <strong>0</strong> (Exemplaire)
+                {% else %}
+                <strong>{{ total_absences }}</strong> abs. ({{ absences_injustifiees }} inj.)
+                {% endif %}
+            </td>
+            <td style="text-align: center; font-weight: bold; font-family: monospace; color: {% if reste_a_payer > 0 %}#b91c1c{% else %}#15803d{% endif %};">
+                {% if current_user.role == 'professeur' %}--{% elif reste_a_payer <= 0 %}Soldé (0 F){% else %}{{ "{:,.0f}".format(reste_a_payer) | replace(',', ' ') }} FCFA{% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <!-- 4. Relevé des Évaluations par Matière (Tableau Excel) -->
+    <div class="excel-section-title">2. RÉSULTATS ACADÉMIQUES & ÉVALUATIONS PAR MATIÈRE</div>
+    <table class="excel-table mb-2">
+        <thead>
+            <tr style="background-color: #f1f5f9;">
+                <th style="width: 5%; text-align: center;">N°</th>
+                <th style="width: 37%;">Matière</th>
+                <th style="width: 12%; text-align: center;">Coefficient</th>
+                <th style="width: 12%; text-align: center;">Nb Épreuves</th>
+                <th style="width: 16%; text-align: center;">Moyenne /20</th>
+                <th style="width: 18%; text-align: center;">Observation</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if matieres_stats %}
+                {% for mat_nom, mat_info in matieres_stats.items() %}
+                <tr>
+                    <td style="text-align: center;">{{ loop.index }}</td>
+                    <td style="font-weight: 600;">{{ mat_nom }}</td>
+                    <td style="text-align: center;">{{ mat_info.coef }}</td>
+                    <td style="text-align: center;">{{ mat_info.count }}</td>
+                    <td style="text-align: center; font-weight: bold;">{{ "%.2f"|format(mat_info.moyenne) }}</td>
+                    <td style="text-align: center;">
+                        {% if mat_info.moyenne >= 16 %}Très Bien
+                        {% elif mat_info.moyenne >= 14 %}Bien
+                        {% elif mat_info.moyenne >= 12 %}Assez Bien
+                        {% elif mat_info.moyenne >= 10 %}Passable
+                        {% else %}Insuffisant{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; color: #666; font-style: italic; padding: 6px;">Aucune évaluation enregistrée pour cette année scolaire.</td>
+                </tr>
+            {% endif %}
+        </tbody>
+        <tfoot>
+            <tr style="background-color: #f8fafc; font-weight: bold;">
+                <td colspan="4" style="text-align: right; padding-right: 8px;">MOYENNE GÉNÉRALE PONDÉRÉE :</td>
+                <td style="text-align: center; font-size: 9.5pt; color: #1e3a8a;">
+                    {% if eval_info and eval_info.status == 'non_evalue' %}--{% else %}{{ "%.2f"|format(moyenne_generale) }} / 20{% endif %}
+                </td>
+                <td style="text-align: center;">{{ mention }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- 5. Assiduité & Discipline -->
+    <div class="excel-section-title">3. REGISTRE D'ASSIDUITÉ ET DE DISCIPLINE</div>
+    <table class="excel-table mb-2">
+        <tr>
+            <th style="width: 25%;">Total Absences</th>
+            <td style="width: 25%; text-align: center; font-weight: bold;">{{ total_absences }}</td>
+            <th style="width: 25%;">Absences Justifiées</th>
+            <td style="width: 25%; text-align: center;">{{ absences_justifiees }}</td>
+        </tr>
+        <tr>
+            <th>Absences Injustifiées</th>
+            <td style="text-align: center; font-weight: bold; color: {% if absences_injustifiees > 0 %}#b91c1c{% else %}#000{% endif %};">{{ absences_injustifiees }}</td>
+            <th>Assiduité Globale</th>
+            <td style="text-align: center; font-weight: bold;">
+                {% if total_absences == 0 %}100% (Présence exemplaire){% else %}{{ [100 - (total_absences * 2), 0] | max }}%{% endif %}
+            </td>
+        </tr>
+        {% if absences and absences|length > 0 %}
+        <tr>
+            <td colspan="4" style="padding: 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f8fafc;">
+                            <th style="font-size: 7.5pt; width: 22%; text-align: left; padding: 2px 4px; border: 1px solid #94a3b8;">Date</th>
+                            <th style="font-size: 7.5pt; width: 38%; text-align: left; padding: 2px 4px; border: 1px solid #94a3b8;">Cours / Créneau</th>
+                            <th style="font-size: 7.5pt; width: 25%; text-align: left; padding: 2px 4px; border: 1px solid #94a3b8;">Motif</th>
+                            <th style="font-size: 7.5pt; width: 15%; text-align: center; padding: 2px 4px; border: 1px solid #94a3b8;">Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for abs in absences[:5] %}
+                        <tr>
+                            <td style="font-size: 7.5pt; padding: 2px 4px; border: 1px solid #cbd5e1;">{{ abs.date_absence.strftime('%d/%m/%Y') if abs.date_absence else '-' }}</td>
+                            <td style="font-size: 7.5pt; padding: 2px 4px; border: 1px solid #cbd5e1;">{{ abs.cours.nom if abs.cours else (abs.creneau or 'Journée') }}</td>
+                            <td style="font-size: 7.5pt; padding: 2px 4px; border: 1px solid #cbd5e1;">{{ abs.motif or 'Non précisé' }}</td>
+                            <td style="font-size: 7.5pt; padding: 2px 4px; text-align: center; border: 1px solid #cbd5e1;">{{ 'Justifiée' if abs.justifiee else 'Injustifiée' }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% if absences|length > 5 %}
+                        <tr>
+                            <td colspan="4" style="font-size: 7pt; text-align: center; font-style: italic; padding: 2px; border: 1px solid #cbd5e1;">... et {{ absences|length - 5 }} autre(s) absence(s) enregistrée(s).</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        {% endif %}
+    </table>
+
+    <!-- 6. Scolarité & Situation Financière (Hors profs) -->
+    {% if current_user.role != 'professeur' %}
+    <div class="excel-section-title">4. SITUATION DES FRAIS DE SCOLARITÉ</div>
+    <table class="excel-table mb-2">
+        <tr>
+            <th style="width: 25%;">Frais Annuels Exigibles</th>
+            <td style="width: 25%; text-align: right; font-weight: bold; font-family: monospace;">{{ "{:,.0f}".format(total_frais) | replace(',', ' ') }} FCFA</td>
+            <th style="width: 25%;">Total Versé</th>
+            <td style="width: 25%; text-align: right; font-weight: bold; font-family: monospace; color: #15803d;">{{ "{:,.0f}".format(total_paye) | replace(',', ' ') }} FCFA ({{ pourcentage_paye }}%)</td>
+        </tr>
+        <tr>
+            <th>Reste à Payer</th>
+            <td style="text-align: right; font-weight: bold; font-family: monospace; color: {% if reste_a_payer > 0 %}#b91c1c{% else %}#15803d{% endif %};">
+                {{ "{:,.0f}".format(reste_a_payer) | replace(',', ' ') }} FCFA
+            </td>
+            <th>Situation Comptable</th>
+            <td style="text-align: center; font-weight: bold;">
+                {% if reste_a_payer <= 0 %}EN RÈGLE (TOTALITÉ VERSÉE){% else %}SOLDE EN ATTENTE DE RÈGLEMENT{% endif %}
+            </td>
+        </tr>
+        {% if echeancier %}
+        <tr>
+            <td colspan="4" style="padding: 2px 4px;">
+                <table style="width: 100%; border-collapse: collapse; text-align: center;">
+                    <thead>
+                        <tr style="background-color: #f1f5f9;">
+                            {% for m in echeancier %}
+                            <th style="font-size: 7pt; padding: 2px; border: 1px solid #94a3b8; text-align: center;">{{ m.mois[:4] }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            {% for m in echeancier %}
+                            <td style="font-size: 7pt; padding: 2px; border: 1px solid #cbd5e1; font-weight: bold; color: {% if m.paye %}#15803d{% else %}#b91c1c{% endif %};">
+                                {{ 'PAYÉ' if m.paye else 'DÛ' }}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        {% endif %}
+        {% if paiements and paiements|length > 0 %}
+        <tr>
+            <td colspan="4" style="padding: 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f8fafc;">
+                            <th style="font-size: 7.5pt; width: 25%; text-align: left; padding: 2px 4px; border: 1px solid #94a3b8;">N° Reçu</th>
+                            <th style="font-size: 7.5pt; width: 25%; text-align: left; padding: 2px 4px; border: 1px solid #94a3b8;">Date Versement</th>
+                            <th style="font-size: 7.5pt; width: 25%; text-align: left; padding: 2px 4px; border: 1px solid #94a3b8;">Mode Règl.</th>
+                            <th style="font-size: 7.5pt; width: 25%; text-align: right; padding: 2px 4px; border: 1px solid #94a3b8;">Montant</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in paiements[:4] %}
+                        <tr>
+                            <td style="font-size: 7.5pt; padding: 2px 4px; border: 1px solid #cbd5e1; font-family: monospace;">{{ p.recu_numero or ('REC-' ~ p.id) }}</td>
+                            <td style="font-size: 7.5pt; padding: 2px 4px; border: 1px solid #cbd5e1;">{{ p.date_paiement.strftime('%d/%m/%Y') if p.date_paiement else '-' }}</td>
+                            <td style="font-size: 7.5pt; padding: 2px 4px; border: 1px solid #cbd5e1;">{{ p.mode_paiement or 'Espèces' }}</td>
+                            <td style="font-size: 7.5pt; padding: 2px 4px; border: 1px solid #cbd5e1; text-align: right; font-weight: bold; font-family: monospace;">{{ "{:,.0f}".format(p.montant or 0) | replace(',', ' ') }} FCFA</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        {% endif %}
+    </table>
+    {% endif %}
+
+    <!-- 7. Historique du parcours scolaire et moyennes des années passées -->
+    {% if historique_parcours and historique_parcours|length > 0 %}
+    <div class="excel-section-title">5. HISTORIQUE DU PARCOURS SCOLAIRE & MOYENNES ANNUELLES</div>
+    <table class="excel-table mb-2">
+        <thead>
+            <tr style="background-color: #f1f5f9;">
+                <th style="width: 22%;">Année Scolaire</th>
+                <th style="width: 28%;">Classe Fréquentée</th>
+                <th style="width: 18%; text-align: center;">Moyenne Annuelle</th>
+                <th style="width: 18%; text-align: center;">Décision / Mention</th>
+                <th style="width: 14%; text-align: center;">Statut</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in historique_parcours %}
+            <tr>
+                <td style="font-weight: 600;">{{ item.annee }}</td>
+                <td>{{ item.classe }}</td>
+                <td style="text-align: center; font-weight: bold; color: #1e3a8a;">
+                    {% if item.moyenne is not none %}{{ "%.2f"|format(item.moyenne) }} / 20{% else %}--{% endif %}
+                </td>
+                <td style="text-align: center;">{{ item.decision }}</td>
+                <td style="text-align: center;">{{ item.statut | capitalize }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    </div><!-- fin .print-excel-content -->
+
+    <!-- 8. Bas de page : Code QR Unique de vérification d'authenticité -->
+    <div class="print-excel-footer" style="margin-top: auto; page-break-inside: avoid; break-inside: avoid; border-top: 1.5px solid #1e3a8a; padding-top: 6px;">
+        <table style="width: 100%; border-collapse: collapse; border: none;">
+            <tr>
+                <td style="border: none; vertical-align: middle;">
+                    <!-- Espace épuré sans texte superflu ni duplication du nom de l'école -->
+                </td>
+                <td style="width: 250px; text-align: right; vertical-align: middle; border: none; padding: 0;">
+                    <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                        <div style="text-align: right; line-height: 1.25;">
+                            <div style="font-size: 8pt; font-weight: 800; color: #1e3a8a;">
+                                Scanner pour vérifier
+                            </div>
+                            <div style="font-size: 8pt; font-weight: 800; color: #1e3a8a;">
+                                l’authenticité
+                            </div>
+                            <div style="font-size: 7.2pt; font-weight: 700; color: #1e293b; font-family: monospace; margin-top: 2px;">
+                                {{ eleve.code_parent or ('ELV-' ~ eleve.id) }}
+                            </div>
+                        </div>
+                        <div style="border: 1px solid #cbd5e1; padding: 2px; border-radius: 4px; background: #ffffff; display: inline-block;">
+                            {% if qr_code_base64 %}
+                            <img src="data:image/png;base64,{{ qr_code_base64 }}" alt="QR Code Élève" style="width: 58px; height: 58px; display: block;">
+                            {% else %}
+                            <img src="{{ url_for('main.generer_qrcode_eleve', id=eleve.id) }}" alt="QR Code Élève" style="width: 58px; height: 58px; display: block;">
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+
 <style>
 /* Tuiles d'inscription */
 .status-tile {
@@ -1033,21 +1389,177 @@ ul#dossierTabs li.nav-item button.nav-link.active {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-/* Impression propre */
+/* =========================================================================
+   STYLE D'IMPRESSION HAUTE DÉFINITION - FORMAT EXCEL COMPACT (1-2 PAGES MAX)
+   ========================================================================= */
 @media print {
-    .no-print {
+    @page {
+        size: A4 portrait;
+        margin: 8mm 9mm 8mm 9mm;
+    }
+
+    /* Masquage strict de tous les composants de l'interface écran */
+    html, body {
+        height: 100% !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        line-height: 1.25 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    nav.navbar, footer, .navbar, .mobile-menu-overlay,
+    .no-print, .modal, .modal-backdrop, .btn, .nav-pills, .alert,
+    .d-print-none, .screen-dossier-view, .tab-pane, #dossierTabs {
         display: none !important;
     }
-    .tab-pane {
-        display: block !important;
-        opacity: 1 !important;
-        visibility: visible !important;
-        margin-bottom: 2rem;
-        page-break-inside: avoid;
+
+    .main-content, .container, .container-fluid {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
     }
-    .card {
-        box-shadow: none !important;
-        border: 1px solid #ddd !important;
+
+    /* Conteneur principal flex responsive A4 : remplit harmonieusement la page même avec peu de données */
+    .print-excel-view {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        min-height: 275mm !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        visibility: visible !important;
+    }
+
+    .print-excel-content {
+        flex: 1 0 auto !important;
+        width: 100% !important;
+    }
+
+    .print-excel-footer {
+        margin-top: auto !important;
+        padding-top: 6px !important;
+        border-top: 1.5px solid #1e3a8a !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    .excel-header-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        border: none !important;
+    }
+
+    .excel-header-table td {
+        border: none !important;
+        padding: 2px 4px !important;
+    }
+
+    .excel-section-title {
+        font-weight: 700 !important;
+        color: #0f172a !important;
+        background-color: #e2e8f0 !important;
+        border: 1px solid #475569 !important;
+        border-bottom: none !important;
+        letter-spacing: 0.3px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .excel-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+
+    .excel-table th, .excel-table td {
+        border: 1px solid #475569 !important;
+        vertical-align: middle !important;
+    }
+
+    .excel-table th {
+        background-color: #f1f5f9 !important;
+        font-weight: 600 !important;
+        color: #1e293b !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* =========================================================================
+       PALIERS D'ADAPTATION INTELLIGENTS (REMPLISSAGE OPTIMAL DE LA PAGE A4)
+       ========================================================================= */
+
+    /* Palier 1 : Mode Aéré (<= 6 matières) - Remplissage élégant pleine page */
+    .print-density-aere .excel-header-table {
+        margin-bottom: 11px !important;
+    }
+    .print-density-aere .excel-section-title {
+        font-size: 8.8pt !important;
+        padding: 4.5px 8px !important;
+    }
+    .print-density-aere .excel-table {
+        margin-bottom: 12px !important;
+        font-size: 8.6pt !important;
+    }
+    .print-density-aere .excel-table th,
+    .print-density-aere .excel-table td {
+        padding: 5.5px 8px !important;
+    }
+
+    /* Palier 2 : Mode Standard (7 à 11 matières) - Confort d'équilibre */
+    .print-density-standard .excel-header-table {
+        margin-bottom: 8px !important;
+    }
+    .print-density-standard .excel-section-title {
+        font-size: 8.2pt !important;
+        padding: 3.5px 6px !important;
+    }
+    .print-density-standard .excel-table {
+        margin-bottom: 8px !important;
+        font-size: 8.1pt !important;
+    }
+    .print-density-standard .excel-table th,
+    .print-density-standard .excel-table td {
+        padding: 3.8px 6.5px !important;
+    }
+
+    /* Palier 3 : Mode Compact (12+ matières) - Ajustement compact 1 à 2 pages */
+    .print-density-compact .excel-header-table {
+        margin-bottom: 5px !important;
+    }
+    .print-density-compact .excel-section-title {
+        font-size: 7.8pt !important;
+        padding: 2.5px 5px !important;
+    }
+    .print-density-compact .excel-table {
+        margin-bottom: 5px !important;
+        font-size: 7.6pt !important;
+    }
+    .print-density-compact .excel-table th,
+    .print-density-compact .excel-table td {
+        padding: 2.5px 5px !important;
+    }
+
+    /* Saut de page propre */
+    .excel-table, .excel-section-title, .excel-header-table {
+        page-break-inside: auto;
+    }
+
+    tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+}
+
+@media screen {
+    .print-excel-view {
+        display: none !important;
     }
 }
 </style>

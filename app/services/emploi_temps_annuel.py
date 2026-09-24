@@ -404,11 +404,123 @@ def donnees_impression_classe(ecole_id, annee, classe_id, user=None):
     creneaux = get_creneaux_annee(ecole_id, annee, classe_id=classe.id)
     ecole = db.session.get(Ecole, ecole_id)
 
+    # Formatage propre des créneaux de cours (sans secondes :00)
+    creneaux_formates = []
+    jours_presents = set()
+    plages_set = set()
+
+    for c in creneaux:
+        h_deb = c.heure_debut.strftime('%H:%M') if c.heure_debut else "00:00"
+        h_fin = c.heure_fin.strftime('%H:%M') if c.heure_fin else "00:00"
+        plage_label = f"{h_deb} - {h_fin}"
+        plages_set.add((c.heure_debut, c.heure_fin, plage_label, h_deb, h_fin))
+        if c.jour:
+            jours_presents.add(c.jour)
+
+        duree_min = 0
+        if c.heure_debut and c.heure_fin:
+            duree_min = (c.heure_fin.hour * 60 + c.heure_fin.minute) - (c.heure_debut.hour * 60 + c.heure_debut.minute)
+
+        d = c.to_dict()
+        d["heure_debut_court"] = h_deb
+        d["heure_fin_court"] = h_fin
+        d["plage_horaire"] = plage_label
+        d["duree_minutes"] = max(duree_min, 0)
+        creneaux_formates.append(d)
+
+    # Jours scolaires ordonnés
+    ordre_jours_ref = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
+    if 'Dimanche' in jours_presents:
+        ordre_jours_ref.append('Dimanche')
+    jours_semaine = [j for j in ordre_jours_ref if j in jours_presents] or ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
+
+    # Plages horaires ordonnées
+    plages_triees = sorted(list(plages_set), key=lambda x: (x[0] or datetime.min.time(), x[1] or datetime.min.time()))
+    plages_labels = [p[2] for p in plages_triees]
+
+    # Construction de la grille matricielle hebdomadaire : [Plage][Jour] -> liste de cours
+    grille = []
+    for p_tuple in plages_triees:
+        p_label = p_tuple[2]
+        h_deb_c = p_tuple[3]
+        h_fin_c = p_tuple[4]
+        ligne_jours = {}
+        for j in jours_semaine:
+            cours_cellule = [
+                cr for cr in creneaux_formates
+                if cr["jour"] == j and cr["plage_horaire"] == p_label
+            ]
+            ligne_jours[j] = cours_cellule
+
+        grille.append({
+            "plage": p_label,
+            "heure_debut": h_deb_c,
+            "heure_fin": h_fin_c,
+            "jours": ligne_jours,
+        })
+
+    # Récapitulatif par matière (volume horaire et séances)
+    recap_dict = {}
+    total_minutes_semaine = 0
+    for cr in creneaux_formates:
+        c_nom = cr.get("cours_nom") or "Matière non spécifiée"
+        prof_nom = cr.get("professeur_nom") or "Non assigné"
+        salle_nom = cr.get("salle") or (classe.salle or "-")
+        duree = cr.get("duree_minutes", 0)
+        total_minutes_semaine += duree
+
+        if c_nom not in recap_dict:
+            recap_dict[c_nom] = {
+                "nom": c_nom,
+                "professeurs": set(),
+                "salles": set(),
+                "nb_seances": 0,
+                "total_minutes": 0,
+            }
+        recap_dict[c_nom]["nb_seances"] += 1
+        recap_dict[c_nom]["total_minutes"] += duree
+        if prof_nom and prof_nom != "Non assigné":
+            recap_dict[c_nom]["professeurs"].add(prof_nom)
+        if salle_nom and salle_nom != "-":
+            recap_dict[c_nom]["salles"].add(salle_nom)
+
+    recap_matieres = []
+    for k, v in recap_dict.items():
+        heures = v["total_minutes"] // 60
+        mins = v["total_minutes"] % 60
+        duree_str = f"{heures}h{mins:02d}" if mins else f"{heures}h"
+        recap_matieres.append({
+            "nom": v["nom"],
+            "professeurs": ", ".join(v["professeurs"]) if v["professeurs"] else "Non assigné",
+            "salles": ", ".join(v["salles"]) if v["salles"] else (classe.salle or "-"),
+            "nb_seances": v["nb_seances"],
+            "total_heures_str": duree_str,
+            "total_minutes": v["total_minutes"],
+        })
+    recap_matieres.sort(key=lambda x: x["nom"].lower())
+
+    tot_h = total_minutes_semaine // 60
+    tot_m = total_minutes_semaine % 60
+    total_heures_hebdo_str = f"{tot_h}h{tot_m:02d}" if tot_m else f"{tot_h}h"
+
     return {
+        "ecole": ecole,
         "ecole_nom": ecole.nom if ecole else "Établissement",
+        "ecole_devise": (getattr(ecole, 'devise', '') or getattr(ecole, 'slogan', '') or '').strip(),
+        "ecole_adresse": getattr(ecole, 'adresse', ''),
+        "ecole_telephone": getattr(ecole, 'telephone', ''),
+        "ecole_email": getattr(ecole, 'email', ''),
+        "ecole_logo_path": getattr(ecole, 'logo_path', None),
+        "ecole_logo": getattr(ecole, 'logo', None),
         "annee_scolaire_nom": annee.nom,
+        "classe": classe,
         "classe_nom": classe.nom,
-        "classe_niveau": classe.niveau or "",
+        "classe_niveau": (classe.niveau_scolaire.nom if classe.niveau_scolaire else classe.niveau) or "",
         "classe_salle": classe.salle or "",
-        "creneaux": [c.to_dict() for c in creneaux],
+        "creneaux": creneaux_formates,
+        "jours_semaine": jours_semaine,
+        "grille": grille,
+        "recap_matieres": recap_matieres,
+        "total_heures_hebdo_str": total_heures_hebdo_str,
+        "total_seances": len(creneaux_formates),
     }, None

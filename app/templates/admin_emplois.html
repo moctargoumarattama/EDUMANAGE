@@ -28,7 +28,7 @@
                         {% endif %}
                     </h1>
                     <p class="page-subtitle d-none d-md-block">
-                        Consultez, organisez et planifiez les créneaux horaires de chaque classe.
+                        Consultez, organisez et planifiez les cours et horaires de chaque classe.
                     </p>
                 </div>
             </div>
@@ -38,7 +38,7 @@
                 </button>
                 {% if peut_modifier and current_user.role in ('admin', 'super_admin') %}
                 <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary shadow-sm rounded-pill py-1.5 px-3" id="btnAddEmploi">
-                    <i class="fas fa-plus me-1.5"></i>Nouveau créneau
+                    <i class="fas fa-plus me-1.5"></i>Ajouter un cours
                 </a>
                 {% endif %}
             </div>
@@ -62,7 +62,7 @@
             <div class="stat-icon primary"><i class="fas fa-calendar-check"></i></div>
             <div>
                 <p class="stat-number">{{ emplois|length }}</p>
-                <p class="stat-label">Créneaux planifiés</p>
+                <p class="stat-label">Cours planifiés</p>
             </div>
         </div>
         <div class="stat-card">
@@ -177,8 +177,8 @@
                         <select id="sortScheduleSelect" class="form-select form-select-sm">
                             <option value="nom-asc">Classe (A &rarr; Z)</option>
                             <option value="nom-desc">Classe (Z &rarr; A)</option>
-                            <option value="slots-desc">Plus de créneaux &darr;</option>
-                            <option value="slots-asc">Moins de créneaux &uarr;</option>
+                            <option value="slots-desc">Plus de cours &darr;</option>
+                            <option value="slots-asc">Moins de cours &uarr;</option>
                         </select>
                     </div>
 
@@ -250,8 +250,9 @@
 
                     <!-- En-tête cliquable de la classe -->
                     <div class="class-schedule-header"
-                         data-bs-toggle="collapse"
-                         data-bs-target="#collapseScheduleClasse{{ c.id }}"
+                         data-target="#collapseScheduleClasse{{ c.id }}"
+                         role="button"
+                         tabindex="0"
                          aria-expanded="false"
                          aria-controls="collapseScheduleClasse{{ c.id }}">
 
@@ -279,9 +280,9 @@
                         </div>
 
                         <div class="class-schedule-stats">
-                            <!-- Nombre de créneaux -->
+                            <!-- Nombre de cours -->
                             <span class="badge {% if total_creneaux > 0 %}bg-primary-subtle text-primary border border-primary-subtle{% else %}bg-light text-muted border{% endif %}" style="font-size: 0.82rem;">
-                                <i class="fas fa-calendar-day me-1"></i>{{ total_creneaux }} créneau{{ 'x' if total_creneaux > 1 else '' }}
+                                <i class="fas fa-calendar-day me-1"></i>{{ total_creneaux }} cours / sem.
                             </span>
 
                             <!-- Matières -->
@@ -302,17 +303,15 @@
                             <!-- Bouton d'ajout rapide pour cette classe -->
                             <a href="{{ url_for('main.ajouter_emploi', classe_id=c.id) }}"
                                class="btn btn-sm btn-outline-primary d-none d-lg-inline-flex"
-                               onclick="event.stopPropagation();"
-                               title="Ajouter un créneau pour {{ c.nom }}">
-                                <i class="fas fa-plus me-1"></i>Créneau
+                               title="Ajouter un cours pour {{ c.nom }}">
+                                <i class="fas fa-plus me-1"></i>Cours
                             </a>
                             {% endif %}
 
                             <!-- Bouton d'impression pour cette classe -->
                             <a href="{{ url_for('main.imprimer_classe', classe_id=c.id) }}"
-                               class="btn btn-sm btn-outline-secondary d-none d-sm-inline-flex"
-                               onclick="event.stopPropagation();"
-                               title="Imprimer l'emploi du temps de {{ c.nom }}" target="_blank">
+                               class="btn btn-sm btn-outline-secondary d-inline-flex"
+                               title="Imprimer l'emploi du temps de {{ c.nom }}" target="_blank" rel="noopener">
                                 <i class="fas fa-print me-1"></i>Imprimer
                             </a>
 
@@ -323,18 +322,18 @@
                         </div>
                     </div>
 
-                    <!-- Contenu dépliable des créneaux de la classe -->
+                    <!-- Contenu dépliable des cours de la classe -->
                     <div class="collapse class-schedule-content" id="collapseScheduleClasse{{ c.id }}">
                         {% if total_creneaux == 0 %}
                             <div class="text-center py-4">
                                 <div class="mb-2">
                                     <i class="fas fa-calendar-times text-muted fa-2x"></i>
                                 </div>
-                                <h6 class="text-muted fw-bold mb-1">Aucun créneau planifié</h6>
+                                <h6 class="text-muted fw-bold mb-1">Aucun cours planifié</h6>
                                 <p class="text-muted small mb-3">Cette classe n'a pas encore d'emploi du temps enregistré.</p>
                                 {% if peut_modifier and current_user.role in ('admin', 'super_admin') %}
                                 <a href="{{ url_for('main.ajouter_emploi', classe_id=c.id) }}" class="btn btn-sm btn-primary">
-                                    <i class="fas fa-plus-circle me-1"></i>Planifier un premier créneau
+                                    <i class="fas fa-plus-circle me-1"></i>Planifier un premier cours
                                 </a>
                                 {% endif %}
                             </div>
@@ -403,15 +402,15 @@
                                                 <td class="text-end">
                                                     <div class="d-inline-flex align-items-center gap-1">
                                                         {% if peut_modifier and current_user.role in ('admin', 'super_admin') %}
-                                                        <a href="{{ url_for('main.modifier_emploi', id=e.id) }}"
+                                                         <a href="{{ url_for('main.modifier_emploi', id=e.id) }}"
                                                            class="btn btn-sm btn-outline-primary"
-                                                           title="Modifier ce créneau"
+                                                           title="Modifier ce cours"
                                                            aria-label="Modifier">
                                                             <i class="fas fa-edit"></i>
                                                         </a>
-                                                        <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="d-inline js-confirm-form" data-confirm="Voulez-vous vraiment supprimer ce créneau ({{ e.cours.nom if e.cours else 'Matière' }} - {{ e.jour }} {{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }}) ">
+                                                        <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="d-inline js-confirm-form" data-confirm="Voulez-vous vraiment supprimer ce cours ({{ e.cours.nom if e.cours else 'Matière' }} - {{ e.jour }} {{ e.heure_debut.strftime('%H:%M') if e.heure_debut else '' }}) ">
                                                             {{ delete_form.hidden_tag() }}
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer ce créneau" aria-label="Supprimer">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer ce cours" aria-label="Supprimer">
                                                                 <i class="fas fa-trash-alt"></i>
                                                             </button>
                                                         </form>
@@ -469,12 +468,12 @@
                                             {% if peut_modifier and current_user.role in ('admin', 'super_admin') %}
                                             <a href="{{ url_for('main.modifier_emploi', id=e.id) }}"
                                                class="btn btn-outline-primary"
-                                               title="Modifier ce créneau">
+                                               title="Modifier ce cours">
                                                 <i class="fas fa-edit me-1"></i>Modifier
                                             </a>
-                                            <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="js-confirm-form" data-confirm="Voulez-vous vraiment supprimer ce créneau ({{ e.cours.nom if e.cours else 'Matière' }} - {{ e.jour }}) ">
+                                            <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="js-confirm-form" data-confirm="Voulez-vous vraiment supprimer ce cours ({{ e.cours.nom if e.cours else 'Matière' }} - {{ e.jour }}) ">
                                                 {{ delete_form.hidden_tag() }}
-                                                <button type="submit" class="btn btn-outline-danger" title="Supprimer ce créneau">
+                                                <button type="submit" class="btn btn-outline-danger" title="Supprimer ce cours">
                                                     <i class="fas fa-trash-alt me-1"></i>Supprimer
                                                 </button>
                                             </form>
@@ -495,7 +494,7 @@
         {% if emplois_sans_classe and emplois_sans_classe|length > 0 %}
             <article class="class-schedule-card"
                      data-id="sans-classe"
-                     data-nom="Créneaux sans classe"
+                     data-nom="Cours sans classe"
                      data-niveau=""
                      data-total-creneaux="{{ emplois_sans_classe|length }}"
                      data-cours=""
@@ -504,8 +503,9 @@
                      data-search="sans classe orphelin non assigné">
 
                 <div class="class-schedule-header"
-                     data-bs-toggle="collapse"
-                     data-bs-target="#collapseScheduleSansClasse"
+                     data-target="#collapseScheduleSansClasse"
+                     role="button"
+                     tabindex="0"
                      aria-expanded="false"
                      aria-controls="collapseScheduleSansClasse">
 
@@ -514,7 +514,7 @@
                             <i class="fas fa-question-circle"></i>
                         </div>
                         <div class="class-schedule-info">
-                            <h2 class="class-schedule-name">Créneaux sans classe assignée</h2>
+                            <h2 class="class-schedule-name">Cours sans classe assignée</h2>
                             <div class="class-schedule-meta">
                                 <span class="badge bg-warning bg-opacity-10 text-dark border border-warning-subtle">
                                     <i class="fas fa-exclamation-triangle me-1"></i>À régulariser
@@ -525,7 +525,7 @@
 
                     <div class="class-schedule-stats">
                         <span class="badge bg-warning text-dark border" style="font-size: 0.82rem;">
-                            {{ emplois_sans_classe|length }} créneau{{ 'x' if emplois_sans_classe|length > 1 else '' }}
+                            {{ emplois_sans_classe|length }} cours
                         </span>
                         <div class="class-schedule-chevron">
                             <i class="fas fa-chevron-down"></i>
@@ -536,7 +536,7 @@
                 <div class="collapse class-schedule-content" id="collapseScheduleSansClasse">
                     <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
                         <i class="fas fa-exclamation-triangle fa-lg"></i>
-                        <span>Ces créneaux horaires n'ont pas de classe associée. Vous pouvez les modifier pour leur affecter une classe valide.</span>
+                        <span>Ces cours n'ont pas de classe associée. Vous pouvez les modifier pour leur affecter une classe valide.</span>
                     </div>
 
                     <!-- Table desktop -->
@@ -565,7 +565,7 @@
                                                 <a href="{{ url_for('main.modifier_emploi', id=e.id) }}" class="btn btn-sm btn-outline-primary" title="Modifier">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="d-inline js-confirm-form" data-confirm="Supprimer ce créneau orphelin ">
+                                                <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="d-inline js-confirm-form" data-confirm="Supprimer ce cours orphelin ">
                                                     {{ delete_form.hidden_tag() }}
                                                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                                         <i class="fas fa-trash-alt"></i>
@@ -595,7 +595,7 @@
                                     <a href="{{ url_for('main.modifier_emploi', id=e.id) }}" class="btn btn-outline-primary">
                                         <i class="fas fa-edit me-1"></i>Modifier
                                     </a>
-                                    <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="js-confirm-form" data-confirm="Supprimer ce créneau ">
+                                    <form method="POST" action="{{ url_for('main.supprimer_emploi', id=e.id) }}" class="js-confirm-form" data-confirm="Supprimer ce cours ">
                                         {{ delete_form.hidden_tag() }}
                                         <button type="submit" class="btn btn-outline-danger">
                                             <i class="fas fa-trash-alt me-1"></i>Supprimer
@@ -619,7 +619,7 @@
                     </p>
                     {% if current_user.role in ('admin', 'super_admin') %}
                     <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary btn-sm rounded-pill px-3">
-                        <i class="fas fa-plus me-1"></i>Ajouter un créneau
+                        <i class="fas fa-plus me-1"></i>Ajouter un cours
                     </a>
                     {% endif %}
                 </div>
@@ -632,8 +632,8 @@
         <div class="empty-state-icon text-muted mb-3">
             <i class="fas fa-calendar-times fa-3x"></i>
         </div>
-        <h3 class="empty-state-title fs-5 fw-bold">Aucune classe ou créneau trouvé</h3>
-        <p class="empty-state-text text-muted mb-3">Aucun créneau ne correspond à vos critères de recherche ou de filtre.</p>
+        <h3 class="empty-state-title fs-5 fw-bold">Aucune classe ou cours trouvé</h3>
+        <p class="empty-state-text text-muted mb-3">Aucun cours ne correspond à vos critères de recherche ou de filtre.</p>
         <button type="button" class="btn btn-outline-primary" id="btnResetEmpty">
             <i class="fas fa-undo me-2"></i>Réinitialiser les filtres
         </button>
@@ -814,7 +814,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Mise à jour du compteur
         if (filterStats) {
-            let slotText = totalVisibleSlots + ' créneau' + (totalVisibleSlots > 1 ? 'x' : '') + ' planifié' + (totalVisibleSlots > 1 ? 's' : '');
+            let slotText = totalVisibleSlots + ' cours planifié' + (totalVisibleSlots > 1 ? 's' : '');
             if (selectedDay) {
                 slotText += ' (' + selectedDay + ')';
             }
@@ -960,6 +960,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Toggle accordéon sécurisé pour chaque en-tête de classe (ignore les clics sur les boutons et liens)
+    document.querySelectorAll('.class-schedule-header').forEach(header => {
+        header.addEventListener('click', function(e) {
+            // Si on clique sur un lien (ex: Imprimer, + Cours), un bouton ou à l'intérieur, ne pas ouvrir/fermer l'accordéon
+            if (e.target.closest('a, button, input, .btn')) {
+                return;
+            }
+            const targetSelector = this.dataset.target || this.dataset.bsTarget || this.getAttribute('data-target');
+            const collapseEl = targetSelector
+                ? document.querySelector(targetSelector)
+                : this.closest('.class-schedule-card')?.querySelector('.collapse');
+
+            if (collapseEl && window.bootstrap && bootstrap.Collapse) {
+                const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseEl);
+                bsCollapse.toggle();
+            }
+        });
+
+        // Accessibilité clavier (Entrée / Espace)
+        header.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                if (e.target.closest('a, button, input, .btn')) return;
+                e.preventDefault();
+                this.click();
+            }
+        });
+    });
+
     // Synchronisation du chevron avec l'état Bootstrap Collapse
     document.querySelectorAll('.class-schedule-content').forEach(collapseEl => {
         collapseEl.addEventListener('show.bs.collapse', function() {
@@ -981,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Confirmation de suppression
     document.querySelectorAll('.js-confirm-form').forEach(form => {
         form.addEventListener('submit', function(e) {
-            const confirmMsg = this.dataset.confirm || 'Voulez-vous vraiment supprimer ce créneau ';
+            const confirmMsg = this.dataset.confirm || 'Voulez-vous vraiment supprimer ce cours ';
             if (!window.confirm(confirmMsg)) {
                 e.preventDefault();
             }

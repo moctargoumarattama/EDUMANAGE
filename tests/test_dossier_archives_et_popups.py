@@ -291,3 +291,35 @@ class TestDossierArchivesEtPopups(unittest.TestCase):
         self.assertIn("CP A", html)
         self.assertIn(f"annee_id={self.annee_archivee.id}", html)
         self.assertIn(f"/bulletin/inscription/{self.insc_2024.id}", html)
+
+    def test_05_vue_impression_excel_compacte(self):
+        """La fiche élève contient une vue impression dédiée compacte style Excel (1 à 2 pages max)."""
+        self._login_admin()
+
+        resp = self.client.get(f"/eleve/{self.eleve.id}")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.data.decode("utf-8")
+
+        # Vérification du conteneur d'impression Excel dédié
+        self.assertIn("print-excel-view", html)
+        self.assertIn("screen-dossier-view", html)
+        self.assertIn("d-print-none", html)
+
+        # Vérification des sections Excel compactes
+        self.assertIn("IDENTITÉ DE L'ÉLÈVE ET SITUATION ADMINISTRATIVE", html)
+        self.assertIn("RÉSULTATS ACADÉMIQUES & ÉVALUATIONS PAR MATIÈRE", html)
+        self.assertIn("REGISTRE D'ASSIDUITÉ ET DE DISCIPLINE", html)
+        self.assertIn("SITUATION DES FRAIS DE SCOLARITÉ", html)
+        self.assertNotIn("Visa du Parent / Tuteur Légal", html)
+        self.assertNotIn("La Direction / L'Administration", html)
+        self.assertNotIn("La Direction", html)
+        self.assertIn("Logo École", html)
+        self.assertIn("QR Code Élève", html)
+        self.assertIn("Scanner pour vérifier", html)
+        self.assertIn("HISTORIQUE DU PARCOURS SCOLAIRE & MOYENNES ANNUELLES", html)
+
+        # Vérification de la configuration CSS d'impression
+        self.assertIn("@media print", html)
+        self.assertIn("size: A4 portrait", html)
+        self.assertIn("excel-table", html)
+

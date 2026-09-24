@@ -1377,6 +1377,57 @@ def voir_eleve(eleve_id):
         today = datetime.now().date()
         age = today.year - eleve.date_naissance.year - ((today.month, today.day) < (eleve.date_naissance.month, eleve.date_naissance.day))
 
+    # 5. Historique académique complet (avec moyenne de chaque année fréquentée)
+    historique_parcours = []
+    for ins in parcours_scolaire:
+        ins_notes = [n for n in eleve.notes if n.annee_id == ins.annee_scolaire_id or getattr(n, 'inscription_id', None) == ins.id]
+        tot_pts = sum(float(n.valeur or 0) * float(n.coefficient or 1) for n in ins_notes if n.valeur is not None)
+        tot_coef = sum(float(n.coefficient or 1) for n in ins_notes if n.valeur is not None)
+        moy = round(tot_pts / tot_coef, 2) if tot_coef > 0 else None
+        decision = ins.decision_fin_annee
+        if not decision and moy is not None:
+            decision = 'Admis(e)' if moy >= 10.0 else 'Ajourné(e)'
+        historique_parcours.append({
+            'inscription': ins,
+            'annee': ins.annee_scolaire.nom if ins.annee_scolaire else 'N/A',
+            'classe': ins.classe.nom if ins.classe else 'N/A',
+            'statut': ins.statut or 'inscrit',
+            'moyenne': moy,
+            'decision': decision or '-'
+        })
+
+    # 6. QR Code unique de l'élève (intégré en base64 pour impression et vérification immédiates)
+    qr_code_base64 = None
+    try:
+        import qrcode
+        import io
+        import base64
+        from app.services.bulletin_verification import generer_token_eleve
+        qr_data = None
+        if inscription_affichee:
+            try:
+                token = generer_token_eleve(eleve.ecole_id, inscription_affichee.id)
+                qr_data = url_for('main.verifier_eleve_public', token=token, _external=True)
+            except Exception:
+                pass
+        if not qr_data:
+            qr_data = url_for('main.voir_eleve', eleve_id=eleve.id, _external=True)
+
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=4,
+            border=1
+        )
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        qr_code_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+    except Exception as e:
+        current_app.logger.warning(f"Génération QR code élève {eleve.id} impossible : {e}")
+
     return_url = _safe_return_url(url_for('main.eleves'))
     detail_url = url_for('main.voir_eleve', eleve_id=eleve.id, return_url=return_url)
 
@@ -1407,6 +1458,9 @@ def voir_eleve(eleve_id):
                            est_annee_archivee=est_annee_archivee,
                            est_inscrit_annee_active=est_inscrit_annee_active,
                            classes_ouvertes_annee_active=classes_ouvertes_annee_active,
+                           historique_parcours=historique_parcours,
+                           qr_code_base64=qr_code_base64,
+                           date_impression=datetime.now(),
                            return_url=return_url,
                            detail_url=detail_url)
 

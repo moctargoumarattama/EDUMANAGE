@@ -3,78 +3,433 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Emploi du temps - {{ donnees.classe_nom }} ({{ donnees.annee_scolaire_nom }})</title>
+    <title>Emploi du temps — {{ donnees.classe_nom }} ({{ donnees.annee_scolaire_nom }})</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #fff; color: #333; }
-        .print-header { border-bottom: 2px solid #0d6efd; padding-bottom: 1rem; margin-bottom: 1.5rem; }
-        .print-table th { background-color: #f8f9fa; color: #495057; }
+        :root {
+            --primary-navy: #1e3a8a;
+            --primary-blue: #2563eb;
+            --border-color: #cbd5e1;
+            --cell-bg: #f8fafc;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .sheet-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            padding: 24px 28px;
+        }
+
+        /* En-tête officiel établissement */
+        .school-header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: none;
+            margin-bottom: 8px;
+        }
+
+        .school-header-table td {
+            border: none;
+            vertical-align: middle;
+            padding: 2px 4px;
+        }
+
+        /* Grille hebdomadaire d'emploi du temps */
+        .schedule-grid-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+            background: #ffffff;
+        }
+
+        .schedule-grid-table th,
+        .schedule-grid-table td {
+            border: 1px solid #94a3b8;
+            padding: 6px 8px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .schedule-grid-table thead th {
+            background-color: #1e3a8a;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 8.8pt;
+            letter-spacing: 0.3px;
+            padding: 8px 6px;
+            text-transform: uppercase;
+        }
+
+        .schedule-grid-table .time-col-header {
+            width: 130px;
+            background-color: #0f172a;
+        }
+
+        .schedule-grid-table .time-slot-cell {
+            background-color: #f8fafc;
+            font-weight: 700;
+            font-size: 8.2pt;
+            color: #1e3a8a;
+            white-space: nowrap;
+        }
+
+        .course-card-slot {
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-left: 3.5px solid #2563eb;
+            border-radius: 6px;
+            padding: 6px 8px;
+            text-align: left;
+            margin: 2px 0;
+            transition: all 0.15s ease;
+        }
+
+        .course-subject {
+            font-weight: 800;
+            font-size: 9pt;
+            color: #1e3a8a;
+            line-height: 1.25;
+            margin-bottom: 3px;
+        }
+
+        .course-teacher {
+            font-size: 7.8pt;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 2px;
+        }
+
+        .course-room {
+            font-size: 7.2pt;
+            color: #475569;
+            display: inline-block;
+            background: #ffffff;
+            padding: 1px 5px;
+            border-radius: 3px;
+            border: 1px solid #cbd5e1;
+            font-weight: 600;
+        }
+
+        .empty-slot {
+            color: #cbd5e1;
+            font-size: 11pt;
+            font-weight: 300;
+            background-color: #ffffff;
+        }
+
+        /* Cartes de synthèse KPI */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .kpi-box {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 7px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .kpi-label {
+            font-size: 7.5pt;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .kpi-value {
+            font-size: 11pt;
+            font-weight: 800;
+            color: #1e3a8a;
+        }
+
+        /* Tableau récapitulatif par matière */
+        .recap-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8pt;
+            margin-bottom: 12px;
+        }
+
+        .recap-table th,
+        .recap-table td {
+            border: 1px solid #cbd5e1;
+            padding: 5px 8px;
+            vertical-align: middle;
+        }
+
+        .recap-table th {
+            background-color: #f1f5f9;
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 8pt;
+        }
+
+        /* =========================================================================
+           STYLE D'IMPRESSION HAUTE DÉFINITION (FORMAT A4 PAYSAGE OU PORTRAIT)
+           ========================================================================= */
         @media print {
-            .no-print { display: none !important; }
-            body { padding: 0; }
+            @page {
+                size: A4 landscape;
+                margin: 7mm 8mm 7mm 8mm;
+            }
+
+            html, body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .no-print, nav, footer, .btn {
+                display: none !important;
+            }
+
+            .sheet-container {
+                max-width: 100% !important;
+                width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+            }
+
+            .schedule-grid-table th,
+            .schedule-grid-table td {
+                padding: 4px 6px !important;
+            }
+
+            .course-card-slot {
+                padding: 4px 6px !important;
+            }
+
+            .kpi-row {
+                margin-bottom: 8px !important;
+                gap: 8px !important;
+            }
+
+            .kpi-box {
+                padding: 4px 8px !important;
+            }
+
+            tr {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
         }
     </style>
 </head>
-<body class="p-4">
-    <div class="container-fluid">
-        <div class="no-print mb-3 d-flex justify-content-between align-items-center">
-            <a href="{{ url_for('main.admin_emplois') }}" class="btn btn-outline-secondary btn-sm">
-                <i class="fas fa-arrow-left me-1"></i>Retour aux emplois du temps
-            </a>
-            <button onclick="window.print()" class="btn btn-primary btn-sm">
-                <i class="fas fa-print me-1"></i>Imprimer
-            </button>
-        </div>
-
-        <div class="print-header d-flex justify-content-between align-items-center">
-            <div>
-                <h3 class="mb-1 text-primary fw-bold">{{ donnees.ecole_nom }}</h3>
-                <h4 class="mb-0 text-dark">Emploi du temps — Classe : <strong>{{ donnees.classe_nom }}</strong></h4>
+<body>
+    <div class="sheet-container">
+        <!-- Barre d'outils écran (masquée à l'impression) -->
+        <div class="no-print d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <a href="{{ url_for('main.admin_emplois') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-sm">
+                    <i class="fas fa-arrow-left me-1.5"></i>Retour aux emplois du temps
+                </a>
+                <span class="badge bg-light text-dark border px-2.5 py-1.5">
+                    <i class="fas fa-chalkboard me-1 text-primary"></i>Classe : <strong>{{ donnees.classe_nom }}</strong>
+                </span>
             </div>
-            <div class="text-end">
-                <span class="badge bg-primary fs-6 mb-1">Année scolaire : {{ donnees.annee_scolaire_nom }}</span>
-                {% if donnees.classe_niveau %}<div class="text-muted small">Niveau : {{ donnees.classe_niveau }}</div>{% endif %}
-                {% if donnees.classe_salle %}<div class="text-muted small">Salle principale : {{ donnees.classe_salle }}</div>{% endif %}
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" onclick="window.print()" class="btn btn-primary btn-sm rounded-pill px-4 shadow-sm fw-bold">
+                    <i class="fas fa-print me-1.5"></i>Imprimer l'emploi du temps
+                </button>
             </div>
         </div>
 
+        <!-- 1. En-tête officiel établissement (Comme le Bulletin & le Dossier) -->
+        <table class="school-header-table">
+            <tr>
+                <!-- Grand Logo de l'École -->
+                <td style="width: 100px; text-align: left; padding-right: 12px;">
+                    {% if donnees.ecole_logo_path and donnees.ecole_logo_path != 'default_logo.png' %}
+                    <img src="{{ url_for('static', filename=donnees.ecole_logo_path) }}" alt="Logo École" style="width: 90px; height: 90px; object-fit: contain; border-radius: 50%; border: 2px solid #cbd5e1; background: #ffffff; padding: 2px; display: block;">
+                    {% elif donnees.ecole_logo and donnees.ecole_logo != 'default_logo.png' %}
+                    <img src="{{ url_for('static', filename='uploads/logos/' ~ donnees.ecole_logo) }}" alt="Logo École" style="width: 90px; height: 90px; object-fit: contain; border-radius: 50%; border: 2px solid #cbd5e1; background: #ffffff; padding: 2px; display: block;" onerror="this.style.display='none'">
+                    {% else %}
+                    <div style="width: 90px; height: 90px; border-radius: 50%; border: 2.5px solid #1e3a8a; display: flex; align-items: center; justify-content: center; font-size: 24pt; font-weight: bold; color: #1e3a8a; background: #f8fafc;">
+                        {{ (donnees.ecole_nom[:2] | upper) if donnees.ecole_nom else 'GS' }}
+                    </div>
+                    {% endif %}
+                </td>
+
+                <!-- Coordonnées Établissement (structurées ligne par ligne) -->
+                <td>
+                    <div style="font-size: 13pt; font-weight: 800; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2; margin-bottom: 2px;">
+                        {{ donnees.ecole_nom }}
+                    </div>
+                    {% if donnees.ecole_devise %}
+                    <div style="font-size: 8pt; font-style: italic; color: #b45309; font-weight: 600; margin-bottom: 2px;">
+                        « {{ donnees.ecole_devise }} »
+                    </div>
+                    {% endif %}
+                    {% if donnees.ecole_adresse %}
+                    <div style="font-size: 7.5pt; color: #475569; margin-bottom: 1.5px; line-height: 1.25;">
+                        {{ donnees.ecole_adresse }}
+                    </div>
+                    {% endif %}
+                    <div style="font-size: 7.5pt; color: #475569; line-height: 1.25;">
+                        {% if donnees.ecole_telephone %}
+                        <span style="margin-right: 12px;">Tél : <strong style="color: #1e293b;">{{ donnees.ecole_telephone }}</strong></span>
+                        {% endif %}
+                        {% if donnees.ecole_email %}
+                        <span>Email : <span style="color: #1e293b;">{{ donnees.ecole_email }}</span></span>
+                        {% endif %}
+                    </div>
+                </td>
+
+                <!-- Cartouche Officiel à droite -->
+                <td style="width: 250px; text-align: right;">
+                    <div style="display: inline-block; background-color: #1e3a8a; color: #ffffff; padding: 4px 12px; font-weight: bold; font-size: 9pt; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        EMPLOI DU TEMPS
+                    </div>
+                    <div style="font-size: 8.5pt; color: #0f172a; margin-top: 3px; line-height: 1.35;">
+                        <div>Classe : <strong style="color: #1e3a8a; font-size: 10pt;">{{ donnees.classe_nom }}</strong></div>
+                        <div style="font-size: 7.8pt; color: #475569;">
+                            Année Scolaire : <strong>{{ donnees.annee_scolaire_nom }}</strong>
+                            {% if donnees.classe_niveau %}• Niveau : {{ donnees.classe_niveau }}{% endif %}
+                        </div>
+                        {% if donnees.classe_salle %}
+                        <div style="font-size: 7.5pt; color: #64748b;">
+                            Salle principale : <strong>{{ donnees.classe_salle }}</strong>
+                        </div>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Ligne de séparation bleu roi -->
+        <div style="height: 2px; background-color: #1e3a8a; margin-bottom: 10px;"></div>
+
+        <!-- 2. Synthèse KPI rapide -->
+        <div class="kpi-row">
+            <div class="kpi-box">
+                <span class="kpi-label"><i class="fas fa-calendar-check me-1 text-primary"></i>Cours Hebdo</span>
+                <span class="kpi-value">{{ donnees.total_seances }}</span>
+            </div>
+            <div class="kpi-box">
+                <span class="kpi-label"><i class="fas fa-clock me-1 text-info"></i>Volume Horaire</span>
+                <span class="kpi-value">{{ donnees.total_heures_hebdo_str }}</span>
+            </div>
+            <div class="kpi-box">
+                <span class="kpi-label"><i class="fas fa-book me-1 text-success"></i>Matières</span>
+                <span class="kpi-value">{{ donnees.recap_matieres|length }}</span>
+            </div>
+            <div class="kpi-box">
+                <span class="kpi-label"><i class="fas fa-calendar-alt me-1 text-warning"></i>Jours Actifs</span>
+                <span class="kpi-value">{{ donnees.jours_semaine|length }}</span>
+            </div>
+        </div>
+
+        <!-- 3. Grille Hebdomadaire Visuelle (Planning de la Semaine) -->
+        {% if donnees.grille and donnees.grille|length > 0 %}
         <div class="table-responsive">
-            <table class="table table-bordered table-striped align-middle print-table">
+            <table class="schedule-grid-table">
                 <thead>
                     <tr>
-                        <th style="width: 15%;">Jour</th>
-                        <th style="width: 20%;">Horaire</th>
-                        <th style="width: 30%;">Matière / Cours</th>
-                        <th style="width: 25%;">Enseignant</th>
-                        <th style="width: 10%;">Salle</th>
+                        <th class="time-col-header"><i class="far fa-clock me-1"></i>Horaire</th>
+                        {% for j in donnees.jours_semaine %}
+                        <th>{{ j }}</th>
+                        {% endfor %}
                     </tr>
                 </thead>
                 <tbody>
-                    {% for c in donnees.creneaux %}
+                    {% for tranche in donnees.grille %}
                     <tr>
-                        <td class="fw-bold">{{ c.jour }}</td>
-                        <td>{{ c.heure_debut }} - {{ c.heure_fin }}</td>
-                        <td class="fw-semibold text-primary">{{ c.cours_nom or 'Cours' }}</td>
-                        <td>{{ c.professeur_nom or '-' }}</td>
-                        <td>{{ c.salle or '-' }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">
-                            Aucun créneau d'emploi du temps enregistré pour cette classe dans l'année scolaire {{ donnees.annee_scolaire_nom }}.
+                        <td class="time-slot-cell">
+                            {{ tranche.heure_debut }} - {{ tranche.heure_fin }}
                         </td>
+                        {% for j in donnees.jours_semaine %}
+                        <td>
+                            {% set cours_liste = tranche.jours.get(j, []) %}
+                            {% if cours_liste and cours_liste|length > 0 %}
+                                {% for cr in cours_liste %}
+                                <div class="course-card-slot">
+                                    <div class="course-subject">
+                                        {{ cr.cours_nom or 'Cours' }}
+                                    </div>
+                                    <div class="course-teacher">
+                                        <i class="fas fa-user-tie text-muted"></i>
+                                        <span>{{ cr.professeur_nom or 'Professeur' }}</span>
+                                    </div>
+                                    {% if cr.salle %}
+                                    <div class="course-room">
+                                        <i class="fas fa-door-open me-1"></i>{{ cr.salle }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <span class="empty-slot">—</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-
-        <div class="mt-4 pt-3 border-top d-flex justify-content-between text-muted small">
-            <span>Document officiel généré par KLASORA</span>
-            <span>Date d'impression : {{ now.strftime('%d/%m/%Y à %H:%M') }}</span>
+        {% else %}
+        <div class="p-5 text-center text-muted border rounded-3 bg-light my-3">
+            <i class="fas fa-calendar-times fa-3x mb-3 text-secondary opacity-50"></i>
+            <h5 class="fw-bold text-dark">Aucun cours planifié</h5>
+            <p class="small mb-0">Aucun cours n'est encore enregistré pour la classe de {{ donnees.classe_nom }} sur l'année {{ donnees.annee_scolaire_nom }}.</p>
         </div>
+        {% endif %}
+
+        <!-- 4. Tableau Récapitulatif Hebdomadaire des Matières -->
+        {% if donnees.recap_matieres and donnees.recap_matieres|length > 0 %}
+        <div style="font-size: 8.2pt; font-weight: 700; color: #1e3a8a; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.3px;">
+            <i class="fas fa-list-ul me-1"></i>Récapitulatif des cours hebdomadaires
+        </div>
+        <table class="recap-table">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">N°</th>
+                    <th style="width: 35%;">Matière</th>
+                    <th style="width: 30%;">Enseignant(s)</th>
+                    <th style="width: 15%;">Salle(s)</th>
+                    <th style="width: 15%; text-align: center;">Séances / Semaine</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in donnees.recap_matieres %}
+                <tr>
+                    <td style="text-align: center; color: #64748b;">{{ loop.index }}</td>
+                    <td class="fw-bold text-primary">{{ m.nom }}</td>
+                    <td>{{ m.professeurs }}</td>
+                    <td>{{ m.salles }}</td>
+                    <td style="text-align: center; font-weight: 700;">{{ m.nb_seances }} séance{{ 's' if m.nb_seances > 1 else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+
     </div>
 </body>
 </html>
-
