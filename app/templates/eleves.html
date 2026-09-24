@@ -21,46 +21,21 @@
             </p>
         </div>
 
-        <!-- Boutons Desktop (Inchangés pour PC) -->
-        <div class="d-none d-md-flex align-items-center gap-2 flex-wrap">
+        <!-- Actions d'en-tête : 1 Gros bouton vert unique + Menu Outils discret -->
+        <div class="d-flex align-items-center gap-2 flex-wrap">
             {% if current_user.role in ['admin', 'super_admin'] and (not annee_consultee or annee_consultee.statut != 'archivee') %}
-            <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-sm btn-success fw-semibold">
-                <i class="fas fa-plus me-1"></i>Ajouter un élève
-            </a>
-            {% if annee_active %}
-            <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" data-bs-toggle="modal" data-bs-target="#modalRechercheAncienEleve">
-                <i class="fas fa-user-clock me-1"></i>Réintégrer un ancien élève
-            </button>
-            {% endif %}
-            <a href="{{ url_for('main.import_excel_form') }}" class="btn btn-sm btn-outline-primary fw-semibold">
-                <i class="fas fa-file-import me-1"></i>Importer Excel
-            </a>
-            <a href="{{ url_for('main.modele_excel_eleves') }}" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-download me-1"></i>Modèle Excel
+            <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-success fw-bold px-3.5 py-2 rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5">
+                <i class="fas fa-plus-circle"></i>
+                <span>+ Inscrire un élève</span>
             </a>
             {% endif %}
-            {% if current_user.role in ['admin', 'super_admin'] %}
-            <a href="{{ url_for('main.export_eleves_excel') }}" class="btn btn-sm btn-outline-success">
-                <i class="fas fa-file-excel me-1"></i>Exporter Excel
-            </a>
-            {% endif %}
-            <a href="{{ url_for('main.index') }}" class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-home me-1"></i>Accueil
-            </a>
-        </div>
 
-        <!-- Boutons Mobile Épurés (Ultra-compacts : + Élève + Menu Actions) -->
-        <div class="d-flex d-md-none align-items-center gap-2 w-100">
-            {% if current_user.role in ['admin', 'super_admin'] and (not annee_consultee or annee_consultee.statut != 'archivee') %}
-            <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-sm btn-success fw-bold flex-grow-1">
-                <i class="fas fa-plus me-1"></i>+ Élève
-            </a>
-            {% endif %}
             <div class="dropdown">
-                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-ellipsis-v me-1"></i>Actions
+                <button class="btn btn-outline-secondary dropdown-toggle rounded-pill px-3 py-2 small d-inline-flex align-items-center gap-1.5" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-tools text-muted"></i>
+                    <span>Outils</span>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-2">
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-2" style="min-width: 220px;">
                     {% if current_user.role in ['admin', 'super_admin'] and (not annee_consultee or annee_consultee.statut != 'archivee') %}
                     {% if annee_active %}
                     <li>
@@ -87,12 +62,6 @@
                         </a>
                     </li>
                     {% endif %}
-                    <li><hr class="dropdown-divider my-1"></li>
-                    <li>
-                        <a class="dropdown-item py-2 small" href="{{ url_for('main.index') }}">
-                            <i class="fas fa-home text-secondary me-2"></i>Accueil
-                        </a>
-                    </li>
                 </ul>
             </div>
         </div>
@@ -166,135 +135,43 @@
         </div>
     </div>
 
-    <!-- Barre de navigation rapide des Classes (Chips horizontales) -->
-    <div class="class-quick-pills-bar mb-2" id="classChipsBar">
-        <button type="button" class="class-filter-chip active" data-class-chip="all">
-            <i class="fas fa-layer-group me-1"></i>Toutes ({{ total_eleves }})
-        </button>
-        {% for c in classes %}
-        <button type="button" class="class-filter-chip" data-class-chip="{{ c.id }}" data-niveau="{{ c.niveau or '' }}">
-            {{ c.nom }}
-        </button>
-        {% endfor %}
-    </div>
-
-    <!-- Onglets rapides de statut : Tous / Confirmés (Inscrits) / Préinscrits -->
-    <div class="d-flex align-items-center gap-2 mb-3 overflow-x-auto pb-1 text-nowrap" id="statusFilterPills">
-        <a href="{{ url_for('main.eleves', classe_id=classe_id, search=search, niveau_id=niveau_id, genre=genre) }}" 
-           class="btn btn-sm {% if not statut %}btn-dark text-white{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 py-1 fw-semibold">
-            <i class="fas fa-users me-1"></i>Tous les élèves
-        </a>
-        <a href="{{ url_for('main.eleves', classe_id=classe_id, search=search, niveau_id=niveau_id, genre=genre, statut='inscrit') }}" 
-           class="btn btn-sm {% if statut == 'inscrit' %}btn-success text-white{% else %}btn-outline-success{% endif %} rounded-pill px-3 py-1 fw-semibold">
-            <i class="fas fa-user-check me-1"></i>Confirmés (Inscrits)
-        </a>
-        <a href="{{ url_for('main.eleves', classe_id=classe_id, search=search, niveau_id=niveau_id, genre=genre, statut='preinscrit') }}" 
-           class="btn btn-sm rounded-pill px-3 py-1 fw-semibold"
-           style="{% if statut == 'preinscrit' %}background-color: #6b21a8; border-color: #6b21a8; color: #fff;{% else %}color: #6b21a8; border-color: #d8b4fe; background-color: #fcfaff;{% endif %}">
-            <i class="fas fa-clock-rotate-left me-1"></i>Préinscrits (En attente d'acompte)
-        </a>
-    </div>
-
-    <!-- Barre d'outils et de recherche réactive -->
-    <div class="card border-0 shadow-sm mb-3 mb-md-4">
-        <div class="card-body p-2.5 p-md-3">
-            <div class="row g-2 align-items-center">
-                <!-- Champ de recherche live -->
-                <div class="col-12 col-md-4 col-lg-3">
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text bg-light border-end-0 text-muted">
-                            <i class="fas fa-search"></i>
-                        </span>
-                        <input type="text" class="form-control border-start-0 ps-0" id="searchStudentInput"
-                               placeholder="Nom, prénom, matricule, parent..." value="{{ search }}">
-                        <button class="btn btn-outline-secondary border-start-0 {% if not search %}d-none{% endif %}" type="button" id="btnClearStudentSearch">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Barre d'outils mobile : bouton Filtres & Bouton unique Déplier/Replier -->
-                <div class="col-12 d-md-none">
-                    <div class="d-flex align-items-center justify-content-between gap-2 pt-1 border-top">
-                        <button class="btn btn-sm btn-outline-primary py-1 px-2.5 d-inline-flex align-items-center gap-1.5 rounded-pill" 
-                                type="button" data-bs-toggle="collapse" data-bs-target="#mobileFiltersCollapse" aria-expanded="false" aria-controls="mobileFiltersCollapse">
-                            <i class="fas fa-sliders-h"></i>
-                            <span class="fw-semibold small">Filtres</span>
-                            <span class="badge bg-primary text-white rounded-pill d-none" id="mobileFilterBadge">0</span>
-                        </button>
-
-                        <!-- Bouton unique dynamique (Déplier tout ⟷ Replier tout) -->
-                        <div class="d-flex align-items-center gap-2">
-                            <button type="button" class="btn btn-sm btn-outline-primary fw-semibold py-1 px-2.5 rounded-pill d-inline-flex align-items-center gap-1.5" id="btnToggleAllStudentsMob">
-                                <i class="fas fa-chevron-down" id="toggleMobIcon"></i>
-                                <span class="small" id="toggleMobText">Déplier tout</span>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-light border text-secondary py-1 px-2 rounded-circle" id="btnResetStudentFilterMob" title="Réinitialiser les filtres" aria-label="Réinitialiser">
-                                <i class="fas fa-undo"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Filtres avancés : toujours visibles sur Desktop, en accordéon sur Mobile -->
-                <div class="col-12 col-md-8 col-lg-9 collapse d-md-block" id="mobileFiltersCollapse">
-                    <div class="row g-2 align-items-center pt-2 pt-md-0">
-                        <!-- Filtre par niveau -->
-                        <div class="col-6 col-md-4 col-lg-3">
-                            <select class="form-select form-select-sm" id="selectNiveauFilter">
-                                <option value="all">Tous niveaux</option>
-                                {% for niv in niveaux_annee %}
-                                <option value="{{ niv.nom }}" {% if niveau_id|string == niv.nom|string or niveau_id|string == niv.id|string %}selected{% endif %}>{{ niv.nom }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <!-- Sélecteur de classe (Masqué à la demande, conservé pour la logique JS des chips) -->
-                        <div class="d-none">
-                            <select class="form-select form-select-sm" id="selectClassFilter">
-                                <option value="all">Toutes classes</option>
-                                {% for c in classes %}
-                                <option value="{{ c.id }}" data-niveau="{{ c.niveau or '' }}" {% if classe_id == c.id %}selected{% endif %}>{{ c.nom }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-
-                        <!-- Filtre par genre -->
-                        <div class="col-6 col-md-4 col-lg-3">
-                            <select class="form-select form-select-sm" id="selectGenreFilter">
-                                <option value="all">Tous genres</option>
-                                <option value="M" {% if genre == 'M' %}selected{% endif %}>Garçons (M)</option>
-                                <option value="F" {% if genre == 'F' %}selected{% endif %}>Filles (F)</option>
-                            </select>
-                        </div>
-
-                        <!-- Bouton réinitialiser (Desktop) -->
-                        <div class="col-6 col-md-auto d-none d-md-block">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnResetStudentFilter" title="Réinitialiser tous les filtres">
-                                <i class="fas fa-undo me-1"></i>Réinitialiser
-                            </button>
-                        </div>
-
-                        <!-- Boutons Tout Déplier / Tout Replier (Desktop) -->
-                        <div class="col-12 col-lg-auto ms-lg-auto text-end d-none d-md-block">
-                            <div class="btn-group btn-group-sm">
-                                <button type="button" class="btn btn-outline-secondary" id="btnExpandAllStudents" title="Déplier toutes les classes">
-                                    <i class="fas fa-chevron-down me-1"></i>Déplier tout
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary" id="btnCollapseAllStudents" title="Replier toutes les classes">
-                                    <i class="fas fa-chevron-up me-1"></i>Replier tout
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+    <!-- Barre de recherche unique, ultra-simple et épurée -->
+    <div class="card border-0 shadow-sm mb-3 mb-md-4 rounded-3 overflow-hidden">
+        <div class="card-body p-2 p-md-2.5">
+            <div class="input-group">
+                <span class="input-group-text bg-white border-0 text-muted ps-3">
+                    <i class="fas fa-search text-primary"></i>
+                </span>
+                <input type="text" 
+                       class="form-control border-0 ps-2 fs-6 shadow-none" 
+                       id="searchStudentInput"
+                       placeholder="Rechercher un élève par nom ou prénom..." 
+                       value="{{ search }}" 
+                       autocomplete="off">
+                <button class="btn btn-link text-muted pe-3 {% if not search %}d-none{% endif %}" 
+                        type="button" 
+                        id="btnClearStudentSearch" 
+                        title="Effacer la recherche">
+                    <i class="fas fa-times-circle text-secondary fs-5"></i>
+                </button>
             </div>
-
-            <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top text-muted small">
-                <div>
-                    <i class="fas fa-users me-1 text-primary"></i>
-                    <span id="studentResultCount">{{ total_eleves }} élève{{ 's' if total_eleves > 1 else '' }} affiché{{ 's' if total_eleves > 1 else '' }}</span>
-                </div>
+        </div>
+        <div class="card-footer bg-light border-top py-1.5 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2 text-muted small">
+            <div>
+                <i class="fas fa-users me-1 text-primary"></i>
+                <span id="studentResultCount">{{ total_eleves }} élève{{ 's' if total_eleves > 1 else '' }} au total</span>
+            </div>
+            <!-- Filtre de statut discret -->
+            <div class="d-flex align-items-center gap-1.5" id="statusFilterPills">
+                <a href="{{ url_for('main.eleves') }}" class="badge rounded-pill text-decoration-none {% if not statut %}bg-dark text-white{% else %}bg-white text-secondary border{% endif %} py-1 px-2.5">
+                    Tous les élèves
+                </a>
+                <a href="{{ url_for('main.eleves', statut='inscrit') }}" class="badge rounded-pill text-decoration-none {% if statut == 'inscrit' %}bg-success text-white{% else %}bg-white text-secondary border{% endif %} py-1 px-2.5">
+                    <i class="fas fa-check-circle me-1"></i>Confirmés (Inscrits)
+                </a>
+                <a href="{{ url_for('main.eleves', statut='preinscrit') }}" class="badge rounded-pill text-decoration-none {% if statut == 'preinscrit' %}text-white{% else %}text-secondary bg-white border{% endif %} py-1 px-2.5" style="{% if statut == 'preinscrit' %}background-color: #6b21a8;{% endif %}">
+                    <i class="fas fa-clock-rotate-left me-1"></i>Préinscrits
+                </a>
             </div>
         </div>
     </div>
@@ -364,7 +241,7 @@
                                  data-statut="{{ el_insc.statut if el_insc else 'inscrit' }}"
                                  data-search="{{ (eleve.nom ~ ' ' ~ eleve.prenom ~ ' ' ~ (eleve.code_parent or '') ~ ' ' ~ (eleve.contact_parent or '') ~ ' ' ~ grp.nom) | lower }}">
                                 
-                                <div class="student-card-main">
+                                <div class="student-card-main" onclick="openFicheEleve({{ eleve.id }}, false)" role="button" tabindex="0" title="Cliquer pour ouvrir la fiche détaillée sur place">
                                     <div class="student-entry-avatar">
                                         {{ eleve.prenom[:1] | upper }}{{ eleve.nom[:1] | upper }}
                                     </div>
@@ -388,14 +265,14 @@
 
                                             <!-- Menu d'action mobile (3 points verticaux) -->
                                             {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
-                                            <div class="dropdown d-md-none ms-auto">
+                                             <div class="dropdown d-md-none ms-auto" onclick="event.stopPropagation()">
                                                 <button class="btn btn-xs btn-light border-0 py-1 px-2 text-muted" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions">
                                                     <i class="fas fa-ellipsis-v"></i>
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-1">
                                                     <li>
-                                                        <a class="dropdown-item py-2 small" href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url) }}">
-                                                            <i class="fas fa-edit text-warning me-2"></i>Modifier
+                                                        <a class="dropdown-item py-2 small" href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url) }}" onclick="openFicheEleve({{ eleve.id }}, true); return false;">
+                                                            <i class="fas fa-edit text-warning me-2"></i>Modifier sur place
                                                         </a>
                                                     </li>
                                                     <li><hr class="dropdown-divider my-1"></li>
@@ -425,7 +302,7 @@
 
                                             <!-- Raccourcis directs Appel téléphonique et WhatsApp -->
                                             {% if tel_digits %}
-                                            <div class="d-inline-flex align-items-center gap-1 ms-sm-1 flex-wrap">
+                                            <div class="d-inline-flex align-items-center gap-1 ms-sm-1 flex-wrap" onclick="event.stopPropagation()">
                                                 <a href="tel:{{ tel_digits }}" class="btn-quick-contact btn-quick-tel" title="Appeler le parent ({{ tel_digits }})">
                                                     <i class="fas fa-phone-alt"></i>
                                                     <span>{{ tel_digits }}</span>
@@ -443,24 +320,15 @@
                                     </div>
                                 </div>
 
-                                <!-- Barre d'actions pour cet élève -->
+                                <!-- Barre d'actions pour cet élève (Un seul bouton principal propre) -->
                                 <div class="student-entry-actions">
                                     <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id, return_url=return_url) }}"
+                                       onclick="openFicheEleve({{ eleve.id }}, false); return false;"
                                        class="student-action-btn btn btn-sm btn-primary" 
-                                       title="Consulter le dossier annuel complet">
-                                        <i class="fas fa-folder-open me-1"></i>Dossier annuel
-                                    </a>
-                                    <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" 
-                                       class="student-action-btn btn btn-sm btn-outline-secondary" 
-                                       title="Consulter le bulletin scolaire">
-                                        <i class="fas fa-file-alt me-1"></i>Bulletin
+                                       title="Consulter la fiche détaillée, notes, bulletin et modifier sur place">
+                                        <i class="fas fa-id-card me-1"></i>Dossier & Notes
                                     </a>
                                     {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
-                                    <a href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url) }}"
-                                       class="student-action-btn btn btn-sm btn-outline-warning d-none d-md-inline-flex" 
-                                       title="Modifier les données de l'élève">
-                                        <i class="fas fa-edit me-1"></i>Modifier
-                                    </a>
                                     <button type="button" class="student-action-btn btn btn-sm btn-outline-danger d-none d-md-inline-flex align-items-center justify-content-center btn-supprimer-eleve"
                                             data-bs-toggle="modal" data-bs-target="#modalSupprimerEleve"
                                             data-id="{{ eleve.id }}"
@@ -548,9 +416,9 @@
         <div class="card-body">
             <i class="fas fa-search text-muted fa-3x mb-3 opacity-50"></i>
             <h5 class="fw-bold text-gray-800 mb-1">Aucun élève trouvé</h5>
-            <p class="text-muted small mb-3">Aucun élève ne correspond ? votre terme de recherche.</p>
-            <button type="button" class="btn btn-sm btn-outline-primary" onclick="resetStudentSearch()">
-                <i class="fas fa-sync-alt me-1"></i>Réinitialiser la recherche
+            <p class="text-muted small mb-3">Aucun élève ne correspond à votre recherche.</p>
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="resetStudentSearch()">
+                <i class="fas fa-times me-1"></i>Effacer la recherche
             </button>
         </div>
     </div>
@@ -578,6 +446,268 @@
                         </button>
                     </form>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Fiche & Modification d'un Élève SUR PLACE (Anti-redirection & Zéro dispersion) -->
+    <div class="modal fade" id="modalFicheEleve" tabindex="-1" aria-labelledby="modalFicheEleveLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                
+                <!-- Modal Header Dynamique -->
+                <div class="modal-header bg-dark text-white p-3 border-0 d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-3 min-w-0">
+                        <div id="mfeAvatar" class="student-entry-avatar shadow-sm flex-shrink-0" style="width: 46px; height: 46px; font-size: 1.1rem; background: linear-gradient(135deg, #4f46e5, #06b6d4); color: #fff; font-weight: 700;">
+                            --
+                        </div>
+                        <div class="min-w-0">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <h5 class="modal-title fw-bold text-white mb-0 text-truncate" id="mfeNomComplet">Chargement...</h5>
+                                <span id="mfeBadgeGenre" class="badge bg-light text-dark small">--</span>
+                                <span id="mfeBadgeStatut" class="badge bg-success-subtle text-success small">--</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 text-white-50 small mt-0.5 flex-wrap">
+                                <span id="mfeClasseNom"><i class="fas fa-chalkboard me-1"></i>Classe --</span>
+                                <span>•</span>
+                                <span id="mfeMatricule"><i class="fas fa-id-badge me-1"></i>--</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                    </div>
+                </div>
+
+                <!-- Loader -->
+                <div id="mfeLoading" class="text-center py-5">
+                    <div class="spinner-border text-primary mb-2" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    <div class="text-muted small">Récupération des données de l'élève...</div>
+                </div>
+
+                <!-- Mode Consultation (Vue Fiche) -->
+                <div id="mfeViewMode" class="d-none">
+                    <div class="modal-body p-3 p-md-4 bg-light">
+                        <!-- Notification d'alerte locale -->
+                        <div id="mfeAlert" class="alert alert-success alert-dismissible fade show d-none mb-3 py-2 small" role="alert">
+                            <i class="fas fa-check-circle me-1.5"></i><span id="mfeAlertText"></span>
+                            <button type="button" class="btn-close py-2" onclick="this.parentElement.classList.add('d-none')"></button>
+                        </div>
+
+                        <!-- Cartes Résumés Rapides -->
+                        <div class="row g-3 mb-3">
+                            <!-- Carte 1: Notes & Moyenne -->
+                            <div class="col-12 col-md-4">
+                                <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-white">
+                                    <div class="text-muted small fw-semibold mb-1 d-flex align-items-center justify-content-between">
+                                        <span><i class="fas fa-chart-line text-primary me-1"></i>Moyenne</span>
+                                        <span id="mfeBadgeMention" class="badge bg-secondary small">--</span>
+                                    </div>
+                                    <div class="d-flex align-items-baseline gap-1">
+                                        <h3 class="fw-bold text-dark mb-0" id="mfeMoyenne">--</h3>
+                                        <span class="text-muted small">/ 20</span>
+                                    </div>
+                                    <div class="text-muted small mt-1" id="mfeTotalNotes">-- évaluation(s)</div>
+                                </div>
+                            </div>
+
+                            <!-- Carte 2: Contact Parent -->
+                            <div class="col-12 col-md-4">
+                                <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-white">
+                                    <div class="text-muted small fw-semibold mb-1">
+                                        <i class="fas fa-user-friends text-info me-1"></i>Parent référent
+                                    </div>
+                                    <div class="fw-bold text-dark text-truncate" id="mfeParentNom">--</div>
+                                    <div class="d-flex align-items-center gap-1 mt-2 flex-wrap" id="mfeParentActions">
+                                        <a href="#" id="mfeBtnTel" class="btn btn-xs btn-outline-primary rounded-pill py-0.5 px-2 small">
+                                            <i class="fas fa-phone-alt me-1"></i><span id="mfeParentTel">--</span>
+                                        </a>
+                                        <a href="#" id="mfeBtnWa" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-outline-success rounded-pill py-0.5 px-2 small">
+                                            <i class="fab fa-whatsapp me-1"></i>WhatsApp
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Carte 3: Assiduité & Âge -->
+                            <div class="col-12 col-md-4">
+                                <div class="card border-0 shadow-sm rounded-3 h-100 p-3 bg-white">
+                                    <div class="text-muted small fw-semibold mb-1">
+                                        <i class="fas fa-calendar-check text-warning me-1"></i>Assiduité & Âge
+                                    </div>
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div>
+                                            <span class="text-dark fw-bold" id="mfeAge">-- ans</span>
+                                            <div class="text-muted small" id="mfeDateNaiss">Né(e) le --</div>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-danger-subtle text-danger" id="mfeAbsences">0 absence</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Matières & Évaluations de l'élève -->
+                        <div class="card border-0 shadow-sm rounded-3 bg-white p-3 mb-3">
+                            <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                                <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                                    <i class="fas fa-book-open text-primary"></i>Matières & Notes de l'année
+                                </h6>
+                                <div class="d-flex gap-1.5">
+                                    <a href="#" id="mfeLinkBulletin" target="_blank" class="btn btn-xs btn-outline-secondary rounded-pill px-2.5">
+                                        <i class="fas fa-file-invoice me-1"></i>Bulletin
+                                    </a>
+                                    <a href="#" id="mfeLinkPdf" target="_blank" class="btn btn-xs btn-outline-primary rounded-pill px-2.5">
+                                        <i class="fas fa-file-pdf me-1"></i>PDF Notes
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div id="mfeMatieresContainer" class="table-responsive">
+                                <!-- Table insérée dynamiquement en JS -->
+                            </div>
+                        </div>
+
+                        <!-- Informations complémentaires -->
+                        <div class="card border-0 shadow-sm rounded-3 bg-white p-3">
+                            <h6 class="fw-bold text-dark mb-2 small text-uppercase text-muted">
+                                <i class="fas fa-info-circle me-1"></i>Détails administratifs
+                            </h6>
+                            <div class="row g-2 small text-muted">
+                                <div class="col-sm-6">
+                                    <strong>Lieu de naissance :</strong> <span id="mfeLieuNaiss" class="text-dark">--</span>
+                                </div>
+                                <div class="col-sm-6">
+                                    <strong>Adresse du domicile :</strong> <span id="mfeAdresse" class="text-dark">--</span>
+                                </div>
+                                <div class="col-sm-6">
+                                    <strong>Email parent :</strong> <span id="mfeParentEmail" class="text-dark">--</span>
+                                </div>
+                                <div class="col-sm-6">
+                                    <strong>Scolarité :</strong> <span id="mfeFraisStatus" class="badge bg-success-subtle text-success">--</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer Mode Consultation -->
+                    <div class="modal-footer bg-white border-top p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <a href="#" id="mfeLinkDossierComplet" class="btn btn-sm btn-link text-decoration-none text-muted px-0">
+                                <i class="fas fa-external-link-alt me-1"></i>Ouvrir la page dossier complet
+                            </a>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Fermer</button>
+                            <button type="button" id="mfeBtnSwitchToEdit" class="btn btn-sm btn-warning text-dark fw-bold rounded-pill px-3.5">
+                                <i class="fas fa-edit me-1"></i>Modifier sur place
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mode Modification SUR PLACE -->
+                <div id="mfeEditMode" class="d-none">
+                    <form id="formModifierEleveSurPlace">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="modal-body p-3 p-md-4 bg-light">
+                            <div class="alert alert-info py-2 px-3 small mb-3 rounded-3 border-0 bg-primary-subtle text-primary-emphasis">
+                                <i class="fas fa-pencil-alt me-1.5"></i>Modifiez directement les informations de l'élève ci-dessous sans quitter la page.
+                            </div>
+
+                            <div class="card border-0 shadow-sm rounded-3 bg-white p-3 mb-3">
+                                <h6 class="fw-bold text-dark mb-3">
+                                    <i class="fas fa-user-graduate text-primary me-1.5"></i>1. Identité de l'élève
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small fw-bold text-dark">Prénom <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="prenom" id="editElevePrenom" required>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small fw-bold text-dark">Nom de famille <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="nom" id="editEleveNom" required>
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label small fw-bold text-dark">Genre <span class="text-danger">*</span></label>
+                                        <select class="form-select" name="genre" id="editEleveGenre" required>
+                                            <option value="M">Garçon (M)</option>
+                                            <option value="F">Fille (F)</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label small fw-bold text-dark">Date de naissance</label>
+                                        <input type="date" class="form-control" name="date_naissance" id="editEleveDateNaiss">
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label small fw-bold text-dark">Classe de destination <span class="text-danger">*</span></label>
+                                        <select class="form-select" name="classe_id" id="editEleveClasseSelect" required>
+                                            <!-- Options remplies dynamiquement -->
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small fw-bold text-dark">Lieu de naissance</label>
+                                        <input type="text" class="form-control" name="lieu_naissance" id="editEleveLieuNaiss">
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small fw-bold text-dark">Adresse du domicile</label>
+                                        <input type="text" class="form-control" name="adresse" id="editEleveAdresse">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card border-0 shadow-sm rounded-3 bg-white p-3 mb-3">
+                                <h6 class="fw-bold text-dark mb-3">
+                                    <i class="fas fa-user-friends text-info me-1.5"></i>2. Contact du Parent / Tuteur
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label small fw-bold text-dark">Nom du Parent</label>
+                                        <input type="text" class="form-control" name="parent_nom" id="editParentNom" placeholder="Nom complet du tuteur">
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label small fw-bold text-dark">Téléphone / WhatsApp</label>
+                                        <input type="tel" class="form-control" name="parent_telephone" id="editParentTel" placeholder="Ex: +227 90 00 00 00">
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <label class="form-label small fw-bold text-dark">Email du Parent</label>
+                                        <input type="email" class="form-control" name="parent_email" id="editParentEmail" placeholder="parent@exemple.com">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card border-0 shadow-sm rounded-3 bg-white p-3">
+                                <h6 class="fw-bold text-dark mb-3">
+                                    <i class="fas fa-coins text-warning me-1.5"></i>3. Frais de Scolarité
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label small fw-bold text-dark">Prix / Frais annuels de scolarité</label>
+                                        <div class="input-group">
+                                            <input type="number" step="100" min="0" class="form-control" name="frais_annuels" id="editEleveFraisAnnuels" placeholder="Ex: 150000">
+                                            <span class="input-group-text bg-light text-muted small">FCFA</span>
+                                        </div>
+                                        <div class="form-text small text-muted">Tarif annuel applicable pour cet élève</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Footer Mode Modification -->
+                        <div class="modal-footer bg-white border-top p-3 d-flex justify-content-end gap-2">
+                            <button type="button" id="mfeBtnCancelEdit" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                                Annuler
+                            </button>
+                            <button type="submit" id="mfeBtnSaveEdit" class="btn btn-sm btn-success fw-bold rounded-pill px-4">
+                                <i class="fas fa-check me-1.5"></i>Enregistrer sur place
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
             </div>
         </div>
     </div>
@@ -616,241 +746,483 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const searchInput = document.getElementById('searchStudentInput');
     const btnClear = document.getElementById('btnClearStudentSearch');
-    const niveauSelect = document.getElementById('selectNiveauFilter');
-    const classSelect = document.getElementById('selectClassFilter');
-    const genreSelect = document.getElementById('selectGenreFilter');
-    const btnReset = document.getElementById('btnResetStudentFilter');
     const resultCount = document.getElementById('studentResultCount');
-    const btnExpandAll = document.getElementById('btnExpandAllStudents');
-    const btnCollapseAll = document.getElementById('btnCollapseAllStudents');
+    const noMatch = document.getElementById('noStudentMatch');
 
-    // Sauvegarder les options complètes des classes pour filtrage dépendant
-    const allClassOptions = Array.from(classSelect.querySelectorAll('option'));
+    function applyStudentSearch() {
+        const query = (searchInput ? searchInput.value : '').trim().toLowerCase();
 
-    function updateDependentClasses() {
-        const selectedNiveau = niveauSelect ? niveauSelect.value : 'all';
-        const currentClassVal = classSelect.value;
+        if (btnClear) {
+            btnClear.classList.toggle('d-none', !query);
+        }
 
-        // Réinitialiser le select des classes
-        classSelect.innerHTML = '';
-        allClassOptions.forEach(opt => {
-            if (opt.value === 'all') {
-                classSelect.appendChild(opt.cloneNode(true));
-            } else {
-                const optNiveau = opt.dataset.niveau || '';
-                if (selectedNiveau === 'all' || optNiveau === selectedNiveau) {
-                    classSelect.appendChild(opt.cloneNode(true));
-                }
-            }
-        });
-
-        // Tenter de restaurer la sélection ou remettre sur 'all'
-        const stillExists = Array.from(classSelect.options).some(o => o.value === currentClassVal);
-        classSelect.value = stillExists ? currentClassVal : 'all';
-    }
-
-    function applyStudentFilters() {
-        const query = (searchInput.value || '').trim().toLowerCase();
-        const selectedNiveau = (niveauSelect ? niveauSelect.value : 'all');
-        const selectedClass = classSelect.value;
-        const selectedGenre = (genreSelect ? genreSelect.value : 'all');
-
-        btnClear.classList.toggle('d-none', !query);
-
-        // Synchronisation de l'URL pour persistance
+        // Synchroniser l'URL sans rechargement de page
         const params = new URLSearchParams(window.location.search);
         if (query) params.set('search', query); else params.delete('search');
-        if (selectedNiveau && selectedNiveau !== 'all') params.set('niveau', selectedNiveau); else params.delete('niveau');
-        if (selectedClass && selectedClass !== 'all') params.set('classe_id', selectedClass); else params.delete('classe_id');
-        if (selectedGenre && selectedGenre !== 'all') params.set('genre', selectedGenre); else params.delete('genre');
         const cleanUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
         window.history.replaceState({}, '', cleanUrl);
 
+        // Dès 2 lettres (et donc 3 lettres), la classe s'ouvre automatiquement et l'élève apparaît directement
+        const isSearching = query.length >= 2;
         let totalVisibleStudents = 0;
         let totalVisibleClasses = 0;
 
         document.querySelectorAll('.class-student-card').forEach(card => {
-            const cid = card.dataset.classId;
-            const matchesClass = (selectedClass === 'all' || selectedClass === cid);
-            const cardHeader = card.querySelector('.class-student-header');
-            const cardNiveauBadge = card.querySelector('.badge.bg-light.text-secondary');
-            const cardNiveau = cardNiveauBadge ? cardNiveauBadge.textContent.trim() : '';
-            const matchesNiveau = (selectedNiveau === 'all' || cardNiveau === selectedNiveau);
+            const collapse = card.querySelector('.collapse');
+            let classHasMatch = false;
 
-            let classHasVisible = false;
             card.querySelectorAll('.student-entry-card').forEach(entry => {
-                const text = entry.dataset.search || '';
-                const matchesSearch = !query || text.includes(query);
-                const genreBadge = entry.querySelector('.badge');
-                const isGirl = genreBadge && genreBadge.textContent.includes('Fille');
-                const studentGenre = isGirl ? 'F' : 'M';
-                const matchesGenre = (selectedGenre === 'all' || selectedGenre === studentGenre);
+                const searchData = (entry.dataset.search || '').toLowerCase();
+                const matches = !isSearching || searchData.includes(query);
 
-                if (matchesClass && matchesNiveau && matchesSearch && matchesGenre) {
+                if (matches) {
                     entry.classList.remove('d-none');
-                    classHasVisible = true;
                     totalVisibleStudents++;
+                    classHasMatch = true;
                 } else {
                     entry.classList.add('d-none');
                 }
             });
 
-            if (matchesClass && matchesNiveau && (classHasVisible || (!query && selectedGenre === 'all'))) {
+            if (!isSearching) {
+                // Pas de recherche active : toutes les classes sont visibles
                 card.classList.remove('d-none');
                 totalVisibleClasses++;
-                if (query || selectedGenre !== 'all') {
-                    const collapse = card.querySelector('.collapse');
-                    if (collapse && !collapse.classList.contains('show')) {
-                        const bsC = bootstrap.Collapse.getOrCreateInstance(collapse, { toggle: false });
-                        bsC.show();
-                    }
+            } else if (classHasMatch) {
+                // Élève trouvé : la classe reste visible et S'OUVRE AUTOMATIQUEMENT
+                card.classList.remove('d-none');
+                totalVisibleClasses++;
+                if (collapse) {
+                    const bsC = bootstrap.Collapse.getOrCreateInstance(collapse, { toggle: false });
+                    bsC.show();
                 }
             } else {
+                // Aucun élève trouvé dans cette classe : masquer la classe pour clarté
                 card.classList.add('d-none');
+                if (collapse) {
+                    const bsC = bootstrap.Collapse.getOrCreateInstance(collapse, { toggle: false });
+                    bsC.hide();
+                }
             }
         });
+
+        if (noMatch) {
+            noMatch.classList.toggle('d-none', !(isSearching && totalVisibleStudents === 0));
+        }
 
         if (resultCount) {
-            resultCount.textContent = `${totalVisibleStudents} élève${totalVisibleStudents > 1 ? 's' : ''} affiché${totalVisibleStudents > 1 ? 's' : ''}`;
-        }
-
-        // Synchroniser le badge des filtres mobiles actifs
-        const activeFilterCount = (selectedNiveau !== 'all' ? 1 : 0) + (selectedClass !== 'all' ? 1 : 0) + (selectedGenre !== 'all' ? 1 : 0);
-        const mobBadge = document.getElementById('mobileFilterBadge');
-        if (mobBadge) {
-            if (activeFilterCount > 0) {
-                mobBadge.textContent = activeFilterCount;
-                mobBadge.classList.remove('d-none');
+            if (isSearching) {
+                resultCount.textContent = `${totalVisibleStudents} élève${totalVisibleStudents > 1 ? 's' : ''} trouvé${totalVisibleStudents > 1 ? 's' : ''} dans ${totalVisibleClasses} classe${totalVisibleClasses > 1 ? 's' : ''}`;
             } else {
-                mobBadge.classList.add('d-none');
-            }
-        }
-
-        // Synchroniser les puces de classe horizontales
-        document.querySelectorAll('.class-filter-chip').forEach(chip => {
-            const isMatch = chip.dataset.classChip === selectedClass;
-            chip.classList.toggle('active', isMatch);
-        });
-
-        const noMatch = document.getElementById('noStudentMatch');
-        if (noMatch) {
-            if (totalVisibleStudents === 0 && (query || selectedClass !== 'all' || selectedNiveau !== 'all' || selectedGenre !== 'all')) {
-                noMatch.classList.remove('d-none');
-            } else {
-                noMatch.classList.add('d-none');
+                resultCount.textContent = `${totalVisibleStudents} élève${totalVisibleStudents > 1 ? 's' : ''} au total`;
             }
         }
     }
 
-    // Gestion des puces rapides de classe (Chips)
-    document.querySelectorAll('.class-filter-chip').forEach(chip => {
-        chip.addEventListener('click', () => {
-            const cid = chip.dataset.classChip;
-            if (classSelect) {
-                classSelect.value = cid;
-                applyStudentFilters();
-
-                if (cid !== 'all') {
-                    const card = document.getElementById(`class-card-${cid}`);
-                    if (card) {
-                        const collapseEl = card.querySelector('.collapse');
-                        if (collapseEl && !collapseEl.classList.contains('show')) {
-                            const bsC = bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false });
-                            bsC.show();
-                        }
-                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                }
-            }
-        });
-    });
-
-    if (niveauSelect) {
-        niveauSelect.addEventListener('change', () => {
-            updateDependentClasses();
-            applyStudentFilters();
-        });
+    if (searchInput) {
+        searchInput.addEventListener('input', applyStudentSearch);
     }
 
-    searchInput.addEventListener('input', applyStudentFilters);
-    classSelect.addEventListener('change', applyStudentFilters);
-    if (genreSelect) genreSelect.addEventListener('change', applyStudentFilters);
-
-    btnClear.addEventListener('click', () => {
-        searchInput.value = '';
-        applyStudentFilters();
-    });
-
-    if (btnReset) {
-        btnReset.addEventListener('click', () => {
-            window.resetStudentSearch();
-        });
-    }
-
-    const btnToggleMob = document.getElementById('btnToggleAllStudentsMob');
-    let isMobExpanded = false;
-
-    function updateMobToggleState(expanded) {
-        isMobExpanded = expanded;
-        if (!btnToggleMob) return;
-        const icon = document.getElementById('toggleMobIcon');
-        const text = document.getElementById('toggleMobText');
-        if (isMobExpanded) {
-            btnToggleMob.className = 'btn btn-sm btn-primary fw-semibold py-1 px-2.5 rounded-pill d-inline-flex align-items-center gap-1.5 shadow-xs';
-            if (icon) icon.className = 'fas fa-chevron-up';
-            if (text) text.textContent = 'Replier tout';
-        } else {
-            btnToggleMob.className = 'btn btn-sm btn-outline-primary fw-semibold py-1 px-2.5 rounded-pill d-inline-flex align-items-center gap-1.5';
-            if (icon) icon.className = 'fas fa-chevron-down';
-            if (text) text.textContent = 'Déplier tout';
-        }
-    }
-
-    const expandAction = () => {
-        document.querySelectorAll('#classesStudentContainer .collapse').forEach(el => {
-            const bsC = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
-            bsC.show();
-        });
-        updateMobToggleState(true);
-    };
-
-    const collapseAction = () => {
-        document.querySelectorAll('#classesStudentContainer .collapse').forEach(el => {
-            const bsC = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
-            bsC.hide();
-        });
-        updateMobToggleState(false);
-    };
-
-    if (btnToggleMob) {
-        btnToggleMob.addEventListener('click', () => {
-            if (isMobExpanded) {
-                collapseAction();
-            } else {
-                expandAction();
-            }
-        });
-    }
-
-    if (btnExpandAll) btnExpandAll.addEventListener('click', expandAction);
-    if (btnCollapseAll) btnCollapseAll.addEventListener('click', collapseAction);
-
-    const btnResetMob = document.getElementById('btnResetStudentFilterMob');
-    if (btnResetMob) {
-        btnResetMob.addEventListener('click', () => {
-            window.resetStudentSearch();
+    if (btnClear) {
+        btnClear.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            applyStudentSearch();
+            if (searchInput) searchInput.focus();
         });
     }
 
     window.resetStudentSearch = function() {
-        searchInput.value = '';
-        if (niveauSelect) niveauSelect.value = 'all';
-        updateDependentClasses();
-        classSelect.value = 'all';
-        if (genreSelect) genreSelect.value = 'all';
-        applyStudentFilters();
-        updateMobToggleState(false);
+        if (searchInput) searchInput.value = '';
+        applyStudentSearch();
+        if (searchInput) searchInput.focus();
     };
+
+    // Si une recherche initiale existe dans le champ, l'appliquer directement
+    if (searchInput && searchInput.value.trim().length >= 2) {
+        applyStudentSearch();
+    }
+
+    // =========================================================================
+    // MODALE DE FICHE ET MODIFICATION D'ÉLÈVE SUR PLACE (Zéro Redirection)
+    // =========================================================================
+    let currentFicheData = null;
+
+    window.openFicheEleve = function(eleveId, startInEdit = false) {
+        const modalEl = document.getElementById('modalFicheEleve');
+        if (!modalEl) return;
+        const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        bsModal.show();
+
+        const loadingEl = document.getElementById('mfeLoading');
+        const viewModeEl = document.getElementById('mfeViewMode');
+        const editModeEl = document.getElementById('mfeEditMode');
+        const alertEl = document.getElementById('mfeAlert');
+
+        if (alertEl) alertEl.classList.add('d-none');
+        if (loadingEl) loadingEl.classList.remove('d-none');
+        if (viewModeEl) viewModeEl.classList.add('d-none');
+        if (editModeEl) editModeEl.classList.add('d-none');
+
+        fetch(`/api/eleves/${eleveId}/fiche`)
+            .then(res => {
+                if (!res.ok) throw new Error("Impossible de charger les données de l'élève.");
+                return res.json();
+            })
+            .then(data => {
+                if (!data.success) throw new Error(data.error || "Erreur lors du chargement de la fiche.");
+                currentFicheData = data;
+                renderFicheView(data);
+                renderFicheEdit(data);
+
+                if (loadingEl) loadingEl.classList.add('d-none');
+                if (startInEdit && data.can_edit) {
+                    if (editModeEl) editModeEl.classList.remove('d-none');
+                } else {
+                    if (viewModeEl) viewModeEl.classList.remove('d-none');
+                }
+            })
+            .catch(err => {
+                if (loadingEl) {
+                    loadingEl.innerHTML = `
+                        <div class="text-danger py-4 px-3 text-center">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                            <p class="mb-2 fw-semibold">${err.message}</p>
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Fermer</button>
+                        </div>
+                    `;
+                }
+            });
+    };
+
+    function renderFicheView(data) {
+        const el = data.eleve;
+        const cls = data.classe;
+        const par = data.parent;
+        const ped = data.pedagogie;
+        const ass = data.assiduite;
+        const com = data.comptabilite;
+
+        // Initials avatar
+        const initials = ((el.prenom ? el.prenom[0] : '') + (el.nom ? el.nom[0] : '')).toUpperCase() || '--';
+        const avatar = document.getElementById('mfeAvatar');
+        if (avatar) avatar.textContent = initials;
+
+        const nomComplet = document.getElementById('mfeNomComplet');
+        if (nomComplet) nomComplet.textContent = `${el.prenom} ${el.nom}`;
+
+        const badgeGenre = document.getElementById('mfeBadgeGenre');
+        if (badgeGenre) {
+            badgeGenre.textContent = el.genre === 'F' ? 'Fille' : 'Garçon';
+            badgeGenre.className = `badge small ${el.genre === 'F' ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle'}`;
+        }
+
+        const badgeStatut = document.getElementById('mfeBadgeStatut');
+        if (badgeStatut) {
+            if (el.statut === 'preinscrit') {
+                badgeStatut.textContent = 'Préinscrit';
+                badgeStatut.className = 'badge border small';
+                badgeStatut.style = 'background-color: #f3e8ff; color: #6b21a8; border-color: #d8b4fe !important;';
+            } else {
+                badgeStatut.textContent = 'Inscrit';
+                badgeStatut.className = 'badge bg-success-subtle text-success border border-success-subtle small';
+                badgeStatut.style = '';
+            }
+        }
+
+        const classeNom = document.getElementById('mfeClasseNom');
+        if (classeNom) classeNom.innerHTML = `<i class="fas fa-chalkboard me-1"></i>Classe : <strong>${cls.nom}</strong>`;
+
+        const matricule = document.getElementById('mfeMatricule');
+        if (matricule) matricule.innerHTML = `<i class="fas fa-id-badge me-1"></i>Matricule : <strong>${el.code_parent}</strong>`;
+
+        // Notes & Moyenne
+        const moyenneEl = document.getElementById('mfeMoyenne');
+        if (moyenneEl) {
+            if (ped.eval_status !== 'non_evalue' && ped.moyenne_generale !== null && ped.moyenne_generale !== undefined) {
+                moyenneEl.textContent = Number(ped.moyenne_generale).toFixed(2);
+            } else {
+                moyenneEl.textContent = '-';
+            }
+        }
+
+        const mentionEl = document.getElementById('mfeBadgeMention');
+        if (mentionEl) {
+            mentionEl.textContent = ped.mention;
+            mentionEl.className = `badge bg-${ped.mention_badge} small`;
+        }
+
+        const totalNotesEl = document.getElementById('mfeTotalNotes');
+        if (totalNotesEl) totalNotesEl.textContent = `${ped.total_notes} évaluation(s) enregistrée(s)`;
+
+        // Parent
+        const parentNomEl = document.getElementById('mfeParentNom');
+        if (parentNomEl) parentNomEl.textContent = par.nom_complet || 'Non assigné';
+
+        const btnTel = document.getElementById('mfeBtnTel');
+        const parentTel = document.getElementById('mfeParentTel');
+        const btnWa = document.getElementById('mfeBtnWa');
+
+        if (par.telephone) {
+            const rawDigits = par.telephone.replace(/[^0-9]/g, '');
+            if (btnTel) {
+                btnTel.href = `tel:${rawDigits}`;
+                btnTel.classList.remove('d-none');
+            }
+            if (parentTel) parentTel.textContent = par.telephone;
+            if (btnWa) {
+                btnWa.href = `https://wa.me/${rawDigits}?text=${encodeURIComponent('Bonjour, concernant votre enfant ' + el.prenom + ' ' + el.nom + ' (KLASORA)')}`;
+                btnWa.classList.remove('d-none');
+            }
+        } else {
+            if (btnTel) btnTel.classList.add('d-none');
+            if (btnWa) btnWa.classList.add('d-none');
+        }
+
+        // Assiduité & Âge
+        const ageEl = document.getElementById('mfeAge');
+        if (ageEl) ageEl.textContent = el.age !== null && el.age !== undefined ? `${el.age} ans` : 'Âge non renseigné';
+
+        const dateNaissEl = document.getElementById('mfeDateNaiss');
+        if (dateNaissEl) dateNaissEl.textContent = el.date_naissance_fr ? `Né(e) le ${el.date_naissance_fr}` : 'Date non renseignée';
+
+        const absencesEl = document.getElementById('mfeAbsences');
+        if (absencesEl) absencesEl.textContent = `${ass.total_absences} absence${ass.total_absences > 1 ? 's' : ''}`;
+
+        // Table des matières
+        const matieresContainer = document.getElementById('mfeMatieresContainer');
+        if (matieresContainer) {
+            if (ped.matieres && ped.matieres.length > 0) {
+                let html = `
+                    <table class="table table-sm table-hover align-middle mb-0 small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Matière</th>
+                                <th class="text-center">Moyenne</th>
+                                <th class="text-center">Coef</th>
+                                <th class="text-end">Détails récents</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                ped.matieres.forEach(m => {
+                    const badgeColor = m.moyenne >= 10 ? 'success' : 'danger';
+                    const notesStr = (m.notes || []).map(n => `${n.valeur}/20`).join(', ');
+                    html += `
+                        <tr>
+                            <td class="fw-semibold text-dark">${m.nom}</td>
+                            <td class="text-center"><span class="badge bg-${badgeColor}-subtle text-${badgeColor} fw-bold">${Number(m.moyenne).toFixed(2)}</span></td>
+                            <td class="text-center text-muted">${m.coef}</td>
+                            <td class="text-end text-muted">${notesStr || '-'}</td>
+                        </tr>
+                    `;
+                });
+                html += `</tbody></table>`;
+                matieresContainer.innerHTML = html;
+            } else {
+                matieresContainer.innerHTML = `
+                    <div class="text-center py-3 text-muted small">
+                        <i class="fas fa-clipboard-list fa-2x mb-1 opacity-50 d-block"></i>
+                        Aucune note enregistrée pour cet élève cette année.
+                    </div>
+                `;
+            }
+        }
+
+        // Liens
+        const linkBulletin = document.getElementById('mfeLinkBulletin');
+        if (linkBulletin) linkBulletin.href = data.bulletin_url || '#';
+
+        const linkPdf = document.getElementById('mfeLinkPdf');
+        if (linkPdf) linkPdf.href = data.pdf_url || '#';
+
+        const linkDossier = document.getElementById('mfeLinkDossierComplet');
+        if (linkDossier) linkDossier.href = data.dossier_url || '#';
+
+        // Infos administratives
+        const lieuNaiss = document.getElementById('mfeLieuNaiss');
+        if (lieuNaiss) lieuNaiss.textContent = el.lieu_naissance || 'Non renseigné';
+
+        const adresse = document.getElementById('mfeAdresse');
+        if (adresse) adresse.textContent = el.adresse || 'Non renseignée';
+
+        const parentEmail = document.getElementById('mfeParentEmail');
+        if (parentEmail) parentEmail.textContent = par.email || 'Non renseigné';
+
+        const fraisStatus = document.getElementById('mfeFraisStatus');
+        if (fraisStatus) {
+            if (com.est_a_jour) {
+                fraisStatus.className = 'badge bg-success-subtle text-success';
+                fraisStatus.textContent = 'À jour des frais';
+            } else {
+                fraisStatus.className = 'badge bg-warning-subtle text-warning-emphasis';
+                fraisStatus.textContent = `Reste : ${com.reste_a_payer.toLocaleString('fr-FR')} FCFA`;
+            }
+        }
+
+        // Bascule vers le mode édition
+        const btnSwitchEdit = document.getElementById('mfeBtnSwitchToEdit');
+        if (btnSwitchEdit) {
+            btnSwitchEdit.classList.toggle('d-none', !data.can_edit);
+        }
+    }
+
+    function renderFicheEdit(data) {
+        const el = data.eleve;
+        const cls = data.classe;
+        const par = data.parent;
+
+        const inPrenom = document.getElementById('editElevePrenom');
+        const inNom = document.getElementById('editEleveNom');
+        const inGenre = document.getElementById('editEleveGenre');
+        const inDateNaiss = document.getElementById('editEleveDateNaiss');
+        const inLieuNaiss = document.getElementById('editEleveLieuNaiss');
+        const inAdresse = document.getElementById('editEleveAdresse');
+
+        if (inPrenom) inPrenom.value = el.prenom || '';
+        if (inNom) inNom.value = el.nom || '';
+        if (inGenre) inGenre.value = el.genre || 'M';
+        if (inDateNaiss) inDateNaiss.value = el.date_naissance || '';
+        if (inLieuNaiss) inLieuNaiss.value = el.lieu_naissance || '';
+        if (inAdresse) inAdresse.value = el.adresse || '';
+
+        // Select des classes
+        const select = document.getElementById('editEleveClasseSelect');
+        if (select) {
+            select.innerHTML = '';
+            (data.classes_disponibles || []).forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = `${c.nom}${c.niveau ? ' (' + c.niveau + ')' : ''}`;
+                if (cls.id === c.id) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        // Parent
+        const inParentNom = document.getElementById('editParentNom');
+        const inParentTel = document.getElementById('editParentTel');
+        const inParentEmail = document.getElementById('editParentEmail');
+
+        if (inParentNom) inParentNom.value = par.nom || '';
+        if (inParentTel) inParentTel.value = par.telephone || '';
+        if (inParentEmail) inParentEmail.value = (par.email && !par.email.includes('@klasora.local')) ? par.email : '';
+
+        const inFrais = document.getElementById('editEleveFraisAnnuels');
+        if (inFrais) inFrais.value = el.frais_annuels !== undefined && el.frais_annuels !== null ? el.frais_annuels : '';
+    }
+
+    // Basculer vers mode édition / consultation
+    const btnSwitchToEdit = document.getElementById('mfeBtnSwitchToEdit');
+    const btnCancelEdit = document.getElementById('mfeBtnCancelEdit');
+    const viewModeEl = document.getElementById('mfeViewMode');
+    const editModeEl = document.getElementById('mfeEditMode');
+
+    if (btnSwitchToEdit) {
+        btnSwitchToEdit.addEventListener('click', () => {
+            if (viewModeEl) viewModeEl.classList.add('d-none');
+            if (editModeEl) editModeEl.classList.remove('d-none');
+        });
+    }
+
+    if (btnCancelEdit) {
+        btnCancelEdit.addEventListener('click', () => {
+            if (editModeEl) editModeEl.classList.add('d-none');
+            if (viewModeEl) viewModeEl.classList.remove('d-none');
+        });
+    }
+
+    // Soumission du formulaire de modification sur place
+    const formEdit = document.getElementById('formModifierEleveSurPlace');
+    if (formEdit) {
+        formEdit.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!currentFicheData || !currentFicheData.eleve) return;
+
+            const eleveId = currentFicheData.eleve.id;
+            const btnSave = document.getElementById('mfeBtnSaveEdit');
+            const originalBtnHtml = btnSave ? btnSave.innerHTML : 'Enregistrer sur place';
+
+            if (btnSave) {
+                btnSave.disabled = true;
+                btnSave.innerHTML = '<i class="fas fa-spinner fa-spin me-1.5"></i>Enregistrement...';
+            }
+
+            const inFraisEl = document.getElementById('editEleveFraisAnnuels');
+            const formData = {
+                nom: document.getElementById('editEleveNom').value,
+                prenom: document.getElementById('editElevePrenom').value,
+                genre: document.getElementById('editEleveGenre').value,
+                date_naissance: document.getElementById('editEleveDateNaiss').value,
+                classe_id: document.getElementById('editEleveClasseSelect').value,
+                lieu_naissance: document.getElementById('editEleveLieuNaiss').value,
+                adresse: document.getElementById('editEleveAdresse').value,
+                parent_nom: document.getElementById('editParentNom').value,
+                parent_telephone: document.getElementById('editParentTel').value,
+                parent_email: document.getElementById('editParentEmail').value,
+                frais_annuels: inFraisEl ? inFraisEl.value : ''
+            };
+
+            const csrfInput = document.querySelector('input[name="csrf_token"]');
+            const csrfToken = csrfInput ? csrfInput.value : '';
+
+            fetch(`/api/eleves/${eleveId}/modifier`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(res => res.json())
+            .then(result => {
+                if (btnSave) {
+                    btnSave.disabled = false;
+                    btnSave.innerHTML = originalBtnHtml;
+                }
+
+                if (!result.success) {
+                    alert("Erreur : " + (result.error || "Impossible d'enregistrer les modifications."));
+                    return;
+                }
+
+                // Mettre à jour la ligne dans le DOM immédiatement
+                const card = document.getElementById(`eleve-card-${eleveId}`);
+                if (card) {
+                    const nameEl = card.querySelector('.student-entry-name');
+                    if (nameEl) nameEl.textContent = `${formData.prenom} ${formData.nom}`;
+                    
+                    const avatarEl = card.querySelector('.student-entry-avatar');
+                    if (avatarEl) avatarEl.textContent = (((formData.prenom[0] || '') + (formData.nom[0] || '')).toUpperCase());
+
+                    const badgeGenreEl = card.querySelector('.student-entry-info .badge');
+                    if (badgeGenreEl) {
+                        badgeGenreEl.textContent = formData.genre === 'F' ? 'Fille' : 'Garçon';
+                        badgeGenreEl.className = `badge small ${formData.genre === 'F' ? 'bg-danger-subtle text-danger border border-danger-subtle' : 'bg-primary-subtle text-primary border border-primary-subtle'}`;
+                    }
+                }
+
+                // Recharger et afficher la fiche en mode consultation
+                openFicheEleve(eleveId, false);
+
+                // Afficher le bandeau de confirmation
+                setTimeout(() => {
+                    const alertEl = document.getElementById('mfeAlert');
+                    const alertText = document.getElementById('mfeAlertText');
+                    if (alertEl && alertText) {
+                        alertText.textContent = result.message || "Modifications enregistrées sur place avec succès.";
+                        alertEl.classList.remove('d-none');
+                    }
+                }, 350);
+            })
+            .catch(err => {
+                if (btnSave) {
+                    btnSave.disabled = false;
+                    btnSave.innerHTML = originalBtnHtml;
+                }
+                alert("Erreur réseau : " + err.message);
+            });
+        });
+    }
 });
 </script>
 
@@ -1036,6 +1408,19 @@ document.addEventListener('DOMContentLoaded', () => {
 .ancien-eleve-item:hover {
     background-color: #f1f5f9 !important;
     border-color: #cbd5e1 !important;
+}
+.student-card-main {
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 2px 4px;
+    transition: background-color 0.15s ease-in-out, transform 0.1s ease-in-out;
+}
+.student-card-main:hover {
+    background-color: rgba(79, 70, 229, 0.04);
+}
+.student-card-main:hover .student-entry-name {
+    color: #4f46e5;
+    text-decoration: underline;
 }
 </style>
 

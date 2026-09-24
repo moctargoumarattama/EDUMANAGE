@@ -664,40 +664,30 @@
                             <p class="text-muted small mb-0" style="font-size: 0.82rem;">Orientez les élèves de l'an passé dans leurs nouvelles classes cibles en 1 clic.</p>
                         </div>
 
-                    <!-- Métriques Clés Compactes -->
-                    <div class="row g-2 mb-3">
-                        <div class="col-4">
-                            <div class="card border-0 shadow-sm p-2 bg-white rounded-3 text-center">
-                                <div class="text-muted small" style="font-size: 0.68rem; line-height: 1.15;">Total à orienter</div>
-                                <div class="h5 fw-bold mb-0 text-dark">{{ nb_total_source }}</div>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="card border-0 shadow-sm p-2 bg-white rounded-3 text-center">
-                                <div class="text-muted small" style="font-size: 0.68rem; line-height: 1.15;">Élèves orientés</div>
-                                <div class="h5 fw-bold mb-0 text-success">{{ nb_traites }}</div>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="card border-0 shadow-sm p-2 bg-white rounded-3 text-center">
-                                <div class="text-muted small" style="font-size: 0.68rem; line-height: 1.15;">À traiter</div>
-                                <div class="h5 fw-bold mb-0 text-warning-emphasis">{{ nb_a_traiter }}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Barre de progression -->
-                    <div class="card border-0 shadow-sm mb-3 rounded-3 bg-white">
-                        <div class="card-body py-2 px-3">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="fw-semibold small text-dark" style="font-size: 0.78rem;">
-                                    <i class="fas fa-chart-line text-primary me-1"></i>Avancement : {{ nb_traites }} / {{ nb_total_source }}
+                    <!-- Barre Synthèse & Progression Compacte (Gain vertical de 150px) -->
+                    <div class="card border-0 shadow-sm mb-3 rounded-3 bg-white p-2.5">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1.5">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fw-bold text-dark small" style="font-size: 0.82rem;">
+                                    <i class="fas fa-chart-pie text-primary me-1"></i>Avancement global :
                                 </span>
-                                <span class="badge bg-primary rounded-pill px-2 py-0.5" style="font-size: 0.72rem;">{{ ratio_decisions }}%</span>
+                                <span class="badge {% if nb_a_traiter == 0 and nb_total_source > 0 %}bg-success{% else %}bg-primary{% endif %} rounded-pill px-2.5 py-0.5" style="font-size: 0.75rem;">
+                                    {{ ratio_decisions }}%
+                                </span>
                             </div>
-                            <div class="progress rounded-pill" style="height: 6px; background-color: #f1f5f9;">
-                                <div class="progress-bar bg-primary rounded-pill" role="progressbar" style="width: {{ ratio_decisions }}%;" aria-valuenow="{{ ratio_decisions }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            <div class="d-flex align-items-center gap-2 small flex-wrap" style="font-size: 0.78rem;">
+                                <span class="text-success fw-semibold"><i class="fas fa-check-circle me-1"></i><strong>{{ nb_traites }}</strong> orienté(s)</span>
+                                <span class="text-muted">/</span>
+                                <span class="text-dark"><strong>{{ nb_total_source }}</strong> total</span>
+                                {% if nb_a_traiter > 0 %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-0.5 ms-1" style="font-size: 0.7rem;">
+                                    {{ nb_a_traiter }} à traiter
+                                </span>
+                                {% endif %}
                             </div>
+                        </div>
+                        <div class="progress rounded-pill" style="height: 6px; background-color: #f1f5f9;">
+                            <div class="progress-bar {% if nb_a_traiter == 0 and nb_total_source > 0 %}bg-success{% else %}bg-primary{% endif %} rounded-pill" role="progressbar" style="width: {{ ratio_decisions }}%; transition: width 0.4s ease;" aria-valuenow="{{ ratio_decisions }}" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
                     </div>
 
@@ -755,9 +745,9 @@
                     <!-- Fiche d'Examen de la Classe Active -->
                     <div class="card border-0 shadow-sm rounded-3 bg-white mb-3">
                         <div class="card-header bg-white border-bottom py-2.5 px-3">
-                            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-stretch align-items-lg-center gap-2.5">
                                 <div>
-                                    <h3 class="h6 fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                                    <h3 class="h6 fw-bold mb-0 text-dark d-flex align-items-center flex-wrap gap-2">
                                         <i class="fas fa-chalkboard-teacher text-primary"></i>
                                         <span>Examen du conseil de classe : <strong class="text-primary">{{ classe_active.nom }}</strong></span>
                                         <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-0.5" style="font-size: 0.72rem;">
@@ -765,13 +755,18 @@
                                         </span>
                                     </h3>
                                     <p class="text-muted small mb-0 mt-0.5" style="font-size: 0.75rem;">
-                                        Vérifiez les notes et les orientations suggérées avant de valider la classe.
+                                        Vérifiez les décisions ou appliquez le flux automatique en 2 clics sans défiler :
                                     </p>
                                 </div>
-                                <div class="d-flex align-items-center gap-2 flex-shrink-0">
-                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs w-100 w-sm-auto" onclick="preCocherDecisionsClasse()">
+                                <!-- Barre d'actions rapides (Zéro Scroll) -->
+                                <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2 flex-shrink-0">
+                                    <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-xs" onclick="preCocherDecisionsClasse(event)" title="Applique Admis si moyenne ≥ 10 et Redoublement si < 10">
                                         <i class="fas fa-wand-magic-sparkles text-primary"></i>
-                                        <span>Pré-cocher Admis / Redoublants</span>
+                                        <span>1. Pré-cocher Admis / Redoublants</span>
+                                    </button>
+                                    <button type="submit" form="formDecisionsClasse" class="btn btn-sm btn-primary rounded-pill px-3.5 py-1.5 fw-bold d-inline-flex align-items-center justify-content-center gap-1.5 shadow-sm text-nowrap" title="Enregistre les choix et passe directement à la classe suivante">
+                                        <i class="fas fa-check"></i>
+                                        <span>2. Valider & Suivante →</span>
                                     </button>
                                 </div>
                             </div>
@@ -959,75 +954,33 @@
                         <input type="hidden" name="classe_source_id" id="annuler_classe_source_id" value="">
                     </form>
 
-                    <!-- Étape 3 : Pointage Financier & Acomptes -->
-                    <div class="card border-0 shadow-sm mb-3 rounded-3 bg-white p-3">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                            <h2 class="h6 fw-bold mb-0 text-dark d-flex align-items-center gap-1.5">
-                                <i class="fas fa-receipt text-success"></i>
-                                <span>Étape 3 : Pointage Financier</span>
-                            </h2>
-                            <span class="badge {% if etape3_complete %}bg-success-subtle text-success border border-success-subtle{% elif nb_preinscrits > 0 %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% else %}bg-secondary-subtle text-secondary border border-secondary-subtle{% endif %} rounded-pill px-2.5 py-0.5" style="font-size: 0.72rem;">
-                                {% if etape3_complete %}<i class="fas fa-check-circle me-1"></i>100% Confirmés{% elif nb_preinscrits > 0 %}<i class="fas fa-clock me-1"></i>{{ nb_preinscrits }} en attente d'acompte{% else %}0 élève{% endif %}
-                            </span>
-                        </div>
-                        <div class="d-flex align-items-center gap-2 small text-muted mb-2" style="font-size: 0.78rem;">
-                            <span><strong class="text-success">{{ nb_confirmes }}</strong> confirmé(s)</span>
-                            <span>•</span>
-                            <span><strong class="text-warning-emphasis">{{ nb_preinscrits }}</strong> préinscrit(s)</span>
-                        </div>
-
-                        <!-- Accordéon Préinscrits si présents -->
-                        {% if preinscrits_list %}
-                        <div class="accordion mt-1" id="accordionPreinscrits">
-                            <div class="accordion-item border rounded-2 overflow-hidden">
-                                <h3 class="accordion-header" id="headingPreinscrits">
-                                    <button class="accordion-button collapsed py-1.5 px-2.5 bg-light text-dark small fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePreinscrits" aria-expanded="false" aria-controls="collapsePreinscrits" style="font-size: 0.78rem;">
-                                        <i class="fas fa-users-viewfinder text-warning-emphasis me-2"></i>
-                                        Consulter les {{ preinscrits_list|length }} élève(s) en attente d'acompte
-                                    </button>
-                                </h3>
-                                <div id="collapsePreinscrits" class="accordion-collapse collapse" aria-labelledby="headingPreinscrits" data-bs-parent="#accordionPreinscrits">
-                                    <div class="accordion-body p-2" style="max-height: 200px; overflow-y: auto;">
-                                        <ul class="list-group list-group-flush small">
-                                            {% for insc in preinscrits_list %}
-                                            <li class="list-group-item d-flex justify-content-between align-items-center py-1.5 px-1.5">
-                                                <div class="min-w-0">
-                                                    <span class="fw-bold text-dark text-truncate d-block">{{ insc.eleve.nom }} {{ insc.eleve.prenom }}</span>
-                                                    <span class="text-muted" style="font-size: 0.7rem;">{{ insc.classe.nom if insc.classe else 'Sans classe' }}</span>
-                                                </div>
-                                                <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
-                                                    {% if insc.eleve.contact_parent %}
-                                                    <span class="text-muted" style="font-size: 0.7rem;"><i class="fas fa-phone me-1"></i>{{ insc.eleve.contact_parent }}</span>
-                                                    {% endif %}
-                                                    <span class="badge border" style="background-color: #f3e8ff; color: #6b21a8; border-color: #d8b4fe !important; font-size: 0.65rem;">Préinscrit</span>
-                                                </div>
-                                            </li>
-                                            {% endfor %}
-                                        </ul>
-                                    </div>
-                                </div>
+                    <!-- Note d'information discrète sur les inscriptions -->
+                    <div class="card border-0 bg-light rounded-3 p-3 mb-3">
+                        <span class="visually-hidden">Étape 3 : Pointage Financier</span>
+                        <div class="d-flex align-items-start gap-2.5 text-muted small" style="font-size: 0.82rem; line-height: 1.4;">
+                            <i class="fas fa-info-circle text-primary mt-0.5 flex-shrink-0"></i>
+                            <div>
+                                <strong>Note :</strong> Les élèves orientés passent en statut <em>« Préinscrit »</em>. Leurs inscriptions définitives seront validées dès encaissement à la caisse.
                             </div>
                         </div>
-                        {% endif %}
                     </div>
-
-                    <!-- Lien de secours discret vers le tableau complet en mode avancé -->
-                    {% if annee_source %}
-                    <div class="text-center my-2">
-                        <a href="{{ url_for('main.passage_annee', source_id=annee_source.id, cible_id=annee_cible.id) }}" class="text-muted small text-decoration-none" target="_blank" style="font-size: 0.75rem;">
-                            <i class="fas fa-external-link-alt me-1"></i>Accéder au tableau global complet (mode avancé)
-                        </a>
-                    </div>
-                    {% endif %}
 
                     <div class="d-flex flex-column-reverse flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2 mt-4 pt-3 border-top w-100">
                         <a href="{{ url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='2') }}" data-step-target="2" class="btn btn-outline-secondary touch-btn px-3 rounded-pill">
                             <i class="fas fa-arrow-left me-1"></i><span class="d-none d-sm-inline">Retour classes</span><span class="d-sm-none">Retour</span>
                         </a>
-                        <a href="{{ url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='4') }}" data-step-target="4" class="btn btn-primary btn-lg touch-btn px-4 rounded-pill shadow-sm">
+                        {% if total_classes_source > 0 and nb_classes_validees == total_classes_source %}
+                        <a href="{{ url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='4') }}" data-step-target="4" class="btn btn-success btn-lg touch-btn px-4 rounded-pill shadow-sm">
+                            <i class="fas fa-rocket me-1.5"></i>
                             <span>Continuer vers le Lancement Officiel (Étape 4)</span>
                             <i class="fas fa-arrow-right ms-2"></i>
                         </a>
+                        {% else %}
+                        <a href="{{ url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='4') }}" data-step-target="4" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-2 text-muted text-decoration-none d-inline-flex align-items-center justify-content-center gap-1.5">
+                            <span class="small">Passer à l'Étape 4 (ignorer les classes restantes)</span>
+                            <i class="fas fa-arrow-right small ms-1"></i>
+                        </a>
+                        {% endif %}
                     </div>
                     </div>
 
@@ -1070,6 +1023,54 @@
                                 <div class="text-muted small" style="font-size: 0.72rem;">Inscrits confirmés</div>
                                 <div class="h4 fw-bold mb-0 text-warning-emphasis">{{ nb_confirmes }}</div>
                                 <div class="text-muted mt-0.5" style="font-size: 0.7rem;">{{ nb_preinscrits }} préinscrit(s)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Note d'information sur les préinscriptions & la caisse -->
+                    <div class="card border-0 shadow-sm rounded-3 mb-3 p-3 bg-white" style="border-left: 4px solid #3b82f6 !important;">
+                        <div class="d-flex align-items-start gap-2.5">
+                            <div class="p-2 bg-primary-subtle text-primary rounded-2 shadow-xs flex-shrink-0">
+                                <i class="fas fa-info-circle fa-lg"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h3 class="h6 fw-bold mb-1 text-dark" style="font-size: 0.88rem;">Statut des inscriptions pour la rentrée</h3>
+                                <p class="text-muted small mb-0" style="font-size: 0.78rem; line-height: 1.35;">
+                                    <strong>Note :</strong> Les élèves orientés passent en statut <em>« Préinscrit »</em>. Leurs inscriptions définitives seront validées dès encaissement à la caisse.
+                                </p>
+
+                                {% if preinscrits_list %}
+                                <div class="accordion mt-2" id="accordionPreinscrits">
+                                    <div class="accordion-item border rounded-2 overflow-hidden">
+                                        <h3 class="accordion-header" id="headingPreinscrits">
+                                            <button class="accordion-button collapsed py-1.5 px-2.5 bg-light text-dark small fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePreinscrits" aria-expanded="false" aria-controls="collapsePreinscrits" style="font-size: 0.78rem;">
+                                                <i class="fas fa-users-viewfinder text-warning-emphasis me-2"></i>
+                                                Consulter les {{ preinscrits_list|length }} élève(s) en attente d'acompte
+                                            </button>
+                                        </h3>
+                                        <div id="collapsePreinscrits" class="accordion-collapse collapse" aria-labelledby="headingPreinscrits" data-bs-parent="#accordionPreinscrits">
+                                            <div class="accordion-body p-2" style="max-height: 200px; overflow-y: auto;">
+                                                <ul class="list-group list-group-flush small">
+                                                    {% for insc in preinscrits_list %}
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center py-1.5 px-1.5">
+                                                        <div class="min-w-0">
+                                                            <span class="fw-bold text-dark text-truncate d-block">{{ insc.eleve.nom }} {{ insc.eleve.prenom }}</span>
+                                                            <span class="text-muted" style="font-size: 0.7rem;">{{ insc.classe.nom if insc.classe else 'Sans classe' }}</span>
+                                                        </div>
+                                                        <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+                                                            {% if insc.eleve.contact_parent %}
+                                                            <span class="text-muted" style="font-size: 0.7rem;"><i class="fas fa-phone me-1"></i>{{ insc.eleve.contact_parent }}</span>
+                                                            {% endif %}
+                                                            <span class="badge border" style="background-color: #f3e8ff; color: #6b21a8; border-color: #d8b4fe !important; font-size: 0.65rem;">Préinscrit</span>
+                                                        </div>
+                                                    </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -1153,13 +1154,30 @@ function onDecisionChange(select) {
     }
 }
 
-function preCocherDecisionsClasse() {
+function preCocherDecisionsClasse(evt) {
     const selects = document.querySelectorAll('.decision-select');
+    let count = 0;
     selects.forEach(function(sel) {
         const sugg = sel.getAttribute('data-suggestion') || 'passage';
         sel.value = sugg;
         onDecisionChange(sel);
+        sel.classList.add('border-primary', 'bg-light');
+        setTimeout(function() {
+            sel.classList.remove('border-primary', 'bg-light');
+        }, 1000);
+        count++;
     });
+
+    const btn = (evt && evt.currentTarget) ? evt.currentTarget : document.querySelector('button[onclick*="preCocherDecisionsClasse"]');
+    if (btn) {
+        const origHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check text-success"></i> <span class="text-success fw-bold">' + count + ' pré-remplis !</span>';
+        btn.classList.add('border-success');
+        setTimeout(function() {
+            btn.innerHTML = origHtml;
+            btn.classList.remove('border-success');
+        }, 1800);
+    }
 }
 
 function annulerDecisionEleve(eleveId, classeSourceId) {

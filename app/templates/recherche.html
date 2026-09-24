@@ -305,15 +305,24 @@
                                             <span class="fw-bold text-dark small">{{ parcours.classe }}</span>
                                             <span class="badge bg-secondary-subtle text-secondary small">{{ parcours.statut }}</span>
                                         </div>
-                                        {% if parcours.bulletins %}
-                                        <div class="d-flex flex-wrap gap-1.5 mt-2">
-                                            {% for bulletin in parcours.bulletins %}
-                                            <a class="btn btn-xs btn-outline-primary rounded-2 py-0.5 px-2" style="font-size: 0.72rem;" href="{{ url_for('main.bulletin_eleve', id=bulletin.id) }}">
-                                                <i class="fas fa-file-alt me-1"></i> Bulletin {{ bulletin.periode }}
+                                        <div class="d-flex flex-wrap gap-1.5 mt-1.5">
+                                            {% if parcours.annee_id %}
+                                            <a class="btn btn-xs btn-outline-primary rounded-2 py-0.5 px-2" style="font-size: 0.75rem;" href="{{ url_for('main.voir_eleve', eleve_id=eleve.id, annee_id=parcours.annee_id) }}" title="Consulter les notes et le dossier de cette année">
+                                                <i class="fas fa-eye me-1"></i>Notes {{ parcours.annee }}
                                             </a>
-                                            {% endfor %}
+                                            {% endif %}
+                                            {% if parcours.bulletins %}
+                                                {% for bulletin in parcours.bulletins %}
+                                                <a class="btn btn-xs btn-outline-secondary rounded-2 py-0.5 px-2" style="font-size: 0.72rem;" href="{{ url_for('main.bulletin_eleve', id=bulletin.id) }}">
+                                                    <i class="fas fa-file-alt me-1"></i> Bulletin {{ bulletin.periode }}
+                                                </a>
+                                                {% endfor %}
+                                            {% elif parcours.inscription_id %}
+                                                <a class="btn btn-xs btn-outline-secondary rounded-2 py-0.5 px-2" style="font-size: 0.72rem;" href="{{ url_for('main.bulletin_eleve', inscription_id=parcours.inscription_id) }}">
+                                                    <i class="fas fa-file-alt me-1"></i> Bulletin officiel
+                                                </a>
+                                            {% endif %}
                                         </div>
-                                        {% endif %}
                                     </div>
                                     {% endfor %}
                                 </div>

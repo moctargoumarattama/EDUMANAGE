@@ -1,49 +1,93 @@
 {% extends "base.html" %}
 
-{% block title %}Dossier Annuel - {{ eleve.prenom }} {{ eleve.nom }} - KLASORA{% endblock %}
+{% block title %}Dossier Élève - {{ eleve.prenom }} {{ eleve.nom }} - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3 px-md-4">
+<div class="container-fluid py-3 px-2 px-md-4">
     <!-- Barre de Navigation & Actions Supérieure -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 no-print">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}" class="text-decoration-none">Accueil</a></li>
-                <li class="breadcrumb-item"><a href="{{ url_for('main.eleves') }}" class="text-decoration-none">Élèves</a></li>
-                <li class="breadcrumb-item active" aria-current="page">{{ eleve.prenom }} {{ eleve.nom }}</li>
-            </ol>
-        </nav>
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4 no-print">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}" class="text-decoration-none">Accueil</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.eleves') }}" class="text-decoration-none">Élèves</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ eleve.prenom }} {{ eleve.nom }}</li>
+                </ol>
+            </nav>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <h1 class="h4 fw-bold text-dark mb-0">{{ eleve.prenom }} {{ eleve.nom }}</h1>
+                <span class="badge bg-white text-secondary border font-monospace small shadow-xs">Matricule: {{ eleve.code_parent or ('ELV-' ~ eleve.id) }}</span>
+                {% if est_annee_archivee and annee_affichee %}
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small">
+                    <i class="fas fa-archive me-1"></i>Archive {{ annee_affichee.nom }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
-            <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" class="btn btn-sm btn-primary fw-semibold">
-                <i class="fas fa-file-alt me-1"></i>Voir le bulletin
+            {% if inscription_affichee %}
+            <a href="{{ url_for('main.bulletin_eleve', inscription_id=inscription_affichee.id) }}" class="btn btn-sm btn-primary fw-semibold shadow-sm d-inline-flex align-items-center" target="_blank">
+                <i class="fas fa-file-alt me-1"></i>Bulletin scolaire
             </a>
+            {% else %}
+            <a href="{{ url_for('main.bulletin_eleve', id=eleve.id) }}" class="btn btn-sm btn-primary fw-semibold shadow-sm d-inline-flex align-items-center" target="_blank">
+                <i class="fas fa-file-alt me-1"></i>Bulletin scolaire
+            </a>
+            {% endif %}
             {% if current_user.role == 'admin' %}
-            <a href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url) }}" class="btn btn-sm btn-outline-secondary">
+            <a href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url) }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center bg-white shadow-xs">
                 <i class="fas fa-edit me-1"></i>Modifier la fiche
             </a>
             {% endif %}
-            <button type="button" class="btn btn-sm btn-outline-dark" onclick="window.print()">
+            <button type="button" class="btn btn-sm btn-outline-dark d-inline-flex align-items-center bg-white shadow-xs" onclick="window.print()">
                 <i class="fas fa-print me-1"></i>Imprimer le dossier
             </button>
-            <a href="{{ return_url or url_for('main.eleves') }}" class="btn btn-sm btn-outline-secondary">
+            <a href="{{ return_url or url_for('main.eleves') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center bg-white shadow-xs">
                 <i class="fas fa-arrow-left me-1"></i>Retour
             </a>
         </div>
     </div>
 
-    {% if not est_inscrit_annee_active and annee_active and current_user.role in ['admin', 'super_admin'] %}
+    <!-- Bandeau Alerte Consultation d'Archive Scolaire -->
+    {% if est_annee_archivee and annee_affichee %}
+    <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-left: 5px solid #64748b !important; border-radius: 12px;">
+        <div class="card-body p-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-circle d-inline-flex align-items-center justify-content-center bg-secondary text-white shadow-xs" style="width: 44px; height: 44px; font-size: 1.2rem;">
+                    <i class="fas fa-archive"></i>
+                </div>
+                <div>
+                    <h6 class="fw-bold mb-0 text-dark">
+                        Consultation de l'archive scolaire : Année {{ annee_affichee.nom }}
+                        {% if inscription_affichee and inscription_affichee.classe %}
+                        <span class="badge bg-secondary-subtle text-secondary ms-1">Classe : {{ inscription_affichee.classe.nom }}</span>
+                        {% endif %}
+                    </h6>
+                    <p class="text-muted small mb-0">Vous consultez les notes, moyennes, assiduité et frais enregistrés pour cette année passée (mode lecture seule).</p>
+                </div>
+            </div>
+            {% if annee_active and annee_affichee.id != annee_active.id %}
+            <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-sm btn-primary shadow-xs d-inline-flex align-items-center">
+                <i class="fas fa-undo me-1.5"></i>Revenir à l'année en cours ({{ annee_active.nom }})
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not est_inscrit_annee_active and annee_active and current_user.role in ['admin', 'super_admin'] and not est_annee_archivee %}
     <!-- Bandeau Droit à l'erreur / Réintégration d'un ancien élève -->
     <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%); border-left: 5px solid #4f46e5 !important; border-radius: 12px;">
         <div class="card-body p-3 p-md-4">
             <div class="row align-items-center g-3">
                 <div class="col-auto">
-                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm" style="width: 52px; height: 52px; background-color: #4f46e5; color: white; font-size: 1.4rem;">
+                    <div class="rounded-circle d-inline-flex align-items-center justify-content-center shadow-sm" style="width: 48px; height: 48px; background-color: #4f46e5; color: white; font-size: 1.25rem;">
                         <i class="fas fa-user-clock"></i>
                     </div>
                 </div>
                 <div class="col">
                     <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-                        <h5 class="fw-bold mb-0 text-dark">Élève non inscrit pour l'année scolaire en cours ({{ annee_active.nom }})</h5>
+                        <h5 class="fw-bold mb-0 text-dark fs-6">Élève non inscrit pour l'année scolaire en cours ({{ annee_active.nom }})</h5>
                         <span class="badge rounded-pill text-white px-2 py-1" style="background-color: #4f46e5; font-size: 0.75rem;">Droit à l'erreur</span>
                     </div>
                     <p class="mb-0 text-muted small">
@@ -51,7 +95,7 @@
                     </p>
                 </div>
                 <div class="col-12 col-md-auto text-md-end mt-2 mt-md-0">
-                    <button type="button" class="btn btn-primary btn-lg shadow-sm w-100 w-md-auto d-inline-flex align-items-center justify-content-center" data-bs-toggle="modal" data-bs-target="#modalReinscrireEleve" style="min-height: 48px; border-radius: 10px; font-weight: 600; font-size: 1rem;">
+                    <button type="button" class="btn btn-primary shadow-sm w-100 w-md-auto d-inline-flex align-items-center justify-content-center" data-bs-toggle="modal" data-bs-target="#modalReinscrireEleve" style="min-height: 44px; border-radius: 10px; font-weight: 600;">
                         <i class="fas fa-user-check me-2"></i>Réintégrer pour l'année en cours
                     </button>
                 </div>
@@ -60,257 +104,267 @@
     </div>
     {% endif %}
 
-    <!-- Carte Profil / Identité de l'Élève (Hero Banner) -->
-    <div class="card border-0 shadow-sm mb-4 overflow-hidden">
-        <div class="p-4 text-white" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #0d9488 100%);">
-            <div class="row align-items-center g-3">
-                <div class="col-auto">
-                    <div class="rounded-circle bg-white text-primary d-flex align-items-center justify-content-center fw-bold shadow" 
-                         style="width: 76px; height: 76px; font-size: 1.85rem;">
-                        {% if eleve.photo and eleve.photo != 'default_eleve.png' %}
-                        <img src="{{ url_for('static', filename='uploads/' ~ eleve.photo) }}" alt="{{ eleve.prenom }}" class="rounded-circle w-100 h-100 object-fit-cover">
-                        {% else %}
-                        {{ eleve.prenom[:1] | upper }}{{ eleve.nom[:1] | upper }}
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="col min-w-0">
-                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-                        <h1 class="h3 fw-bold mb-0 text-white">{{ eleve.prenom }} {{ eleve.nom }}</h1>
-                        <span class="badge bg-white text-primary fw-bold px-2 py-1">
-                            <i class="fas fa-chalkboard-teacher me-1"></i>
-                            {% if eleve.inscription_active and eleve.inscription_active.classe %}
-                            {{ eleve.inscription_active.classe.nom }}
+    <!-- Architecture 2 Colonnes Dashboard Adaptative (Option A Propre & Fluide) -->
+    <div class="row g-3 g-xl-4 align-items-start">
+        
+        <!-- COLONNE GAUCHE (Profil & Synthèse Globale) -->
+        <div class="col-12 col-md-5 col-lg-4 col-xl-3">
+            <div class="d-flex flex-column gap-3">
+                
+                <!-- CARTE 1 : Profil, Identité & Contact Parent -->
+                <div class="card border-0 shadow-sm rounded-3 bg-white overflow-hidden">
+                    <!-- En-tête profil -->
+                    <div class="p-3 text-center border-bottom bg-light">
+                        <div class="mx-auto rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm mb-2"
+                             style="width: 68px; height: 68px; font-size: 1.5rem; background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: white;">
+                            {% if eleve.photo and eleve.photo != 'default_eleve.png' %}
+                            <img src="{{ url_for('static', filename='uploads/' ~ eleve.photo) }}" alt="{{ eleve.prenom }}" class="rounded-circle w-100 h-100 object-fit-cover">
                             {% else %}
-                            Aucune inscription pour l'année active
+                            {{ eleve.prenom[:1] | upper }}{{ eleve.nom[:1] | upper }}
                             {% endif %}
-                        </span>
-                        {% if eleve.statut == 'actif' %}
-                        <span class="badge bg-success text-white px-2 py-1">
-                            <i class="fas fa-check-circle me-1"></i>Actif
-                        </span>
-                        {% else %}
-                        <span class="badge bg-secondary text-white px-2 py-1">{{ eleve.statut | capitalize }}</span>
-                        {% endif %}
+                        </div>
+                        <h2 class="h5 fw-bold text-dark mb-1">{{ eleve.prenom }} {{ eleve.nom }}</h2>
+                        <div class="d-flex align-items-center justify-content-center gap-1 flex-wrap">
+                            {% if inscription_affichee and inscription_affichee.classe %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold px-2 py-1">
+                                <i class="fas fa-chalkboard me-1"></i>{{ inscription_affichee.classe.nom }}
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-semibold px-2 py-1">
+                                Non inscrit
+                            </span>
+                            {% endif %}
+
+                            {% if eleve.statut == 'actif' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                <i class="fas fa-check-circle me-1"></i>Actif
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary text-white px-2 py-1">{{ eleve.statut | capitalize }}</span>
+                            {% endif %}
+                        </div>
                     </div>
-                    <p class="mb-0 opacity-90 small">
-                        Matricule : <span class="fw-semibold">{{ eleve.code_parent or ('ELV-' ~ eleve.id) }}</span> • 
-                        Inscrit le : {{ eleve.date_inscription.strftime('%d/%m/%Y') if eleve.date_inscription else 'N/A' }}
-                        {% if eleve.date_naissance %}
-                         • Né(e) le {{ eleve.date_naissance.strftime('%d/%m/%Y') }}{% if age %} ({{ age }} ans){% endif %}
-                        {% endif %}
-                    </p>
-                </div>
-                <div class="col-12 col-lg-auto text-lg-end">
-                    <div class="d-flex flex-wrap gap-2 justify-content-lg-end no-print">
-                        {% if eleve.contact_parent or (eleve.parent and eleve.parent.telephone) %}
-                        <a href="tel:{{ eleve.contact_parent or eleve.parent.telephone }}" class="btn btn-sm btn-light text-dark fw-semibold">
-                            <i class="fas fa-phone-alt text-success me-1"></i>Appeler parent
-                        </a>
-                        {% endif %}
-                        {% if eleve.email_parent or (eleve.parent and eleve.parent.email) %}
-                        <a href="mailto:{{ eleve.email_parent or eleve.parent.email }}subject=Dossier%20Scolaire%20-%20{{ eleve.prenom }}%20{{ eleve.nom }}" class="btn btn-sm btn-light text-dark fw-semibold">
-                            <i class="fas fa-envelope text-primary me-1"></i>Email parent
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
+                    
+                    <!-- Détails état civil -->
+                    <div class="card-body p-3">
+                        <ul class="list-unstyled mb-0 small">
+                            <li class="d-flex justify-content-between py-1 border-bottom">
+                                <span class="text-muted"><i class="fas fa-venus-mars me-2 text-muted"></i>Genre :</span>
+                                <strong class="text-dark">{{ 'Masculin' if eleve.genre == 'M' else 'Féminin' if eleve.genre == 'F' else (eleve.genre or 'N/A') }}</strong>
+                            </li>
+                            <li class="d-flex justify-content-between py-1 border-bottom">
+                                <span class="text-muted"><i class="fas fa-birthday-cake me-2 text-muted"></i>Âge :</span>
+                                <strong class="text-dark">
+                                    {% if eleve.date_naissance %}
+                                        {{ eleve.date_naissance.strftime('%d/%m/%Y') }}{% if age %} ({{ age }} ans){% endif %}
+                                    {% else %}
+                                        Non renseigné
+                                    {% endif %}
+                                </strong>
+                            </li>
+                            <li class="d-flex justify-content-between py-1 border-bottom">
+                                <span class="text-muted"><i class="far fa-calendar-check me-2 text-muted"></i>Inscrit le :</span>
+                                <span class="text-dark fw-semibold">{{ eleve.date_inscription.strftime('%d/%m/%Y') if eleve.date_inscription else 'N/A' }}</span>
+                            </li>
+                        </ul>
 
-        <!-- Coordonnées Rapides sous le Hero -->
-        <div class="card-body bg-light py-2 px-4 border-top">
-            <div class="row g-2 text-muted small">
-                <div class="col-sm-6 col-md-3">
-                    <i class="fas fa-user-friends text-primary me-1"></i><strong>Parent/Tuteur :</strong> 
-                    {{ eleve.parent.nom ~ ' ' ~ eleve.parent.prenom if eleve.parent else (eleve.contact_parent or 'Non renseigné') }}
-                </div>
-                <div class="col-sm-6 col-md-3">
-                    <i class="fas fa-phone text-success me-1"></i><strong>Téléphone :</strong> 
-                    {{ eleve.contact_parent or (eleve.parent.telephone if eleve.parent else 'N/A') }}
-                </div>
-                <div class="col-sm-6 col-md-3">
-                    <i class="fas fa-envelope text-info me-1"></i><strong>Email :</strong> 
-                    {{ eleve.email_parent or (eleve.parent.email if eleve.parent else 'N/A') }}
-                </div>
-                <div class="col-sm-6 col-md-3">
-                    <i class="fas fa-map-marker-alt text-danger me-1"></i><strong>Adresse :</strong> 
-                    {{ eleve.adresse or 'Non renseignée' }}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 4 Cartes Bilan Annuel (KPIs) -->
-    <div class="row g-3 mb-4">
-        {% if current_user.role != 'parent' %}
-        <!-- Moyenne générale annuelle -->
-        <div class="col-6 col-lg-3">
-            <div class="card border-0 shadow-sm h-100 p-3 text-center bg-white">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small fw-semibold">
-                        {% if eval_info and eval_info.status == 'provisoire' %}Moy. Provisoire{% elif eval_info and eval_info.status == 'non_evalue' %}Non évalué{% else %}Moyenne Générale{% endif %}
-                    </span>
-                    <span class="badge bg-{{ mention_badge }}">{{ mention }}</span>
-                </div>
-                <div class="h3 fw-bold text-primary mb-1">{% if eval_info and eval_info.status == 'non_evalue' %}--{% else %}{{ "%.2f"|format(moyenne_generale) }}{% endif %} <small class="fs-6 text-muted">/ 20</small></div>
-                <div class="text-muted small">
-                    {% if eval_info and eval_info.status != 'non_evalue' %}{{ eval_info.evaluated_subjects }} / {{ eval_info.expected_subjects }} matières évaluées{% else %}{{ notes|length }} note{{ 's' if notes|length > 1 else '' }} enregistrée{{ 's' if notes|length > 1 else '' }}{% endif %}
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Bilan Scolarité / Frais -->
-        {% if current_user.role != 'professeur' %}
-        <div class="col-6 col-lg-3">
-            <div class="card border-0 shadow-sm h-100 p-3 bg-white">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small fw-semibold">Scolarité Annuelle</span>
-                    {% if reste_a_payer == 0 %}
-                    <span class="badge bg-success">Soldé</span>
-                    {% else %}
-                    <span class="badge bg-danger">Reste : {{ "{:,.0f}".format(reste_a_payer).replace(',', ' ') }} F</span>
-                    {% endif %}
-                </div>
-                <div class="h4 fw-bold text-dark mb-1">{{ "{:,.0f}".format(total_paye).replace(',', ' ') }} <small class="fs-6 text-muted">/ {{ "{:,.0f}".format(total_frais).replace(',', ' ') }} F</small></div>
-                <div class="progress mt-2" style="height: 6px;">
-                    <div class="progress-bar {% if pourcentage_paye >= 100 %}bg-success{% elif pourcentage_paye >= 50 %}bg-primary{% else %}bg-warning{% endif %}" 
-                         role="progressbar" style="width: {{ pourcentage_paye }}%;"></div>
-                </div>
-                <div class="text-muted small mt-1 text-end">{{ pourcentage_paye }}% réglé</div>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Bilan Assiduité / Absences -->
-        <div class="col-6 col-lg-3">
-            <div class="card border-0 shadow-sm h-100 p-3 text-center bg-white">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small fw-semibold">Assiduité Annuelle</span>
-                    {% if total_absences == 0 %}
-                    <span class="badge bg-success">0 Absence</span>
-                    {% elif absences_injustifiees > 0 %}
-                    <span class="badge bg-danger">{{ absences_injustifiees }} injustifiée{{ 's' if absences_injustifiees > 1 else '' }}</span>
-                    {% else %}
-                    <span class="badge bg-warning text-dark">Justifiées</span>
-                    {% endif %}
-                </div>
-                <div class="h3 fw-bold {% if total_absences >= 5 %}text-danger{% elif total_absences > 0 %}text-warning{% else %}text-success{% endif %} mb-1">
-                    {{ total_absences }} <small class="fs-6 text-muted">absence{{ 's' if total_absences > 1 else '' }}</small>
-                </div>
-                <div class="text-muted small">{{ absences_justifiees }} justifiée{{ 's' if absences_justifiees > 1 else '' }} • {{ absences_injustifiees }} non justifiée{{ 's' if absences_injustifiees > 1 else '' }}</div>
-            </div>
-        </div>
-
-        <!-- Classe & Salle -->
-        <div class="col-6 col-lg-3">
-            <div class="card border-0 shadow-sm h-100 p-3 text-center bg-white">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="text-muted small fw-semibold">Classe & Année</span>
-                    <i class="fas fa-school text-muted"></i>
-                </div>
-                <div class="h4 fw-bold text-gray-800 mb-1">
-                    {% if eleve.inscription_active and eleve.inscription_active.classe %}
-                    {{ eleve.inscription_active.classe.nom }}
-                    {% else %}
-                    Aucune inscription pour l'année active
-                    {% endif %}
-                </div>
-                <div class="text-muted small">
-                    {% if eleve.inscription_active and eleve.inscription_active.classe and eleve.inscription_active.classe.salle %}Salle : {{ eleve.inscription_active.classe.salle }}{% else %}Année active{% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Parcours scolaire annuel -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-white border-0 py-3">
-            <h5 class="h6 fw-bold mb-0 text-primary">
-                <i class="fas fa-route me-2"></i>Parcours scolaire
-            </h5>
-        </div>
-        <div class="card-body p-0">
-            {% if eleve.parcours_scolaire %}
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light small">
-                        <tr>
-                            <th>Année scolaire</th>
-                            <th>Classe</th>
-                            <th class="text-center">Statut</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for inscription in eleve.parcours_scolaire %}
-                        <tr>
-                            <td class="fw-semibold">
-                                {{ inscription.annee_scolaire.nom if inscription.annee_scolaire else 'Année non renseignée' }}
-                            </td>
-                            <td>
-                                {{ inscription.classe.nom if inscription.classe else 'Classe non renseignée' }}
-                            </td>
-                            <td class="text-center">
-                                <span class="badge bg-light text-dark border">
-                                    {{ inscription.statut | capitalize }}
+                        <!-- Section Contact Parent (Intégrée proprement sans répétition) -->
+                        {% set parent_tel = eleve.contact_parent or (eleve.parent.telephone if eleve.parent else none) %}
+                        {% set parent_mail = eleve.email_parent or (eleve.parent.email if eleve.parent else none) %}
+                        <div class="mt-3 pt-3 border-top">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <span class="fw-bold small text-dark">
+                                    <i class="fas fa-user-shield text-primary me-1"></i>Parent / Tuteur
                                 </span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                            </div>
+                            <div class="fw-semibold text-dark small mb-1">
+                                {{ eleve.parent.nom ~ ' ' ~ eleve.parent.prenom if eleve.parent else (eleve.contact_parent or 'Non renseigné') }}
+                            </div>
+                            {% if parent_tel %}
+                            <div class="text-muted small mb-2 font-monospace">
+                                <i class="fas fa-phone-alt text-success me-1"></i>{{ parent_tel }}
+                            </div>
+                            {% endif %}
+
+                            <!-- Boutons d'action rapide -->
+                            <div class="d-flex gap-1 flex-wrap mb-2">
+                                {% if parent_tel %}
+                                <a href="tel:{{ parent_tel }}" class="btn btn-sm btn-outline-success flex-grow-1 d-inline-flex align-items-center justify-content-center py-1 px-2" style="font-size: 0.78rem;">
+                                    <i class="fas fa-phone-alt me-1"></i>Appeler
+                                </a>
+                                <a href="https://wa.me/{{ parent_tel | replace(' ', '') | replace('-', '') | replace('.', '') | replace('+', '') }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success flex-grow-1 d-inline-flex align-items-center justify-content-center py-1 px-2" style="font-size: 0.78rem;">
+                                    <i class="fab fa-whatsapp me-1"></i>WhatsApp
+                                </a>
+                                {% endif %}
+                                {% if parent_mail %}
+                                <a href="mailto:{{ parent_mail }}?subject=Dossier%20Scolaire%20-%20{{ eleve.prenom }}%20{{ eleve.nom }}" class="btn btn-sm btn-outline-primary flex-grow-1 d-inline-flex align-items-center justify-content-center py-1 px-2" style="font-size: 0.78rem;">
+                                    <i class="fas fa-envelope me-1"></i>Email
+                                </a>
+                                {% endif %}
+                            </div>
+
+                            {% if eleve.adresse %}
+                            <div class="small text-muted border-top pt-2 mt-2" style="font-size: 0.8rem;">
+                                <i class="fas fa-map-marker-alt text-danger me-1"></i>{{ eleve.adresse }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARTE 2 : Bilan Annuel & Parcours Scolaire (Archives complètes) -->
+                <div class="card border-0 shadow-sm rounded-3 bg-white">
+                    <div class="card-header bg-white border-bottom py-2 px-3">
+                        <span class="fw-bold small text-dark"><i class="fas fa-chart-line text-primary me-2"></i>Bilan ({{ annee_affichee.nom if annee_affichee else 'Année' }})</span>
+                    </div>
+                    <div class="card-body p-3">
+                        <!-- Moyenne -->
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small text-muted">Moyenne Générale :</span>
+                            <div class="text-end">
+                                <span class="fw-bold text-primary fs-6">
+                                    {% if eval_info and eval_info.status == 'non_evalue' %}--{% else %}{{ "%.2f"|format(moyenne_generale) }}{% endif %}
+                                    <small class="text-muted fw-normal">/20</small>
+                                </span>
+                                <span class="badge bg-{{ mention_badge }} ms-1" style="font-size: 0.7rem;">{{ mention }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Assiduité -->
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small text-muted">Assiduité :</span>
+                            <div>
+                                {% if total_absences == 0 %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">0 absence</span>
+                                {% else %}
+                                <span class="badge {% if absences_injustifiees > 0 %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% endif %}">
+                                    {{ total_absences }} abs. ({{ absences_injustifiees }} inj.)
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Scolarité -->
+                        {% if current_user.role != 'professeur' %}
+                        <div class="border-top pt-2">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <span class="small text-muted">Scolarité :</span>
+                                <div>
+                                    {% if reste_a_payer == 0 %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Soldé</span>
+                                    {% else %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Reste {{ "{:,.0f}".format(reste_a_payer).replace(',', ' ') }} F</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="progress" style="height: 5px;">
+                                <div class="progress-bar {% if pourcentage_paye >= 100 %}bg-success{% elif pourcentage_paye >= 50 %}bg-primary{% else %}bg-warning{% endif %}" 
+                                     role="progressbar" style="width: {{ pourcentage_paye }}%;"></div>
+                            </div>
+                            <div class="d-flex justify-content-between text-muted small mt-1" style="font-size: 0.75rem;">
+                                <span>{{ "{:,.0f}".format(total_paye).replace(',', ' ') }} F réglé</span>
+                                <span>{{ pourcentage_paye }}%</span>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Parcours Scolaire Complet avec Accès aux Archives (Notes & Bulletins) -->
+                        {% if eleve.parcours_scolaire %}
+                        <div class="border-top pt-3 mt-3">
+                            <div class="fw-bold small text-dark mb-2 d-flex align-items-center justify-content-between">
+                                <span><i class="fas fa-history text-muted me-1"></i>Historique des Classes</span>
+                                <span class="badge bg-light text-secondary border" style="font-size: 0.7rem;">{{ eleve.parcours_scolaire|length }} an(s)</span>
+                            </div>
+                            <div class="d-flex flex-column gap-1.5">
+                                {% for inscription in eleve.parcours_scolaire %}
+                                {% set is_current_view = (annee_affichee and inscription.annee_scolaire_id == annee_affichee.id) %}
+                                <div class="p-2 rounded-2 border {% if is_current_view %}bg-primary-subtle border-primary-subtle shadow-xs{% else %}bg-white border-light-subtle{% endif %}">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <div>
+                                            <strong class="text-dark small">{{ inscription.annee_scolaire.nom if inscription.annee_scolaire else 'Année N/A' }}</strong>
+                                            <span class="text-muted small ms-1">— {{ inscription.classe.nom if inscription.classe else 'Classe N/A' }}</span>
+                                        </div>
+                                        <span class="badge bg-light text-secondary border" style="font-size: 0.7rem;">
+                                            {{ inscription.statut | capitalize }}
+                                        </span>
+                                    </div>
+                                    <div class="d-flex gap-1 flex-wrap mt-1">
+                                        {% if is_current_view %}
+                                        <span class="badge bg-primary text-white py-1 px-2" style="font-size: 0.72rem;">
+                                            <i class="fas fa-check-circle me-1"></i>Année affichée
+                                        </span>
+                                        {% else %}
+                                        <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id, annee_id=inscription.annee_scolaire_id) }}" class="btn btn-xs btn-outline-primary py-0.5 px-2" style="font-size: 0.73rem;" title="Voir les notes de cette année">
+                                            <i class="fas fa-eye me-1"></i>Notes
+                                        </a>
+                                        {% endif %}
+                                        <a href="{{ url_for('main.bulletin_eleve', inscription_id=inscription.id) }}" class="btn btn-xs btn-outline-secondary py-0.5 px-2" style="font-size: 0.73rem;" target="_blank" title="Voir le bulletin officiel">
+                                            <i class="fas fa-file-alt me-1"></i>Bulletin
+                                        </a>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
             </div>
-            {% else %}
-            <div class="p-4 text-center text-muted">
-                <i class="fas fa-route fa-2x mb-2 opacity-50"></i>
-                <p class="mb-0 small">Aucun parcours scolaire annuel enregistré.</p>
-            </div>
-            {% endif %}
         </div>
-    </div>
 
-    <!-- Navigation par Onglets (Thématiques complètes sur l'année) -->
-    <ul class="nav nav-tabs nav-fill mb-4 no-print bg-white p-2 rounded shadow-sm border" id="dossierTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active fw-semibold" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notesTabPane" type="button" role="tab">
-                <i class="fas fa-graduation-cap me-2 text-primary"></i>1. Notes & Résultats ({{ notes|length }})
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link fw-semibold" id="absences-tab" data-bs-toggle="tab" data-bs-target="#absencesTabPane" type="button" role="tab">
-                <i class="fas fa-calendar-times me-2 text-warning"></i>2. Assiduité & Absences ({{ total_absences }})
-            </button>
-        </li>
-        {% if current_user.role != 'professeur' %}
-        <li class="nav-item" role="presentation">
-            <button class="nav-link fw-semibold" id="paiements-tab" data-bs-toggle="tab" data-bs-target="#paiementsTabPane" type="button" role="tab">
-                <i class="fas fa-money-bill-wave me-2 text-success"></i>3. Frais & Paiements ({{ paiements|length }})
-            </button>
-        </li>
-        {% endif %}
-        <li class="nav-item" role="presentation">
-            <button class="nav-link fw-semibold" id="infos-tab" data-bs-toggle="tab" data-bs-target="#infosTabPane" type="button" role="tab">
-                <i class="fas fa-user-circle me-2 text-info"></i>4. Fiche Signalétique Complète
-            </button>
-        </li>
-    </ul>
+        <!-- COLONNE DROITE (Espace de Travail & Détails par Onglets) -->
+        <div class="col-12 col-md-7 col-lg-8 col-xl-9">
+            
+            <!-- Onglets de Navigation Supérieurs (Horizontaux, Totalement Visibles & 100% Adaptatifs) -->
+            <ul class="nav nav-pills gap-2 p-1.5 bg-white border rounded-3 shadow-sm mb-3 no-print d-flex flex-nowrap overflow-x-auto text-nowrap" id="dossierTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-semibold" id="notes-tab" data-bs-toggle="pill" data-bs-target="#notesTabPane" type="button" role="tab">
+                        <i class="fas fa-graduation-cap me-1"></i>Notes & Évaluations
+                        <span class="badge ms-1 tab-badge">{{ notes|length }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold" id="absences-tab" data-bs-toggle="pill" data-bs-target="#absencesTabPane" type="button" role="tab">
+                        <i class="fas fa-calendar-times me-1 text-warning"></i>Assiduité
+                        <span class="badge ms-1 tab-badge">{{ total_absences }}</span>
+                    </button>
+                </li>
+                {% if current_user.role != 'professeur' %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold" id="paiements-tab" data-bs-toggle="pill" data-bs-target="#paiementsTabPane" type="button" role="tab">
+                        <i class="fas fa-wallet me-1 text-success"></i>Scolarité & Reçus
+                        <span class="badge ms-1 tab-badge">{{ paiements|length }}</span>
+                    </button>
+                </li>
+                {% endif %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold" id="infos-tab" data-bs-toggle="pill" data-bs-target="#infosTabPane" type="button" role="tab">
+                        <i class="fas fa-id-card me-1 text-info"></i>Complément Fiche
+                    </button>
+                </li>
+            </ul>
 
-    <!-- Contenu des Onglets -->
-    <div class="tab-content" id="dossierTabsContent">
+            <!-- Contenu des Onglets -->
+            <div class="tab-content" id="dossierTabsContent">
 
-        <!-- ================================================================= -->
-        <!-- ONGLET 1 : NOTES & RÉSULTATS ACADÉMIQUES SUR L'ANNÉE -->
-        <!-- ================================================================= -->
-        <div class="tab-pane fade show active" id="notesTabPane" role="tabpanel">
-            <div class="row g-4">
-                <!-- Tableau récapitulatif des moyennes par matière -->
-                <div class="col-12 col-lg-5">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-header bg-white border-0 py-3">
-                            <h5 class="h6 fw-bold mb-0 text-primary">
-                                <i class="fas fa-chart-pie me-2"></i>Moyennes Annuelles par Matière
-                            </h5>
+                <!-- ================================================================= -->
+                <!-- ONGLET 1 : TABLEAU UNIQUE DES MOYENNES + POP-UP DES DEVOIRS -->
+                <!-- ================================================================= -->
+                <div class="tab-pane fade show active" id="notesTabPane" role="tabpanel">
+                    <div class="card border-0 shadow-sm rounded-3 bg-white">
+                        <div class="card-header bg-white border-bottom py-2.5 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <h5 class="h6 fw-bold mb-0 text-primary">
+                                    <i class="fas fa-chart-pie me-2"></i>Moyennes par Matière
+                                </h5>
+                                <p class="text-muted small mb-0">Cliquez sur une matière pour voir le détail des épreuves par semestre</p>
+                            </div>
+                            {% if current_user.role != 'parent' %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-6">
+                                Moyenne générale : <strong>{% if eval_info and eval_info.status == 'non_evalue' %}--{% else %}{{ "%.2f"|format(moyenne_generale) }}{% endif %} / 20</strong>
+                            </span>
+                            {% endif %}
                         </div>
                         <div class="card-body p-0">
                             {% if matieres_stats %}
@@ -319,23 +373,33 @@
                                     <thead class="table-light small">
                                         <tr>
                                             <th>Matière</th>
-                                            <th class="text-center">Évals</th>
-                                            <th class="text-center">Coef</th>
-                                            <th class="text-end">Moyenne</th>
+                                            <th class="text-center" style="width: 140px;">Évaluations</th>
+                                            <th class="text-center" style="width: 100px;">Coefficient</th>
+                                            <th class="text-end" style="width: 120px;">Moyenne</th>
+                                            <th class="text-center" style="width: 130px;">Détails</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for mat, stat in matieres_stats.items() %}
-                                        <tr>
-                                            <td class="fw-semibold">
-                                                <i class="fas fa-book-open text-muted me-2 small"></i>{{ mat }}
+                                        <tr style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalMatiere_{{ loop.index }}" title="Cliquer pour voir le détail des notes de {{ mat }}">
+                                            <td class="fw-semibold text-dark">
+                                                <i class="fas fa-book-open text-primary me-2"></i>{{ mat }}
                                             </td>
-                                            <td class="text-center small text-muted">{{ stat.count }}</td>
-                                            <td class="text-center small fw-semibold">{{ stat.coef }}</td>
+                                            <td class="text-center">
+                                                <span class="badge bg-light text-dark border">
+                                                    <i class="fas fa-list-ol text-muted me-1"></i>{{ stat.count }} épreuve{{ 's' if stat.count > 1 else '' }}
+                                                </span>
+                                            </td>
+                                            <td class="text-center fw-semibold text-secondary">{{ stat.coef }}</td>
                                             <td class="text-end">
                                                 <span class="badge {% if stat.moyenne >= 14 %}bg-success{% elif stat.moyenne >= 10 %}bg-primary{% elif stat.moyenne >= 8 %}bg-warning text-dark{% else %}bg-danger{% endif %} fs-6 px-2 py-1">
                                                     {{ "%.2f"|format(stat.moyenne) }}
                                                 </span>
+                                            </td>
+                                            <td class="text-center" onclick="event.stopPropagation();">
+                                                <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2.5 rounded-pill shadow-xs d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalMatiere_{{ loop.index }}" style="font-size: 0.78rem;">
+                                                    <i class="fas fa-search-plus"></i> Détails
+                                                </button>
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -344,14 +408,15 @@
                                     <tfoot class="table-light fw-bold">
                                         <tr>
                                             <td colspan="3">Moyenne Générale Pondérée</td>
-                                            <td class="text-end text-primary fs-6">{{ "%.2f"|format(moyenne_generale) }} / 20</td>
+                                            <td class="text-end text-primary fs-6">{% if eval_info and eval_info.status == 'non_evalue' %}--{% else %}{{ "%.2f"|format(moyenne_generale) }}{% endif %} / 20</td>
+                                            <td></td>
                                         </tr>
                                     </tfoot>
                                     {% endif %}
                                 </table>
                             </div>
                             {% else %}
-                            <div class="p-4 text-center text-muted">
+                            <div class="p-5 text-center text-muted">
                                 <i class="fas fa-book fa-2x mb-2 opacity-50"></i>
                                 <p class="mb-0 small">Aucune évaluation enregistrée pour le moment.</p>
                             </div>
@@ -360,47 +425,66 @@
                     </div>
                 </div>
 
-                <!-- Journal détaillé de toutes les notes de l'année -->
-                <div class="col-12 col-lg-7">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
-                            <h5 class="h6 fw-bold mb-0 text-primary">
-                                <i class="fas fa-list-ol me-2"></i>Historique Chronologique des Notes
-                            </h5>
-                            <span class="badge bg-light text-dark border">{{ notes|length }} évaluation{{ 's' if notes|length > 1 else '' }}</span>
+                <!-- ================================================================= -->
+                <!-- ONGLET 2 : ASSIDUITÉ & ABSENCES -->
+                <!-- ================================================================= -->
+                <div class="tab-pane fade" id="absencesTabPane" role="tabpanel">
+                    <div class="card border-0 shadow-sm rounded-3 bg-white">
+                        <div class="card-header bg-white border-bottom py-2.5 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <h5 class="h6 fw-bold mb-0 text-primary">
+                                    <i class="fas fa-calendar-times me-2"></i>Registre des Absences & Retards
+                                </h5>
+                                <p class="text-muted small mb-0">Historique des cours ou journées manqués</p>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                    <i class="fas fa-check me-1"></i>{{ absences_justifiees }} justifiée{{ 's' if absences_justifiees > 1 else '' }}
+                                </span>
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                    <i class="fas fa-exclamation me-1"></i>{{ absences_injustifiees }} non justifiée{{ 's' if absences_injustifiees > 1 else '' }}
+                                </span>
+                            </div>
                         </div>
                         <div class="card-body p-0">
-                            {% if notes %}
-                            <div class="table-responsive" style="max-height: 460px; overflow-y: auto;">
+                            {% if absences %}
+                            <div class="table-responsive" style="max-height: 420px; overflow-y: auto;">
                                 <table class="table table-hover align-middle mb-0">
                                     <thead class="table-light small sticky-top">
                                         <tr>
                                             <th>Date</th>
-                                            <th>Matière</th>
-                                            <th>Type d'éval</th>
-                                            <th class="text-center">Coef</th>
-                                            <th class="text-end">Note / 20</th>
+                                            <th>Matière / Cours</th>
+                                            <th>Motif renseigné</th>
+                                            <th class="text-center">Statut</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for n in notes %}
+                                        {% for a in absences %}
                                         <tr>
-                                            <td class="small text-muted">
-                                                {{ n.date_evaluation.strftime('%d/%m/%Y') if n.date_evaluation else 'N/A' }}
-                                            </td>
                                             <td class="fw-semibold">
-                                                {{ n.cours.nom if n.cours else 'Général' }}
+                                                <i class="far fa-calendar-alt text-muted me-2"></i>
+                                                {{ a.date_absence.strftime('%d/%m/%Y') if a.date_absence else 'N/A' }}
                                             </td>
-                                            <td class="small">
-                                                <span class="badge bg-light text-secondary border">
-                                                    {{ n.type_evaluation or n.periode or 'Évaluation' }}
-                                                </span>
+                                            <td>
+                                                {% if a.cours %}
+                                                <span class="badge bg-light text-dark border">{{ a.cours.nom }}</span>
+                                                {% else %}
+                                                <span class="badge bg-light text-secondary border">Journée complète</span>
+                                                {% endif %}
                                             </td>
-                                            <td class="text-center small text-muted">{{ n.coefficient or 1 }}</td>
-                                            <td class="text-end">
-                                                <span class="fw-bold {% if (n.valeur or 0) >= 14 %}text-success{% elif (n.valeur or 0) >= 10 %}text-primary{% elif (n.valeur or 0) >= 8 %}text-warning{% else %}text-danger{% endif %} fs-6">
-                                                    {{ "%.1f"|format(n.valeur or 0) }}
+                                            <td class="small text-muted">
+                                                {{ a.motif or 'Aucun motif renseigné' }}
+                                            </td>
+                                            <td class="text-center">
+                                                {% if a.justifiee %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check-circle me-1"></i>Justifiée
                                                 </span>
+                                                {% else %}
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-times-circle me-1"></i>Non justifiée
+                                                </span>
+                                                {% endif %}
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -408,309 +492,364 @@
                                 </table>
                             </div>
                             {% else %}
-                            <div class="p-4 text-center text-muted">
-                                <i class="fas fa-edit fa-2x mb-2 opacity-50"></i>
-                                <p class="mb-0 small">Aucune note enregistrée sur cette année.</p>
+                            <div class="p-5 text-center text-muted">
+                                <i class="fas fa-user-check text-success fa-3x mb-3 opacity-75"></i>
+                                <h6 class="fw-bold text-gray-800">Assiduité Parfaite</h6>
+                                <p class="small mb-0">Cet élève ne compte aucune absence enregistrée sur cette année scolaire.</p>
                             </div>
                             {% endif %}
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- ================================================================= -->
-        <!-- ONGLET 2 : ASSIDUITÉ & REGISTRE DES ABSENCES SUR L'ANNÉE -->
-        <!-- ================================================================= -->
-        <div class="tab-pane fade" id="absencesTabPane" role="tabpanel">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <div>
-                        <h5 class="h6 fw-bold mb-0 text-primary">
-                            <i class="fas fa-calendar-times me-2"></i>Registre Annuel des Absences & Retards
-                        </h5>
-                        <p class="text-muted small mb-0">Historique complet de chaque journée ou cours manqué</p>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
-                            <i class="fas fa-check me-1"></i>{{ absences_justifiees }} justifiée{{ 's' if absences_justifiees > 1 else '' }}
-                        </span>
-                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
-                            <i class="fas fa-exclamation me-1"></i>{{ absences_injustifiees }} non justifiée{{ 's' if absences_injustifiees > 1 else '' }}
-                        </span>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    {% if absences %}
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light small">
-                                <tr>
-                                    <th>Date de l'absence</th>
-                                    <th>Matière / Cours</th>
-                                    <th>Motif renseigné</th>
-                                    <th class="text-center">Statut de Justification</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for a in absences %}
-                                <tr>
-                                    <td class="fw-semibold">
-                                        <i class="far fa-calendar-alt text-muted me-2"></i>
-                                        {{ a.date_absence.strftime('%d/%m/%Y') if a.date_absence else 'N/A' }}
-                                    </td>
-                                    <td>
-                                        {% if a.cours %}
-                                        <span class="badge bg-light text-dark border">{{ a.cours.nom }}</span>
-                                        {% else %}
-                                        <span class="badge bg-light text-secondary border">Journée complète</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="small text-muted">
-                                        {{ a.motif or 'Aucun motif renseigné' }}
-                                    </td>
-                                    <td class="text-center">
-                                        {% if a.justifiee %}
-                                        <span class="badge bg-success">
-                                            <i class="fas fa-check-circle me-1"></i>Justifiée
-                                        </span>
-                                        {% else %}
-                                        <span class="badge bg-danger">
-                                            <i class="fas fa-times-circle me-1"></i>Non justifiée
-                                        </span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
+                <!-- ================================================================= -->
+                <!-- ONGLET 3 : FRAIS & PAIEMENTS DE SCOLARITÉ -->
+                <!-- ================================================================= -->
+                {% if current_user.role != 'professeur' %}
+                <div class="tab-pane fade" id="paiementsTabPane" role="tabpanel">
+                    <!-- Échéancier Visuel des Mois Scolaires -->
+                    <div class="card border-0 shadow-sm rounded-3 bg-white mb-3">
+                        <div class="card-header bg-white border-bottom py-2.5 px-3">
+                            <h5 class="h6 fw-bold mb-0 text-primary">
+                                <i class="fas fa-calendar-check me-2"></i>Échéancier Mensuel de la Scolarité
+                            </h5>
+                            <p class="text-muted small mb-0">Suivi des règlements mois par mois</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="row row-cols-3 row-cols-sm-4 row-cols-md-5 row-cols-lg-6 g-2">
+                                {% for item in echeancier %}
+                                <div class="col">
+                                    <div class="p-2 rounded text-center border {% if item.paye %}bg-success-subtle border-success-subtle text-success{% else %}bg-danger-subtle border-danger-subtle text-danger{% endif %}">
+                                        <div class="fw-bold small">{{ item.mois }}</div>
+                                        <div class="small mt-1">
+                                            {% if item.paye %}
+                                            <i class="fas fa-check-circle"></i> Payé
+                                            {% else %}
+                                            <i class="fas fa-clock"></i> Dû
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
                                 {% endfor %}
-                            </tbody>
-                        </table>
+                            </div>
+                        </div>
                     </div>
-                    {% else %}
-                    <div class="p-5 text-center text-muted">
-                        <i class="fas fa-user-check text-success fa-3x mb-3 opacity-75"></i>
-                        <h6 class="fw-bold text-gray-800">Assiduité Parfaite</h6>
-                        <p class="small mb-0">Cet élève ne compte aucune absence enregistrée sur cette année scolaire.</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
 
-        <!-- ================================================================= -->
-        <!-- ONGLET 3 : FRAIS & HISTORIQUE DES PAIEMENTS DE SCOLARITÉ -->
-        <!-- ================================================================= -->
-        {% if current_user.role != 'professeur' %}
-        <div class="tab-pane fade" id="paiementsTabPane" role="tabpanel">
-            <!-- Échéancier Visuel des Mois Scolaires -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-header bg-white border-0 py-3">
-                    <h5 class="h6 fw-bold mb-0 text-primary">
-                        <i class="fas fa-calendar-check me-2"></i>Échéancier Mensuel de la Scolarité
-                    </h5>
-                    <p class="text-muted small mb-0">Suivi mois par mois des règlements de scolarité</p>
+                    <!-- Historique des Versements -->
+                    <div class="card border-0 shadow-sm rounded-3 bg-white">
+                        <div class="card-header bg-white border-bottom py-2.5 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <h5 class="h6 fw-bold mb-0 text-primary">
+                                    <i class="fas fa-receipt me-2"></i>Historique des Reçus & Versements
+                                </h5>
+                                <p class="text-muted small mb-0">Journal chronologique de tous les paiements</p>
+                            </div>
+                            <div>
+                                <span class="badge bg-light text-dark border fs-6">
+                                    Total Réglé : <strong class="text-success">{{ "{:,.0f}".format(total_paye).replace(',', ' ') }} FCFA</strong>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            {% if paiements %}
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light small">
+                                        <tr>
+                                            <th>Date versement</th>
+                                            <th>Mois concerné</th>
+                                            <th>Référence reçu</th>
+                                            <th>Mode</th>
+                                            <th class="text-end">Montant (FCFA)</th>
+                                            <th class="text-center">Statut</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for p in paiements %}
+                                        <tr>
+                                            <td class="fw-semibold">
+                                                <i class="far fa-calendar-alt text-muted me-2"></i>
+                                                {{ p.date_paiement.strftime('%d/%m/%Y') if p.date_paiement else 'N/A' }}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold">
+                                                    {{ p.mois }} {{ p.annee }}
+                                                </span>
+                                            </td>
+                                            <td class="small text-muted font-monospace">
+                                                {{ p.reference or ('REC-' ~ p.id) }}
+                                            </td>
+                                            <td class="small text-muted">
+                                                <i class="fas fa-money-check me-1"></i>{{ p.mode_paiement | capitalize }}
+                                            </td>
+                                            <td class="text-end fw-bold text-dark fs-6">
+                                                {{ "{:,.0f}".format(p.montant or 0).replace(',', ' ') }} F
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check-circle me-1"></i>{{ p.statut | capitalize }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <td colspan="4" class="fw-bold">Total des Frais Annuels</td>
+                                            <td class="text-end fw-bold text-dark fs-6">{{ "{:,.0f}".format(total_frais).replace(',', ' ') }} F</td>
+                                            <td></td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="4" class="fw-bold text-success">Total Encaissé</td>
+                                            <td class="text-end fw-bold text-success fs-6">{{ "{:,.0f}".format(total_paye).replace(',', ' ') }} F</td>
+                                            <td></td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="4" class="fw-bold text-danger">Solde Restant Dû</td>
+                                            <td class="text-end fw-bold text-danger fs-6">{{ "{:,.0f}".format(reste_a_payer).replace(',', ' ') }} F</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="p-5 text-center text-muted">
+                                <i class="fas fa-money-bill-wave text-warning fa-3x mb-3 opacity-50"></i>
+                                <h6 class="fw-bold text-gray-800">Aucun paiement enregistré</h6>
+                                <p class="small mb-0">Aucun versement n'a encore été consigné pour cet élève sur cette année.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="row g-2">
-                        {% for item in echeancier %}
-                        <div class="col-4 col-sm-3 col-md-2 col-lg">
-                            <div class="p-2 rounded text-center border {% if item.paye %}bg-success-subtle border-success-subtle text-success{% else %}bg-danger-subtle border-danger-subtle text-danger{% endif %}">
-                                <div class="fw-bold small">{{ item.mois }}</div>
-                                <div class="fs-6 mt-1">
-                                    {% if item.paye %}
-                                    <i class="fas fa-check-circle"></i> <span class="d-none d-md-inline small">Payé</span>
-                                    {% else %}
-                                    <i class="fas fa-clock"></i> <span class="d-none d-md-inline small">Dû</span>
-                                    {% endif %}
+                {% endif %}
+
+                <!-- ================================================================= -->
+                <!-- ONGLET 4 : COMPLÉMENT FICHE SIGNALÉTIQUE (SANS RÉPÉTITION) -->
+                <!-- ================================================================= -->
+                <div class="tab-pane fade" id="infosTabPane" role="tabpanel">
+                    <div class="card border-0 shadow-sm rounded-3 bg-white">
+                        <div class="card-header bg-white border-bottom py-2.5 px-3">
+                            <h5 class="h6 fw-bold mb-0 text-primary">
+                                <i class="fas fa-id-card me-2"></i>Complément Fiche Administrative & État Civil
+                            </h5>
+                            <p class="text-muted small mb-0">Données complémentaires (sans redondance avec le profil)</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <div class="p-3 bg-light rounded-3 h-100">
+                                        <h6 class="fw-bold text-dark mb-3 small text-uppercase">État Civil Approfondi</h6>
+                                        <ul class="list-unstyled mb-0 small">
+                                            <li class="d-flex justify-content-between py-2 border-bottom">
+                                                <span class="text-muted">Nom complet :</span>
+                                                <strong class="text-dark">{{ eleve.nom }} {{ eleve.prenom }}</strong>
+                                            </li>
+                                            <li class="d-flex justify-content-between py-2 border-bottom">
+                                                <span class="text-muted">Lieu de naissance :</span>
+                                                <strong class="text-dark">{{ eleve.lieu_naissance or 'Non renseigné' }}</strong>
+                                            </li>
+                                            <li class="d-flex justify-content-between py-2 border-bottom">
+                                                <span class="text-muted">Âge :</span>
+                                                <strong class="text-dark">{% if age %}{{ age }} ans{% else %}N/A{% endif %}</strong>
+                                            </li>
+                                            <li class="d-flex justify-content-between py-2">
+                                                <span class="text-muted">Identifiant interne système :</span>
+                                                <span class="font-monospace text-muted">ID-{{ eleve.id }}</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div class="p-3 bg-light rounded-3 h-100">
+                                        <h6 class="fw-bold text-dark mb-3 small text-uppercase">Informations Établissement</h6>
+                                        <ul class="list-unstyled mb-0 small">
+                                            <li class="d-flex justify-content-between py-2 border-bottom">
+                                                <span class="text-muted">Établissement :</span>
+                                                <strong class="text-dark">{{ eleve.ecole.nom if eleve.ecole else 'École active' }}</strong>
+                                            </li>
+                                            <li class="d-flex justify-content-between py-2 border-bottom">
+                                                <span class="text-muted">Salle de classe :</span>
+                                                <strong class="text-dark">
+                                                    {% if inscription_affichee and inscription_affichee.classe and inscription_affichee.classe.salle %}
+                                                        {{ inscription_affichee.classe.salle }}
+                                                    {% else %}
+                                                        Non spécifiée
+                                                    {% endif %}
+                                                </strong>
+                                            </li>
+                                            <li class="d-flex justify-content-between py-2 border-bottom">
+                                                <span class="text-muted">Régime / Statut :</span>
+                                                <strong class="text-dark">{{ eleve.statut | capitalize }}</strong>
+                                            </li>
+                                            <li class="d-flex justify-content-between py-2">
+                                                <span class="text-muted">Compte parent lié :</span>
+                                                <strong class="text-dark">
+                                                    {% if eleve.parent %}
+                                                    <i class="fas fa-check-circle text-success me-1"></i>Lié ({{ eleve.parent.email or eleve.parent.telephone }})
+                                                    {% else %}
+                                                    <span class="text-muted">Non lié à un compte portail</span>
+                                                    {% endif %}
+                                                </strong>
+                                            </li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Historique des Règlements & Reçus -->
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <div>
-                        <h5 class="h6 fw-bold mb-0 text-primary">
-                            <i class="fas fa-receipt me-2"></i>Historique des Reçus & Versements
-                        </h5>
-                        <p class="text-muted small mb-0">Journal chronologique de tous les paiements enregistrés</p>
-                    </div>
-                    <div>
-                        <span class="badge bg-light text-dark border fs-6">
-                            Total Réglé : <strong class="text-success">{{ "{:,.0f}".format(total_paye).replace(',', ' ') }} FCFA</strong>
-                        </span>
-                    </div>
-                </div>
-                <div class="card-body p-0">
-                    {% if paiements %}
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light small">
-                                <tr>
-                                    <th>Date versement</th>
-                                    <th>Mois concerné</th>
-                                    <th>Référence reçu</th>
-                                    <th>Mode de règlement</th>
-                                    <th class="text-end">Montant (FCFA)</th>
-                                    <th class="text-center">Statut</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for p in paiements %}
-                                <tr>
-                                    <td class="fw-semibold">
-                                        <i class="far fa-calendar-alt text-muted me-2"></i>
-                                        {{ p.date_paiement.strftime('%d/%m/%Y') if p.date_paiement else 'N/A' }}
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-semibold">
-                                            {{ p.mois }} {{ p.annee }}
-                                        </span>
-                                    </td>
-                                    <td class="small text-muted font-monospace">
-                                        {{ p.reference or ('REC-' ~ p.id) }}
-                                    </td>
-                                    <td class="small text-muted">
-                                        <i class="fas fa-money-check me-1"></i>{{ p.mode_paiement | capitalize }}
-                                    </td>
-                                    <td class="text-end fw-bold text-dark fs-6">
-                                        {{ "{:,.0f}".format(p.montant or 0).replace(',', ' ') }} F
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge bg-success">
-                                            <i class="fas fa-check-circle me-1"></i>{{ p.statut | capitalize }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                            <tfoot class="table-light">
-                                <tr>
-                                    <td colspan="4" class="fw-bold">Total des Frais Annuels</td>
-                                    <td class="text-end fw-bold text-dark fs-6">{{ "{:,.0f}".format(total_frais).replace(',', ' ') }} F</td>
-                                    <td></td>
-                                </tr>
-                                <tr>
-                                    <td colspan="4" class="fw-bold text-success">Total Encaissé</td>
-                                    <td class="text-end fw-bold text-success fs-6">{{ "{:,.0f}".format(total_paye).replace(',', ' ') }} F</td>
-                                    <td></td>
-                                </tr>
-                                <tr>
-                                    <td colspan="4" class="fw-bold text-danger">Solde Restant Dû</td>
-                                    <td class="text-end fw-bold text-danger fs-6">{{ "{:,.0f}".format(reste_a_payer).replace(',', ' ') }} F</td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="p-5 text-center text-muted">
-                        <i class="fas fa-money-bill-wave text-warning fa-3x mb-3 opacity-50"></i>
-                        <h6 class="fw-bold text-gray-800">Aucun paiement enregistré</h6>
-                        <p class="small mb-0">Aucun reçu de paiement n'est actuellement consigné pour cet élève sur l'année.</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- ================================================================= -->
-        <!-- ONGLET 4 : FICHE SIGNALÉTIQUE ADMINISTRATIVE COMPLÈTE -->
-        <!-- ================================================================= -->
-        <div class="tab-pane fade" id="infosTabPane" role="tabpanel">
-            <div class="row g-4">
-                <div class="col-12 col-md-6">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-header bg-white border-0 py-3">
-                            <h5 class="h6 fw-bold mb-0 text-primary">
-                                <i class="fas fa-id-card me-2"></i>État Civil & Données Personnelles
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <ul class="list-group list-group-flush small">
-                                <li class="list-group-item d-flex justify-content-between px-0 py-2">
-                                    <span class="text-muted">Nom de famille :</span>
-                                    <strong class="text-dark">{{ eleve.nom }}</strong>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between px-0 py-2">
-                                    <span class="text-muted">Prénom(s) :</span>
-                                    <strong class="text-dark">{{ eleve.prenom }}</strong>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between px-0 py-2">
-                                    <span class="text-muted">Date de naissance :</span>
-                                    <strong class="text-dark">{{ eleve.date_naissance.strftime('%d/%m/%Y') if eleve.date_naissance else 'Non renseignée' }}</strong>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between px-0 py-2">
-                                    <span class="text-muted">Lieu de naissance :</span>
-                                    <strong class="text-dark">{{ eleve.lieu_naissance or 'Non renseigné' }}</strong>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between px-0 py-2">
-                                    <span class="text-muted">Genre / Sexe :</span>
-                                    <strong class="text-dark">{{ 'Masculin (M)' if eleve.genre == 'M' else 'Féminin (F)' if eleve.genre == 'F' else eleve.genre }}</strong>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between px-0 py-2">
-                                    <span class="text-muted">?ge :</span>
-                                    <strong class="text-dark">{% if age %}{{ age }} ans{% else %}N/A{% endif %}</strong>
-                                </li>
-                            </ul>
-                        </div>
                     </div>
                 </div>
 
-                <div class="col-12 col-md-6">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-header bg-white border-0 py-3">
-                            <h5 class="h6 fw-bold mb-0 text-primary">
-                                <i class="fas fa-school me-2"></i>Scolarité & Contact Familial
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <ul class="list-group list-group-flush small">
-                                <li class="list-group-item d-flex justify-content-between px-0 py-2">
-                                    <span class="text-muted">Classe actuelle :</span>
-                                    <strong class="text-primary">
-                                        {% if eleve.inscription_active and eleve.inscription_active.classe %}
-                                        {{ eleve.inscription_active.classe.nom }}
-                                        {% else %}
-                                        Aucune inscription pour l'année active
-                                        {% endif %}
-                                    </strong>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between px-0 py-2">
-                                    <span class="text-muted">Établissement :</span>
-                                    <strong class="text-dark">{{ eleve.ecole.nom if eleve.ecole else 'École active' }}</strong>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between px-0 py-2">
-                                    <span class="text-muted">Parent / Tuteur :</span>
-                                    <strong class="text-dark">{{ eleve.parent.nom ~ ' ' ~ eleve.parent.prenom if eleve.parent else 'Non lié à un compte' }}</strong>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between px-0 py-2">
-                                    <span class="text-muted">Contact Téléphonique :</span>
-                                    <strong class="text-dark">{{ eleve.contact_parent or (eleve.parent.telephone if eleve.parent else 'N/A') }}</strong>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between px-0 py-2">
-                                    <span class="text-muted">Adresse Email Parent :</span>
-                                    <strong class="text-dark">{{ eleve.email_parent or (eleve.parent.email if eleve.parent else 'N/A') }}</strong>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between px-0 py-2">
-                                    <span class="text-muted">Adresse Résidentielle :</span>
-                                    <strong class="text-dark">{{ eleve.adresse or 'Non renseignée' }}</strong>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- ================================================================= -->
+<!-- MODAUX POP-UP : DÉTAIL DES ÉVALUATIONS PAR MATIÈRE ET PAR SEMESTRE -->
+<!-- ================================================================= -->
+{% if matieres_stats %}
+{% for mat, stat in matieres_stats.items() %}
+{% set mat_idx = loop.index %}
+<div class="modal fade" id="modalMatiere_{{ mat_idx }}" tabindex="-1" aria-labelledby="modalMatiereLabel_{{ mat_idx }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding: 1.1rem 1.4rem;">
+                <div>
+                    <h5 class="modal-title fw-bold mb-1 d-flex align-items-center gap-2" id="modalMatiereLabel_{{ mat_idx }}">
+                        <i class="fas fa-book-open"></i> {{ mat }}
+                    </h5>
+                    <div class="d-flex align-items-center gap-2 flex-wrap small">
+                        <span class="badge bg-white text-primary fw-bold">Moyenne annuelle : {{ "%.2f"|format(stat.moyenne) }} / 20</span>
+                        <span class="badge bg-white-subtle text-white border border-light-subtle">Coef {{ stat.coef }}</span>
+                        <span class="badge bg-white-subtle text-white border border-light-subtle">{{ stat.count }} évaluation(s)</span>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body p-3 p-md-4">
+                {% if stat.periodes and stat.periodes|length > 1 %}
+                <!-- Navigation par Semestres / Trimestres -->
+                <ul class="nav nav-pills gap-2 mb-3 bg-light p-1 rounded-3" id="pillsPeriodes_{{ mat_idx }}" role="tablist">
+                    {% for p_key, p_val in stat.periodes.items() %}
+                    <li class="nav-item flex-fill" role="presentation">
+                        <button class="nav-link w-100 fw-semibold py-2 {% if loop.first %}active{% endif %}" 
+                                id="pill-btn-{{ mat_idx }}-{{ loop.index }}" 
+                                data-bs-toggle="pill" 
+                                data-bs-target="#pill-pane-{{ mat_idx }}-{{ loop.index }}" 
+                                type="button" role="tab">
+                            {{ p_val.nom }}
+                            <span class="badge bg-white text-primary ms-1">{{ "%.2f"|format(p_val.moyenne) }}/20</span>
+                        </button>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="tab-content" id="pillsPeriodesContent_{{ mat_idx }}">
+                    {% for p_key, p_val in stat.periodes.items() %}
+                    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="pill-pane-{{ mat_idx }}-{{ loop.index }}" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light small">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type d'épreuve</th>
+                                        <th class="text-center">Coefficient</th>
+                                        <th class="text-end">Note / 20</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for n in p_val.notes %}
+                                    <tr>
+                                        <td class="small text-muted">
+                                            <i class="far fa-calendar-alt me-1 text-muted"></i>
+                                            {{ n.date_evaluation.strftime('%d/%m/%Y') if n.date_evaluation else 'N/A' }}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark border">
+                                                {{ n.type_evaluation or 'Évaluation' }}
+                                            </span>
+                                        </td>
+                                        <td class="text-center small text-muted">{{ n.coefficient or 1 }}</td>
+                                        <td class="text-end">
+                                            <span class="fw-bold {% if (n.valeur or 0) >= 14 %}text-success{% elif (n.valeur or 0) >= 10 %}text-primary{% elif (n.valeur or 0) >= 8 %}text-warning{% else %}text-danger{% endif %} fs-6">
+                                                {{ "%.1f"|format(n.valeur or 0) }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <td colspan="3" class="fw-bold text-dark">Sous-moyenne {{ p_val.nom }}</td>
+                                        <td class="text-end fw-bold text-primary fs-6">{{ "%.2f"|format(p_val.moyenne) }} / 20</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% elif stat.notes %}
+                <!-- Période unique -->
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small">
+                            <tr>
+                                <th>Date</th>
+                                <th>Période</th>
+                                <th>Type d'épreuve</th>
+                                <th class="text-center">Coefficient</th>
+                                <th class="text-end">Note / 20</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for n in stat.notes %}
+                            <tr>
+                                <td class="small text-muted">
+                                    <i class="far fa-calendar-alt me-1 text-muted"></i>
+                                    {{ n.date_evaluation.strftime('%d/%m/%Y') if n.date_evaluation else 'N/A' }}
+                                </td>
+                                <td class="small text-secondary fw-semibold">{{ n.periode or 'Annuelle' }}</td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">
+                                        {{ n.type_evaluation or 'Évaluation' }}
+                                    </span>
+                                </td>
+                                <td class="text-center small text-muted">{{ n.coefficient or 1 }}</td>
+                                <td class="text-end">
+                                    <span class="fw-bold {% if (n.valeur or 0) >= 14 %}text-success{% elif (n.valeur or 0) >= 10 %}text-primary{% elif (n.valeur or 0) >= 8 %}text-warning{% else %}text-danger{% endif %} fs-6">
+                                        {{ "%.1f"|format(n.valeur or 0) }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <td colspan="4" class="fw-bold text-dark">Moyenne de la matière</td>
+                                <td class="text-end fw-bold text-primary fs-6">{{ "%.2f"|format(stat.moyenne) }} / 20</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    <i class="fas fa-edit fa-2x mb-2 opacity-50"></i>
+                    <p class="mb-0 small">Aucune évaluation enregistrée pour cette matière.</p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer bg-light px-4 py-2.5 border-0">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
 {% if not est_inscrit_annee_active and annee_active and current_user.role in ['admin', 'super_admin'] %}
-<!-- Modal Réintégrer l'élève pour l'année en cours -->
+<!-- Modal Réintégrer l'élève pour l'année en cours (Droit à l'erreur) -->
 <div class="modal fade" id="modalReinscrireEleve" tabindex="-1" aria-labelledby="modalReinscrireEleveLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
@@ -804,6 +943,7 @@
 {% endif %}
 
 <style>
+/* Tuiles d'inscription */
 .status-tile {
     transition: all 0.2s ease-in-out;
 }
@@ -816,6 +956,84 @@
     background-color: #f5f3ff !important;
     box-shadow: 0 0 0 1px #4f46e5;
 }
+
+/* =========================================================================
+   STYLE VISIBILITÉ & RESPONSIVE DES ONGLETS (Neutralisation de base.html)
+   ========================================================================= */
+#dossierTabs {
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+}
+#dossierTabs .nav-item {
+    flex-shrink: 0;
+}
+
+/* Les 4 boutons d'onglets - Forçage strict de visibilité */
+#dossierTabs .nav-link,
+ul#dossierTabs li.nav-item button.nav-link,
+ul#dossierTabs li.nav-item button.nav-link:not(.active) {
+    color: #1e293b !important;
+    background-color: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    padding: 0.52rem 0.95rem !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.45rem !important;
+    white-space: nowrap !important;
+    transition: all 0.15s ease-in-out !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+#dossierTabs .nav-link:hover,
+ul#dossierTabs li.nav-item button.nav-link:hover {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    border-color: #94a3b8 !important;
+    transform: translateY(-1px);
+}
+
+/* Onglet actif : bleu roi élégant */
+#dossierTabs .nav-link.active,
+ul#dossierTabs li.nav-item button.nav-link.active {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%) !important;
+    color: #ffffff !important;
+    border-color: #1e3a8a !important;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.28) !important;
+}
+
+#dossierTabs .nav-link.active i {
+    color: #ffffff !important;
+}
+
+/* Badges compteurs dans les onglets */
+#dossierTabs .nav-link .tab-badge,
+#dossierTabs .nav-link .badge {
+    font-size: 0.74rem !important;
+    padding: 0.2em 0.55em !important;
+    border-radius: 6px !important;
+    background-color: #e2e8f0 !important;
+    color: #334155 !important;
+    border: 1px solid #cbd5e1 !important;
+    font-weight: 600 !important;
+}
+
+#dossierTabs .nav-link.active .tab-badge,
+#dossierTabs .nav-link.active .badge {
+    background-color: #ffffff !important;
+    color: #1e3a8a !important;
+    border-color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+/* Ombres douces pour uniformité */
+.shadow-xs {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Impression propre */
 @media print {
     .no-print {
         display: none !important;

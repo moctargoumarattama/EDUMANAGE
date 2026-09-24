@@ -423,6 +423,57 @@ class TestQuickWinsPassageAnnee(unittest.TestCase):
         # Vérifier que le radio de redoublement est checked
         self.assertIn('id="decision_redoublement" value="redoublement" checked', html)
 
+    def test_annee_archivee_non_modifiable_et_consultation_seule(self):
+        """Vérifie qu'une année archivée ne peut pas être modifiée (dates, semestres) et est en consultation seule."""
+        annee_archivee = AnneeScolaire(
+            ecole_id=self.ecole.id,
+            nom="2024-2025",
+            date_debut=date(2024, 9, 1),
+            date_fin=date(2025, 6, 30),
+            statut="archivee",
+        )
+        db.session.add(annee_archivee)
+        db.session.commit()
+
+        self._login()
+
+        # 1. Tentative de configuration des semestres sur l'année archivée
+        res_sem = self.client.post(
+            f"/annees/{annee_archivee.id}/semestres",
+            data={"fin_semestre_1": "2025-01-31"},
+            follow_redirects=True,
+        )
+        self.assertEqual(res_sem.status_code, 200)
+        html_sem = res_sem.get_data(as_text=True)
+        self.assertIn("archivée", html_sem)
+        self.assertIn("lecture seule", html_sem)
+
+        # 2. Tentative de modification des dates / nom
+        res_mod = self.client.post(
+            f"/annees/{annee_archivee.id}/modifier",
+            data={
+                "annee_scolaire": "2024-2025",
+                "date_debut": "2024-09-02",
+                "date_fin": "2025-06-29",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(res_mod.status_code, 200)
+        html_mod = res_mod.get_data(as_text=True)
+        self.assertIn("archivée", html_mod)
+        self.assertIn("lecture seule", html_mod)
+
+        # 3. Vérification du rendu HTML de la page gestion des années
+        res_page = self.client.get("/annees")
+        self.assertEqual(res_page.status_code, 200)
+        html_page = res_page.get_data(as_text=True)
+
+        # L'année archivée apparaît bien avec son badge
+        self.assertIn("2024-2025", html_page)
+        self.assertIn("ARCHIVÉE", html_page)
+        # Elle propose de la consulter
+        self.assertIn("Consulter cette année", html_page)
+
 
 if __name__ == "__main__":
     unittest.main()

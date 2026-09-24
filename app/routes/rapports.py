@@ -614,6 +614,8 @@ def recherche():
                 classe = inscription.classe
                 ecole = inscription.ecole
                 historiques.setdefault(inscription.eleve_id, []).append({
+                    'inscription_id': inscription.id,
+                    'annee_id': annee.id if annee else None,
                     'annee': annee.nom if annee else '',
                     'annee_statut': annee.statut if annee else '',
                     'classe': classe.nom if classe else '',

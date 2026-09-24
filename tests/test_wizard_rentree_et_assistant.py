@@ -512,6 +512,54 @@ class TestWizardRentreeEtAssistant(unittest.TestCase):
         ).first()
         self.assertIsNone(insc_apres)
 
+    def test_ouvrir_rentree_automatique_et_garde_fou(self):
+        """Vérifie l'ouverture automatique en 1 clic de la rentrée suivante et le garde-fou 1 seule rentrée."""
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = self.admin.id
+            sess["_user_id"] = str(self.admin.id)
+            sess["role"] = "admin"
+            sess["ecole_id"] = self.ecole.id
+
+        # 1. Supprimer l'annee cible existante pour tester l'ouverture depuis l'année active
+        if self.annee_cible:
+            Inscription.query.filter_by(annee_scolaire_id=self.annee_cible.id).delete()
+            Classe.query.filter_by(annee_scolaire_id=self.annee_cible.id).delete()
+            db.session.delete(self.annee_cible)
+            db.session.commit()
+
+        # 2. Ouvrir la rentrée suivante en 1 clic
+        resp = self.client.post(
+            "/annees",
+            data={"action": "ouvrir_rentree", "ecole_id": self.ecole.id},
+            follow_redirects=True
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("créée avec succès", resp.get_data(as_text=True))
+
+        # Vérifier en base
+        annee_creee = AnneeScolaire.query.filter_by(ecole_id=self.ecole.id, statut="planifiee").first()
+        self.assertIsNotNone(annee_creee)
+        self.assertEqual(annee_creee.nom, "2025-2026")
+        self.assertEqual(annee_creee.statut, "planifiee")
+
+        # 3. Garde-fou : tenter d'ouvrir à nouveau une rentrée alors qu'une est déjà planifiée
+        resp_bloque = self.client.post(
+            "/annees",
+            data={"action": "ouvrir_rentree", "ecole_id": self.ecole.id},
+            follow_redirects=True
+        )
+        self.assertEqual(resp_bloque.status_code, 200)
+        self.assertIn("déjà en cours de préparation", resp_bloque.get_data(as_text=True))
+
+        # 4. Annuler la rentrée planifiée
+        resp_suppr = self.client.post(
+            f"/annees/{annee_creee.id}/supprimer",
+            follow_redirects=True
+        )
+        self.assertEqual(resp_suppr.status_code, 200)
+        self.assertIn("a été annulée avec succès", resp_suppr.get_data(as_text=True))
+        self.assertIsNone(db.session.get(AnneeScolaire, annee_creee.id))
+
 
 if __name__ == "__main__":
     unittest.main()

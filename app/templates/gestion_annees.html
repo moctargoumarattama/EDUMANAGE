@@ -24,61 +24,84 @@
         </div>
     </div>
 
-    <!-- Formulaire Nouvelle Année -->
-    <section class="card shadow-sm border-0 mb-4">
-        <div class="card-body p-4">
-            <h2 class="h5 fw-bold mb-3 text-primary d-flex align-items-center gap-2">
-                <i class="fas fa-plus-circle"></i>Nouvelle année scolaire
-            </h2>
-            <form method="POST" action="{{ url_for('main.gestion_annees') }}" class="row g-3 needs-validation" novalidate>
-                {{ csrf_form.hidden_tag() }}
-
-                {% if ecoles|length == 1 %}
-                    <input type="hidden" name="ecole_id" value="{{ ecoles[0].id }}">
-                    <div class="col-12 col-md-3">
-                        <label class="form-label fw-semibold">Établissement</label>
-                        <input type="text" class="form-control bg-light" value="{{ ecoles[0].nom }}" disabled>
-                    </div>
-                {% else %}
-                    <div class="col-12 col-md-3">
-                        <label class="form-label fw-semibold">Établissement <span class="text-danger">*</span></label>
-                        <select name="ecole_id" class="form-select" required>
-                            <option value="">Sélectionner</option>
-                            {% for ecole in ecoles %}
-                                <option value="{{ ecole.id }}">{{ ecole.nom }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                {% endif %}
-
-                <div class="col-12 col-md-3">
-                    <label class="form-label fw-semibold" for="annee_scolaire">Année scolaire <span class="text-danger">*</span></label>
-                    <input type="text" name="annee_scolaire" id="annee_scolaire" class="form-control fw-bold" placeholder="Ex: 2026-2027" autocomplete="off" required>
-                    <div class="form-text small text-muted">Ex: 2026-2027 (Auto-rempli si vous choisissez les dates)</div>
+    <!-- 🟢 BLOC 1 : AUJOURD'HUI (Année active) -->
+    {% if annee_active %}
+    <div class="card border-0 shadow-sm rounded-3 mb-3 overflow-hidden" style="background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%); border-left: 4px solid #16a34a !important;">
+        <div class="card-body p-3 p-md-3.5 d-flex align-items-center gap-3">
+            <div class="p-2.5 bg-success text-white rounded-circle shadow-xs flex-shrink-0">
+                <i class="fas fa-school-flag fa-lg"></i>
+            </div>
+            <div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="badge bg-success text-white px-2.5 py-0.5 small fw-bold">ANNÉE EN COURS</span>
+                    <span class="h6 fw-bold mb-0 text-dark">{{ annee_active.nom }}</span>
+                    <small class="text-muted">({{ annee_active.date_debut.strftime('%d/%m/%Y') }} ➔ {{ annee_active.date_fin.strftime('%d/%m/%Y') }})</small>
                 </div>
-
-                <div class="col-6 col-md-2">
-                    <label class="form-label fw-semibold">Date de début <span class="text-danger">*</span></label>
-                    <input type="date" name="date_debut" class="form-control" required>
+                <div class="text-muted small mt-1" style="font-size: 0.82rem;">
+                    Toutes les activités quotidiennes (cours, présences, notes) sont actives sur cette année.
                 </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label fw-semibold">Date de fin <span class="text-danger">*</span></label>
-                    <input type="date" name="date_fin" class="form-control" required>
-                </div>
-
-                <div class="col-12 col-md-2 d-flex align-items-end">
-                    <input type="hidden" name="action" value="ajouter">
-                    <button type="submit" class="btn btn-primary w-100 py-2 shadow-sm">
-                        <i class="fas fa-plus me-2"></i>Créer l'année
-                    </button>
-                </div>
-            </form>
+            </div>
         </div>
-    </section>
+    </div>
+    {% endif %}
+
+    <!-- 🚀 BLOC 2 : DEMAIN (La Nouvelle Rentrée Scolaire - Action Unique) -->
+    <div class="card border-0 shadow-sm rounded-3 mb-4 overflow-hidden" style="background: linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%); border-left: 4px solid #7c3aed !important;">
+        <div class="card-body p-3 p-md-3.5 d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="p-2.5 text-white rounded-circle shadow-xs flex-shrink-0" style="background-color: #7c3aed !important;">
+                    <i class="fas fa-rocket fa-lg"></i>
+                </div>
+                <div>
+                    {% if annee_planifiee %}
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="badge text-white px-2.5 py-0.5 small fw-bold" style="background-color: #7c3aed;">RENTREE EN PRÉPARATION</span>
+                            <span class="h6 fw-bold mb-0 text-dark">{{ annee_planifiee.nom }}</span>
+                            <small class="text-muted">({{ annee_planifiee.date_debut.strftime('%d/%m/%Y') }} ➔ {{ annee_planifiee.date_fin.strftime('%d/%m/%Y') }})</small>
+                        </div>
+                        <div class="text-muted small mt-1" style="font-size: 0.82rem;">
+                            La rentrée est en cours de préparation. Suivez l'assistant pour valider les classes et le passage des élèves.
+                        </div>
+                    {% else %}
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-0.5 small fw-bold">PROCHAINE RENTRÉE</span>
+                            <span class="h6 fw-bold mb-0 text-dark">Rentrée {{ nom_prochaine_annee }}</span>
+                        </div>
+                        <div class="text-muted small mt-1" style="font-size: 0.82rem;">
+                            C'est la fin d'année ? Cliquez sur le bouton pour initialiser la rentrée et lancer l'assistant guidé pas-à-pas.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- UN SEUL BOUTON UNIQUE D'ACTION -->
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                {% if annee_planifiee %}
+                    <a href="{{ url_for('main.onboarding_rentree', cible_id=annee_planifiee.id) }}" class="btn text-white rounded-pill px-4 py-2.5 fw-bold shadow-sm" style="background-color: #7c3aed;">
+                        <i class="fas fa-arrow-right me-1.5"></i>Continuer la rentrée {{ annee_planifiee.nom }}
+                    </a>
+                    <form method="POST" action="{{ url_for('main.supprimer_annee_planifiee', annee_id=annee_planifiee.id) }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir annuler la préparation de la rentrée {{ annee_planifiee.nom }} ?');">
+                        {{ csrf_form.hidden_tag() }}
+                        <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3 py-2 fw-semibold" title="Annuler cette rentrée si erreur">
+                            <i class="fas fa-trash-alt me-1"></i>Annuler
+                        </button>
+                    </form>
+                {% else %}
+                    <form method="POST" action="{{ url_for('main.gestion_annees') }}" class="m-0">
+                        {{ csrf_form.hidden_tag() }}
+                        <input type="hidden" name="action" value="ouvrir_rentree">
+                        <button type="submit" class="btn text-white rounded-pill px-4 py-2.5 fw-bold shadow-sm" style="background-color: #7c3aed;">
+                            <i class="fas fa-rocket me-1.5"></i>Préparer la rentrée {{ nom_prochaine_annee }}
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 
     {% if annees %}
     <!-- Tableau Desktop & Filtres -->
-    <div class="card shadow-sm border-0 mb-4 d-none d-lg-block">
+    <div class="card shadow-sm border-0 mb-4 d-none d-lg-block" style="overflow: visible !important;">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div class="d-flex align-items-center gap-2">
                 <h2 class="h5 mb-0 fw-bold">Historique des années</h2>
@@ -100,12 +123,14 @@
                 </button>
             </div>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
+        <div class="card-body p-0" style="overflow: visible !important;">
+            <div class="table-responsive" style="overflow: visible !important; min-height: 240px;">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
+                            {% if ecoles|length > 1 %}
                             <th>Établissement</th>
+                            {% endif %}
                             <th>Année</th>
                             <th>Début</th>
                             <th>Fin</th>
@@ -116,14 +141,16 @@
                     </thead>
                     <tbody id="anneesTableBody">
                         <tr id="emptyAnneesRow" class="d-none">
-                            <td colspan="7" class="text-center py-4 text-muted">
+                            <td colspan="{{ 7 if ecoles|length > 1 else 6 }}" class="text-center py-4 text-muted">
                                 <i class="fas fa-search fa-2x mb-2 d-block"></i>
                                 Aucune année ne correspond aux critères de recherche.
                             </td>
                         </tr>
                         {% for annee in annees %}
                         <tr class="annee-row" data-nom="{{ annee.nom | lower }}" data-statut="{{ annee.statut }}" data-ecole="{{ annee.ecole.nom | lower if annee.ecole else '' }}">
+                            {% if ecoles|length > 1 %}
                             <td>{{ annee.ecole.nom }}</td>
+                            {% endif %}
                             <td><strong class="fs-6 text-dark">{{ annee.nom }}</strong></td>
                             <td>{{ annee.date_debut.strftime('%d/%m/%Y') }}</td>
                             <td>{{ annee.date_fin.strftime('%d/%m/%Y') }}</td>
@@ -146,45 +173,104 @@
                                     {% if periode.nom == 'Semestre 1' %}{% set ns.s1 = periode %}{% endif %}
                                     {% if periode.nom == 'Semestre 2' %}{% set ns.s2 = periode %}{% endif %}
                                 {% endfor %}
-                                <div class="small mb-2">
-                                    <div class="text-nowrap"><span class="badge bg-light text-dark border me-1">S1</span>{{ ns.s1.date_debut.strftime('%d/%m/%Y') if ns.s1 and ns.s1.date_debut else '-' }} <i class="fas fa-arrow-right text-muted small mx-1"></i> {{ ns.s1.date_fin.strftime('%d/%m/%Y') if ns.s1 and ns.s1.date_fin else '-' }}</div>
-                                    <div class="text-nowrap mt-1"><span class="badge bg-light text-dark border me-1">S2</span>{{ ns.s2.date_debut.strftime('%d/%m/%Y') if ns.s2 and ns.s2.date_debut else '-' }} <i class="fas fa-arrow-right text-muted small mx-1"></i> {{ ns.s2.date_fin.strftime('%d/%m/%Y') if ns.s2 and ns.s2.date_fin else '-' }}</div>
+                                <div class="small">
+                                    <div class="text-nowrap text-muted" style="font-size: 0.78rem;">
+                                        <span class="badge bg-light text-dark border me-1">S1</span>{{ ns.s1.date_debut.strftime('%d/%m/%Y') if ns.s1 and ns.s1.date_debut else '-' }} <i class="fas fa-arrow-right text-muted small mx-1"></i> {{ ns.s1.date_fin.strftime('%d/%m/%Y') if ns.s1 and ns.s1.date_fin else '-' }}
+                                    </div>
+                                    <div class="text-nowrap text-muted mt-1" style="font-size: 0.78rem;">
+                                        <span class="badge bg-light text-dark border me-1">S2</span>{{ ns.s2.date_debut.strftime('%d/%m/%Y') if ns.s2 and ns.s2.date_debut else '-' }} <i class="fas fa-arrow-right text-muted small mx-1"></i> {{ ns.s2.date_fin.strftime('%d/%m/%Y') if ns.s2 and ns.s2.date_fin else '-' }}
+                                    </div>
                                 </div>
-                                {% if annee.statut != 'archivee' %}
-                                <button type="button" class="btn btn-xs btn-outline-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalSemestres{{ annee.id }}">
-                                    <i class="fas fa-calendar-week me-1"></i>{% if ns.s1 and ns.s1.date_fin %}Modifier semestres{% else %}Configurer semestres{% endif %}
-                                </button>
-                                {% else %}
-                                    <span class="badge bg-light text-muted border"><i class="fas fa-lock me-1"></i>Lecture seule</span>
-                                {% endif %}
                             </td>
                             <td class="text-end">
-                                <div class="btn-group btn-group-sm flex-wrap gap-1" role="group">
-                                    {% if annee.statut == 'planifiee' %}
-                                    <a href="{{ url_for('main.onboarding_rentree', cible_id=annee.id) }}" class="btn btn-primary fw-semibold shadow-sm">
-                                        <i class="fas fa-magic me-1"></i>Préparer
-                                    </a>
-                                    {% endif %}
-                                    {% if annee.statut != 'archivee' %}
-                                    <button type="button" class="btn btn-outline-warning btn-modifier-annee"
-                                        data-bs-toggle="modal" data-bs-target="#modalModifierAnnee"
-                                        data-annee-id="{{ annee.id }}"
-                                        data-annee-nom="{{ annee.nom }}"
-                                        data-date-debut="{{ annee.date_debut.strftime('%Y-%m-%d') }}"
-                                        data-date-fin="{{ annee.date_fin.strftime('%Y-%m-%d') }}"
-                                        title="Modifier l'année">
-                                        <i class="fas fa-edit me-1"></i>Modifier
+                                <div class="dropdown d-inline-block">
+                                    <button class="btn btn-sm btn-light border rounded-pill px-2.5 py-1 text-muted shadow-xs dropdown-toggle-actions" type="button" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-display="dynamic" aria-expanded="false" title="Actions et réglages">
+                                        <i class="fas fa-ellipsis-v"></i>
                                     </button>
-                                    {% endif %}
-                                    <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}" class="d-inline">
-                                        {{ csrf_form.hidden_tag() }}
-                                        <button type="submit" class="btn btn-outline-success">Consulter</button>
-                                    </form>
-                                    {% if annee.statut != 'planifiee' %}
-                                    <a href="{{ url_for('main.structure_annee', annee_id=annee.id) }}" class="btn btn-outline-secondary">
-                                        <i class="fas fa-layer-group me-1"></i>Structure
-                                    </a>
-                                    {% endif %}
+                                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-2" style="min-width: 220px; z-index: 1060;">
+                                        {% if annee.statut == 'archivee' %}
+                                            <li class="dropdown-header text-muted small py-1"><i class="fas fa-lock me-1"></i>Année archivée (lecture seule)</li>
+                                            {% if not annee_consultee or annee.id != annee_consultee.id %}
+                                            <li>
+                                                <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}" class="d-inline w-100">
+                                                    {{ csrf_form.hidden_tag() }}
+                                                    <button type="submit" class="dropdown-item py-2 fw-semibold text-primary">
+                                                        <i class="fas fa-eye me-2"></i>Consulter cette année
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            {% else %}
+                                            <li>
+                                                <span class="dropdown-item py-2 text-muted disabled">
+                                                    <i class="fas fa-check-circle text-success me-2"></i>En cours de consultation
+                                                </span>
+                                            </li>
+                                            {% endif %}
+                                        {% else %}
+                                            {% if annee.statut == 'planifiee' %}
+                                            <li>
+                                                <a href="{{ url_for('main.onboarding_rentree', cible_id=annee.id) }}" class="dropdown-item py-2 fw-bold text-primary">
+                                                    <i class="fas fa-rocket me-2"></i>Préparer cette rentrée
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider my-1"></li>
+                                            {% endif %}
+                                            <li>
+                                                <button type="button" class="dropdown-item btn-modifier-annee py-2"
+                                                    data-bs-toggle="modal" data-bs-target="#modalModifierAnnee"
+                                                    data-annee-id="{{ annee.id }}"
+                                                    data-annee-nom="{{ annee.nom }}"
+                                                    data-date-debut="{{ annee.date_debut.strftime('%Y-%m-%d') }}"
+                                                    data-date-fin="{{ annee.date_fin.strftime('%Y-%m-%d') }}">
+                                                    <i class="fas fa-pen text-warning me-2"></i>Modifier dates / nom
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button type="button" class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#modalSemestres{{ annee.id }}">
+                                                    <i class="fas fa-calendar-week text-primary me-2"></i>Modifier semestres
+                                                </button>
+                                            </li>
+                                            {% if not annee_consultee or annee.id != annee_consultee.id %}
+                                            <li>
+                                                <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}" class="d-inline w-100">
+                                                    {{ csrf_form.hidden_tag() }}
+                                                    <button type="submit" class="dropdown-item py-2">
+                                                        <i class="fas fa-eye text-info me-2"></i>Consulter l'année
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            {% endif %}
+                                            <li>
+                                                <a href="{{ url_for('main.structure_annee', annee_id=annee.id) }}" class="dropdown-item py-2">
+                                                    <i class="fas fa-layer-group text-secondary me-2"></i>Structure des classes
+                                                </a>
+                                            </li>
+                                            {% set src_passage = sources_passage_par_cible.get(annee.id) if sources_passage_par_cible else None %}
+                                            {% if annee.statut == 'planifiee' and src_passage %}
+                                            <li><hr class="dropdown-divider my-1"></li>
+                                            <li>
+                                                <button type="button" class="dropdown-item py-2 text-muted btn-passage-global-modal small" 
+                                                        data-bs-toggle="modal" data-bs-target="#modalAvertissementPassageGlobal"
+                                                        data-url-onboarding="{{ url_for('main.onboarding_rentree', cible_id=annee.id) }}"
+                                                        data-url-passage="{{ url_for('main.passage_annee', source_id=src_passage.id, cible_id=annee.id) }}"
+                                                        data-annee-nom="{{ annee.nom }}">
+                                                    <i class="fas fa-sliders-h me-2"></i>Tableau de passage global (expert)
+                                                </button>
+                                            </li>
+                                            {% endif %}
+                                            {% if annee.statut == 'planifiee' %}
+                                            <li><hr class="dropdown-divider my-1"></li>
+                                            <li>
+                                                <form method="POST" action="{{ url_for('main.supprimer_annee_planifiee', annee_id=annee.id) }}" class="d-inline w-100" onsubmit="return confirm('Êtes-vous sûr de vouloir annuler la préparation de la rentrée {{ annee.nom }} ?');">
+                                                    {{ csrf_form.hidden_tag() }}
+                                                    <button type="submit" class="dropdown-item py-2 text-danger">
+                                                        <i class="fas fa-trash-alt me-2"></i>Annuler cette rentrée
+                                                    </button>
+                                                </form>
+                                            </li>
+                                            {% endif %}
+                                        {% endif %}
+                                    </ul>
                                 </div>
                             </td>
                         </tr>
@@ -197,10 +283,10 @@
 
     <!-- Vue Mobile ergonomique par cartes -->
     <div class="d-lg-none">
-        <h2 class="h5 fw-bold mb-3 d-flex justify-content-between align-items-center">
-            <span>Historique des années</span>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h5 fw-bold mb-0">Historique des années</h2>
             <span class="badge bg-primary rounded-pill">{{ annees|length }}</span>
-        </h2>
+        </div>
 
         {% for annee in annees %}
         {% set periodes = semestres_par_annee.get(annee.id, []) if semestres_par_annee else [] %}
@@ -209,97 +295,125 @@
             {% if periode.nom == 'Semestre 1' %}{% set ns.s1 = periode %}{% endif %}
             {% if periode.nom == 'Semestre 2' %}{% set ns.s2 = periode %}{% endif %}
         {% endfor %}
-        <article class="card shadow-sm border-0 mb-3 overflow-hidden">
-            <div class="card-header bg-light d-flex justify-content-between align-items-center py-3">
+        <article class="card shadow-sm border-0 mb-3 rounded-3 overflow-hidden">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 border-bottom">
                 <div>
                     <h3 class="h5 mb-0 fw-bold text-dark">{{ annee.nom }}</h3>
+                    {% if ecoles|length > 1 %}
                     <small class="text-muted"><i class="fas fa-building me-1"></i>{{ annee.ecole.nom }}</small>
+                    {% endif %}
                 </div>
                 <div>
                     {% if annee_consultee and annee.id == annee_consultee.id %}
                         <span class="badge bg-primary text-white d-block mb-1"><i class="fas fa-eye me-1"></i>Consultée</span>
                     {% endif %}
                     {% if annee.statut == 'active' %}
-                        <span class="badge bg-success px-2 py-1"><i class="fas fa-check-circle me-1"></i>ACTIVE</span>
+                        <span class="badge bg-success px-2.5 py-1"><i class="fas fa-check-circle me-1"></i>ACTIVE</span>
                     {% elif annee.statut == 'planifiee' %}
-                        <span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-clock me-1"></i>PLANIFIÉE</span>
+                        <span class="badge bg-warning text-dark px-2.5 py-1"><i class="fas fa-clock me-1"></i>PLANIFIÉE</span>
                     {% else %}
-                        <span class="badge bg-secondary px-2 py-1"><i class="fas fa-archive me-1"></i>ARCHIVÉE</span>
+                        <span class="badge bg-secondary px-2.5 py-1"><i class="fas fa-archive me-1"></i>ARCHIVÉE</span>
                     {% endif %}
                 </div>
             </div>
             <div class="card-body p-3">
                 <div class="row g-2 mb-3 text-center">
                     <div class="col-6">
-                        <div class="p-2 border rounded bg-white">
-                            <small class="text-muted d-block">Début d'année</small>
-                            <strong class="text-dark">{{ annee.date_debut.strftime('%d/%m/%Y') }}</strong>
+                        <div class="p-2 border rounded-3 bg-light">
+                            <small class="text-muted d-block" style="font-size: 0.72rem;">Début d'année</small>
+                            <strong class="text-dark small">{{ annee.date_debut.strftime('%d/%m/%Y') }}</strong>
                         </div>
                     </div>
                     <div class="col-6">
-                        <div class="p-2 border rounded bg-white">
-                            <small class="text-muted d-block">Fin d'année</small>
-                            <strong class="text-dark">{{ annee.date_fin.strftime('%d/%m/%Y') }}</strong>
+                        <div class="p-2 border rounded-3 bg-light">
+                            <small class="text-muted d-block" style="font-size: 0.72rem;">Fin d'année</small>
+                            <strong class="text-dark small">{{ annee.date_fin.strftime('%d/%m/%Y') }}</strong>
                         </div>
                     </div>
                 </div>
 
-                <div class="p-3 border rounded bg-light mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h4 class="h6 mb-0 fw-bold text-dark"><i class="fas fa-calendar-week me-1 text-primary"></i>Semestres</h4>
-                        {% if annee.statut != 'archivee' %}
-                        <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2" data-bs-toggle="modal" data-bs-target="#modalSemestres{{ annee.id }}">
-                            <i class="fas fa-edit me-1"></i>Configurer
-                        </button>
-                        {% endif %}
-                    </div>
-                    <div class="small">
+                <div class="p-2.5 border rounded-3 bg-white mb-3">
+                    <span class="small fw-bold text-dark d-block mb-1.5"><i class="fas fa-calendar-week me-1 text-primary"></i>Semestres</span>
+                    <div class="small text-muted" style="font-size: 0.78rem;">
                         <div class="d-flex justify-content-between border-bottom py-1">
-                            <span class="fw-semibold">Semestre 1</span>
+                            <span class="fw-semibold">S1 :</span>
                             <span>{{ ns.s1.date_debut.strftime('%d/%m/%Y') if ns.s1 and ns.s1.date_debut else '-' }} ➔ {{ ns.s1.date_fin.strftime('%d/%m/%Y') if ns.s1 and ns.s1.date_fin else '-' }}</span>
                         </div>
                         <div class="d-flex justify-content-between py-1">
-                            <span class="fw-semibold">Semestre 2</span>
+                            <span class="fw-semibold">S2 :</span>
                             <span>{{ ns.s2.date_debut.strftime('%d/%m/%Y') if ns.s2 and ns.s2.date_debut else '-' }} ➔ {{ ns.s2.date_fin.strftime('%d/%m/%Y') if ns.s2 and ns.s2.date_fin else '-' }}</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="d-grid gap-2">
-                    {% if annee.statut == 'planifiee' %}
-                    <a href="{{ url_for('main.onboarding_rentree', cible_id=annee.id) }}" class="btn btn-primary py-2.5 fw-semibold shadow-sm">
-                        <i class="fas fa-magic me-2"></i>Préparer la rentrée
-                    </a>
-                    {% endif %}
-
-                    {% if annee.statut != 'archivee' %}
-                    <button type="button" class="btn btn-outline-warning btn-modifier-annee w-100 py-2"
-                        data-bs-toggle="modal" data-bs-target="#modalModifierAnnee"
-                        data-annee-id="{{ annee.id }}"
-                        data-annee-nom="{{ annee.nom }}"
-                        data-date-debut="{{ annee.date_debut.strftime('%Y-%m-%d') }}"
-                        data-date-fin="{{ annee.date_fin.strftime('%Y-%m-%d') }}">
-                        <i class="fas fa-edit me-2"></i>Modifier l'année
-                    </button>
-                    {% endif %}
-
-                    <div class="row g-2">
-                        <div class="{% if annee.statut == 'planifiee' %}col-12{% else %}col-6{% endif %}">
-                            <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}">
-                                {{ csrf_form.hidden_tag() }}
-                                <button type="submit" class="btn btn-outline-success w-100 py-2">
-                                    <i class="fas fa-eye me-1"></i>Consulter
-                                </button>
-                            </form>
-                        </div>
-                        {% if annee.statut != 'planifiee' %}
-                        <div class="col-6">
-                            <a href="{{ url_for('main.structure_annee', annee_id=annee.id) }}" class="btn btn-outline-secondary w-100 py-2">
-                                <i class="fas fa-layer-group me-1"></i>Structure
-                            </a>
+                    {% if annee.statut == 'archivee' %}
+                        {% if not annee_consultee or annee.id != annee_consultee.id %}
+                        <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}" class="w-100">
+                            {{ csrf_form.hidden_tag() }}
+                            <button type="submit" class="btn btn-outline-primary btn-sm w-100 py-2 rounded-pill fw-semibold" style="font-size: 0.85rem;">
+                                <i class="fas fa-eye me-1.5"></i>Consulter cette année
+                            </button>
+                        </form>
+                        {% else %}
+                        <div class="badge bg-light text-muted border py-2 w-100 text-center fw-normal" style="font-size: 0.82rem;">
+                            <i class="fas fa-check-circle text-success me-1"></i>Année en consultation (lecture seule)
                         </div>
                         {% endif %}
-                    </div>
+                    {% else %}
+                        {% if annee.statut == 'planifiee' %}
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('main.onboarding_rentree', cible_id=annee.id) }}" class="btn btn-primary btn-sm flex-grow-1 py-1.5 fw-bold shadow-xs rounded-pill" style="font-size: 0.82rem;">
+                                    <i class="fas fa-rocket me-1.5"></i>Préparer cette rentrée
+                                </a>
+                                <form method="POST" action="{{ url_for('main.supprimer_annee_planifiee', annee_id=annee.id) }}" onsubmit="return confirm('Êtes-vous sûr de vouloir annuler la préparation de cette rentrée ?');">
+                                    {{ csrf_form.hidden_tag() }}
+                                    <button type="submit" class="btn btn-outline-danger btn-sm py-1.5 px-3 rounded-pill" title="Annuler cette rentrée" style="font-size: 0.82rem;">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        {% elif annee.statut == 'active' %}
+                            <div class="badge bg-success-subtle text-success border border-success-subtle py-1.5 w-100 text-center fw-bold">
+                                <i class="fas fa-check-circle me-1"></i>Année active (En cours)
+                            </div>
+                        {% endif %}
+
+                        <!-- Boutons d'actions et réglages mobiles -->
+                        <div class="row g-1.5">
+                            <div class="col-6">
+                                <button type="button" class="btn btn-sm btn-outline-secondary w-100 py-1.5 rounded-pill btn-modifier-annee"
+                                    data-bs-toggle="modal" data-bs-target="#modalModifierAnnee"
+                                    data-annee-id="{{ annee.id }}"
+                                    data-annee-nom="{{ annee.nom }}"
+                                    data-date-debut="{{ annee.date_debut.strftime('%Y-%m-%d') }}"
+                                    data-date-fin="{{ annee.date_fin.strftime('%Y-%m-%d') }}"
+                                    style="font-size: 0.78rem;">
+                                    <i class="fas fa-pen text-warning me-1"></i>Modifier
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button type="button" class="btn btn-sm btn-outline-secondary w-100 py-1.5 rounded-pill" data-bs-toggle="modal" data-bs-target="#modalSemestres{{ annee.id }}" style="font-size: 0.78rem;">
+                                    <i class="fas fa-calendar-week text-primary me-1"></i>Semestres
+                                </button>
+                            </div>
+                            {% if not annee_consultee or annee.id != annee_consultee.id %}
+                            <div class="col-6">
+                                <form method="POST" action="{{ url_for('main.consulter_annee', annee_id=annee.id) }}">
+                                    {{ csrf_form.hidden_tag() }}
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary w-100 py-1.5 rounded-pill" style="font-size: 0.78rem;">
+                                        <i class="fas fa-eye text-info me-1"></i>Consulter
+                                    </button>
+                                </form>
+                            </div>
+                            {% endif %}
+                            <div class="col-6">
+                                <a href="{{ url_for('main.structure_annee', annee_id=annee.id) }}" class="btn btn-sm btn-outline-secondary w-100 py-1.5 rounded-pill" style="font-size: 0.78rem;">
+                                    <i class="fas fa-layer-group text-secondary me-1"></i>Structure
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </article>
@@ -417,6 +531,48 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal Avertissement & Guide Console Experte (Passage Global) -->
+    <div class="modal fade" id="modalAvertissementPassageGlobal" tabindex="-1" aria-labelledby="modalPassageGlobalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header bg-white border-bottom py-3 px-3 px-sm-4">
+                    <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2" id="modalPassageGlobalLabel">
+                        <div class="rounded-circle bg-warning-subtle text-warning-emphasis d-flex align-items-center justify-content-center flex-shrink-0" style="width: 36px; height: 36px;">
+                            <i class="fas fa-tools"></i>
+                        </div>
+                        <span style="font-size: 1.05rem;">Console Experte : Passage Global</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body p-3 p-sm-4">
+                    <!-- Bannière d'explication claire et concise -->
+                    <div class="card border-0 bg-warning-subtle text-warning-emphasis p-3 rounded-3 border-start border-warning border-4">
+                        <div class="d-flex align-items-start gap-2.5">
+                            <i class="fas fa-info-circle fa-lg mt-1 text-warning-emphasis flex-shrink-0"></i>
+                            <div>
+                                <h6 class="fw-bold mb-1 text-dark" style="font-size: 0.95rem;">À quoi sert cette console experte ?</h6>
+                                <p class="small text-muted mb-0" style="font-size: 0.85rem; line-height: 1.45;">
+                                    Ce tableau panoramique rassemble <strong>l'ensemble des élèves de l'école</strong> sur une seule page. 
+                                    Il est réservé aux <strong>traitements automatiques en masse</strong> (ex: 800 élèves d'un coup) ou aux recherches multi-critères avancées.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light px-3 px-sm-4 py-3 d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2">
+                    <a href="#" id="linkOptionOnboarding" class="btn btn-primary touch-btn px-3.5 py-2 rounded-pill fw-bold shadow-sm w-100 w-sm-auto text-center" style="font-size: 0.88rem;">
+                        <i class="fas fa-magic me-1.5"></i>
+                        <span>Préférer le Parcours Guidé (Recommandé)</span>
+                    </a>
+                    <a href="#" id="linkOptionPassageAvance" class="btn btn-outline-secondary rounded-pill px-3 py-2 small w-100 w-sm-auto text-center" style="font-size: 0.82rem;">
+                        <i class="fas fa-tools me-1.5"></i>
+                        <span>Ouvrir la console experte →</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -424,6 +580,17 @@
 <script src="{{ url_for('static', filename='js/academic-settings.js') }}?v=20260915_2"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // Liaison dynamique du modal d'avertissement console experte
+    document.querySelectorAll('.btn-passage-global-modal').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const urlOnboarding = this.getAttribute('data-url-onboarding');
+            const urlPassage = this.getAttribute('data-url-passage');
+            const linkOnboarding = document.getElementById('linkOptionOnboarding');
+            const linkPassage = document.getElementById('linkOptionPassageAvance');
+            if (linkOnboarding) linkOnboarding.setAttribute('href', urlOnboarding);
+            if (linkPassage) linkPassage.setAttribute('href', urlPassage);
+        });
+    });
     const searchInput = document.getElementById('searchAnneeInput');
     const statutSelect = document.getElementById('filterStatutAnnee');
     const btnReset = document.getElementById('btnResetAnnees');
@@ -504,6 +671,16 @@ document.addEventListener('DOMContentLoaded', function () {
     if (initParams.has('q') && searchInput) searchInput.value = initParams.get('q');
     if (initParams.has('statut') && statutSelect) statutSelect.value = initParams.get('statut');
     if (initParams.has('q') || initParams.has('statut')) applyFilters();
+
+    // Empêcher le rognage du menu d'actions : stratégie fixed pour flotter au-dessus de tout
+    document.querySelectorAll('.dropdown-toggle-actions').forEach(function (btn) {
+        new bootstrap.Dropdown(btn, {
+            boundary: 'viewport',
+            popperConfig: function (defaultConfig) {
+                return Object.assign({}, defaultConfig, { strategy: 'fixed' });
+            }
+        });
+    });
 });
 </script>
 {% endblock %}

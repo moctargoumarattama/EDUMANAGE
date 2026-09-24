@@ -599,6 +599,320 @@ def api_eleves_par_classe(classe_id):
         if inscription.eleve
     ]})
 
+
+@main.route('/api/eleves/<int:eleve_id>/fiche')
+@login_required
+@role_required('admin', 'professeur')
+@tenant_required
+def api_fiche_eleve(eleve_id):
+    """Retourne les informations détaillées d'un élève (fiche, notes, parent, absences) pour la modale sur place"""
+    ecole_id = g.ecole_id
+    eleve = Eleve.query.options(
+        joinedload(Eleve.notes).joinedload(Note.cours),
+        joinedload(Eleve.absences).joinedload(Absence.cours),
+        joinedload(Eleve.paiements),
+        joinedload(Eleve.parent)
+    ).filter_by(id=eleve_id, ecole_id=ecole_id).first()
+
+    if not eleve or not can_access_eleve(eleve):
+        return jsonify({'success': False, 'error': 'Élève introuvable ou accès non autorisé.'}), 404
+
+    annee_consultee = get_annee_consultee(ecole_id)
+    inscription_active = get_inscription_active(eleve)
+    classe_actuelle = inscription_active.classe if inscription_active else None
+    annee_id = inscription_active.annee_scolaire_id if inscription_active else (annee_consultee.id if annee_consultee else None)
+
+    # Calcul des performances / notes
+    from app.services.evaluations import calculer_completude_inscription
+    if inscription_active and annee_id:
+        eval_info = calculer_completude_inscription(eleve.ecole_id, annee_id, inscription_active)
+        notes = sorted([n for n in eleve.notes if n.annee_id == annee_id], key=lambda n: n.date_evaluation or datetime.min, reverse=True)
+    else:
+        eval_info = {"status": "non_evalue", "average": 0, "evaluated_subjects": 0, "expected_subjects": 0}
+        notes = []
+
+    moyenne_generale = eval_info["average"] if eval_info["average"] is not None else 0
+
+    matieres_stats = {}
+    for n in notes:
+        mat = n.cours.nom if n.cours else "Matière générale"
+        if mat not in matieres_stats:
+            matieres_stats[mat] = {'nom': mat, 'total': 0, 'coef': 0, 'count': 0, 'notes': []}
+        val = float(n.valeur or 0)
+        coef = float(n.coefficient or 1)
+        matieres_stats[mat]['total'] += val * coef
+        matieres_stats[mat]['coef'] += coef
+        matieres_stats[mat]['count'] += 1
+        matieres_stats[mat]['notes'].append({
+            'valeur': val,
+            'coef': coef,
+            'type': n.type_evaluation or 'Évaluation',
+            'date': n.date_evaluation.strftime('%d/%m/%Y') if n.date_evaluation else ''
+        })
+
+    matieres_list = []
+    for mat, data in matieres_stats.items():
+        moy = round(data['total'] / data['coef'], 2) if data['coef'] else (round(data['total'] / data['count'], 2) if data['count'] else 0)
+        matieres_list.append({
+            'nom': mat,
+            'moyenne': moy,
+            'coef': data['coef'],
+            'count': data['count'],
+            'notes': data['notes'][:3]
+        })
+    matieres_list.sort(key=lambda x: x['nom'])
+
+    if eval_info.get("status") == "non_evalue":
+        mention = 'Non évalué'
+        mention_badge = 'secondary'
+    elif moyenne_generale >= 16:
+        mention = 'Très Bien'
+        mention_badge = 'success'
+    elif moyenne_generale >= 14:
+        mention = 'Bien'
+        mention_badge = 'primary'
+    elif moyenne_generale >= 12:
+        mention = 'Assez Bien'
+        mention_badge = 'info'
+    elif moyenne_generale >= 10:
+        mention = 'Passable'
+        mention_badge = 'warning'
+    else:
+        mention = 'Insuffisant'
+        mention_badge = 'danger'
+
+    # Absences
+    absences = eleve.absences or []
+    total_absences = len(absences)
+    absences_injustifiees = sum(1 for a in absences if not a.justifiee)
+
+    # Paiements
+    paiements = [p for p in eleve.paiements if (getattr(p, 'statut', None) or 'payé') != 'annule']
+    total_paye = float(sum(p.montant or 0 for p in paiements))
+    total_frais = float(eleve.frais_annuels or 150000.0)
+    reste_a_payer = max(0.0, total_frais - total_paye)
+
+    # Âge
+    age = None
+    if eleve.date_naissance:
+        today = datetime.now().date()
+        age = today.year - eleve.date_naissance.year - ((today.month, today.day) < (eleve.date_naissance.month, eleve.date_naissance.day))
+
+    # Classes disponibles pour l'année
+    annee_target = annee_consultee or AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
+    classes_query = get_classes_ouvertes_annee(ecole_id, annee_target.id) if annee_target else Classe.query.filter_by(ecole_id=ecole_id)
+    classes_disp = classes_triees_pedagogique(classes_query).all()
+
+    can_edit = bool(current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee'))
+
+    parent_nom = eleve.parent.nom if eleve.parent else ''
+    parent_prenom = eleve.parent.prenom if eleve.parent else ''
+    parent_email = eleve.parent.email if eleve.parent else (eleve.email_parent or '')
+    parent_tel = eleve.parent.telephone if eleve.parent else (eleve.contact_parent or '')
+
+    return jsonify({
+        'success': True,
+        'eleve': {
+            'id': eleve.id,
+            'nom': eleve.nom,
+            'prenom': eleve.prenom,
+            'genre': eleve.genre or 'M',
+            'date_naissance': eleve.date_naissance.strftime('%Y-%m-%d') if eleve.date_naissance else '',
+            'date_naissance_fr': eleve.date_naissance.strftime('%d/%m/%Y') if eleve.date_naissance else 'Non renseignée',
+            'lieu_naissance': eleve.lieu_naissance or '',
+            'adresse': eleve.adresse or '',
+            'age': age,
+            'statut': inscription_active.statut if inscription_active else eleve.statut,
+            'code_parent': eleve.code_parent or f"ELV-{eleve.id}",
+            'frais_annuels': total_frais,
+        },
+        'classe': {
+            'id': classe_actuelle.id if classe_actuelle else None,
+            'nom': classe_actuelle.nom if classe_actuelle else 'Non assignée',
+            'niveau': (classe_actuelle.niveau_scolaire.nom if classe_actuelle and classe_actuelle.niveau_scolaire else (classe_actuelle.niveau if classe_actuelle else ''))
+        },
+        'parent': {
+            'id': eleve.parent.id if eleve.parent else None,
+            'nom': parent_nom,
+            'prenom': parent_prenom,
+            'nom_complet': f"{parent_prenom} {parent_nom}".strip() or parent_nom or (parent_tel or 'Parent non assigné'),
+            'email': parent_email,
+            'telephone': parent_tel,
+        },
+        'pedagogie': {
+            'moyenne_generale': moyenne_generale,
+            'mention': mention,
+            'mention_badge': mention_badge,
+            'matieres': matieres_list,
+            'total_notes': len(notes),
+            'eval_status': eval_info.get('status', 'non_evalue'),
+        },
+        'assiduite': {
+            'total_absences': total_absences,
+            'absences_injustifiees': absences_injustifiees,
+            'absences_justifiees': total_absences - absences_injustifiees,
+        },
+        'comptabilite': {
+            'total_frais': total_frais,
+            'total_paye': total_paye,
+            'reste_a_payer': reste_a_payer,
+            'est_a_jour': (reste_a_payer <= 0),
+        },
+        'classes_disponibles': [
+            {'id': c.id, 'nom': c.nom, 'niveau': (c.niveau_scolaire.nom if c.niveau_scolaire else (c.niveau or ''))}
+            for c in classes_disp
+        ],
+        'can_edit': can_edit,
+        'bulletin_url': url_for('main.bulletin_eleve', id=eleve.id),
+        'pdf_url': url_for('main.export_notes_eleve_pdf', id=eleve.id),
+        'dossier_url': url_for('main.voir_eleve', eleve_id=eleve.id),
+    })
+
+
+@main.route('/api/eleves/<int:eleve_id>/modifier', methods=['POST'])
+@login_required
+@role_required('admin')
+@tenant_required
+def api_modifier_eleve(eleve_id):
+    """Met à jour un élève sur place via requête AJAX / JSON"""
+    ecole_id = g.ecole_id
+    annee_consultee = get_annee_consultee(ecole_id)
+    if annee_consultee and annee_consultee.statut == 'archivee':
+        return jsonify({'success': False, 'error': 'Modification impossible pour une année archivée.'}), 403
+
+    eleve = Eleve.query.filter_by(id=eleve_id, ecole_id=ecole_id).first()
+    if not eleve:
+        return jsonify({'success': False, 'error': 'Élève introuvable.'}), 404
+
+    data = request.get_json(silent=True) or request.form.to_dict()
+
+    nom = (data.get('nom') or '').strip()
+    prenom = (data.get('prenom') or '').strip()
+    if not nom or not prenom:
+        return jsonify({'success': False, 'error': 'Le nom et le prénom sont obligatoires.'}), 400
+
+    classe_id = data.get('classe_id')
+    try:
+        classe_id = int(classe_id) if classe_id else None
+    except (ValueError, TypeError):
+        classe_id = None
+
+    if not classe_id:
+        return jsonify({'success': False, 'error': 'La sélection d\'une classe est obligatoire.'}), 400
+
+    classe = Classe.query.filter_by(id=classe_id, ecole_id=ecole_id).first()
+    if not classe:
+        return jsonify({'success': False, 'error': 'Classe invalide pour votre établissement.'}), 400
+
+    genre = (data.get('genre') or 'M').strip().upper()
+    if genre not in ('M', 'F'):
+        genre = 'M'
+
+    date_naissance_str = (data.get('date_naissance') or '').strip()
+    if date_naissance_str:
+        try:
+            eleve.date_naissance = datetime.strptime(date_naissance_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Format de date de naissance invalide (AAAA-MM-JJ attendu).'}), 400
+
+    eleve.nom = nom
+    eleve.prenom = prenom
+    eleve.genre = genre
+    eleve.lieu_naissance = (data.get('lieu_naissance') or '').strip() or None
+    eleve.adresse = (data.get('adresse') or '').strip() or None
+
+    frais_str = data.get('frais_annuels')
+    if frais_str is not None and str(frais_str).strip() != '':
+        try:
+            eleve.frais_annuels = float(frais_str)
+        except (ValueError, TypeError):
+            pass
+
+    # Gestion parent
+    parent_nom = (data.get('parent_nom') or '').strip()
+    parent_email = (data.get('parent_email') or '').strip().lower()
+    parent_tel = (data.get('parent_telephone') or '').strip()
+
+    parent = eleve.parent
+    if parent:
+        if parent_email:
+            existing = Utilisateur.query.filter(
+                Utilisateur.ecole_id == ecole_id,
+                Utilisateur.email == parent_email,
+                Utilisateur.id != parent.id,
+            ).first()
+            if existing:
+                return jsonify({'success': False, 'error': 'Cet email parent est déjà associé à un autre compte.'}), 400
+            parent.email = parent_email
+        if parent_nom:
+            parent.nom = parent_nom
+        parent.telephone = parent_tel or None
+    elif any([parent_nom, parent_email, parent_tel]):
+        if parent_email:
+            existing = Utilisateur.query.filter_by(email=parent_email, role='parent', ecole_id=ecole_id).first()
+            if existing:
+                parent = existing
+            else:
+                parent = Utilisateur(
+                    nom=parent_nom or parent_email,
+                    prenom=None,
+                    email=parent_email,
+                    telephone=parent_tel or None,
+                    role='parent',
+                    ecole_id=ecole_id,
+                    statut='actif',
+                )
+                parent.set_mot_de_passe(generate_access_code())
+                db.session.add(parent)
+                db.session.flush()
+        elif parent_nom or parent_tel:
+            # Création d'un parent sans email obligatoire si tel fourni
+            parent = Utilisateur(
+                nom=parent_nom or f"Parent {eleve.nom}",
+                prenom=None,
+                email=f"parent_{eleve.id}_{uuid.uuid4().hex[:6]}@klasora.local",
+                telephone=parent_tel or None,
+                role='parent',
+                ecole_id=ecole_id,
+                statut='actif',
+            )
+            parent.set_mot_de_passe(generate_access_code())
+            db.session.add(parent)
+            db.session.flush()
+
+        eleve.parent_id = parent.id if parent else None
+
+    eleve.contact_parent = parent.telephone if parent else (parent_tel or None)
+    eleve.email_parent = parent.email if parent else (parent_email or None)
+
+    # Inscription annuelle / mise à jour classe
+    inscription, inscription_error = modifier_inscription_annuelle(
+        ecole_id=ecole_id,
+        eleve_id=eleve.id,
+        annee_scolaire_id=classe.annee_scolaire_id,
+        classe_id=classe.id,
+    )
+    if inscription_error:
+        return jsonify({'success': False, 'error': inscription_error}), 400
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f"Les informations de {eleve.prenom} {eleve.nom} ont été modifiées avec succès.",
+        'eleve': {
+            'id': eleve.id,
+            'nom': eleve.nom,
+            'prenom': eleve.prenom,
+            'genre': eleve.genre,
+            'classe_id': classe.id,
+            'classe_nom': classe.nom,
+            'contact_parent': eleve.contact_parent or '',
+            'parent_nom': parent.nom if parent else (parent_nom or ''),
+        }
+    })
+
+
 @main.route('/eleve/<int:id>/export_notes_pdf') 
 @login_required
 @role_required('admin', 'professeur', 'parent')
@@ -895,7 +1209,7 @@ def voir_eleve(eleve_id):
     if not can_access_eleve(eleve):
         abort(403)
 
-    # 1. Notes & Performances académiques de l'année
+    # 1. Notes & Performances académiques
     inscription_active = get_inscription_active(eleve)
     parcours_scolaire = get_parcours_eleve(eleve)
     eleve.inscription_active = inscription_active
@@ -919,12 +1233,31 @@ def voir_eleve(eleve_id):
             )
         ).all()
 
+    # Déterminer quelle inscription et quelle année consulter (active ou archive)
+    annee_demandee_id = request.args.get('annee_id', type=int)
+    inscription_affichee = None
+    if annee_demandee_id:
+        inscription_affichee = Inscription.query.filter_by(
+            eleve_id=eleve.id,
+            annee_scolaire_id=annee_demandee_id,
+            ecole_id=eleve.ecole_id
+        ).first()
+
+    if not inscription_affichee:
+        if inscription_active:
+            inscription_affichee = inscription_active
+        elif parcours_scolaire:
+            # Élève ancien non inscrit dans l'année active : charger sa dernière année archivée
+            inscription_affichee = parcours_scolaire[-1]
+
+    annee_affichee = inscription_affichee.annee_scolaire if inscription_affichee else annee_active
+    annee_id = annee_affichee.id if annee_affichee else None
+    est_annee_archivee = bool(annee_affichee and (annee_affichee.statut == 'archivee' or (annee_active and annee_affichee.id != annee_active.id)))
+
     from app.services.evaluations import calculer_completude_inscription
 
-    annee_id = inscription_active.annee_scolaire_id if inscription_active else None
-
-    if inscription_active and annee_id:
-        eval_info = calculer_completude_inscription(eleve.ecole_id, annee_id, inscription_active)
+    if inscription_affichee and annee_id:
+        eval_info = calculer_completude_inscription(eleve.ecole_id, annee_id, inscription_affichee)
         notes = sorted([n for n in eleve.notes if n.annee_id == annee_id], key=lambda n: n.date_evaluation or datetime.min, reverse=True)
     else:
         eval_info = {"status": "non_evalue", "average": 0, "evaluated_subjects": 0, "expected_subjects": 0}
@@ -942,6 +1275,7 @@ def voir_eleve(eleve_id):
                 'coef': 0,
                 'count': 0,
                 'notes': [],
+                'periodes': {},
                 'min': 20.0,
                 'max': 0.0
             }
@@ -955,6 +1289,22 @@ def voir_eleve(eleve_id):
             matieres_stats[mat]['min'] = val
         if val > matieres_stats[mat]['max']:
             matieres_stats[mat]['max'] = val
+
+        # Regroupement par période (Semestre 1 / 2 ou Trimestre 1 / 2 / 3)
+        p_nom = n.periode or 'Période 1'
+        if p_nom not in matieres_stats[mat]['periodes']:
+            matieres_stats[mat]['periodes'][p_nom] = {
+                'nom': p_nom,
+                'notes': [],
+                'total': 0.0,
+                'coef': 0.0,
+                'moyenne': 0.0
+            }
+        p_dict = matieres_stats[mat]['periodes'][p_nom]
+        p_dict['notes'].append(n)
+        p_dict['total'] += val * coef
+        p_dict['coef'] += coef
+        p_dict['moyenne'] = round(p_dict['total'] / p_dict['coef'], 2) if p_dict['coef'] else round(val, 2)
 
     moyennes_par_matiere = {}
     for mat, data in matieres_stats.items():
@@ -984,13 +1334,17 @@ def voir_eleve(eleve_id):
         mention = 'Insuffisant'
         mention_badge = 'danger'
 
-    # 2. Absences & Assiduité de l'année
-    absences = sorted(eleve.absences, key=lambda a: a.date_absence or datetime.min.date(), reverse=True)
+    # 2. Absences & Assiduité de l'année consultée
+    if annee_id:
+        absences = sorted([a for a in eleve.absences if getattr(a, 'annee_scolaire_id', None) == annee_id or (inscription_affichee and getattr(a, 'inscription_id', None) == inscription_affichee.id)], key=lambda a: a.date_absence or datetime.min.date(), reverse=True)
+    else:
+        absences = sorted(eleve.absences, key=lambda a: a.date_absence or datetime.min.date(), reverse=True)
+
     total_absences = len(absences)
     absences_injustifiees = sum(1 for a in absences if not a.justifiee)
     absences_justifiees = total_absences - absences_injustifiees
 
-    # 3. Paiements & Scolarité de l'année
+    # 3. Paiements & Scolarité de l'année consultée
     if current_user.role == 'professeur':
         paiements = []
         total_frais = 0.0
@@ -1000,18 +1354,24 @@ def voir_eleve(eleve_id):
         echeancier = []
         mois_impayes_list = []
     else:
-        paiements = sorted(eleve.paiements, key=lambda p: p.date_paiement or datetime.min, reverse=True)
-        total_frais = float(eleve.frais_annuels or 150000.0)
+        if inscription_affichee:
+            frais_base = inscription_affichee.frais_annuels or eleve.frais_annuels or 150000.0
+            paiements = sorted([p for p in eleve.paiements if (getattr(p, 'inscription_id', None) == inscription_affichee.id) or (not getattr(p, 'inscription_id', None) and getattr(p, 'annee_scolaire_id', None) == annee_id)], key=lambda p: p.date_paiement or datetime.min, reverse=True)
+        else:
+            frais_base = eleve.frais_annuels or 150000.0
+            paiements = sorted(eleve.paiements, key=lambda p: p.date_paiement or datetime.min, reverse=True)
+
+        total_frais = float(frais_base)
         total_paye = float(sum(p.montant or 0 for p in paiements if (getattr(p, 'statut', None) or 'payé') != 'annule'))
         reste_a_payer = max(0.0, total_frais - total_paye)
         pourcentage_paye = round((total_paye / total_frais) * 100, 1) if total_frais > 0 else 0.0
 
-        mois_scolaires = get_mois_scolaires(inscription_active.annee_scolaire if inscription_active else None)
+        mois_scolaires = get_mois_scolaires(annee_affichee if annee_affichee else None)
         mois_payes_set = set(p.mois for p in paiements if p.mois and (getattr(p, 'statut', None) or 'payé') != 'annule')
         echeancier = [{'mois': m, 'paye': (m in mois_payes_set)} for m in mois_scolaires]
         mois_impayes_list = [m for m in mois_scolaires if m not in mois_payes_set]
 
-    # 4. ?ge calculé
+    # 4. Âge calculé
     age = None
     if eleve.date_naissance:
         today = datetime.now().date()
@@ -1042,6 +1402,9 @@ def voir_eleve(eleve_id):
                            echeancier=echeancier,
                            mois_impayes_list=mois_impayes_list,
                            annee_active=annee_active,
+                           annee_affichee=annee_affichee,
+                           inscription_affichee=inscription_affichee,
+                           est_annee_archivee=est_annee_archivee,
                            est_inscrit_annee_active=est_inscrit_annee_active,
                            classes_ouvertes_annee_active=classes_ouvertes_annee_active,
                            return_url=return_url,

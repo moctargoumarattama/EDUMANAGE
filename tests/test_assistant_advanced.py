@@ -26,6 +26,7 @@ class TestAssistantAdvancedFeatures(unittest.TestCase):
         self.app.config["WTF_CSRF_ENABLED"] = False
         self.app_context = self.app.app_context()
         self.app_context.push()
+        db.create_all()
         self.client = self.app.test_client()
 
         # Récupération des données existantes pour les tests

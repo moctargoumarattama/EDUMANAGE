@@ -115,7 +115,84 @@ def gestion_annees():
             else:
                 flash("Action non autorisée pour cette école.", "danger")
 
+        elif action == 'ouvrir_rentree':
+            target_ecole_id = request.form.get('ecole_id', type=int) or _current_ecole_id_for_annees()
+            if not target_ecole_id and len(ecoles) == 1:
+                target_ecole_id = ecoles[0].id
+
+            if not target_ecole_id or target_ecole_id not in [e.id for e in ecoles]:
+                flash("Veuillez sélectionner un établissement valide.", "warning")
+                return redirect(url_for('main.gestion_annees'))
+
+            # Garde-fou 1 : Y a-t-il déjà une rentrée planifiée ?
+            planifiee = (
+                AnneeScolaire.query.filter_by(ecole_id=target_ecole_id, statut='planifiee')
+                .order_by(AnneeScolaire.date_debut.asc())
+                .first()
+            )
+            if planifiee:
+                flash(f"La rentrée {planifiee.nom} est déjà en cours de préparation.", "info")
+                return redirect(url_for('main.onboarding_rentree', cible_id=planifiee.id))
+
+            # Année active pour calculer N+1
+            active = AnneeScolaire.query.filter_by(ecole_id=target_ecole_id, statut='active').first()
+            if active:
+                import re
+                m = re.search(r'(\d{4})', active.nom)
+                debut_annee = int(m.group(1)) + 1 if m else active.date_fin.year
+            else:
+                debut_annee = datetime.now().year
+            fin_annee = debut_annee + 1
+            nom_nouvelle = f"{debut_annee}-{fin_annee}"
+
+            # Dates par défaut
+            from datetime import date
+            if active:
+                try:
+                    date_debut = date(debut_annee, active.date_debut.month, active.date_debut.day)
+                except ValueError:
+                    date_debut = date(debut_annee, 9, 1)
+                try:
+                    date_fin = date(fin_annee, active.date_fin.month, active.date_fin.day)
+                except ValueError:
+                    date_fin = date(fin_annee, 6, 30)
+            else:
+                date_debut = date(debut_annee, 9, 1)
+                date_fin = date(fin_annee, 6, 30)
+
+            existante = AnneeScolaire.query.filter_by(ecole_id=target_ecole_id, nom=nom_nouvelle).first()
+            if existante:
+                return redirect(url_for('main.onboarding_rentree', cible_id=existante.id))
+
+            try:
+                nouvelle_annee = AnneeScolaire(
+                    nom=nom_nouvelle,
+                    date_debut=date_debut,
+                    date_fin=date_fin,
+                    statut='planifiee',
+                    ecole_id=target_ecole_id
+                )
+                db.session.add(nouvelle_annee)
+                db.session.commit()
+                flash(f"Rentrée {nom_nouvelle} créée avec succès ! Bienvenue dans l'assistant de préparation.", "success")
+                return redirect(url_for('main.onboarding_rentree', cible_id=nouvelle_annee.id))
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.exception(f"Erreur création rentrée : {e}")
+                flash("Une erreur est survenue lors de l'initialisation de la rentrée.", "danger")
+                return redirect(url_for('main.gestion_annees'))
+
         elif action == 'ajouter':
+            target_ecole_id = request.form.get('ecole_id', type=int) or _current_ecole_id_for_annees()
+            if not target_ecole_id and len(ecoles) == 1:
+                target_ecole_id = ecoles[0].id
+
+            # Garde-fou strict : 1 seule rentrée planifiée autorisée
+            planifiee_exist = AnneeScolaire.query.filter_by(ecole_id=target_ecole_id, statut='planifiee').first() if target_ecole_id else None
+            if planifiee_exist:
+                flash(f"La rentrée {planifiee_exist.nom} est déjà en cours de préparation. Veuillez l'activer ou l'annuler avant d'en créer une autre.", "warning")
+                return redirect(url_for('main.gestion_annees'))
+
             annee_court = _annee_saisie_depuis_form()
             date_debut_str = request.form.get('date_debut')
             date_fin_str = request.form.get('date_fin')
@@ -241,7 +318,35 @@ def gestion_annees():
         return redirect(url_for('main.gestion_annees'))
 
     ecole_id = _current_ecole_id_for_annees()
+    if not ecole_id and len(ecoles) == 1:
+        ecole_id = ecoles[0].id
+
     annee_consultee = get_annee_consultee(ecole_id) if ecole_id else None
+
+    annee_active = None
+    annee_planifiee = None
+    nom_prochaine_annee = None
+
+    if ecole_id:
+        annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut='active').first()
+        annee_planifiee = (
+            AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut='planifiee')
+            .order_by(AnneeScolaire.date_debut.asc())
+            .first()
+        )
+        if annee_active:
+            import re
+            m = re.search(r'(\d{4})', annee_active.nom)
+            debut_calc = int(m.group(1)) + 1 if m else annee_active.date_fin.year
+            fin_calc = debut_calc + 1
+            nom_prochaine_annee = f"{debut_calc}-{fin_calc}"
+        else:
+            y = datetime.now().year
+            nom_prochaine_annee = f"{y}-{y+1}"
+    else:
+        y = datetime.now().year
+        nom_prochaine_annee = f"{y}-{y+1}"
+
     source_active_par_ecole = {
         a.ecole_id: a for a in AnneeScolaire.query.filter_by(statut='active').all()
     }
@@ -258,10 +363,56 @@ def gestion_annees():
         ecoles=ecoles,
         csrf_form=csrf_form,
         annee_consultee=annee_consultee,
+        annee_active=annee_active,
+        annee_planifiee=annee_planifiee,
+        nom_prochaine_annee=nom_prochaine_annee,
         source_active_par_ecole=source_active_par_ecole,
         sources_passage_par_cible=sources_passage_par_cible,
         semestres_par_annee=semestres_par_annee,
     )
+
+
+@main.route('/annees/<int:annee_id>/supprimer', methods=['POST'])
+@login_required
+@role_required('admin', 'super_admin')
+def supprimer_annee_planifiee(annee_id):
+    csrf_form = CSRFForm()
+    if not csrf_form.validate_on_submit():
+        flash("Session expirée ou jeton CSRF invalide.", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    if current_user.role == 'super_admin':
+        ecoles = get_ecole_filter_query(Ecole).all()
+    else:
+        ecoles = [current_user.ecole]
+
+    annee = db.session.get(AnneeScolaire, annee_id)
+    if not annee or annee.ecole_id not in [e.id for e in ecoles]:
+        flash("Année introuvable ou accès non autorisé.", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    if annee.statut != 'planifiee':
+        flash("Seule une rentrée en cours de préparation (planifiée) peut être annulée.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    try:
+        from app.models import Classe, Inscription, PeriodeBulletin, AnneeNiveauConfig
+        Inscription.query.filter_by(annee_scolaire_id=annee.id).delete()
+        for c in Classe.query.filter_by(annee_scolaire_id=annee.id).all():
+            db.session.delete(c)
+        PeriodeBulletin.query.filter_by(annee_id=annee.id).delete()
+        AnneeNiveauConfig.query.filter_by(annee_scolaire_id=annee.id).delete()
+        nom_supprime = annee.nom
+        db.session.delete(annee)
+        db.session.commit()
+        flash(f"La préparation de la rentrée {nom_supprime} a été annulée avec succès.", "success")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception(f"Erreur annulation rentrée : {e}")
+        flash("Une erreur est survenue lors de l'annulation de cette rentrée.", "danger")
+
+    return redirect(url_for('main.gestion_annees'))
+
 
 
 @main.route('/annees/<int:annee_id>/semestres', methods=['POST'])
@@ -281,6 +432,10 @@ def configurer_semestres(annee_id):
     annee = AnneeScolaire.query.get_or_404(annee_id)
     if annee.ecole_id not in [e.id for e in ecoles]:
         flash("Action non autorisée pour cette école.", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    if annee.statut == 'archivee':
+        flash(MESSAGE_ANNEE_ARCHIVEE_MODIF, "warning")
         return redirect(url_for('main.gestion_annees'))
 
     fin_semestre_1_str = request.form.get('fin_semestre_1')

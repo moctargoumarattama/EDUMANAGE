@@ -869,7 +869,7 @@ def api_assistant_query_data():
                 f"• **Structure pédagogique** : {total_classes} classe(s) créée(s)\n"
                 f"• **Décisions du conseil** : {traites_passage}/{total_passage} élève(s) orienté(s)\n"
                 f"• **Pointage financier** : {nb_confirmes} inscrit(s) confirmé(s) et {nb_preinscrits} préinscrit(s) en attente d'acompte\n\n"
-                f"[Ouvrir l'assistant de rentrée](/annees/{annee_planifiee.id}/wizard)"
+                f"[Ouvrir l'Onboarding de rentrée](/annees/{annee_planifiee.id}/onboarding_rentree)"
             )
 
             return jsonify({
@@ -928,7 +928,7 @@ def api_assistant_query_data():
                     f"🎉 **Tous les élèves sont à jour !**\n\n"
                     f"Pour la rentrée **{annee_planifiee.nom}**, tous les dossiers d'élèves enregistrés ont validé leur inscription. "
                     f"Aucun élève n'est en attente d'acompte.\n\n"
-                    f"[Accéder à l'assistant de rentrée](/annees/{annee_planifiee.id}/wizard)"
+                    f"[Accéder à l'Onboarding de rentrée](/annees/{annee_planifiee.id}/onboarding_rentree)"
                 )
                 return jsonify({
                     "success": True,
@@ -958,7 +958,7 @@ def api_assistant_query_data():
             if len(preinscrits) > 15:
                 lines.append(f"\n*... et {len(preinscrits) - 15} autre(s) élève(s) en attente.*")
 
-            lines.append(f"\n[Gérer dans l'assistant de rentrée](/annees/{annee_planifiee.id}/wizard)")
+            lines.append(f"\n[Gérer dans l'Onboarding de rentrée](/annees/{annee_planifiee.id}/onboarding_rentree)")
             reply = "\n".join(lines)
 
             return jsonify({
