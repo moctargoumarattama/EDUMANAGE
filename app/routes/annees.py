@@ -1211,7 +1211,7 @@ def onboarding_rentree(cible_id):
             if fin_s1_str:
                 try:
                     fin_s1 = datetime.strptime(fin_s1_str, '%Y-%m-%d').date()
-                    ok, err = configurer_semestres_annee(annee_cible, fin_s1)
+                    ok, err = configurer_semestres_annee(ecole_id, annee_cible.id, fin_s1)
                     if ok:
                         flash("Semestres configurés avec succès !", "success")
                         return redirect(url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='2'))
@@ -1239,6 +1239,67 @@ def onboarding_rentree(cible_id):
                 flash(msg, "danger")
                 return redirect(url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='4'))
 
+        elif action == 'valider_decisions_classe' and annee_source:
+            classe_src_id = request.form.get('classe_source_id', type=int)
+            prochaine_classe_id = request.form.get('prochaine_classe_id', type=int)
+
+            nb_succes = 0
+            for key, val in request.form.items():
+                if key.startswith('decision_'):
+                    try:
+                        eleve_id = int(key.replace('decision_', ''))
+                    except ValueError:
+                        continue
+                    decision = val.strip()
+                    if not decision or decision not in ('passage', 'redoublement', 'sortie', 'transfert', 'diplome'):
+                        continue
+
+                    classe_cible_id = request.form.get(f'classe_cible_{eleve_id}', type=int)
+                    motif_sortie = request.form.get(f'motif_sortie_{eleve_id}', '').strip() or None
+
+                    res, err = executer_passage_eleve(
+                        ecole_id=ecole_id,
+                        eleve_id=eleve_id,
+                        annee_source_id=annee_source.id,
+                        annee_cible_id=annee_cible.id,
+                        decision=decision,
+                        classe_cible_id=classe_cible_id,
+                        motif_sortie=motif_sortie,
+                    )
+                    if res and res.get('ok'):
+                        nb_succes += 1
+
+            try:
+                db.session.commit()
+                flash(f"{nb_succes} décision(s) enregistrée(s) avec succès pour cette classe !", "success")
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.exception(f"Erreur validation classe {classe_src_id} : {e}")
+                flash("Erreur lors de l'enregistrement des décisions.", "danger")
+
+            return redirect(url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='3', classe_source_id=prochaine_classe_id if prochaine_classe_id else None))
+
+        elif action == 'annuler_decision_eleve' and annee_source:
+            eleve_id = request.form.get('eleve_id', type=int)
+            classe_src_id = request.form.get('classe_source_id', type=int)
+            if eleve_id:
+                succes, err = annuler_decision_passage(
+                    eleve_id=eleve_id,
+                    annee_source_id=annee_source.id,
+                    annee_cible_id=annee_cible.id,
+                    ecole_id=ecole_id
+                )
+                if succes:
+                    try:
+                        db.session.commit()
+                        flash("Décision annulée pour cet élève.", "info")
+                    except Exception as e:
+                        db.session.rollback()
+                        flash("Erreur lors de l'annulation.", "danger")
+                else:
+                    flash(err or "Impossible d'annuler la décision.", "danger")
+            return redirect(url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='3', classe_source_id=classe_src_id if classe_src_id else None))
+
     # 1. Structure & Périodes
     semestres_list = get_semestres_annee(ecole_id, annee_cible.id)
     from types import SimpleNamespace
@@ -1255,38 +1316,171 @@ def onboarding_rentree(cible_id):
     is_cal_cfg = calendrier_configure(ecole_id, cible_id)
     etape1_complete = (classes_ouvertes_count > 0 and (is_cal_cfg or periodes_count >= 2))
 
-    # 2. Décisions du Conseil
+    # 2. Décisions du Conseil (Examen Classe par Classe)
+    classes_source_statut = []
+    classe_active = None
+    eleves_classe_active = []
+    total_classes_source = 0
+    nb_classes_validees = 0
+    prochaine_classe_id = None
+    classes_cand_passage = []
+    classes_cand_redoublement = []
+
     if annee_source:
+        classes_source_query = classes_triees_pedagogique(
+            Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_source.id)
+        ).all()
+
         inscriptions_source = (
             Inscription.query
             .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_source.id)
             .join(Eleve, Eleve.id == Inscription.eleve_id)
+            .options(
+                db.joinedload(Inscription.eleve),
+                db.joinedload(Inscription.classe).joinedload(Classe.niveau_scolaire)
+            )
+            .order_by(Eleve.nom.asc(), Eleve.prenom.asc())
             .all()
         )
         nb_total_source = len(inscriptions_source)
+
         inscriptions_cible_map = {
             insc.eleve_id: insc
             for insc in Inscription.query
             .filter_by(ecole_id=ecole_id, annee_scolaire_id=cible_id)
+            .options(
+                db.joinedload(Inscription.classe).joinedload(Classe.niveau_scolaire)
+            )
             .all()
         }
-        nb_traites = 0
-        for insc_src in inscriptions_source:
-            if insc_src.eleve_id in inscriptions_cible_map:
+
+        moyennes_eleves = get_moyennes_annuelles_eleves(ecole_id, annee_source.id)
+
+        inscriptions_par_classe = {}
+        for insc in inscriptions_source:
+            cid = insc.classe_id or 0
+            if cid not in inscriptions_par_classe:
+                inscriptions_par_classe[cid] = []
+            inscriptions_par_classe[cid].append(insc)
+
+        for cl in classes_source_query:
+            inscrips_cl = inscriptions_par_classe.get(cl.id, [])
+            tot = len(inscrips_cl)
+            traites = 0
+            for insc_s in inscrips_cl:
+                if insc_s.eleve_id in inscriptions_cible_map:
+                    traites += 1
+                elif insc_s.decision_fin_annee in ("transfert", "sortie", "diplome"):
+                    traites += 1
+                elif insc_s.statut in ("transfere", "sorti", "diplome"):
+                    traites += 1
+
+            terminee = (tot > 0 and traites >= tot)
+            classes_source_statut.append({
+                "id": cl.id,
+                "classe": cl,
+                "nom": cl.nom,
+                "niveau": cl.niveau_scolaire.nom if cl.niveau_scolaire else (cl.niveau or ""),
+                "total_eleves": tot,
+                "nb_traites": traites,
+                "nb_a_traiter": max(0, tot - traites),
+                "est_terminee": terminee,
+            })
+
+        total_classes_source = len(classes_source_statut)
+        nb_classes_validees = sum(1 for c in classes_source_statut if c["est_terminee"])
+
+        nb_traites = sum(c["nb_traites"] for c in classes_source_statut)
+        inscrips_sans_classe = inscriptions_par_classe.get(0, [])
+        for insc_s in inscrips_sans_classe:
+            if insc_s.eleve_id in inscriptions_cible_map or insc_s.decision_fin_annee in ("transfert", "sortie", "diplome") or insc_s.statut in ("transfere", "sorti", "diplome"):
                 nb_traites += 1
-            elif insc_src.decision_fin_annee in ("transfert", "sortie", "diplome"):
-                nb_traites += 1
-            elif insc_src.statut in ("transfere", "sorti", "diplome"):
-                nb_traites += 1
+
         nb_a_traiter = max(0, nb_total_source - nb_traites)
         ratio_decisions = int((nb_traites / nb_total_source * 100)) if nb_total_source > 0 else 100
         etape2_complete = (nb_total_source > 0 and nb_traites >= nb_total_source)
+
+        req_classe_id = request.args.get('classe_source_id', type=int)
+        classe_active_statut = None
+        if req_classe_id:
+            classe_active_statut = next((c for c in classes_source_statut if c["id"] == req_classe_id), None)
+        if not classe_active_statut:
+            classe_active_statut = next((c for c in classes_source_statut if not c["est_terminee"]), None)
+        if not classe_active_statut and classes_source_statut:
+            classe_active_statut = classes_source_statut[0]
+
+        if classe_active_statut:
+            classe_active = classe_active_statut["classe"]
+            classes_suivantes = [c for c in classes_source_statut if c["id"] != classe_active.id and not c["est_terminee"]]
+            prochaine_classe_id = classes_suivantes[0]["id"] if classes_suivantes else None
+
+            niv_src = classe_active.niveau_scolaire
+            niv_suivant = niv_src.niveau_suivant if niv_src else None
+
+            if niv_suivant:
+                classes_cand_passage = [
+                    c for c in classes_cible if c.niveau_id == niv_suivant.id and classe_est_ouverte(c)
+                ]
+            if not classes_cand_passage:
+                classes_cand_passage = [c for c in classes_cible if classe_est_ouverte(c)]
+
+            if niv_src:
+                classes_cand_redoublement = [
+                    c for c in classes_cible if c.niveau_id == niv_src.id and classe_est_ouverte(c)
+                ]
+            if not classes_cand_redoublement:
+                classes_cand_redoublement = [
+                    c for c in classes_cible if c.nom == classe_active.nom and classe_est_ouverte(c)
+                ]
+            if not classes_cand_redoublement:
+                classes_cand_redoublement = [c for c in classes_cible if classe_est_ouverte(c)]
+
+            lettre = classe_active.nom.split()[-1] if classe_active.nom else ""
+            match_lettre = next((c for c in classes_cand_passage if c.nom.endswith(lettre)), None)
+            classe_suggeree_passage_id = match_lettre.id if match_lettre else (classes_cand_passage[0].id if classes_cand_passage else None)
+
+            match_nom = next((c for c in classes_cand_redoublement if c.nom == classe_active.nom), None)
+            classe_suggeree_redoublement_id = match_nom.id if match_nom else (classes_cand_redoublement[0].id if classes_cand_redoublement else None)
+
+            inscrips_active = inscriptions_par_classe.get(classe_active.id, [])
+            for insc_s in inscrips_active:
+                el = insc_s.eleve
+                insc_c = inscriptions_cible_map.get(el.id)
+                moy = moyennes_eleves.get(el.id)
+                sugg = "passage" if (moy is not None and moy >= 10.0) else ("redoublement" if moy is not None else "passage")
+
+                est_t = False
+                detail_statut = "En attente"
+                if insc_c:
+                    est_t = True
+                    nom_cl = insc_c.classe.nom if insc_c.classe else "Classe"
+                    detail_statut = f"{insc_s.decision_fin_annee.capitalize() if insc_s.decision_fin_annee else 'Orienté'} → {nom_cl}"
+                elif insc_s.decision_fin_annee in ("transfert", "sortie", "diplome"):
+                    est_t = True
+                    detail_statut = insc_s.decision_fin_annee.capitalize()
+                elif insc_s.statut in ("transfere", "sorti", "diplome"):
+                    est_t = True
+                    detail_statut = insc_s.statut.capitalize()
+
+                eleves_classe_active.append({
+                    "eleve": el,
+                    "inscription_source": insc_s,
+                    "inscription_cible": insc_c,
+                    "est_traite": est_t,
+                    "detail_statut": detail_statut,
+                    "moyenne": moy,
+                    "suggestion": sugg,
+                    "classe_suggeree_passage_id": classe_suggeree_passage_id,
+                    "classe_suggeree_redoublement_id": classe_suggeree_redoublement_id,
+                })
     else:
         nb_total_source = 0
         nb_traites = 0
         nb_a_traiter = 0
         ratio_decisions = 100
         etape2_complete = True
+        total_classes_source = 0
+        nb_classes_validees = 0
 
     # 3. Pointage Financier (Confirmés vs Préinscrits)
     inscriptions_cible = (
@@ -1350,12 +1544,20 @@ def onboarding_rentree(cible_id):
         periodes_count=periodes_count,
         is_cal_cfg=is_cal_cfg,
         etape1_complete=etape1_complete,
-        # Étape 2
+        # Étape 2 (Décisions par classe)
         nb_total_source=nb_total_source,
         nb_traites=nb_traites,
         nb_a_traiter=nb_a_traiter,
         ratio_decisions=ratio_decisions,
         etape2_complete=etape2_complete,
+        classes_source_statut=classes_source_statut,
+        classe_active=classe_active,
+        eleves_classe_active=eleves_classe_active,
+        total_classes_source=total_classes_source,
+        nb_classes_validees=nb_classes_validees,
+        prochaine_classe_id=prochaine_classe_id,
+        classes_cand_passage=classes_cand_passage,
+        classes_cand_redoublement=classes_cand_redoublement,
         # Étape 3
         nb_confirmes=nb_confirmes,
         nb_preinscrits=nb_preinscrits,

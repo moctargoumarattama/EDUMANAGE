@@ -26,6 +26,7 @@ class TestWizardRentreeEtAssistant(unittest.TestCase):
         self.app.config["WTF_CSRF_ENABLED"] = False
         self.app_context = self.app.app_context()
         self.app_context.push()
+        db.create_all()
         self.client = self.app.test_client()
 
         # Nettoyage et initialisation d'une école de test
@@ -273,7 +274,7 @@ class TestWizardRentreeEtAssistant(unittest.TestCase):
     def test_02_wizard_view_rendering_and_stepper(self):
         """Vérifie que la page du Wizard s'affiche avec le stepper et les 4 cartes d'action."""
         self._login_admin()
-        resp = self.client.get(f"/annees/{self.annee_cible.id}/wizard")
+        resp = self.client.get(f"/annees/{self.annee_cible.id}/onboarding_rentree")
         self.assertEqual(resp.status_code, 200)
         content = resp.get_data(as_text=True)
 
@@ -321,7 +322,7 @@ class TestWizardRentreeEtAssistant(unittest.TestCase):
         db.session.commit()
 
         # Consultation du Wizard
-        resp = self.client.get(f"/annees/{self.annee_cible.id}/wizard")
+        resp = self.client.get(f"/annees/{self.annee_cible.id}/onboarding_rentree")
         self.assertEqual(resp.status_code, 200)
         content = resp.get_data(as_text=True)
 
@@ -348,7 +349,7 @@ class TestWizardRentreeEtAssistant(unittest.TestCase):
         reply = data.get("reply", "")
         self.assertIn(f"Rentrée {self.annee_cible.nom}", reply)
         self.assertIn("Structure pédagogique", reply)
-        self.assertIn(f"/annees/{self.annee_cible.id}/wizard", reply)
+        self.assertIn(f"/annees/{self.annee_cible.id}/onboarding_rentree", reply)
 
     def test_05_assistant_api_relance_reinscriptions(self):
         """Vérifie la réponse Fast-Path de l'API Assistant pour la relance des réinscriptions/acomptes."""
@@ -398,7 +399,7 @@ class TestWizardRentreeEtAssistant(unittest.TestCase):
         self.assertEqual(data2.get("intention"), "relance_reinscriptions")
         reply2 = data2.get("reply", "")
         self.assertIn("Amina Diop", reply2)
-        self.assertIn(f"/annees/{self.annee_cible.id}/wizard", reply2)
+        self.assertIn(f"/annees/{self.annee_cible.id}/onboarding_rentree", reply2)
 
     def test_06_dashboard_rentree_banner(self):
         """Vérifie que la bannière d'avancement de la rentrée planifiée s'affiche sur l'accueil."""
@@ -409,9 +410,109 @@ class TestWizardRentreeEtAssistant(unittest.TestCase):
         content = resp.get_data(as_text=True)
 
         self.assertIn(f"Préparation de la rentrée {self.annee_cible.nom} en cours", content)
-        self.assertIn(f"/annees/{self.annee_cible.id}/wizard", content)
+        self.assertIn(f"/annees/{self.annee_cible.id}/onboarding_rentree", content)
         self.assertIn("Continuer la préparation", content)
+
+    def test_07_etape3_classe_par_classe_decisions_et_annulation(self):
+        """Vérifie l'examen classe par classe, la validation par lot et l'annulation unitaire dans l'Étape 3."""
+        self._login_admin()
+
+        # 1. Vérifie l'affichage de l'Étape 3 avec la classe active
+        resp = self.client.get(f"/annees/{self.annee_cible.id}/onboarding_rentree?step=3&classe_source_id={self.classe_source.id}")
+        self.assertEqual(resp.status_code, 200)
+        content = resp.get_data(as_text=True)
+        self.assertIn("Revue des classes", content)
+        self.assertIn(f"Examen du conseil de classe :", content)
+        self.assertIn("Pré-cocher Admis / Redoublants", content)
+        self.assertIn("Valider les décisions pour", content)
+        self.assertIn(self.eleve1.nom, content)
+
+        # 2. Configuration du niveau suivant et validation du passage
+        niv_5 = NiveauScolaire.query.filter_by(nom="5ème Wizard").first()
+        if not niv_5:
+            niv_5 = NiveauScolaire(nom="5ème Wizard", code="5WIZ", cycle="college", ordre=70)
+            db.session.add(niv_5)
+            db.session.commit()
+        self.niveau.niveau_suivant_id = niv_5.id
+
+        cfg_5 = AnneeNiveauConfig.query.filter_by(
+            ecole_id=self.ecole.id,
+            annee_scolaire_id=self.annee_cible.id,
+            niveau_id=niv_5.id
+        ).first()
+        if not cfg_5:
+            cfg_5 = AnneeNiveauConfig(
+                ecole_id=self.ecole.id,
+                annee_scolaire_id=self.annee_cible.id,
+                niveau_id=niv_5.id,
+                actif=True
+            )
+            db.session.add(cfg_5)
+
+        cl_cible = Classe.query.filter_by(
+            ecole_id=self.ecole.id,
+            annee_scolaire_id=self.annee_cible.id,
+            nom="5ème A"
+        ).first()
+        if not cl_cible:
+            cl_cible = Classe(
+                nom="5ème A",
+                niveau="5ème",
+                niveau_id=niv_5.id,
+                capacite=30,
+                statut="ouverte",
+                ecole_id=self.ecole.id,
+                annee_scolaire_id=self.annee_cible.id
+            )
+            db.session.add(cl_cible)
+        db.session.commit()
+
+        post_data = {
+            "action": "valider_decisions_classe",
+            "classe_source_id": str(self.classe_source.id),
+            f"decision_{self.eleve1.id}": "passage",
+            f"classe_cible_{self.eleve1.id}": str(cl_cible.id),
+        }
+        resp_post = self.client.post(
+            f"/annees/{self.annee_cible.id}/onboarding_rentree?step=3",
+            data=post_data,
+            follow_redirects=True
+        )
+        self.assertEqual(resp_post.status_code, 200)
+        post_content = resp_post.get_data(as_text=True)
+        self.assertIn("décision(s) enregistrée(s) avec succès", post_content)
+
+        # Vérification en base : l'élève est inscrit dans l'année cible
+        insc_cible = Inscription.query.filter_by(
+            eleve_id=self.eleve1.id,
+            annee_scolaire_id=self.annee_cible.id
+        ).first()
+        self.assertIsNotNone(insc_cible)
+        self.assertEqual(insc_cible.classe_id, cl_cible.id)
+
+        # 3. Test de l'annulation unitaire (droit à l'erreur)
+        annul_data = {
+            "action": "annuler_decision_eleve",
+            "eleve_id": str(self.eleve1.id),
+            "classe_source_id": str(self.classe_source.id),
+        }
+        resp_annul = self.client.post(
+            f"/annees/{self.annee_cible.id}/onboarding_rentree?step=3",
+            data=annul_data,
+            follow_redirects=True
+        )
+        self.assertEqual(resp_annul.status_code, 200)
+        annul_content = resp_annul.get_data(as_text=True)
+        self.assertIn("Décision annulée pour cet élève", annul_content)
+
+        # Vérification en base : l'inscription cible a été supprimée
+        insc_apres = Inscription.query.filter_by(
+            eleve_id=self.eleve1.id,
+            annee_scolaire_id=self.annee_cible.id
+        ).first()
+        self.assertIsNone(insc_apres)
 
 
 if __name__ == "__main__":
     unittest.main()
+
