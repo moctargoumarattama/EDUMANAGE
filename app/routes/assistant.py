@@ -34,7 +34,7 @@ from app.ai_service import (
     query_assistant,
 )
 from app.authorization import role_required
-from app.models import Absence, Classe, Cours, Eleve, Inscription, Note, Utilisateur
+from app.models import Absence, AnneeScolaire, Classe, Cours, Eleve, Inscription, Note, Utilisateur
 from app.services.annees_scolaires import get_annee_active
 
 logger = logging.getLogger(__name__)
@@ -563,7 +563,24 @@ def _fast_detect_intent_and_entities(question: str) -> Optional[Dict[str, Any]]:
     # Mots-clés pour notes
     is_notes = any(k in q_norm for k in ("note", "notes", "moyenne", "moyennes", "bulletin", "bulletins", "evaluation", "evaluations", "resultat", "resultats"))
 
+    # Mots-clés pour pilotage de rentrée scolaire (Chantier D)
+    is_rentree_word = any(k in q_norm for k in ("rentree", "rentre"))
+    is_statut_rentree = (
+        is_rentree_word and any(k in q_norm for k in ("avancement", "preparation", "ou en est", "ou en sommes", "statut", "etat", "wizard", "pilotage", "suivi", "point", "comment se passe"))
+    ) or any(k in q_norm for k in ("ou en est la rentree", "etat de la rentree", "statut rentree", "avancement rentree", "preparer la rentree", "wizard rentree"))
+
+    is_relance_reinscriptions = any(k in q_norm for k in (
+        "qui n a pas paye", "qui n a pas regle", "pas encore paye", "pas paye",
+        "preinscrit", "preinscrits", "attente de reinscription", "attente reinscription",
+        "non confirme", "non confirmes", "acompte", "acomptes", "qui doit payer",
+        "relance reinscription", "relance reinscriptions", "relances reinscription"
+    ))
+
     # Intentions prioritaires
+    if is_relance_reinscriptions:
+        return {"intention": "relance_reinscriptions", "eleve": eleve_nom, "classe": classe_nom, "periode": periode, "seuil": seuil}
+    if is_statut_rentree:
+        return {"intention": "statut_rentree", "eleve": eleve_nom, "classe": classe_nom, "periode": periode, "seuil": seuil}
     if is_fiche or (is_notes and is_absences):
         return {"intention": "fiche_eleve", "eleve": eleve_nom, "classe": classe_nom, "periode": periode, "seuil": seuil}
     if is_contact and not is_notes and not is_absences:
@@ -810,8 +827,151 @@ def api_assistant_query_data():
 
     # 5. Exécution des requêtes SQLAlchemy selon l'intention
     try:
+        # FAST-PATH CHANTIER D : STATUT DE LA RENTRÉE SCOLAIRE
+        if intention == "statut_rentree":
+            annee_planifiee = (
+                AnneeScolaire.query
+                .filter_by(ecole_id=ecole_id, statut='planifiee')
+                .order_by(AnneeScolaire.date_debut.desc(), AnneeScolaire.id.desc())
+                .first()
+            ) if ecole_id else None
+
+            if not annee_planifiee:
+                reply = (
+                    "ℹ️ **Aucune rentrée planifiée en cours**\n\n"
+                    "Aucune année scolaire au statut *planifiée* n'a été trouvée pour votre établissement. "
+                    "Vous pouvez en créer une nouvelle depuis le menu **Années scolaires** pour démarrer le parcours de rentrée."
+                )
+                return jsonify({
+                    "success": True,
+                    "intention": "statut_rentree",
+                    "criteres": intent,
+                    "donnees_trouvees": 0,
+                    "donnees": [],
+                    "reply": reply,
+                })
+
+            from app.services.preparation_annee import get_etat_preparation_annee
+            etat_prep = get_etat_preparation_annee(ecole_id, annee_planifiee.id)
+            progression = etat_prep["progression"] if etat_prep else 0
+            total_classes = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_planifiee.id).count()
+
+            inscrits_cible = Inscription.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_planifiee.id).all()
+            nb_confirmes = sum(1 for insc in inscrits_cible if insc.statut == 'inscrit')
+            nb_preinscrits = sum(1 for insc in inscrits_cible if insc.statut == 'preinscrit')
+
+            traites_passage = etat_prep["passage"]["traites"] if (etat_prep and etat_prep.get("passage")) else 0
+            total_passage = etat_prep["passage"]["total_eleves"] if (etat_prep and etat_prep.get("passage")) else 0
+
+            reply = (
+                f"🎯 **Point de situation — Rentrée {annee_planifiee.nom}**\n\n"
+                f"La préparation est actuellement complétée à **{progression}%** :\n"
+                f"• **Structure pédagogique** : {total_classes} classe(s) créée(s)\n"
+                f"• **Décisions du conseil** : {traites_passage}/{total_passage} élève(s) orienté(s)\n"
+                f"• **Pointage financier** : {nb_confirmes} inscrit(s) confirmé(s) et {nb_preinscrits} préinscrit(s) en attente d'acompte\n\n"
+                f"[Ouvrir l'assistant de rentrée](/annees/{annee_planifiee.id}/wizard)"
+            )
+
+            return jsonify({
+                "success": True,
+                "intention": "statut_rentree",
+                "criteres": intent,
+                "donnees_trouvees": len(inscrits_cible),
+                "donnees": [{
+                    "annee_id": annee_planifiee.id,
+                    "annee_nom": annee_planifiee.nom,
+                    "progression": progression,
+                    "total_classes": total_classes,
+                    "nb_confirmes": nb_confirmes,
+                    "nb_preinscrits": nb_preinscrits,
+                }],
+                "reply": reply,
+            })
+
+        # FAST-PATH CHANTIER D : RELANCE DES PRÉINSCRIPTIONS & ACOMPTES
+        elif intention == "relance_reinscriptions":
+            annee_planifiee = (
+                AnneeScolaire.query
+                .filter_by(ecole_id=ecole_id, statut='planifiee')
+                .order_by(AnneeScolaire.date_debut.desc(), AnneeScolaire.id.desc())
+                .first()
+            ) if ecole_id else None
+
+            if not annee_planifiee:
+                reply = (
+                    "ℹ️ **Aucune rentrée planifiée en cours**\n\n"
+                    "Aucune année scolaire au statut *planifiée* n'est actuellement en préparation pour votre établissement."
+                )
+                return jsonify({
+                    "success": True,
+                    "intention": "relance_reinscriptions",
+                    "criteres": intent,
+                    "donnees_trouvees": 0,
+                    "donnees": [],
+                    "reply": reply,
+                })
+
+            preinscrits_query = (
+                Inscription.query
+                .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_planifiee.id, statut='preinscrit')
+                .join(Eleve, Eleve.id == Inscription.eleve_id)
+                .outerjoin(Classe, Classe.id == Inscription.classe_id)
+                .options(db.joinedload(Inscription.eleve), db.joinedload(Inscription.classe))
+            )
+            if classe_param:
+                preinscrits_query = preinscrits_query.filter(Classe.nom.ilike(f"%{classe_param}%"))
+
+            preinscrits = preinscrits_query.order_by(Classe.nom.asc(), Eleve.nom.asc()).all()
+
+            if not preinscrits:
+                reply = (
+                    f"🎉 **Tous les élèves sont à jour !**\n\n"
+                    f"Pour la rentrée **{annee_planifiee.nom}**, tous les dossiers d'élèves enregistrés ont validé leur inscription. "
+                    f"Aucun élève n'est en attente d'acompte.\n\n"
+                    f"[Accéder à l'assistant de rentrée](/annees/{annee_planifiee.id}/wizard)"
+                )
+                return jsonify({
+                    "success": True,
+                    "intention": "relance_reinscriptions",
+                    "criteres": intent,
+                    "donnees_trouvees": 0,
+                    "donnees": [],
+                    "reply": reply,
+                })
+
+            lines = [
+                f"📋 **Élèves préinscrits en attente d'acompte ({len(preinscrits)}) — Rentrée {annee_planifiee.nom}** :\n"
+            ]
+            records_data = []
+            for insc in preinscrits[:15]:
+                el = insc.eleve
+                cl_nom = insc.classe.nom if insc.classe else "Sans classe"
+                tel = el.contact_parent or el.telephone or "Non renseigné"
+                records_data.append({
+                    "eleve_id": el.id,
+                    "nom_complet": f"{el.prenom} {el.nom}",
+                    "classe": cl_nom,
+                    "telephone": tel,
+                })
+                lines.append(f"• **{el.prenom} {el.nom}** ({cl_nom}) — Tél: `{tel}`")
+
+            if len(preinscrits) > 15:
+                lines.append(f"\n*... et {len(preinscrits) - 15} autre(s) élève(s) en attente.*")
+
+            lines.append(f"\n[Gérer dans l'assistant de rentrée](/annees/{annee_planifiee.id}/wizard)")
+            reply = "\n".join(lines)
+
+            return jsonify({
+                "success": True,
+                "intention": "relance_reinscriptions",
+                "criteres": intent,
+                "donnees_trouvees": len(preinscrits),
+                "donnees": records_data,
+                "reply": reply,
+            })
+
         # A) FICHE COMPLÈTE DE L'ÉLÈVE
-        if intention == "fiche_eleve" and eleve_param:
+        elif intention == "fiche_eleve" and eleve_param:
             matched_eleves = _search_eleves_in_ecole(eleve_param, ecole_id) if ecole_id else []
 
             if not matched_eleves:

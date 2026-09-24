@@ -1,5 +1,6 @@
 from . import main
 from .common import (
+    AnneeScolaire,
     Ecole,
     LoginForm,
     URLSafeTimedSerializer,
@@ -54,7 +55,21 @@ def index():
             'last_backup': sys_stats.get('last_backup'),
             'table_count': sys_stats.get('table_count', 'N/A'),
         }
-        return render_template('index.html', stats=stats)
+        ecole_id = session.get('ecole_id')
+        annee_planifiee = None
+        etat_planifiee = None
+        if ecole_id:
+            annee_planifiee = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut='planifiee').order_by(AnneeScolaire.date_debut.desc(), AnneeScolaire.id.desc()).first()
+            if annee_planifiee:
+                from app.services.preparation_annee import get_etat_preparation_annee
+                etat_planifiee = get_etat_preparation_annee(ecole_id, annee_planifiee.id)
+
+        return render_template(
+            'index.html',
+            stats=stats,
+            annee_planifiee=annee_planifiee,
+            etat_planifiee=etat_planifiee
+        )
 
     elif current_user.role == 'admin':
         from app.utils import get_school_setup_state
@@ -68,12 +83,21 @@ def index():
         annee_consultee = get_annee_consultee(ecole_id)
         stats = get_dashboard_admin_annuel(ecole_id, annee_consultee)
         force_tour_prompt = bool(session.pop('onboarding_just_completed', False))
+
+        annee_planifiee = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut='planifiee').order_by(AnneeScolaire.date_debut.desc(), AnneeScolaire.id.desc()).first()
+        etat_planifiee = None
+        if annee_planifiee:
+            from app.services.preparation_annee import get_etat_preparation_annee
+            etat_planifiee = get_etat_preparation_annee(ecole_id, annee_planifiee.id)
+
         return render_template(
             'index.html',
             stats=stats,
             school_setup_state=setup_state,
             annee_consultee=annee_consultee,
-            force_tour_prompt=force_tour_prompt
+            force_tour_prompt=force_tour_prompt,
+            annee_planifiee=annee_planifiee,
+            etat_planifiee=etat_planifiee
         )
 
     # -----------------------------

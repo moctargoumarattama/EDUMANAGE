@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+
+{% block title %}Assistant de Rentrée — {{ annee_cible.nom }} — KLASORA{% endblock %}
+
+{% block content %}
+<style>
+.wizard-header-badge {
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.4rem 0.85rem;
+    border-radius: 9999px;
+}
+.wizard-stepper-wrap {
+    background: #ffffff;
+    border-radius: 1.25rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+.wizard-step-node {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-radius: 0.85rem;
+    transition: all 0.2s ease;
+}
+.wizard-step-node.active {
+    background: #f1f5f9;
+}
+.step-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+.step-circle.done {
+    background: #10b981;
+    color: #ffffff;
+}
+.step-circle.current {
+    background: #6366f1;
+    color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+}
+.step-circle.todo {
+    background: #e2e8f0;
+    color: #64748b;
+}
+.wizard-card {
+    background: #ffffff;
+    border-radius: 1.25rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.wizard-card:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+.touch-btn {
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+}
+.gauge-bar-segment {
+    height: 12px;
+    transition: width 0.4s ease;
+}
+</style>
+
+<div class="container-fluid py-3 px-2 px-md-4" style="max-width: 1280px;">
+
+    <!-- En-tête & Fil d'Ariane -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 small">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}" class="text-decoration-none">Accueil</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.gestion_annees') }}" class="text-decoration-none">Années scolaires</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Assistant Rentrée</li>
+                </ol>
+            </nav>
+            <h1 class="h3 fw-bold mb-1 text-dark d-flex align-items-center flex-wrap gap-2">
+                <i class="fas fa-magic text-primary"></i>
+                Parcours Rentrée Scolaire
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill fs-6 px-3">
+                    {{ annee_cible.nom }}
+                </span>
+            </h1>
+            <p class="text-muted small mb-0">
+                Guide pas-à-pas pour préparer, affecter et lancer l'année scolaire en toute sérénité.
+            </p>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 w-100 w-md-auto justify-content-between justify-content-md-end">
+            <a href="{{ url_for('main.preparation_annee', annee_id=annee_cible.id) }}" class="btn btn-outline-secondary touch-btn px-3 rounded-pill text-nowrap">
+                <i class="fas fa-sliders-h me-1"></i>Diagnostic avancé
+            </a>
+            <a href="{{ url_for('main.gestion_annees') }}" class="btn btn-light touch-btn px-3 rounded-pill text-nowrap">
+                <i class="fas fa-arrow-left me-1"></i>Retour
+            </a>
+        </div>
+    </div>
+
+    <!-- Jauge de progression globale -->
+    <div class="wizard-stepper-wrap p-3 p-md-4 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="fw-bold text-dark fs-6">
+                <i class="fas fa-chart-line text-indigo me-1"></i>Avancement global de la préparation
+            </span>
+            <span class="badge {% if progression >= 100 %}bg-success{% elif progression >= 50 %}bg-primary{% else %}bg-warning text-dark{% endif %} wizard-header-badge">
+                {{ progression }}% complété
+            </span>
+        </div>
+        <div class="progress rounded-pill" style="height: 10px; background-color: #f1f5f9;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated {% if progression >= 100 %}bg-success{% else %}bg-primary{% endif %}"
+                 role="progressbar"
+                 style="width: {{ progression }}%;"
+                 aria-valuenow="{{ progression }}"
+                 aria-valuemin="0"
+                 aria-valuemax="100"></div>
+        </div>
+
+        <!-- Stepper horizontal 4 étapes -->
+        <div class="row g-2 mt-3 pt-2 border-top">
+            <!-- Étape 1 -->
+            <div class="col-6 col-md-3">
+                <div class="wizard-step-node {% if not etape1_complete %}active{% endif %}">
+                    <div class="step-circle {% if etape1_complete %}done{% else %}current{% endif %}">
+                        {% if etape1_complete %}<i class="fas fa-check"></i>{% else %}1{% endif %}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="small fw-bold text-truncate text-dark">1. Structure</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">
+                            {% if etape1_complete %}<span class="text-success fw-semibold">Validée</span>{% else %}En cours{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Étape 2 -->
+            <div class="col-6 col-md-3">
+                <div class="wizard-step-node {% if etape1_complete and not etape2_complete %}active{% endif %}">
+                    <div class="step-circle {% if etape2_complete %}done{% elif etape1_complete %}current{% else %}todo{% endif %}">
+                        {% if etape2_complete %}<i class="fas fa-check"></i>{% else %}2{% endif %}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="small fw-bold text-truncate text-dark">2. Décisions</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">
+                            {% if etape2_complete %}<span class="text-success fw-semibold">Validée</span>{% elif etape1_complete %}{{ ratio_decisions }}% traités{% else %}À venir{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Étape 3 -->
+            <div class="col-6 col-md-3">
+                <div class="wizard-step-node {% if etape1_complete and etape2_complete and not etape3_complete %}active{% endif %}">
+                    <div class="step-circle {% if etape3_complete %}done{% elif etape1_complete and etape2_complete %}current{% else %}todo{% endif %}">
+                        {% if etape3_complete %}<i class="fas fa-check"></i>{% else %}3{% endif %}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="small fw-bold text-truncate text-dark">3. Finances</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">
+                            {% if etape3_complete %}<span class="text-success fw-semibold">À jour</span>{% elif etape1_complete and etape2_complete %}{{ nb_preinscrits }} en attente{% else %}À venir{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Étape 4 -->
+            <div class="col-6 col-md-3">
+                <div class="wizard-step-node {% if etape4_complete %}active{% endif %}">
+                    <div class="step-circle {% if etape4_complete %}done{% elif prete_pour_activation %}current{% else %}todo{% endif %}">
+                        {% if etape4_complete %}<i class="fas fa-check"></i>{% else %}4{% endif %}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="small fw-bold text-truncate text-dark">4. Lancement</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">
+                            {% if etape4_complete %}<span class="text-success fw-semibold">Active</span>{% elif prete_pour_activation %}<span class="text-primary fw-semibold">Prête</span>{% else %}Bloqué{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- LES 4 CARTES D'ACTION PAS-À-PAS                                           -->
+    <!-- ========================================================================= -->
+    <div class="row g-4">
+
+        <!-- CARTE 1 : STRUCTURE & PÉRIODES -->
+        <div class="col-12 col-xl-6">
+            <div class="wizard-card h-100 p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="rounded-circle d-inline-flex align-items-center justify-content-center bg-primary-subtle text-primary" style="width: 40px; height: 40px;">
+                                <i class="fas fa-sitemap"></i>
+                            </span>
+                            <div>
+                                <h2 class="h5 fw-bold mb-0 text-dark">Étape 1 : Structure & Périodes</h2>
+                                <span class="text-muted small">Classes ouvertes et calendrier semestriel</span>
+                            </div>
+                        </div>
+                        <span class="badge {% if etape1_complete %}bg-success-subtle text-success border border-success-subtle{% else %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% endif %} rounded-pill px-3 py-2">
+                            {% if etape1_complete %}<i class="fas fa-check-circle me-1"></i>Complète{% else %}<i class="fas fa-clock me-1"></i>À configurer{% endif %}
+                        </span>
+                    </div>
+
+                    <!-- Métriques clés -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <div class="bg-light p-2.5 rounded-3 text-center border">
+                                <div class="text-muted small">Classes ouvertes</div>
+                                <div class="fs-4 fw-bold text-dark">{{ classes_ouvertes_count }} / {{ total_classes }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-light p-2.5 rounded-3 text-center border">
+                                <div class="text-muted small">Semestres configurés</div>
+                                <div class="fs-4 fw-bold {% if is_cal_cfg %}text-success{% else %}text-muted{% endif %}">
+                                    {% if is_cal_cfg %}<i class="fas fa-check-circle text-success"></i> Oui{% else %}{{ periodes_count }} période(s){% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if total_classes == 0 and annee_source %}
+                    <!-- Incitation 1-clic duplication -->
+                    <div class="alert alert-info border-0 rounded-3 mb-3 p-3" style="background: #eef2ff;">
+                        <div class="d-flex gap-2">
+                            <i class="fas fa-lightbulb text-primary mt-1"></i>
+                            <div class="small text-dark">
+                                <strong>Gagnez du temps :</strong> Reconduisez automatiquement les classes et semestres de l'année précédente (<strong>{{ annee_source.nom }}</strong>) en un seul clic.
+                            </div>
+                        </div>
+                    </div>
+                    {% elif etape1_complete %}
+                    <p class="text-success small mb-3">
+                        <i class="fas fa-check me-1"></i>La structure pédagogique et les périodes sont opérationnelles pour accueillir les passages d'élèves.
+                    </p>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 pt-2 border-top mt-2">
+                    {% if total_classes == 0 and annee_source %}
+                    <form method="POST" action="{{ url_for('main.dupliquer_structure_annee_route', source_id=annee_source.id, cible_id=annee_cible.id) }}" class="w-100" onsubmit="return confirm('Confirmez-vous la reconduction automatique des classes et périodes de {{ annee_source.nom }} vers {{ annee_cible.nom }} ?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="next" value="{{ request.url }}">
+                        <button type="submit" class="btn btn-primary touch-btn w-100 rounded-3 shadow-sm">
+                            <i class="fas fa-copy me-2"></i>Reconduire la structure de l'an dernier en 1 clic
+                        </button>
+                    </form>
+                    {% endif %}
+                    <a href="{{ url_for('main.structure_annee', annee_id=annee_cible.id) }}" class="btn btn-outline-secondary touch-btn flex-grow-1 rounded-3">
+                        <i class="fas fa-cog me-1"></i>Gérer les classes & semestres
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARTE 2 : DÉCISIONS DU CONSEIL -->
+        <div class="col-12 col-xl-6">
+            <div class="wizard-card h-100 p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="rounded-circle d-inline-flex align-items-center justify-content-center bg-indigo-subtle text-indigo" style="width: 40px; height: 40px; background-color: #ede9fe; color: #6d28d9;">
+                                <i class="fas fa-user-graduate"></i>
+                            </span>
+                            <div>
+                                <h2 class="h5 fw-bold mb-0 text-dark">Étape 2 : Décisions du Conseil</h2>
+                                <span class="text-muted small">Passages, redoublements et sorties</span>
+                            </div>
+                        </div>
+                        <span class="badge {% if etape2_complete %}bg-success-subtle text-success border border-success-subtle{% else %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% endif %} rounded-pill px-3 py-2">
+                            {% if etape2_complete %}<i class="fas fa-check-circle me-1"></i>Terminé{% else %}<i class="fas fa-hourglass-half me-1"></i>{{ ratio_decisions }}% traités{% endif %}
+                        </span>
+                    </div>
+
+                    <!-- Métriques clés -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <div class="bg-light p-2.5 rounded-3 text-center border">
+                                <div class="text-muted small">Total N-1</div>
+                                <div class="fs-4 fw-bold text-dark">{{ nb_total_source }}</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="bg-light p-2.5 rounded-3 text-center border">
+                                <div class="text-muted small">Traités</div>
+                                <div class="fs-4 fw-bold text-success">{{ nb_traites }}</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="bg-light p-2.5 rounded-3 text-center border">
+                                <div class="text-muted small">Restants</div>
+                                <div class="fs-4 fw-bold {% if nb_a_traiter > 0 %}text-danger{% else %}text-muted{% endif %}">{{ nb_a_traiter }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Barre de progression -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between text-muted small mb-1">
+                            <span>Élèves affectés ou sortis</span>
+                            <span>{{ nb_traites }} / {{ nb_total_source }}</span>
+                        </div>
+                        <div class="progress rounded-pill" style="height: 8px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ ratio_decisions }}%;" aria-valuenow="{{ ratio_decisions }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+
+                    {% if nb_a_traiter > 0 and annee_source %}
+                    <p class="text-muted small mb-3">
+                        <i class="fas fa-info-circle text-primary me-1"></i>Il reste <strong>{{ nb_a_traiter }} élève(s)</strong> en attente de décision de passage. Utilisez le bouton ci-dessous pour traiter par classe ou en masse.
+                    </p>
+                    {% elif etape2_complete %}
+                    <p class="text-success small mb-3">
+                        <i class="fas fa-check-circle me-1"></i>Tous les élèves de l'année précédente ont été orientés pour cette rentrée.
+                    </p>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 pt-2 border-top mt-2">
+                    {% if annee_source %}
+                    <a href="{{ url_for('main.passage_annee', source_id=annee_source.id, cible_id=annee_cible.id) }}" class="btn btn-primary touch-btn flex-grow-1 rounded-3 shadow-sm">
+                        <i class="fas fa-arrow-right-arrow-left me-1"></i>Passage d'année (Décisions)
+                    </a>
+                    {% else %}
+                    <span class="text-muted small py-2">Aucune année scolaire antérieure active disponible.</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- CARTE 3 : POINTAGE FINANCIER & PRÉINSCRIPTIONS -->
+        <div class="col-12 col-xl-6">
+            <div class="wizard-card h-100 p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="rounded-circle d-inline-flex align-items-center justify-content-center bg-emerald-subtle" style="width: 40px; height: 40px; background-color: #d1fae5; color: #047857;">
+                                <i class="fas fa-receipt"></i>
+                            </span>
+                            <div>
+                                <h2 class="h5 fw-bold mb-0 text-dark">Étape 3 : Pointage Financier & Acomptes</h2>
+                                <span class="text-muted small">Inscrits confirmés vs Préinscrits</span>
+                            </div>
+                        </div>
+                        <span class="badge {% if etape3_complete %}bg-success-subtle text-success border border-success-subtle{% elif nb_preinscrits > 0 %}bg-warning-subtle text-warning-emphasis border border-warning-subtle{% else %}bg-secondary-subtle text-secondary border border-secondary-subtle{% endif %} rounded-pill px-3 py-2">
+                            {% if etape3_complete %}<i class="fas fa-check-circle me-1"></i>100% Confirmés{% elif nb_preinscrits > 0 %}<i class="fas fa-clock me-1"></i>{{ nb_preinscrits }} en attente{% else %}0 élève{% endif %}
+                        </span>
+                    </div>
+
+                    <!-- Métriques clés -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <div class="bg-light p-2.5 rounded-3 text-center border">
+                                <div class="text-muted small">Total attendus</div>
+                                <div class="fs-4 fw-bold text-dark">{{ total_inscrits_cible }}</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="bg-light p-2.5 rounded-3 text-center border">
+                                <div class="text-muted small">Inscrits payés</div>
+                                <div class="fs-4 fw-bold text-success">{{ nb_confirmes }}</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="bg-light p-2.5 rounded-3 text-center border">
+                                <div class="text-muted small">Préinscrits</div>
+                                <div class="fs-4 fw-bold text-warning-emphasis">{{ nb_preinscrits }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Jauge bicolore Inscrits vs Préinscrits -->
+                    {% if total_inscrits_cible > 0 %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between text-muted small mb-1">
+                            <span>Taux de confirmation d'acompte</span>
+                            <span class="fw-bold text-dark">{{ taux_confirmation }}%</span>
+                        </div>
+                        <div class="d-flex rounded-pill overflow-hidden" style="height: 10px; background-color: #f1f5f9;">
+                            <div class="gauge-bar-segment bg-success" style="width: {{ taux_confirmation }}%;" title="Inscrits confirmés ({{ nb_confirmes }})"></div>
+                            <div class="gauge-bar-segment bg-warning" style="width: {{ 100 - taux_confirmation }}%;" title="Préinscrits en attente ({{ nb_preinscrits }})"></div>
+                        </div>
+                        <div class="d-flex justify-content-between small text-muted mt-1" style="font-size: 0.75rem;">
+                            <span class="text-success"><i class="fas fa-circle me-1" style="font-size: 0.55rem;"></i>{{ nb_confirmes }} confirmé(s)</span>
+                            <span class="text-warning-emphasis"><i class="fas fa-circle me-1" style="font-size: 0.55rem;"></i>{{ nb_preinscrits }} en attente d'acompte</span>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Accordéon / Liste déroulante des préinscrits si présents -->
+                    {% if preinscrits_list %}
+                    <div class="accordion mb-3" id="accordionPreinscrits">
+                        <div class="accordion-item border rounded-3 overflow-hidden">
+                            <h2 class="accordion-header" id="headingPreinscrits">
+                                <button class="accordion-button collapsed py-2 px-3 bg-light text-dark small fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePreinscrits" aria-expanded="false" aria-controls="collapsePreinscrits">
+                                    <i class="fas fa-users-viewfinder text-warning-emphasis me-2"></i>
+                                    Consulter les {{ preinscrits_list|length }} élève(s) en attente d'acompte
+                                </button>
+                            </h2>
+                            <div id="collapsePreinscrits" class="accordion-collapse collapse" aria-labelledby="headingPreinscrits" data-bs-parent="#accordionPreinscrits">
+                                <div class="accordion-body p-2" style="max-height: 220px; overflow-y: auto;">
+                                    <ul class="list-group list-group-flush small">
+                                        {% for insc in preinscrits_list %}
+                                        <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-2">
+                                            <div>
+                                                <a href="{{ url_for('main.voir_eleve', eleve_id=insc.eleve.id) }}" class="fw-bold text-dark text-decoration-none">
+                                                    {{ insc.eleve.prenom }} {{ insc.eleve.nom }}
+                                                </a>
+                                                <span class="badge bg-light text-secondary border ms-1">{{ insc.classe.nom if insc.classe else 'Sans classe' }}</span>
+                                            </div>
+                                            <div>
+                                                {% if insc.eleve.contact_parent or insc.eleve.telephone %}
+                                                <a href="tel:{{ insc.eleve.contact_parent or insc.eleve.telephone }}" class="btn btn-sm btn-outline-primary py-0 px-2 rounded-pill" title="Appeler le parent">
+                                                    <i class="fas fa-phone"></i>
+                                                </a>
+                                                {% endif %}
+                                                <a href="{{ url_for('main.paiements', eleve_id=insc.eleve.id) }}" class="btn btn-sm btn-outline-success py-0 px-2 rounded-pill ms-1" title="Encaisser un acompte">
+                                                    <i class="fas fa-money-bill-wave"></i>
+                                                </a>
+                                            </div>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-success small mb-3">
+                        <i class="fas fa-check-circle me-1"></i>Aucun élève n'est en attente de paiement d'acompte.
+                    </p>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 pt-2 border-top mt-2">
+                    <a href="{{ url_for('main.eleves') }}" class="btn btn-outline-secondary touch-btn flex-grow-1 rounded-3">
+                        <i class="fas fa-address-book me-1"></i>Annuaire des élèves
+                    </a>
+                    <a href="{{ url_for('main.paiements') }}" class="btn btn-outline-success touch-btn flex-grow-1 rounded-3">
+                        <i class="fas fa-cash-register me-1"></i>Module Paiements
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- CARTE 4 : LANCEMENT OFFICIEL DE L'ANNÉE -->
+        <div class="col-12 col-xl-6">
+            <div class="wizard-card h-100 p-3 p-md-4 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="rounded-circle d-inline-flex align-items-center justify-content-center bg-teal-subtle" style="width: 40px; height: 40px; background-color: #ccfbf1; color: #0f766e;">
+                                <i class="fas fa-rocket"></i>
+                            </span>
+                            <div>
+                                <h2 class="h5 fw-bold mb-0 text-dark">Étape 4 : Lancement Officiel</h2>
+                                <span class="text-muted small">Activation sécurisée de la rentrée</span>
+                            </div>
+                        </div>
+                        <span class="badge {% if etape4_complete %}bg-success text-white{% elif prete_pour_activation %}bg-primary text-white{% else %}bg-danger-subtle text-danger border border-danger-subtle{% endif %} rounded-pill px-3 py-2">
+                            {% if etape4_complete %}<i class="fas fa-check-circle me-1"></i>Année Active{% elif prete_pour_activation %}<i class="fas fa-bolt me-1"></i>Prête au lancement{% else %}<i class="fas fa-lock me-1"></i>Verrouillée{% endif %}
+                        </span>
+                    </div>
+
+                    {% if bloquants %}
+                    <div class="alert alert-danger border-0 rounded-3 mb-3 p-3">
+                        <div class="fw-bold small mb-1"><i class="fas fa-exclamation-triangle me-1"></i>Points bloquants avant l'activation :</div>
+                        <ul class="mb-0 ps-3 small">
+                            {% for b in bloquants %}
+                            <li>{{ b }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if avertissements and not bloquants %}
+                    <div class="alert alert-warning border-0 rounded-3 mb-3 p-3">
+                        <div class="fw-bold small mb-1"><i class="fas fa-info-circle me-1"></i>Avertissements informatifs (non bloquants) :</div>
+                        <ul class="mb-0 ps-3 small">
+                            {% for a in avertissements %}
+                            <li>{{ a }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    {% if prete_pour_activation and not etape4_complete %}
+                    <div class="alert alert-success border-0 rounded-3 mb-3 p-3" style="background: #ecfdf5;">
+                        <div class="d-flex gap-2">
+                            <i class="fas fa-check-double text-success mt-1"></i>
+                            <div class="small text-dark">
+                                <strong>Toutes les conditions sont remplies !</strong>
+                                Vous pouvez officialiser la rentrée scolaire. L'année précédente sera automatiquement archivée en lecture seule.
+                            </div>
+                        </div>
+                    </div>
+                    {% elif etape4_complete %}
+                    <div class="alert alert-success border-0 rounded-3 mb-3 p-3">
+                        <i class="fas fa-check-circle me-1"></i>Cette année scolaire est déjà l'année active de votre établissement.
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 pt-2 border-top mt-2">
+                    {% if prete_pour_activation and not etape4_complete %}
+                    <a href="{{ url_for('main.activation_annee_confirmation', annee_id=annee_cible.id) }}" class="btn btn-success touch-btn w-100 rounded-3 shadow-sm fs-6">
+                        <i class="fas fa-rocket me-2"></i>Activer officiellement la rentrée {{ annee_cible.nom }}
+                    </a>
+                    {% else %}
+                    <button class="btn btn-secondary touch-btn w-100 rounded-3" disabled>
+                        <i class="fas fa-lock me-2"></i>{% if etape4_complete %}Rentrée déjà activée{% else %}Résoudre les bloquants pour activer{% endif %}
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

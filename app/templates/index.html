@@ -65,6 +65,34 @@
         </div>
     </section>
 
+    {% if annee_planifiee and current_user.role in ['admin', 'super_admin'] %}
+    <div class="alert border-0 shadow-sm rounded-4 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-3 p-3 p-md-4" style="background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); border-left: 5px solid #6366f1 !important;" role="region" aria-label="Préparation de la rentrée">
+        <div class="d-flex align-items-center gap-3">
+            <div class="rounded-circle d-flex align-items-center justify-content-center bg-white shadow-sm flex-shrink-0" style="width: 48px; height: 48px; color: #4f46e5;">
+                <i class="fas fa-magic fa-lg"></i>
+            </div>
+            <div>
+                <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+                    <h2 class="h6 fw-bold mb-0 text-dark">
+                        Préparation de la rentrée {{ annee_planifiee.nom }} en cours
+                    </h2>
+                    {% if etat_planifiee and etat_planifiee.progression is not none %}
+                    <span class="badge bg-primary rounded-pill px-2.5 py-1" style="font-size: 0.75rem;">
+                        {{ etat_planifiee.progression }}% complété
+                    </span>
+                    {% endif %}
+                </div>
+                <p class="text-muted small mb-0">
+                    Structure, passage des élèves et pointage financier : suivez le parcours pas-à-pas pour une rentrée sereine.
+                </p>
+            </div>
+        </div>
+        <a href="{{ url_for('main.wizard_rentree', cible_id=annee_planifiee.id) }}" class="btn btn-primary px-3 py-2 rounded-3 shadow-sm fw-semibold touch-btn text-nowrap w-100 w-sm-auto">
+            <i class="fas fa-arrow-right me-1"></i>Continuer la préparation
+        </a>
+    </div>
+    {% endif %}
+
     {% if annee_consultee and annee_active and annee_consultee.id != annee_active.id and current_user.role in ['admin', 'super_admin'] %}
     <div class="alert {% if annee_consultee.statut == 'archivee' %}alert-secondary{% else %}alert-warning{% endif %} d-flex align-items-center justify-content-between flex-wrap gap-2 shadow-sm rounded-4 mb-4" role="alert">
         <div class="d-flex align-items-center gap-2">

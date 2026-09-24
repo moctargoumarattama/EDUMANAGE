@@ -29,7 +29,7 @@ from app.services.annees_scolaires import (
 )
 from app.services.structure_annuelle import get_niveaux_candidats_annuels
 from app.utils_classes import classes_triees_pedagogique
-from app.models import Classe, Cours, Eleve, Inscription
+from app.models import Classe, Cours, Eleve, Inscription, PeriodeBulletin
 from app.services.niveaux_annuels import (
     get_selection_annuelle,
     sauvegarder_selection_annuelle,
@@ -1151,4 +1151,141 @@ def dupliquer_structure_annee_route(source_id, cible_id):
         flash(message, "danger")
 
     return redirect(request.form.get('next') or request.referrer or url_for('main.preparation_annee', annee_id=cible_id))
+
+
+@main.route('/annees/<int:cible_id>/wizard', methods=['GET'], endpoint='wizard_rentree')
+@login_required
+@role_required('admin', 'super_admin')
+def wizard_rentree(cible_id):
+    ecole_id = _current_ecole_id_for_annees()
+    if not ecole_id:
+        flash("Veuillez sélectionner un établissement.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    annee_cible = AnneeScolaire.query.filter_by(id=cible_id, ecole_id=ecole_id).first()
+    if not annee_cible:
+        flash("Année scolaire introuvable.", "danger")
+        return redirect(url_for('main.gestion_annees'))
+
+    if annee_cible.statut == 'archivee':
+        flash("Cette année scolaire est archivée et ne peut plus être modifiée.", "warning")
+        return redirect(url_for('main.gestion_annees'))
+
+    csrf_form = CSRFForm()
+    toutes_annees_ecole = AnneeScolaire.query.filter_by(ecole_id=ecole_id).order_by(AnneeScolaire.date_debut.asc()).all()
+    annee_source = determiner_source_passage_pour_cible(annee_cible, toutes_annees_ecole)
+    annee_active = next((a for a in toutes_annees_ecole if a.statut == 'active'), None)
+
+    # 1. Structure & Périodes
+    classes_cible = classes_triees_pedagogique(
+        Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=cible_id)
+    ).all()
+    total_classes = len(classes_cible)
+    classes_ouvertes_count = sum(1 for c in classes_cible if classe_est_ouverte(c))
+    periodes_count = PeriodeBulletin.query.filter_by(ecole_id=ecole_id, annee_id=cible_id).count()
+    is_cal_cfg = calendrier_configure(ecole_id, cible_id)
+    etape1_complete = (classes_ouvertes_count > 0 and (is_cal_cfg or periodes_count >= 2))
+
+    # 2. Décisions du Conseil
+    if annee_source:
+        inscriptions_source = (
+            Inscription.query
+            .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_source.id)
+            .join(Eleve, Eleve.id == Inscription.eleve_id)
+            .all()
+        )
+        nb_total_source = len(inscriptions_source)
+        inscriptions_cible_map = {
+            insc.eleve_id: insc
+            for insc in Inscription.query
+            .filter_by(ecole_id=ecole_id, annee_scolaire_id=cible_id)
+            .all()
+        }
+        nb_traites = 0
+        for insc_src in inscriptions_source:
+            if insc_src.eleve_id in inscriptions_cible_map:
+                nb_traites += 1
+            elif insc_src.decision_fin_annee in ("transfert", "sortie", "diplome"):
+                nb_traites += 1
+            elif insc_src.statut in ("transfere", "sorti", "diplome"):
+                nb_traites += 1
+        nb_a_traiter = max(0, nb_total_source - nb_traites)
+        ratio_decisions = int((nb_traites / nb_total_source * 100)) if nb_total_source > 0 else 100
+        etape2_complete = (nb_total_source > 0 and nb_traites >= nb_total_source)
+    else:
+        nb_total_source = 0
+        nb_traites = 0
+        nb_a_traiter = 0
+        ratio_decisions = 100
+        etape2_complete = True
+
+    # 3. Pointage Financier (Confirmés vs Préinscrits)
+    inscriptions_cible = (
+        Inscription.query
+        .filter_by(ecole_id=ecole_id, annee_scolaire_id=cible_id)
+        .join(Eleve, Eleve.id == Inscription.eleve_id)
+        .outerjoin(Classe, Classe.id == Inscription.classe_id)
+        .options(
+            db.joinedload(Inscription.eleve),
+            db.joinedload(Inscription.classe)
+        )
+        .order_by(Classe.nom.asc(), Eleve.nom.asc(), Eleve.prenom.asc())
+        .all()
+    )
+    nb_confirmes = sum(1 for insc in inscriptions_cible if insc.statut == 'inscrit')
+    preinscrits_list = [insc for insc in inscriptions_cible if insc.statut == 'preinscrit']
+    nb_preinscrits = len(preinscrits_list)
+    total_inscrits_cible = nb_confirmes + nb_preinscrits
+    taux_confirmation = int((nb_confirmes / total_inscrits_cible * 100)) if total_inscrits_cible > 0 else 0
+    etape3_complete = (total_inscrits_cible > 0 and nb_preinscrits == 0)
+
+    # 4. Lancement Officiel
+    etat_prep = get_etat_preparation_annee(ecole_id, cible_id)
+    if etat_prep:
+        prete_pour_activation = etat_prep["verification"]["prete_pour_activation"]
+        bloquants = etat_prep["verification"]["bloquants"]
+        avertissements = etat_prep["verification"]["avertissements"]
+        progression = etat_prep["progression"]
+    else:
+        prete_pour_activation = False
+        bloquants = []
+        avertissements = []
+        progression = 0
+    etape4_complete = (annee_cible.statut == 'active')
+
+    return render_template(
+        'wizard_rentree.html',
+        annee_cible=annee_cible,
+        annee_source=annee_source,
+        annee_active=annee_active,
+        csrf_form=csrf_form,
+        # Étape 1
+        classes_cible=classes_cible,
+        total_classes=total_classes,
+        classes_ouvertes_count=classes_ouvertes_count,
+        periodes_count=periodes_count,
+        is_cal_cfg=is_cal_cfg,
+        etape1_complete=etape1_complete,
+        # Étape 2
+        nb_total_source=nb_total_source,
+        nb_traites=nb_traites,
+        nb_a_traiter=nb_a_traiter,
+        ratio_decisions=ratio_decisions,
+        etape2_complete=etape2_complete,
+        # Étape 3
+        nb_confirmes=nb_confirmes,
+        nb_preinscrits=nb_preinscrits,
+        total_inscrits_cible=total_inscrits_cible,
+        taux_confirmation=taux_confirmation,
+        preinscrits_list=preinscrits_list,
+        etape3_complete=etape3_complete,
+        # Étape 4
+        prete_pour_activation=prete_pour_activation,
+        bloquants=bloquants,
+        avertissements=avertissements,
+        progression=progression,
+        etape4_complete=etape4_complete,
+        etat_prep=etat_prep,
+    )
+
 
