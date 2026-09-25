@@ -40,15 +40,6 @@ from app.services.statistiques_annuelles import (
 )
 
 
-_rapports_cache = {
-    'notes_par_classe': None,
-    'absences_par_classe': None,
-    'timestamp_notes': None,
-    'timestamp_absences': None
-}
-CACHE_DURATION = 60
-
-
 @main.route('/api/stats/notes_moyennes')
 @login_required
 @role_required('admin', 'professeur')
@@ -443,35 +434,53 @@ def notifications():
     elif current_user.role == 'parent':
         # Récupérer uniquement ses propres enfants
         enfants = Eleve.query.filter_by(parent_id=current_user.id).all()
-        for enfant in enfants:
-            # Notes des 7 derniers jours
-            nouvelles_notes = Note.query.filter(
-                Note.eleve_id == enfant.id,
-                Note.date_evaluation >= now - timedelta(days=7)
-            ).count()
-            if nouvelles_notes > 0:
-                notifications.append({
-                    'type': 'info',
-                    'message': f'{nouvelles_notes} nouvelle(s) note(s) pour {enfant.prenom}',
-                    'lien': url_for('main.voir_eleve', eleve_id=enfant.id),
-                    'date': now.strftime("%d/%m/%Y %H:%M"),
-                    'priority': 2
-                })
+        if enfants:
+            enfant_ids = [e.id for e in enfants]
+            date_seuil = now - timedelta(days=7)
 
-            # Absences non justifiées des 7 derniers jours
-            absences_non_justifiees = Absence.query.filter(
-                Absence.eleve_id == enfant.id,
-                Absence.justifiee == False,
-                Absence.date_absence >= now - timedelta(days=7)
-            ).count()
-            if absences_non_justifiees > 0:
-                notifications.append({
-                    'type': 'warning',
-                    'message': f'{absences_non_justifiees} absence(s) non justifiée(s) pour {enfant.prenom}',
-                    'lien': url_for('main.voir_eleve', eleve_id=enfant.id),
-                    'date': now.strftime("%d/%m/%Y %H:%M"),
-                    'priority': 3
-                })
+            # Comptage groupé des notes des 7 derniers jours (O(1) requête au lieu de N)
+            notes_counts = dict(
+                db.session.query(Note.eleve_id, db.func.count(Note.id))
+                .filter(
+                    Note.eleve_id.in_(enfant_ids),
+                    Note.date_evaluation >= date_seuil
+                )
+                .group_by(Note.eleve_id)
+                .all()
+            )
+
+            # Comptage groupé des absences non justifiées des 7 derniers jours (O(1) requête au lieu de N)
+            absences_counts = dict(
+                db.session.query(Absence.eleve_id, db.func.count(Absence.id))
+                .filter(
+                    Absence.eleve_id.in_(enfant_ids),
+                    Absence.justifiee == False,
+                    Absence.date_absence >= date_seuil
+                )
+                .group_by(Absence.eleve_id)
+                .all()
+            )
+
+            for enfant in enfants:
+                nouvelles_notes = notes_counts.get(enfant.id, 0)
+                if nouvelles_notes > 0:
+                    notifications.append({
+                        'type': 'info',
+                        'message': f'{nouvelles_notes} nouvelle(s) note(s) pour {enfant.prenom}',
+                        'lien': url_for('main.voir_eleve', eleve_id=enfant.id),
+                        'date': now.strftime("%d/%m/%Y %H:%M"),
+                        'priority': 2
+                    })
+
+                absences_non_justifiees = absences_counts.get(enfant.id, 0)
+                if absences_non_justifiees > 0:
+                    notifications.append({
+                        'type': 'warning',
+                        'message': f'{absences_non_justifiees} absence(s) non justifiée(s) pour {enfant.prenom}',
+                        'lien': url_for('main.voir_eleve', eleve_id=enfant.id),
+                        'date': now.strftime("%d/%m/%Y %H:%M"),
+                        'priority': 3
+                    })
 
     # --- Tri des notifications par priorité décroissante ---
     notifications.sort(key=lambda n: n['priority'], reverse=True)
@@ -579,6 +588,11 @@ def recherche():
         if eleve_ids:
             inscriptions_query = (
                 Inscription.query
+                .options(
+                    db.joinedload(Inscription.annee_scolaire),
+                    db.joinedload(Inscription.classe),
+                    db.joinedload(Inscription.ecole),
+                )
                 .join(Classe, Classe.id == Inscription.classe_id)
                 .join(AnneeScolaire, AnneeScolaire.id == Inscription.annee_scolaire_id)
                 .filter(Inscription.eleve_id.in_(eleve_ids))

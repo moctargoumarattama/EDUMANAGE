@@ -28,7 +28,6 @@ from app.models import (
     Professeur,
 )
 from app.utils_classes import classes_triees_pedagogique
-from app.notifications import envoyer_email
 
 
 MESSAGE_ANNEE_PLANIFIEE = "Les notes pourront être saisies lorsque cette année sera active."
@@ -712,27 +711,6 @@ def creer_note(
                 )
             except Exception as log_err:
                 current_app.logger.warning(f"Erreur journalisation note: {log_err}")
-
-        # Notification email parent si configuré
-        if eleve.email_parent and cours:
-            sujet = f"Nouvelle note en {cours.nom}"
-            message = f"""Bonjour,
-
-Une nouvelle note a été ajoutée pour {eleve.prenom} {eleve.nom} en {cours.nom}:
-- Note: {valeur}/20
-- Type: {type_evaluation}
-- Coefficient: {coefficient}
-- Période: {periode}
-
-Connectez-vous au portail parent pour plus de détails.
-
-Cordialement,
-L'équipe pédagogique"""
-            email_ok = envoyer_email(eleve.email_parent, sujet, message, context="note_parent_notification")
-            if email_ok:
-                current_app.logger.info("EMAIL_SUCCESS_HANDLED type=note_parent_notification recipient=%s", eleve.email_parent)
-            else:
-                current_app.logger.warning("EMAIL_FAILED_HANDLED type=note_parent_notification recipient=%s", eleve.email_parent)
 
         return nouvelle_note, None
 

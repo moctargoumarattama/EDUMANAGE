@@ -111,6 +111,53 @@ class TestAuditAlertesPhase4(unittest.TestCase):
                 self.assertLessEqual(len(stored), 100)
                 self.assertIn('nouvelle_alerte_test', stored)
 
+    def test_alertes_html_iife_and_no_inline_onclick(self):
+        """Vérifie l'encapsulation IIFE et l'absence totale d'attributs onclick inline dans alertes.html."""
+        with open('app/templates/alertes.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        self.assertIn("(function() {", content)
+        self.assertIn("'use strict';", content)
+        self.assertIn("})();", content)
+        self.assertNotIn("onclick=", content)
+        self.assertIn('data-action="toggle-alerte"', content)
+        self.assertIn('data-alerte-id=', content)
+
+    def test_rapports_cache_code_mort_removed(self):
+        """Vérifie que le cache orphelin au niveau module _rapports_cache a été supprimé."""
+        with open('app/routes/rapports.py', 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        self.assertNotIn("_rapports_cache = {", content)
+
+    def test_recherche_inscriptions_eager_loading(self):
+        """Vérifie que /recherche utilise l'eager loading sur annee_scolaire, classe et ecole."""
+        with open('app/routes/rapports.py', 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        self.assertIn("db.joinedload(Inscription.annee_scolaire)", content)
+        self.assertIn("db.joinedload(Inscription.classe)", content)
+        self.assertIn("db.joinedload(Inscription.ecole)", content)
+
+    def test_notifications_parent_grouped_queries(self):
+        """Vérifie que /notifications pour les parents utilise des requêtes groupées O(1)."""
+        with open('app/routes/rapports.py', 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        self.assertIn("Note.eleve_id.in_(enfant_ids)", content)
+        self.assertIn("Absence.eleve_id.in_(enfant_ids)", content)
+        self.assertIn(".group_by(Note.eleve_id)", content)
+        self.assertIn(".group_by(Absence.eleve_id)", content)
+
+    def test_no_parent_email_on_creer_note(self):
+        """Vérifie que la saisie/création d'une note n'envoie aucun email au parent."""
+        import inspect
+        import app.services.notes_annuelles as notes_service
+
+        source = inspect.getsource(notes_service)
+        self.assertNotIn("envoyer_email", source)
+        self.assertNotIn("note_parent_notification", source)
+
 
 if __name__ == '__main__':
     unittest.main()

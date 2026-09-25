@@ -38,7 +38,7 @@
             </p>
         </div>
         <div class="d-flex align-items-center gap-2 flex-wrap">
-            <button type="button" class="btn btn-sm btn-outline-success fw-semibold" id="btnMarkAllRead" onclick="marquerToutesTraitees()">
+            <button type="button" class="btn btn-sm btn-outline-success fw-semibold" id="btnMarkAllRead">
                 <i class="fas fa-check-double me-1"></i>Tout marquer comme traité
             </button>
             <a href="{{ url_for('main.index') }}" class="btn btn-sm btn-outline-primary">
@@ -349,7 +349,8 @@
                                     </div>
                                     <div>
                                         <button type="button" class="alert-action-btn btn btn-sm {% if alerte.traitee %}btn-success{% else %}btn-outline-dark{% endif %} btn-action-toggle"
-                                                onclick="toggleAlerte('{{ alerte.id }}')">
+                                                data-action="toggle-alerte"
+                                                data-alerte-id="{{ alerte.id }}">
                                             <i class="fas {% if alerte.traitee %}fa-undo{% else %}fa-check{% endif %} me-1"></i>
                                             <span class="btn-text">{% if alerte.traitee %}Réactiver{% else %}Marquer comme traitée{% endif %}</span>
                                         </button>
@@ -393,7 +394,7 @@
             <i class="fas fa-filter text-muted fa-3x mb-3 opacity-50"></i>
             <h5 class="text-gray-800 fw-bold mb-1">Aucune alerte correspondante</h5>
             <p class="text-muted small mb-3">Aucune alerte ne correspond à vos critères de recherche ou de filtre.</p>
-            <button type="button" class="btn btn-sm btn-outline-primary" onclick="resetFilters()">
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btnResetFilters">
                 <i class="fas fa-sync-alt me-1"></i>Réinitialiser tous les filtres
             </button>
         </div>
@@ -414,12 +415,15 @@
 </div>
 
 <script>
-// État global des filtres
-const filterState = {
-    search: '',
-    category: 'all',
-    classId: 'all'
-};
+(function() {
+    'use strict';
+
+    // État local des filtres
+    const filterState = {
+        search: '',
+        category: 'all',
+        classId: 'all'
+    };
 
 // Affichage Toast
 function showAlerteToast(message, type = 'success') {
@@ -498,7 +502,7 @@ async function toggleAlerte(alertId) {
 
 // Tout marquer comme traité
 async function marquerToutesTraitees() {
-    if (!confirm('Voulez-vous marquer toutes les alertes actuelles comme traitées ')) {
+    if (!confirm('Voulez-vous marquer toutes les alertes actuelles comme traitées ?')) {
         return;
     }
     try {
@@ -704,20 +708,54 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Boutons tout déplier / replier
-    document.getElementById('btnExpandAll').addEventListener('click', () => {
-        document.querySelectorAll('#classesContainer .collapse').forEach(el => {
-            const bsCollapse = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
-            bsCollapse.show();
-        });
-    });
+    // Bouton tout marquer comme traité
+    const btnMarkAll = document.getElementById('btnMarkAllRead');
+    if (btnMarkAll) {
+        btnMarkAll.addEventListener('click', marquerToutesTraitees);
+    }
 
-    document.getElementById('btnCollapseAll').addEventListener('click', () => {
-        document.querySelectorAll('#classesContainer .collapse').forEach(el => {
-            const bsCollapse = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
-            bsCollapse.hide();
+    // Bouton réinitialiser les filtres
+    const btnReset = document.getElementById('btnResetFilters');
+    if (btnReset) {
+        btnReset.addEventListener('click', resetFilters);
+    }
+
+    // Délégation d'événements sur les cartes d'alerte pour toggle
+    const container = document.getElementById('classesContainer');
+    if (container) {
+        container.addEventListener('click', (e) => {
+            const toggleBtn = e.target.closest('[data-action="toggle-alerte"]');
+            if (toggleBtn) {
+                e.preventDefault();
+                const alertId = toggleBtn.dataset.alerteId;
+                if (alertId) {
+                    toggleAlerte(alertId);
+                }
+            }
         });
-    });
+    }
+
+    // Boutons tout déplier / replier
+    const btnExpand = document.getElementById('btnExpandAll');
+    if (btnExpand) {
+        btnExpand.addEventListener('click', () => {
+            document.querySelectorAll('#classesContainer .collapse').forEach(el => {
+                const bsCollapse = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
+                bsCollapse.show();
+            });
+        });
+    }
+
+    const btnCollapse = document.getElementById('btnCollapseAll');
+    if (btnCollapse) {
+        btnCollapse.addEventListener('click', () => {
+            document.querySelectorAll('#classesContainer .collapse').forEach(el => {
+                const bsCollapse = bootstrap.Collapse.getOrCreateInstance(el, { toggle: false });
+                bsCollapse.hide();
+            });
+        });
+    }
 });
+})();
 </script>
 {% endblock %}
