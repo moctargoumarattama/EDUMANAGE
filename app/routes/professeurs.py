@@ -541,6 +541,15 @@ def assigner_classes_professeur(id):
                 message = f"{professeur.prenom} {professeur.nom} affecte a {cours.nom} - {cours.classe.nom}."
 
             db.session.commit()
+
+            # Déclencher la notification e-mail (Option B : prof + copie école)
+            if action == "change" and 'nouveau_prof' in locals() and nouveau_prof and ancienne_valeur != nouveau_prof.id:
+                from app.services.cours_notifications import notifier_professeur_cours_assigne
+                notifier_professeur_cours_assigne(cours, nouveau_prof)
+            elif action != "remove" and professeur and ancienne_valeur != professeur.id:
+                from app.services.cours_notifications import notifier_professeur_cours_assigne
+                notifier_professeur_cours_assigne(cours, professeur)
+
             current_app.log_correction(
                 action="modification",
                 description=f"Affectation enseignement {cours.nom} - {cours.classe.nom} ({annee_consultee.nom})",
