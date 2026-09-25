@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, List, Optional
 import requests
 
 logger = logging.getLogger(__name__)
@@ -184,6 +184,83 @@ def chat_with_assistant(user_message: str, history: Optional[List[Dict[str, str]
     Prend en compte l'historique de conversation si disponible.
     """
     return query_assistant(user_message, system_context=SYSTEM_ASSISTANT, temperature=0.3, history=history, num_predict=350)
+
+
+def stream_assistant(
+    user_prompt: str,
+    system_context: str = SYSTEM_ASSISTANT,
+    temperature: float = 0.3,
+    history: Optional[List[Dict[str, str]]] = None,
+    num_predict: int = 400,
+) -> Generator[str, None, None]:
+    """
+    Générateur en streaming (SSE / token-par-token) pour l'Assistant IA KLASORA.
+    Interroge Ollama avec stream=True et émet les fragments textuels au fur et à mesure.
+    """
+    if history and isinstance(history, list) and len(history) > 0:
+        messages = [{"role": "system", "content": system_context}]
+        for item in history[-4:]:
+            role = "assistant" if item.get("role") in ("assistant", "bot") else "user"
+            content = (item.get("content") or item.get("text") or "").strip()
+            if content:
+                messages.append({"role": role, "content": content})
+        messages.append({"role": "user", "content": user_prompt})
+
+        chat_url = f"{OLLAMA_BASE_URL}/api/chat"
+        payload = {
+            "model": OLLAMA_MODEL,
+            "messages": messages,
+            "stream": True,
+            "options": {
+                "temperature": temperature,
+                "num_predict": num_predict,
+            }
+        }
+        try:
+            with requests.post(chat_url, json=payload, stream=True, timeout=OLLAMA_TIMEOUT) as resp:
+                resp.raise_for_status()
+                for line in resp.iter_lines():
+                    if line:
+                        try:
+                            chunk = json.loads(line.decode("utf-8"))
+                            token = chunk.get("message", {}).get("content", "")
+                            if token:
+                                yield token
+                        except Exception:
+                            continue
+                return
+        except Exception as exc:
+            logger.warning("Échec stream /api/chat (%s), tentative fallback", exc)
+
+    # Fallback /api/generate
+    gen_url = f"{OLLAMA_BASE_URL}/api/generate"
+    payload = {
+        "model": OLLAMA_MODEL,
+        "prompt": user_prompt,
+        "system": system_context,
+        "stream": True,
+        "options": {
+            "temperature": temperature,
+            "num_predict": num_predict,
+        }
+    }
+    try:
+        with requests.post(gen_url, json=payload, stream=True, timeout=OLLAMA_TIMEOUT) as resp:
+            resp.raise_for_status()
+            for line in resp.iter_lines():
+                if line:
+                    try:
+                        chunk = json.loads(line.decode("utf-8"))
+                        token = chunk.get("response", "")
+                        if token:
+                            yield token
+                    except Exception:
+                        continue
+    except requests.exceptions.ConnectionError:
+        yield "Je suis votre assistant KLASORA. Le service d'IA local n'étant pas démarré, je reste disponible pour toutes vos interrogations directes sur les données de l'école !"
+    except Exception as exc:
+        logger.error("Erreur lors du streaming Ollama : %s", exc)
+        yield f"Une interruption est survenue lors de la génération : {exc}"
 
 
 def extract_query_intent(user_message: str) -> Dict[str, Any]:

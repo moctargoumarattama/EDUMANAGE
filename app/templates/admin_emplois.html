@@ -2,7 +2,151 @@
 {% block title %}Emplois du temps par classe - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-3 px-lg-4 py-4" style="max-width: 1400px; overflow-x: hidden;">
+<style>
+/* Fluidité tactile et affichage mobile */
+.admin-emplois-page-container {
+    -webkit-overflow-scrolling: touch;
+}
+
+.class-schedule-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+}
+
+@media (max-width: 768px) {
+    /* Évite que les headers sticky coincent le scroll sur iOS */
+    .class-schedule-header {
+        position: relative !important;
+        top: auto !important;
+    }
+    
+    .class-schedule-cards {
+        display: grid !important;
+        grid-template-columns: 1fr;
+        gap: 0.65rem;
+    }
+
+    .class-schedule-table-wrap {
+        display: none !important;
+    }
+
+    .class-schedule-header {
+        padding: 0.75rem 0.85rem;
+    }
+
+    .class-schedule-avatar {
+        width: 38px;
+        height: 38px;
+        font-size: 0.95rem;
+    }
+
+    .class-schedule-stats {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.35rem;
+    }
+}
+
+/* =========================================================================
+   STYLE D'IMPRESSION HAUTE FIDÉLITÉ (@media print)
+   ========================================================================= */
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 10mm 10mm 10mm 10mm;
+    }
+
+    html, body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Masquer les éléments interactifs d'écran */
+    .no-print,
+    .page-header-body .d-flex.align-items-center.gap-2,
+    #btnToggleAllSchedule,
+    #btnAddEmploi,
+    .schedule-filters-card,
+    .class-chips-scroll,
+    .class-schedule-chevron,
+    .class-schedule-mini-actions,
+    .js-confirm-form,
+    .pagination-container,
+    .btn,
+    nav,
+    footer,
+    .navbar,
+    #assistantWidgetRoot {
+        display: none !important;
+    }
+
+    .admin-emplois-page-container {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Déplier tous les emplois du temps pour l'impression */
+    .collapse {
+        display: block !important;
+        height: auto !important;
+        visibility: visible !important;
+    }
+
+    /* Afficher la vue tableau pour une mise en page propre sur papier */
+    .class-schedule-table-wrap {
+        display: block !important;
+        overflow: visible !important;
+        border: 1px solid #cbd5e1 !important;
+    }
+
+    .class-schedule-cards {
+        display: none !important;
+    }
+
+    .class-schedule-card {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        border: 1px solid #cbd5e1 !important;
+        margin-bottom: 20px !important;
+        box-shadow: none !important;
+    }
+
+    .class-schedule-header {
+        position: static !important;
+        background: #f8fafc !important;
+        border-bottom: 1px solid #cbd5e1 !important;
+        padding: 8px 12px !important;
+    }
+
+    table.data-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+
+    table.data-table th,
+    table.data-table td {
+        padding: 4px 8px !important;
+        border: 1px solid #e2e8f0 !important;
+        font-size: 8.5pt !important;
+    }
+
+    /* Masquer la colonne Actions à l'impression */
+    table.data-table th:last-child,
+    table.data-table td:last-child {
+        display: none !important;
+    }
+}
+</style>
+
+<div class="container-fluid px-3 px-lg-4 py-4 admin-emplois-page-container" style="max-width: 1400px;">
 
     <!-- En-tête de page standardisé KLASORA -->
     <section class="page-header mb-4">
@@ -653,8 +797,9 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
     'use strict';
+    document.addEventListener('DOMContentLoaded', function() {
 
     // Normalisation pour recherche insensible à la casse et aux accents
     function normalize(str) {
@@ -1126,5 +1271,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Rendu initial
     render();
 });
+})();
 </script>
 {% endblock %}

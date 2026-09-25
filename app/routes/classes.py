@@ -126,6 +126,11 @@ def liste_classes():
 
     annee_consultee = get_annee_consultee(ecole_id)
     base_query = get_classes_annee(ecole_id, annee_consultee.id) if annee_consultee else Classe.query.filter_by(ecole_id=ecole_id).filter(db.false())
+    from sqlalchemy.orm import joinedload, selectinload
+    base_query = base_query.options(
+        joinedload(Classe.professeur),
+        selectinload(Classe.cours)
+    )
 
     from app.services.structure_annuelle import get_niveaux_annee, niveau_est_dans_structure
     niveaux_annee = get_niveaux_annee(ecole_id, annee_consultee.id) if annee_consultee else []
@@ -427,9 +432,13 @@ def detail_classe(classe_id):
     from app.models import Absence, Note, Cours, Eleve, Professeur, Inscription
 
     # 1. Liste des élèves réels de la classe
+    from sqlalchemy.orm import joinedload
     inscriptions = (
         Inscription.query
         .filter_by(classe_id=classe.id, ecole_id=classe.ecole_id, annee_scolaire_id=classe.annee_scolaire_id)
+        .options(
+            joinedload(Inscription.eleve).joinedload(Eleve.parent)
+        )
         .join(Eleve, Eleve.id == Inscription.eleve_id)
         .order_by(Eleve.nom.asc(), Eleve.prenom.asc())
         .all()
@@ -450,6 +459,17 @@ def detail_classe(classe_id):
     absences_justifiees = Absence.query.filter(Absence.inscription_id.in_(inscription_ids), Absence.justifiee == True).count() if inscription_ids else 0
     absences_non_justifiees = total_absences - absences_justifiees
 
+    # Pré-calcul groupé des absences par inscription (1 seule requête SQL au lieu de N)
+    absences_by_ins = {}
+    if inscription_ids:
+        abs_counts = (
+            db.session.query(Absence.inscription_id, db.func.count(Absence.id))
+            .filter(Absence.inscription_id.in_(inscription_ids))
+            .group_by(Absence.inscription_id)
+            .all()
+        )
+        absences_by_ins = {row[0]: row[1] for row in abs_counts}
+
     from app.services.evaluations import calculer_stats_et_classements_classe
     stats = calculer_stats_et_classements_classe(current_user.ecole_id, classe.id, classe.annee_scolaire_id)
 
@@ -457,7 +477,7 @@ def detail_classe(classe_id):
     eleves_details = []
     for e in eleves:
         inscription = next((i for i in inscriptions if i.eleve_id == e.id), None)
-        nb_abs = Absence.query.filter_by(inscription_id=inscription.id).count() if inscription else 0
+        nb_abs = absences_by_ins.get(inscription.id, 0) if inscription else 0
 
         moyenne_e = None
         eval_status = "non_evalue"
@@ -489,12 +509,23 @@ def detail_classe(classe_id):
             'eval_status': eval_status
         })
 
-    # 5. Moyennes réelles par matière
-    cours_classe = Cours.query.filter_by(classe_id=classe.id).all()
+    # 5. Moyennes réelles par matière (optimisé en 1 seule requête groupée)
+    cours_classe = Cours.query.filter_by(classe_id=classe.id).options(joinedload(Cours.professeur)).all()
+    notes_by_cours = {}
+    if cours_classe and inscription_ids:
+        from collections import defaultdict
+        all_notes = Note.query.filter(
+            Note.cours_id.in_([c.id for c in cours_classe]),
+            Note.inscription_id.in_(inscription_ids)
+        ).all()
+        notes_by_cours = defaultdict(list)
+        for n in all_notes:
+            if n.valeur is not None:
+                notes_by_cours[n.cours_id].append(n.valeur)
+
     matieres_stats = []
     for c in cours_classe:
-        notes_cours = Note.query.filter(Note.cours_id == c.id, Note.inscription_id.in_(inscription_ids)).all() if inscription_ids else []
-        notes_vals = [n.valeur for n in notes_cours if n.valeur is not None]
+        notes_vals = notes_by_cours.get(c.id, [])
         avg = round(sum(notes_vals) / len(notes_vals), 2) if notes_vals else None
         matieres_stats.append({
             'id': c.id,

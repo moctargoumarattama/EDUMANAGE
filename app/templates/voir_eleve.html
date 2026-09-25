@@ -252,8 +252,8 @@
                                 </div>
                             </div>
                             <div class="progress" style="height: 5px;">
-                                <div class="progress-bar {% if pourcentage_paye >= 100 %}bg-success{% elif pourcentage_paye >= 50 %}bg-primary{% else %}bg-warning{% endif %}" 
-                                     role="progressbar" style="width: {{ pourcentage_paye }}%;"></div>
+                                <div class="progress-bar js-progress-bar {% if pourcentage_paye >= 100 %}bg-success{% elif pourcentage_paye >= 50 %}bg-primary{% else %}bg-warning{% endif %}" 
+                                     role="progressbar" aria-valuenow="{{ pourcentage_paye }}" aria-valuemin="0" aria-valuemax="100" data-width="{{ pourcentage_paye }}" {{ ('style="width: ' ~ pourcentage_paye ~ '%;"') | safe }}></div>
                             </div>
                             <div class="d-flex justify-content-between text-muted small mt-1" style="font-size: 0.75rem;">
                                 <span>{{ "{:,.0f}".format(total_paye).replace(',', ' ') }} F réglé</span>
@@ -375,7 +375,17 @@
                                     </thead>
                                     <tbody>
                                         {% for mat, stat in matieres_stats.items() %}
-                                        <tr style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#modalMatiere_{{ loop.index }}" title="Cliquer pour voir le détail des notes de {{ mat }}">
+                                        {% set mat_idx = loop.index %}
+                                        <tr class="js-btn-matiere-detail"
+                                            style="cursor: pointer;"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalMatiereDynamique"
+                                            data-matiere-idx="{{ mat_idx }}"
+                                            data-matiere-nom="{{ mat }}"
+                                            data-matiere-moyenne="{{ '%.2f'|format(stat.moyenne) }}"
+                                            data-matiere-coef="{{ stat.coef }}"
+                                            data-matiere-count="{{ stat.count }}"
+                                            title="Cliquer pour voir le détail des notes de {{ mat }}">
                                             <td class="fw-semibold text-dark">
                                                 <i class="fas fa-book-open text-primary me-2"></i>{{ mat }}
                                             </td>
@@ -391,7 +401,16 @@
                                                 </span>
                                             </td>
                                             <td class="text-center" onclick="event.stopPropagation();">
-                                                <button type="button" class="btn btn-sm btn-outline-primary py-1 px-2.5 rounded-pill shadow-xs d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalMatiere_{{ loop.index }}" style="font-size: 0.78rem;">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-primary py-1 px-2.5 rounded-pill shadow-xs d-inline-flex align-items-center gap-1"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#modalMatiereDynamique"
+                                                        data-matiere-idx="{{ mat_idx }}"
+                                                        data-matiere-nom="{{ mat }}"
+                                                        data-matiere-moyenne="{{ '%.2f'|format(stat.moyenne) }}"
+                                                        data-matiere-coef="{{ stat.coef }}"
+                                                        data-matiere-count="{{ stat.count }}"
+                                                        style="font-size: 0.78rem;">
                                                     <i class="fas fa-search-plus"></i> Détails
                                                 </button>
                                             </td>
@@ -409,6 +428,125 @@
                                     {% endif %}
                                 </table>
                             </div>
+                            {% if matieres_stats %}
+                            <div class="d-none" id="matieresTemplatesContainer" aria-hidden="true">
+                                {% for mat, stat in matieres_stats.items() %}
+                                {% set mat_idx = loop.index %}
+                                <template id="tplMatiereContent_{{ mat_idx }}">
+                                    {% if stat.periodes and stat.periodes|length > 1 %}
+                                    <!-- Navigation par Semestres / Trimestres -->
+                                    <ul class="nav nav-pills gap-2 mb-3 bg-light p-1 rounded-3" id="dynPillsPeriodes_{{ mat_idx }}" role="tablist">
+                                        {% for p_key, p_val in stat.periodes.items() %}
+                                        <li class="nav-item flex-fill" role="presentation">
+                                            <button class="nav-link w-100 fw-semibold py-2 {% if loop.first %}active{% endif %}" 
+                                                    id="dyn-pill-btn-{{ mat_idx }}-{{ loop.index }}" 
+                                                    data-bs-toggle="pill" 
+                                                    data-bs-target="#dyn-pill-pane-{{ mat_idx }}-{{ loop.index }}" 
+                                                    type="button" role="tab">
+                                                {{ p_val.nom }}
+                                                <span class="badge bg-white text-primary ms-1">{{ "%.2f"|format(p_val.moyenne) }}/20</span>
+                                            </button>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    <div class="tab-content" id="dynPillsPeriodesContent_{{ mat_idx }}">
+                                        {% for p_key, p_val in stat.periodes.items() %}
+                                        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="dyn-pill-pane-{{ mat_idx }}-{{ loop.index }}" role="tabpanel">
+                                            <div class="table-responsive">
+                                                <table class="table table-hover align-middle mb-0">
+                                                    <thead class="table-light small">
+                                                        <tr>
+                                                            <th>Date</th>
+                                                            <th>Type d'épreuve</th>
+                                                            <th class="text-center">Coefficient</th>
+                                                            <th class="text-end">Note / 20</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for n in p_val.notes %}
+                                                        <tr>
+                                                            <td class="small text-muted">
+                                                                <i class="far fa-calendar-alt me-1 text-muted"></i>
+                                                                {{ n.date_evaluation.strftime('%d/%m/%Y') if n.date_evaluation else 'N/A' }}
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-light text-dark border">
+                                                                    {{ n.type_evaluation or 'Évaluation' }}
+                                                                </span>
+                                                            </td>
+                                                            <td class="text-center small text-muted">{{ n.coefficient or 1 }}</td>
+                                                            <td class="text-end">
+                                                                <span class="fw-bold {% if (n.valeur or 0) >= 14 %}text-success{% elif (n.valeur or 0) >= 10 %}text-primary{% elif (n.valeur or 0) >= 8 %}text-warning{% else %}text-danger{% endif %} fs-6">
+                                                                    {{ "%.1f"|format(n.valeur or 0) }}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                    <tfoot class="table-light">
+                                                        <tr>
+                                                            <td colspan="3" class="fw-bold text-dark">Sous-moyenne {{ p_val.nom }}</td>
+                                                            <td class="text-end fw-bold text-primary fs-6">{{ "%.2f"|format(p_val.moyenne) }} / 20</td>
+                                                        </tr>
+                                                    </tfoot>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% elif stat.notes %}
+                                    <!-- Période unique -->
+                                    <div class="table-responsive">
+                                        <table class="table table-hover align-middle mb-0">
+                                            <thead class="table-light small">
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Période</th>
+                                                    <th>Type d'épreuve</th>
+                                                    <th class="text-center">Coefficient</th>
+                                                    <th class="text-end">Note / 20</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for n in stat.notes %}
+                                                <tr>
+                                                    <td class="small text-muted">
+                                                        <i class="far fa-calendar-alt me-1 text-muted"></i>
+                                                        {{ n.date_evaluation.strftime('%d/%m/%Y') if n.date_evaluation else 'N/A' }}
+                                                    </td>
+                                                    <td class="small text-secondary fw-semibold">{{ n.periode or 'Annuelle' }}</td>
+                                                    <td>
+                                                        <span class="badge bg-light text-dark border">
+                                                            {{ n.type_evaluation or 'Évaluation' }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-center small text-muted">{{ n.coefficient or 1 }}</td>
+                                                    <td class="text-end">
+                                                        <span class="fw-bold {% if (n.valeur or 0) >= 14 %}text-success{% elif (n.valeur or 0) >= 10 %}text-primary{% elif (n.valeur or 0) >= 8 %}text-warning{% else %}text-danger{% endif %} fs-6">
+                                                            {{ "%.1f"|format(n.valeur or 0) }}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                            <tfoot class="table-light">
+                                                <tr>
+                                                    <td colspan="4" class="fw-bold text-dark">Moyenne de la matière</td>
+                                                    <td class="text-end fw-bold text-primary fs-6">{{ "%.2f"|format(stat.moyenne) }} / 20</td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                    {% else %}
+                                    <div class="p-4 text-center text-muted">
+                                        <i class="fas fa-edit fa-2x mb-2 opacity-50"></i>
+                                        <p class="mb-0 small">Aucune évaluation enregistrée pour cette matière.</p>
+                                    </div>
+                                    {% endif %}
+                                </template>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                             {% else %}
                             <div class="p-5 text-center text-muted">
                                 <i class="fas fa-book fa-2x mb-2 opacity-50"></i>
@@ -700,138 +838,26 @@
 </div>
 
 <!-- ================================================================= -->
-<!-- MODAUX POP-UP : DÉTAIL DES ÉVALUATIONS PAR MATIÈRE ET PAR SEMESTRE -->
+<!-- MODAL POP-UP UNIQUE DYNAMIQUE : DÉTAIL DES ÉVALUATIONS PAR MATIÈRE -->
 <!-- ================================================================= -->
-{% if matieres_stats %}
-{% for mat, stat in matieres_stats.items() %}
-{% set mat_idx = loop.index %}
-<div class="modal fade" id="modalMatiere_{{ mat_idx }}" tabindex="-1" aria-labelledby="modalMatiereLabel_{{ mat_idx }}" aria-hidden="true">
+<div class="modal fade" id="modalMatiereDynamique" tabindex="-1" aria-labelledby="modalMatiereDynamiqueLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
             <div class="modal-header text-white" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding: 1.1rem 1.4rem;">
                 <div>
-                    <h5 class="modal-title fw-bold mb-1 d-flex align-items-center gap-2" id="modalMatiereLabel_{{ mat_idx }}">
-                        <i class="fas fa-book-open"></i> {{ mat }}
+                    <h5 class="modal-title fw-bold mb-1 d-flex align-items-center gap-2" id="modalMatiereDynamiqueLabel">
+                        <i class="fas fa-book-open"></i> <span id="modalDynMatiereNom">Matière</span>
                     </h5>
                     <div class="d-flex align-items-center gap-2 flex-wrap small">
-                        <span class="badge bg-white text-primary fw-bold">Moyenne annuelle : {{ "%.2f"|format(stat.moyenne) }} / 20</span>
-                        <span class="badge bg-white-subtle text-white border border-light-subtle">Coef {{ stat.coef }}</span>
-                        <span class="badge bg-white-subtle text-white border border-light-subtle">{{ stat.count }} évaluation(s)</span>
+                        <span class="badge bg-white text-primary fw-bold" id="modalDynMatiereMoyenne">Moyenne : -- / 20</span>
+                        <span class="badge bg-white-subtle text-white border border-light-subtle" id="modalDynMatiereCoef">Coef --</span>
+                        <span class="badge bg-white-subtle text-white border border-light-subtle" id="modalDynMatiereCount">-- évaluation(s)</span>
                     </div>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
-            <div class="modal-body p-3 p-md-4">
-                {% if stat.periodes and stat.periodes|length > 1 %}
-                <!-- Navigation par Semestres / Trimestres -->
-                <ul class="nav nav-pills gap-2 mb-3 bg-light p-1 rounded-3" id="pillsPeriodes_{{ mat_idx }}" role="tablist">
-                    {% for p_key, p_val in stat.periodes.items() %}
-                    <li class="nav-item flex-fill" role="presentation">
-                        <button class="nav-link w-100 fw-semibold py-2 {% if loop.first %}active{% endif %}" 
-                                id="pill-btn-{{ mat_idx }}-{{ loop.index }}" 
-                                data-bs-toggle="pill" 
-                                data-bs-target="#pill-pane-{{ mat_idx }}-{{ loop.index }}" 
-                                type="button" role="tab">
-                            {{ p_val.nom }}
-                            <span class="badge bg-white text-primary ms-1">{{ "%.2f"|format(p_val.moyenne) }}/20</span>
-                        </button>
-                    </li>
-                    {% endfor %}
-                </ul>
-                <div class="tab-content" id="pillsPeriodesContent_{{ mat_idx }}">
-                    {% for p_key, p_val in stat.periodes.items() %}
-                    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="pill-pane-{{ mat_idx }}-{{ loop.index }}" role="tabpanel">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="table-light small">
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Type d'épreuve</th>
-                                        <th class="text-center">Coefficient</th>
-                                        <th class="text-end">Note / 20</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for n in p_val.notes %}
-                                    <tr>
-                                        <td class="small text-muted">
-                                            <i class="far fa-calendar-alt me-1 text-muted"></i>
-                                            {{ n.date_evaluation.strftime('%d/%m/%Y') if n.date_evaluation else 'N/A' }}
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-light text-dark border">
-                                                {{ n.type_evaluation or 'Évaluation' }}
-                                            </span>
-                                        </td>
-                                        <td class="text-center small text-muted">{{ n.coefficient or 1 }}</td>
-                                        <td class="text-end">
-                                            <span class="fw-bold {% if (n.valeur or 0) >= 14 %}text-success{% elif (n.valeur or 0) >= 10 %}text-primary{% elif (n.valeur or 0) >= 8 %}text-warning{% else %}text-danger{% endif %} fs-6">
-                                                {{ "%.1f"|format(n.valeur or 0) }}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                                <tfoot class="table-light">
-                                    <tr>
-                                        <td colspan="3" class="fw-bold text-dark">Sous-moyenne {{ p_val.nom }}</td>
-                                        <td class="text-end fw-bold text-primary fs-6">{{ "%.2f"|format(p_val.moyenne) }} / 20</td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% elif stat.notes %}
-                <!-- Période unique -->
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light small">
-                            <tr>
-                                <th>Date</th>
-                                <th>Période</th>
-                                <th>Type d'épreuve</th>
-                                <th class="text-center">Coefficient</th>
-                                <th class="text-end">Note / 20</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for n in stat.notes %}
-                            <tr>
-                                <td class="small text-muted">
-                                    <i class="far fa-calendar-alt me-1 text-muted"></i>
-                                    {{ n.date_evaluation.strftime('%d/%m/%Y') if n.date_evaluation else 'N/A' }}
-                                </td>
-                                <td class="small text-secondary fw-semibold">{{ n.periode or 'Annuelle' }}</td>
-                                <td>
-                                    <span class="badge bg-light text-dark border">
-                                        {{ n.type_evaluation or 'Évaluation' }}
-                                    </span>
-                                </td>
-                                <td class="text-center small text-muted">{{ n.coefficient or 1 }}</td>
-                                <td class="text-end">
-                                    <span class="fw-bold {% if (n.valeur or 0) >= 14 %}text-success{% elif (n.valeur or 0) >= 10 %}text-primary{% elif (n.valeur or 0) >= 8 %}text-warning{% else %}text-danger{% endif %} fs-6">
-                                        {{ "%.1f"|format(n.valeur or 0) }}
-                                    </span>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                        <tfoot class="table-light">
-                            <tr>
-                                <td colspan="4" class="fw-bold text-dark">Moyenne de la matière</td>
-                                <td class="text-end fw-bold text-primary fs-6">{{ "%.2f"|format(stat.moyenne) }} / 20</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-                {% else %}
-                <div class="p-4 text-center text-muted">
-                    <i class="fas fa-edit fa-2x mb-2 opacity-50"></i>
-                    <p class="mb-0 small">Aucune évaluation enregistrée pour cette matière.</p>
-                </div>
-                {% endif %}
+            <div class="modal-body p-3 p-md-4" id="modalDynMatiereBody">
+                <!-- Contenu injecté dynamiquement depuis les balises <template> -->
             </div>
             <div class="modal-footer bg-light px-4 py-2.5 border-0">
                 <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fermer</button>
@@ -839,8 +865,6 @@
         </div>
     </div>
 </div>
-{% endfor %}
-{% endif %}
 
 {% if not est_inscrit_annee_active and annee_active and current_user.role in ['admin', 'super_admin'] %}
 <!-- Modal Réintégrer l'élève pour l'année en cours (Droit à l'erreur) -->
@@ -1056,7 +1080,7 @@
                 <strong>{{ total_absences }}</strong> abs. ({{ absences_injustifiees }} inj.)
                 {% endif %}
             </td>
-            <td style="text-align: center; font-weight: bold; font-family: monospace; color: {% if reste_a_payer > 0 %}#b91c1c{% else %}#15803d{% endif %};">
+            <td class="{% if reste_a_payer > 0 %}excel-color-danger{% else %}excel-color-success{% endif %}" style="text-align: center; font-weight: bold; font-family: monospace;">
                 {% if current_user.role == 'professeur' %}--{% elif reste_a_payer <= 0 %}Soldé (0 F){% else %}{{ "{:,.0f}".format(reste_a_payer) | replace(',', ' ') }} FCFA{% endif %}
             </td>
         </tr>
@@ -1121,7 +1145,7 @@
         </tr>
         <tr>
             <th>Absences Injustifiées</th>
-            <td style="text-align: center; font-weight: bold; color: {% if absences_injustifiees > 0 %}#b91c1c{% else %}#000{% endif %};">{{ absences_injustifiees }}</td>
+            <td class="{% if absences_injustifiees > 0 %}excel-color-danger{% else %}excel-color-dark{% endif %}" style="text-align: center; font-weight: bold;">{{ absences_injustifiees }}</td>
             <th>Assiduité Globale</th>
             <td style="text-align: center; font-weight: bold;">
                 {% if total_absences == 0 %}100% (Présence exemplaire){% else %}{{ [100 - (total_absences * 2), 0] | max }}%{% endif %}
@@ -1172,7 +1196,7 @@
         </tr>
         <tr>
             <th>Reste à Payer</th>
-            <td style="text-align: right; font-weight: bold; font-family: monospace; color: {% if reste_a_payer > 0 %}#b91c1c{% else %}#15803d{% endif %};">
+            <td class="{% if reste_a_payer > 0 %}excel-color-danger{% else %}excel-color-success{% endif %}" style="text-align: right; font-weight: bold; font-family: monospace;">
                 {{ "{:,.0f}".format(reste_a_payer) | replace(',', ' ') }} FCFA
             </td>
             <th>Situation Comptable</th>
@@ -1194,7 +1218,7 @@
                     <tbody>
                         <tr>
                             {% for m in echeancier %}
-                            <td style="font-size: 7pt; padding: 2px; border: 1px solid #cbd5e1; font-weight: bold; color: {% if m.paye %}#15803d{% else %}#b91c1c{% endif %};">
+                            <td class="{% if m.paye %}excel-color-success{% else %}excel-color-danger{% endif %}" style="font-size: 7pt; padding: 2px; border: 1px solid #cbd5e1; font-weight: bold;">
                                 {{ 'PAYÉ' if m.paye else 'DÛ' }}
                             </td>
                             {% endfor %}
@@ -1491,6 +1515,18 @@ ul#dossierTabs li.nav-item button.nav-link.active {
         print-color-adjust: exact !important;
     }
 
+    .excel-color-danger {
+        color: #b91c1c !important;
+    }
+
+    .excel-color-success {
+        color: #15803d !important;
+    }
+
+    .excel-color-dark {
+        color: #000000 !important;
+    }
+
     /* =========================================================================
        PALIERS D'ADAPTATION INTELLIGENTS (REMPLISSAGE OPTIMAL DE LA PAGE A4)
        ========================================================================= */
@@ -1563,4 +1599,63 @@ ul#dossierTabs li.nav-item button.nav-link.active {
     }
 }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+    document.addEventListener('DOMContentLoaded', function() {
+        const modalEl = document.getElementById('modalMatiereDynamique');
+        if (!modalEl) return;
+
+        const titleNom = document.getElementById('modalDynMatiereNom');
+        const badgeMoyenne = document.getElementById('modalDynMatiereMoyenne');
+        const badgeCoef = document.getElementById('modalDynMatiereCoef');
+        const badgeCount = document.getElementById('modalDynMatiereCount');
+        const modalBody = document.getElementById('modalDynMatiereBody');
+
+        modalEl.addEventListener('show.bs.modal', function(event) {
+            const trigger = event.relatedTarget;
+            if (!trigger) return;
+
+            const idx = trigger.getAttribute('data-matiere-idx');
+            const nom = trigger.getAttribute('data-matiere-nom') || 'Matière';
+            const moyenne = trigger.getAttribute('data-matiere-moyenne') || '--';
+            const coef = trigger.getAttribute('data-matiere-coef') || '-';
+            const count = trigger.getAttribute('data-matiere-count') || '0';
+
+            if (titleNom) titleNom.textContent = nom;
+            if (badgeMoyenne) badgeMoyenne.textContent = 'Moyenne : ' + moyenne + ' / 20';
+            if (badgeCoef) badgeCoef.textContent = 'Coef ' + coef;
+            if (badgeCount) badgeCount.textContent = count + ' évaluation(s)';
+
+            if (modalBody) {
+                modalBody.innerHTML = '';
+                const tpl = document.getElementById('tplMatiereContent_' + idx);
+                if (tpl) {
+                    modalBody.appendChild(tpl.content.cloneNode(true));
+                } else {
+                    modalBody.innerHTML = '<div class="p-4 text-center text-muted"><p class="mb-0 small">Détail des notes indisponible.</p></div>';
+                }
+            }
+        });
+
+        modalEl.addEventListener('hidden.bs.modal', function() {
+            if (modalBody) {
+                modalBody.innerHTML = '';
+            }
+            // Nettoyage défensif contre tout résidu de backdrop
+            const openModals = document.querySelectorAll('.modal.show');
+            if (openModals.length === 0) {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(function(b) { b.remove(); });
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('padding-right');
+            }
+        });
+    });
+})();
+</script>
 {% endblock %}

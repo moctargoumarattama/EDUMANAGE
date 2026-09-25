@@ -198,8 +198,18 @@
                                                 </a>
                                             {% endif %}
 
-                                            <button type="button" class="btn btn-sm btn-outline-primary p-1 rounded-2" 
-                                                    data-bs-toggle="modal" data-bs-target="#noteModal{{ d.id }}" title="Ajouter une note / Détails">
+                                            <button type="button" class="btn btn-sm btn-outline-primary p-1 rounded-2 js-btn-demande-note" 
+                                                    data-bs-toggle="modal" data-bs-target="#modalDemandePresentationUnique"
+                                                    data-action-url="{{ url_for('admin.update_demande_presentation_statut', demande_id=d.id) }}"
+                                                    data-nom-ecole="{{ d.nom_ecole|e }}"
+                                                    data-date="{{ d.created_at.strftime('%d/%m/%Y à %H:%M') }}"
+                                                    data-telephone="{{ d.telephone or 'N/A' }}"
+                                                    data-email="{{ d.email or 'N/A' }}"
+                                                    data-ville="{{ d.ville or 'N/A' }}"
+                                                    data-message="{{ (d.message or 'Aucun message.')|e }}"
+                                                    data-statut="{{ d.statut }}"
+                                                    data-notes="{{ (d.notes_admin or '')|e }}"
+                                                    title="Ajouter une note / Détails">
                                                 <i class="fas fa-edit"></i>
                                             </button>
 
@@ -210,52 +220,6 @@
                                                     <i class="fas fa-trash-alt"></i>
                                                 </button>
                                             </form>
-                                        </div>
-
-                                        <!-- Modal Notes Admin pour cette demande -->
-                                        <div class="modal fade text-start" id="noteModal{{ d.id }}" tabindex="-1" aria-hidden="true">
-                                            <div class="modal-dialog modal-dialog-centered">
-                                                <div class="modal-content border-0 shadow rounded-4">
-                                                    <div class="modal-header border-0 pb-0">
-                                                        <h5 class="modal-title fs-6 fw-bold">Détails & Notes — {{ d.nom_ecole }}</h5>
-                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
-                                                    </div>
-                                                    <form method="POST" action="{{ url_for('admin.update_demande_presentation_statut', demande_id=d.id) }}">
-                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                        <div class="modal-body py-3">
-                                                            <div class="bg-light p-3 rounded-3 mb-3 small">
-                                                                <p class="mb-1"><strong>Date :</strong> {{ d.created_at.strftime('%d/%m/%Y à %H:%M') }}</p>
-                                                                <p class="mb-1"><strong>Établissement :</strong> {{ d.nom_ecole }}</p>
-                                                                <p class="mb-1"><strong>Téléphone / WhatsApp :</strong> {{ d.telephone or 'N/A' }}</p>
-                                                                <p class="mb-1"><strong>Email :</strong> {{ d.email or 'N/A' }}</p>
-                                                                <p class="mb-1"><strong>Ville / Pays :</strong> {{ d.ville or 'N/A' }}</p>
-                                                                <hr class="my-2">
-                                                                <p class="mb-0 text-dark"><strong>Message :</strong> {{ d.message or 'Aucun message.' }}</p>
-                                                            </div>
-
-                                                            <div class="mb-3">
-                                                                <label class="form-label small fw-semibold text-dark">Statut</label>
-                                                                <select name="statut" class="form-select form-select-sm rounded-3">
-                                                                    <option value="nouvelle" {{ 'selected' if d.statut == 'nouvelle' }}>🔴 Nouvelle</option>
-                                                                    <option value="contactee" {{ 'selected' if d.statut == 'contactee' }}>🟡 Contactée</option>
-                                                                    <option value="traitee" {{ 'selected' if d.statut == 'traitee' }}>🟢 Traitée</option>
-                                                                    <option value="archivee" {{ 'selected' if d.statut == 'archivee' }}>⚪ Archivée</option>
-                                                                </select>
-                                                            </div>
-
-                                                            <div class="mb-2">
-                                                                <label class="form-label small fw-semibold text-dark">Notes d'accompagnement internes</label>
-                                                                <textarea name="notes_admin" rows="3" class="form-control form-control-sm rounded-3" 
-                                                                          placeholder="Notes sur la prise de contact, la date de la réunion de présentation, le devis..."></textarea>
-                                                            </div>
-                                                        </div>
-                                                        <div class="modal-footer border-0 pt-0">
-                                                            <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Annuler</button>
-                                                            <button type="submit" class="btn btn-primary btn-sm fw-bold">Enregistrer</button>
-                                                        </div>
-                                                    </form>
-                                                </div>
-                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -273,4 +237,115 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Notes Admin Unique & Réutilisable -->
+<div class="modal fade text-start" id="modalDemandePresentationUnique" tabindex="-1" aria-labelledby="modalDemandePresentationTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fs-6 fw-bold" id="modalDemandePresentationTitle">Détails & Notes</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <form id="formDemandePresentation" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body py-3">
+                    <div class="bg-light p-3 rounded-3 mb-3 small">
+                        <p class="mb-1"><strong>Date :</strong> <span id="demandeModalDate">--</span></p>
+                        <p class="mb-1"><strong>Établissement :</strong> <span id="demandeModalEcole">--</span></p>
+                        <p class="mb-1"><strong>Téléphone / WhatsApp :</strong> <span id="demandeModalTelephone">--</span></p>
+                        <p class="mb-1"><strong>Email :</strong> <span id="demandeModalEmail">--</span></p>
+                        <p class="mb-1"><strong>Ville / Pays :</strong> <span id="demandeModalVille">--</span></p>
+                        <hr class="my-2">
+                        <p class="mb-0 text-dark"><strong>Message :</strong> <span id="demandeModalMessage">--</span></p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-dark">Statut</label>
+                        <select name="statut" id="demandeModalStatut" class="form-select form-select-sm rounded-3">
+                            <option value="nouvelle">🔴 Nouvelle</option>
+                            <option value="contactee">🟡 Contactée</option>
+                            <option value="traitee">🟢 Traitée</option>
+                            <option value="archivee">⚪ Archivée</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold text-dark">Notes d'accompagnement internes</label>
+                        <textarea name="notes_admin" id="demandeModalNotes" rows="3" class="form-control form-control-sm rounded-3" 
+                                  placeholder="Notes sur la prise de contact, la date de la réunion de présentation, le devis..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-bold">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+    document.addEventListener('DOMContentLoaded', function() {
+        var modalEl = document.getElementById('modalDemandePresentationUnique');
+        if (!modalEl) return;
+
+        modalEl.addEventListener('show.bs.modal', function(event) {
+            var btn = event.relatedTarget;
+            if (!btn) return;
+
+            var form = modalEl.querySelector('form');
+            if (form && btn.getAttribute('data-action-url')) {
+                form.action = btn.getAttribute('data-action-url');
+            }
+
+            var nomEcole = btn.getAttribute('data-nom-ecole') || '';
+            var titleEl = document.getElementById('modalDemandePresentationTitle');
+            if (titleEl) titleEl.textContent = 'Détails & Notes — ' + nomEcole;
+
+            var dateEl = document.getElementById('demandeModalDate');
+            if (dateEl) dateEl.textContent = btn.getAttribute('data-date') || '--';
+
+            var ecoleEl = document.getElementById('demandeModalEcole');
+            if (ecoleEl) ecoleEl.textContent = nomEcole || '--';
+
+            var telEl = document.getElementById('demandeModalTelephone');
+            if (telEl) telEl.textContent = btn.getAttribute('data-telephone') || 'N/A';
+
+            var emailEl = document.getElementById('demandeModalEmail');
+            if (emailEl) emailEl.textContent = btn.getAttribute('data-email') || 'N/A';
+
+            var villeEl = document.getElementById('demandeModalVille');
+            if (villeEl) villeEl.textContent = btn.getAttribute('data-ville') || 'N/A';
+
+            var msgEl = document.getElementById('demandeModalMessage');
+            if (msgEl) msgEl.textContent = btn.getAttribute('data-message') || 'Aucun message.';
+
+            var statutSel = document.getElementById('demandeModalStatut');
+            if (statutSel && btn.getAttribute('data-statut')) {
+                statutSel.value = btn.getAttribute('data-statut');
+            }
+
+            var notesArea = document.getElementById('demandeModalNotes');
+            if (notesArea) {
+                notesArea.value = btn.getAttribute('data-notes') || '';
+            }
+        });
+
+        modalEl.addEventListener('hidden.bs.modal', function() {
+            var openModals = document.querySelectorAll('.modal.show');
+            if (openModals.length === 0) {
+                var backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(function(b) { b.remove(); });
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('padding-right');
+            }
+        });
+    });
+})();
+</script>
 {% endblock %}

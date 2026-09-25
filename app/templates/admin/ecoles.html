@@ -1437,12 +1437,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 btnConfirm.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Réinitialisation...';
 
                 /* AJAX POST vers le backend */
-                var csrfToken = document.querySelector('input[name="csrf_token"]');
+                var metaCsrf = document.querySelector('meta[name="csrf-token"]');
+                var inputCsrf = document.querySelector('input[name="csrf_token"]');
+                var csrfValue = (metaCsrf ? metaCsrf.getAttribute('content') : '') || (inputCsrf ? inputCsrf.value : '{{ csrf_token() }}');
                 var formData = new FormData();
-                if (csrfToken) formData.append('csrf_token', csrfToken.value);
+                if (csrfValue) formData.append('csrf_token', csrfValue);
 
                 fetch('/admin/ecoles/' + resetEcoleId + '/reset-mdp', {
                     method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfValue
+                    },
                     body: formData
                 })
                 .then(function(response) { return response.json(); })

@@ -205,17 +205,21 @@
             </div>
         </div>
 
-        <!-- Indicateur de saisie / réflexion dynamique -->
+        <!-- Indicateur de saisie / réflexion dynamique avec Skeleton Shimmer -->
         <div id="klasoraAiTyping" class="klasora-ai-typing-indicator klasora-ai-hidden" aria-live="polite">
             <div class="klasora-ai-msg-avatar klasora-ai-sparkle-pulse">
                 <i class="fas fa-wand-magic-sparkles text-primary"></i>
             </div>
-            <div class="klasora-ai-typing-bubble">
-                <span class="klasora-ai-typing-dot"></span>
-                <span class="klasora-ai-typing-dot"></span>
-                <span class="klasora-ai-typing-dot"></span>
+            <div class="klasora-ai-typing-bubble klasora-ai-skeleton-card">
+                <div class="klasora-ai-skeleton-header">
+                    <span id="klasoraAiTypingLabel" class="klasora-ai-typing-label fw-semibold">🔍 Analyse de votre demande...</span>
+                </div>
+                <div class="klasora-ai-skeleton-lines">
+                    <span class="klasora-ai-shimmer-line line-1"></span>
+                    <span class="klasora-ai-shimmer-line line-2"></span>
+                    <span class="klasora-ai-shimmer-line line-3"></span>
+                </div>
             </div>
-            <span id="klasoraAiTypingLabel" class="klasora-ai-typing-label fw-semibold">🔍 Analyse de votre demande...</span>
         </div>
     </main>
 
@@ -993,6 +997,20 @@
     font-size: 0.9rem;
 }
 
+.klasora-ai-card-btn.klasora-ai-choice-btn {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    color: #1d4ed8 !important;
+    border: 1.5px solid #93c5fd;
+    box-shadow: 0 2px 5px rgba(29, 78, 216, 0.12);
+}
+
+.klasora-ai-card-btn.klasora-ai-choice-btn:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff !important;
+    border-color: #1d4ed8;
+    box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
+}
+
 /* Listes & typographie */
 .klasora-ai-list {
     margin: 4px 0;
@@ -1015,48 +1033,64 @@
     font-family: Consolas, monospace;
 }
 
-/* Indicateur de saisie */
+/* Indicateur de saisie Skeleton Shimmer Moderne */
 .klasora-ai-typing-indicator {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
-    margin-top: 4px;
+    margin-top: 6px;
     animation: klasoraAiFadeIn 0.2s ease-out forwards;
 }
 
-.klasora-ai-typing-bubble {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    border-top-left-radius: 4px;
-    padding: 9px 14px;
-    display: inline-flex;
+.klasora-ai-skeleton-card {
+    background: #ffffff !important;
+    border: 1px solid rgba(67, 97, 238, 0.18) !important;
+    border-radius: 16px !important;
+    border-top-left-radius: 4px !important;
+    padding: 12px 14px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    min-width: 230px;
+    max-width: 320px;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08) !important;
+}
+
+.klasora-ai-skeleton-header {
+    display: flex;
     align-items: center;
-    gap: 5px;
-    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
-}
-
-.klasora-ai-typing-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background-color: #2563eb;
-    animation: klasoraAiTypingDot 1.4s infinite ease-in-out both;
-}
-
-.klasora-ai-typing-dot:nth-child(1) { animation-delay: -0.32s; }
-.klasora-ai-typing-dot:nth-child(2) { animation-delay: -0.16s; }
-
-@keyframes klasoraAiTypingDot {
-    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-    40% { transform: scale(1.1); opacity: 1; }
+    gap: 6px;
 }
 
 .klasora-ai-typing-label {
-    font-size: 0.76rem;
-    color: #475569;
+    font-size: 0.78rem;
+    color: #1e3a8a;
     font-weight: 600;
-    transition: opacity 0.15s ease-in-out;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.klasora-ai-skeleton-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+.klasora-ai-shimmer-line {
+    height: 8px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f1f5f9 25%, #dbeafe 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: klasoraAiShimmer 1.5s infinite ease-in-out;
+}
+
+.klasora-ai-shimmer-line.line-1 { width: 92%; }
+.klasora-ai-shimmer-line.line-2 { width: 75%; }
+.klasora-ai-shimmer-line.line-3 { width: 48%; }
+
+@keyframes klasoraAiShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 
 .klasora-ai-sparkle-pulse {
@@ -1065,7 +1099,7 @@
 
 @keyframes klasoraAiPulseGlow {
     0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(37, 99, 235, 0.3)); }
-    50% { transform: scale(1.1); filter: drop-shadow(0 0 7px rgba(37, 99, 235, 0.7)); }
+    50% { transform: scale(1.15); filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.8)); }
 }
 
 /* Zone de Saisie (Footer) */
@@ -1264,6 +1298,7 @@
     const STORAGE_KEY_WIN_POS = 'klasora_ai_win_pos_v1';
     const STORAGE_KEY_EXPANDED = 'klasora_ai_win_expanded_v1';
     const API_ENDPOINT = '/api/assistant/query-data';
+    const STREAM_ENDPOINT = '/api/assistant/stream';
 
     // Éléments du DOM Speed Dial & Chat
     const speedDial = document.getElementById('klasoraSpeedDial');
@@ -1762,6 +1797,10 @@
         // Liens Markdown convertis en boutons interactifs KLASORA
         safe = safe.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, label, url) => {
             const cleanUrl = url.trim();
+            if (cleanUrl.startsWith('prompt:')) {
+                const promptVal = cleanUrl.slice(7).replace(/"/g, '&quot;');
+                return `<button type="button" class="klasora-ai-card-btn klasora-ai-choice-btn" data-prompt="${promptVal}"><i class="fas fa-check-circle me-1" aria-hidden="true"></i> ${label}</button>`;
+            }
             const isExternal = cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://');
             const targetAttr = isExternal ? 'target="_blank" rel="noopener"' : '';
             return `<a href="${cleanUrl}" class="klasora-ai-card-btn" ${targetAttr}><i class="fas fa-folder-open me-1" aria-hidden="true"></i> ${label}</a>`;
@@ -1862,36 +1901,7 @@
         metaDiv.appendChild(timeSpan);
 
         if (role === 'bot') {
-            const copyBtn = document.createElement('button');
-            copyBtn.type = 'button';
-            copyBtn.className = 'klasora-ai-copy-btn';
-            copyBtn.innerHTML = '<i class="far fa-copy"></i> Copier';
-            copyBtn.title = 'Copier ce texte';
-
-            copyBtn.addEventListener('click', () => {
-                const plainText = text;
-                const setCopied = () => {
-                    copyBtn.classList.add('is-copied');
-                    copyBtn.innerHTML = '<i class="fas fa-check"></i> Copié !';
-                    setTimeout(() => {
-                        copyBtn.classList.remove('is-copied');
-                        copyBtn.innerHTML = '<i class="far fa-copy"></i> Copier';
-                    }, 2000);
-                };
-
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(plainText).then(setCopied);
-                } else {
-                    const ta = document.createElement('textarea');
-                    ta.value = plainText;
-                    document.body.appendChild(ta);
-                    ta.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(ta);
-                    setCopied();
-                }
-            });
-            metaDiv.appendChild(copyBtn);
+            attachCopyButton(metaDiv, text);
         }
 
         bubbleWrap.appendChild(bubble);
@@ -1911,6 +1921,77 @@
             saveMessageToHistory(role, text, timeSpan.textContent);
         }
         scrollToBottom();
+    }
+
+    function attachCopyButton(metaDiv, text) {
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.className = 'klasora-ai-copy-btn';
+        copyBtn.innerHTML = '<i class="far fa-copy"></i> Copier';
+        copyBtn.title = 'Copier ce texte';
+
+        copyBtn.addEventListener('click', () => {
+            const plainText = typeof text === 'function' ? text() : text;
+            const setCopied = () => {
+                copyBtn.classList.add('is-copied');
+                copyBtn.innerHTML = '<i class="fas fa-check"></i> Copié !';
+                setTimeout(() => {
+                    copyBtn.classList.remove('is-copied');
+                    copyBtn.innerHTML = '<i class="far fa-copy"></i> Copier';
+                }, 2000);
+            };
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(plainText).then(setCopied);
+            } else {
+                const ta = document.createElement('textarea');
+                ta.value = plainText;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                setCopied();
+            }
+        });
+        metaDiv.appendChild(copyBtn);
+    }
+
+    function createLiveBotMessageDom(timeStr) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'klasora-ai-msg klasora-ai-msg-bot';
+
+        const bubbleWrap = document.createElement('div');
+        bubbleWrap.className = 'klasora-ai-bubble-wrap';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'klasora-ai-bubble';
+
+        const metaDiv = document.createElement('div');
+        metaDiv.className = 'klasora-ai-msg-meta';
+
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'klasora-ai-msg-time';
+        timeSpan.textContent = timeStr || getFormattedTime();
+        metaDiv.appendChild(timeSpan);
+
+        bubbleWrap.appendChild(bubble);
+        bubbleWrap.appendChild(metaDiv);
+
+        const avatar = document.createElement('div');
+        avatar.className = 'klasora-ai-msg-avatar';
+        avatar.innerHTML = '<i class="fas fa-robot"></i>';
+        msgDiv.appendChild(avatar);
+
+        msgDiv.appendChild(bubbleWrap);
+        messagesList.appendChild(msgDiv);
+        scrollToBottom();
+
+        return {
+            bubble: bubble,
+            metaDiv: metaDiv,
+            timeSpan: timeSpan,
+            msgDiv: msgDiv
+        };
     }
 
     function autoResizeInput() {
@@ -1986,9 +2067,12 @@
         typingIndicator.classList.remove('klasora-ai-hidden');
         scrollToBottom();
 
+        let liveBot = null;
+        let accumulatedReply = '';
+
         try {
             const csrfToken = getCsrfToken();
-            const response = await fetch(API_ENDPOINT, {
+            const response = await fetch(STREAM_ENDPOINT, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2002,17 +2086,87 @@
                 })
             });
 
-            const data = await response.json();
+            if (response.ok && response.body && window.ReadableStream) {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
 
-            if (response.ok && data.success && data.reply) {
-                appendMessageDom('bot', data.reply, getFormattedTime(), true);
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // Reste de ligne
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (trimmed.startsWith('data: ')) {
+                            const jsonStr = trimmed.slice(6).trim();
+                            if (!jsonStr) continue;
+                            try {
+                                const parsed = JSON.parse(jsonStr);
+                                if (parsed.chunk) {
+                                    if (!liveBot) {
+                                        stopDynamicThinkingSteps();
+                                        typingIndicator.classList.add('klasora-ai-hidden');
+                                        liveBot = createLiveBotMessageDom(getFormattedTime());
+                                    }
+                                    accumulatedReply += parsed.chunk;
+                                    liveBot.bubble.innerHTML = renderMarkdown(accumulatedReply);
+                                    scrollToBottom();
+                                }
+                                if (parsed.done) {
+                                    break;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+
+                if (accumulatedReply && liveBot) {
+                    attachCopyButton(liveBot.metaDiv, accumulatedReply);
+                    saveMessageToHistory('bot', accumulatedReply, liveBot.timeSpan.textContent);
+                } else if (!accumulatedReply) {
+                    throw new Error("Flux vide");
+                }
             } else {
-                const errMsg = data.error || data.message || "Une erreur est survenue lors du traitement. Veuillez reformuler ou réessayer.";
-                appendMessageDom('bot', `⚠️ **Information :** ${errMsg}`, getFormattedTime(), true);
+                throw new Error("Flux SSE non disponible");
             }
         } catch (err) {
-            console.error('[KLASORA AI] Erreur de communication:', err);
-            appendMessageDom('bot', "⚠️ **Service momentanément indisponible :** Veuillez réessayer dans un instant ou contacter le support technique.", getFormattedTime(), true);
+            console.warn('[KLASORA AI] Bascule sur endpoint standard /query-data :', err);
+            try {
+                const csrfToken = getCsrfToken();
+                const fbResponse = await fetch(API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-CSRF-Token': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        question: questionText,
+                        history: historyPayload
+                    })
+                });
+                const data = await fbResponse.json();
+                if (fbResponse.ok && data.success && data.reply) {
+                    if (liveBot) {
+                        liveBot.bubble.innerHTML = renderMarkdown(data.reply);
+                        attachCopyButton(liveBot.metaDiv, data.reply);
+                        saveMessageToHistory('bot', data.reply, liveBot.timeSpan.textContent);
+                    } else {
+                        appendMessageDom('bot', data.reply, getFormattedTime(), true);
+                    }
+                } else {
+                    const errMsg = data.error || data.message || "Une erreur est survenue lors du traitement. Veuillez reformuler ou réessayer.";
+                    appendMessageDom('bot', `⚠️ **Information :** ${errMsg}`, getFormattedTime(), true);
+                }
+            } catch (fallbackErr) {
+                console.error('[KLASORA AI] Erreur finale :', fallbackErr);
+                appendMessageDom('bot', "⚠️ **Service momentanément indisponible :** Veuillez réessayer dans un instant ou contacter le support technique.", getFormattedTime(), true);
+            }
         } finally {
             stopDynamicThinkingSteps();
             typingIndicator.classList.add('klasora-ai-hidden');
@@ -2044,6 +2198,15 @@
                 inputArea.focus();
             }
         });
+    });
+
+    // Clic interactif sur les boutons de choix d'homonymes ou suggestions dans les messages
+    messagesList.addEventListener('click', (e) => {
+        const choiceBtn = e.target.closest('.klasora-ai-choice-btn');
+        if (choiceBtn && choiceBtn.dataset.prompt) {
+            e.preventDefault();
+            sendMessage(choiceBtn.dataset.prompt);
+        }
     });
 
     clearBtn.addEventListener('click', async () => {

@@ -97,7 +97,7 @@
             }
         }
 
-        // Écouter les évènements sur chaque modal de semestres
+        // Écouter les évènements sur chaque modal de semestres (unique ou statique)
         document.querySelectorAll('.modal-semestres').forEach(function (modal) {
             var inputFinS1 = modal.querySelector('.input-fin-s1');
             if (inputFinS1) {
@@ -109,8 +109,61 @@
                 });
             }
 
-            modal.addEventListener('show.bs.modal', function () {
+            modal.addEventListener('show.bs.modal', function (event) {
+                var btn = event.relatedTarget;
+                if (btn) {
+                    var form = modal.querySelector('form');
+                    var actionUrl = btn.getAttribute('data-action-url');
+                    if (form && actionUrl) {
+                        form.action = actionUrl;
+                    }
+                    var anneeNom = btn.getAttribute('data-annee-nom') || '';
+                    var dateDebut = btn.getAttribute('data-date-debut') || '';
+                    var dateFin = btn.getAttribute('data-date-fin') || '';
+                    var finS1 = btn.getAttribute('data-fin-s1') || '';
+                    var minFinS1 = btn.getAttribute('data-min-fin-s1') || '';
+                    var maxFinS1 = btn.getAttribute('data-max-fin-s1') || '';
+                    var previewS1Fin = btn.getAttribute('data-preview-s1-fin') || 'À définir';
+                    var previewS2Debut = btn.getAttribute('data-preview-s2-debut') || 'Le lendemain du S1';
+
+                    var titleEl = modal.querySelector('#modalSemestresAnneeNom');
+                    if (titleEl) titleEl.textContent = anneeNom;
+
+                    var rangeEl = modal.querySelector('#modalSemestresDateRange');
+                    if (rangeEl && dateDebut && dateFin) {
+                        rangeEl.innerHTML = "L'année scolaire s'étend du <strong>" + dateDebut + "</strong> au <strong>" + dateFin + "</strong>.<br>Saisissez simplement la <strong>date de fin du Semestre 1</strong>. Le Semestre 2 démarrera automatiquement le lendemain.";
+                    }
+
+                    if (inputFinS1) {
+                        inputFinS1.value = finS1;
+                        if (minFinS1) inputFinS1.min = minFinS1;
+                        if (maxFinS1) inputFinS1.max = maxFinS1;
+                    }
+
+                    var s1StartEl = modal.querySelector('#previewSemestre1Debut');
+                    if (s1StartEl) s1StartEl.textContent = dateDebut;
+
+                    var s1FinEl = modal.querySelector('.preview-s1-fin');
+                    if (s1FinEl) s1FinEl.textContent = previewS1Fin;
+
+                    var s2DebutEl = modal.querySelector('.preview-s2-debut');
+                    if (s2DebutEl) s2DebutEl.textContent = previewS2Debut;
+
+                    var s2FinEl = modal.querySelector('#previewSemestre2Fin');
+                    if (s2FinEl) s2FinEl.textContent = dateFin;
+                }
                 updateSemestresPreview(modal);
+            });
+
+            modal.addEventListener('hidden.bs.modal', function () {
+                var openModals = document.querySelectorAll('.modal.show');
+                if (openModals.length === 0) {
+                    var backdrops = document.querySelectorAll('.modal-backdrop');
+                    backdrops.forEach(function (b) { b.remove(); });
+                    document.body.classList.remove('modal-open');
+                    document.body.style.removeProperty('overflow');
+                    document.body.style.removeProperty('padding-right');
+                }
             });
         });
 

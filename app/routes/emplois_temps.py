@@ -189,7 +189,8 @@ def ajouter_emploi():
         cours_query = Cours.query.filter_by(ecole_id=ecole_id, classe_id=selected_classe_id).order_by(Cours.nom).all()
         form.cours_id.choices = [(c.id, c.nom) for c in cours_query]
     else:
-        form.cours_id.choices = [(c.id, f"{c.nom} ({c.classe.nom})" if c.classe else c.nom) for c in Cours.query.join(Classe, Cours.classe_id == Classe.id).filter(Classe.annee_scolaire_id == annee_consultee.id, Cours.ecole_id == ecole_id).order_by(Cours.nom).all()]
+        from sqlalchemy.orm import joinedload
+        form.cours_id.choices = [(c.id, f"{c.nom} ({c.classe.nom})" if c.classe else c.nom) for c in Cours.query.options(joinedload(Cours.classe)).join(Classe, Cours.classe_id == Classe.id).filter(Classe.annee_scolaire_id == annee_consultee.id, Cours.ecole_id == ecole_id).order_by(Cours.nom).all()]
 
     if form.validate_on_submit():
         creneau, error = valider_et_creer_creneau(
@@ -226,7 +227,12 @@ def modifier_emploi(id):
     """
     ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
-    emploi = EmploiTemps.query.filter_by(id=id, ecole_id=ecole_id).first_or_404()
+    from sqlalchemy.orm import joinedload
+    emploi = EmploiTemps.query.options(
+        joinedload(EmploiTemps.classe),
+        joinedload(EmploiTemps.cours),
+        joinedload(EmploiTemps.professeur)
+    ).filter_by(id=id, ecole_id=ecole_id).first_or_404()
 
     if not annee_consultee or emploi.classe.annee_scolaire_id != annee_consultee.id:
         flash("Ce créneau n'appartient pas à l'année scolaire consultée.", "warning")

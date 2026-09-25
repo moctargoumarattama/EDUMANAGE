@@ -318,10 +318,12 @@ def get_classes_pour_utilisateur(ecole_id, annee, user):
     if not annee:
         return []
 
+    from sqlalchemy.orm import joinedload
     if user.role in ('admin', 'super_admin'):
         return (
             classes_triees_pedagogique(
                 Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
+                .options(joinedload(Classe.niveau_scolaire))
             ).all()
         )
 
@@ -353,7 +355,7 @@ def get_classes_pour_utilisateur(ecole_id, annee, user):
         ids = [cid[0] for cid in classes_ids if cid[0]]
         if not ids:
             return []
-        return classes_triees_pedagogique(Classe.query.filter(Classe.id.in_(ids))).all()
+        return classes_triees_pedagogique(Classe.query.filter(Classe.id.in_(ids)).options(joinedload(Classe.niveau_scolaire))).all()
 
     if user.role == 'parent':
         # Découplage strict de Eleve.classe_id : source de vérité = Inscription
@@ -362,7 +364,7 @@ def get_classes_pour_utilisateur(ecole_id, annee, user):
             return []
         enfant_ids = [e.id for e in enfants]
         inscriptions = (
-            Inscription.query.filter(
+            Inscription.query.options(joinedload(Inscription.classe).joinedload(Classe.niveau_scolaire)).filter(
                 Inscription.eleve_id.in_(enfant_ids),
                 Inscription.annee_scolaire_id == annee.id,
                 Inscription.statut == 'active',

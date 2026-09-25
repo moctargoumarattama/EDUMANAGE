@@ -94,6 +94,74 @@ class TestPerformancePhase3(unittest.TestCase):
         self.assertTrue(25 <= per_page <= 50, f"per_page={per_page} doit être compris entre 25 et 50")
 
 
+    def test_voir_eleve_single_dynamic_modal_and_iife(self):
+        """Vérifie que voir_eleve.html utilise une modale unique et un script IIFE."""
+        with open('app/templates/voir_eleve.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Présence de la modale unique
+        self.assertIn('id="modalMatiereDynamique"', content)
+        self.assertIn('id="modalDynMatiereNom"', content)
+        self.assertIn('id="modalDynMatiereBody"', content)
+
+        # Absence des modales répétées dans la boucle
+        self.assertNotIn('id="modalMatiere_{{ mat_idx }}"', content)
+        self.assertNotIn('id="modalMatiere_{{ loop.index }}"', content)
+
+        # Présence des templates inertes
+        self.assertIn('id="matieresTemplatesContainer"', content)
+        self.assertIn('id="tplMatiereContent_{{ mat_idx }}"', content)
+
+        # Encapsulation IIFE
+        self.assertIn("(function() {", content)
+        self.assertIn("'use strict';", content)
+
+    def test_demandes_presentation_single_dynamic_modal(self):
+        """Vérifie que demandes_presentation.html utilise une modale unique hors boucle."""
+        with open('app/templates/admin/demandes_presentation.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Présence de la modale unique
+        self.assertIn('id="modalDemandePresentationUnique"', content)
+        self.assertIn('id="formDemandePresentation"', content)
+        self.assertIn('id="modalDemandePresentationTitle"', content)
+
+        # Absence de la modale répétée dans la boucle
+        self.assertNotIn('id="noteModal{{ d.id }}"', content)
+
+        # Déclencheur avec data attributes
+        self.assertIn('data-bs-target="#modalDemandePresentationUnique"', content)
+
+        # Encapsulation IIFE
+        self.assertIn("(function() {", content)
+        self.assertIn("'use strict';", content)
+
+    def test_gestion_annees_single_semestres_modal(self):
+        """Vérifie que gestion_annees.html utilise une modale unique pour les semestres."""
+        with open('app/templates/gestion_annees.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Présence de la modale unique
+        self.assertIn('id="modalSemestresUnique"', content)
+        self.assertIn('id="modalSemestresAnneeNom"', content)
+
+        # Absence de la modale répétée dans la boucle
+        self.assertNotIn('id="modalSemestres{{ annee.id }}"', content)
+
+        # Encapsulation IIFE
+        self.assertIn("(function() {", content)
+        self.assertIn("'use strict';", content)
+
+    def test_admin_emplois_iife_encapsulation(self):
+        """Vérifie que le script d'admin_emplois.html est encapsulé dans une IIFE."""
+        with open('app/templates/admin_emplois.html', 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        self.assertIn("(function() {", content)
+        self.assertIn("'use strict';", content)
+        self.assertIn("})();", content)
+
+
 if __name__ == '__main__':
     unittest.main()
 

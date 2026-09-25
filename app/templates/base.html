@@ -937,17 +937,31 @@
 
     <!-- Custom JavaScript -->
     <script>
-        // Configuration CSRF pour toutes les requêtes fetch
+        // Configuration CSRF robuste pour toutes les requêtes fetch
         function getCSRFToken() {
-            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            if (meta && meta.content) return meta.content;
+            const input = document.querySelector('input[name="csrf_token"]');
+            return input ? input.value : '';
         }
 
-        // Intercepteur pour ajouter le token CSRF à toutes les requêtes
+        // Intercepteur universel pour ajouter le token CSRF à toutes les requêtes POST/PUT/DELETE/PATCH
         fetch = (originalFetch => {
             return (...args) => {
-                if (args[1] && args[1].headers) {
-                    if (!args[1].headers['X-CSRFToken'] && !args[1].headers['X-CSRF-Token']) {
-                        args[1].headers['X-CSRFToken'] = getCSRFToken();
+                const token = getCSRFToken();
+                if (token && args[1]) {
+                    const method = (args[1].method || 'GET').toUpperCase();
+                    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+                        if (args[1].headers instanceof Headers) {
+                            if (!args[1].headers.has('X-CSRFToken') && !args[1].headers.has('X-CSRF-Token')) {
+                                args[1].headers.set('X-CSRFToken', token);
+                            }
+                        } else {
+                            args[1].headers = args[1].headers || {};
+                            if (!args[1].headers['X-CSRFToken'] && !args[1].headers['X-CSRF-Token']) {
+                                args[1].headers['X-CSRFToken'] = token;
+                            }
+                        }
                     }
                 }
                 return originalFetch(...args);

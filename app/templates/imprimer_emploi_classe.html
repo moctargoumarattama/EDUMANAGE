@@ -189,10 +189,19 @@
            ========================================================================= */
         @media screen and (max-width: 768px) {
             body {
-                padding: 10px;
+                padding: 8px;
             }
             .sheet-container {
-                padding: 16px 12px;
+                padding: 14px 10px;
+            }
+            .table-responsive {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-x pan-y;
+                margin-bottom: 12px;
+            }
+            .schedule-grid-table {
+                min-width: 620px;
             }
             .school-header-table, .school-header-table tbody, .school-header-table tr, .school-header-table td {
                 display: block;

@@ -226,7 +226,17 @@
                                                 </button>
                                             </li>
                                             <li>
-                                                <button type="button" class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#modalSemestres{{ annee.id }}">
+                                                <button type="button" class="dropdown-item py-2" data-bs-toggle="modal" data-bs-target="#modalSemestresUnique"
+                                                        data-annee-id="{{ annee.id }}"
+                                                        data-annee-nom="{{ annee.nom }}"
+                                                        data-date-debut="{{ annee.date_debut.strftime('%d/%m/%Y') }}"
+                                                        data-date-fin="{{ annee.date_fin.strftime('%d/%m/%Y') }}"
+                                                        data-fin-s1="{{ ns.s1.date_fin.strftime('%Y-%m-%d') if ns.s1 and ns.s1.date_fin else '' }}"
+                                                        data-min-fin-s1="{{ annee.min_fin_semestre_1.strftime('%Y-%m-%d') if annee.min_fin_semestre_1 else '' }}"
+                                                        data-max-fin-s1="{{ annee.max_fin_semestre_1.strftime('%Y-%m-%d') if annee.max_fin_semestre_1 else '' }}"
+                                                        data-preview-s1-fin="{{ ns.s1.date_fin.strftime('%d/%m/%Y') if ns.s1 and ns.s1.date_fin else 'À définir' }}"
+                                                        data-preview-s2-debut="{{ ns.s2.date_debut.strftime('%d/%m/%Y') if ns.s2 and ns.s2.date_debut else 'Le lendemain du S1' }}"
+                                                        data-action-url="{{ url_for('main.configurer_semestres', annee_id=annee.id) }}">
                                                     <i class="fas fa-calendar-week text-primary me-2"></i>Modifier semestres
                                                 </button>
                                             </li>
@@ -393,7 +403,18 @@
                                 </button>
                             </div>
                             <div class="col-6">
-                                <button type="button" class="btn btn-sm btn-outline-secondary w-100 py-1.5 rounded-pill" data-bs-toggle="modal" data-bs-target="#modalSemestres{{ annee.id }}" style="font-size: 0.78rem;">
+                                <button type="button" class="btn btn-sm btn-outline-secondary w-100 py-1.5 rounded-pill" data-bs-toggle="modal" data-bs-target="#modalSemestresUnique"
+                                        data-annee-id="{{ annee.id }}"
+                                        data-annee-nom="{{ annee.nom }}"
+                                        data-date-debut="{{ annee.date_debut.strftime('%d/%m/%Y') }}"
+                                        data-date-fin="{{ annee.date_fin.strftime('%d/%m/%Y') }}"
+                                        data-fin-s1="{{ ns.s1.date_fin.strftime('%Y-%m-%d') if ns.s1 and ns.s1.date_fin else '' }}"
+                                        data-min-fin-s1="{{ annee.min_fin_semestre_1.strftime('%Y-%m-%d') if annee.min_fin_semestre_1 else '' }}"
+                                        data-max-fin-s1="{{ annee.max_fin_semestre_1.strftime('%Y-%m-%d') if annee.max_fin_semestre_1 else '' }}"
+                                        data-preview-s1-fin="{{ ns.s1.date_fin.strftime('%d/%m/%Y') if ns.s1 and ns.s1.date_fin else 'À définir' }}"
+                                        data-preview-s2-debut="{{ ns.s2.date_debut.strftime('%d/%m/%Y') if ns.s2 and ns.s2.date_debut else 'Le lendemain du S1' }}"
+                                        data-action-url="{{ url_for('main.configurer_semestres', annee_id=annee.id) }}"
+                                        style="font-size: 0.78rem;">
                                     <i class="fas fa-calendar-week text-primary me-1"></i>Semestres
                                 </button>
                             </div>
@@ -427,39 +448,27 @@
     </div>
     {% endif %}
 
-    <!-- Modals de Configuration des Semestres (Un par année non archivée) -->
-    {% for annee in annees %}
-    {% if annee.statut != 'archivee' %}
-    {% set periodes = semestres_par_annee.get(annee.id, []) if semestres_par_annee else [] %}
-    {% set ns = namespace(s1=None, s2=None) %}
-    {% for periode in periodes %}
-        {% if periode.nom == 'Semestre 1' %}{% set ns.s1 = periode %}{% endif %}
-        {% if periode.nom == 'Semestre 2' %}{% set ns.s2 = periode %}{% endif %}
-    {% endfor %}
-    <div class="modal fade modal-semestres" id="modalSemestres{{ annee.id }}" tabindex="-1" aria-labelledby="modalSemestresLabel{{ annee.id }}" aria-hidden="true">
+    <!-- Modal Unique de Configuration des Semestres -->
+    <div class="modal fade modal-semestres" id="modalSemestresUnique" tabindex="-1" aria-labelledby="modalSemestresLabelUnique" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <form method="POST" action="{{ url_for('main.configurer_semestres', annee_id=annee.id) }}">
+                <form id="formSemestresUnique" method="POST" action="">
                     {{ csrf_form.hidden_tag() }}
                     <div class="modal-header bg-light">
-                        <h5 class="modal-title fw-bold" id="modalSemestresLabel{{ annee.id }}">
-                            <i class="fas fa-calendar-week me-2 text-primary"></i>Calendrier Semestres ({{ annee.nom }})
+                        <h5 class="modal-title fw-bold" id="modalSemestresLabelUnique">
+                            <i class="fas fa-calendar-week me-2 text-primary"></i>Calendrier Semestres (<span id="modalSemestresAnneeNom">--</span>)
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
                     </div>
                     <div class="modal-body p-4">
                         <div class="alert alert-info small mb-3">
                             <i class="fas fa-info-circle me-1"></i>
-                            L'année scolaire s'étend du <strong>{{ annee.date_debut.strftime('%d/%m/%Y') }}</strong> au <strong>{{ annee.date_fin.strftime('%d/%m/%Y') }}</strong>.<br>
-                            Saisissez simplement la <strong>date de fin du Semestre 1</strong>. Le Semestre 2 démarrera automatiquement le lendemain.
+                            <span id="modalSemestresDateRange">Veuillez renseigner la date de fin du Semestre 1.</span>
                         </div>
 
                         <div class="mb-4">
                             <label class="form-label fw-bold">Date de fin du Semestre 1 <span class="text-danger">*</span></label>
-                            <input type="date" name="fin_semestre_1" class="form-control form-control-lg fw-bold text-primary input-fin-s1"
-                                   value="{{ ns.s1.date_fin.strftime('%Y-%m-%d') if ns.s1 and ns.s1.date_fin else '' }}"
-                                   min="{{ annee.min_fin_semestre_1.strftime('%Y-%m-%d') if annee.min_fin_semestre_1 else '' }}"
-                                   max="{{ annee.max_fin_semestre_1.strftime('%Y-%m-%d') if annee.max_fin_semestre_1 else '' }}" required>
+                            <input type="date" name="fin_semestre_1" id="modalSemestresInputFinS1" class="form-control form-control-lg fw-bold text-primary input-fin-s1" required>
                             <div class="form-text small text-muted">Le Semestre 2 démarrera automatiquement le lendemain.</div>
                         </div>
 
@@ -468,11 +477,11 @@
                             <div class="small">
                                 <div class="d-flex justify-content-between border-bottom py-1">
                                     <span class="fw-bold">Semestre 1 :</span>
-                                    <span>{{ annee.date_debut.strftime('%d/%m/%Y') }} ➔ <strong class="text-primary preview-s1-fin">{{ ns.s1.date_fin.strftime('%d/%m/%Y') if ns.s1 and ns.s1.date_fin else 'À définir' }}</strong></span>
+                                    <span><span id="previewSemestre1Debut">--</span> ➔ <strong class="text-primary preview-s1-fin">À définir</strong></span>
                                 </div>
                                 <div class="d-flex justify-content-between py-1">
                                     <span class="fw-bold">Semestre 2 :</span>
-                                    <span><strong class="text-success preview-s2-debut">{{ ns.s2.date_debut.strftime('%d/%m/%Y') if ns.s2 and ns.s2.date_debut else 'Le lendemain du S1' }}</strong> ➔ {{ annee.date_fin.strftime('%d/%m/%Y') }}</span>
+                                    <span><strong class="text-success preview-s2-debut">Le lendemain du S1</strong> ➔ <span id="previewSemestre2Fin">--</span></span>
                                 </div>
                             </div>
                         </div>
@@ -487,8 +496,6 @@
             </div>
         </div>
     </div>
-    {% endif %}
-    {% endfor %}
 
     <!-- Modal Modifier Année -->
     <div class="modal fade" id="modalModifierAnnee" tabindex="-1" aria-labelledby="modalModifierAnneeLabel" aria-hidden="true">
@@ -579,7 +586,9 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/academic-settings.js') }}?v=20260915_2"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+(function() {
+    'use strict';
+    document.addEventListener('DOMContentLoaded', function () {
     // Liaison dynamique du modal d'avertissement console experte
     document.querySelectorAll('.btn-passage-global-modal').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -682,5 +691,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 });
+})();
 </script>
 {% endblock %}

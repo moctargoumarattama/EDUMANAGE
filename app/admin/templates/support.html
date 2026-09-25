@@ -496,7 +496,10 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 const res = await window.KlasoraUI.fetch(`/admin/support/${currentTicketId}/statut`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken() || '{{ csrf_token() }}'
+                    },
                     body: JSON.stringify({ statut: newStatut })
                 });
 

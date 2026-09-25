@@ -544,18 +544,22 @@
 <script>
 // Fonction pour appliquer les filtres
 function applyFilters() {
-    const search = document.getElementById('searchInput').value || '';
-    const role = document.getElementById('roleFilter').value || '';
+    const searchEl = document.getElementById('searchInput');
+    const roleEl = document.getElementById('roleFilter');
+    const search = searchEl ? searchEl.value.trim() : '';
+    const role = roleEl ? roleEl.value : '';
     
     {% if current_user.role == 'super_admin' %}
-        const ecole = document.getElementById('ecoleFilter').value || '';
+        const ecoleEl = document.getElementById('ecoleFilter');
+        const ecole = ecoleEl ? ecoleEl.value : '';
         const params = new URLSearchParams({
             search: search,
             role: role,
             ecole: ecole
         });
     {% else %}
-        const statut = document.getElementById('statutFilter').value || '';
+        const statutEl = document.getElementById('statutFilter');
+        const statut = statutEl ? statutEl.value : '';
         const params = new URLSearchParams({
             search: search,
             role: role,
