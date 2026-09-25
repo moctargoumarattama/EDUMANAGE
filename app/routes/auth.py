@@ -90,6 +90,10 @@ def index():
             from app.services.preparation_annee import get_etat_preparation_annee
             etat_planifiee = get_etat_preparation_annee(ecole_id, annee_planifiee.id)
 
+        from app.services.google_mail import get_school_mail_status
+        mail_status = get_school_mail_status(ecole_id)
+        email_non_connecte = not mail_status.get('is_connected', False)
+
         return render_template(
             'index.html',
             stats=stats,
@@ -97,7 +101,8 @@ def index():
             annee_consultee=annee_consultee,
             force_tour_prompt=force_tour_prompt,
             annee_planifiee=annee_planifiee,
-            etat_planifiee=etat_planifiee
+            etat_planifiee=etat_planifiee,
+            email_non_connecte=email_non_connecte
         )
 
     # -----------------------------

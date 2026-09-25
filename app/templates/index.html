@@ -31,6 +31,39 @@
         font-size: 0.72rem !important;
     }
 }
+/* Animation Clignotement / Pulsation permanente pour l'alerte email */
+@keyframes email-alert-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.6); transform: scale(1); }
+    50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); transform: scale(1.04); }
+    100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); transform: scale(1); }
+}
+@keyframes email-dot-blink {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.25; transform: scale(0.7); }
+}
+.email-pulse-badge {
+    animation: email-alert-pulse 2s infinite ease-in-out;
+}
+.email-pulse-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: #d97706;
+    border-radius: 50%;
+    margin-right: 5px;
+    animation: email-dot-blink 1.2s infinite ease-in-out;
+}
+.email-alert-card {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border-left: 5px solid #f59e0b !important;
+    transition: all 0.3s ease;
+}
+.rotate-180 {
+    transform: rotate(180deg);
+}
+.transition-icon {
+    transition: transform 0.25s ease;
+}
 </style>
 <div class="home-page">
     <section class="home-hero admin-welcome-hero">
@@ -64,6 +97,47 @@
             </span>
         </div>
     </section>
+
+    {% if email_non_connecte and current_user.role == 'admin' %}
+    <div class="alert border-0 shadow-sm rounded-4 mb-4 email-alert-card p-3 p-md-4" id="emailAlertCard" role="region" aria-label="Configuration e-mail requise">
+        <div class="d-flex align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-2.5 flex-grow-1 min-w-0">
+                <div class="rounded-circle d-flex align-items-center justify-content-center bg-white shadow-sm flex-shrink-0 email-pulse-badge" style="width: 42px; height: 42px; color: #d97706;">
+                    <i class="fas fa-envelope-open-text"></i>
+                </div>
+                <div class="min-w-0 flex-grow-1">
+                    <div class="d-flex align-items-center flex-wrap gap-2">
+                        <h2 class="h6 fw-bold mb-0 text-dark text-truncate">
+                            Messagerie officielle non configurée
+                        </h2>
+                        <span class="badge bg-warning text-dark rounded-pill px-2.5 py-1 d-inline-flex align-items-center" style="font-size: 0.73rem;">
+                            <span class="email-pulse-dot"></span>Action requise
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                <a href="{{ url_for('main.config_email') }}" class="btn btn-warning text-dark btn-sm px-3 py-1.5 rounded-3 shadow-sm fw-bold touch-btn text-nowrap d-none d-sm-inline-block">
+                    <i class="fas fa-link me-1"></i>Connecter Gmail
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-warning text-dark border-0 rounded-circle p-2 d-flex align-items-center justify-content-center" id="btnToggleEmailAlert" title="Plier / Déplier l'alerte" style="width: 36px; height: 36px;">
+                    <i class="fas fa-chevron-up transition-icon" id="iconToggleEmailAlert"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="collapse show mt-3 pt-2 border-top border-warning-subtle" id="emailAlertBody">
+            <p class="text-muted small mb-3 mb-sm-0">
+                Votre établissement n'a pas encore relié son compte Gmail. L'envoi automatique des e-mails scolaires (attributions de cours aux professeurs, bulletins, absences) est actuellement suspendu.
+            </p>
+            <div class="d-block d-sm-none mt-2">
+                <a href="{{ url_for('main.config_email') }}" class="btn btn-warning text-dark w-100 py-2 rounded-3 shadow-sm fw-bold">
+                    <i class="fas fa-link me-1"></i>Connecter Gmail
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     {% if annee_planifiee and current_user.role in ['admin', 'super_admin'] %}
     <div class="alert border-0 shadow-sm rounded-4 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-3 p-3 p-md-4" style="background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); border-left: 5px solid #6366f1 !important;" role="region" aria-label="Préparation de la rentrée">
@@ -422,5 +496,39 @@
 {% block extra_js %}
 {% if current_user.role in ['admin', 'super_admin'] %}
 <script src="{{ url_for('static', filename='js/mobile-welcome.js') }}"></script>
+<script>
+(function() {
+    'use strict';
+    document.addEventListener('DOMContentLoaded', function() {
+        const alertCard = document.getElementById('emailAlertCard');
+        const toggleBtn = document.getElementById('btnToggleEmailAlert');
+        const alertBody = document.getElementById('emailAlertBody');
+        const toggleIcon = document.getElementById('iconToggleEmailAlert');
+
+        if (alertCard && toggleBtn && alertBody && toggleIcon) {
+            const isCollapsed = localStorage.getItem('klasora_email_alert_collapsed') === 'true';
+            if (isCollapsed) {
+                alertBody.classList.remove('show');
+                toggleIcon.classList.add('rotate-180');
+            }
+
+            toggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const isShown = alertBody.classList.contains('show');
+                if (isShown) {
+                    alertBody.classList.remove('show');
+                    toggleIcon.classList.add('rotate-180');
+                    localStorage.setItem('klasora_email_alert_collapsed', 'true');
+                } else {
+                    alertBody.classList.add('show');
+                    toggleIcon.classList.remove('rotate-180');
+                    localStorage.setItem('klasora_email_alert_collapsed', 'false');
+                }
+            });
+        }
+    });
+})();
+</script>
 {% endif %}
 {% endblock %}
+
