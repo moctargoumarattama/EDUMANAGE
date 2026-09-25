@@ -1,6 +1,7 @@
 from . import main
 from .common import (
     Classe,
+    Eleve,
     current_app,
     current_user,
     datetime,
@@ -15,7 +16,7 @@ from .common import (
     session,
     url_for,
 )
-from app.authorization import can_access_class, check_parent_access
+from app.authorization import can_access_class
 from app.services import generer_alertes_automatiques, notifier_alertes
 from app.services.annees_scolaires import get_annee_consultee
 from app.utils_classes import classes_triees_pedagogique
@@ -68,7 +69,8 @@ def alertes():
         classes_ids = {c.id for c in classes}
         all_alertes = [a for a in all_alertes if a.get('classe_id') in classes_ids]
     elif current_user.role == 'parent':
-        all_alertes = [a for a in all_alertes if a.get('eleve_id') and check_parent_access(a['eleve_id'])]
+        mes_eleves_ids = {e.id for e in Eleve.query.filter_by(parent_id=current_user.id, ecole_id=ecole_id).all()}
+        all_alertes = [a for a in all_alertes if a.get('eleve_id') in mes_eleves_ids]
         eleves_classes_ids = {a.get('classe_id') for a in all_alertes if a.get('classe_id')}
         classes = classes_triees_pedagogique(Classe.query.filter(Classe.id.in_(eleves_classes_ids))).all() if eleves_classes_ids else []
     else:
@@ -224,7 +226,8 @@ def api_alertes():
         classes_ids = {c.id for c in classes_prof}
         alertes = [a for a in alertes if a.get('classe_id') in classes_ids]
     elif current_user.role == 'parent':
-        alertes = [a for a in alertes if a.get('eleve_id') and check_parent_access(a['eleve_id'])]
+        mes_eleves_ids = {e.id for e in Eleve.query.filter_by(parent_id=current_user.id, ecole_id=ecole_id).all()}
+        alertes = [a for a in alertes if a.get('eleve_id') in mes_eleves_ids]
 
     alertes_traitees_ids = set(session.get('alertes_traitees', []))
     for a in alertes:
@@ -238,7 +241,9 @@ def api_alertes():
 @login_required
 @role_required('admin', 'professeur', 'parent')
 def marquer_alerte_lue(alert_id):
-    traitees = set(session.get('alertes_traitees', []))
+    raw_traitees = session.get('alertes_traitees', [])
+    traitees_set = set(raw_traitees)
+    traitees_list = list(raw_traitees)
     data = request.get_json(silent=True) or {}
     action = data.get('action', 'toggle')
 
@@ -253,26 +258,33 @@ def marquer_alerte_lue(alert_id):
                 classes_ids = {c.id for c in classes_prof}
                 all_alertes = [a for a in all_alertes if a.get('classe_id') in classes_ids]
             elif current_user.role == 'parent':
-                all_alertes = [a for a in all_alertes if a.get('eleve_id') and check_parent_access(a['eleve_id'])]
+                mes_eleves_ids = {e.id for e in Eleve.query.filter_by(parent_id=current_user.id, ecole_id=ecole_id).all()}
+                all_alertes = [a for a in all_alertes if a.get('eleve_id') in mes_eleves_ids]
             for a in all_alertes:
-                traitees.add(a['id'])
+                aid = a['id']
+                if aid not in traitees_set:
+                    traitees_set.add(aid)
+                    traitees_list.append(aid)
         msg = "Toutes les alertes ont été marquées comme traitées"
         is_traitee = True
-    elif action == 'untreat' or (action == 'toggle' and alert_id in traitees):
-        traitees.discard(alert_id)
+    elif action == 'untreat' or (action == 'toggle' and alert_id in traitees_set):
+        traitees_set.discard(alert_id)
+        traitees_list = [x for x in traitees_list if x != alert_id]
         msg = "Alerte réactivée"
         is_traitee = False
     else:
-        traitees.add(alert_id)
+        traitees_set.add(alert_id)
+        traitees_list = [x for x in traitees_list if x != alert_id]
+        traitees_list.append(alert_id)
         msg = "Alerte marquée comme traitée"
         is_traitee = True
 
-    session['alertes_traitees'] = list(traitees)
+    session['alertes_traitees'] = traitees_list[-100:]
     session.modified = True
     return jsonify({
         'success': True,
         'message': msg,
-        'traitees_count': len(traitees),
+        'traitees_count': len(traitees_set),
         'is_traitee': is_traitee,
         'alert_id': alert_id
     })

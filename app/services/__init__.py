@@ -157,9 +157,9 @@ def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
         .options(
             db.joinedload(Inscription.eleve),
             db.joinedload(Inscription.classe),
-            db.joinedload(Inscription.notes),
-            db.joinedload(Inscription.absences),
-            db.joinedload(Inscription.paiements),
+            db.selectinload(Inscription.notes),
+            db.selectinload(Inscription.absences),
+            db.selectinload(Inscription.paiements),
         )
         .all()
     )
