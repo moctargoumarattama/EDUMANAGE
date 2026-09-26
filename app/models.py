@@ -193,6 +193,9 @@ class Ecole(db.Model):
     signature_path = db.Column(db.String(200))
     cachet_path = db.Column(db.String(200))
     ville = db.Column(db.String(100))
+    whatsapp_enabled = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    whatsapp_sender_phone = db.Column(db.String(30))
+    whatsapp_provider = db.Column(db.String(50), default='manual')
 
     # Relations
     utilisateurs = db.relationship(
@@ -218,6 +221,13 @@ class Ecole(db.Model):
         uselist=False,
         cascade='all, delete-orphan',
         passive_deletes=True
+    )
+    message_queue = db.relationship(
+        'MessageQueue',
+        back_populates='ecole',
+        cascade='all, delete-orphan',
+        passive_deletes=True,
+        lazy=True,
     )
 
     def __repr__(self):
@@ -260,8 +270,53 @@ class Ecole(db.Model):
             "signature_path": getattr(self, 'signature_path', None),
             "cachet_path": getattr(self, 'cachet_path', None),
             "ville": getattr(self, 'ville', None),
+            "whatsapp_enabled": self.whatsapp_enabled,
+            "whatsapp_sender_phone": self.whatsapp_sender_phone,
+            "whatsapp_provider": self.whatsapp_provider,
             "devise": self.devise,
             "slogan": self.slogan
+        }
+
+
+class MessageQueue(db.Model):
+    __tablename__ = 'message_queue'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id', ondelete='CASCADE'), nullable=False, index=True)
+    destinataire = db.Column(db.String(30), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    type_message = db.Column(db.String(50), default='general')
+    statut = db.Column(db.String(20), default='en_attente', index=True)
+    tentatives = db.Column(db.Integer, default=0)
+    max_tentatives = db.Column(db.Integer, default=3)
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    date_envoi = db.Column(db.DateTime, nullable=True)
+    expire_le = db.Column(db.DateTime, nullable=True)
+    erreur_details = db.Column(db.Text, nullable=True)
+
+    ecole = db.relationship('Ecole', back_populates='message_queue')
+
+    __table_args__ = (
+        db.Index('ix_message_queue_ecole_statut_creation', 'ecole_id', 'statut', 'date_creation'),
+    )
+
+    def __repr__(self):
+        return f'<MessageQueue {self.id} {self.type_message} {self.statut}>'
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "ecole_id": self.ecole_id,
+            "destinataire": self.destinataire,
+            "message": self.message,
+            "type_message": self.type_message,
+            "statut": self.statut,
+            "tentatives": self.tentatives,
+            "max_tentatives": self.max_tentatives,
+            "date_creation": self.date_creation.isoformat() if self.date_creation else None,
+            "date_envoi": self.date_envoi.isoformat() if self.date_envoi else None,
+            "expire_le": self.expire_le.isoformat() if self.expire_le else None,
+            "erreur_details": self.erreur_details,
         }
 
 # -----------------------
