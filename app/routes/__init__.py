@@ -36,6 +36,7 @@ from . import ecoles
 from . import annees
 from . import errors
 from . import email_settings
+from . import whatsapp
 from . import support
 from . import health
 from . import point_jour

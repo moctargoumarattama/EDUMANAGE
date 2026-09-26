@@ -583,7 +583,7 @@
                             </li>
 
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ('main.config_email', 'main.gestion_annees', 'main.gestion_utilisateurs', 'main.profil_ecole', 'main.sync_hors_ligne') }}" href="#" role="button" data-bs-toggle="dropdown">
+                                <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ('main.config_email', 'main.whatsapp_connect', 'main.gestion_annees', 'main.gestion_utilisateurs', 'main.profil_ecole', 'main.sync_hors_ligne') }}" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-cog me-1"></i>Paramètres
                                 </a>
                                 <ul class="dropdown-menu">
@@ -610,6 +610,12 @@
                                             {% else %}
                                                 <span class="badge bg-warning text-dark ms-2" style="font-size: 0.65rem;">À connecter</span>
                                             {% endif %}
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ url_for('main.whatsapp_connect') }}">
+                                            <span><i class="fab fa-whatsapp me-2 text-success"></i>Connexion WhatsApp</span>
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-2" style="font-size: 0.65rem;">Local</span>
                                         </a>
                                     </li>
                                     <li>
