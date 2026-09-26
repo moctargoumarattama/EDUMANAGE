@@ -70,20 +70,19 @@ def _niveaux_depuis_classes(classes):
 
 def _notifier_whatsapp_absence(absence, ecole=None, eleve=None, cours=None):
     try:
-        ecole = ecole or getattr(current_user, "ecole", None)
         eleve = eleve or getattr(absence, "eleve", None)
         cours = cours or getattr(absence, "cours", None)
-        if not ecole or not getattr(ecole, "whatsapp_enabled", False) or not eleve:
+        if not eleve:
             return None
 
-        tel_parent = None
-        for candidat in (
-            getattr(getattr(eleve, "parent", None), "telephone", None),
-            getattr(eleve, "contact_parent", None),
-        ):
-            tel_parent = normaliser_numero_whatsapp(candidat)
-            if tel_parent:
-                break
+        ecole = getattr(eleve, "ecole", None) or ecole
+        if not ecole or not getattr(ecole, "whatsapp_enabled", False):
+            return None
+
+        tel_parent = normaliser_numero_whatsapp(
+            getattr(eleve, "contact_parent", None)
+            or getattr(getattr(eleve, "parent", None), "telephone", None)
+        )
 
         if not tel_parent:
             current_app.logger.warning(
