@@ -30,7 +30,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto+Slab:wght@300;400;500;600&display=swap" rel="stylesheet">
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='14') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='14-menu-fix') }}">
     <style>
         :root {
             --primary: #4361ee;
@@ -1004,33 +1004,14 @@
                 }
             });
 
-            // Fermer le dropdown utilisateur quand on clique sur un lien
+            // Fermer le sous-menu concerne quand on clique sur un lien.
             const dropdownLinks = document.querySelectorAll('.dropdown-menu a:not([data-bs-toggle])');
             dropdownLinks.forEach(link => {
                 link.addEventListener('click', () => {
-                    const dropdown = bootstrap.Dropdown.getInstance(document.querySelector('#userDropdown'));
+                    const toggle = link.closest('.dropdown')?.querySelector('[data-bs-toggle="dropdown"]');
+                    const dropdown = toggle ? bootstrap.Dropdown.getInstance(toggle) : null;
                     if (dropdown) {
                         dropdown.hide();
-                    }
-                });
-            // Déroulement garanti des sous-menus mobile lors du clic sur les flèches / intitulés (dropdown-toggle)
-            document.querySelectorAll('.navbar-nav .dropdown-toggle').forEach(toggle => {
-                toggle.addEventListener('click', (e) => {
-                    if (window.innerWidth < 992) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const menu = toggle.nextElementSibling;
-                        if (menu && menu.classList.contains('dropdown-menu')) {
-                            const isOpen = menu.classList.contains('show');
-                            document.querySelectorAll('.navbar-nav .dropdown-menu.show').forEach(m => {
-                                if (m !== menu) m.classList.remove('show');
-                            });
-                            if (isOpen) {
-                                menu.classList.remove('show');
-                            } else {
-                                menu.classList.add('show');
-                            }
-                        }
                     }
                 });
             });
@@ -1059,7 +1040,6 @@
                 });
 
                 mobileOverlay.addEventListener('click', closeMobileMenu);
-                mobileOverlay.addEventListener('pointerdown', closeMobileMenu);
 
                 navbarCollapse.querySelectorAll('a[href]:not([data-bs-toggle])').forEach(link => {
                     link.addEventListener('click', () => {
@@ -1068,13 +1048,6 @@
                         }
                     });
                 });
-
-                document.addEventListener('pointerdown', event => {
-                    if (!isMobileMenuOpen() || window.innerWidth >= 992) return;
-                    const target = event.target;
-                    if (navbarCollapse.contains(target) || (navbarToggler && navbarToggler.contains(target))) return;
-                    closeMobileMenu();
-                }, true);
 
                 document.addEventListener('click', event => {
                     if (!isMobileMenuOpen() || window.innerWidth >= 992) return;

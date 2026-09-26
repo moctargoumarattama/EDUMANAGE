@@ -497,12 +497,19 @@
 
         logoutLinks.forEach(link => {
             link.addEventListener('click', async function (e) {
-                if (typeof offlineDB === 'undefined') return;
+                if (typeof offlineDB === 'undefined' || link.id === 'klasoraConfirmLogoutBtn') return;
 
-                const stats = await offlineDB.getStats();
+                e.preventDefault();
+
+                let stats;
+                try {
+                    stats = await offlineDB.getStats();
+                } catch (error) {
+                    window.location.href = link.href;
+                    return;
+                }
+
                 if (stats && stats.total > 0) {
-                    e.preventDefault();
-
                     const countText = document.getElementById('klasoraPendingCountText');
                     if (countText) {
                         let textDesc = `${stats.total}`;
@@ -530,6 +537,7 @@
                     }
                 } else {
                     if (window.klasoraPwaCleanOnLogout) window.klasoraPwaCleanOnLogout();
+                    window.location.href = link.href;
                 }
             });
         });

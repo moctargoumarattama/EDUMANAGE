@@ -608,9 +608,6 @@ def api_fiche_eleve(eleve_id):
     """Retourne les informations détaillées d'un élève (fiche, notes, parent, absences) pour la modale sur place"""
     ecole_id = g.ecole_id
     eleve = Eleve.query.options(
-        joinedload(Eleve.notes).joinedload(Note.cours),
-        joinedload(Eleve.absences).joinedload(Absence.cours),
-        joinedload(Eleve.paiements),
         joinedload(Eleve.parent)
     ).filter_by(id=eleve_id, ecole_id=ecole_id).first()
 
@@ -626,7 +623,16 @@ def api_fiche_eleve(eleve_id):
     from app.services.evaluations import calculer_completude_inscription
     if inscription_active and annee_id:
         eval_info = calculer_completude_inscription(eleve.ecole_id, annee_id, inscription_active)
-        notes = sorted([n for n in eleve.notes if n.annee_id == annee_id], key=lambda n: n.date_evaluation or datetime.min, reverse=True)
+        notes = (
+            Note.query.options(joinedload(Note.cours))
+            .filter(
+                Note.ecole_id == ecole_id,
+                Note.eleve_id == eleve.id,
+                Note.annee_id == annee_id,
+            )
+            .order_by(Note.date_evaluation.desc())
+            .all()
+        )
     else:
         eval_info = {"status": "non_evalue", "average": 0, "evaluated_subjects": 0, "expected_subjects": 0}
         notes = []
@@ -682,12 +688,34 @@ def api_fiche_eleve(eleve_id):
         mention_badge = 'danger'
 
     # Absences
-    absences = eleve.absences or []
+    absences = []
+    if inscription_active:
+        absences = (
+            Absence.query.options(joinedload(Absence.cours))
+            .filter(
+                Absence.ecole_id == ecole_id,
+                Absence.eleve_id == eleve.id,
+                Absence.inscription_id == inscription_active.id,
+            )
+            .order_by(Absence.date_absence.desc())
+            .all()
+        )
     total_absences = len(absences)
     absences_injustifiees = sum(1 for a in absences if not a.justifiee)
 
     # Paiements
-    paiements = [p for p in eleve.paiements if (getattr(p, 'statut', None) or 'payé') != 'annule']
+    paiements = []
+    if inscription_active:
+        paiements = (
+            Paiement.query
+            .filter(
+                Paiement.ecole_id == ecole_id,
+                Paiement.eleve_id == eleve.id,
+                Paiement.inscription_id == inscription_active.id,
+                db.or_(Paiement.statut.is_(None), Paiement.statut != 'annule'),
+            )
+            .all()
+        )
     total_paye = float(sum(p.montant or 0 for p in paiements))
     total_frais = float(eleve.frais_annuels or 150000.0)
     reste_a_payer = max(0.0, total_frais - total_paye)

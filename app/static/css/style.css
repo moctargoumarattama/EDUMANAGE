@@ -999,15 +999,15 @@ textarea {
 
     .navbar {
         position: relative;
-        z-index: 1060;
+        z-index: 1030;
     }
 
     .mobile-menu-overlay {
         position: fixed;
         inset: 0;
-        z-index: 1040;
+        /* Below the navbar (1030), including its inline template styles. */
+        z-index: 1020;
         background: rgba(15, 23, 42, 0.24);
-        backdrop-filter: blur(2px);
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.22s ease;
@@ -1033,7 +1033,7 @@ textarea {
         border: 1px solid rgba(255, 255, 255, 0.14);
         box-shadow: 0 24px 60px rgba(15, 23, 42, 0.34);
         opacity: 0;
-        transform: translateY(-8px) scale(0.985);
+        transform: translateY(-8px);
         transform-origin: top center;
         transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.18s ease;
     }

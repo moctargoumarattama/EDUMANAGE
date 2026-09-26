@@ -819,8 +819,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function debounce(fn, delay = 280) {
+        let timer = null;
+        return (...args) => {
+            window.clearTimeout(timer);
+            timer = window.setTimeout(() => fn(...args), delay);
+        };
+    }
+
     if (searchInput) {
-        searchInput.addEventListener('input', applyStudentSearch);
+        const debouncedStudentSearch = debounce(applyStudentSearch, 280);
+        searchInput.addEventListener('input', debouncedStudentSearch);
     }
 
     if (btnClear) {

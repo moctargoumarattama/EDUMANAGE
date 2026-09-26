@@ -1,12 +1,30 @@
 import logging
 import re
+import threading
 
+from flask import current_app
 from flask_mail import Message
 
 from app.extensions import mail
 
 
 logger = logging.getLogger(__name__)
+
+
+def _send_email_async(app, msg, email_context, recipient, subject):
+    with app.app_context():
+        try:
+            mail.send(msg)
+            logger.info("EMAIL_SUCCESS type=%s recipient=%s subject=%s", email_context, recipient, subject)
+        except Exception as exc:
+            logger.exception(
+                "EMAIL_FAILED type=%s recipient=%s subject=%s error_type=%s error=%s",
+                email_context,
+                recipient,
+                subject,
+                type(exc).__name__,
+                str(exc),
+            )
 
 
 def _html_to_text(html):
@@ -37,8 +55,12 @@ def envoyer_email(to, sujet, corps, reply_to=None, context=None):
         if reply_to:
             msg.reply_to = reply_to
 
-        mail.send(msg)
-        logger.info("EMAIL_SUCCESS type=%s recipient=%s subject=%s", email_context, recipient, subject)
+        app = current_app._get_current_object()
+        threading.Thread(
+            target=_send_email_async,
+            args=[app, msg, email_context, recipient, subject],
+            daemon=True,
+        ).start()
         return True
     except Exception as exc:
         logger.exception(

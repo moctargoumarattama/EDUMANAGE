@@ -1,4 +1,5 @@
 from . import main
+import os
 from .common import (
     AnneeScolaire,
     Classe,
@@ -49,11 +50,12 @@ def generer_qrcode_eleve(id):
         scan_url = url_for('main.voir_eleve', eleve_id=eleve.id, _external=True)
 
     cache_path = get_qr_cache_path(eleve)
-    img_buf = generer_qr_code_buffer(scan_url)
+    if not os.path.exists(cache_path):
+        img_buf = generer_qr_code_buffer(scan_url)
 
-    # Sauvegarder dans le cache pour rétrocompatibilité
-    with open(cache_path, "wb") as f:
-        f.write(img_buf.getvalue())
+        # Sauvegarder dans le cache pour rétrocompatibilité
+        with open(cache_path, "wb") as f:
+            f.write(img_buf.getvalue())
 
     return send_file(cache_path, mimetype='image/png',
                      download_name=f"qrcode_{eleve.prenom}_{eleve.nom}.png")
@@ -165,14 +167,18 @@ def qrcodes_etudiants():
         token = generer_token_eleve(ecole_id, ins.id)
         scan_url = url_for('main.verifier_eleve_public', token=token, _external=True)
 
-        # Génération du QR code en mémoire directement
-        img_buf = generer_qr_code_buffer(scan_url)
-        img_data = base64.b64encode(img_buf.getvalue()).decode()
-
-        # Mettre à jour le fichier cache physique pour rétrocompatibilité
         cache_path = get_qr_cache_path(e)
-        with open(cache_path, "wb") as f:
-            f.write(img_buf.getvalue())
+        if os.path.exists(cache_path):
+            with open(cache_path, "rb") as f:
+                img_data = base64.b64encode(f.read()).decode()
+        else:
+            # Génération du QR code en mémoire directement
+            img_buf = generer_qr_code_buffer(scan_url)
+            img_data = base64.b64encode(img_buf.getvalue()).decode()
+
+            # Mettre à jour le fichier cache physique pour rétrocompatibilité
+            with open(cache_path, "wb") as f:
+                f.write(img_buf.getvalue())
 
         if classe_nom not in qrcodes_par_classe:
             qrcodes_par_classe[classe_nom] = {

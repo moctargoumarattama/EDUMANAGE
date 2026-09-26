@@ -9,6 +9,7 @@ class OfflineManager {
         this.listeners = new Map();
         this.retryDelay = 5000;
         this.maxRetryDelay = 60000;
+        this.preloadFreshnessMs = 15 * 60 * 1000;
     }
 
     /**
@@ -80,6 +81,23 @@ class OfflineManager {
         return false;
     }
 
+    shouldRefreshPreload(cacheKey, force = false) {
+        if (force) return true;
+
+        const lastPreload = Number(localStorage.getItem(`offline-preload:${cacheKey}`) || 0);
+        if (!lastPreload) return true;
+
+        const isFresh = (Date.now() - lastPreload) < this.preloadFreshnessMs;
+        if (isFresh) {
+            console.log(`ℹ️ Préchargement ignoré, cache récent (${cacheKey})`);
+        }
+        return !isFresh;
+    }
+
+    markPreloadRefreshed(cacheKey) {
+        localStorage.setItem(`offline-preload:${cacheKey}`, String(Date.now()));
+    }
+
     /**
      * Précharger les données d'administration hors-ligne
      */
@@ -87,6 +105,10 @@ class OfflineManager {
         const cacheKey = offlineDB.getAdminCacheKey();
 
         if (!this.isOnline && !force) {
+            return await offlineDB.getCachedData(cacheKey);
+        }
+
+        if (!this.shouldRefreshPreload(cacheKey, force)) {
             return await offlineDB.getCachedData(cacheKey);
         }
 
@@ -100,6 +122,7 @@ class OfflineManager {
                 const data = await response.json();
                 if (data.success) {
                     await offlineDB.cacheData(cacheKey, data, 1440); // 24h
+                    this.markPreloadRefreshed(cacheKey);
                     console.log(`✅ Données administrateur préchargées (${data.classes.length} classes, ${data.cours.length} cours, ${data.eleves.length} élèves)`);
                     this.emit('admin-data-loaded', data);
                     return data;
@@ -127,6 +150,10 @@ class OfflineManager {
             return await offlineDB.getCachedData(cacheKey);
         }
 
+        if (!this.shouldRefreshPreload(cacheKey, force)) {
+            return await offlineDB.getCachedData(cacheKey);
+        }
+
         try {
             console.log(`📥 Chargement des données hors-ligne du professeur (${cacheKey})...`);
             const response = await fetch('/api/professeur/offline-data', {
@@ -137,6 +164,7 @@ class OfflineManager {
                 const data = await response.json();
                 if (data.success) {
                     await offlineDB.cacheData(cacheKey, data, 1440); // 24h
+                    this.markPreloadRefreshed(cacheKey);
                     console.log(`✅ Données professeur préchargées (${data.classes.length} classes, ${data.cours.length} cours, ${data.eleves.length} élèves)`);
                     this.emit('teacher-data-loaded', data);
                     return data;
@@ -165,6 +193,10 @@ class OfflineManager {
             return await offlineDB.getCachedData(cacheKey);
         }
 
+        if (!this.shouldRefreshPreload(cacheKey, force)) {
+            return await offlineDB.getCachedData(cacheKey);
+        }
+
         try {
             console.log(`📥 Chargement des données hors-ligne du parent (${cacheKey})...`);
             const response = await fetch('/api/parent/offline-data', {
@@ -175,6 +207,7 @@ class OfflineManager {
                 const data = await response.json();
                 if (data.success) {
                     await offlineDB.cacheData(cacheKey, data, 1440); // 24h
+                    this.markPreloadRefreshed(cacheKey);
                     console.log(`✅ Données parent préchargées (${data.enfants ? data.enfants.length : 0} enfants)`);
                     this.emit('parent-data-loaded', data);
                     return data;

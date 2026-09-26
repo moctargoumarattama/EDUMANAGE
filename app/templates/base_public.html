@@ -150,8 +150,8 @@
                     <div class="mb-3 text-center">
                         <div class="position-relative rounded-3 overflow-hidden shadow-sm bg-dark border mx-auto" style="max-width: 320px;">
                             <div class="ratio bg-dark" style="--bs-aspect-ratio: 160%;">
-                                <video id="modalDemoVideo" autoplay muted playsinline loop controls preload="auto" class="w-100 h-100" style="object-fit: contain; background: #0f172a;">
-                                    <source src="{{ url_for('static', filename='video/KLASORA_FINAL.mp4') }}" type="video/mp4">
+                                <video id="modalDemoVideo" autoplay muted playsinline loop controls preload="none" class="w-100 h-100" style="object-fit: contain; background: #0f172a;">
+                                    <source data-src="{{ url_for('static', filename='video/KLASORA_FINAL.mp4') }}" type="video/mp4">
                                 </video>
                             </div>
                             <button id="modalUnmuteBtn" type="button" class="btn btn-sm btn-dark bg-opacity-75 text-white rounded-pill px-3 py-1 position-absolute bottom-0 end-0 m-2 border-0" style="z-index: 10; font-size: 0.75rem; backdrop-filter: blur(6px); width: auto; height: auto;">
@@ -294,6 +294,13 @@
                     const mainVideo = document.getElementById('mainDemoVideo');
                     if (mainVideo) mainVideo.pause();
 
+                    if (!modalVideo.dataset.loaded) {
+                        modalVideo.querySelectorAll('source[data-src]').forEach(source => {
+                            source.src = source.dataset.src;
+                        });
+                        modalVideo.load();
+                        modalVideo.dataset.loaded = 'true';
+                    }
                     modalVideo.muted = true;
                     modalVideo.play().catch(() => {});
                 });
