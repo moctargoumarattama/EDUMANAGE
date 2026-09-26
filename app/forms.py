@@ -1,4 +1,5 @@
 from flask_wtf import FlaskForm
+from flask import request
 from wtforms import StringField, PasswordField, SubmitField, DateField, FloatField, SelectField, TextAreaField, BooleanField, IntegerField
 from wtforms.validators import DataRequired, Email, Length, Optional, NumberRange, EqualTo
 from datetime import datetime, date
@@ -46,10 +47,19 @@ class CreateUserForm(FlaskForm):
 # Formulaire de connexion
 # -----------------------
 class LoginForm(FlaskForm):
-    email = StringField('Email ou téléphone', validators=[DataRequired()])
+    identifiant = StringField('Numero de telephone ou Email', validators=[DataRequired()])
     mot_de_passe = PasswordField('Mot de passe', validators=[DataRequired()])
     remember = BooleanField('Se souvenir de moi')
     submit = SubmitField('Se connecter')
+
+    @property
+    def email(self):
+        return self.identifiant
+
+    def validate(self, extra_validators=None):
+        if not self.identifiant.data:
+            self.identifiant.data = (request.form.get('email') or '').strip()
+        return super().validate(extra_validators)
 
 class ParentLoginForm(FlaskForm):
     nom_eleve = StringField("Nom de l'élève", validators=[DataRequired(), Length(min=2, max=50)])

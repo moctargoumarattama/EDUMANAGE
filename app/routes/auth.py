@@ -2,6 +2,7 @@ from . import main
 from .common import (
     AnneeScolaire,
     Ecole,
+    Eleve,
     LoginForm,
     URLSafeTimedSerializer,
     Utilisateur,
@@ -27,7 +28,42 @@ from .common import (
     url_for,
 )
 from flask import jsonify
+import re
 from app.utils import sanitize_internal_url
+
+
+def normaliser_telephone_niger(value):
+    """Retourne les 8 chiffres locaux Niger, ou None si le format est inutilisable."""
+    if not value:
+        return None
+    digits = re.sub(r"\D", "", str(value))
+    if digits.startswith("00227"):
+        digits = digits[5:]
+    elif digits.startswith("227") and len(digits) > 8:
+        digits = digits[3:]
+    if len(digits) > 8:
+        digits = digits[-8:]
+    return digits if len(digits) == 8 else None
+
+
+def _resolve_utilisateur_par_telephone(local_phone):
+    if not local_phone:
+        return None
+
+    for utilisateur in Utilisateur.query.filter(Utilisateur.telephone.isnot(None)).all():
+        if normaliser_telephone_niger(utilisateur.telephone) == local_phone:
+            return utilisateur
+
+    parent_links = (
+        db.session.query(Eleve.parent_id, Eleve.contact_parent)
+        .filter(Eleve.parent_id.isnot(None), Eleve.contact_parent.isnot(None))
+        .all()
+    )
+    for parent_id, telephone in parent_links:
+        if normaliser_telephone_niger(telephone) == local_phone:
+            return db.session.get(Utilisateur, parent_id)
+
+    return None
 
 
 @main.route('/')
@@ -149,17 +185,17 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         # sanitize + normaliser l'identifiant
-        identifiant = escape(form.email.data.strip().lower())
+        identifiant = (form.identifiant.data or request.form.get('email') or '').strip()
 
         # Option: implementer un throttle/lockout par identifiant ici (compte)
         # Exemple (pseudo): if too_many_failed_attempts(identifiant): flash(...); return redirect(...)
 
         # Recherche utilisateur par email (case-insensitive) ou telephone
         # Assure-toi d'avoir les colonnes indexées pour la perf
-        query = Utilisateur.query.filter(
-            (Utilisateur.email.ilike(identifiant)) | (Utilisateur.telephone == identifiant)
-        )
-        utilisateur = query.first()
+        if "@" in identifiant:
+            utilisateur = Utilisateur.query.filter(Utilisateur.email.ilike(identifiant)).first()
+        else:
+            utilisateur = _resolve_utilisateur_par_telephone(normaliser_telephone_niger(identifiant))
 
         # IP via get_remote_address (plus fiable avec flask-limiter)
         ip = get_remote_address()
@@ -223,8 +259,8 @@ def login():
             return redirect(next_page)
         else:
             # échec de connexion
-            current_app.logger.warning(f"Tentative de connexion échouée pour identifiant={identifiant} depuis {ip}")
-            flash('Identifiant ou mot de passe incorrect', 'danger')
+            current_app.logger.warning(f"Tentative de connexion échouée pour identifiant={escape(identifiant)} depuis {ip}")
+            flash('Identifiant ou mot de passe / code PIN incorrect.', 'danger')
 
     return render_template('login.html', form=form)
 

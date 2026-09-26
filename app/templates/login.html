@@ -21,18 +21,18 @@
                 {{ form.hidden_tag() }}
 
                 <div>
-                    <label class="form-label" for="{{ form.email.id }}">Email</label>
-                    {{ form.email(class="form-control", placeholder="email@exemple.com", autocomplete="email") }}
-                    <div class="invalid-feedback">Email requis.</div>
-                    {% for error in form.email.errors %}
+                    <label class="form-label" for="{{ form.identifiant.id }}">Numero de telephone ou Email</label>
+                    {{ form.identifiant(class="form-control", type="text", inputmode="text", placeholder="Ex: 90123456 ou contact@ecole.com", autocomplete="username") }}
+                    <div class="invalid-feedback">Numero de telephone ou email requis.</div>
+                    {% for error in form.identifiant.errors %}
                     <div class="text-danger small mt-1">{{ error }}</div>
                     {% endfor %}
                 </div>
 
                 <div>
-                    <label class="form-label" for="{{ form.mot_de_passe.id }}">Mot de passe</label>
+                    <label class="form-label" for="{{ form.mot_de_passe.id }}">Mot de passe ou Code PIN</label>
                     <div class="input-group">
-                        {{ form.mot_de_passe(class="form-control", placeholder="Mot de passe", autocomplete="current-password") }}
+                        {{ form.mot_de_passe(class="form-control", placeholder="••••••••", autocomplete="current-password") }}
                         <button class="btn btn-outline-secondary" type="button" id="togglePassword" tabindex="-1">
                             <i class="fas fa-eye" id="togglePasswordIcon"></i>
                         </button>
