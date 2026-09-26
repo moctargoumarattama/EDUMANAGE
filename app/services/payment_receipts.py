@@ -1,6 +1,7 @@
 import base64
 import io
 import os
+import re
 from datetime import datetime
 from urllib.parse import quote_plus
 
@@ -85,6 +86,31 @@ def _qr_png_buffer(data_url):
     return buffer
 
 
+def _normaliser_telephone_parent_recu(eleve):
+    parent = getattr(eleve, "parent", None) if eleve else None
+    telephone = (
+        getattr(parent, "telephone", None)
+        or getattr(eleve, "contact_parent", None)
+        or getattr(eleve, "telephone", None)
+    )
+    if not telephone:
+        return ""
+
+    digits = re.sub(r"\D", "", str(telephone))
+    if digits.startswith("00227"):
+        digits = digits[5:]
+    elif digits.startswith("227") and len(digits) > 8:
+        digits = digits[3:]
+    if len(digits) > 8:
+        digits = digits[-8:]
+    return digits if len(digits) == 8 else str(telephone).strip()
+
+
+def _code_pin_parent_recu(eleve):
+    code = getattr(eleve, "code_parent", None) if eleve else None
+    return str(code).strip() if code else ""
+
+
 def build_payment_receipt_context(paiement):
     paiement.ensure_verification_token()
     db.session.flush()
@@ -125,6 +151,9 @@ def build_payment_receipt_context(paiement):
         "logo_url": logo_url,
         "logo_local_path": logo_local_path,
         "whatsapp_url": f"https://wa.me/?text={quote_plus(whatsapp_text)}",
+        "parent_access_site": "https://klasora.com",
+        "parent_telephone": _normaliser_telephone_parent_recu(eleve),
+        "parent_pin": _code_pin_parent_recu(eleve),
         "generated_at": datetime.utcnow(),
     }
 

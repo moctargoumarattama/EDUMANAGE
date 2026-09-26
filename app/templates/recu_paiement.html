@@ -104,6 +104,22 @@
                     <p>Scanner pour verifier ce recu en ligne.</p>
                 </div>
             </section>
+
+            {% if parent_telephone and parent_pin %}
+            <section class="coupon-parent-decoupe" aria-label="Coupon d'acces parent">
+                <div class="decoupe-ligne" aria-hidden="true">-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - --</div>
+                <div class="coupon-corps">
+                    <h4>ESPACE PARENT KLASORA - VOS ACCES DE CONNEXION</h4>
+                    <p>Suivez les notes, presences et paiements de votre enfant <strong>{{ eleve.prenom }} {{ eleve.nom }}</strong> depuis votre telephone :</p>
+                    <div class="acces-details">
+                        <span><strong>Site web :</strong> {{ parent_access_site }}</span>
+                        <span><strong>Identifiant :</strong> {{ parent_telephone }}</span>
+                        <span><strong>Code PIN :</strong> {{ parent_pin }}</span>
+                    </div>
+                    <small>Conservez precieusement ce code secret. En cas de perte, contactez le secretariat de l'etablissement.</small>
+                </div>
+            </section>
+            {% endif %}
         </article>
     </div>
 </div>
