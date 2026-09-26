@@ -98,6 +98,12 @@ class AuthTelephoneParentTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/", response.headers["Location"])
 
+    def test_admin_login_phone_password(self):
+        response = self.post_login("90111111", "AdminPass123")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/", response.headers["Location"])
+
     def test_parent_login_local_phone_pin(self):
         response = self.post_login("90123456", "1234")
 
@@ -112,6 +118,12 @@ class AuthTelephoneParentTestCase(unittest.TestCase):
 
     def test_parent_login_international_phone_pin(self):
         response = self.post_login("+212 6 12 34 56 78", "5678")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/parent", response.headers["Location"])
+
+    def test_parent_login_morocco_local_phone_pin(self):
+        response = self.post_login("0612345678", "5678")
 
         self.assertEqual(response.status_code, 302)
         self.assertIn("/parent", response.headers["Location"])

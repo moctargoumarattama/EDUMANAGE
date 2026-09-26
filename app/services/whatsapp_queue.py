@@ -7,7 +7,7 @@ from app.models import Ecole, MessageQueue
 from app.services.phone_numbers import normaliser_numero_whatsapp
 
 
-VALID_MESSAGE_TYPES = {'absence', 'note', 'paiement', 'general'}
+VALID_MESSAGE_TYPES = {'absence', 'note', 'paiement', 'inscription', 'compte_professeur', 'general'}
 STATUS_PENDING = 'en_attente'
 STATUS_SENT = 'envoye'
 STATUS_FAILED = 'echec'

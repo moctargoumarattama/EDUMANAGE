@@ -66,13 +66,12 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
             session["annee_consultee"] = {str(self.ecole.id): self.annee.id}
         return client
 
-    def professeur_data(self, email="prof@example.com", code_prof=""):
+    def professeur_data(self, code_prof="", telephone="90000000"):
         return {
             "nom": "Diallo",
             "prenom": "Moussa",
             "date_naissance": "1985-01-01",
-            "telephone": "90000000",
-            "email": email,
+            "telephone": telephone,
             "adresse": "Niamey",
             "specialite": "Non renseignée",
             "matieres_enseignees": "Science",
@@ -111,7 +110,7 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
             response = client.post("/ajouter_professeur", data=self.professeur_data(), follow_redirects=False)
 
         self.assertEqual(response.status_code, 302)
-        prof_user = Utilisateur.query.filter_by(email="prof@example.com", role="professeur").first()
+        prof_user = Utilisateur.query.filter_by(telephone="+22790000000", role="professeur").first()
         self.assertIsNotNone(prof_user)
         self.assertNotEqual(prof_user.mot_de_passe, "47295106")
         self.assertTrue(prof_user.check_mot_de_passe("47295106"))
@@ -119,29 +118,29 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
         with patch("app.notifications.envoyer_email", return_value=True):
             response = client.post(
                 "/ajouter_professeur",
-                data=self.professeur_data(email="prof2@example.com", code_prof="12345678"),
+                data=self.professeur_data(code_prof="12345678", telephone="90000001"),
                 follow_redirects=False,
             )
 
         self.assertEqual(response.status_code, 302)
-        prof_user = Utilisateur.query.filter_by(email="prof2@example.com", role="professeur").first()
+        prof_user = Utilisateur.query.filter_by(telephone="+22790000001", role="professeur").first()
         self.assertTrue(prof_user.check_mot_de_passe("12345678"))
 
         response = client.post(
             "/ajouter_professeur",
-            data=self.professeur_data(email="bad1@example.com", code_prof="1234"),
+            data=self.professeur_data(code_prof="1234", telephone="90000002"),
             follow_redirects=True,
         )
         self.assertIn("Le code", response.get_data(as_text=True))
-        self.assertIsNone(Utilisateur.query.filter_by(email="bad1@example.com").first())
+        self.assertIsNone(Utilisateur.query.filter_by(telephone="+22790000002").first())
 
         response = client.post(
             "/ajouter_professeur",
-            data=self.professeur_data(email="bad2@example.com", code_prof="abcdefgh"),
+            data=self.professeur_data(code_prof="abcdefgh", telephone="90000003"),
             follow_redirects=True,
         )
         self.assertIn("code", response.get_data(as_text=True))
-        self.assertIsNone(Utilisateur.query.filter_by(email="bad2@example.com").first())
+        self.assertIsNone(Utilisateur.query.filter_by(telephone="+22790000003").first())
 
     def test_parent_auto_manual_and_existing_parent_password_preserved(self):
         client = self.login_admin()

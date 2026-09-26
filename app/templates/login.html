@@ -21,10 +21,10 @@
                 {{ form.hidden_tag() }}
 
                 <div>
-                    <label class="form-label" for="{{ form.identifiant.id }}">Numero de telephone ou Email</label>
-                    {{ form.identifiant(class="form-control", type="text", inputmode="text", placeholder="Ex: 90123456 ou contact@ecole.com", autocomplete="username") }}
-                    <div class="invalid-feedback">Numero de telephone ou email requis.</div>
-                    {% for error in form.identifiant.errors %}
+                    <label class="form-label" for="{{ form.telephone.id }}">Numero de telephone</label>
+                    {{ form.telephone(class="form-control", type="tel", inputmode="tel", placeholder="Ex: 90123456 ou +212 7 70 01 02 64", autocomplete="username") }}
+                    <div class="invalid-feedback">Numero de telephone requis.</div>
+                    {% for error in form.telephone.errors %}
                     <div class="text-danger small mt-1">{{ error }}</div>
                     {% endfor %}
                 </div>

@@ -47,18 +47,27 @@ class CreateUserForm(FlaskForm):
 # Formulaire de connexion
 # -----------------------
 class LoginForm(FlaskForm):
-    identifiant = StringField('Numero de telephone ou Email', validators=[DataRequired()])
+    telephone = StringField('Numero de telephone', validators=[DataRequired()])
     mot_de_passe = PasswordField('Mot de passe', validators=[DataRequired()])
     remember = BooleanField('Se souvenir de moi')
     submit = SubmitField('Se connecter')
 
     @property
+    def identifiant(self):
+        return self.telephone
+
+    @property
     def email(self):
-        return self.identifiant
+        return self.telephone
 
     def validate(self, extra_validators=None):
-        if not self.identifiant.data:
-            self.identifiant.data = (request.form.get('email') or '').strip()
+        if not self.telephone.data:
+            self.telephone.data = (
+                request.form.get('telephone')
+                or request.form.get('identifiant')
+                or request.form.get('email')
+                or ''
+            ).strip()
         return super().validate(extra_validators)
 
 class ParentLoginForm(FlaskForm):
@@ -134,7 +143,6 @@ class ProfesseurForm(FlaskForm):
     date_naissance = DateField('Date de naissance', validators=[Optional()])
     adresse = StringField('Adresse', validators=[Optional(), Length(max=200)])
     telephone = StringField('Téléphone', validators=[DataRequired(), Length(max=20)])
-    email = StringField('Email', validators=[Optional(), Email(), Length(max=100)])
     specialite = StringField('Spécialité', validators=[DataRequired(), Length(max=100)])
     matieres_enseignees = StringField('Matières enseignées', validators=[DataRequired(), Length(max=200)])
     code_prof = StringField("Code d'accès", validators=[Optional(), Length(max=8)])

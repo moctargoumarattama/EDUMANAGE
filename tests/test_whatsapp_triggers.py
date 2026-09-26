@@ -16,6 +16,7 @@ from app.models import (
     Inscription,
     MessageQueue,
     Paiement,
+    Professeur,
     Utilisateur,
 )
 from app.routes.absences import _notifier_whatsapp_absence
@@ -214,6 +215,64 @@ class WhatsAppTriggersTestCase(unittest.TestCase):
         self.assertIn("Reste a payer : 100 000 FCFA", item.message)
         self.assertIn("REC-123", item.message)
         self.assertIsNotNone(item.expire_le)
+
+    def test_student_registration_enqueues_whatsapp_welcome(self):
+        self._login_admin()
+
+        response = self.client.post(
+            "/ajouter_eleve",
+            data={
+                "nom": "Garba",
+                "prenom": "Salma",
+                "genre": "F",
+                "date_naissance": "2017-04-03",
+                "lieu_naissance": "Niamey",
+                "adresse": "Niamey",
+                "classe_id": str(self.classe.id),
+                "frais_annuels": "150000",
+                "parent_id": str(self.parent.id),
+                "parent_nom": "",
+                "parent_telephone": "",
+                "code_parent": "",
+            },
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        item = MessageQueue.query.one()
+        self.assertEqual(item.type_message, "inscription")
+        self.assertEqual(item.destinataire, "+22790123456")
+        self.assertIn("Salma Garba", item.message)
+        self.assertIn("CI A", item.message)
+
+    def test_professor_creation_enqueues_whatsapp_account_message(self):
+        self._login_admin()
+
+        with patch("app.notifications.envoyer_email", return_value=True):
+            response = self.client.post(
+                "/ajouter_professeur",
+                data={
+                    "nom": "Issoufou",
+                    "prenom": "Mahamadou",
+                    "date_naissance": "",
+                    "adresse": "Niamey",
+                    "telephone": "0770010264",
+                    "specialite": "Mathematiques",
+                    "matieres_enseignees": "Mathematiques",
+                    "code_prof": "24681357",
+                },
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 302)
+        professeur = Professeur.query.filter_by(telephone="+212770010264").first()
+        self.assertIsNotNone(professeur)
+        self.assertEqual(professeur.telephone, "+212770010264")
+        item = MessageQueue.query.one()
+        self.assertEqual(item.type_message, "compte_professeur")
+        self.assertEqual(item.destinataire, "+212770010264")
+        self.assertIn("+212770010264", item.message)
+        self.assertIn("24681357", item.message)
 
     def test_envoyer_via_baileys_success_and_failure(self):
         with patch(

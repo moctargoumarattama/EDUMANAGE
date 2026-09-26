@@ -54,11 +54,6 @@
                         {% for error in form.telephone.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
                     </div>
                     <div class="form-grid-full">
-                        <label class="form-label" for="{{ form.email.id }}">Email</label>
-                        {{ form.email(class="form-control form-control-lg", type="email", placeholder="Email du professeur") }}
-                        {% for error in form.email.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-                    </div>
-                    <div class="form-grid-full">
                         <label class="form-label" for="{{ form.adresse.id }}">Adresse</label>
                         {{ form.adresse(class="form-control form-control-lg form-textarea", placeholder="Adresse du professeur") }}
                         {% for error in form.adresse.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}

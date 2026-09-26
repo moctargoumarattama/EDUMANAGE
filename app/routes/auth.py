@@ -29,7 +29,7 @@ from .common import (
 )
 from flask import jsonify
 from app.utils import sanitize_internal_url
-from app.services.phone_numbers import cles_telephone_equivalentes, normaliser_telephone_international
+from app.services.phone_numbers import cles_telephone_equivalentes, normaliser_numero_whatsapp, normaliser_telephone_international
 
 
 def normaliser_telephone_niger(value):
@@ -41,6 +41,12 @@ def _resolve_utilisateur_par_telephone(phone):
     searched_keys = cles_telephone_equivalentes(phone)
     if not searched_keys:
         return None
+
+    whatsapp_phone = normaliser_numero_whatsapp(phone)
+    if whatsapp_phone:
+        exact = Utilisateur.query.filter_by(telephone=whatsapp_phone).first()
+        if exact:
+            return exact
 
     for utilisateur in Utilisateur.query.filter(Utilisateur.telephone.isnot(None)).all():
         if cles_telephone_equivalentes(utilisateur.telephone) & searched_keys:
@@ -177,17 +183,18 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         # sanitize + normaliser l'identifiant
-        identifiant = (form.identifiant.data or request.form.get('email') or '').strip()
+        identifiant = (form.telephone.data or request.form.get('identifiant') or request.form.get('email') or '').strip()
 
         # Option: implementer un throttle/lockout par identifiant ici (compte)
         # Exemple (pseudo): if too_many_failed_attempts(identifiant): flash(...); return redirect(...)
 
         # Recherche utilisateur par email (case-insensitive) ou telephone
         # Assure-toi d'avoir les colonnes indexées pour la perf
-        if "@" in identifiant:
-            utilisateur = Utilisateur.query.filter(Utilisateur.email.ilike(identifiant)).first()
-        else:
-            utilisateur = _resolve_utilisateur_par_telephone(normaliser_telephone_niger(identifiant))
+        utilisateur = _resolve_utilisateur_par_telephone(identifiant)
+        if not utilisateur and "@" in identifiant:
+            candidat = Utilisateur.query.filter(Utilisateur.email.ilike(identifiant)).first()
+            if candidat and candidat.role in ("admin", "super_admin"):
+                utilisateur = candidat
 
         # IP via get_remote_address (plus fiable avec flask-limiter)
         ip = get_remote_address()

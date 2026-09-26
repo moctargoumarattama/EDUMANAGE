@@ -55,7 +55,8 @@ from app.services.import_eleves_service import (
     recuperer_preview_import,
     supprimer_preview_import,
 )
-from app.services.phone_numbers import cles_telephone_equivalentes, normaliser_telephone_international
+from app.services.phone_numbers import cles_telephone_equivalentes, normaliser_numero_whatsapp, normaliser_telephone_international
+from app.services.whatsapp_queue import enqueue_message
 
 
 def _url_with_args(endpoint, allowed_args, **values):
@@ -109,6 +110,39 @@ def _parent_label(parent):
     nom = f"{parent.prenom or ''} {parent.nom}".strip() or "Parent"
     contact = parent.telephone or "sans telephone"
     return f"{nom} ({contact})"
+
+
+def _notifier_whatsapp_inscription(eleve, classe=None, ecole=None):
+    try:
+        if not eleve:
+            return None
+        ecole = ecole or getattr(eleve, "ecole", None) or getattr(current_user, "ecole", None)
+        if not ecole or not getattr(ecole, "whatsapp_enabled", False):
+            return None
+
+        tel_parent = normaliser_numero_whatsapp(
+            getattr(eleve, "contact_parent", None)
+            or getattr(getattr(eleve, "parent", None), "telephone", None)
+        )
+        if not tel_parent:
+            return None
+
+        classe_nom = getattr(classe, "nom", None) or "sa classe"
+        message = (
+            f"Bienvenue sur KLASORA. L'inscription de votre enfant {eleve.prenom} {eleve.nom} "
+            f"a ete enregistree a {ecole.nom} en classe de {classe_nom}. "
+            "Vous recevrez les informations importantes par WhatsApp."
+        )
+        return enqueue_message(
+            ecole_id=ecole.id,
+            destinataire=tel_parent,
+            message=message,
+            type_message='inscription',
+            commit=True,
+        )
+    except Exception as exc:
+        current_app.logger.warning("Notification WhatsApp inscription ignoree: %s", exc)
+        return None
 
 
 @main.route('/eleves')
@@ -487,7 +521,7 @@ def ajouter_eleve():
                 parent_id_final = form.parent_id.data or None
                 parent_obj = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=parent_id_final).first() if parent_id_final else None
                 if parent_obj:
-                    telephone_parent = _normaliser_telephone_parent(request.form.get("parent_telephone")) or _normaliser_telephone_parent(parent_obj.telephone)
+                    telephone_parent = _normaliser_telephone_parent(parent_obj.telephone)
                     if not telephone_parent:
                         flash("Le parent sélectionné n'a pas de numéro de téléphone valide.", "danger")
                         return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
@@ -533,6 +567,11 @@ def ajouter_eleve():
                 raise ValueError(inscription_error)
 
             db.session.commit()
+            _notifier_whatsapp_inscription(
+                nouvel_eleve,
+                classe=classe_selectionnee,
+                ecole=getattr(current_user, "ecole", None),
+            )
 
             # ---------------- Notifications après commit ----------------
             if parent_id_final and code_parent:

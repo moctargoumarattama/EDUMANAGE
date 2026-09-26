@@ -335,7 +335,7 @@ class Utilisateur(db.Model, UserMixin):
     email = db.Column(db.String(120), unique=True, nullable=True)
     mot_de_passe = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='parent')
-    telephone = db.Column(db.String(20))
+    telephone = db.Column(db.String(30), unique=True, index=True, nullable=True)
     statut = db.Column(db.String(20), default='actif')
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     dernier_acces = db.Column(db.DateTime)

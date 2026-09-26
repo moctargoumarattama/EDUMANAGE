@@ -28,7 +28,7 @@
                     <label for="search" class="form-label small fw-semibold text-muted mb-1">Recherche multi-critères</label>
                     <div class="input-group">
                         <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-                        <input id="search" name="search" type="search" class="form-control border-start-0 ps-0" value="{{ search or '' }}" placeholder="Nom, prénom, email, téléphone, code...">
+                        <input id="search" name="search" type="search" class="form-control border-start-0 ps-0" value="{{ search or '' }}" placeholder="Nom, prénom, téléphone, code...">
                     </div>
                 </div>
                 <div class="col-12 col-md-3">
@@ -63,7 +63,7 @@
         {% for prof in professeurs.items %}
         <article class="teacher-card" id="prof-card-{{ prof.id }}"
                  data-id="{{ prof.id }}"
-                 data-search="{{ prof.prenom|lower }} {{ prof.nom|lower }} {{ (prof.email or '')|lower }} {{ (prof.telephone or '')|lower }} {{ (prof.code_prof or '')|lower }} {{ (prof.specialite or '')|lower }} {{ (prof.matieres_enseignees or '')|lower }}"
+                 data-search="{{ prof.prenom|lower }} {{ prof.nom|lower }} {{ (prof.telephone or '')|lower }} {{ (prof.code_prof or '')|lower }} {{ (prof.specialite or '')|lower }} {{ (prof.matieres_enseignees or '')|lower }}"
                  data-classes="{{ prof.classes_assignees|map(attribute='id')|join(',') }}"
                  data-statut="{{ prof.utilisateur.statut if prof.utilisateur else 'actif' }}">
             <div class="teacher-card-main">
@@ -72,7 +72,7 @@
                 </div>
                 <div class="min-w-0">
                     <h2>{{ prof.prenom or '' }} {{ prof.nom }}</h2>
-                    <p>{{ prof.email or 'Email non renseigné' }}</p>
+                    <p>{{ prof.telephone or 'Téléphone non renseigné' }}</p>
                     {% if prof.code_prof %}
                     <small class="badge bg-light text-muted border">Code: {{ prof.code_prof }}</small>
                     {% endif %}

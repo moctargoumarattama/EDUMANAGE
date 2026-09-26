@@ -34,6 +34,8 @@ from app.services.classes_annuelles import classe_est_ouverte
 from app.services.cours_uniqueness import find_duplicate_cours, normalize_cours_nom
 from app.access_codes import generate_access_code, is_valid_access_code
 from app.models import Note
+from app.services.phone_numbers import normaliser_numero_whatsapp
+from app.services.whatsapp_queue import enqueue_message
 from sqlalchemy.exc import IntegrityError
 
 
@@ -56,6 +58,35 @@ def _matieres_affectation_professeur(professeur):
 def _matiere_affectation_professeur(professeur):
     matieres = _matieres_affectation_professeur(professeur)
     return matieres[0] if matieres else ""
+
+
+def _notifier_whatsapp_compte_professeur(professeur, code_acces, ecole=None):
+    try:
+        if not professeur:
+            return None
+        ecole = ecole or getattr(professeur, "ecole", None) or getattr(current_user, "ecole", None)
+        if not ecole or not getattr(ecole, "whatsapp_enabled", False):
+            return None
+
+        tel_prof = normaliser_numero_whatsapp(getattr(professeur, "telephone", None))
+        if not tel_prof:
+            return None
+
+        message = (
+            f"Bienvenue sur KLASORA. Votre compte professeur pour {ecole.nom} est actif. "
+            f"Acces : https://klasora.com - Identifiant : {professeur.telephone}. "
+            f"Code d'acces initial : {code_acces}. Changez ce code apres votre premiere connexion."
+        )
+        return enqueue_message(
+            ecole_id=ecole.id,
+            destinataire=tel_prof,
+            message=message,
+            type_message='compte_professeur',
+            commit=True,
+        )
+    except Exception as exc:
+        current_app.logger.warning("Notification WhatsApp professeur ignoree: %s", exc)
+        return None
 
 
 @main.route('/professeurs')
@@ -85,7 +116,6 @@ def professeurs():
             db.or_(
                 Professeur.nom.ilike(pattern),
                 Professeur.prenom.ilike(pattern),
-                Professeur.email.ilike(pattern),
                 Professeur.telephone.ilike(pattern),
                 Professeur.code_prof.ilike(pattern),
                 Professeur.specialite.ilike(pattern),
@@ -137,7 +167,6 @@ def professeurs():
                     'id': p.id,
                     'nom': p.nom,
                     'prenom': p.prenom,
-                    'email': p.email or '',
                     'telephone': p.telephone or '',
                     'code_prof': p.code_prof or '',
                     'specialite': p.specialite or '',
@@ -182,18 +211,22 @@ def ajouter_professeur():
                 flash("Ce code professeur existe d?j? dans votre école.", "danger")
                 return redirect(url_for('main.ajouter_professeur'))
 
-            if Utilisateur.query.filter_by(email=form.email.data, ecole_id=ecole_id).first():
-                flash("Cet email est d?j? utilisé dans votre école.", "danger")
+            # ---------------- Création utilisateur ----------------
+            telephone_prof = normaliser_numero_whatsapp(form.telephone.data)
+            if not telephone_prof:
+                flash("Numero de telephone professeur invalide.", "danger")
+                return redirect(url_for('main.ajouter_professeur'))
+            if Utilisateur.query.filter_by(telephone=telephone_prof).first():
+                flash("Ce numero de telephone est deja utilise.", "danger")
                 return redirect(url_for('main.ajouter_professeur'))
 
-            # ---------------- Création utilisateur ----------------
             utilisateur = Utilisateur(
                 nom=form.nom.data.strip(),
                 prenom=form.prenom.data.strip(),
-                email=form.email.data.lower(),
+                email=None,
                 mot_de_passe=generate_password_hash(code_prof),
                 role="professeur",
-                telephone=form.telephone.data.strip() if form.telephone.data else None,
+                telephone=telephone_prof,
                 statut="actif",
                 ecole_id=ecole_id
             )
@@ -204,8 +237,8 @@ def ajouter_professeur():
                 prenom=form.prenom.data.strip(),
                 date_naissance=form.date_naissance.data,
                 adresse=form.adresse.data.strip() if form.adresse.data else None,
-                telephone=form.telephone.data.strip() if form.telephone.data else None,
-                email=form.email.data.lower(),
+                telephone=telephone_prof,
+                email=None,
                 specialite=form.specialite.data,
                 matieres_enseignees=form.matieres_enseignees.data,
                 code_prof=code_prof,
@@ -224,6 +257,12 @@ def ajouter_professeur():
                 return redirect(url_for('main.ajouter_professeur'))
 
             # ---------------- Journalisation ----------------
+            _notifier_whatsapp_compte_professeur(
+                nouveau_professeur,
+                code_prof,
+                ecole=getattr(current_user, "ecole", None),
+            )
+
             current_app.log_correction(
                 action="ajout",
                 description=f"Professeur ajouté : {nouveau_professeur.nom} {nouveau_professeur.prenom}",
@@ -234,7 +273,7 @@ def ajouter_professeur():
                 nouvelle_valeur=json.dumps({
                     "nom": nouveau_professeur.nom,
                     "prenom": nouveau_professeur.prenom,
-                    "email": nouveau_professeur.email
+                    "telephone": nouveau_professeur.telephone
                 }, ensure_ascii=False),
                 niveau="info"
             )
@@ -300,7 +339,7 @@ def modifier_professeur(id):
     form = ProfesseurForm(obj=professeur)
 
     if form.validate_on_submit():
-        email = form.email.data.lower() if form.email.data else None
+        email = None
         if email:
             doublon_prof = Professeur.query.filter(
                 Professeur.email == email,
@@ -319,7 +358,18 @@ def modifier_professeur(id):
         professeur.prenom = form.prenom.data.strip()
         professeur.date_naissance = form.date_naissance.data
         professeur.adresse = form.adresse.data.strip() if form.adresse.data else None
-        professeur.telephone = form.telephone.data.strip() if form.telephone.data else None
+        telephone_prof = normaliser_numero_whatsapp(form.telephone.data)
+        if not telephone_prof:
+            flash("Numero de telephone professeur invalide.", "danger")
+            return redirect(url_for('main.modifier_professeur', id=professeur.id))
+        doublon_tel = Utilisateur.query.filter(
+            Utilisateur.telephone == telephone_prof,
+            Utilisateur.id != professeur.utilisateur_id
+        ).first()
+        if doublon_tel:
+            flash("Ce numero de telephone est deja utilise.", "danger")
+            return redirect(url_for('main.modifier_professeur', id=professeur.id))
+        professeur.telephone = telephone_prof
         professeur.email = email
         professeur.specialite = form.specialite.data
         professeur.matieres_enseignees = form.matieres_enseignees.data
