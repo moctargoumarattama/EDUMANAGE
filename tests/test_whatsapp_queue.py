@@ -49,6 +49,9 @@ class WhatsAppQueueTestCase(unittest.TestCase):
         self.assertEqual(normaliser_numero_niger("90123456"), "+22790123456")
         self.assertEqual(normaliser_numero_niger("+227 90 12 34 56"), "+22790123456")
         self.assertEqual(normaliser_numero_niger("00227 90-12-34-56"), "+22790123456")
+        self.assertEqual(normaliser_numero_niger("+212 6 12 34 56 78"), "+212612345678")
+        self.assertEqual(normaliser_numero_niger("00223 76 12 34 56"), "+22376123456")
+        self.assertEqual(normaliser_numero_niger("+226 70 12 34 56"), "+22670123456")
         self.assertIsNone(normaliser_numero_niger("123"))
 
     def test_enqueue_persists_pending_message(self):

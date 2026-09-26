@@ -47,7 +47,16 @@ class AuthTelephoneParentTestCase(unittest.TestCase):
             statut="actif",
         )
         self.parent.set_mot_de_passe("1234")
-        db.session.add_all([self.admin, self.parent])
+        self.parent_maroc = Utilisateur(
+            nom="Parent Maroc",
+            email=None,
+            role="parent",
+            telephone="+212 6 12 34 56 78",
+            ecole_id=self.ecole.id,
+            statut="actif",
+        )
+        self.parent_maroc.set_mot_de_passe("5678")
+        db.session.add_all([self.admin, self.parent, self.parent_maroc])
         db.session.flush()
 
         self.eleve = Eleve(
@@ -60,6 +69,16 @@ class AuthTelephoneParentTestCase(unittest.TestCase):
             ecole_id=self.ecole.id,
         )
         db.session.add(self.eleve)
+        self.eleve_maroc = Eleve(
+            nom="Eleve Maroc",
+            prenom="Test",
+            date_naissance=date(2016, 2, 1),
+            genre="F",
+            contact_parent="+212612345678",
+            parent_id=self.parent_maroc.id,
+            ecole_id=self.ecole.id,
+        )
+        db.session.add(self.eleve_maroc)
         db.session.commit()
 
     def tearDown(self):
@@ -90,6 +109,12 @@ class AuthTelephoneParentTestCase(unittest.TestCase):
             response = self.post_login(identifiant, "1234")
             self.assertEqual(response.status_code, 302)
             self.assertIn("/parent", response.headers["Location"])
+
+    def test_parent_login_international_phone_pin(self):
+        response = self.post_login("+212 6 12 34 56 78", "5678")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/parent", response.headers["Location"])
 
     def test_bad_phone_or_pin_fails_without_crash(self):
         response = self.post_login("90123456", "9999")

@@ -236,7 +236,8 @@
                             {% for eleve in grp_page_eleves %}
                             {% set tel_raw = eleve.contact_parent or (eleve.parent.telephone if eleve.parent else '') %}
                             {% set tel_digits = (tel_raw | replace(' ', '') | replace('-', '') | replace('.', '') | replace('(', '') | replace(')', '')) if tel_raw else '' %}
-                            {% set wa_number = tel_digits | replace('+', '') if tel_digits else '' %}
+                            {% set tel_numeric = tel_digits | replace('+', '') if tel_digits else '' %}
+                            {% set wa_number = (tel_numeric if tel_digits.startswith('+') else ('227' ~ tel_numeric if tel_numeric|length == 8 else tel_numeric)) if tel_digits else '' %}
                             {% set el_insc = inscription_par_eleve.get(eleve.id) if inscription_par_eleve else None %}
                             <div class="student-entry-card" id="eleve-card-{{ eleve.id }}"
                                  data-student-id="{{ eleve.id }}"
@@ -828,8 +829,8 @@
                                     </div>
                                     <div class="col-12 col-md-4">
                                         <label class="form-label small fw-bold text-dark">Numéro WhatsApp / Téléphone</label>
-                                        <input type="tel" class="form-control" name="parent_telephone" id="editParentTel" inputmode="tel" autocomplete="tel" placeholder="Ex: 90 12 34 56" required>
-                                        <div class="form-text small">Utilisé pour les alertes WhatsApp et l'accès parent. Aucun e-mail parent n'est utilisé.</div>
+                                        <input type="tel" class="form-control" name="parent_telephone" id="editParentTel" inputmode="tel" autocomplete="tel" placeholder="Ex: 90 12 34 56 ou +212 6 12 34 56 78" required>
+                                        <div class="form-text small">Utilisé pour les alertes WhatsApp et l'accès parent. Les formats internationaux sont acceptés. Aucun e-mail parent n'est utilisé.</div>
                                     </div>
                                 </div>
                             </div>
@@ -1147,12 +1148,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (par.telephone) {
             const rawDigits = par.telephone.replace(/[^0-9]/g, '');
             if (btnTel) {
-                btnTel.href = `tel:${rawDigits}`;
+                btnTel.href = `tel:${par.telephone}`;
                 btnTel.classList.remove('d-none');
             }
             if (parentTel) parentTel.textContent = par.telephone;
             if (btnWa) {
-                btnWa.href = `https://wa.me/${rawDigits}?text=${encodeURIComponent('Bonjour, concernant votre enfant ' + el.prenom + ' ' + el.nom + ' (KLASORA)')}`;
+                const waNumber = par.telephone.trim().startsWith('+') ? rawDigits : (rawDigits.length === 8 ? `227${rawDigits}` : rawDigits);
+                btnWa.href = `https://wa.me/${waNumber}?text=${encodeURIComponent('Bonjour, concernant votre enfant ' + el.prenom + ' ' + el.nom + ' (KLASORA)')}`;
                 btnWa.classList.remove('d-none');
             }
         } else {

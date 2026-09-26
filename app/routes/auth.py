@@ -28,30 +28,22 @@ from .common import (
     url_for,
 )
 from flask import jsonify
-import re
 from app.utils import sanitize_internal_url
+from app.services.phone_numbers import cles_telephone_equivalentes, normaliser_telephone_international
 
 
 def normaliser_telephone_niger(value):
-    """Retourne les 8 chiffres locaux Niger, ou None si le format est inutilisable."""
-    if not value:
-        return None
-    digits = re.sub(r"\D", "", str(value))
-    if digits.startswith("00227"):
-        digits = digits[5:]
-    elif digits.startswith("227") and len(digits) > 8:
-        digits = digits[3:]
-    if len(digits) > 8:
-        digits = digits[-8:]
-    return digits if len(digits) == 8 else None
+    """Compat: normalise aussi les numeros internationaux parents."""
+    return normaliser_telephone_international(value)
 
 
-def _resolve_utilisateur_par_telephone(local_phone):
-    if not local_phone:
+def _resolve_utilisateur_par_telephone(phone):
+    searched_keys = cles_telephone_equivalentes(phone)
+    if not searched_keys:
         return None
 
     for utilisateur in Utilisateur.query.filter(Utilisateur.telephone.isnot(None)).all():
-        if normaliser_telephone_niger(utilisateur.telephone) == local_phone:
+        if cles_telephone_equivalentes(utilisateur.telephone) & searched_keys:
             return utilisateur
 
     parent_links = (
@@ -60,7 +52,7 @@ def _resolve_utilisateur_par_telephone(local_phone):
         .all()
     )
     for parent_id, telephone in parent_links:
-        if normaliser_telephone_niger(telephone) == local_phone:
+        if cles_telephone_equivalentes(telephone) & searched_keys:
             return db.session.get(Utilisateur, parent_id)
 
     return None

@@ -55,6 +55,7 @@ from app.services.import_eleves_service import (
     recuperer_preview_import,
     supprimer_preview_import,
 )
+from app.services.phone_numbers import cles_telephone_equivalentes, normaliser_telephone_international
 
 
 def _url_with_args(endpoint, allowed_args, **values):
@@ -82,21 +83,12 @@ def _safe_return_url(fallback):
 
 
 def _normaliser_telephone_parent(value):
-    if not value:
-        return None
-    digits = re.sub(r"\D", "", str(value))
-    if digits.startswith("00227"):
-        digits = digits[5:]
-    elif digits.startswith("227") and len(digits) > 8:
-        digits = digits[3:]
-    if len(digits) > 8:
-        digits = digits[-8:]
-    return digits if len(digits) == 8 else None
+    return normaliser_telephone_international(value)
 
 
 def _find_parent_by_phone(ecole_id, telephone, exclude_id=None):
-    local_phone = _normaliser_telephone_parent(telephone)
-    if not local_phone:
+    searched_keys = cles_telephone_equivalentes(telephone)
+    if not searched_keys:
         return None
 
     query = Utilisateur.query.filter(
@@ -108,7 +100,7 @@ def _find_parent_by_phone(ecole_id, telephone, exclude_id=None):
         query = query.filter(Utilisateur.id != exclude_id)
 
     for parent in query.all():
-        if _normaliser_telephone_parent(parent.telephone) == local_phone:
+        if cles_telephone_equivalentes(parent.telephone) & searched_keys:
             return parent
     return None
 

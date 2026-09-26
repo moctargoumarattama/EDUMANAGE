@@ -1,10 +1,10 @@
-import re
 from datetime import datetime, timedelta
 
 import requests
 
 from app import db
 from app.models import Ecole, MessageQueue
+from app.services.phone_numbers import normaliser_numero_whatsapp
 
 
 VALID_MESSAGE_TYPES = {'absence', 'note', 'paiement', 'general'}
@@ -16,23 +16,8 @@ BAILEYS_SEND_URL = 'http://127.0.0.1:3001/send'
 
 
 def normaliser_numero_niger(numero):
-    """Normalise un numero Niger vers +227XXXXXXXX."""
-    if not numero:
-        return None
-
-    digits = re.sub(r'\D', '', str(numero))
-    if digits.startswith('00227'):
-        digits = digits[5:]
-    elif digits.startswith('227') and len(digits) > 8:
-        digits = digits[3:]
-
-    if len(digits) > 8:
-        digits = digits[-8:]
-
-    if len(digits) != 8:
-        return None
-
-    return f'+227{digits}'
+    """Compat: local Niger ou numero international vers format WhatsApp +XXX."""
+    return normaliser_numero_whatsapp(numero)
 
 
 def verifier_configuration_ecole(ecole_id):

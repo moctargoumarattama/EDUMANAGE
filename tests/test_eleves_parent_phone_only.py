@@ -105,6 +105,25 @@ class EleveParentPhoneOnlyTestCase(unittest.TestCase):
         self.assertIsNone(parent.email)
         self.assertIsNone(Eleve.query.filter_by(contact_parent="90123456").first().email_parent)
 
+    def test_parent_phone_accepts_international_numbers(self):
+        for index, (raw_phone, stored_phone) in enumerate((
+            ("+212 6 12 34 56 78", "+212612345678"),
+            ("00223 76 12 34 56", "+22376123456"),
+            ("+226 70 12 34 56", "+22670123456"),
+        ), start=1):
+            payload = self.eleve_payload(telephone=raw_phone, email="")
+            payload["nom"] = f"Moussa{stored_phone[-2:]}"
+            payload["prenom"] = "Amina"
+
+            with patch("app.routes.eleves.generate_access_code", return_value=f"77{index}{stored_phone[-5:]}"):
+                response = self.client.post("/ajouter_eleve", data=payload, follow_redirects=False)
+
+            self.assertEqual(response.status_code, 302)
+            parent = Utilisateur.query.filter_by(role="parent", telephone=stored_phone).first()
+            self.assertIsNotNone(parent)
+            eleve = Eleve.query.filter_by(contact_parent=stored_phone).first()
+            self.assertIsNotNone(eleve)
+
 
 if __name__ == "__main__":
     unittest.main()
