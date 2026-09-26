@@ -1,5 +1,7 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
+
+import requests
 
 from app import db
 from app.models import Ecole, MessageQueue
@@ -10,6 +12,7 @@ STATUS_PENDING = 'en_attente'
 STATUS_SENT = 'envoye'
 STATUS_FAILED = 'echec'
 STATUS_EXPIRED = 'expire'
+BAILEYS_SEND_URL = 'http://127.0.0.1:3001/send'
 
 
 def normaliser_numero_niger(numero):
@@ -50,6 +53,7 @@ def enqueue_message(
     message,
     type_message='general',
     expire_le=None,
+    duree_validite_heures=None,
     max_tentatives=3,
     commit=False,
 ):
@@ -64,6 +68,9 @@ def enqueue_message(
 
     if type_message not in VALID_MESSAGE_TYPES:
         type_message = 'general'
+
+    if expire_le is None and duree_validite_heures:
+        expire_le = datetime.utcnow() + timedelta(hours=int(duree_validite_heures))
 
     queue_item = MessageQueue(
         ecole_id=ecole_id,
@@ -80,6 +87,26 @@ def enqueue_message(
     else:
         db.session.flush()
     return queue_item
+
+
+def envoyer_via_baileys(destinataire, texte, queue_item=None):
+    """Envoie un message WhatsApp via la passerelle locale Baileys."""
+    payload = {"to": destinataire, "message": texte}
+    try:
+        response = requests.post(BAILEYS_SEND_URL, json=payload, timeout=5)
+    except requests.RequestException as exc:
+        raise RuntimeError(f"Passerelle Baileys indisponible: {exc}") from exc
+
+    try:
+        data = response.json()
+    except ValueError:
+        data = {}
+
+    if response.status_code == 200 and data.get("success") is True:
+        return True
+
+    error = data.get("error") or data.get("message") or response.text or f"HTTP {response.status_code}"
+    raise RuntimeError(f"Echec envoi WhatsApp Baileys: {error}")
 
 
 def expire_pending_messages(now=None, commit=False):

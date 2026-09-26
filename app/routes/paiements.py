@@ -39,10 +39,12 @@ from app.services.paiements_annuels import (
     enregistrer_paiement,
     get_mois_scolaires,
 )
+from app.services.whatsapp_queue import enqueue_message
 from app.services.payment_receipts import (
     build_payment_receipt_context,
     build_public_receipt_verification_context,
     generate_payment_receipt_pdf,
+    receipt_number,
 )
 
 
@@ -63,6 +65,50 @@ def _paiements_return_url():
         request.form.get('return_url') or request.args.get('return_url'),
         _paiements_context_url(),
     )
+
+
+def _format_fcfa_whatsapp(value):
+    return f"{float(value or 0):,.0f}".replace(",", " ")
+
+
+def _notifier_whatsapp_paiement(paiement, ecole=None):
+    try:
+        if not paiement:
+            return None
+        ecole = ecole or getattr(current_user, "ecole", None)
+        if not ecole or not getattr(ecole, "whatsapp_enabled", False):
+            return None
+
+        eleve = getattr(paiement, "eleve", None) or db.session.get(Eleve, paiement.eleve_id)
+        if not eleve:
+            return None
+        tel_parent = None
+        if getattr(eleve, "parent", None):
+            tel_parent = eleve.parent.telephone
+        tel_parent = tel_parent or eleve.contact_parent
+        if not tel_parent:
+            return None
+
+        inscription = getattr(paiement, "inscription", None)
+        finances = get_finances_inscription(inscription) if inscription else {}
+        solde = finances.get("reste_a_payer", 0)
+        reference = paiement.reference or receipt_number(paiement)
+        message = (
+            f"Recu de paiement {ecole.nom} : Versement de {_format_fcfa_whatsapp(paiement.montant)} FCFA "
+            f"enregistre pour {eleve.prenom} {eleve.nom}. "
+            f"Reste a payer : {_format_fcfa_whatsapp(solde)} FCFA. Recu N° {reference}."
+        )
+        return enqueue_message(
+            ecole_id=ecole.id,
+            destinataire=tel_parent,
+            message=message,
+            type_message='paiement',
+            duree_validite_heures=72,
+            commit=True,
+        )
+    except Exception as exc:
+        current_app.logger.warning("Notification WhatsApp paiement ignoree: %s", exc)
+        return None
 
 
 @main.route('/paiements', methods=['GET', 'POST'])
@@ -148,6 +194,7 @@ def paiements():
 
         try:
             db.session.commit()
+            _notifier_whatsapp_paiement(paiement, ecole=getattr(current_user, "ecole", None))
             if getattr(paiement, "inscription_confirmee", False):
                 flash("Paiement enregistré avec succès ! Inscription confirmée automatiquement suite à la réception du paiement.", "success")
             else:

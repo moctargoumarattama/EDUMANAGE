@@ -42,6 +42,7 @@ from app.services.absences_annuelles import (
     statut_annee_absences,
     verifier_mutation_absence,
 )
+from app.services.whatsapp_queue import enqueue_message
 
 
 def _ecole_id_courante():
@@ -64,6 +65,41 @@ def _niveaux_depuis_classes(classes):
         if niveau_nom and f"legacy:{niveau_nom}" not in niveaux_par_id:
             niveaux_par_id[f"legacy:{niveau_nom}"] = SimpleNamespace(id=niveau_nom, nom=niveau_nom, ordre=999)
     return sorted(niveaux_par_id.values(), key=lambda niveau: (niveau.ordre, niveau.nom))
+
+
+def _notifier_whatsapp_absence(absence, ecole=None, eleve=None, cours=None):
+    try:
+        ecole = ecole or getattr(current_user, "ecole", None)
+        eleve = eleve or getattr(absence, "eleve", None)
+        cours = cours or getattr(absence, "cours", None)
+        if not ecole or not getattr(ecole, "whatsapp_enabled", False) or not eleve:
+            return None
+
+        tel_parent = None
+        if getattr(eleve, "parent", None):
+            tel_parent = eleve.parent.telephone
+        tel_parent = tel_parent or eleve.contact_parent
+        if not tel_parent:
+            return None
+
+        date_absence = absence.date_absence.strftime("%d/%m/%Y") if absence.date_absence else "ce jour"
+        matiere = getattr(cours, "nom", None) or "la matiere"
+        message = (
+            f"Bonjour, KLASORA vous informe que votre enfant {eleve.prenom} {eleve.nom} "
+            f"a ete marque(e) absent(e) ce jour {date_absence} au cours de {matiere}. "
+            f"Merci de contacter l'administration de {ecole.nom}."
+        )
+        return enqueue_message(
+            ecole_id=ecole.id,
+            destinataire=tel_parent,
+            message=message,
+            type_message='absence',
+            duree_validite_heures=12,
+            commit=True,
+        )
+    except Exception as exc:
+        current_app.logger.warning("Notification WhatsApp absence ignoree: %s", exc)
+        return None
 
 
 @main.route('/absences', methods=['GET', 'POST'])
@@ -526,13 +562,14 @@ def faire_appel():
         absent_ids = absent_ids & set(inscription_ids)
 
         try:
+            nouvelles_absences = []
             for absence in list(absences_existantes):
                 if absence.inscription_id not in absent_ids:
                     db.session.delete(absence)
 
             for ins in inscriptions:
                 if ins.id in absent_ids and ins.id not in absences_par_inscription:
-                    db.session.add(Absence(
+                    absence = Absence(
                         date_absence=date_appel,
                         motif="Absence signalee pendant l'appel",
                         justifiee=False,
@@ -540,9 +577,15 @@ def faire_appel():
                         cours_id=cours.id,
                         ecole_id=ecole_id,
                         inscription_id=ins.id,
-                    ))
+                    )
+                    db.session.add(absence)
+                    nouvelles_absences.append((absence, ins.eleve))
 
             db.session.commit()
+            ecole = getattr(current_user, "ecole", None)
+            for absence, eleve in nouvelles_absences:
+                if not absence.justifiee:
+                    _notifier_whatsapp_absence(absence, ecole=ecole, eleve=eleve, cours=cours)
             flash("Appel enregistre. Aucune presence n'a ete creee.", "success")
             return redirect(url_for("main.faire_appel", classe_id=classe.id, cours_id=cours.id, date_appel=date_appel.isoformat()))
         except Exception as exc:

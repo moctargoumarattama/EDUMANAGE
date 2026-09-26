@@ -75,6 +75,27 @@ def register_cli_commands(app):
         click.echo(f"backups_size_mb={_dir_size(root / 'backups') // (1024 * 1024)}")
         click.echo(f"uploads_size_mb={_dir_size(root / 'app' / 'static' / 'ecoles') // (1024 * 1024)}")
 
+    @app.cli.group("whatsapp")
+    def whatsapp_group():
+        """Commandes WhatsApp transactionnelles."""
+
+    @whatsapp_group.command("process-queue")
+    @click.option("--limit", default=50, show_default=True, type=int, help="Nombre maximum de messages a traiter.")
+    @click.option("--ecole-id", default=None, type=int, help="Limiter le depilage a une ecole.")
+    def whatsapp_process_queue_command(limit=50, ecole_id=None):
+        """Depile la file WhatsApp vers la passerelle locale Baileys."""
+        from app.services.whatsapp_queue import envoyer_via_baileys, process_queue
+
+        result = process_queue(envoyer_via_baileys, ecole_id=ecole_id, limit=limit, commit=True)
+        click.echo(
+            "whatsapp_queue "
+            f"processed={len(result['processed'])} "
+            f"sent={len(result['sent'])} "
+            f"failed={len(result['failed'])} "
+            f"pending={len(result['pending'])} "
+            f"expired={len(result['expired'])}"
+        )
+
 
 def _execute_technical_init(quiet=False):
     from app.services.niveaux import ensure_standard_niveaux
