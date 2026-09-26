@@ -183,10 +183,9 @@ def eleves():
             )
         )
 
-    # Récupération des élèves filtrés
-    has_filters = bool(search or classe_id or niveau_param or genre or statut)
-    all_eleves = eleves_query.all() if has_filters else all_eleves_query.all()
+    # Pagination effective : seules les lignes de la page courante alimentent le DOM.
     eleves_pagination = eleves_query.paginate(page=page, per_page=per_page, error_out=False)
+    all_eleves = list(eleves_pagination.items)
 
     # Classes autorisées
     classes_query = get_classes_annee(ecole_id, annee_consultee.id) if annee_consultee else Classe.query.filter_by(ecole_id=ecole_id).filter(db.false())
@@ -257,10 +256,10 @@ def eleves():
     if sans_classe_group['eleves']:
         classes_eleves.append(sans_classe_group)
 
-    total_eleves = len(all_eleves)
+    total_eleves = eleves_pagination.total
     total_classes = len(classes)
-    total_garcons = sum(1 for e in all_eleves if (e.genre or '').upper() != 'F')
-    total_filles = sum(1 for e in all_eleves if (e.genre or '').upper() == 'F')
+    total_filles = eleves_query.order_by(None).filter(db.func.upper(Eleve.genre) == 'F').count()
+    total_garcons = max(0, total_eleves - total_filles)
     total_sans_classe = len(sans_classe_group['eleves'])
     total_assignes = total_eleves - total_sans_classe
 
@@ -1228,9 +1227,6 @@ def voir_eleve(eleve_id):
     if getattr(current_user, 'role', None) == 'parent':
         return redirect(url_for('main.parent_dashboard', enfant_id=eleve_id))
     eleve = Eleve.query.options(
-        joinedload(Eleve.notes).joinedload(Note.cours),
-        joinedload(Eleve.absences).joinedload(Absence.cours),
-        joinedload(Eleve.paiements),
         joinedload(Eleve.parent)
     ).get_or_404(eleve_id)
 
@@ -1286,7 +1282,19 @@ def voir_eleve(eleve_id):
 
     if inscription_affichee and annee_id:
         eval_info = calculer_completude_inscription(eleve.ecole_id, annee_id, inscription_affichee)
-        notes = sorted([n for n in eleve.notes if n.annee_id == annee_id], key=lambda n: n.date_evaluation or datetime.min, reverse=True)
+        notes = (
+            Note.query.options(joinedload(Note.cours))
+            .filter(
+                Note.ecole_id == eleve.ecole_id,
+                Note.eleve_id == eleve.id,
+                db.or_(
+                    Note.annee_id == annee_id,
+                    Note.inscription_id == inscription_affichee.id,
+                ),
+            )
+            .order_by(Note.date_evaluation.desc())
+            .all()
+        )
     else:
         eval_info = {"status": "non_evalue", "average": 0, "evaluated_subjects": 0, "expected_subjects": 0}
         notes = []
@@ -1363,10 +1371,19 @@ def voir_eleve(eleve_id):
         mention_badge = 'danger'
 
     # 2. Absences & Assiduité de l'année consultée
-    if annee_id:
-        absences = sorted([a for a in eleve.absences if getattr(a, 'annee_scolaire_id', None) == annee_id or (inscription_affichee and getattr(a, 'inscription_id', None) == inscription_affichee.id)], key=lambda a: a.date_absence or datetime.min.date(), reverse=True)
+    if inscription_affichee and annee_id:
+        absences = (
+            Absence.query.options(joinedload(Absence.cours))
+            .filter(
+                Absence.ecole_id == eleve.ecole_id,
+                Absence.eleve_id == eleve.id,
+                Absence.inscription_id == inscription_affichee.id,
+            )
+            .order_by(Absence.date_absence.desc())
+            .all()
+        )
     else:
-        absences = sorted(eleve.absences, key=lambda a: a.date_absence or datetime.min.date(), reverse=True)
+        absences = []
 
     total_absences = len(absences)
     absences_injustifiees = sum(1 for a in absences if not a.justifiee)
@@ -1384,10 +1401,19 @@ def voir_eleve(eleve_id):
     else:
         if inscription_affichee:
             frais_base = inscription_affichee.frais_annuels or eleve.frais_annuels or 150000.0
-            paiements = sorted([p for p in eleve.paiements if (getattr(p, 'inscription_id', None) == inscription_affichee.id) or (not getattr(p, 'inscription_id', None) and getattr(p, 'annee_scolaire_id', None) == annee_id)], key=lambda p: p.date_paiement or datetime.min, reverse=True)
+            paiements = (
+                Paiement.query
+                .filter(
+                    Paiement.ecole_id == eleve.ecole_id,
+                    Paiement.eleve_id == eleve.id,
+                    Paiement.inscription_id == inscription_affichee.id,
+                )
+                .order_by(Paiement.date_paiement.desc(), Paiement.id.desc())
+                .all()
+            )
         else:
             frais_base = eleve.frais_annuels or 150000.0
-            paiements = sorted(eleve.paiements, key=lambda p: p.date_paiement or datetime.min, reverse=True)
+            paiements = []
 
         total_frais = float(frais_base)
         total_paye = float(sum(p.montant or 0 for p in paiements if (getattr(p, 'statut', None) or 'payé') != 'annule'))
@@ -1408,7 +1434,18 @@ def voir_eleve(eleve_id):
     # 5. Historique académique complet (avec moyenne de chaque année fréquentée)
     historique_parcours = []
     for ins in parcours_scolaire:
-        ins_notes = [n for n in eleve.notes if n.annee_id == ins.annee_scolaire_id or getattr(n, 'inscription_id', None) == ins.id]
+        ins_notes = (
+            Note.query
+            .filter(
+                Note.ecole_id == eleve.ecole_id,
+                Note.eleve_id == eleve.id,
+                db.or_(
+                    Note.annee_id == ins.annee_scolaire_id,
+                    Note.inscription_id == ins.id,
+                ),
+            )
+            .all()
+        )
         tot_pts = sum(float(n.valeur or 0) * float(n.coefficient or 1) for n in ins_notes if n.valeur is not None)
         tot_coef = sum(float(n.coefficient or 1) for n in ins_notes if n.valeur is not None)
         moy = round(tot_pts / tot_coef, 2) if tot_coef > 0 else None

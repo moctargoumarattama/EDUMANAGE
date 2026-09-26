@@ -91,16 +91,30 @@ def paiements():
     from app.services.structure_annuelle import get_niveaux_annee
     niveaux_annee = get_niveaux_annee(ecole_id, annee.id) if annee else []
 
-    # Récupérer toutes les inscriptions de l'année scolaire consultée
-    inscriptions_annee = get_inscriptions_paiements(ecole_id, annee, current_user)
+    inscriptions_base_query = (
+        Inscription.query
+        .options(
+            joinedload(Inscription.eleve),
+            joinedload(Inscription.classe),
+        )
+        .filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee.id,
+        )
+    )
 
-    # Remplir les choix du formulaire d'encaissement avec les élèves inscrits dans l'année consultée
+    # Remplir les choix du formulaire sans charger les versements de tous les eleves.
+    inscriptions_form = (
+        inscriptions_base_query
+        .order_by(Inscription.classe_id, Inscription.eleve_id)
+        .all()
+    )
     form.eleve_id.choices = [
         (
             ins.eleve_id,
             f"{ins.eleve.prenom} {ins.eleve.nom} ({ins.classe.nom if ins.classe else 'Sans classe'}{' - Préinscrit' if ins.statut == 'preinscrit' else ''})"
         )
-        for ins in inscriptions_annee if ins.eleve
+        for ins in inscriptions_form if ins.eleve
     ]
     mois_list = get_mois_scolaires(annee)
     form.mois.choices = [(m, m) for m in mois_list]
@@ -146,107 +160,152 @@ def paiements():
     # Classes de l'année consultée
     classes = classes_triees_pedagogique(
         filtre_par_ecole(
-            Classe.query.filter_by(annee_scolaire_id=annee.id),
+            Classe.query.filter_by(annee_scolaire_id=annee.id, statut='ouverte'),
             Classe
         )
     ).all()
 
-    # Pré-calcul unique des finances par inscription pour éviter les recalculs redondants
-    finances_map = {ins.id: get_finances_inscription(ins) for ins in inscriptions_annee}
+    frais_expr = func.coalesce(Inscription.frais_annuels, Eleve.frais_annuels, 150000.0)
+    paiement_valide_filters = (
+        Paiement.ecole_id == ecole_id,
+        db.or_(Paiement.statut.is_(None), Paiement.statut != 'annule'),
+    )
+    paiement_total_subq = (
+        db.session.query(func.coalesce(func.sum(Paiement.montant), 0.0))
+        .filter(Paiement.inscription_id == Inscription.id, *paiement_valide_filters)
+        .correlate(Inscription)
+        .scalar_subquery()
+    )
 
-    # Inscriptions filtrées par classe, niveau, statut financier ou recherche
-    inscriptions_filtrees = []
-    for ins in inscriptions_annee:
-        fin = finances_map.get(ins.id)
-        if not fin:
-            continue
-        if classe_id and ins.classe_id != classe_id:
-            continue
-        if niveau_param:
-            cl = ins.classe
-            if not cl:
-                continue
-            if str(niveau_param).isdigit():
-                if getattr(cl, 'niveau_id', None) != int(niveau_param) and str(cl.niveau) != str(niveau_param):
-                    continue
-            elif str(cl.niveau or '').strip().lower() != niveau_param.lower():
-                continue
-        if recherche:
-            r_lower = recherche.lower()
-            nom_eleve = f"{ins.eleve.prenom} {ins.eleve.nom}".lower() if ins.eleve else ""
-            matricule = (ins.eleve.code_parent or "").lower() if ins.eleve else ""
-            refs_paiements = " ".join((p.reference or "").lower() for p in (ins.paiements or []))
-            if r_lower not in nom_eleve and r_lower not in matricule and r_lower not in refs_paiements:
-                continue
-        if statut_solde:
-            if statut_solde == 'complet' and fin['statut_solde'] != 'complet':
-                continue
-            elif statut_solde == 'partiel' and fin['statut_solde'] != 'partiel':
-                continue
-            elif statut_solde == 'aucun' and fin['statut_solde'] != 'aucun':
-                continue
-            elif statut_solde in ('reste_a_payer', 'impaye') and fin['reste_a_payer'] <= 0:
-                continue
-        if reste_a_payer and str(reste_a_payer).lower() in ('1', 'true', 'yes', 'on') and fin['reste_a_payer'] <= 0:
-            continue
+    total_frais = float(
+        db.session.query(func.coalesce(func.sum(frais_expr), 0.0))
+        .select_from(Inscription)
+        .join(Eleve, Eleve.id == Inscription.eleve_id)
+        .filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee.id,
+        )
+        .scalar() or 0.0
+    )
+    total_recouvre = float(
+        db.session.query(func.coalesce(func.sum(Paiement.montant), 0.0))
+        .join(Inscription, Inscription.id == Paiement.inscription_id)
+        .filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee.id,
+            *paiement_valide_filters,
+        )
+        .scalar() or 0.0
+    )
 
-        inscriptions_filtrees.append(ins)
+    inscriptions_query = inscriptions_base_query.join(Eleve, Eleve.id == Inscription.eleve_id)
+    if classe_id:
+        inscriptions_query = inscriptions_query.filter(Inscription.classe_id == classe_id)
+    if niveau_param:
+        inscriptions_query = inscriptions_query.join(Classe, Classe.id == Inscription.classe_id)
+        if str(niveau_param).isdigit():
+            inscriptions_query = inscriptions_query.filter(
+                db.or_(Classe.niveau_id == int(niveau_param), Classe.niveau == str(niveau_param))
+            )
+        else:
+            inscriptions_query = inscriptions_query.filter(Classe.niveau.ilike(niveau_param))
+    if recherche:
+        like = f"%{recherche}%"
+        ref_exists = (
+            db.session.query(Paiement.id)
+            .filter(
+                Paiement.inscription_id == Inscription.id,
+                Paiement.reference.ilike(like),
+            )
+            .exists()
+        )
+        inscriptions_query = inscriptions_query.filter(
+            db.or_(
+                Eleve.nom.ilike(like),
+                Eleve.prenom.ilike(like),
+                Eleve.code_parent.ilike(like),
+                ref_exists,
+            )
+        )
+    if statut_solde:
+        reste_expr = frais_expr - paiement_total_subq
+        if statut_solde == 'complet':
+            inscriptions_query = inscriptions_query.filter(reste_expr <= 0)
+        elif statut_solde == 'partiel':
+            inscriptions_query = inscriptions_query.filter(paiement_total_subq > 0, reste_expr > 0)
+        elif statut_solde == 'aucun':
+            inscriptions_query = inscriptions_query.filter(paiement_total_subq <= 0)
+        elif statut_solde in ('reste_a_payer', 'impaye'):
+            inscriptions_query = inscriptions_query.filter(reste_expr > 0)
+    if reste_a_payer and str(reste_a_payer).lower() in ('1', 'true', 'yes', 'on'):
+        inscriptions_query = inscriptions_query.filter((frais_expr - paiement_total_subq) > 0)
+
+    inscriptions_pagination = (
+        inscriptions_query
+        .order_by(Inscription.classe_id, Eleve.nom.asc(), Eleve.prenom.asc())
+        .paginate(page=page_eleves, per_page=per_page_eleves, error_out=False)
+    )
+    if page_eleves > 1 and inscriptions_pagination.total and not inscriptions_pagination.items:
+        page_eleves = 1
+        inscriptions_pagination = (
+            inscriptions_query
+            .order_by(Inscription.classe_id, Eleve.nom.asc(), Eleve.prenom.asc())
+            .paginate(page=page_eleves, per_page=per_page_eleves, error_out=False)
+        )
+    inscriptions_filtrees = list(inscriptions_pagination.items)
+
+    page_inscription_ids = [ins.id for ins in inscriptions_filtrees]
+    paiements_totaux_page = {}
+    if page_inscription_ids:
+        paiements_totaux_page = dict(
+            db.session.query(
+                Paiement.inscription_id,
+                func.coalesce(func.sum(Paiement.montant), 0.0),
+            )
+            .filter(
+                Paiement.ecole_id == ecole_id,
+                Paiement.inscription_id.in_(page_inscription_ids),
+                db.or_(Paiement.statut.is_(None), Paiement.statut != 'annule'),
+            )
+            .group_by(Paiement.inscription_id)
+            .all()
+        )
 
     # Données enrichies par élève / inscription
     paiements_par_eleve = {}
     eleves_par_classe = {c.id: [] for c in classes}
     eleves_sans_classe = []
 
-    total_frais = 0.0
-    total_recouvre = 0.0
     stats = {
-        'total_eleves': len(inscriptions_annee),
+        'total_eleves': inscriptions_base_query.count(),
         'complet': 0,
         'partiel': 0,
         'aucun': 0,
-        'total_frais': 0.0,
-        'total_recouvre': 0.0,
-        'total_reste': 0.0,
+        'total_frais': total_frais,
+        'total_recouvre': total_recouvre,
+        'total_reste': max(0.0, total_frais - total_recouvre),
         'taux_recouvrement': 0.0
     }
-
-    # Calcul global des statistiques sur toutes les inscriptions de l'année consultée
-    for ins in inscriptions_annee:
-        fin = finances_map.get(ins.id)
-        if not fin:
-            continue
-        total_frais += fin['frais_annuels']
-        total_recouvre += fin['total_paye']
-        if fin['statut_solde'] == 'complet':
-            stats['complet'] += 1
-        elif fin['statut_solde'] == 'partiel':
-            stats['partiel'] += 1
-        else:
-            stats['aucun'] += 1
-
-    stats['total_frais'] = total_frais
-    stats['total_recouvre'] = total_recouvre
-    stats['total_reste'] = max(0.0, total_frais - total_recouvre)
     stats['taux_recouvrement'] = round((total_recouvre / total_frais) * 100, 1) if total_frais > 0 else 0.0
 
     # Données par élève filtré
     for ins in inscriptions_filtrees:
-        fin = finances_map.get(ins.id)
-        if not fin:
-            continue
         e = ins.eleve
         if not e:
             continue
+        frais_annuels = float(ins.frais_annuels if ins.frais_annuels is not None else (e.frais_annuels or 150000.0))
+        total_paye_eleve = float(paiements_totaux_page.get(ins.id, 0.0) or 0.0)
+        reste_eleve = max(0.0, frais_annuels - total_paye_eleve)
+        pourcentage_paye = round((total_paye_eleve / frais_annuels) * 100, 1) if frais_annuels > 0 else 100.0
         # Classe historique de l'année consultée
         e.annee_classe = ins.classe
-        e.annee_paiements = ins.paiements
         paiements_par_eleve[e.id] = {
-            'total_paye': fin['total_paye'],
-            'reste_a_payer': fin['reste_a_payer'],
-            'frais_annuels': fin['frais_annuels'],
+            'total_paye': total_paye_eleve,
+            'reste_a_payer': reste_eleve,
+            'frais_annuels': frais_annuels,
             'eleve': e,
             'inscription': ins,
-            'pourcentage_paye': fin['pourcentage_paye']
+            'pourcentage_paye': pourcentage_paye
         }
         if ins.classe_id and ins.classe_id in eleves_par_classe:
             eleves_par_classe[ins.classe_id].append(e)
@@ -268,9 +327,11 @@ def paiements():
             'reste_a_payer': c_reste,
             'taux_recouvrement': c_taux
         }
+    classes_toutes = classes
+    classes = [c for c in classes_toutes if eleves_par_classe.get(c.id)]
 
     # Pagination des paiements pour l'année consultée
-    ins_ids = [ins.id for ins in inscriptions_annee]
+    ins_ids = page_inscription_ids
     if ins_ids:
         query_paiements = (
             Paiement.query.filter(
@@ -296,7 +357,7 @@ def paiements():
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
         return jsonify({
             'success': True,
-            'count': len(inscriptions_filtrees),
+            'count': inscriptions_pagination.total,
             'inscriptions': [
                 {
                     'id': ins.id,
@@ -319,7 +380,7 @@ def paiements():
         form=form,
         paiements_pagination=paiements_pagination,
         paiements_par_eleve=paiements_par_eleve,
-        eleves_pagination=None,
+        eleves_pagination=inscriptions_pagination,
         all_eleves=all_eleves,
         eleves=all_eleves,
         eleves_par_classe=eleves_par_classe,
@@ -327,9 +388,12 @@ def paiements():
         classe_finances=classe_finances,
         stats=stats,
         classes=classes,
+        classes_toutes=classes_toutes,
         niveaux=niveaux,
         classe_id=classe_id,
         recherche=recherche,
+        niveau_param=niveau_param,
+        statut_solde=statut_solde,
         annee_consultee=annee,
         return_url=context_url,
     )

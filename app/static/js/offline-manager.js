@@ -7,6 +7,7 @@ class OfflineManager {
         this.autoSyncEnabled = true;
         this.syncInterval = null;
         this.listeners = new Map();
+        this.preloadPromises = new Map();
         this.retryDelay = 5000;
         this.maxRetryDelay = 60000;
         this.preloadFreshnessMs = 15 * 60 * 1000;
@@ -81,11 +82,17 @@ class OfflineManager {
         return false;
     }
 
-    shouldRefreshPreload(cacheKey, force = false) {
+    async shouldRefreshPreload(cacheKey, force = false) {
         if (force) return true;
 
         const lastPreload = Number(localStorage.getItem(`offline-preload:${cacheKey}`) || 0);
         if (!lastPreload) return true;
+
+        const cachedData = await offlineDB.getCachedData(cacheKey);
+        if (!cachedData) {
+            localStorage.removeItem(`offline-preload:${cacheKey}`);
+            return true;
+        }
 
         const isFresh = (Date.now() - lastPreload) < this.preloadFreshnessMs;
         if (isFresh) {
@@ -98,17 +105,30 @@ class OfflineManager {
         localStorage.setItem(`offline-preload:${cacheKey}`, String(Date.now()));
     }
 
+    async runSinglePreload(cacheKey, force, loader) {
+        if (!force && this.preloadPromises.has(cacheKey)) {
+            return await this.preloadPromises.get(cacheKey);
+        }
+
+        const preloadPromise = loader().finally(() => {
+            this.preloadPromises.delete(cacheKey);
+        });
+        this.preloadPromises.set(cacheKey, preloadPromise);
+        return await preloadPromise;
+    }
+
     /**
      * Précharger les données d'administration hors-ligne
      */
     async preloadAdminData(force = false) {
         const cacheKey = offlineDB.getAdminCacheKey();
+        return await this.runSinglePreload(cacheKey, force, async () => {
 
         if (!this.isOnline && !force) {
             return await offlineDB.getCachedData(cacheKey);
         }
 
-        if (!this.shouldRefreshPreload(cacheKey, force)) {
+        if (!(await this.shouldRefreshPreload(cacheKey, force))) {
             return await offlineDB.getCachedData(cacheKey);
         }
 
@@ -138,6 +158,7 @@ class OfflineManager {
         }
 
         return await offlineDB.getCachedData(cacheKey);
+        });
     }
 
     /**
@@ -145,12 +166,13 @@ class OfflineManager {
      */
     async preloadTeacherData(force = false) {
         const cacheKey = offlineDB.getTeacherCacheKey();
+        return await this.runSinglePreload(cacheKey, force, async () => {
 
         if (!this.isOnline && !force) {
             return await offlineDB.getCachedData(cacheKey);
         }
 
-        if (!this.shouldRefreshPreload(cacheKey, force)) {
+        if (!(await this.shouldRefreshPreload(cacheKey, force))) {
             return await offlineDB.getCachedData(cacheKey);
         }
 
@@ -181,6 +203,7 @@ class OfflineManager {
         }
 
         return await offlineDB.getCachedData(cacheKey);
+        });
     }
 
     /**
@@ -188,12 +211,13 @@ class OfflineManager {
      */
     async preloadParentData(force = false) {
         const cacheKey = offlineDB.getParentCacheKey();
+        return await this.runSinglePreload(cacheKey, force, async () => {
 
         if (!this.isOnline && !force) {
             return await offlineDB.getCachedData(cacheKey);
         }
 
-        if (!this.shouldRefreshPreload(cacheKey, force)) {
+        if (!(await this.shouldRefreshPreload(cacheKey, force))) {
             return await offlineDB.getCachedData(cacheKey);
         }
 
@@ -223,6 +247,7 @@ class OfflineManager {
         }
 
         return await offlineDB.getCachedData(cacheKey);
+        });
     }
 
     /**

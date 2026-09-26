@@ -178,8 +178,11 @@
 
     <!-- Conteneur des Classes (Notre système signature par classe) -->
     <div id="classesStudentContainer">
+        {% set page_eleve_ids = eleves.items | map(attribute='id') | list if eleves and eleves.items is defined else [] %}
         {% if total_eleves and total_eleves > 0 %}
             {% for grp in classes_eleves %}
+            {% set grp_page_eleves = grp.eleves | selectattr('id', 'in', page_eleve_ids) | list %}
+            {% if grp_page_eleves %}
             <div class="class-student-card" id="class-card-{{ grp.id }}" 
                  data-class-id="{{ grp.id }}" 
                  data-class-nom="{{ grp.nom | lower }}">
@@ -210,9 +213,9 @@
                             </div>
                             <div class="d-flex align-items-center gap-2 flex-wrap mt-1">
                                 <span class="badge bg-primary rounded-pill">
-                                    <i class="fas fa-users me-1"></i><span class="class-count-span">{{ grp.eleves | length }}</span> élève{{ 's' if grp.eleves|length > 1 else '' }}
+                                    <i class="fas fa-users me-1"></i><span class="class-count-span">{{ grp_page_eleves | length }}</span> élève{{ 's' if grp_page_eleves|length > 1 else '' }}
                                 </span>
-                                {% if grp.eleves %}
+                                {% if grp_page_eleves %}
                                 <span class="badge bg-light text-muted border small">
                                     {{ grp.garcons_count }} Garçon{{ 's' if grp.garcons_count > 1 else '' }} • {{ grp.filles_count }} Fille{{ 's' if grp.filles_count > 1 else '' }}
                                 </span>
@@ -228,9 +231,9 @@
                 <!-- Corps de la classe avec ses élèves -->
                 <div class="collapse" id="collapse-class-{{ grp.id }}">
                     <div class="class-student-body">
-                        {% if grp.eleves %}
+                        {% if grp_page_eleves %}
                         <div class="student-list-group">
-                            {% for eleve in grp.eleves %}
+                            {% for eleve in grp_page_eleves %}
                             {% set tel_raw = eleve.contact_parent or (eleve.parent.telephone if eleve.parent else '') %}
                             {% set tel_digits = (tel_raw | replace(' ', '') | replace('-', '') | replace('.', '') | replace('(', '') | replace(')', '')) if tel_raw else '' %}
                             {% set wa_number = tel_digits | replace('+', '') if tel_digits else '' %}
@@ -356,6 +359,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
             {% endfor %}
         {% else %}
             <!-- État vide contextualisé -->
@@ -410,6 +414,163 @@
             </div>
         {% endif %}
     </div>
+
+    {% if eleves and eleves.pages > 1 %}
+    <!-- Barre de Pagination Moderne & Responsive (Anti-désordre) -->
+    <div class="card border-0 shadow-sm rounded-4 bg-white mt-4 overflow-hidden eleve-pagination-card">
+        <div class="card-body py-3 px-3 px-md-4 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+            
+            <!-- Informations d'affichage & total -->
+            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-center justify-content-md-start">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1.5 rounded-pill fw-semibold font-monospace">
+                    <i class="fas fa-user-graduate me-1"></i>{{ total_eleves }} élève{{ 's' if total_eleves > 1 else '' }}
+                </span>
+                <span class="text-muted small">
+                    Affichage de <strong class="text-dark">{{ (eleves.page - 1) * eleves.per_page + 1 }}</strong> à <strong class="text-dark">{{ [eleves.page * eleves.per_page, total_eleves]|min }}</strong>
+                    <span class="text-secondary opacity-75 d-none d-lg-inline">&bull; Page {{ eleves.page }} sur {{ eleves.pages }}</span>
+                </span>
+            </div>
+
+            <!-- Bloc Navigation Pagination -->
+            <div class="d-flex align-items-center justify-content-center justify-content-md-end flex-nowrap gap-2 w-100 w-md-auto">
+                
+                <!-- Vue Mobile (< 576px) : Contrôle fluide qui ne déborde JAMAIS -->
+                <div class="d-flex d-sm-none align-items-center justify-content-between w-100 gap-2">
+                    {% if eleves.has_prev %}
+                    <a class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 d-inline-flex align-items-center gap-1 shadow-2xs" 
+                       href="{{ url_for('main.eleves', page=eleves.prev_num, search=search, classe_id=classe_id, niveau=niveau_id, genre=genre, statut=statut) }}">
+                        <i class="fas fa-chevron-left fa-xs"></i>
+                        <span>Précédent</span>
+                    </a>
+                    {% else %}
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 d-inline-flex align-items-center gap-1 opacity-50" disabled>
+                        <i class="fas fa-chevron-left fa-xs"></i>
+                        <span>Précédent</span>
+                    </button>
+                    {% endif %}
+
+                    <span class="badge bg-light text-dark border px-3 py-2 rounded-pill fw-semibold shadow-2xs">
+                        Page {{ eleves.page }} / {{ eleves.pages }}
+                    </span>
+
+                    {% if eleves.has_next %}
+                    <a class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 d-inline-flex align-items-center gap-1 shadow-2xs" 
+                       href="{{ url_for('main.eleves', page=eleves.next_num, search=search, classe_id=classe_id, niveau=niveau_id, genre=genre, statut=statut) }}">
+                        <span>Suivant</span>
+                        <i class="fas fa-chevron-right fa-xs"></i>
+                    </a>
+                    {% else %}
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 d-inline-flex align-items-center gap-1 opacity-50" disabled>
+                        <span>Suivant</span>
+                        <i class="fas fa-chevron-right fa-xs"></i>
+                    </button>
+                    {% endif %}
+                </div>
+
+                <!-- Vue Tablette / Ordinateur (>= 576px) : Barre de pagination moderne en pilule groupée -->
+                <nav class="d-none d-sm-flex align-items-center" aria-label="Pagination des élèves">
+                    <ul class="pagination pagination-clean mb-0">
+                        <!-- Première page («) -->
+                        {% if eleves.page > 2 %}
+                        <li class="page-item" title="Première page">
+                            <a class="page-link" href="{{ url_for('main.eleves', page=1, search=search, classe_id=classe_id, niveau=niveau_id, genre=genre, statut=statut) }}" aria-label="Première page">
+                                <i class="fas fa-angles-left fa-xs"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        <!-- Précédent (‹) -->
+                        <li class="page-item {{ 'disabled' if not eleves.has_prev else '' }}">
+                            {% if eleves.has_prev %}
+                            <a class="page-link" 
+                               href="{{ url_for('main.eleves', page=eleves.prev_num, search=search, classe_id=classe_id, niveau=niveau_id, genre=genre, statut=statut) }}" 
+                               aria-label="Précédent" title="Page précédente">
+                                <i class="fas fa-chevron-left fa-xs"></i>
+                            </a>
+                            {% else %}
+                            <span class="page-link">
+                                <i class="fas fa-chevron-left fa-xs"></i>
+                            </span>
+                            {% endif %}
+                        </li>
+
+                        <!-- Numéros de pages -->
+                        {% for p in eleves.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
+                            {% if p %}
+                                {% if p == eleves.page %}
+                                <li class="page-item active" aria-current="page">
+                                    <span class="page-link">{{ p }}</span>
+                                </li>
+                                {% else %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('main.eleves', page=p, search=search, classe_id=classe_id, niveau=niveau_id, genre=genre, statut=statut) }}">{{ p }}</a>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                            <li class="page-item disabled ellipsis">
+                                <span class="page-link">&hellip;</span>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        <!-- Suivant (›) -->
+                        <li class="page-item {{ 'disabled' if not eleves.has_next else '' }}">
+                            {% if eleves.has_next %}
+                            <a class="page-link" 
+                               href="{{ url_for('main.eleves', page=eleves.next_num, search=search, classe_id=classe_id, niveau=niveau_id, genre=genre, statut=statut) }}" 
+                               aria-label="Suivant" title="Page suivante">
+                                <i class="fas fa-chevron-right fa-xs"></i>
+                            </a>
+                            {% else %}
+                            <span class="page-link">
+                                <i class="fas fa-chevron-right fa-xs"></i>
+                            </span>
+                            {% endif %}
+                        </li>
+
+                        <!-- Dernière page (») -->
+                        {% if eleves.page < eleves.pages - 1 %}
+                        <li class="page-item" title="Dernière page">
+                            <a class="page-link" href="{{ url_for('main.eleves', page=eleves.pages, search=search, classe_id=classe_id, niveau=niveau_id, genre=genre, statut=statut) }}" aria-label="Dernière page">
+                                <i class="fas fa-angles-right fa-xs"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+
+                <!-- Sélecteur d'accès rapide (Aller à la page) sur écrans larges -->
+                {% if eleves.pages > 5 %}
+                <div class="d-none d-lg-flex align-items-center gap-1.5 ms-2 ps-2 border-start">
+                    <label for="pageJumpEleve" class="text-muted small text-nowrap" style="font-size: 0.78rem;">Aller :</label>
+                    <select id="pageJumpEleve" class="form-select form-select-sm rounded-3 py-1 px-2 border-secondary-subtle bg-light" 
+                            style="width: auto; font-size: 0.8rem; cursor: pointer;"
+                            onchange="if(this.value) window.location.href=this.value;">
+                        {% for pg in range(1, eleves.pages + 1) %}
+                        <option value="{{ url_for('main.eleves', page=pg, search=search, classe_id=classe_id, niveau=niveau_id, genre=genre, statut=statut) }}" 
+                                {{ 'selected' if pg == eleves.page else '' }}>
+                            p. {{ pg }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+            </div>
+
+        </div>
+    </div>
+    {% elif eleves and total_eleves > 0 %}
+    <!-- Si 1 seule page existe : bandeau informatif élégant -->
+    <div class="card border-0 shadow-sm rounded-4 bg-white mt-4 eleve-pagination-card">
+        <div class="card-body py-2.5 px-4 d-flex justify-content-between align-items-center">
+            <span class="text-muted small">
+                <i class="fas fa-check-circle text-success me-1"></i>Tous les <strong>{{ total_eleves }}</strong> élèves sont affichés sur cette page.
+            </span>
+            <span class="badge bg-light text-muted border px-2.5 py-1 rounded-pill small">Page 1 / 1</span>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Message aucun résultat de recherche -->
     <div id="noStudentMatch" class="card border-0 shadow-sm text-center py-5 d-none">
@@ -855,12 +1016,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // MODALE DE FICHE ET MODIFICATION D'ÉLÈVE SUR PLACE (Zéro Redirection)
     // =========================================================================
     let currentFicheData = null;
+    let ficheRequestController = null;
+    let currentFicheRequestId = 0;
 
     window.openFicheEleve = function(eleveId, startInEdit = false) {
         const modalEl = document.getElementById('modalFicheEleve');
         if (!modalEl) return;
         const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
         bsModal.show();
+        currentFicheRequestId += 1;
+        const requestId = currentFicheRequestId;
+
+        if (ficheRequestController) {
+            ficheRequestController.abort();
+        }
+        ficheRequestController = new AbortController();
 
         const loadingEl = document.getElementById('mfeLoading');
         const viewModeEl = document.getElementById('mfeViewMode');
@@ -868,17 +1038,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const alertEl = document.getElementById('mfeAlert');
 
         if (alertEl) alertEl.classList.add('d-none');
-        if (loadingEl) loadingEl.classList.remove('d-none');
+        if (loadingEl) {
+            loadingEl.innerHTML = `
+                <div class="spinner-border text-primary mb-2" role="status"></div>
+                <p class="text-muted small mb-0">Chargement de la fiche...</p>
+            `;
+            loadingEl.classList.remove('d-none');
+        }
         if (viewModeEl) viewModeEl.classList.add('d-none');
         if (editModeEl) editModeEl.classList.add('d-none');
 
-        fetch(`/api/eleves/${eleveId}/fiche`)
+        fetch(`/api/eleves/${eleveId}/fiche`, { signal: ficheRequestController.signal })
             .then(res => {
                 if (!res.ok) throw new Error("Impossible de charger les données de l'élève.");
                 return res.json();
             })
             .then(data => {
+                if (requestId !== currentFicheRequestId) return;
                 if (!data.success) throw new Error(data.error || "Erreur lors du chargement de la fiche.");
+                if (!data.eleve || data.eleve.id !== eleveId) return;
                 currentFicheData = data;
                 renderFicheView(data);
                 renderFicheEdit(data);
@@ -891,6 +1069,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             })
             .catch(err => {
+                if (err.name === 'AbortError' || requestId !== currentFicheRequestId) return;
                 if (loadingEl) {
                     loadingEl.innerHTML = `
                         <div class="text-danger py-4 px-3 text-center">

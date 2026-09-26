@@ -1255,8 +1255,15 @@ textarea {
     }
 
     .pagination {
-        flex-wrap: wrap;
-        gap: 0.25rem;
+        flex-wrap: nowrap;
+        gap: 0;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .pagination::-webkit-scrollbar {
+        display: none;
     }
 
     .notifications-panel {
@@ -2494,6 +2501,7 @@ textarea {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: 0.75rem;
     padding: 0.9rem 1.25rem;
     background: #ffffff;
@@ -2524,6 +2532,7 @@ textarea {
     gap: 0.75rem;
     min-width: 0;
     flex: 1 1 auto;
+    order: 1;
 }
 
 .class-absence-avatar {
@@ -2576,6 +2585,8 @@ textarea {
     align-items: center;
     gap: 0.5rem;
     flex-shrink: 0;
+    order: 2;
+    margin-left: auto;
 }
 
 .class-absence-chevron {
@@ -2589,6 +2600,7 @@ textarea {
     color: var(--gray-600);
     transition: transform 0.25s ease, background-color 0.15s ease;
     flex-shrink: 0;
+    order: 3;
 }
 
 .class-absence-header[aria-expanded="true"] .class-absence-chevron {
@@ -4897,10 +4909,17 @@ body.auth-layout .main-content > .container {
     /* Styles mobiles spécifiques pour la page absences (accordéon par classe) */
     .class-absence-header {
         padding: 0.75rem 0.85rem;
-        gap: 0.5rem;
+        gap: 0.4rem;
         position: sticky;
         top: 0;
         z-index: 10;
+        flex-wrap: wrap;
+    }
+
+    .class-absence-profile {
+        order: 1;
+        flex: 1 1 auto;
+        min-width: 0;
     }
 
     .class-absence-avatar {
@@ -4913,10 +4932,28 @@ body.auth-layout .main-content > .container {
         font-size: 0.95rem;
     }
 
+    .class-absence-chevron {
+        order: 2;
+        margin-left: auto;
+    }
+
     .class-absence-stats {
-        flex-direction: row;
+        order: 3;
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 0.35rem;
+        margin-top: 0.35rem;
+        padding-top: 0.35rem;
+        border-top: 1px dashed rgba(0, 0, 0, 0.08);
+        margin-left: 0;
+    }
+
+    .class-absence-stats .badge {
+        font-size: 0.76rem !important;
+        white-space: normal;
+        text-align: left;
     }
 
     .class-student-table-wrap {
@@ -8665,3 +8702,96 @@ body.support-modal-open {
     font-size: 0.82rem !important;
 }
 
+
+
+/* ==========================================================================
+   Pagination Moderne & Robuste (Klasora Clean)
+   ========================================================================== */
+.pagination {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    margin-bottom: 0;
+}
+
+.pagination-clean {
+    display: inline-flex;
+    flex-wrap: nowrap !important;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 9999px;
+    padding: 3px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.pagination-clean .page-item {
+    margin: 0 1px;
+    display: inline-flex;
+}
+
+.pagination-clean .page-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 0.55rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #475569;
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 9999px !important;
+    transition: all 0.15s ease-in-out;
+    text-decoration: none;
+    user-select: none;
+}
+
+.pagination-clean .page-link:hover {
+    color: #1d4ed8;
+    background-color: #f1f5f9;
+    border-color: #e2e8f0;
+    transform: translateY(-1px);
+}
+
+.pagination-clean .page-item.active .page-link {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border-color: transparent;
+    font-weight: 700;
+    box-shadow: 0 3px 8px rgba(37, 99, 235, 0.35);
+    z-index: 2;
+}
+
+.pagination-clean .page-item.disabled .page-link {
+    color: #94a3b8;
+    background-color: transparent;
+    border-color: transparent;
+    cursor: not-allowed;
+    opacity: 0.55;
+    transform: none;
+}
+
+.pagination-clean .page-item.ellipsis .page-link {
+    min-width: 26px;
+    color: #94a3b8;
+    letter-spacing: 1px;
+    cursor: default;
+}
+
+.eleve-pagination-card,
+.app-pagination-card,
+.course-pagination-bar-card {
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.eleve-pagination-card:hover,
+.app-pagination-card:hover,
+.course-pagination-bar-card:hover {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06) !important;
+    border-color: #cbd5e1 !important;
+}

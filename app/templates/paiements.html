@@ -177,8 +177,8 @@
             <button type="button" class="btn btn-sm class-filter-chip active rounded-pill px-3 py-1 text-nowrap fw-semibold border shadow-sm" data-class-chip="">
                 <i class="fas fa-th-large me-1"></i>Toutes les classes
             </button>
-            {% if classes %}
-                {% for cl in classes %}
+            {% if classes_toutes %}
+                {% for cl in classes_toutes %}
                     <button type="button" class="btn btn-sm class-filter-chip rounded-pill px-3 py-1 text-nowrap border bg-white text-dark shadow-sm" data-class-chip="{{ cl.nom }}">
                         {{ cl.nom }}
                     </button>
@@ -285,17 +285,6 @@
                     {% if full_name not in ns.eleves_names %}
                         {% set _ = ns.eleves_names.append(full_name) %}
                     {% endif %}
-                    {% for p in (el.annee_paiements if el.annee_paiements is defined else el.paiements) %}
-                        {% if p.reference and p.reference not in ns.refs %}
-                            {% set _ = ns.refs.append(p.reference) %}
-                        {% endif %}
-                        {% if p.mode_paiement and p.mode_paiement not in ns.modes %}
-                            {% set _ = ns.modes.append(p.mode_paiement) %}
-                        {% endif %}
-                        {% if p.mois and p.mois not in ns.mois_list %}
-                            {% set _ = ns.mois_list.append(p.mois) %}
-                        {% endif %}
-                    {% endfor %}
                 {% endfor %}
 
                 {% set eleves_str = ns.eleves_names|join(' ') %}
@@ -397,7 +386,6 @@
                                 {% set el_reste = p_data.get('reste_a_payer', 0) %}
                                 {% set el_frais = p_data.get('frais_annuels', el.frais_annuels or 0) %}
                                 {% set el_pct = p_data.get('pourcentage_paye', 0) %}
-                                {% set el_paiements = el.annee_paiements if el.annee_paiements is defined else (p_data.get('inscription').paiements if p_data.get('inscription') else el.paiements) %}
 
                                 {% set el_statut = 'complet' if el_reste <= 0 else ('partiel' if el_paye > 0 else 'aucun') %}
                                 {% set el_search = el.prenom ~ ' ' ~ el.nom ~ ' ' ~ (el.classe.nom if el.classe else '') %}
@@ -471,109 +459,14 @@
                                         </div>
                                     </div>
 
-                                    <!-- DETAIL DES VERSEMENTS DE L'ÉLÈVE -->
-                                    {% if el_paiements|length == 0 %}
-                                        <div class="p-3 text-center text-muted small bg-light bg-opacity-50">
-                                            <i class="fas fa-receipt me-1 text-muted"></i>Aucun paiement enregistré pour cet élève.
-                                        </div>
-                                    {% else %}
-                                        <!-- TABLEAU DES VERSEMENTS (DESKTOP) -->
-                                        <div class="payment-student-table-wrap">
-                                            <table class="table data-table align-middle mb-0">
-                                                <thead>
-                                                    <tr>
-                                                        <th style="width: 120px;">Date</th>
-                                                        <th style="width: 130px;">Période</th>
-                                                        <th>Montant</th>
-                                                        <th>Mode</th>
-                                                        <th>Référence</th>
-                                                        <th class="text-end" style="width: 150px;">Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {% for p in el_paiements %}
-                                                        <tr>
-                                                            <td>
-                                                                <small class="text-muted"><i class="far fa-calendar-alt me-1"></i>{{ p.date_paiement.strftime('%d/%m/%Y') if p.date_paiement else '-' }}</small>
-                                                            </td>
-                                                            <td>
-                                                                <span class="badge bg-light text-dark border">{{ p.mois }} / {{ p.annee }}</span>
-                                                            </td>
-                                                            <td>
-                                                                <strong class="text-success">{{ "{:,.0f}".format(p.montant) }} FCFA</strong>
-                                                            </td>
-                                                            <td>
-                                                                <span class="badge bg-info-subtle text-info border border-info-subtle">{{ p.mode_paiement }}</span>
-                                                            </td>
-                                                            <td>
-                                                                <small class="text-muted">{{ p.reference or '-' }}</small>
-                                                            </td>
-                                                            <td class="text-end">
-                                                                <div class="d-inline-flex align-items-center gap-1">
-                                                                    <a href="{{ url_for('main.recu_paiement', id=p.id) }}"
-                                                                       class="btn btn-sm btn-outline-info"
-                                                                       title="Consulter le reçu"
-                                                                       aria-label="Reçu">
-                                                                        <i class="fas fa-eye"></i>
-                                                                    </a>
-                                                                    {% if not annee_consultee or annee_consultee.statut == 'active' %}
-                                                                    <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}"
-                                                                          method="POST"
-                                                                          class="d-inline js-confirm-form"
-                                                                          data-confirm="Supprimer ce paiement de {{ '{:,.0f}'.format(p.montant) }} FCFA ">
-                                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                                        <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
-                                                                        <button type="submit"
-                                                                                class="btn btn-sm btn-outline-danger"
-                                                                                title="Supprimer ce paiement"
-                                                                                aria-label="Supprimer">
-                                                                            <i class="fas fa-trash-alt"></i>
-                                                                        </button>
-                                                                    </form>
-                                                                    {% endif %}
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    {% endfor %}
-                                                </tbody>
-                                            </table>
-                                        </div>
-
-                                        <!-- CARTES MOBILES (< 768px, ZÉRO DÉFILEMENT HORIZONTAL) -->
-                                        <div class="payment-student-cards">
-                                            {% for p in el_paiements %}
-                                                <div class="payment-student-mini-card">
-                                                    <div class="payment-student-mini-top">
-                                                        <span class="badge bg-light text-dark border">{{ p.mois }} / {{ p.annee }}</span>
-                                                        <strong class="text-success fs-6">{{ "{:,.0f}".format(p.montant) }} FCFA</strong>
-                                                    </div>
-                                                    <div class="d-flex justify-content-between text-muted small">
-                                                        <span><i class="far fa-calendar me-1"></i>{{ p.date_paiement.strftime('%d/%m/%Y') if p.date_paiement else '-' }}</span>
-                                                        <span><i class="fas fa-wallet me-1"></i>{{ p.mode_paiement }}</span>
-                                                    </div>
-                                                    {% if p.reference %}
-                                                        <div class="text-muted small">
-                                                            <i class="fas fa-hashtag me-1"></i>{{ p.reference }}
-                                                        </div>
-                                                    {% endif %}
-                                                    <div class="payment-student-mini-actions">
-                                                        <a href="{{ url_for('main.recu_paiement', id=p.id) }}" class="btn btn-sm btn-outline-info">
-                                                            <i class="fas fa-eye me-1"></i>Reçu
-                                                        </a>
-                                                        {% if not annee_consultee or annee_consultee.statut == 'active' %}
-                                                        <form action="{{ url_for('main.supprimer_paiement', id=p.id) }}" method="POST" class="js-confirm-form" data-confirm="Supprimer ce versement ">
-                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                            <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
-                                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                                <i class="fas fa-trash-alt me-1"></i>Supprimer
-                                                            </button>
-                                                        </form>
-                                                        {% endif %}
-                                                    </div>
-                                                </div>
-                                            {% endfor %}
-                                        </div>
-                                    {% endif %}
+                                    <div class="p-3 bg-light bg-opacity-50 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                        <span class="text-muted small">
+                                            <i class="fas fa-receipt me-1"></i>Les versements detailles se consultent a la demande.
+                                        </span>
+                                        <a href="{{ url_for('main.tracabilite_paiements', recherche=el.prenom ~ ' ' ~ el.nom) }}" class="btn btn-sm btn-outline-info rounded-pill">
+                                            <i class="fas fa-history me-1"></i>Voir les details
+                                        </a>
+                                    </div>
                                 </div>
                             {% endfor %}
                         {% endif %}
@@ -670,7 +563,7 @@
             </article>
         {% endif %}
 
-        {% if not classes %}
+        {% if not classes_toutes %}
             <div class="card border-0 shadow-sm text-center py-5 my-4">
                 <div class="card-body">
                     <i class="fas fa-money-check-alt text-muted fa-4x mb-3 opacity-50"></i>
@@ -687,6 +580,162 @@
             </div>
         {% endif %}
     </div>
+
+    {% if eleves_pagination and eleves_pagination.pages > 1 %}
+    <!-- Barre de Pagination Moderne & Responsive (Anti-désordre) -->
+    <div class="card border-0 shadow-sm rounded-4 bg-white mt-4 overflow-hidden eleve-pagination-card">
+        <div class="card-body py-3 px-3 px-md-4 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+            
+            <!-- Informations d'affichage & total -->
+            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-center justify-content-md-start">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1.5 rounded-pill fw-semibold font-monospace">
+                    <i class="fas fa-file-invoice-dollar me-1"></i>{{ eleves_pagination.total }} inscription{{ 's' if eleves_pagination.total > 1 else '' }}
+                </span>
+                <span class="text-muted small">
+                    Affichage de <strong class="text-dark">{{ (eleves_pagination.page - 1) * eleves_pagination.per_page + 1 }}</strong> à <strong class="text-dark">{{ [eleves_pagination.page * eleves_pagination.per_page, eleves_pagination.total]|min }}</strong>
+                    <span class="text-secondary opacity-75 d-none d-lg-inline">&bull; Page {{ eleves_pagination.page }} sur {{ eleves_pagination.pages }}</span>
+                </span>
+            </div>
+
+            <!-- Bloc Navigation Pagination -->
+            <div class="d-flex align-items-center justify-content-center justify-content-md-end flex-nowrap gap-2 w-100 w-md-auto">
+                
+                <!-- Vue Mobile (< 576px) -->
+                <div class="d-flex d-sm-none align-items-center justify-content-between w-100 gap-2">
+                    {% if eleves_pagination.has_prev %}
+                    <a class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 d-inline-flex align-items-center gap-1 shadow-2xs" 
+                       href="{{ url_for('main.paiements', page=eleves_pagination.prev_num, recherche=recherche, classe=classe_id, niveau=niveau_param, statut_solde=statut_solde) }}">
+                        <i class="fas fa-chevron-left fa-xs"></i>
+                        <span>Précédent</span>
+                    </a>
+                    {% else %}
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 d-inline-flex align-items-center gap-1 opacity-50" disabled>
+                        <i class="fas fa-chevron-left fa-xs"></i>
+                        <span>Précédent</span>
+                    </button>
+                    {% endif %}
+
+                    <span class="badge bg-light text-dark border px-3 py-2 rounded-pill fw-semibold shadow-2xs">
+                        Page {{ eleves_pagination.page }} / {{ eleves_pagination.pages }}
+                    </span>
+
+                    {% if eleves_pagination.has_next %}
+                    <a class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 d-inline-flex align-items-center gap-1 shadow-2xs" 
+                       href="{{ url_for('main.paiements', page=eleves_pagination.next_num, recherche=recherche, classe=classe_id, niveau=niveau_param, statut_solde=statut_solde) }}">
+                        <span>Suivant</span>
+                        <i class="fas fa-chevron-right fa-xs"></i>
+                    </a>
+                    {% else %}
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 d-inline-flex align-items-center gap-1 opacity-50" disabled>
+                        <span>Suivant</span>
+                        <i class="fas fa-chevron-right fa-xs"></i>
+                    </button>
+                    {% endif %}
+                </div>
+
+                <!-- Vue Tablette / Ordinateur (>= 576px) -->
+                <nav class="d-none d-sm-flex align-items-center" aria-label="Pagination des inscriptions">
+                    <ul class="pagination pagination-clean mb-0">
+                        <!-- Première page («) -->
+                        {% if eleves_pagination.page > 2 %}
+                        <li class="page-item" title="Première page">
+                            <a class="page-link" href="{{ url_for('main.paiements', page=1, recherche=recherche, classe=classe_id, niveau=niveau_param, statut_solde=statut_solde) }}" aria-label="Première page">
+                                <i class="fas fa-angles-left fa-xs"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+
+                        <!-- Précédent (‹) -->
+                        <li class="page-item {{ 'disabled' if not eleves_pagination.has_prev else '' }}">
+                            {% if eleves_pagination.has_prev %}
+                            <a class="page-link" 
+                               href="{{ url_for('main.paiements', page=eleves_pagination.prev_num, recherche=recherche, classe=classe_id, niveau=niveau_param, statut_solde=statut_solde) }}" 
+                               aria-label="Précédent" title="Page précédente">
+                                <i class="fas fa-chevron-left fa-xs"></i>
+                            </a>
+                            {% else %}
+                            <span class="page-link">
+                                <i class="fas fa-chevron-left fa-xs"></i>
+                            </span>
+                            {% endif %}
+                        </li>
+
+                        <!-- Numéros de pages -->
+                        {% for p in eleves_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=1) %}
+                            {% if p %}
+                                {% if p == eleves_pagination.page %}
+                                <li class="page-item active" aria-current="page">
+                                    <span class="page-link">{{ p }}</span>
+                                </li>
+                                {% else %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('main.paiements', page=p, recherche=recherche, classe=classe_id, niveau=niveau_param, statut_solde=statut_solde) }}">{{ p }}</a>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                            <li class="page-item disabled ellipsis">
+                                <span class="page-link">&hellip;</span>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        <!-- Suivant (›) -->
+                        <li class="page-item {{ 'disabled' if not eleves_pagination.has_next else '' }}">
+                            {% if eleves_pagination.has_next %}
+                            <a class="page-link" 
+                               href="{{ url_for('main.paiements', page=eleves_pagination.next_num, recherche=recherche, classe=classe_id, niveau=niveau_param, statut_solde=statut_solde) }}" 
+                               aria-label="Suivant" title="Page suivante">
+                                <i class="fas fa-chevron-right fa-xs"></i>
+                            </a>
+                            {% else %}
+                            <span class="page-link">
+                                <i class="fas fa-chevron-right fa-xs"></i>
+                            </span>
+                            {% endif %}
+                        </li>
+
+                        <!-- Dernière page (») -->
+                        {% if eleves_pagination.page < eleves_pagination.pages - 1 %}
+                        <li class="page-item" title="Dernière page">
+                            <a class="page-link" href="{{ url_for('main.paiements', page=eleves_pagination.pages, recherche=recherche, classe=classe_id, niveau=niveau_param, statut_solde=statut_solde) }}" aria-label="Dernière page">
+                                <i class="fas fa-angles-right fa-xs"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+
+                <!-- Sélecteur d'accès rapide (Aller à la page) sur écrans larges -->
+                {% if eleves_pagination.pages > 5 %}
+                <div class="d-none d-lg-flex align-items-center gap-1.5 ms-2 ps-2 border-start">
+                    <label for="pageJumpPaiement" class="text-muted small text-nowrap" style="font-size: 0.78rem;">Aller :</label>
+                    <select id="pageJumpPaiement" class="form-select form-select-sm rounded-3 py-1 px-2 border-secondary-subtle bg-light" 
+                            style="width: auto; font-size: 0.8rem; cursor: pointer;"
+                            onchange="if(this.value) window.location.href=this.value;">
+                        {% for pg in range(1, eleves_pagination.pages + 1) %}
+                        <option value="{{ url_for('main.paiements', page=pg, recherche=recherche, classe=classe_id, niveau=niveau_param, statut_solde=statut_solde) }}" 
+                                {{ 'selected' if pg == eleves_pagination.page else '' }}>
+                            p. {{ pg }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+            </div>
+
+        </div>
+    </div>
+    {% elif eleves_pagination and eleves_pagination.total > 0 %}
+    <div class="card border-0 shadow-sm rounded-4 bg-white mt-4 eleve-pagination-card">
+        <div class="card-body py-2.5 px-4 d-flex justify-content-between align-items-center">
+            <span class="text-muted small">
+                <i class="fas fa-check-circle text-success me-1"></i>Toutes les <strong>{{ eleves_pagination.total }}</strong> inscriptions sont affichées sur cette page.
+            </span>
+            <span class="badge bg-light text-muted border px-2.5 py-1 rounded-pill small">Page 1 / 1</span>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Message aucun résultat -->
     <div id="noPaymentResults" class="empty-state py-5" style="display: none;">

@@ -162,6 +162,12 @@ class OfflineDB {
         return `parent_offline_data:${eId || 'no_ecole'}:${uId || 'no_user'}`;
     }
 
+    clearPreloadTimestamp(cacheKey) {
+        if (typeof localStorage !== 'undefined' && cacheKey) {
+            localStorage.removeItem(`offline-preload:${cacheKey}`);
+        }
+    }
+
     /**
      * Ajouter une donnée en attente de synchronisation
      * Génère client_op_id de manière unique et immuable dès la création
@@ -611,6 +617,7 @@ class OfflineDB {
             const request = store.delete(key);
 
             request.onsuccess = () => {
+                this.clearPreloadTimestamp(key);
                 console.log(`🧹 Cache pédagogique professeur purgé (${key}), pendingSync préservé.`);
                 resolve(true);
             };
@@ -636,6 +643,7 @@ class OfflineDB {
             const request = store.delete(key);
 
             request.onsuccess = () => {
+                this.clearPreloadTimestamp(key);
                 console.log(`🧹 Cache administrateur purgé (${key}), pendingSync préservé.`);
                 resolve(true);
             };
@@ -661,6 +669,7 @@ class OfflineDB {
             const request = store.delete(key);
 
             request.onsuccess = () => {
+                this.clearPreloadTimestamp(key);
                 console.log(`🧹 Cache parent purgé (${key}), pendingSync préservé.`);
                 resolve(true);
             };

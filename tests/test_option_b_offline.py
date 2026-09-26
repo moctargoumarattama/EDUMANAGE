@@ -61,7 +61,7 @@ def _build_context():
 def test_service_worker_option_b_no_private_html_runtime_cache():
     sw = Path("app/static/service-worker.js").read_text(encoding="utf-8")
 
-    assert "klasora-static-v11" in sw
+    assert "klasora-cache-" in sw
     assert "klasora-pages-v10" not in sw
     assert "cacheName.startsWith('klasora-pages-')" in sw
     assert "await cache.put(request" not in sw

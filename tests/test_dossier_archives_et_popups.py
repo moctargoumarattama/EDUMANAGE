@@ -176,6 +176,7 @@ class TestDossierArchivesEtPopups(unittest.TestCase):
 
         # Notes en 2024-2025 (Semestre 1 et Semestre 2)
         self.note_cp_s1 = Note(
+            ecole_id=self.ecole.id,
             eleve_id=self.eleve.id,
             cours_id=self.cours_maths_cp.id,
             annee_id=self.annee_archivee.id,
@@ -187,6 +188,7 @@ class TestDossierArchivesEtPopups(unittest.TestCase):
             date_evaluation=datetime(2024, 11, 15),
         )
         self.note_cp_s2 = Note(
+            ecole_id=self.ecole.id,
             eleve_id=self.eleve.id,
             cours_id=self.cours_maths_cp.id,
             annee_id=self.annee_archivee.id,
@@ -199,6 +201,7 @@ class TestDossierArchivesEtPopups(unittest.TestCase):
         )
         # Note en 2025-2026 (Année active)
         self.note_ce1 = Note(
+            ecole_id=self.ecole.id,
             eleve_id=self.eleve.id,
             cours_id=self.cours_maths_ce1.id,
             annee_id=self.annee_active.id,
@@ -236,10 +239,10 @@ class TestDossierArchivesEtPopups(unittest.TestCase):
         # Vérification du tableau unique
         self.assertIn("Moyennes par Matière", html)
         self.assertIn("Mathématiques", html)
-        self.assertIn("data-bs-target=\"#modalMatiere_1\"", html)
+        self.assertIn('data-bs-target="#modalMatiereDynamique"', html)
 
         # Vérification du modal pop-up
-        self.assertIn('id="modalMatiere_1"', html)
+        self.assertIn('id="modalMatiereDynamique"', html)
         self.assertIn("Détails", html)
         self.assertIn("15.0", html)
 

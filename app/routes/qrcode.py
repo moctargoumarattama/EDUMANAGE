@@ -1,4 +1,5 @@
 from . import main
+import hashlib
 import os
 from .common import (
     AnneeScolaire,
@@ -19,12 +20,21 @@ from .common import (
     professeur_classes,
 )
 from flask import url_for, make_response
+from flask import request
 from app.services import get_qr_cache_path
 from app.services.bulletin_verification import (
     generer_token_eleve,
     decoder_token_eleve,
     generer_qr_code_buffer,
 )
+
+
+def _get_qr_cache_path(eleve, inscription_id=None):
+    base_dir = os.path.dirname(get_qr_cache_path(eleve))
+    os.makedirs(base_dir, exist_ok=True)
+    key = f"{eleve.id}-{eleve.updated_at}-{inscription_id or 'no-inscription'}".encode()
+    filename = hashlib.md5(key).hexdigest() + ".png"
+    return os.path.join(base_dir, filename)
 
 
 @main.route('/eleve/<int:id>/qrcode')
@@ -49,7 +59,7 @@ def generer_qrcode_eleve(id):
     else:
         scan_url = url_for('main.voir_eleve', eleve_id=eleve.id, _external=True)
 
-    cache_path = get_qr_cache_path(eleve)
+    cache_path = _get_qr_cache_path(eleve, ins.id if ins else None)
     if not os.path.exists(cache_path):
         img_buf = generer_qr_code_buffer(scan_url)
 
@@ -115,6 +125,21 @@ def qrcodes_etudiants():
 
     annee_active = annees_actives[0]
 
+    classes_query = Classe.query.filter(
+        Classe.ecole_id == ecole_id,
+        Classe.annee_scolaire_id == annee_active.id,
+        Classe.statut == 'ouverte',
+        Classe.id.in_(
+            db.session.query(Inscription.classe_id)
+            .filter(
+                Inscription.ecole_id == ecole_id,
+                Inscription.annee_scolaire_id == annee_active.id,
+            )
+        ),
+    )
+
+    allowed_class_ids = None
+
     # 2. Population : Inscription de l'année ACTIVE uniquement
     ins_query = (
         Inscription.query
@@ -151,7 +176,20 @@ def qrcodes_etudiants():
             )
         )
         classes_prof_ids = [c.id for c in classes_prof_query.all()]
+        allowed_class_ids = classes_prof_ids
+        classes_query = classes_query.filter(Classe.id.in_(classes_prof_ids))
         ins_query = ins_query.filter(Inscription.classe_id.in_(classes_prof_ids))
+
+    classes_disponibles = classes_query.order_by(Classe.nom.asc()).all()
+    selected_classe_id = request.args.get('classe_id', type=int) or request.args.get('classe', type=int)
+    allowed_ids = {c.id for c in classes_disponibles}
+    if selected_classe_id not in allowed_ids:
+        selected_classe_id = classes_disponibles[0].id if classes_disponibles else None
+
+    if selected_classe_id:
+        ins_query = ins_query.filter(Inscription.classe_id == selected_classe_id)
+    elif allowed_class_ids is not None:
+        ins_query = ins_query.filter(db.false())
 
     inscriptions = ins_query.order_by(Inscription.classe_id, Eleve.nom, Eleve.prenom).all()
 
@@ -167,7 +205,7 @@ def qrcodes_etudiants():
         token = generer_token_eleve(ecole_id, ins.id)
         scan_url = url_for('main.verifier_eleve_public', token=token, _external=True)
 
-        cache_path = get_qr_cache_path(e)
+        cache_path = _get_qr_cache_path(e, ins.id)
         if os.path.exists(cache_path):
             with open(cache_path, "rb") as f:
                 img_data = base64.b64encode(f.read()).decode()
@@ -202,6 +240,8 @@ def qrcodes_etudiants():
         'qrcodes_etudiants.html',
         qrcodes_par_classe=qrcodes_par_classe,
         annee_active=annee_active,
+        classes_disponibles=classes_disponibles,
+        selected_classe_id=selected_classe_id,
     )
 
 

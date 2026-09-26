@@ -660,16 +660,46 @@
     </div>
     {% endif %}
 
-    <!-- Barre de pagination dynamique par classe -->
-    <div id="classPaginationBar" class="course-pagination-bar" style="display: none;">
-        <div class="text-muted small">
-            <span id="pageInfoText">Page 1 sur 1</span>
+    <!-- Barre de pagination dynamique par classe (Moderne & Responsive) -->
+    <div id="classPaginationBar" class="card border-0 shadow-sm rounded-4 bg-white mt-4 overflow-hidden app-pagination-card" style="display: none;">
+        <div class="card-body py-3 px-3 px-md-4 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+            
+            <!-- Informations d'affichage & total -->
+            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-center justify-content-md-start">
+                <span id="pageInfoBadge" class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1.5 rounded-pill fw-semibold font-monospace">
+                    <i class="fas fa-chalkboard me-1"></i>Classes
+                </span>
+                <span id="pageInfoText" class="text-muted small">
+                    Affichage 1 - 20 sur 20 classes &bull; Page 1 / 1
+                </span>
+            </div>
+
+            <!-- Bloc Navigation Pagination -->
+            <div class="d-flex align-items-center justify-content-center justify-content-md-end flex-nowrap gap-2 w-100 w-md-auto">
+                
+                <!-- Vue Mobile (< 576px) : Contrôle tactile anti-débordement -->
+                <div class="d-flex d-sm-none align-items-center justify-content-between w-100 gap-2" id="mobilePaginationControls">
+                    <!-- Dynamiquement généré par JavaScript -->
+                </div>
+
+                <!-- Vue Tablette / Ordinateur (>= 576px) : Barre en pilule groupée -->
+                <nav class="d-none d-sm-flex align-items-center" aria-label="Pagination des classes">
+                    <ul class="pagination pagination-clean mb-0" id="paginationList">
+                        <!-- Dynamiquement généré par JavaScript -->
+                    </ul>
+                </nav>
+
+                <!-- Sélecteur d'accès rapide (Aller à la page) sur grands écrans -->
+                <div id="pageJumpContainer" class="d-none align-items-center gap-1.5 ms-2 ps-2 border-start">
+                    <label for="pageJumpCourse" class="text-muted small text-nowrap" style="font-size: 0.78rem;">Aller :</label>
+                    <select id="pageJumpCourse" class="form-select form-select-sm rounded-3 py-1 px-2 border-secondary-subtle bg-light" 
+                            style="width: auto; font-size: 0.8rem; cursor: pointer;">
+                    </select>
+                </div>
+
+            </div>
+
         </div>
-        <nav aria-label="Pagination des classes">
-            <ul class="pagination pagination-sm mb-0" id="paginationList">
-                <!-- Dynamiquement généré par JavaScript -->
-            </ul>
-        </nav>
     </div>
 
 </div>
@@ -692,6 +722,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const paginationBar = document.getElementById('classPaginationBar');
     const paginationList = document.getElementById('paginationList');
     const pageInfoText = document.getElementById('pageInfoText');
+    const pageInfoBadge = document.getElementById('pageInfoBadge');
+    const mobilePaginationControls = document.getElementById('mobilePaginationControls');
+    const pageJumpCourse = document.getElementById('pageJumpCourse');
+    const pageJumpContainer = document.getElementById('pageJumpContainer');
 
     // Bouton Tout déplier / Tout replier (Desktop & Mobile)
     const btnToggleAll = document.getElementById('btnToggleAllClassAccordions');
@@ -922,73 +956,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderPagination(count, totalPages, startIndex, endIndex) {
-        if (!paginationBar || !paginationList) return;
-
-        if (totalPages <= 1) {
-            paginationBar.style.display = 'none';
-            return;
-        }
-
-        paginationBar.style.display = 'flex';
-        const actualEnd = Math.min(endIndex, count);
-        if (pageInfoText) {
-            pageInfoText.textContent = `Affichage ${startIndex + 1} - ${actualEnd} sur ${count} classes (Page ${currentPage} / ${totalPages})`;
-        }
-
-        let html = '';
-
-        // Bouton Précédent
-        html += `<li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-            <button type="button" class="page-link" data-page="${currentPage - 1}" aria-label="Précédent" ${currentPage === 1 ? 'disabled' : ''}>
-                <i class="fas fa-chevron-left"></i>
-            </button>
-        </li>`;
-
-        // Calcul des pages visibles
-        let startPage = Math.max(1, currentPage - 2);
-        let endPage = Math.min(totalPages, currentPage + 2);
-
-        if (startPage > 1) {
-            html += `<li class="page-item"><button type="button" class="page-link" data-page="1">1</button></li>`;
-            if (startPage > 2) {
-                html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
-            }
-        }
-
-        for (let p = startPage; p <= endPage; p++) {
-            html += `<li class="page-item ${p === currentPage ? 'active' : ''}">
-                <button type="button" class="page-link" data-page="${p}">${p}</button>
-            </li>`;
-        }
-
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) {
-                html += `<li class="page-item disabled"><span class="page-link">&hellip;</span></li>`;
-            }
-            html += `<li class="page-item"><button type="button" class="page-link" data-page="${totalPages}">${totalPages}</button></li>`;
-        }
-
-        // Bouton Suivant
-        html += `<li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-            <button type="button" class="page-link" data-page="${currentPage + 1}" aria-label="Suivant" ${currentPage === totalPages ? 'disabled' : ''}>
-                <i class="fas fa-chevron-right"></i>
-            </button>
-        </li>`;
-
-        paginationList.innerHTML = html;
-
-        // Attachement des clics de pagination
-        paginationList.querySelectorAll('button.page-link').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const targetPage = parseInt(this.dataset.page, 10);
-                if (targetPage && targetPage !== currentPage && targetPage >= 1 && targetPage <= totalPages) {
-                    currentPage = targetPage;
+        if (typeof window.renderKlasoraPagination === 'function') {
+            window.renderKlasoraPagination({
+                container: paginationBar,
+                listEl: paginationList,
+                mobileEl: mobilePaginationControls,
+                jumpEl: pageJumpCourse,
+                jumpContainer: pageJumpContainer,
+                badgeEl: pageInfoBadge,
+                textEl: pageInfoText,
+                totalItems: count,
+                totalPages: totalPages,
+                currentPage: currentPage,
+                startIndex: startIndex,
+                endIndex: endIndex,
+                itemLabel: 'classe',
+                itemLabelPlural: 'classes',
+                badgeIcon: 'fa-chalkboard',
+                scrollToEl: document.querySelector('.course-toolbar-card'),
+                onPageChange: function(newPage) {
+                    currentPage = newPage;
                     render();
-                    const targetEl = document.querySelector('.course-toolbar-card');
-                    if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             });
-        });
+        }
     }
 
     // Gestion dynamique du bouton "Tout déplier / Tout replier" (Desktop & Mobile)

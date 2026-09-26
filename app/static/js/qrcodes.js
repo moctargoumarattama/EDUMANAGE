@@ -37,6 +37,9 @@
 
         var classCards = Array.from(document.querySelectorAll('.class-qrcode-card'));
         var totalClassesCount = classCards.length;
+        var lastSortMode = null;
+        var lastGridMode = null;
+        var searchDebounceTimer = null;
 
         function normalizeStr(str) {
             if (!str) return '';
@@ -129,8 +132,10 @@
         }
 
         // Tri des élèves dans chaque classe
-        function sortStudents() {
+        function sortStudents(force) {
             var mode = sortQr ? sortQr.value : 'name_asc';
+            if (!force && mode === lastSortMode) return;
+            lastSortMode = mode;
 
             classCards.forEach(function (card) {
                 var gridRow = card.querySelector('.qr-grid-row');
@@ -152,6 +157,11 @@
                     gridRow.appendChild(item);
                 });
             });
+        }
+
+        function debouncedApplyFilters() {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(applyFilters, 280);
         }
 
         // Action de filtrage centralisée
@@ -249,8 +259,12 @@
                 filterStatsMobile.textContent = statsMsg;
             }
 
-            sortStudents();
-            updateGridSize();
+            sortStudents(false);
+            var gridMode = gridSize ? gridSize.value : 'standard';
+            if (gridMode !== lastGridMode) {
+                updateGridSize();
+                lastGridMode = gridMode;
+            }
         }
 
         function resetAllFilters() {
@@ -277,7 +291,7 @@
         }
 
         // Événements
-        if (searchInput) searchInput.addEventListener('input', applyFilters);
+        if (searchInput) searchInput.addEventListener('input', debouncedApplyFilters);
         if (searchClear) {
             searchClear.addEventListener('click', function () {
                 searchInput.value = '';
@@ -287,6 +301,11 @@
         }
         if (filterClasse) {
             filterClasse.addEventListener('change', function () {
+                var selectedOption = filterClasse.options[filterClasse.selectedIndex];
+                if (selectedOption && selectedOption.dataset.serverUrl) {
+                    window.location.href = selectedOption.dataset.serverUrl;
+                    return;
+                }
                 activeChipClasse = filterClasse.value;
                 applyFilters();
             });
@@ -297,13 +316,17 @@
                 applyFilters();
             });
         }
-        if (sortQr) sortQr.addEventListener('change', applyFilters);
+        if (sortQr) sortQr.addEventListener('change', function () {
+            sortStudents(false);
+            applyFilters();
+        });
         if (gridSize) gridSize.addEventListener('change', applyFilters);
 
         if (btnResetEmpty) btnResetEmpty.addEventListener('click', resetAllFilters);
         if (btnResetDrawer) btnResetDrawer.addEventListener('click', resetAllFilters);
 
         // Initialisation
+        sortStudents(true);
         applyFilters();
     });
 }());
