@@ -1,7 +1,6 @@
 import base64
 import io
 import os
-import re
 from datetime import datetime
 from urllib.parse import quote_plus
 
@@ -16,6 +15,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 
 from app import db
+from app.services.phone_numbers import normaliser_telephone_international
 
 
 _PDF_FONT_READY = False
@@ -93,17 +93,7 @@ def _normaliser_telephone_parent_recu(eleve):
         or getattr(eleve, "contact_parent", None)
         or getattr(eleve, "telephone", None)
     )
-    if not telephone:
-        return ""
-
-    digits = re.sub(r"\D", "", str(telephone))
-    if digits.startswith("00227"):
-        digits = digits[5:]
-    elif digits.startswith("227") and len(digits) > 8:
-        digits = digits[3:]
-    if len(digits) > 8:
-        digits = digits[-8:]
-    return digits if len(digits) == 8 else str(telephone).strip()
+    return normaliser_telephone_international(telephone) or ""
 
 
 def _code_pin_parent_recu(eleve):

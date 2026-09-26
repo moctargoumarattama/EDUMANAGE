@@ -452,7 +452,7 @@ def ajouter_eleve():
                 if existing_parent:
                     parent_utilisateur = existing_parent
                     parent_id_final = parent_utilisateur.id
-                    telephone_parent = parent_utilisateur.telephone
+                    parent_utilisateur.telephone = telephone_parent
                     code_parent = None
                 else:
                     # Vérifier si code_parent saisi est unique
@@ -487,7 +487,7 @@ def ajouter_eleve():
                 parent_id_final = form.parent_id.data or None
                 parent_obj = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=parent_id_final).first() if parent_id_final else None
                 if parent_obj:
-                    telephone_parent = _normaliser_telephone_parent(parent_obj.telephone)
+                    telephone_parent = _normaliser_telephone_parent(request.form.get("parent_telephone")) or _normaliser_telephone_parent(parent_obj.telephone)
                     if not telephone_parent:
                         flash("Le parent sélectionné n'a pas de numéro de téléphone valide.", "danger")
                         return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,

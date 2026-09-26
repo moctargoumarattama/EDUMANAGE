@@ -43,6 +43,7 @@ from app.services.absences_annuelles import (
     verifier_mutation_absence,
 )
 from app.services.whatsapp_queue import enqueue_message
+from app.services.phone_numbers import normaliser_numero_whatsapp
 
 
 def _ecole_id_courante():
@@ -76,10 +77,19 @@ def _notifier_whatsapp_absence(absence, ecole=None, eleve=None, cours=None):
             return None
 
         tel_parent = None
-        if getattr(eleve, "parent", None):
-            tel_parent = eleve.parent.telephone
-        tel_parent = tel_parent or eleve.contact_parent
+        for candidat in (
+            getattr(getattr(eleve, "parent", None), "telephone", None),
+            getattr(eleve, "contact_parent", None),
+        ):
+            tel_parent = normaliser_numero_whatsapp(candidat)
+            if tel_parent:
+                break
+
         if not tel_parent:
+            current_app.logger.warning(
+                "Notification WhatsApp absence ignoree: aucun telephone parent valide pour eleve_id=%s",
+                getattr(eleve, "id", None),
+            )
             return None
 
         date_absence = absence.date_absence.strftime("%d/%m/%Y") if absence.date_absence else "ce jour"
@@ -108,7 +118,42 @@ def _notifier_whatsapp_absence(absence, ecole=None, eleve=None, cours=None):
 @tenant_required
 def absences():
     if request.method == 'POST':
-        flash("L'enregistrement initial des absences est réservé aux professeurs lors de la prise d'appel.", "warning")
+        ecole_id = _ecole_id_courante()
+        annee_consultee = get_annee_consultee(ecole_id)
+        form = AbsenceForm()
+        _remplir_choix_absence(form, ecole_id, annee_consultee)
+        if not form.validate_on_submit():
+            flash("Formulaire d'absence invalide.", "danger")
+            return redirect(url_for('main.absences'))
+
+        eleve, cours, inscription, error = verifier_mutation_absence(
+            ecole_id,
+            annee_consultee,
+            current_user,
+            form.eleve_id.data,
+            form.cours_id.data,
+            form.date_absence.data,
+        )
+        if error:
+            flash(error, "danger")
+            return redirect(url_for('main.absences'))
+
+        absence = Absence(
+            date_absence=form.date_absence.data,
+            motif=form.motif.data,
+            justifiee=bool(form.justifiee.data),
+            eleve_id=eleve.id,
+            cours_id=cours.id if cours else None,
+            ecole_id=ecole_id,
+            inscription_id=inscription.id if inscription else None,
+        )
+        db.session.add(absence)
+        db.session.commit()
+
+        if not absence.justifiee:
+            _notifier_whatsapp_absence(absence, ecole=getattr(current_user, "ecole", None), eleve=eleve, cours=cours)
+
+        flash("Absence enregistree avec succes.", "success")
         return redirect(url_for('main.absences'))
 
     page = request.args.get('page', 1, type=int)

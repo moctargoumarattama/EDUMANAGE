@@ -67,7 +67,9 @@ class WhatsAppTriggersTestCase(unittest.TestCase):
         db.session.flush()
 
         self.classe = Classe(nom="CI A", niveau="CI", ecole_id=self.ecole.id, annee_scolaire_id=self.annee.id)
-        self.cours = Cours(nom="Lecture", ecole_id=self.ecole.id)
+        db.session.add(self.classe)
+        db.session.flush()
+        self.cours = Cours(nom="Lecture", ecole_id=self.ecole.id, classe_id=self.classe.id)
         self.parent = Utilisateur(
             nom="Parent",
             email=None,
@@ -86,7 +88,7 @@ class WhatsAppTriggersTestCase(unittest.TestCase):
             ecole_id=self.ecole.id,
             frais_annuels=150000,
         )
-        db.session.add_all([self.classe, self.cours, self.parent, self.eleve])
+        db.session.add_all([self.cours, self.parent, self.eleve])
         db.session.flush()
 
         self.inscription = Inscription(
@@ -99,6 +101,7 @@ class WhatsAppTriggersTestCase(unittest.TestCase):
         )
         db.session.add(self.inscription)
         db.session.commit()
+        self.client = self.app.test_client()
 
     def tearDown(self):
         db.session.remove()
@@ -126,15 +129,66 @@ class WhatsAppTriggersTestCase(unittest.TestCase):
         self.assertIn("Lecture", item.message)
         self.assertIsNotNone(item.expire_le)
 
-    def test_absence_trigger_never_crashes_on_bad_phone(self):
+    def _login_admin(self):
+        admin = Utilisateur(
+            nom="Admin",
+            email="admin-whatsapp@test.local",
+            role="admin",
+            ecole_id=self.ecole.id,
+            statut="actif",
+        )
+        admin.set_mot_de_passe("secret")
+        db.session.add(admin)
+        db.session.commit()
+        with self.client.session_transaction() as sess:
+            sess["_user_id"] = str(admin.id)
+            sess["_fresh"] = True
+            sess["annee_consultee"] = {str(self.ecole.id): self.annee.id}
+            sess["ecole_id"] = self.ecole.id
+        return admin
+
+    def test_absences_form_post_enqueues_pending_message(self):
+        self._login_admin()
+
+        response = self.client.post(
+            "/absences",
+            data={
+                "eleve_id": str(self.eleve.id),
+                "cours_id": str(self.cours.id),
+                "date_absence": "2026-09-26",
+                "motif": "Absence saisie manuellement",
+            },
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        item = MessageQueue.query.one()
+        absence = Absence.query.one()
+        self.assertFalse(absence.justifiee)
+        self.assertEqual(item.type_message, "absence")
+        self.assertEqual(item.destinataire, "+22790123456")
+        self.assertIn("Lecture", item.message)
+
+    def test_absence_trigger_falls_back_to_student_contact_parent(self):
         self.parent.telephone = "123"
         db.session.commit()
         absence = Absence(ecole_id=self.ecole.id, eleve_id=self.eleve.id, date_absence=date.today(), justifiee=False)
 
         item = _notifier_whatsapp_absence(absence, ecole=self.ecole, eleve=self.eleve, cours=self.cours)
 
-        self.assertIsNone(item)
-        self.assertEqual(MessageQueue.query.count(), 0)
+        self.assertIsNotNone(item)
+        self.assertEqual(item.destinataire, "+22790123456")
+
+    def test_absence_trigger_normalises_international_contact_for_baileys(self):
+        self.parent.telephone = None
+        self.eleve.contact_parent = "+212 6 12 34 56 78"
+        db.session.commit()
+        absence = Absence(ecole_id=self.ecole.id, eleve_id=self.eleve.id, date_absence=date.today(), justifiee=False)
+
+        item = _notifier_whatsapp_absence(absence, ecole=self.ecole, eleve=self.eleve, cours=self.cours)
+
+        self.assertIsNotNone(item)
+        self.assertEqual(item.destinataire, "+212612345678")
 
     def test_paiement_trigger_enqueues_receipt_message(self):
         paiement = Paiement(
