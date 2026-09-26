@@ -124,6 +124,38 @@ class EleveParentPhoneOnlyTestCase(unittest.TestCase):
             eleve = Eleve.query.filter_by(contact_parent=stored_phone).first()
             self.assertIsNotNone(eleve)
 
+    def test_existing_parent_can_be_selected_without_new_parent_phone_field(self):
+        parent = Utilisateur(
+            nom="Parent Existant",
+            email=None,
+            telephone="90112233",
+            role="parent",
+            ecole_id=self.ecole.id,
+        )
+        parent.set_mot_de_passe("12345678")
+        db.session.add(parent)
+        db.session.commit()
+
+        html = self.client.get("/ajouter_eleve").get_data(as_text=True)
+        self.assertIn("field.disabled = useExistingParent", html)
+        self.assertIn("syncNouveauParentState();", html)
+
+        payload = self.eleve_payload(email="")
+        payload["nom"] = "Issa"
+        payload["prenom"] = "Karima"
+        payload["parent_id"] = str(parent.id)
+        payload["parent_nom"] = ""
+        payload["parent_telephone"] = ""
+        payload["code_parent"] = ""
+
+        response = self.client.post("/ajouter_eleve", data=payload, follow_redirects=False)
+
+        self.assertEqual(response.status_code, 302)
+        eleve = Eleve.query.filter_by(nom="Issa", prenom="Karima").first()
+        self.assertIsNotNone(eleve)
+        self.assertEqual(eleve.parent_id, parent.id)
+        self.assertEqual(eleve.contact_parent, "90112233")
+
 
 if __name__ == "__main__":
     unittest.main()

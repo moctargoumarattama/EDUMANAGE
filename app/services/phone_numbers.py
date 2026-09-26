@@ -1,6 +1,21 @@
 import re
 
 
+def _digits(value):
+    if not value:
+        return "", ""
+    raw = str(value).strip()
+    return raw, re.sub(r"\D", "", raw)
+
+
+def _format_e164(country_and_number):
+    if not country_and_number or len(country_and_number) < 8 or len(country_and_number) > 15:
+        return None
+    if country_and_number.startswith("0"):
+        return None
+    return f"+{country_and_number}"
+
+
 def normaliser_telephone_international(value, default_country_code="227"):
     """Normalise un telephone parent sans le limiter au Niger.
 
@@ -11,15 +26,14 @@ def normaliser_telephone_international(value, default_country_code="227"):
     if not value:
         return None
 
-    raw = str(value).strip()
-    digits = re.sub(r"\D", "", raw)
+    raw, digits = _digits(value)
     if not digits:
         return None
 
     if raw.lstrip().startswith("+"):
         if default_country_code and digits.startswith(default_country_code) and len(digits) == len(default_country_code) + 8:
             return digits[len(default_country_code):]
-        return f"+{digits}" if 8 <= len(digits) <= 15 else None
+        return _format_e164(digits)
 
     if digits.startswith("00") and len(digits) > 4:
         international = digits[2:]
@@ -29,15 +43,18 @@ def normaliser_telephone_international(value, default_country_code="227"):
             and len(international) == len(default_country_code) + 8
         ):
             return international[len(default_country_code):]
-        return f"+{international}" if 8 <= len(international) <= 15 else None
+        return _format_e164(international)
 
     if default_country_code and digits.startswith(default_country_code) and len(digits) == len(default_country_code) + 8:
         return digits[len(default_country_code):]
 
+    if len(digits) == 10 and digits.startswith(("06", "07")):
+        return f"+212{digits[1:]}"
+
     if len(digits) == 8:
         return digits
 
-    return f"+{digits}" if 9 <= len(digits) <= 15 else None
+    return _format_e164(digits) if 9 <= len(digits) <= 15 else None
 
 
 def cles_telephone_equivalentes(value):
@@ -54,9 +71,23 @@ def cles_telephone_equivalentes(value):
 
 
 def normaliser_numero_whatsapp(value):
-    numero = normaliser_telephone_international(value)
-    if not numero:
+    raw, digits = _digits(value)
+    if not digits:
         return None
-    if numero.startswith("+"):
-        return numero
-    return f"+227{numero}"
+
+    if raw.lstrip().startswith("+"):
+        return _format_e164(digits)
+
+    if digits.startswith("00") and len(digits) > 4:
+        return _format_e164(digits[2:])
+
+    if len(digits) == 8:
+        return f"+227{digits}"
+
+    if len(digits) == 10 and digits.startswith(("06", "07")):
+        return f"+212{digits[1:]}"
+
+    if digits.startswith("227") and len(digits) == 11:
+        return f"+{digits}"
+
+    return _format_e164(digits) if 9 <= len(digits) <= 15 else None

@@ -155,9 +155,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const parentSelect = document.querySelector('select[name="parent_id"]');
     const nouveauParentDiv = document.getElementById('nouveau-parent');
     if (parentSelect && nouveauParentDiv) {
-        parentSelect.addEventListener('change', () => {
-            nouveauParentDiv.classList.toggle('d-none', parentSelect.value !== '0');
-        });
+        const nouveauParentFields = nouveauParentDiv.querySelectorAll('input, select, textarea');
+        const syncNouveauParentState = () => {
+            const useExistingParent = parentSelect.value !== '0';
+            nouveauParentDiv.classList.toggle('d-none', useExistingParent);
+            nouveauParentFields.forEach((field) => {
+                field.disabled = useExistingParent;
+            });
+        };
+        parentSelect.addEventListener('change', syncNouveauParentState);
+        syncNouveauParentState();
     }
 
 });
