@@ -224,7 +224,9 @@ class TestElevesInplaceModal(unittest.TestCase):
         eleve_db = db.session.get(Eleve, self.eleve.id)
         self.assertEqual(eleve_db.nom, "Abdoulaye Modif")
         self.assertEqual(eleve_db.prenom, "Fatima Zahra")
-        self.assertEqual(eleve_db.contact_parent, "+22799887766")
+        self.assertEqual(eleve_db.contact_parent, "99887766")
+        db.session.refresh(self.parent)
+        self.assertIsNone(self.parent.email)
         self.assertEqual(eleve_db.frais_annuels, 175000.0)
 
     def test_03_api_modifier_eleve_validation_errors(self):
@@ -250,4 +252,3 @@ class TestElevesInplaceModal(unittest.TestCase):
         self.assertIn('openFicheEleve', html)
         self.assertIn('formModifierEleveSurPlace', html)
         self.assertIn('Modifier sur place', html)
-

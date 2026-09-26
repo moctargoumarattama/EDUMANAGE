@@ -745,9 +745,6 @@
                                     <strong>Adresse du domicile :</strong> <span id="mfeAdresse" class="text-dark">--</span>
                                 </div>
                                 <div class="col-sm-6">
-                                    <strong>Email parent :</strong> <span id="mfeParentEmail" class="text-dark">--</span>
-                                </div>
-                                <div class="col-sm-6">
                                     <strong>Scolarité :</strong> <span id="mfeFraisStatus" class="badge bg-success-subtle text-success">--</span>
                                 </div>
                             </div>
@@ -830,12 +827,9 @@
                                         <input type="text" class="form-control" name="parent_nom" id="editParentNom" placeholder="Nom complet du tuteur">
                                     </div>
                                     <div class="col-12 col-md-4">
-                                        <label class="form-label small fw-bold text-dark">Téléphone / WhatsApp</label>
-                                        <input type="tel" class="form-control" name="parent_telephone" id="editParentTel" placeholder="Ex: +227 90 00 00 00">
-                                    </div>
-                                    <div class="col-12 col-md-4">
-                                        <label class="form-label small fw-bold text-dark">Email du Parent</label>
-                                        <input type="email" class="form-control" name="parent_email" id="editParentEmail" placeholder="parent@exemple.com">
+                                        <label class="form-label small fw-bold text-dark">Numéro WhatsApp / Téléphone</label>
+                                        <input type="tel" class="form-control" name="parent_telephone" id="editParentTel" inputmode="tel" autocomplete="tel" placeholder="Ex: 90 12 34 56" required>
+                                        <div class="form-text small">Utilisé pour les alertes WhatsApp et l'accès parent. Aucun e-mail parent n'est utilisé.</div>
                                     </div>
                                 </div>
                             </div>
@@ -1233,8 +1227,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const adresse = document.getElementById('mfeAdresse');
         if (adresse) adresse.textContent = el.adresse || 'Non renseignée';
 
-        const parentEmail = document.getElementById('mfeParentEmail');
-        if (parentEmail) parentEmail.textContent = par.email || 'Non renseigné';
 
         const fraisStatus = document.getElementById('mfeFraisStatus');
         if (fraisStatus) {
@@ -1289,11 +1281,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Parent
         const inParentNom = document.getElementById('editParentNom');
         const inParentTel = document.getElementById('editParentTel');
-        const inParentEmail = document.getElementById('editParentEmail');
 
         if (inParentNom) inParentNom.value = par.nom || '';
         if (inParentTel) inParentTel.value = par.telephone || '';
-        if (inParentEmail) inParentEmail.value = (par.email && !par.email.includes('@klasora.local')) ? par.email : '';
 
         const inFrais = document.getElementById('editEleveFraisAnnuels');
         if (inFrais) inFrais.value = el.frais_annuels !== undefined && el.frais_annuels !== null ? el.frais_annuels : '';
@@ -1346,7 +1336,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 adresse: document.getElementById('editEleveAdresse').value,
                 parent_nom: document.getElementById('editParentNom').value,
                 parent_telephone: document.getElementById('editParentTel').value,
-                parent_email: document.getElementById('editParentEmail').value,
                 frais_annuels: inFraisEl ? inFraisEl.value : ''
             };
 

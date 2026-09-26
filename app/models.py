@@ -332,7 +332,7 @@ class Utilisateur(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     nom = db.Column(db.String(100), nullable=False)
     prenom = db.Column(db.String(100))
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True)
     mot_de_passe = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='parent')
     telephone = db.Column(db.String(20))

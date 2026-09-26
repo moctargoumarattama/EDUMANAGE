@@ -101,10 +101,9 @@
                         {% for parent in parents %}
                             <option value="{{ parent.id }}"
                                     data-nom="{{ parent.nom or '' }}"
-                                    data-email="{{ parent.email or '' }}"
                                     data-telephone="{{ parent.telephone or '' }}"
                                     {% if eleve.parent_id == parent.id %}selected{% endif %}>
-                                {{ parent.prenom or '' }} {{ parent.nom }}{% if parent.email %} ({{ parent.email }}){% endif %}
+                                {{ parent.prenom or '' }} {{ parent.nom }}{% if parent.telephone %} ({{ parent.telephone }}){% endif %}
                             </option>
                         {% endfor %}
                     </select>
@@ -116,12 +115,8 @@
                         <label>Nom du parent</label>
                     </div>
                     <div class="form-floating">
-                        <input type="email" name="parent_email" class="form-control" value="{{ eleve.parent.email if eleve.parent else (eleve.email_parent or '') }}" placeholder="Email du parent">
-                        <label>Email du parent</label>
-                    </div>
-                    <div class="form-floating">
-                        <input type="text" name="parent_telephone" class="form-control" value="{{ eleve.parent.telephone if eleve.parent else (eleve.contact_parent or '') }}" placeholder="Téléphone du parent">
-                        <label>Téléphone du parent</label>
+                        <input type="tel" name="parent_telephone" class="form-control" inputmode="tel" autocomplete="tel" value="{{ eleve.parent.telephone if eleve.parent else (eleve.contact_parent or '') }}" placeholder="Ex: 90 12 34 56" required>
+                        <label>Numéro WhatsApp / Téléphone du tuteur</label>
                     </div>
                 </div>
                 <p class="form-help mt-2">Le code parent / mot de passe n'est pas affiché ni modifié ici.</p>
@@ -155,21 +150,18 @@
 document.addEventListener('DOMContentLoaded', () => {
     const parentSelect = document.getElementById('parent_id');
     const parentNom = document.querySelector('input[name="parent_nom"]');
-    const parentEmail = document.querySelector('input[name="parent_email"]');
     const parentTelephone = document.querySelector('input[name="parent_telephone"]');
 
-    if (!parentSelect || !parentNom || !parentEmail || !parentTelephone) return;
+    if (!parentSelect || !parentNom || !parentTelephone) return;
 
     parentSelect.addEventListener('change', () => {
         const selected = parentSelect.options[parentSelect.selectedIndex];
         if (!selected || parentSelect.value === '0') {
             parentNom.value = '';
-            parentEmail.value = '';
             parentTelephone.value = '';
             return;
         }
         parentNom.value = selected.dataset.nom || '';
-        parentEmail.value = selected.dataset.email || '';
         parentTelephone.value = selected.dataset.telephone || '';
     });
 });

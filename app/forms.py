@@ -87,8 +87,7 @@ class EleveForm(FlaskForm):
     parent_id = SelectField('Parent existant', coerce=int, choices=[], validate_choice=False)
     parent_nom = StringField('Nom du parent', validators=[Optional(), Length(max=100)])
     parent_prenom = StringField('Prénom du parent', validators=[Optional(), Length(max=100)])
-    email_parent = StringField('Email du parent', validators=[Optional(), Email(), Length(max=120)])
-    telephone_parent = StringField('Téléphone du parent', validators=[Optional(), Length(max=20)])
+    telephone_parent = StringField('Numéro WhatsApp / Téléphone du tuteur', validators=[DataRequired(message="Le numéro de téléphone du tuteur est requis."), Length(max=20)])
     code_parent = StringField('Code parent (laisser vide pour générer automatiquement)', validators=[Optional(), Length(max=8)])
     
     submit = SubmitField('Enregistrer')
@@ -101,7 +100,7 @@ class EleveForm(FlaskForm):
         if ecole:
             parents_query = filtre_par_ecole(Utilisateur.query.filter_by(role='parent'), Utilisateur)
             self.parent_id.choices = [(0, "--- Aucun parent ---")] + [
-                (p.id, f"{p.prenom or ''} {p.nom} ({p.email})") for p in parents_query.order_by(Utilisateur.nom).all()
+                (p.id, f"{(p.prenom or '') + ' ' + p.nom} ({p.telephone or 'sans téléphone'})") for p in parents_query.order_by(Utilisateur.nom).all()
             ]
         else:
             self.parent_id.choices = [(0, "--- Aucun parent ---")]
@@ -112,6 +111,19 @@ class EleveForm(FlaskForm):
             self.classe_id.choices = [(c.id, f"{c.nom} ({c.niveau})") for c in classes_triees_pedagogique(classes_query).all()]
         else:
             self.classe_id.choices = []
+
+    def validate(self, extra_validators=None):
+        if not self.telephone_parent.data:
+            self.telephone_parent.data = (request.form.get('parent_telephone') or '').strip()
+        selected_parent = self.parent_id.data not in (None, 0, "0")
+        original_phone = self.telephone_parent.data
+        if selected_parent and not original_phone:
+            self.telephone_parent.data = "00000000"
+        valid = super().validate(extra_validators=extra_validators)
+        if selected_parent and not original_phone:
+            self.telephone_parent.data = original_phone
+            self.telephone_parent.errors = []
+        return valid
 
 # -----------------------
 # Formulaire Professeur

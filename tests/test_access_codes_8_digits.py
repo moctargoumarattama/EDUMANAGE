@@ -79,7 +79,7 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
             "code_prof": code_prof,
         }
 
-    def eleve_data(self, email="parent@example.com", code_parent="", parent_id="0"):
+    def eleve_data(self, email="parent@example.com", code_parent="", parent_id="0", telephone="91000000"):
         return {
             "nom": "Sow",
             "prenom": "Awa",
@@ -91,7 +91,7 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
             "parent_id": parent_id,
             "parent_nom": "Parent Sow",
             "parent_email": email,
-            "parent_telephone": "91000000",
+            "parent_telephone": telephone,
             "code_parent": code_parent,
             "adresse": "Niamey",
         }
@@ -150,20 +150,21 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
             response = client.post("/ajouter_eleve", data=self.eleve_data(), follow_redirects=False)
 
         self.assertEqual(response.status_code, 302)
-        parent = Utilisateur.query.filter_by(email="parent@example.com", role="parent").first()
+        parent = Utilisateur.query.filter_by(telephone="91000000", role="parent").first()
         self.assertIsNotNone(parent)
+        self.assertIsNone(parent.email)
         self.assertNotEqual(parent.mot_de_passe, "58310427")
         self.assertTrue(parent.check_mot_de_passe("58310427"))
 
         with patch("app.notifications.envoyer_email", return_value=True):
             response = client.post(
                 "/ajouter_eleve",
-                data=self.eleve_data(email="parent2@example.com", code_parent="87654321"),
+                data=self.eleve_data(email="parent2@example.com", code_parent="87654321", telephone="92000000"),
                 follow_redirects=False,
             )
 
         self.assertEqual(response.status_code, 302)
-        parent2 = Utilisateur.query.filter_by(email="parent2@example.com", role="parent").first()
+        parent2 = Utilisateur.query.filter_by(telephone="92000000", role="parent").first()
         self.assertTrue(parent2.check_mot_de_passe("87654321"))
 
         parent2_hash = parent2.mot_de_passe

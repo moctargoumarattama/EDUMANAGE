@@ -44,6 +44,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 import pandas as pd
+import re
 import uuid
 from app.utils import sanitize_internal_url
 from app.services.import_eleves_service import (
@@ -78,6 +79,44 @@ def _safe_return_url(fallback):
         request.form.get('return_url') or request.args.get('return_url'),
         fallback,
     )
+
+
+def _normaliser_telephone_parent(value):
+    if not value:
+        return None
+    digits = re.sub(r"\D", "", str(value))
+    if digits.startswith("00227"):
+        digits = digits[5:]
+    elif digits.startswith("227") and len(digits) > 8:
+        digits = digits[3:]
+    if len(digits) > 8:
+        digits = digits[-8:]
+    return digits if len(digits) == 8 else None
+
+
+def _find_parent_by_phone(ecole_id, telephone, exclude_id=None):
+    local_phone = _normaliser_telephone_parent(telephone)
+    if not local_phone:
+        return None
+
+    query = Utilisateur.query.filter(
+        Utilisateur.ecole_id == ecole_id,
+        Utilisateur.role == 'parent',
+        Utilisateur.telephone.isnot(None),
+    )
+    if exclude_id:
+        query = query.filter(Utilisateur.id != exclude_id)
+
+    for parent in query.all():
+        if _normaliser_telephone_parent(parent.telephone) == local_phone:
+            return parent
+    return None
+
+
+def _parent_label(parent):
+    nom = f"{parent.prenom or ''} {parent.nom}".strip() or "Parent"
+    contact = parent.telephone or "sans telephone"
+    return f"{nom} ({contact})"
 
 
 @main.route('/eleves')
@@ -379,7 +418,7 @@ def ajouter_eleve():
     # ---------------- Parents ----------------
     form.parent_id.choices = [(0, "--- Aucun parent ---")]
     parents = Utilisateur.query.filter_by(role='parent', ecole_id=ecole_id).order_by(Utilisateur.nom).all()
-    form.parent_id.choices += [(p.id, f"{p.prenom or ''} {p.nom} ({p.email})") for p in parents]
+    form.parent_id.choices += [(p.id, _parent_label(p)) for p in parents]
 
     # ---------------- Soumission du formulaire ----------------
     if form.validate_on_submit():
@@ -403,61 +442,73 @@ def ajouter_eleve():
             # ---------------- Gestion parent ----------------
             parent_id_final = None
             code_parent = None
-            email_parent = request.form.get("parent_email")
-            telephone_parent = request.form.get("parent_telephone")
+            telephone_parent = _normaliser_telephone_parent(request.form.get("parent_telephone"))
             code_parent_saisi = (request.form.get("code_parent") or "").strip()
 
             # 🔸 Nouveau parent
             if form.parent_id.data == 0 and any([
                 request.form.get("parent_nom"),
-                email_parent,
                 telephone_parent,
                 code_parent_saisi
             ]):
-                # Vérifie doublon parent par email
-                if email_parent and Utilisateur.query.filter_by(email=email_parent, role='parent', ecole_id=ecole_id).first():
-                    flash("❌ Cet email est déjà utilisé par un autre parent.", "danger")
+                if not telephone_parent:
+                    flash("Le numéro de téléphone du tuteur est requis.", "danger")
                     return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
                                            annee_active=annee_active, classes=classes)
 
-                # Vérifier si code_parent saisi est unique
-                if code_parent_saisi:
-                    if not is_valid_access_code(code_parent_saisi):
-                        flash("Le code d'accès doit contenir exactement 8 chiffres.", "danger")
-                        return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
-                                               annee_active=annee_active, classes=classes)
-                    if Eleve.query.filter_by(code_parent=code_parent_saisi).first():
-                        flash("Ce code parent est déjà utilisé par un autre élève.", "danger")
-                        return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
-                                               annee_active=annee_active, classes=classes)
+                existing_parent = _find_parent_by_phone(ecole_id, telephone_parent)
+                if existing_parent:
+                    parent_utilisateur = existing_parent
+                    parent_id_final = parent_utilisateur.id
+                    telephone_parent = parent_utilisateur.telephone
+                    code_parent = None
+                else:
+                    # Vérifier si code_parent saisi est unique
+                    if code_parent_saisi:
+                        if not is_valid_access_code(code_parent_saisi):
+                            flash("Le code d'accès doit contenir exactement 8 chiffres.", "danger")
+                            return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
+                                                   annee_active=annee_active, classes=classes)
+                        if Eleve.query.filter_by(code_parent=code_parent_saisi).first():
+                            flash("Ce code parent est déjà utilisé par un autre élève.", "danger")
+                            return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
+                                                   annee_active=annee_active, classes=classes)
 
-                code_parent = code_parent_saisi or generate_access_code()
-                parent_utilisateur = Utilisateur(
-                    nom=request.form.get("parent_nom"),
-                    prenom=None,
-                    email=email_parent,
-                    telephone=telephone_parent,
-                    role='parent',
-                    ecole_id=ecole_id
-                )
-                parent_utilisateur.set_mot_de_passe(code_parent)
-                db.session.add(parent_utilisateur)
-                db.session.flush()  # Pour récupérer l'ID
-                parent_id_final = parent_utilisateur.id
+                    code_parent = code_parent_saisi or generate_access_code()
+                    parent_utilisateur = Utilisateur(
+                        nom=request.form.get("parent_nom") or f"Parent {form.nom.data.strip()}",
+                        prenom=None,
+                        email=None,
+                        telephone=telephone_parent,
+                        role='parent',
+                        ecole_id=ecole_id
+                    )
+                    parent_utilisateur.set_mot_de_passe(code_parent)
+                    db.session.add(parent_utilisateur)
+                    db.session.flush()  # Pour récupérer l'ID
+                    parent_id_final = parent_utilisateur.id
 
-                email_parent = parent_utilisateur.email
-                telephone_parent = parent_utilisateur.telephone
+                    telephone_parent = parent_utilisateur.telephone
 
             else:
                 # 🔸 Parent existant avec filtre multi-écoles
                 parent_id_final = form.parent_id.data or None
                 parent_obj = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=parent_id_final).first() if parent_id_final else None
                 if parent_obj:
-                    email_parent = parent_obj.email
-                    telephone_parent = parent_obj.telephone
+                    telephone_parent = _normaliser_telephone_parent(parent_obj.telephone)
+                    if not telephone_parent:
+                        flash("Le parent sélectionné n'a pas de numéro de téléphone valide.", "danger")
+                        return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
+                                               annee_active=annee_active, classes=classes)
+                    parent_obj.telephone = telephone_parent
                 elif parent_obj is None and parent_id_final:
                     flash("❌ Ce parent n'appartient pas à votre école.", "danger")
                     return redirect(url_for('main.ajouter_eleve'))
+
+            if not parent_id_final:
+                flash("Le numéro de téléphone du tuteur est requis.", "danger")
+                return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
+                                       annee_active=annee_active, classes=classes)
 
             # ---------------- Création élève ----------------
             nouvel_eleve = Eleve(
@@ -470,7 +521,7 @@ def ajouter_eleve():
                 
                 # Suppression des champs email/téléphone élève
                 contact_parent=telephone_parent,
-                email_parent=email_parent.lower() if email_parent else None,
+                email_parent=None,
                 
                 frais_annuels=form.frais_annuels.data or 0.0,
                 code_parent=code_parent,
@@ -495,7 +546,7 @@ def ajouter_eleve():
             if parent_id_final and code_parent:
                 try:
                     import qrcode, io, base64
-                    qr_data = f"Parent: {parent_utilisateur.prenom} {parent_utilisateur.nom}\nEmail: {email_parent}\nMot de passe: {code_parent}"
+                    qr_data = f"Parent: {parent_utilisateur.prenom or ''} {parent_utilisateur.nom}\nTelephone: {telephone_parent}\nCode PIN: {code_parent}"
                     qr = qrcode.QRCode(
                         version=1, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=4
                     )
@@ -506,23 +557,6 @@ def ajouter_eleve():
                     img.save(buffer, format='PNG')
                     buffer.seek(0)
                     qr_base64 = base64.b64encode(buffer.getvalue()).decode()
-
-                    # Envoi email
-                    if email_parent:
-                        from app.notifications import envoyer_email
-                        sujet = "Bienvenue sur KLASORA — Votre espace parent est prêt"
-                        message = render_template(
-                            'emails/bienvenue_parent.html',
-                            parent=parent_utilisateur,
-                            ecole=current_user.ecole,
-                            mot_de_passe=code_parent
-                        )
-                        email_ok = envoyer_email(email_parent, sujet, message, context="welcome_parent")
-                        if email_ok:
-                            current_app.logger.info("EMAIL_SUCCESS_HANDLED type=welcome_parent recipient=%s", email_parent)
-                        else:
-                            current_app.logger.warning("EMAIL_FAILED_HANDLED type=welcome_parent recipient=%s", email_parent)
-                            flash("Parent créé, mais l'email de bienvenue n'a pas pu être envoyé.", "warning")
 
                 except Exception as e:
                     current_app.logger.error("Erreur préparation notification parent: %s", e)
@@ -734,7 +768,6 @@ def api_fiche_eleve(eleve_id):
 
     parent_nom = eleve.parent.nom if eleve.parent else ''
     parent_prenom = eleve.parent.prenom if eleve.parent else ''
-    parent_email = eleve.parent.email if eleve.parent else (eleve.email_parent or '')
     parent_tel = eleve.parent.telephone if eleve.parent else (eleve.contact_parent or '')
 
     return jsonify({
@@ -763,7 +796,7 @@ def api_fiche_eleve(eleve_id):
             'nom': parent_nom,
             'prenom': parent_prenom,
             'nom_complet': f"{parent_prenom} {parent_nom}".strip() or parent_nom or (parent_tel or 'Parent non assigné'),
-            'email': parent_email,
+            'email': '',
             'telephone': parent_tel,
         },
         'pedagogie': {
@@ -857,48 +890,31 @@ def api_modifier_eleve(eleve_id):
 
     # Gestion parent
     parent_nom = (data.get('parent_nom') or '').strip()
-    parent_email = (data.get('parent_email') or '').strip().lower()
-    parent_tel = (data.get('parent_telephone') or '').strip()
+    parent_tel = _normaliser_telephone_parent(data.get('parent_telephone'))
 
     parent = eleve.parent
     if parent:
-        if parent_email:
-            existing = Utilisateur.query.filter(
-                Utilisateur.ecole_id == ecole_id,
-                Utilisateur.email == parent_email,
-                Utilisateur.id != parent.id,
-            ).first()
-            if existing:
-                return jsonify({'success': False, 'error': 'Cet email parent est déjà associé à un autre compte.'}), 400
-            parent.email = parent_email
         if parent_nom:
             parent.nom = parent_nom
-        parent.telephone = parent_tel or None
-    elif any([parent_nom, parent_email, parent_tel]):
-        if parent_email:
-            existing = Utilisateur.query.filter_by(email=parent_email, role='parent', ecole_id=ecole_id).first()
-            if existing:
-                parent = existing
+        if parent_tel:
+            existing_by_phone = _find_parent_by_phone(ecole_id, parent_tel, exclude_id=parent.id)
+            if existing_by_phone:
+                parent = existing_by_phone
             else:
-                parent = Utilisateur(
-                    nom=parent_nom or parent_email,
-                    prenom=None,
-                    email=parent_email,
-                    telephone=parent_tel or None,
-                    role='parent',
-                    ecole_id=ecole_id,
-                    statut='actif',
-                )
-                parent.set_mot_de_passe(generate_access_code())
-                db.session.add(parent)
-                db.session.flush()
-        elif parent_nom or parent_tel:
-            # Création d'un parent sans email obligatoire si tel fourni
+                parent.telephone = parent_tel
+        parent.email = None
+    elif parent_nom or parent_tel:
+        if not parent_tel:
+            return jsonify({'success': False, 'error': 'Le numéro de téléphone du tuteur est requis.'}), 400
+        existing_by_phone = _find_parent_by_phone(ecole_id, parent_tel)
+        if existing_by_phone:
+            parent = existing_by_phone
+        else:
             parent = Utilisateur(
                 nom=parent_nom or f"Parent {eleve.nom}",
                 prenom=None,
-                email=f"parent_{eleve.id}_{uuid.uuid4().hex[:6]}@klasora.local",
-                telephone=parent_tel or None,
+                email=None,
+                telephone=parent_tel,
                 role='parent',
                 ecole_id=ecole_id,
                 statut='actif',
@@ -910,7 +926,7 @@ def api_modifier_eleve(eleve_id):
         eleve.parent_id = parent.id if parent else None
 
     eleve.contact_parent = parent.telephone if parent else (parent_tel or None)
-    eleve.email_parent = parent.email if parent else (parent_email or None)
+    eleve.email_parent = None
 
     # Inscription annuelle / mise à jour classe
     inscription, inscription_error = modifier_inscription_annuelle(
@@ -1088,7 +1104,6 @@ def export_eleves_excel():
         'Date de naissance': [e.date_naissance.strftime('%d/%m/%Y') if e.date_naissance else '' for e, _classe in eleves_rows],
         'Classe': [classe.nom if classe else "Non assignee" for _e, classe in eleves_rows],
         'Telephone parent': [e.contact_parent for e, _classe in eleves_rows],
-        'Email parent': [e.email_parent for e, _classe in eleves_rows],
         'Date inscription': [e.date_inscription.strftime('%d/%m/%Y') if e.date_inscription else '' for e, _classe in eleves_rows],
         'Annee scolaire': [annee_consultee.nom if annee_consultee else '' for _e, _classe in eleves_rows],
     }
@@ -1547,8 +1562,7 @@ def modifier_eleve(eleve_id):
         classe_id = request.form.get('classe_id', type=int)
         parent_id = request.form.get('parent_id', type=int)
         parent_nom = (request.form.get('parent_nom') or '').strip()
-        parent_email = (request.form.get('parent_email') or '').strip().lower()
-        parent_telephone = (request.form.get('parent_telephone') or '').strip()
+        parent_telephone = _normaliser_telephone_parent(request.form.get('parent_telephone'))
 
         if not classe_id:
             flash("La classe est obligatoire. Un eleve doit toujours etre inscrit dans une classe.", "danger")
@@ -1588,38 +1602,35 @@ def modifier_eleve(eleve_id):
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
 
         if parent:
-            if parent_email:
-                existing_parent = Utilisateur.query.filter(
-                    Utilisateur.ecole_id == current_user.ecole_id,
-                    Utilisateur.email == parent_email,
-                    Utilisateur.id != parent.id,
-                ).first()
-                if existing_parent:
-                    flash("Cet email parent est deja utilise par un autre compte.", "danger")
-                    return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
-                parent.email = parent_email
             if parent_nom:
                 parent.nom = parent_nom
-            parent.telephone = parent_telephone or None
-        elif any([parent_nom, parent_email, parent_telephone]):
-            if not parent_email:
-                flash("L'email du parent est obligatoire pour creer un nouveau compte parent.", "danger")
+            if parent_telephone:
+                existing_parent = _find_parent_by_phone(current_user.ecole_id, parent_telephone, exclude_id=parent.id)
+                if existing_parent:
+                    parent = existing_parent
+                else:
+                    parent.telephone = parent_telephone
+            parent.email = None
+        elif parent_nom or parent_telephone:
+            if not parent_telephone:
+                flash("Le numero de telephone du tuteur est requis.", "danger")
                 return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
-            if Utilisateur.query.filter_by(email=parent_email, role='parent', ecole_id=current_user.ecole_id).first():
-                flash("Cet email est deja utilise par un autre parent.", "danger")
-                return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
-            parent = Utilisateur(
-                nom=parent_nom or parent_email,
-                prenom=None,
-                email=parent_email,
-                telephone=parent_telephone or None,
-                role='parent',
-                ecole_id=current_user.ecole_id,
-                statut='actif',
-            )
-            parent.set_mot_de_passe(generate_access_code())
-            db.session.add(parent)
-            db.session.flush()
+            existing_parent = _find_parent_by_phone(current_user.ecole_id, parent_telephone)
+            if existing_parent:
+                parent = existing_parent
+            else:
+                parent = Utilisateur(
+                    nom=parent_nom or f"Parent {eleve.nom}",
+                    prenom=None,
+                    email=None,
+                    telephone=parent_telephone,
+                    role='parent',
+                    ecole_id=current_user.ecole_id,
+                    statut='actif',
+                )
+                parent.set_mot_de_passe(generate_access_code())
+                db.session.add(parent)
+                db.session.flush()
 
         inscription, inscription_error = modifier_inscription_annuelle(
             ecole_id=current_user.ecole_id,
@@ -1632,7 +1643,7 @@ def modifier_eleve(eleve_id):
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
 
         eleve.parent_id = parent.id if parent else None
-        eleve.email_parent = parent.email if parent else (parent_email or None)
+        eleve.email_parent = None
         eleve.contact_parent = parent.telephone if parent else (parent_telephone or None)
         db.session.commit()
         flash("Eleve modifie avec succes.", "success")

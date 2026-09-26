@@ -115,19 +115,15 @@
                         <label>Nom du parent</label>
                     </div>
                     <div class="form-floating">
-                        <input type="email" name="parent_email" class="form-control" placeholder="Email du parent">
-                        <label>Email du parent</label>
-                    </div>
-                    <div class="form-floating">
-                        <input type="text" name="parent_telephone" class="form-control" placeholder="Téléphone du parent">
-                        <label>Téléphone du parent</label>
+                        <input type="tel" name="parent_telephone" class="form-control" inputmode="tel" autocomplete="tel" placeholder="Ex: 90 12 34 56" required>
+                        <label>Numéro WhatsApp / Téléphone du tuteur</label>
                     </div>
                     <div class="form-floating">
                         <input type="text" name="code_parent" class="form-control" placeholder="8 chiffres, laisser vide pour générer">
                         <label>Code parent</label>
                     </div>
                 </div>
-                <p class="form-help mt-2">8 chiffres. Laissez vide pour générer automatiquement.</p>
+                <p class="form-help mt-2">Le numéro du tuteur sert aux alertes WhatsApp et à l'accès parent. Aucun e-mail parent n'est utilisé.</p>
             </div>
 
             <div class="form-section">
