@@ -72,7 +72,7 @@ def _url_with_args(endpoint, allowed_args, **values):
 def _eleves_context_url():
     return _url_with_args(
         'main.eleves',
-        ('search', 'classe_id', 'niveau', 'niveau_id', 'genre', 'page'),
+        ('search', 'classe_id', 'niveau', 'niveau_id', 'genre', 'statut', 'page'),
     )
 
 
@@ -154,7 +154,7 @@ def _notifier_whatsapp_inscription(eleve, classe=None, ecole=None):
 def eleves():
     """Gestion et liste des élèves organisée par classe avec recherche et filtres"""
     page = request.args.get('page', 1, type=int)
-    per_page = 50
+    classes_per_page = 10
     classe_id = request.args.get('classe_id', type=int)
     search = (request.args.get('search') or request.args.get('q') or '').strip()
     niveau_param = request.args.get('niveau_id') or request.args.get('niveau') or ''
@@ -210,6 +210,8 @@ def eleves():
 
     # Application des filtres de recherche multi-critères
     eleves_query = all_eleves_query
+    classe_joined = current_user.role == 'professeur'
+    parent_joined = False
 
     # Sécurité prof : vérification si la classe demandée lui est bien assignée
     if classe_id:
@@ -226,8 +228,9 @@ def eleves():
 
     if niveau_param:
         # Jointure Classe si pas déjà jointe
-        if current_user.role != 'professeur':
+        if not classe_joined:
             eleves_query = eleves_query.join(Classe, Classe.id == Inscription.classe_id)
+            classe_joined = True
         if str(niveau_param).isdigit():
             eleves_query = eleves_query.filter(db.or_(Classe.niveau_id == int(niveau_param), Classe.niveau == str(niveau_param)))
         else:
@@ -241,18 +244,26 @@ def eleves():
 
     if search:
         like = f"%{search}%"
+        if not classe_joined:
+            eleves_query = eleves_query.join(Classe, Classe.id == Inscription.classe_id)
+            classe_joined = True
+        if not parent_joined:
+            eleves_query = eleves_query.outerjoin(Utilisateur, Utilisateur.id == Eleve.parent_id)
+            parent_joined = True
         eleves_query = eleves_query.filter(
             db.or_(
                 Eleve.nom.ilike(like),
                 Eleve.prenom.ilike(like),
                 Eleve.code_parent.ilike(like),
-                Eleve.contact_parent.ilike(like)
+                Eleve.contact_parent.ilike(like),
+                Classe.nom.ilike(like),
+                Classe.niveau.ilike(like),
+                Classe.salle.ilike(like),
+                Utilisateur.nom.ilike(like),
+                Utilisateur.prenom.ilike(like),
+                Utilisateur.telephone.ilike(like),
             )
         )
-
-    # Pagination effective : seules les lignes de la page courante alimentent le DOM.
-    eleves_pagination = eleves_query.paginate(page=page, per_page=per_page, error_out=False)
-    all_eleves = list(eleves_pagination.items)
 
     # Classes autorisées
     classes_query = get_classes_annee(ecole_id, annee_consultee.id) if annee_consultee else Classe.query.filter_by(ecole_id=ecole_id).filter(db.false())
@@ -267,7 +278,57 @@ def eleves():
                 )
             )
         )
-    classes = classes_triees_pedagogique(classes_query).all()
+
+    if classe_id:
+        classes_query = classes_query.filter(Classe.id == classe_id)
+
+    if niveau_param:
+        if str(niveau_param).isdigit():
+            classes_query = classes_query.filter(db.or_(Classe.niveau_id == int(niveau_param), Classe.niveau == str(niveau_param)))
+        else:
+            classes_query = classes_query.filter(Classe.niveau == str(niveau_param))
+
+    if search or genre or statut:
+        matching_class_ids = (
+            eleves_query
+            .order_by(None)
+            .with_entities(Inscription.classe_id.label("classe_id"))
+            .filter(Inscription.classe_id.isnot(None))
+            .distinct()
+            .subquery()
+        )
+        classes_query = classes_query.filter(
+            Classe.id.in_(db.session.query(matching_class_ids.c.classe_id))
+        )
+
+    classes_pagination = classes_triees_pedagogique(classes_query).paginate(
+        page=page,
+        per_page=classes_per_page,
+        error_out=False,
+    )
+    if classes_pagination.pages and page > classes_pagination.pages:
+        return redirect(_url_with_args(
+            'main.eleves',
+            ('search', 'classe_id', 'niveau', 'niveau_id', 'genre', 'statut'),
+            page=classes_pagination.pages,
+        ))
+    classes = list(classes_pagination.items)
+    page_class_ids = [c.id for c in classes]
+
+    total_eleves = eleves_query.order_by(None).count()
+    total_classes = classes_pagination.total
+    total_filles = eleves_query.order_by(None).filter(db.func.upper(Eleve.genre) == 'F').count()
+    total_garcons = max(0, total_eleves - total_filles)
+
+    all_eleves = []
+    if page_class_ids:
+        all_eleves = (
+            eleves_query
+            .filter(Inscription.classe_id.in_(page_class_ids))
+            .order_by(Eleve.nom.asc(), Eleve.prenom.asc())
+            .all()
+        )
+
     inscriptions = []
     if annee_consultee and all_eleves:
         inscriptions = (
@@ -323,10 +384,6 @@ def eleves():
     if sans_classe_group['eleves']:
         classes_eleves.append(sans_classe_group)
 
-    total_eleves = eleves_pagination.total
-    total_classes = len(classes)
-    total_filles = eleves_query.order_by(None).filter(db.func.upper(Eleve.genre) == 'F').count()
-    total_garcons = max(0, total_eleves - total_filles)
     total_sans_classe = len(sans_classe_group['eleves'])
     total_assignes = total_eleves - total_sans_classe
 
@@ -343,6 +400,8 @@ def eleves():
         return jsonify({
             'total': total_eleves,
             'page': page,
+            'classes_page': classes_pagination.page,
+            'classes_total': total_classes,
             'eleves': [
                 {
                     'id': e.id,
@@ -400,7 +459,9 @@ def eleves():
         genre=genre,
         statut=statut,
         niveaux_annee=niveaux_annee,
-        eleves=eleves_pagination,
+        eleves=classes_pagination,
+        classes_pagination=classes_pagination,
+        classes_per_page=classes_per_page,
         all_eleves=all_eleves,
         inscription_par_eleve=inscription_par_eleve,
         annee_consultee=annee_consultee,

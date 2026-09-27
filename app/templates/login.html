@@ -4,6 +4,7 @@
 
 {% block content %}
 {% set active_mode = active_login_type|default('terrain') %}
+{% set login_form_action = url_for('main.login', next=request.args.get('next')) if request.args.get('next') else url_for('main.login') %}
 <div class="login-page">
     <section class="login-shell" aria-label="Connexion KLASORA">
         <div class="login-card position-relative">
@@ -20,7 +21,7 @@
 
             <div id="section-terrain" class="login-mode-panel" {% if active_mode == 'admin' %}style="display: none;"{% endif %}>
                 <h2 class="login-mode-title">Connexion Enseignants & Parents</h2>
-                <form method="POST" action="{{ url_for('main.login') }}" class="login-form needs-validation" novalidate>
+                <form method="POST" action="{{ login_form_action }}" class="login-form needs-validation" novalidate>
                     {{ form.csrf_token }}
                     <input type="hidden" name="login_type" value="terrain">
 
@@ -66,7 +67,7 @@
 
             <div id="section-admin" class="login-mode-panel" {% if active_mode != 'admin' %}style="display: none;"{% endif %}>
                 <h2 class="login-mode-title text-primary">Espace Administration</h2>
-                <form method="POST" action="{{ url_for('main.login') }}" class="login-form needs-validation" novalidate>
+                <form method="POST" action="{{ login_form_action }}" class="login-form needs-validation" novalidate>
                     {{ form.csrf_token }}
                     <input type="hidden" name="login_type" value="admin">
 

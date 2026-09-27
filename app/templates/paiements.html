@@ -246,8 +246,8 @@
                     <label class="form-label text-muted small fw-semibold mb-1" for="paymentPageSizeSelect">Affichage par page</label>
                     <select id="paymentPageSizeSelect" class="form-select form-select-sm">
                         <option value="5">5 classes / page</option>
-                        <option value="10">10 classes / page</option>
-                        <option value="20" selected>20 classes / page</option>
+                        <option value="10" selected>10 classes / page</option>
+                        <option value="20">20 classes / page</option>
                         <option value="all">Toutes les classes</option>
                     </select>
                 </div>
@@ -386,6 +386,7 @@
                                 {% set el_reste = p_data.get('reste_a_payer', 0) %}
                                 {% set el_frais = p_data.get('frais_annuels', el.frais_annuels or 0) %}
                                 {% set el_pct = p_data.get('pourcentage_paye', 0) %}
+                                {% set el_inscription = p_data.get('inscription') %}
 
                                 {% set el_statut = 'complet' if el_reste <= 0 else ('partiel' if el_paye > 0 else 'aucun') %}
                                 {% set el_search = el.prenom ~ ' ' ~ el.nom ~ ' ' ~ (el.classe.nom if el.classe else '') %}
@@ -463,9 +464,13 @@
                                         <span class="text-muted small">
                                             <i class="fas fa-receipt me-1"></i>Les versements detailles se consultent a la demande.
                                         </span>
-                                        <a href="{{ url_for('main.tracabilite_paiements', recherche=el.prenom ~ ' ' ~ el.nom) }}" class="btn btn-sm btn-outline-info rounded-pill">
-                                            <i class="fas fa-history me-1"></i>Voir les details
-                                        </a>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-info rounded-pill"
+                                                data-payment-details
+                                                data-details-url="{{ url_for('main.details_paiements_inscription', inscription_id=el_inscription.id) if el_inscription else '' }}"
+                                                data-eleve-nom="{{ el.prenom }} {{ el.nom }}">
+                                            <i class="fas fa-receipt me-1"></i>Voir les détails
+                                        </button>
                                     </div>
                                 </div>
                             {% endfor %}
@@ -589,10 +594,10 @@
             <!-- Informations d'affichage & total -->
             <div class="d-flex align-items-center gap-2 flex-wrap justify-content-center justify-content-md-start">
                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1.5 rounded-pill fw-semibold font-monospace">
-                    <i class="fas fa-file-invoice-dollar me-1"></i>{{ eleves_pagination.total }} inscription{{ 's' if eleves_pagination.total > 1 else '' }}
+                    <i class="fas fa-chalkboard me-1"></i>{{ eleves_pagination.total }} classe{{ 's' if eleves_pagination.total > 1 else '' }}
                 </span>
                 <span class="text-muted small">
-                    Affichage de <strong class="text-dark">{{ (eleves_pagination.page - 1) * eleves_pagination.per_page + 1 }}</strong> à <strong class="text-dark">{{ [eleves_pagination.page * eleves_pagination.per_page, eleves_pagination.total]|min }}</strong>
+                    Classes <strong class="text-dark">{{ (eleves_pagination.page - 1) * eleves_pagination.per_page + 1 }}</strong> à <strong class="text-dark">{{ [eleves_pagination.page * eleves_pagination.per_page, eleves_pagination.total]|min }}</strong> sur <strong class="text-dark">{{ eleves_pagination.total }}</strong>
                     <span class="text-secondary opacity-75 d-none d-lg-inline">&bull; Page {{ eleves_pagination.page }} sur {{ eleves_pagination.pages }}</span>
                 </span>
             </div>
@@ -634,7 +639,7 @@
                 </div>
 
                 <!-- Vue Tablette / Ordinateur (>= 576px) -->
-                <nav class="d-none d-sm-flex align-items-center" aria-label="Pagination des inscriptions">
+                <nav class="d-none d-sm-flex align-items-center" aria-label="Pagination des classes">
                     <ul class="pagination pagination-clean mb-0">
                         <!-- Première page («) -->
                         {% if eleves_pagination.page > 2 %}
@@ -730,7 +735,7 @@
     <div class="card border-0 shadow-sm rounded-4 bg-white mt-4 eleve-pagination-card">
         <div class="card-body py-2.5 px-4 d-flex justify-content-between align-items-center">
             <span class="text-muted small">
-                <i class="fas fa-check-circle text-success me-1"></i>Toutes les <strong>{{ eleves_pagination.total }}</strong> inscriptions sont affichées sur cette page.
+                <i class="fas fa-check-circle text-success me-1"></i>Toutes les <strong>{{ eleves_pagination.total }}</strong> classes sont affichées sur cette page.
             </span>
             <span class="badge bg-light text-muted border px-2.5 py-1 rounded-pill small">Page 1 / 1</span>
         </div>
@@ -758,6 +763,71 @@
             <!-- Liens de pagination générés dynamiquement par JS -->
         </ul>
     </nav>
+
+<div class="modal fade" id="paymentDetailsModal" tabindex="-1" aria-labelledby="paymentDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <h5 class="modal-title fw-bold" id="paymentDetailsModalLabel">Détails des paiements</h5>
+                    <p class="text-muted small mb-0" id="paymentDetailsSubtitle">Chargement...</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <div id="paymentDetailsLoading" class="text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+                    <p class="text-muted mb-0">Chargement des versements...</p>
+                </div>
+
+                <div id="paymentDetailsError" class="alert alert-danger d-none mb-0"></div>
+
+                <div id="paymentDetailsContent" class="d-none">
+                    <div class="row g-3 mb-4">
+                        <div class="col-12 col-md-4">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="text-muted small">Frais annuels</div>
+                                <div class="fw-bold fs-5" id="paymentDetailsFrais">0 FCFA</div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="border rounded-3 p-3 h-100 bg-success-subtle">
+                                <div class="text-success small">Total payé</div>
+                                <div class="fw-bold fs-5 text-success" id="paymentDetailsPaye">0 FCFA</div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="border rounded-3 p-3 h-100 bg-danger-subtle">
+                                <div class="text-danger small">Reste à payer</div>
+                                <div class="fw-bold fs-5 text-danger" id="paymentDetailsReste">0 FCFA</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Référence</th>
+                                    <th>Mois</th>
+                                    <th class="text-end">Montant</th>
+                                    <th>Mode</th>
+                                    <th class="text-end">Reçu</th>
+                                </tr>
+                            </thead>
+                            <tbody id="paymentDetailsRows"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 </div>
 {% endblock %}
 
@@ -797,12 +867,37 @@ document.addEventListener('DOMContentLoaded', function() {
     const paginationList = document.getElementById('paymentPaginationList');
     const pageInfoText = document.getElementById('paymentPageInfoText');
     const classChips = document.querySelectorAll('.class-filter-chip');
+    const paymentDetailsModalEl = document.getElementById('paymentDetailsModal');
+    const paymentDetailsTitle = document.getElementById('paymentDetailsModalLabel');
+    const paymentDetailsSubtitle = document.getElementById('paymentDetailsSubtitle');
+    const paymentDetailsLoading = document.getElementById('paymentDetailsLoading');
+    const paymentDetailsError = document.getElementById('paymentDetailsError');
+    const paymentDetailsContent = document.getElementById('paymentDetailsContent');
+    const paymentDetailsRows = document.getElementById('paymentDetailsRows');
+    const paymentDetailsFrais = document.getElementById('paymentDetailsFrais');
+    const paymentDetailsPaye = document.getElementById('paymentDetailsPaye');
+    const paymentDetailsReste = document.getElementById('paymentDetailsReste');
 
     // Cartes des classes
     const classCards = Array.from(document.querySelectorAll('.class-payment-card'));
     let allExpanded = false;
     let currentPage = 1;
-    let pageSize = 20;
+    let pageSize = 10;
+
+    function formatMoney(value) {
+        const amount = Number(value || 0);
+        return `${new Intl.NumberFormat('fr-FR').format(Math.round(amount))} FCFA`;
+    }
+
+    function escapeHtml(value) {
+        return String(value || '').replace(/[&<>"']/g, char => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        }[char]));
+    }
 
     // Synchronisation des puces de classes
     function syncChips(selectedClasse) {
@@ -1175,6 +1270,95 @@ document.addEventListener('DOMContentLoaded', function() {
                 collapseForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 const montantInput = document.getElementById('form_montant');
                 if (montantInput) montantInput.focus();
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-payment-details]').forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const detailsUrl = this.dataset.detailsUrl;
+            const eleveNom = this.dataset.eleveNom || 'Élève';
+            if (!detailsUrl) return;
+
+            if (paymentDetailsTitle) paymentDetailsTitle.textContent = `Paiements - ${eleveNom}`;
+            if (paymentDetailsSubtitle) paymentDetailsSubtitle.textContent = 'Chargement des versements...';
+            if (paymentDetailsLoading) paymentDetailsLoading.classList.remove('d-none');
+            if (paymentDetailsContent) paymentDetailsContent.classList.add('d-none');
+            if (paymentDetailsError) {
+                paymentDetailsError.classList.add('d-none');
+                paymentDetailsError.textContent = '';
+            }
+            if (paymentDetailsRows) paymentDetailsRows.innerHTML = '';
+
+            const modal = paymentDetailsModalEl ? bootstrap.Modal.getOrCreateInstance(paymentDetailsModalEl) : null;
+            if (modal) modal.show();
+
+            try {
+                const response = await fetch(detailsUrl, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Impossible de charger les paiements.');
+                }
+
+                const eleve = data.eleve || {};
+                const resume = data.resume || {};
+                const paiements = Array.isArray(data.paiements) ? data.paiements : [];
+
+                if (paymentDetailsSubtitle) {
+                    paymentDetailsSubtitle.textContent = `${eleve.prenom || ''} ${eleve.nom || ''} • ${eleve.classe || 'Sans classe'}`.trim();
+                }
+                if (paymentDetailsFrais) paymentDetailsFrais.textContent = formatMoney(resume.frais_annuels);
+                if (paymentDetailsPaye) paymentDetailsPaye.textContent = formatMoney(resume.total_paye);
+                if (paymentDetailsReste) paymentDetailsReste.textContent = formatMoney(resume.reste_a_payer);
+
+                if (paymentDetailsRows) {
+                    if (paiements.length === 0) {
+                        paymentDetailsRows.innerHTML = `
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">
+                                    Aucun versement enregistré pour cette inscription.
+                                </td>
+                            </tr>`;
+                    } else {
+                        paymentDetailsRows.innerHTML = paiements.map(paiement => `
+                            <tr>
+                                <td>${escapeHtml(paiement.date)}</td>
+                                <td>
+                                    <span class="fw-semibold">${escapeHtml(paiement.reference)}</span>
+                                    <div class="text-muted small">${escapeHtml(paiement.statut)}</div>
+                                </td>
+                                <td>${escapeHtml(paiement.mois)} ${escapeHtml(paiement.annee)}</td>
+                                <td class="text-end fw-semibold">${formatMoney(paiement.montant)}</td>
+                                <td>${escapeHtml(paiement.mode)}</td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Actions reçu">
+                                        <a class="btn btn-outline-primary" href="${paiement.recu_url}" target="_blank" rel="noopener">
+                                            <i class="fas fa-print me-1"></i>Imprimer
+                                        </a>
+                                        <a class="btn btn-outline-secondary" href="${paiement.pdf_url}" target="_blank" rel="noopener">
+                                            <i class="fas fa-file-pdf me-1"></i>PDF
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+
+                if (paymentDetailsLoading) paymentDetailsLoading.classList.add('d-none');
+                if (paymentDetailsContent) paymentDetailsContent.classList.remove('d-none');
+            } catch (error) {
+                if (paymentDetailsLoading) paymentDetailsLoading.classList.add('d-none');
+                if (paymentDetailsError) {
+                    paymentDetailsError.textContent = error.message || 'Erreur de chargement.';
+                    paymentDetailsError.classList.remove('d-none');
+                }
             }
         });
     });

@@ -29,7 +29,7 @@ from .common import (
 )
 from flask import jsonify
 from app.utils import sanitize_internal_url
-from app.services.phone_numbers import cles_telephone_equivalentes, normaliser_numero_whatsapp, normaliser_telephone_international
+from app.services.phone_numbers import cles_telephone_equivalentes, normaliser_telephone_international
 
 
 def normaliser_telephone_niger(value):
@@ -37,31 +37,72 @@ def normaliser_telephone_niger(value):
     return normaliser_telephone_international(value)
 
 
+def _telephone_digits(value):
+    return "".join(ch for ch in str(value or "") if ch.isdigit())
+
+
+def _telephone_match_values(phone_keys):
+    values = set(phone_keys)
+    digit_values = set()
+    for key in phone_keys:
+        digits = _telephone_digits(key)
+        if not digits:
+            continue
+        digit_values.add(digits)
+        if len(digits) == 8:
+            digit_values.add(f"227{digits}")
+        elif digits.startswith("227") and len(digits) == 11:
+            digit_values.add(digits[3:])
+    return values, digit_values
+
+
+def _telephone_digits_expr(column):
+    expr = column
+    for old in (" ", "-", ".", "(", ")", "+"):
+        expr = db.func.replace(expr, old, "")
+    return expr
+
+
+def _telephone_match_filter(column, phone_keys):
+    exact_values, digit_values = _telephone_match_values(phone_keys)
+    filters = []
+    if exact_values:
+        filters.append(column.in_(sorted(exact_values)))
+    if digit_values:
+        filters.append(_telephone_digits_expr(column).in_(sorted(digit_values)))
+    return db.or_(*filters) if filters else db.false()
+
+
 def _resolve_utilisateur_par_telephone(phone):
     searched_keys = cles_telephone_equivalentes(phone)
     if not searched_keys:
         return None
 
-    whatsapp_phone = normaliser_numero_whatsapp(phone)
-    if whatsapp_phone:
-        exact = Utilisateur.query.filter_by(telephone=whatsapp_phone).first()
-        if exact:
-            return exact
-
-    for utilisateur in Utilisateur.query.filter(Utilisateur.telephone.isnot(None)).all():
-        if cles_telephone_equivalentes(utilisateur.telephone) & searched_keys:
-            return utilisateur
-
-    parent_links = (
-        db.session.query(Eleve.parent_id, Eleve.contact_parent)
-        .filter(Eleve.parent_id.isnot(None), Eleve.contact_parent.isnot(None))
-        .all()
+    phone_keys = sorted(searched_keys)
+    user_order = (
+        db.case((Utilisateur.statut == "actif", 0), else_=1),
+        Utilisateur.id.asc(),
     )
-    for parent_id, telephone in parent_links:
-        if cles_telephone_equivalentes(telephone) & searched_keys:
-            return db.session.get(Utilisateur, parent_id)
 
-    return None
+    utilisateur = (
+        Utilisateur.query
+        .filter(_telephone_match_filter(Utilisateur.telephone, phone_keys))
+        .order_by(*user_order)
+        .first()
+    )
+    if utilisateur:
+        return utilisateur
+
+    return (
+        Utilisateur.query
+        .join(Eleve, Eleve.parent_id == Utilisateur.id)
+        .filter(
+            Utilisateur.role == "parent",
+            _telephone_match_filter(Eleve.contact_parent, phone_keys),
+        )
+        .order_by(*user_order)
+        .first()
+    )
 
 
 @main.route('/')
@@ -173,12 +214,9 @@ def login():
         }
         return redirect(url_for(endpoint_par_role.get(role, "main.index")))
 
-    # Redirection vers la vitrine publique pour tout visiteur Web (non PWA) n'y ayant pas encore accédé
-    is_pwa = request.args.get('pwa') == '1' or request.headers.get('X-PWA-Mode') == 'standalone'
-    is_testing = current_app.config.get('TESTING', False)
-    if not is_pwa and not is_testing and not session.get('visited_public_page') and not request.args.get('from_public'):
-        session['visited_public_page'] = True
-        return redirect(url_for('main.index'))
+    # /login doit rester une porte d'entree applicative stable, surtout apres
+    # installation PWA ou expiration de session. La vitrine reste accessible
+    # explicitement via la page d'accueil publique.
 
     form = LoginForm()
     active_login_type = request.form.get('login_type') or ('admin' if request.form.get('email') else 'terrain')
@@ -276,6 +314,9 @@ def login():
             }
             fallback = url_for(endpoint_par_role.get(utilisateur.role, "main.index"))
             next_page = sanitize_internal_url(request.args.get('next'), fallback)
+            next_path = next_page.split('?', 1)[0].rstrip('/') or '/'
+            if next_path in ('/login', '/logout'):
+                next_page = fallback
             return redirect(next_page)
         else:
             # échec de connexion

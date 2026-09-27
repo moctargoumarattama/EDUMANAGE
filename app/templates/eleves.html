@@ -145,7 +145,7 @@
                 <input type="text" 
                        class="form-control border-0 ps-2 fs-6 shadow-none" 
                        id="searchStudentInput"
-                       placeholder="Rechercher un élève par nom ou prénom..." 
+                       placeholder="Rechercher élève, classe, parent, téléphone..." 
                        value="{{ search }}" 
                        autocomplete="off">
                 <button class="btn btn-link text-muted pe-3 {% if not search %}d-none{% endif %}" 
@@ -178,11 +178,9 @@
 
     <!-- Conteneur des Classes (Notre système signature par classe) -->
     <div id="classesStudentContainer">
-        {% set page_eleve_ids = eleves.items | map(attribute='id') | list if eleves and eleves.items is defined else [] %}
         {% if total_eleves and total_eleves > 0 %}
             {% for grp in classes_eleves %}
-            {% set grp_page_eleves = grp.eleves | selectattr('id', 'in', page_eleve_ids) | list %}
-            {% if grp_page_eleves %}
+            {% set grp_page_eleves = grp.eleves %}
             <div class="class-student-card" id="class-card-{{ grp.id }}" 
                  data-class-id="{{ grp.id }}" 
                  data-class-nom="{{ grp.nom | lower }}">
@@ -360,7 +358,6 @@
                     </div>
                 </div>
             </div>
-            {% endif %}
             {% endfor %}
         {% else %}
             <!-- État vide contextualisé -->
@@ -423,11 +420,11 @@
             
             <!-- Informations d'affichage & total -->
             <div class="d-flex align-items-center gap-2 flex-wrap justify-content-center justify-content-md-start">
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1.5 rounded-pill fw-semibold font-monospace">
-                    <i class="fas fa-user-graduate me-1"></i>{{ total_eleves }} élève{{ 's' if total_eleves > 1 else '' }}
-                </span>
-                <span class="text-muted small">
-                    Affichage de <strong class="text-dark">{{ (eleves.page - 1) * eleves.per_page + 1 }}</strong> à <strong class="text-dark">{{ [eleves.page * eleves.per_page, total_eleves]|min }}</strong>
+                <span class="text-muted small d-inline-flex align-items-center gap-1 flex-wrap">
+                    <i class="fas fa-chalkboard-teacher text-primary"></i>
+                    Classes <strong class="text-dark">{{ (eleves.page - 1) * eleves.per_page + 1 }}</strong>
+                    à <strong class="text-dark">{{ [eleves.page * eleves.per_page, total_classes]|min }}</strong>
+                    sur <strong class="text-dark">{{ total_classes }}</strong>
                     <span class="text-secondary opacity-75 d-none d-lg-inline">&bull; Page {{ eleves.page }} sur {{ eleves.pages }}</span>
                 </span>
             </div>
@@ -469,7 +466,7 @@
                 </div>
 
                 <!-- Vue Tablette / Ordinateur (>= 576px) : Barre de pagination moderne en pilule groupée -->
-                <nav class="d-none d-sm-flex align-items-center" aria-label="Pagination des élèves">
+                <nav class="d-none d-sm-flex align-items-center" aria-label="Pagination des classes">
                     <ul class="pagination pagination-clean mb-0">
                         <!-- Première page («) -->
                         {% if eleves.page > 2 %}
@@ -566,7 +563,7 @@
     <div class="card border-0 shadow-sm rounded-4 bg-white mt-4 eleve-pagination-card">
         <div class="card-body py-2.5 px-4 d-flex justify-content-between align-items-center">
             <span class="text-muted small">
-                <i class="fas fa-check-circle text-success me-1"></i>Tous les <strong>{{ total_eleves }}</strong> élèves sont affichés sur cette page.
+                <i class="fas fa-check-circle text-success me-1"></i>Toutes les <strong>{{ total_classes }}</strong> classes sont affichées sur cette page.
             </span>
             <span class="badge bg-light text-muted border px-2.5 py-1 rounded-pill small">Page 1 / 1</span>
         </div>

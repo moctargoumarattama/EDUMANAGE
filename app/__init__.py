@@ -113,8 +113,11 @@ def create_app(config_class=None):
     @app.errorhandler(CSRFError)
     def handle_csrf_error(error):
         from flask import flash, jsonify, redirect, request, url_for
+        from flask_login import current_user
 
         app.logger.info("CSRF invalide sur %s: %s", request.path, getattr(error, "description", ""))
+        if current_user.is_authenticated and request.path == "/login":
+            return redirect(url_for("main.index"))
         if request.path == "/login":
             flash("Votre session de connexion a expiré. Veuillez réessayer.", "warning")
             response = redirect(url_for("main.login"))
@@ -126,9 +129,9 @@ def create_app(config_class=None):
             return jsonify({
                 "success": False,
                 "error": "csrf_expired",
-                "message": "Session expirée. Rechargez la page puis réessayez."
+                "message": "Formulaire expiré. Rechargez la page puis réessayez."
             }), 400
-        flash("Session expirée. Rechargez la page puis réessayez.", "warning")
+        flash("Formulaire expiré. Rechargez la page puis réessayez.", "warning")
         return redirect(request.referrer or url_for("main.login"))
 
     # Import des modèles (APRES initialisation de db)

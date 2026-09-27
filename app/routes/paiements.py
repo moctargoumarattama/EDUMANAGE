@@ -96,7 +96,7 @@ def _notifier_whatsapp_paiement(paiement, ecole=None):
         message = (
             f"Recu de paiement {ecole.nom} : Versement de {_format_fcfa_whatsapp(paiement.montant)} FCFA "
             f"enregistre pour {eleve.prenom} {eleve.nom}. "
-            f"Reste a payer : {_format_fcfa_whatsapp(solde)} FCFA. Recu N° {reference}."
+            f"Reste a payer : {_format_fcfa_whatsapp(solde)} FCFA. Recu NÂ° {reference}."
         )
         return enqueue_message(
             ecole_id=ecole.id,
@@ -120,13 +120,13 @@ def paiements():
     annee = get_annee_consultee(ecole_id)
     context_url = _paiements_return_url()
     if not annee:
-        flash("Aucune année scolaire configurée pour cet établissement.", "warning")
+        flash("Aucune annÃ©e scolaire configurÃ©e pour cet Ã©tablissement.", "warning")
         return redirect(url_for('main.gestion_annees'))
 
     form = PaiementForm()
     page_eleves = request.args.get('page', 1, type=int)
     page_paiements = request.args.get('page_paiements', 1, type=int)
-    per_page_eleves = 50
+    classes_per_page = 10
     per_page_paiements = 20
     classe_id = request.args.get('classe', type=int) or request.args.get('classe_id', type=int)
     recherche = (request.args.get('recherche') or request.args.get('search') or '').strip()
@@ -158,7 +158,7 @@ def paiements():
     form.eleve_id.choices = [
         (
             ins.eleve_id,
-            f"{ins.eleve.prenom} {ins.eleve.nom} ({ins.classe.nom if ins.classe else 'Sans classe'}{' - Préinscrit' if ins.statut == 'preinscrit' else ''})"
+            f"{ins.eleve.prenom} {ins.eleve.nom} ({ins.classe.nom if ins.classe else 'Sans classe'}{' - PrÃ©inscrit' if ins.statut == 'preinscrit' else ''})"
         )
         for ins in inscriptions_form if ins.eleve
     ]
@@ -168,13 +168,13 @@ def paiements():
     # --- TRAITEMENT DU POST (ENCAISSEMENT) ---
     if form.validate_on_submit():
         if annee.statut == 'archivee':
-            flash("L'année scolaire est archivée : les paiements sont en lecture seule stricte.", "danger")
+            flash("L'annÃ©e scolaire est archivÃ©e : les paiements sont en lecture seule stricte.", "danger")
             return redirect(context_url)
         if annee.statut == 'planifiee':
-            flash("Les paiements pourront être enregistrés lorsque cette année sera active.", "warning")
+            flash("Les paiements pourront Ãªtre enregistrÃ©s lorsque cette annÃ©e sera active.", "warning")
             return redirect(context_url)
         if annee.statut != 'active':
-            flash("Seule l'année active autorise l'encaissement de paiements.", "danger")
+            flash("Seule l'annÃ©e active autorise l'encaissement de paiements.", "danger")
             return redirect(context_url)
 
         paiement, error = enregistrer_paiement(
@@ -196,21 +196,24 @@ def paiements():
             db.session.commit()
             _notifier_whatsapp_paiement(paiement, ecole=getattr(current_user, "ecole", None))
             if getattr(paiement, "inscription_confirmee", False):
-                flash("Paiement enregistré avec succès ! Inscription confirmée automatiquement suite à la réception du paiement.", "success")
+                flash("Paiement enregistrÃ© avec succÃ¨s ! Inscription confirmÃ©e automatiquement suite Ã  la rÃ©ception du paiement.", "success")
             else:
-                flash("Paiement enregistré avec succès !", "success")
+                flash("Paiement enregistrÃ© avec succÃ¨s !", "success")
             return redirect(context_url)
         except Exception as e:
             db.session.rollback()
             flash(f"Erreur lors de l'enregistrement du paiement: {e}", "danger")
 
-    # Classes de l'année consultée
-    classes = classes_triees_pedagogique(
-        filtre_par_ecole(
-            Classe.query.filter_by(annee_scolaire_id=annee.id, statut='ouverte'),
-            Classe
-        )
-    ).all()
+    # Classes de l'annÃ©e consultÃ©e
+    classes_base_query = filtre_par_ecole(
+        Classe.query.filter_by(annee_scolaire_id=annee.id, statut='ouverte'),
+        Classe
+    )
+    classes_toutes = classes_triees_pedagogique(classes_base_query).all()
+    classes_query = filtre_par_ecole(
+        Classe.query.filter_by(annee_scolaire_id=annee.id, statut='ouverte'),
+        Classe
+    )
 
     frais_expr = func.coalesce(Inscription.frais_annuels, Eleve.frais_annuels, 150000.0)
     paiement_valide_filters = (
@@ -246,18 +249,25 @@ def paiements():
     )
 
     inscriptions_query = inscriptions_base_query.join(Eleve, Eleve.id == Inscription.eleve_id)
+    classe_joined = False
     if classe_id:
         inscriptions_query = inscriptions_query.filter(Inscription.classe_id == classe_id)
+        classes_query = classes_query.filter(Classe.id == classe_id)
     if niveau_param:
         inscriptions_query = inscriptions_query.join(Classe, Classe.id == Inscription.classe_id)
+        classe_joined = True
         if str(niveau_param).isdigit():
-            inscriptions_query = inscriptions_query.filter(
-                db.or_(Classe.niveau_id == int(niveau_param), Classe.niveau == str(niveau_param))
-            )
+            niveau_filter = db.or_(Classe.niveau_id == int(niveau_param), Classe.niveau == str(niveau_param))
+            inscriptions_query = inscriptions_query.filter(niveau_filter)
+            classes_query = classes_query.filter(niveau_filter)
         else:
             inscriptions_query = inscriptions_query.filter(Classe.niveau.ilike(niveau_param))
+            classes_query = classes_query.filter(Classe.niveau.ilike(niveau_param))
     if recherche:
         like = f"%{recherche}%"
+        if not classe_joined:
+            inscriptions_query = inscriptions_query.join(Classe, Classe.id == Inscription.classe_id)
+            classe_joined = True
         ref_exists = (
             db.session.query(Paiement.id)
             .filter(
@@ -271,6 +281,10 @@ def paiements():
                 Eleve.nom.ilike(like),
                 Eleve.prenom.ilike(like),
                 Eleve.code_parent.ilike(like),
+                Eleve.contact_parent.ilike(like),
+                Classe.nom.ilike(like),
+                Classe.niveau.ilike(like),
+                Classe.salle.ilike(like),
                 ref_exists,
             )
         )
@@ -287,21 +301,45 @@ def paiements():
     if reste_a_payer and str(reste_a_payer).lower() in ('1', 'true', 'yes', 'on'):
         inscriptions_query = inscriptions_query.filter((frais_expr - paiement_total_subq) > 0)
 
-    inscriptions_pagination = (
-        inscriptions_query
-        .order_by(Inscription.classe_id, Eleve.nom.asc(), Eleve.prenom.asc())
-        .paginate(page=page_eleves, per_page=per_page_eleves, error_out=False)
-    )
-    if page_eleves > 1 and inscriptions_pagination.total and not inscriptions_pagination.items:
-        page_eleves = 1
-        inscriptions_pagination = (
+    inscriptions_total = inscriptions_query.order_by(None).count()
+    if recherche or statut_solde or reste_a_payer:
+        matching_class_ids = (
             inscriptions_query
-            .order_by(Inscription.classe_id, Eleve.nom.asc(), Eleve.prenom.asc())
-            .paginate(page=page_eleves, per_page=per_page_eleves, error_out=False)
+            .order_by(None)
+            .with_entities(Inscription.classe_id.label("classe_id"))
+            .filter(Inscription.classe_id.isnot(None))
+            .distinct()
+            .subquery()
         )
-    inscriptions_filtrees = list(inscriptions_pagination.items)
+        classes_query = classes_query.filter(
+            Classe.id.in_(db.session.query(matching_class_ids.c.classe_id))
+        )
+
+    classes_pagination = (
+        classes_triees_pedagogique(classes_query)
+        .paginate(page=page_eleves, per_page=classes_per_page, error_out=False)
+    )
+    if classes_pagination.pages and page_eleves > classes_pagination.pages:
+        args = request.args.to_dict(flat=True)
+        args['page'] = classes_pagination.pages
+        return redirect(url_for('main.paiements', **args))
+
+    classes = list(classes_pagination.items)
+    page_class_ids = [c.id for c in classes]
+    if page_class_ids:
+        inscriptions_filtrees = (
+            inscriptions_query
+            .filter(Inscription.classe_id.in_(page_class_ids))
+            .order_by(Inscription.classe_id, Eleve.nom.asc(), Eleve.prenom.asc())
+            .all()
+        )
+    else:
+        inscriptions_filtrees = []
 
     page_inscription_ids = [ins.id for ins in inscriptions_filtrees]
+    classes_pagination.total_inscriptions = inscriptions_total
+    inscriptions_pagination = classes_pagination
+
     paiements_totaux_page = {}
     if page_inscription_ids:
         paiements_totaux_page = dict(
@@ -318,7 +356,7 @@ def paiements():
             .all()
         )
 
-    # Données enrichies par élève / inscription
+    # DonnÃ©es enrichies par Ã©lÃ¨ve / inscription
     paiements_par_eleve = {}
     eleves_par_classe = {c.id: [] for c in classes}
     eleves_sans_classe = []
@@ -335,7 +373,7 @@ def paiements():
     }
     stats['taux_recouvrement'] = round((total_recouvre / total_frais) * 100, 1) if total_frais > 0 else 0.0
 
-    # Données par élève filtré
+    # DonnÃ©es par Ã©lÃ¨ve filtrÃ©
     for ins in inscriptions_filtrees:
         e = ins.eleve
         if not e:
@@ -344,7 +382,7 @@ def paiements():
         total_paye_eleve = float(paiements_totaux_page.get(ins.id, 0.0) or 0.0)
         reste_eleve = max(0.0, frais_annuels - total_paye_eleve)
         pourcentage_paye = round((total_paye_eleve / frais_annuels) * 100, 1) if frais_annuels > 0 else 100.0
-        # Classe historique de l'année consultée
+        # Classe historique de l'annÃ©e consultÃ©e
         e.annee_classe = ins.classe
         paiements_par_eleve[e.id] = {
             'total_paye': total_paye_eleve,
@@ -359,7 +397,7 @@ def paiements():
         else:
             eleves_sans_classe.append(e)
 
-    # Statistiques par classe pour l'année consultée
+    # Statistiques par classe pour l'annÃ©e consultÃ©e
     classe_finances = {}
     for c in classes:
         c_eleves = eleves_par_classe.get(c.id, [])
@@ -374,10 +412,9 @@ def paiements():
             'reste_a_payer': c_reste,
             'taux_recouvrement': c_taux
         }
-    classes_toutes = classes
-    classes = [c for c in classes_toutes if eleves_par_classe.get(c.id)]
+    classes = list(classes)
 
-    # Pagination des paiements pour l'année consultée
+    # Pagination des paiements pour l'annÃ©e consultÃ©e
     ins_ids = page_inscription_ids
     if ins_ids:
         query_paiements = (
@@ -404,7 +441,7 @@ def paiements():
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
         return jsonify({
             'success': True,
-            'count': inscriptions_pagination.total,
+            'count': inscriptions_total,
             'inscriptions': [
                 {
                     'id': ins.id,
@@ -451,8 +488,145 @@ def paiements():
 @role_required('parent')
 @tenant_required
 def paiements_parent():
-    """Route obsolète, redirige vers parent_dashboard car les paiements sont affichés dans voir_eleve"""
+    """Route obsolÃ¨te, redirige vers parent_dashboard car les paiements sont affichÃ©s dans voir_eleve"""
     return redirect(url_for('main.parent_dashboard'))
+
+
+@main.route('/paiements/inscription/<int:inscription_id>/details')
+@login_required
+@role_required('admin')
+@tenant_required
+def details_paiements_inscription(inscription_id):
+    ecole_id = g.ecole_id
+    annee = get_annee_consultee(ecole_id)
+    if not annee:
+        return jsonify({'success': False, 'message': 'Aucune annÃ©e scolaire consultÃ©e.'}), 400
+
+    inscription = (
+        Inscription.query
+        .options(
+            joinedload(Inscription.eleve),
+            joinedload(Inscription.classe),
+        )
+        .filter(
+            Inscription.id == inscription_id,
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee.id,
+        )
+        .first()
+    )
+    if not inscription or not inscription.eleve:
+        return jsonify({'success': False, 'message': 'Inscription introuvable.'}), 404
+
+    paiement_valide_filters = (
+        Paiement.ecole_id == ecole_id,
+        Paiement.inscription_id == inscription.id,
+        db.or_(Paiement.statut.is_(None), Paiement.statut != 'annule'),
+    )
+    total_paye = float(
+        db.session.query(func.coalesce(func.sum(Paiement.montant), 0.0))
+        .filter(*paiement_valide_filters)
+        .scalar() or 0.0
+    )
+    frais_annuels = float(
+        inscription.frais_annuels
+        if inscription.frais_annuels is not None
+        else (inscription.eleve.frais_annuels or 150000.0)
+    )
+    reste = max(0.0, frais_annuels - total_paye)
+    taux = round((total_paye / frais_annuels) * 100, 1) if frais_annuels > 0 else 100.0
+
+    paiements = (
+        Paiement.query
+        .filter(*paiement_valide_filters)
+        .order_by(Paiement.date_paiement.desc(), Paiement.id.desc())
+        .all()
+    )
+
+    return jsonify({
+        'success': True,
+        'eleve': {
+            'id': inscription.eleve.id,
+            'nom': inscription.eleve.nom,
+            'prenom': inscription.eleve.prenom,
+            'classe': inscription.classe.nom if inscription.classe else 'Sans classe',
+        },
+        'resume': {
+            'frais_annuels': frais_annuels,
+            'total_paye': total_paye,
+            'reste_a_payer': reste,
+            'taux': taux,
+        },
+        'paiements': [
+            {
+                'id': p.id,
+                'montant': float(p.montant or 0.0),
+                'date': p.date_paiement.strftime('%d/%m/%Y') if p.date_paiement else '',
+                'mois': p.mois or '',
+                'annee': p.annee or '',
+                'mode': p.mode_paiement or '',
+                'reference': p.reference or f'RECU-{p.id}',
+                'statut': p.statut or 'payÃ©',
+                'recu_url': url_for('main.recu_paiement', id=p.id),
+                'pdf_url': url_for('main.generer_recu_pdf', id=p.id),
+            }
+            for p in paiements
+        ],
+    })
+
+
+def _backfill_tracabilite_paiements(ecole_id, annee_id, limit=500):
+    """CrÃ©e les traces manquantes sans charger tous les objets Paiement en mÃ©moire."""
+    existing_log = (
+        db.session.query(JournalCorrection.id)
+        .filter(
+            JournalCorrection.ecole_id == ecole_id,
+            JournalCorrection.cible_type == 'paiement',
+            JournalCorrection.cible_id == Paiement.id,
+        )
+        .exists()
+    )
+    paiements_sans_log = (
+        db.session.query(
+            Paiement.id,
+            Paiement.montant,
+            Paiement.mois,
+            Paiement.annee,
+            Paiement.ecole_id,
+            Paiement.statut,
+            Paiement.date_paiement,
+        )
+        .join(Inscription, Paiement.inscription_id == Inscription.id)
+        .filter(
+            Paiement.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee_id,
+            ~existing_log,
+        )
+        .order_by(Paiement.date_paiement.desc(), Paiement.id.desc())
+        .limit(limit)
+        .all()
+    )
+    if not paiements_sans_log:
+        return 0
+
+    corrections = [
+        JournalCorrection(
+            action="PAIEMENT_CREE",
+            description=f"Paiement #{paiement.id} de {paiement.montant:,.0f} FCFA ({paiement.mois} {paiement.annee})",
+            ecole_id=paiement.ecole_id,
+            user_id=None,
+            cible_type="paiement",
+            cible_id=paiement.id,
+            ancienne_valeur=None,
+            nouvelle_valeur=f"Montant: {paiement.montant}, Statut: {paiement.statut}",
+            niveau="info",
+            date=paiement.date_paiement or datetime.utcnow()
+        )
+        for paiement in paiements_sans_log
+    ]
+    db.session.add_all(corrections)
+    db.session.commit()
+    return len(corrections)
 
 
 
@@ -476,7 +650,7 @@ def recu_paiement(id):
     )
 
     if current_user.role == 'parent' and not check_parent_access(paiement.eleve_id):
-        flash("Accès non autorisé.", "danger")
+        flash("AccÃ¨s non autorisÃ©.", "danger")
         return redirect(url_for('main.parent_dashboard'))
 
     context = build_payment_receipt_context(paiement)
@@ -556,7 +730,7 @@ def export_paiements_excel():
     ecole_id = g.ecole_id
     annee = get_annee_consultee(ecole_id)
     if not annee:
-        flash("Aucune année scolaire configurée.", "warning")
+        flash("Aucune annÃ©e scolaire configurÃ©e.", "warning")
         return redirect(context_url)
 
     inscriptions = get_inscriptions_paiements(ecole_id, annee, current_user)
@@ -581,21 +755,21 @@ def export_paiements_excel():
 
     data = {
         'Date': [p.date_paiement.strftime('%d/%m/%Y') if p.date_paiement else '' for p in paiements],
-        'Élève': [f"{p.eleve.prenom} {p.eleve.nom}" if p.eleve else '' for p in paiements],
+        'Ã‰lÃ¨ve': [f"{p.eleve.prenom} {p.eleve.nom}" if p.eleve else '' for p in paiements],
         'Classe': [
             p.inscription.classe.nom if (p.inscription and p.inscription.classe) else 'Sans classe'
             for p in paiements
         ],
-        'Année Scolaire': [
+        'AnnÃ©e Scolaire': [
             p.inscription.annee_scolaire.nom if (p.inscription and p.inscription.annee_scolaire) else ''
             for p in paiements
         ],
         'Mois': [p.mois for p in paiements],
-        'Année': [p.annee for p in paiements],
+        'AnnÃ©e': [p.annee for p in paiements],
         'Montant': [p.montant for p in paiements],
         'Mode': [p.mode_paiement for p in paiements],
         'Statut': [p.statut for p in paiements],
-        'Référence': [p.reference or '' for p in paiements]
+        'RÃ©fÃ©rence': [p.reference or '' for p in paiements]
     }
 
     df = pd.DataFrame(data)
@@ -633,43 +807,43 @@ def supprimer_paiement(id):
             return jsonify({'success': False, 'message': 'Paiement introuvable.'}), 404
         abort(404)
 
-    # 🛡️ Protection multi-tenant stricte : 403 si cross-tenant
+    # ðŸ›¡ï¸ Protection multi-tenant stricte : 403 si cross-tenant
     ecole_id = g.ecole_id
     if current_user.role != 'super_admin' and paiement.ecole_id != ecole_id:
         if is_ajax:
-            return jsonify({'success': False, 'message': 'Action non autorisée : ce paiement appartient à un autre établissement.'}), 403
+            return jsonify({'success': False, 'message': 'Action non autorisÃ©e : ce paiement appartient Ã  un autre Ã©tablissement.'}), 403
         abort(403)
 
     annee = get_annee_consultee(ecole_id)
     if not annee or annee.statut == 'archivee':
-        msg = "L'année scolaire est archivée : suppression/annulation de paiement interdite (lecture seule)."
+        msg = "L'annÃ©e scolaire est archivÃ©e : suppression/annulation de paiement interdite (lecture seule)."
         if is_ajax:
             return jsonify({'success': False, 'message': msg}), 400
         flash(msg, "danger")
         return redirect(context_url)
     if annee.statut == 'planifiee':
-        msg = "Opération non autorisée sur une année planifiée."
+        msg = "OpÃ©ration non autorisÃ©e sur une annÃ©e planifiÃ©e."
         if is_ajax:
             return jsonify({'success': False, 'message': msg}), 400
         flash(msg, "danger")
         return redirect(context_url)
 
     if paiement.inscription and paiement.inscription.annee_scolaire_id != annee.id:
-        msg = "Ce paiement n'appartient pas à l'année scolaire consultée."
+        msg = "Ce paiement n'appartient pas Ã  l'annÃ©e scolaire consultÃ©e."
         if is_ajax:
             return jsonify({'success': False, 'message': msg}), 400
         flash(msg, "danger")
         return redirect(context_url)
 
-    # Vérification double annulation
+    # VÃ©rification double annulation
     if paiement.statut == 'annule':
-        msg_deja = "Ce paiement a déjà été annulé."
+        msg_deja = 'Ce paiement a déjà été annulé.'
         if is_ajax:
             return jsonify({'success': False, 'message': msg_deja}), 400
         flash(msg_deja, "warning")
         return redirect(context_url)
 
-    # Récupération du motif
+    # RÃ©cupÃ©ration du motif
     motif = None
     if request.is_json and request.json:
         motif = request.json.get('motif')
@@ -678,7 +852,7 @@ def supprimer_paiement(id):
     motif = (motif or "").strip() or "Annulation administrative"
 
     try:
-        ancienne_valeur = f"statut: {paiement.statut or 'payé'}, montant: {paiement.montant}"
+        ancienne_valeur = f"statut: {paiement.statut or 'payÃ©'}, montant: {paiement.montant}"
         nouvelle_valeur = f"statut: annule, motif: {motif}"
 
         paiement.statut = 'annule'
@@ -687,7 +861,7 @@ def supprimer_paiement(id):
         if hasattr(current_app, "log_correction"):
             current_app.log_correction(
                 action="annulation_paiement",
-                description=f"Paiement #{paiement.id} de {paiement.montant} annulé. Motif: {motif}",
+                description=f"Paiement #{paiement.id} de {paiement.montant} annulÃ©. Motif: {motif}",
                 ecole_id=paiement.ecole_id,
                 cible_type="paiement",
                 cible_id=paiement.id,
@@ -697,8 +871,8 @@ def supprimer_paiement(id):
             )
 
         if is_ajax:
-            return jsonify({'success': True, 'message': 'Paiement annulé avec succès'})
-        flash('Le paiement a été annulé avec succès.', 'success')
+            return jsonify({'success': True, 'message': 'Paiement annulÃ© avec succÃ¨s'})
+        flash('Le paiement a Ã©tÃ© annulÃ© avec succÃ¨s.', 'success')
         return redirect(context_url)
 
     except Exception as e:
@@ -716,16 +890,16 @@ def supprimer_paiement(id):
 @tenant_required
 def configurer_mensualites():
     context_url = _paiements_return_url()
-    # Protection multi-tenant et rôles
+    # Protection multi-tenant et rÃ´les
     ecole_id = g.ecole_id
     annee = get_annee_consultee(ecole_id)
     
     if not annee:
-        flash("Aucune année scolaire configurée.", "warning")
+        flash("Aucune annÃ©e scolaire configurÃ©e.", "warning")
         return redirect(context_url)
         
     if annee.statut == 'archivee':
-        flash("Impossible de modifier la configuration d'une année archivée.", "danger")
+        flash("Impossible de modifier la configuration d'une annÃ©e archivÃ©e.", "danger")
         return redirect(context_url)
 
     facturer_juillet = request.form.get('facturer_juillet') == 'on'
@@ -734,12 +908,12 @@ def configurer_mensualites():
         annee.facturer_juillet = facturer_juillet
         db.session.commit()
         if facturer_juillet:
-            flash(f"Mensualités mises à jour (Octobre - Juillet) pour l'année {annee.nom}.", "success")
+            flash(f"MensualitÃ©s mises Ã  jour (Octobre - Juillet) pour l'annÃ©e {annee.nom}.", "success")
         else:
-            flash(f"Mensualités mises à jour (Octobre - Juin) pour l'année {annee.nom}.", "success")
+            flash(f"MensualitÃ©s mises Ã  jour (Octobre - Juin) pour l'annÃ©e {annee.nom}.", "success")
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erreur configuration mensualités : {e}")
+        current_app.logger.error(f"Erreur configuration mensualitÃ©s : {e}")
         flash("Erreur lors de la sauvegarde.", "danger")
 
     return redirect(context_url)
@@ -751,45 +925,16 @@ def configurer_mensualites():
 @role_required('admin', 'super_admin')
 @tenant_required
 def tracabilite_paiements():
-    """Journal d'audit et de traçabilité des paiements et annulations en lecture seule."""
+    """Journal d'audit et de traÃ§abilitÃ© des paiements et annulations en lecture seule."""
     ecole_id = g.ecole_id
     annee = get_annee_consultee(ecole_id)
     if not annee:
-        flash("Aucune année scolaire configurée.", "warning")
+        flash("Aucune annÃ©e scolaire configurÃ©e.", "warning")
         return redirect(url_for('main.gestion_annees'))
 
-    # Backfill idempotent des paiements existants de l'année sans trace d'audit
+    # Backfill idempotent des paiements existants de l'annÃ©e sans trace d'audit
     try:
-        paiements_sans_log = (
-            db.session.query(Paiement)
-            .join(Inscription, Paiement.inscription_id == Inscription.id)
-            .outerjoin(
-                JournalCorrection,
-                (JournalCorrection.cible_type == 'paiement') & (JournalCorrection.cible_id == Paiement.id)
-            )
-            .filter(
-                Paiement.ecole_id == ecole_id,
-                Inscription.annee_scolaire_id == annee.id,
-                JournalCorrection.id.is_(None)
-            )
-            .all()
-        )
-        if paiements_sans_log:
-            for p in paiements_sans_log:
-                correction = JournalCorrection(
-                    action="PAIEMENT_CREE",
-                    description=f"Paiement #{p.id} de {p.montant:,.0f} FCFA ({p.mois} {p.annee})",
-                    ecole_id=p.ecole_id,
-                    user_id=None,
-                    cible_type="paiement",
-                    cible_id=p.id,
-                    ancienne_valeur=None,
-                    nouvelle_valeur=f"Montant: {p.montant}, Statut: {p.statut}",
-                    niveau="info",
-                    date=p.date_paiement or datetime.utcnow()
-                )
-                db.session.add(correction)
-            db.session.commit()
+        _backfill_tracabilite_paiements(ecole_id, annee.id)
     except Exception as e:
         db.session.rollback()
         current_app.logger.warning(f"Backfill tracabilite paiements: {e}")
@@ -840,7 +985,7 @@ def tracabilite_paiements():
             )
         )
 
-    # Statistiques globales de l'année consultée
+    # Statistiques globales de l'annÃ©e consultÃ©e
     base_stats_query = (
         db.session.query(JournalCorrection.action, func.count(JournalCorrection.id))
         .join(Paiement, JournalCorrection.cible_id == Paiement.id)

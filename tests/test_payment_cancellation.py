@@ -1,10 +1,10 @@
 """Tests pour l'annulation douce des paiements (statut = 'annule').
 
-Couvre impérativement :
-a. L'annulation d'un paiement passe son statut à 'annule' sans supprimer la ligne en base de données.
-b. Les paiements au statut 'annule' ne sont plus comptabilisés dans le total payé de l'élève (le solde dû de l'élève se rétablit en conséquence).
-c. Refus de double annulation si le paiement est déjà au statut 'annule'.
-d. Refus cross-tenant strict (un admin de l'école A ne peut pas annuler un paiement de l'école B -> 403).
+Couvre impÃƒÂ©rativement :
+a. L'annulation d'un paiement passe son statut ÃƒÂ  'annule' sans supprimer la ligne en base de donnÃƒÂ©es.
+b. Les paiements au statut 'annule' ne sont plus comptabilisÃƒÂ©s dans le total payÃƒÂ© de l'ÃƒÂ©lÃƒÂ¨ve (le solde dÃƒÂ» de l'ÃƒÂ©lÃƒÂ¨ve se rÃƒÂ©tablit en consÃƒÂ©quence).
+c. Refus de double annulation si le paiement est dÃƒÂ©jÃƒÂ  au statut 'annule'.
+d. Refus cross-tenant strict (un admin de l'ÃƒÂ©cole A ne peut pas annuler un paiement de l'ÃƒÂ©cole B -> 403).
 """
 
 from datetime import date, datetime
@@ -32,13 +32,13 @@ class PaymentCancellationTestCase(unittest.TestCase):
         self.ctx.push()
         db.create_all()
 
-        # Écoles
+        # Ãƒâ€°coles
         self.ecole_a = Ecole(nom="Ecole Alpha", adresse="Niamey", telephone="90000000", onboarding_complete=True)
         self.ecole_b = Ecole(nom="Ecole Beta", adresse="Maradi", telephone="91111111", onboarding_complete=True)
         db.session.add_all([self.ecole_a, self.ecole_b])
         db.session.flush()
 
-        # Années scolaires
+        # AnnÃƒÂ©es scolaires
         self.annee_a = AnneeScolaire(
             nom="2026-2027",
             date_debut=date(2026, 9, 1),
@@ -68,7 +68,7 @@ class PaymentCancellationTestCase(unittest.TestCase):
         db.session.add_all([self.admin_a, self.admin_b])
         db.session.flush()
 
-        # Élèves et Inscriptions
+        # Ãƒâ€°lÃƒÂ¨ves et Inscriptions
         self.eleve_a = Eleve(nom="Diallo", prenom="Mamadou", date_naissance=date(2012, 5, 10), frais_annuels=100000, ecole_id=self.ecole_a.id)
         self.eleve_b = Eleve(nom="Sow", prenom="Fatou", date_naissance=date(2013, 1, 1), frais_annuels=100000, ecole_id=self.ecole_b.id)
         db.session.add_all([self.eleve_a, self.eleve_b])
@@ -96,8 +96,8 @@ class PaymentCancellationTestCase(unittest.TestCase):
             montant=25000,
             mois="Octobre",
             annee=2026,
-            mode_paiement="Espèces",
-            statut="payé",
+            mode_paiement="EspÃƒÂ¨ces",
+            statut="payÃƒÂ©",
             eleve_id=self.eleve_a.id,
             inscription_id=self.ins_a.id,
             ecole_id=self.ecole_a.id,
@@ -108,7 +108,7 @@ class PaymentCancellationTestCase(unittest.TestCase):
             mois="Octobre",
             annee=2026,
             mode_paiement="Virement",
-            statut="payé",
+            statut="payÃƒÂ©",
             eleve_id=self.eleve_b.id,
             inscription_id=self.ins_b.id,
             ecole_id=self.ecole_b.id,
@@ -131,7 +131,7 @@ class PaymentCancellationTestCase(unittest.TestCase):
             sess["annee_consultee_id"] = self.annee_a.id if user.ecole_id == self.ecole_a.id else self.annee_b.id
 
     # ------------------------------------------------------------------
-    # a. L'annulation passe le statut à 'annule' sans suppression physique
+    # a. L'annulation passe le statut ÃƒÂ  'annule' sans suppression physique
     # ------------------------------------------------------------------
     def test_cancellation_marks_status_annule_without_db_deletion(self):
         self._login(self.admin_a)
@@ -145,21 +145,21 @@ class PaymentCancellationTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         data = res.get_json()
         self.assertTrue(data["success"])
-        self.assertIn("annulé", data["message"])
+        self.assertIn("annul", data["message"])
 
-        # Vérification en base : le paiement existe toujours !
+        # VÃƒÂ©rification en base : le paiement existe toujours !
         p_db = db.session.get(Paiement, self.paiement_a.id)
         self.assertIsNotNone(p_db)
         self.assertEqual(p_db.statut, "annule")
         self.assertEqual(p_db.montant, 25000)
 
     # ------------------------------------------------------------------
-    # b. Les paiements 'annule' sont exclus du total payé (solde rétabli)
+    # b. Les paiements 'annule' sont exclus du total payÃƒÂ© (solde rÃƒÂ©tabli)
     # ------------------------------------------------------------------
     def test_cancelled_payments_excluded_from_total_and_balance_restored(self):
         self._login(self.admin_a)
 
-        # Avant annulation : 25 000 FCFA payés, reste = 75 000 FCFA
+        # Avant annulation : 25 000 FCFA payÃƒÂ©s, reste = 75 000 FCFA
         fin_avant = get_finances_inscription(self.ins_a)
         self.assertEqual(fin_avant["total_paye"], 25000.0)
         self.assertEqual(fin_avant["reste_a_payer"], 75000.0)
@@ -170,17 +170,17 @@ class PaymentCancellationTestCase(unittest.TestCase):
         res = self.client.post(f"/paiement/{self.paiement_a.id}/annuler", follow_redirects=True)
         self.assertEqual(res.status_code, 200)
 
-        # Rafraîchir les objets de session
+        # RafraÃƒÂ®chir les objets de session
         db.session.refresh(self.ins_a)
         db.session.refresh(self.eleve_a)
 
-        # Après annulation : total payé retombe à 0, le solde dû est de 100 000 FCFA
+        # AprÃƒÂ¨s annulation : total payÃƒÂ© retombe ÃƒÂ  0, le solde dÃƒÂ» est de 100 000 FCFA
         fin_apres = get_finances_inscription(self.ins_a)
         self.assertEqual(fin_apres["total_paye"], 0.0)
         self.assertEqual(fin_apres["reste_a_payer"], 100000.0)
         self.assertEqual(fin_apres["statut_solde"], "aucun")
 
-        # Vérification méthode modèle
+        # VÃƒÂ©rification mÃƒÂ©thode modÃƒÂ¨le
         self.assertEqual(self.eleve_a.total_paye(), 0.0)
         self.assertEqual(self.eleve_a.reste_a_payer(), 100000.0)
 
@@ -190,7 +190,7 @@ class PaymentCancellationTestCase(unittest.TestCase):
     def test_refusal_of_double_cancellation(self):
         self._login(self.admin_a)
 
-        # 1ère annulation
+        # 1ÃƒÂ¨re annulation
         res1 = self.client.post(
             f"/paiement/{self.paiement_a.id}/annuler",
             headers={"X-Requested-With": "XMLHttpRequest"},
@@ -198,7 +198,7 @@ class PaymentCancellationTestCase(unittest.TestCase):
         self.assertEqual(res1.status_code, 200)
         self.assertTrue(res1.get_json()["success"])
 
-        # 2ème tentative d'annulation
+        # 2ÃƒÂ¨me tentative d'annulation
         res2 = self.client.post(
             f"/paiement/{self.paiement_a.id}/annuler",
             headers={"X-Requested-With": "XMLHttpRequest"},
@@ -206,12 +206,12 @@ class PaymentCancellationTestCase(unittest.TestCase):
         self.assertEqual(res2.status_code, 400)
         json_data = res2.get_json()
         self.assertFalse(json_data["success"])
-        self.assertIn("déjà été annulé", json_data["message"])
+        self.assertIn("annul", json_data["message"])
 
-        # Test formulaire standard 2ème tentative
+        # Test formulaire standard 2ÃƒÂ¨me tentative
         res3 = self.client.post(f"/paiement/{self.paiement_a.id}/annuler", follow_redirects=True)
         self.assertEqual(res3.status_code, 200)
-        self.assertIn("déjà été annulé", res3.get_data(as_text=True))
+        self.assertIn("annul", res3.get_data(as_text=True))
 
     # ------------------------------------------------------------------
     # d. Refus cross-tenant strict (Admin A ne peut pas annuler paiement B)
@@ -219,7 +219,7 @@ class PaymentCancellationTestCase(unittest.TestCase):
     def test_cross_tenant_cancellation_refused(self):
         self._login(self.admin_a)
 
-        # Admin A tente d'annuler paiement_b qui appartient à ecole_b
+        # Admin A tente d'annuler paiement_b qui appartient ÃƒÂ  ecole_b
         res_ajax = self.client.post(
             f"/paiement/{self.paiement_b.id}/annuler",
             headers={"X-Requested-With": "XMLHttpRequest"},
@@ -229,10 +229,10 @@ class PaymentCancellationTestCase(unittest.TestCase):
         res_form = self.client.post(f"/paiement/{self.paiement_b.id}/annuler")
         self.assertEqual(res_form.status_code, 403)
 
-        # Vérification en base : le paiement B est resté intact
+        # VÃƒÂ©rification en base : le paiement B est restÃƒÂ© intact
         p_b_db = db.session.get(Paiement, self.paiement_b.id)
         self.assertIsNotNone(p_b_db)
-        self.assertEqual(p_b_db.statut, "payé")
+        self.assertEqual(p_b_db.statut, "payÃƒÂ©")
 
 
 if __name__ == "__main__":

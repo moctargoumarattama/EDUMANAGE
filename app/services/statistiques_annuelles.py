@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
 
+from sqlalchemy import case, func
 from sqlalchemy.orm import joinedload
 
 from app.models import (
@@ -78,49 +79,63 @@ def get_dashboard_admin_annuel(ecole_id, annee):
         return stats
 
     annee_id = annee.id
-    classes = _classes_annee(ecole_id, annee_id)
-    classe_ids = [c.id for c in classes]
     debut_mois = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    from sqlalchemy.orm import selectinload
-    inscriptions = (
-        Inscription.query
+    stats["total_eleves"], stats["eleves_nouveaux"] = (
+        db.session.query(
+            func.count(Inscription.id),
+            func.coalesce(
+                func.sum(case((Inscription.date_inscription >= debut_mois, 1), else_=0)),
+                0,
+            ),
+        )
         .filter(
             Inscription.ecole_id == ecole_id,
-            Inscription.annee_scolaire_id == annee_id
+            Inscription.annee_scolaire_id == annee_id,
         )
-        .options(selectinload(Inscription.paiements))
-        .all()
+        .first()
     )
-
-    stats["total_eleves"] = len(inscriptions)
     stats["total_professeurs"] = Professeur.query.filter_by(ecole_id=ecole_id).count()
-    stats["total_cours"] = (
-        Cours.query.filter(Cours.ecole_id == ecole_id, Cours.classe_id.in_(classe_ids)).count()
-        if classe_ids
-        else 0
-    )
-    stats["total_cours_affectes"] = (
-        Cours.query.filter(
+    cours_annee_query = (
+        Cours.query
+        .join(Classe, Classe.id == Cours.classe_id)
+        .filter(
             Cours.ecole_id == ecole_id,
-            Cours.classe_id.in_(classe_ids),
-            Cours.professeur_id.isnot(None),
-        ).count()
-        if classe_ids
-        else 0
+            Classe.ecole_id == ecole_id,
+            Classe.annee_scolaire_id == annee_id,
+        )
+    )
+    stats["total_cours"] = cours_annee_query.count()
+    stats["total_cours_affectes"] = cours_annee_query.filter(Cours.professeur_id.isnot(None)).count()
+
+    paiements_par_inscription = (
+        db.session.query(
+            Paiement.inscription_id.label("inscription_id"),
+            func.coalesce(func.sum(Paiement.montant), 0.0).label("total_paye"),
+        )
+        .filter(
+            Paiement.ecole_id == ecole_id,
+            Paiement.inscription_id.isnot(None),
+            db.or_(Paiement.statut.is_(None), Paiement.statut != "annule"),
+        )
+        .group_by(Paiement.inscription_id)
+        .subquery()
     )
 
-    nb_impayes = 0
-    eleves_nouveaux = 0
-    for ins in inscriptions:
-        fin = get_finances_inscription(ins)
-        if fin.get("reste_a_payer", 0) > 0:
-            nb_impayes += 1
-        if ins.date_inscription and ins.date_inscription >= debut_mois:
-            eleves_nouveaux += 1
-
-    stats["paiements_attente"] = nb_impayes
-    stats["eleves_nouveaux"] = eleves_nouveaux
+    frais_expr = func.coalesce(Inscription.frais_annuels, Eleve.frais_annuels, 150000.0)
+    total_paye_expr = func.coalesce(paiements_par_inscription.c.total_paye, 0.0)
+    stats["paiements_attente"] = (
+        db.session.query(func.count(Inscription.id))
+        .outerjoin(Eleve, Eleve.id == Inscription.eleve_id)
+        .outerjoin(paiements_par_inscription, paiements_par_inscription.c.inscription_id == Inscription.id)
+        .filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee_id,
+            frais_expr > total_paye_expr,
+        )
+        .scalar()
+        or 0
+    )
     return stats
 
 

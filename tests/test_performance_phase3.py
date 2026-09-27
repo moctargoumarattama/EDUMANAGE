@@ -85,14 +85,13 @@ class TestPerformancePhase3(unittest.TestCase):
                          "Les formulaires de suppression inline avec token CSRF ne doivent plus être dupliqués par élève")
 
     def test_eleves_route_per_page_setting(self):
-        """Vérifie que la pagination de l'annuaire des élèves est fixée entre 25 et 50."""
+        """Vérifie que l'annuaire des élèves pagine les classes par lots de 10."""
         with open('app/routes/eleves.py', 'r', encoding='utf-8') as f:
             content = f.read()
 
-        match = re.search(r'per_page\s*=\s*(\d+)', content)
-        self.assertIsNotNone(match, "Variable per_page non trouvée dans app/routes/eleves.py")
-        per_page = int(match.group(1))
-        self.assertTrue(25 <= per_page <= 50, f"per_page={per_page} doit être compris entre 25 et 50")
+        match = re.search(r'classes_per_page\s*=\s*(\d+)', content)
+        self.assertIsNotNone(match, "Variable classes_per_page non trouvée dans app/routes/eleves.py")
+        self.assertEqual(10, int(match.group(1)))
 
 
     def test_voir_eleve_single_dynamic_modal_and_iife(self):

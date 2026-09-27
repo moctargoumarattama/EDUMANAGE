@@ -9,6 +9,7 @@ from app.models import Ecole, Eleve, Utilisateur
 class TestConfig(Config):
     TESTING = True
     WTF_CSRF_ENABLED = False
+    RATELIMIT_ENABLED = False
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
 
 
@@ -134,6 +135,72 @@ class AuthTelephoneParentTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertIn("/parent", response.headers["Location"])
+
+    def test_login_page_remains_available_without_public_session_flag(self):
+        previous_testing = self.app.config.get("TESTING")
+        self.app.config["TESTING"] = False
+        try:
+            response = self.app.test_client().get("/login")
+        finally:
+            self.app.config["TESTING"] = previous_testing
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Connexion Enseignants", response.get_data(as_text=True))
+
+    def test_login_next_to_login_falls_back_to_role_dashboard(self):
+        response = self.app.test_client().post(
+            "/login?next=/login",
+            data={
+                "login_type": "terrain",
+                "telephone": "90123456",
+                "password": "1234",
+                "mot_de_passe": "1234",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/parent", response.headers["Location"])
+        self.assertNotIn("/login", response.headers["Location"])
+
+    def test_stale_login_post_when_already_authenticated_goes_to_dashboard(self):
+        client = self.app.test_client()
+        login_response = client.post(
+            "/login",
+            data={
+                "login_type": "terrain",
+                "telephone": "90123456",
+                "password": "1234",
+                "mot_de_passe": "1234",
+            },
+        )
+        self.assertEqual(login_response.status_code, 302)
+
+        previous_csrf = self.app.config.get("WTF_CSRF_ENABLED")
+        self.app.config["WTF_CSRF_ENABLED"] = True
+        try:
+            response = client.post(
+                "/login",
+                data={
+                    "login_type": "terrain",
+                    "telephone": "90123456",
+                    "password": "1234",
+                    "mot_de_passe": "1234",
+                },
+            )
+        finally:
+            self.app.config["WTF_CSRF_ENABLED"] = previous_csrf
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/", response.headers["Location"])
+        self.assertNotIn("/login", response.headers["Location"])
+
+    def test_login_form_preserves_valid_next_destination(self):
+        response = self.app.test_client().get("/login?next=/paiements")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("next=", html)
+        self.assertIn("paiements", html)
 
     def test_bad_phone_or_pin_fails_without_crash(self):
         response = self.post_login("90123456", "9999")

@@ -1340,6 +1340,12 @@ class JournalCorrection(db.Model):
     ecole = db.relationship("Ecole", backref="corrections")
     user = db.relationship("Utilisateur", backref="corrections")
 
+    __table_args__ = (
+        db.Index('ix_journal_correction_cible', 'cible_type', 'cible_id'),
+        db.Index('ix_journal_correction_ecole_cible_date', 'ecole_id', 'cible_type', 'date'),
+        db.Index('ix_journal_correction_action', 'action'),
+    )
+
     def __repr__(self):
         return f"<JournalCorrection {self.action} - {self.description}>"
 
