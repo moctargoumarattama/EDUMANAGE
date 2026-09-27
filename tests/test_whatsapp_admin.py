@@ -63,41 +63,43 @@ class WhatsAppAdminTestCase(unittest.TestCase):
         qr = "data:image/png;base64,abcd"
         with patch(
             "app.routes.whatsapp.requests.get",
-            return_value=FakeGatewayResponse({"status": "ATTENTE_SCAN", "qr": qr}),
+            return_value=FakeGatewayResponse({"status": "ATTENTE_SCAN", "qrImage": qr}),
         ) as get_mock:
-            response = self.client.get("/admin/whatsapp/status")
+            response = self.client.get("/parametres/whatsapp/status")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json(), {"status": "ATTENTE_SCAN", "qr": qr})
+        self.assertEqual(response.get_json(), {"status": "ATTENTE_SCAN", "connected": False, "qrImage": qr})
         get_mock.assert_called_once()
+        self.assertIn(f"/session/{self.ecole.id}/qr", get_mock.call_args.args[0])
         self.assertEqual(get_mock.call_args.kwargs["timeout"], 2)
 
     def test_status_returns_indisponible_when_gateway_fails(self):
         with patch("app.routes.whatsapp.requests.get", side_effect=requests.exceptions.ConnectionError("offline")):
-            response = self.client.get("/admin/whatsapp/status")
+            response = self.client.get("/parametres/whatsapp/status")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json(), {"status": "INDISPONIBLE"})
+        self.assertEqual(response.get_json(), {"status": "INDISPONIBLE", "connected": False})
 
     def test_status_filters_unexpected_qr_value(self):
         with patch(
             "app.routes.whatsapp.requests.get",
-            return_value=FakeGatewayResponse({"status": "ATTENTE_SCAN", "qr": "javascript:alert(1)"}),
+            return_value=FakeGatewayResponse({"status": "ATTENTE_SCAN", "qrImage": "javascript:alert(1)"}),
         ):
-            response = self.client.get("/admin/whatsapp/status")
+            response = self.client.get("/parametres/whatsapp/status")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json(), {"status": "ATTENTE_SCAN"})
+        self.assertEqual(response.get_json(), {"status": "ATTENTE_SCAN", "connected": False})
 
     def test_page_displays_connected_status(self):
         with patch(
             "app.routes.whatsapp.requests.get",
-            return_value=FakeGatewayResponse({"status": "CONNECTE"}),
+            return_value=FakeGatewayResponse({"status": "CONNECTE", "connected": True, "phone": "+22790000000"}),
         ):
-            response = self.client.get("/admin/whatsapp")
+            response = self.client.get("/parametres/whatsapp")
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("Numero officiel connecte", response.get_data(as_text=True))
+        self.assertIn("+22790000000", response.get_data(as_text=True))
 
 
 if __name__ == "__main__":

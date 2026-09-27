@@ -181,10 +181,10 @@ def login():
         return redirect(url_for('main.index'))
 
     form = LoginForm()
-    active_login_type = request.form.get('login_type', 'terrain')
+    active_login_type = request.form.get('login_type') or ('admin' if request.form.get('email') else 'terrain')
     if form.validate_on_submit():
         # sanitize + normaliser l'identifiant
-        login_type = request.form.get('login_type', 'terrain')
+        login_type = request.form.get('login_type') or ('admin' if request.form.get('email') else 'terrain')
         active_login_type = login_type if login_type in ('terrain', 'admin') else 'terrain'
         password = form.mot_de_passe.data
         identifiant = ""

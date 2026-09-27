@@ -244,6 +244,11 @@ class WhatsAppTriggersTestCase(unittest.TestCase):
         self.assertEqual(item.destinataire, "+22790123456")
         self.assertIn("Salma Garba", item.message)
         self.assertIn("CI A", item.message)
+        self.assertIn("https://klasora.com", item.message)
+        self.assertIn("+22790123456", item.message)
+        self.assertIn("Mot de passe", item.message)
+        self.assertNotIn("temporaire", item.message.lower())
+        self.assertNotIn("Changez", item.message)
 
     def test_professor_creation_enqueues_whatsapp_account_message(self):
         self._login_admin()
@@ -272,17 +277,22 @@ class WhatsAppTriggersTestCase(unittest.TestCase):
         self.assertEqual(item.destinataire, "+212770010264")
         self.assertIn("+212770010264", item.message)
         self.assertIn("24681357", item.message)
+        self.assertIn("https://klasora.com", item.message)
+        self.assertIn("Mot de passe", item.message)
+        self.assertNotIn("initial", item.message.lower())
+        self.assertNotIn("Changez", item.message)
 
     def test_envoyer_via_baileys_success_and_failure(self):
+        item = enqueue_message(self.ecole.id, "90123456", "Bonjour", "general", commit=True)
         with patch(
             "app.services.whatsapp_queue.requests.post",
             return_value=FakeResponse(200, {"success": True}),
         ) as post_mock:
-            self.assertTrue(envoyer_via_baileys("+22790123456", "Bonjour"))
+            self.assertTrue(envoyer_via_baileys("+22790123456", "Bonjour", item))
 
         post_mock.assert_called_once_with(
-            "http://127.0.0.1:3001/send",
-            json={"to": "+22790123456", "message": "Bonjour"},
+            f"http://127.0.0.1:3001/session/{self.ecole.id}/send",
+            json={"to": "+22790123456", "text": "Bonjour"},
             timeout=5,
         )
 
@@ -291,14 +301,14 @@ class WhatsAppTriggersTestCase(unittest.TestCase):
             return_value=FakeResponse(500, {"error": "telephone deconnecte"}),
         ):
             with self.assertRaises(RuntimeError):
-                envoyer_via_baileys("+22790123456", "Bonjour")
+                envoyer_via_baileys("+22790123456", "Bonjour", item)
 
         with patch(
             "app.services.whatsapp_queue.requests.post",
             side_effect=requests.exceptions.ConnectionError("offline"),
         ):
             with self.assertRaises(RuntimeError):
-                envoyer_via_baileys("+22790123456", "Bonjour")
+                envoyer_via_baileys("+22790123456", "Bonjour", item)
 
     def test_cli_process_queue_uses_baileys_sender(self):
         runner = self.app.test_cli_runner()

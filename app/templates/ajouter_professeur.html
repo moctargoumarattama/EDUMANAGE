@@ -71,7 +71,7 @@
                         {% for error in form.matieres_enseignees.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
                     </div>
                     <div class="form-grid-full">
-                        <label class="form-label" for="{{ form.code_prof.id }}">Code d’accès</label>
+                        <label class="form-label" for="{{ form.code_prof.id }}">Mot de passe</label>
                         {{ form.code_prof(class="form-control form-control-lg", placeholder="8 chiffres, laisser vide pour générer") }}
                         <p class="form-help mt-2">8 chiffres. Laissez vide pour générer automatiquement.</p>
                         {% for error in form.code_prof.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}

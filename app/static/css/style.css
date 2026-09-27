@@ -3539,11 +3539,12 @@ body.auth-layout .main-content > .container {
     align-items: center;
     justify-content: center;
     min-height: calc(100vh - 2rem);
+    padding: 0.75rem 0;
     isolation: isolate;
 }
 
 .login-shell {
-    width: min(100%, 378px);
+    width: min(100%, 720px);
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.78);
     border-radius: 1.15rem;
@@ -3553,42 +3554,55 @@ body.auth-layout .main-content > .container {
 }
 
 .login-card {
-    padding: 1.25rem;
+    padding: 1.15rem 1.35rem 1rem;
 }
 
 .login-card-header {
-    margin-bottom: 1rem;
+    margin-bottom: 0.7rem;
     text-align: center;
 }
 
 .login-card-header h1 {
     margin: 0;
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     font-weight: 800;
     color: var(--dark);
 }
 
 .login-logo {
     display: block;
-    width: 96px;
+    width: 74px;
     height: auto;
-    margin: 0 auto 0.55rem;
+    margin: 0 auto 0.35rem;
+}
+
+.login-mode-title {
+    margin: 0 0 0.9rem;
+    font-size: 1.05rem;
+    font-weight: 800;
+    text-align: center;
+    color: var(--dark);
 }
 
 .login-form {
     display: grid;
-    gap: 0.78rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem 0.9rem;
+}
+
+.login-grid-full {
+    grid-column: 1 / -1;
 }
 
 .login-form .form-label {
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.28rem;
     font-size: 0.86rem;
     font-weight: 700;
     color: var(--dark);
 }
 
 .login-form .form-control {
-    min-height: 44px;
+    min-height: 42px;
     border-radius: 0.7rem;
     font-size: 16px;
 }
@@ -3609,7 +3623,7 @@ body.auth-layout .main-content > .container {
 
 .login-submit {
     width: 100%;
-    min-height: 45px;
+    min-height: 43px;
     border: 0;
     border-radius: 0.75rem;
     background: linear-gradient(135deg, var(--primary), var(--secondary));
@@ -3618,11 +3632,16 @@ body.auth-layout .main-content > .container {
 }
 
 .login-note {
-    margin: 0.85rem 0 0;
+    margin: 0.25rem 0 0;
     color: var(--gray);
     font-size: 0.8rem;
     line-height: 1.45;
     text-align: center;
+}
+
+.login-switch {
+    margin-left: -1.35rem;
+    margin-right: -1.35rem;
 }
 
 .sync-page {
@@ -4533,12 +4552,12 @@ body.auth-layout .main-content > .container {
 
     .login-shell {
         width: 100%;
-        max-width: 340px;
+        max-width: 440px;
         border-radius: 0.8rem;
     }
 
     .login-card {
-        padding: 0.9rem;
+        padding: 0.85rem;
     }
 
     .login-card-header {
@@ -4550,7 +4569,7 @@ body.auth-layout .main-content > .container {
     }
 
     .login-logo {
-        width: 76px;
+        width: 66px;
         margin-bottom: 0.45rem;
     }
 
@@ -4560,6 +4579,7 @@ body.auth-layout .main-content > .container {
     }
 
     .login-form {
+        grid-template-columns: 1fr;
         gap: 0.65rem;
     }
 

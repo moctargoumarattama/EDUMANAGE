@@ -128,10 +128,12 @@ def _notifier_whatsapp_inscription(eleve, classe=None, ecole=None):
             return None
 
         classe_nom = getattr(classe, "nom", None) or "sa classe"
+        code_parent = getattr(eleve, "code_parent", None) or "fourni par le secretariat"
         message = (
-            f"Bienvenue sur KLASORA. L'inscription de votre enfant {eleve.prenom} {eleve.nom} "
-            f"a ete enregistree a {ecole.nom} en classe de {classe_nom}. "
-            "Vous recevrez les informations importantes par WhatsApp."
+            f"Bienvenue sur KLASORA. Nous sommes heureux d'accueillir votre enfant "
+            f"{eleve.prenom} {eleve.nom} a {ecole.nom}, en classe de {classe_nom}. "
+            f"Espace parent : https://klasora.com - Numero : {tel_parent}. "
+            f"Mot de passe : {code_parent}."
         )
         return enqueue_message(
             ecole_id=ecole.id,

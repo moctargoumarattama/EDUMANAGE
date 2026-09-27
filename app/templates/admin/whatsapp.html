@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}WhatsApp Ecole - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container py-4 py-lg-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-9">
+            <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+                <div>
+                    <h2 class="h4 fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                        <i class="fab fa-whatsapp text-success"></i> WhatsApp de l'etablissement
+                    </h2>
+                    <p class="text-muted small mb-0">Chaque ecole utilise son propre smartphone officiel.</p>
+                </div>
+                <a href="{{ url_for('main.index') }}" class="btn btn-light border rounded-pill px-3">
+                    <i class="fas fa-arrow-left me-1"></i>Retour
+                </a>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white whatsapp-connect-card">
+                <div class="whatsapp-accent-bar"></div>
+                <div class="card-body p-4 p-md-5">
+                    <div id="whatsappConnectedState" class="text-center {% if whatsapp_status.status != 'CONNECTE' %}d-none{% endif %}">
+                        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-success-subtle text-success border border-success-subtle mb-4">
+                            <span class="status-pulse-dot bg-success"></span>
+                            <span class="small fw-semibold">Operationnel</span>
+                        </div>
+                        <div class="whatsapp-icon-aura connected mx-auto mb-3">
+                            <i class="fab fa-whatsapp"></i>
+                        </div>
+                        <h3 class="fw-bold text-dark mb-2">Numero officiel connecte</h3>
+                        <p class="text-muted mb-3">
+                            Expediteur actif :
+                            <strong id="whatsappConnectedPhone">{{ whatsapp_status.phone or 'numero en cours de lecture' }}</strong>
+                        </p>
+                        <form method="POST" action="{{ url_for('main.whatsapp_logout') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-outline-danger rounded-pill px-4">
+                                <i class="fas fa-power-off me-1"></i>Deconnecter ce smartphone
+                            </button>
+                        </form>
+                    </div>
+
+                    <div id="whatsappScanState" class="text-center {% if whatsapp_status.status != 'ATTENTE_SCAN' %}d-none{% endif %}">
+                        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle mb-4">
+                            <span class="status-pulse-dot bg-warning"></span>
+                            <span class="small fw-semibold">En attente de scan</span>
+                        </div>
+                        <div class="qr-frame mx-auto mb-4">
+                            <img id="whatsappQrImage" src="{{ whatsapp_status.qrImage or '' }}" alt="QR Code WhatsApp" class="img-fluid {% if not whatsapp_status.qrImage %}d-none{% endif %}">
+                            <div id="whatsappQrPlaceholder" class="qr-placeholder {% if whatsapp_status.qrImage %}d-none{% endif %}">
+                                <i class="fas fa-qrcode"></i>
+                            </div>
+                        </div>
+                        <div class="scan-steps text-start mx-auto">
+                            <div><strong>1.</strong> Ouvrez WhatsApp sur le smartphone de l'ecole.</div>
+                            <div><strong>2.</strong> Allez dans Menu ou Reglages &gt; <strong>Appareils connectes</strong> &gt; <strong>Lier un appareil</strong>.</div>
+                            <div><strong>3.</strong> Pointez l'appareil photo vers ce QR Code.</div>
+                        </div>
+                    </div>
+
+                    <div id="whatsappUnavailableState" class="text-center {% if whatsapp_status.status in ['CONNECTE', 'ATTENTE_SCAN'] %}d-none{% endif %}">
+                        <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-secondary-subtle text-secondary border border-secondary-subtle mb-4">
+                            <span class="status-dot bg-secondary"></span>
+                            <span id="whatsappUnavailableLabel" class="small fw-semibold">Passerelle indisponible</span>
+                        </div>
+                        <div class="whatsapp-icon-aura unavailable mx-auto mb-3">
+                            <i class="fab fa-whatsapp"></i>
+                        </div>
+                        <h3 id="whatsappUnavailableTitle" class="fw-bold text-dark mb-2">Smartphone non connecte</h3>
+                        <p id="whatsappUnavailableText" class="text-muted mb-0">
+                            Le QR code apparaitra automatiquement quand la passerelle locale sera disponible.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-muted small text-center mt-3">
+                <i class="fas fa-shield-alt me-1"></i>Cette page est reservee aux administrateurs de l'etablissement.
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.whatsapp-connect-card { border: 1px solid rgba(0, 0, 0, 0.06) !important; }
+.whatsapp-accent-bar { height: 4px; background: linear-gradient(90deg, #25d366 0%, #128c7e 100%); }
+.whatsapp-icon-aura {
+    width: 86px;
+    height: 86px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+}
+.whatsapp-icon-aura.connected { color: #198754; background: #eafaf1; }
+.whatsapp-icon-aura.unavailable { color: #6c757d; background: #f3f4f6; }
+.qr-frame {
+    width: min(280px, 82vw);
+    min-height: min(280px, 82vw);
+    border-radius: 24px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+.qr-frame img { width: 100%; height: auto; border-radius: 12px; }
+.qr-placeholder { color: #94a3b8; font-size: 5rem; }
+.scan-steps {
+    max-width: 560px;
+    display: grid;
+    gap: 10px;
+    color: #334155;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 18px;
+}
+.status-dot,
+.status-pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.status-pulse-dot { box-shadow: 0 0 0 rgba(25, 135, 84, 0.4); animation: whatsapp-pulse 2s infinite; }
+@keyframes whatsapp-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.45); }
+    70% { box-shadow: 0 0 0 8px rgba(25, 135, 84, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(25, 135, 84, 0); }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const statusUrl = "{{ url_for('main.whatsapp_status') }}";
+    const connectedState = document.getElementById('whatsappConnectedState');
+    const scanState = document.getElementById('whatsappScanState');
+    const unavailableState = document.getElementById('whatsappUnavailableState');
+    const qrImage = document.getElementById('whatsappQrImage');
+    const qrPlaceholder = document.getElementById('whatsappQrPlaceholder');
+    const connectedPhone = document.getElementById('whatsappConnectedPhone');
+    const unavailableLabel = document.getElementById('whatsappUnavailableLabel');
+    const unavailableTitle = document.getElementById('whatsappUnavailableTitle');
+    const unavailableText = document.getElementById('whatsappUnavailableText');
+
+    function showOnly(target) {
+        [connectedState, scanState, unavailableState].forEach((el) => {
+            if (el) el.classList.toggle('d-none', el !== target);
+        });
+    }
+
+    function renderStatus(payload) {
+        const status = payload && payload.status ? payload.status : 'INDISPONIBLE';
+
+        if (status === 'CONNECTE') {
+            if (connectedPhone) connectedPhone.textContent = payload.phone || 'numero connecte';
+            showOnly(connectedState);
+            return;
+        }
+
+        if (status === 'ATTENTE_SCAN') {
+            if (payload.qrImage && qrImage) {
+                qrImage.src = payload.qrImage;
+                qrImage.classList.remove('d-none');
+                if (qrPlaceholder) qrPlaceholder.classList.add('d-none');
+            }
+            showOnly(scanState);
+            return;
+        }
+
+        if (unavailableLabel) unavailableLabel.textContent = status === 'DECONNECTE' ? 'Deconnecte' : 'Passerelle indisponible';
+        if (unavailableTitle) unavailableTitle.textContent = status === 'DECONNECTE' ? 'Smartphone non connecte' : 'Service WhatsApp indisponible';
+        if (unavailableText) {
+            unavailableText.textContent = status === 'DECONNECTE'
+                ? "Aucun smartphone n'est lie pour cette ecole. Le QR code va se preparer automatiquement."
+                : "Verifiez que la passerelle locale Baileys est demarree sur le serveur.";
+        }
+        showOnly(unavailableState);
+    }
+
+    async function refreshStatus() {
+        try {
+            const response = await fetch(statusUrl, { headers: { 'Accept': 'application/json' } });
+            if (!response.ok) return;
+            renderStatus(await response.json());
+        } catch (error) {
+            renderStatus({ status: 'INDISPONIBLE' });
+        }
+    }
+
+    setInterval(refreshStatus, 3000);
+    refreshStatus();
+})();
+</script>
+{% endblock %}

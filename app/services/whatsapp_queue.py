@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import requests
+from flask import current_app
 
 from app import db
 from app.models import Ecole, MessageQueue
@@ -12,7 +13,7 @@ STATUS_PENDING = 'en_attente'
 STATUS_SENT = 'envoye'
 STATUS_FAILED = 'echec'
 STATUS_EXPIRED = 'expire'
-BAILEYS_SEND_URL = 'http://127.0.0.1:3001/send'
+BAILEYS_BASE_URL = 'http://127.0.0.1:3001'
 
 
 def normaliser_numero_niger(numero):
@@ -76,9 +77,14 @@ def enqueue_message(
 
 def envoyer_via_baileys(destinataire, texte, queue_item=None):
     """Envoie un message WhatsApp via la passerelle locale Baileys."""
-    payload = {"to": destinataire, "message": texte}
+    ecole_id = getattr(queue_item, "ecole_id", None)
+    if not ecole_id:
+        raise RuntimeError("Ecole introuvable pour l'envoi WhatsApp Baileys.")
+
+    url = f"{BAILEYS_BASE_URL}/session/{ecole_id}/send"
+    payload = {"to": destinataire, "text": texte}
     try:
-        response = requests.post(BAILEYS_SEND_URL, json=payload, timeout=5)
+        response = requests.post(url, json=payload, timeout=5)
     except requests.RequestException as exc:
         raise RuntimeError(f"Passerelle Baileys indisponible: {exc}") from exc
 
@@ -91,6 +97,12 @@ def envoyer_via_baileys(destinataire, texte, queue_item=None):
         return True
 
     error = data.get("error") or data.get("message") or response.text or f"HTTP {response.status_code}"
+    if response.status_code in (404, 409) or data.get("status") in {"DECONNECTE", "ATTENTE_SCAN", "INDISPONIBLE"}:
+        current_app.logger.warning(
+            "Envoi WhatsApp refuse: ecole_id=%s non appairee ou session inactive (%s)",
+            ecole_id,
+            error,
+        )
     raise RuntimeError(f"Echec envoi WhatsApp Baileys: {error}")
 
 

@@ -73,9 +73,9 @@ def _notifier_whatsapp_compte_professeur(professeur, code_acces, ecole=None):
             return None
 
         message = (
-            f"Bienvenue sur KLASORA. Votre compte professeur pour {ecole.nom} est actif. "
-            f"Acces : https://klasora.com - Identifiant : {professeur.telephone}. "
-            f"Code d'acces initial : {code_acces}. Changez ce code apres votre premiere connexion."
+            f"Bienvenue sur KLASORA. Nous sommes heureux de vous accueillir dans l'equipe "
+            f"de {ecole.nom}. Acces : https://klasora.com - Numero : {tel_prof}. "
+            f"Mot de passe : {code_acces}."
         )
         return enqueue_message(
             ecole_id=ecole.id,
@@ -203,7 +203,7 @@ def ajouter_professeur():
             # ---------------- Code professeur ----------------
             code_prof = form.code_prof.data.strip() if form.code_prof.data else generate_access_code()
             if not is_valid_access_code(code_prof):
-                flash("Le code d'accès doit contenir exactement 8 chiffres.", "danger")
+                flash("Le mot de passe doit contenir exactement 8 chiffres.", "danger")
                 return redirect(url_for('main.ajouter_professeur'))
 
             # ---------------- Vérification unicité ----------------
@@ -253,7 +253,7 @@ def ajouter_professeur():
                 db.session.commit()
             except IntegrityError:
                 db.session.rollback()
-                flash("Ce code d'accès est déjà utilisé dans votre établissement.", "danger")
+                flash("Ce mot de passe est deja utilise dans votre etablissement.", "danger")
                 return redirect(url_for('main.ajouter_professeur'))
 
             # ---------------- Journalisation ----------------
@@ -279,7 +279,7 @@ def ajouter_professeur():
             )
 
 
-            flash(f"âœ… Professeur ajouté avec succès. Code d'accès: {code_prof}", "success")
+            flash(f"Professeur ajoute avec succes. Mot de passe: {code_prof}", "success")
             return redirect(url_for('main.professeurs'))
 
         except Exception as e:
@@ -369,7 +369,7 @@ def modifier_professeur(id):
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
-            flash("Ce code d'accès est déjà utilisé dans votre établissement.", "danger")
+            flash("Ce mot de passe est deja utilise dans votre etablissement.", "danger")
             return redirect(url_for('main.modifier_professeur', id=professeur.id))
 
         flash("Professeur modifié avec succès.", "success")

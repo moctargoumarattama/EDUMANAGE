@@ -129,7 +129,7 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
             data=self.professeur_data(code_prof="1234", telephone="90000002"),
             follow_redirects=True,
         )
-        self.assertIn("Le code", response.get_data(as_text=True))
+        self.assertIn("mot de passe", response.get_data(as_text=True).lower())
         self.assertIsNone(Utilisateur.query.filter_by(telephone="+22790000002").first())
 
         response = client.post(
@@ -137,7 +137,7 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
             data=self.professeur_data(code_prof="abcdefgh", telephone="90000003"),
             follow_redirects=True,
         )
-        self.assertIn("code", response.get_data(as_text=True))
+        self.assertIn("mot de passe", response.get_data(as_text=True).lower())
         self.assertIsNone(Utilisateur.query.filter_by(telephone="+22790000003").first())
 
     def test_parent_auto_manual_and_existing_parent_password_preserved(self):
