@@ -181,25 +181,46 @@ def login():
         return redirect(url_for('main.index'))
 
     form = LoginForm()
+    active_login_type = request.form.get('login_type', 'terrain')
     if form.validate_on_submit():
         # sanitize + normaliser l'identifiant
-        identifiant = (form.telephone.data or request.form.get('identifiant') or request.form.get('email') or '').strip()
+        login_type = request.form.get('login_type', 'terrain')
+        active_login_type = login_type if login_type in ('terrain', 'admin') else 'terrain'
+        password = form.mot_de_passe.data
+        identifiant = ""
 
         # Option: implementer un throttle/lockout par identifiant ici (compte)
         # Exemple (pseudo): if too_many_failed_attempts(identifiant): flash(...); return redirect(...)
 
         # Recherche utilisateur par email (case-insensitive) ou telephone
         # Assure-toi d'avoir les colonnes indexées pour la perf
-        utilisateur = _resolve_utilisateur_par_telephone(identifiant)
-        if not utilisateur and "@" in identifiant:
-            candidat = Utilisateur.query.filter(Utilisateur.email.ilike(identifiant)).first()
-            if candidat and candidat.role in ("admin", "super_admin"):
-                utilisateur = candidat
-
         # IP via get_remote_address (plus fiable avec flask-limiter)
         ip = get_remote_address()
+        utilisateur = None
+        if active_login_type == 'admin':
+            identifiant = (request.form.get('email') or form.telephone.data or '').strip().lower()
+            if identifiant:
+                utilisateur = Utilisateur.query.filter(Utilisateur.email.ilike(identifiant)).first()
+            if utilisateur and utilisateur.role not in ("admin", "super_admin"):
+                current_app.logger.warning(f"Connexion admin refusee pour role={utilisateur.role} identifiant={escape(identifiant)} depuis {ip}")
+                utilisateur = None
+                flash("Cet espace est reserve a la direction et a l'administration.", "warning")
+        else:
+            identifiant = (request.form.get('telephone') or form.telephone.data or '').strip()
+            if "@" in identifiant:
+                flash("Pour un compte administrateur, utilisez l'acces Direction & Administration en bas de page.", "info")
+            else:
+                utilisateur = _resolve_utilisateur_par_telephone(identifiant)
+                if utilisateur and utilisateur.role in ("admin", "super_admin"):
+                    current_app.logger.warning(f"Compte admin tente sur espace terrain id={utilisateur.id} depuis {ip}")
+                    utilisateur = None
+                    flash("Compte administrateur detecte : utilisez l'acces Direction & Administration en bas de page.", "info")
+                elif utilisateur and utilisateur.role not in ("professeur", "parent", "eleve"):
+                    current_app.logger.warning(f"Connexion terrain refusee pour role={utilisateur.role} identifiant={escape(identifiant)} depuis {ip}")
+                    utilisateur = None
+                    flash("Cet espace est reserve aux professeurs, parents et eleves.", "warning")
 
-        if utilisateur and check_password_hash(utilisateur.mot_de_passe, form.mot_de_passe.data):
+        if utilisateur and check_password_hash(utilisateur.mot_de_passe, password):
             # utilisateur existe et mot de passe correct
 
             # Vérification école pour tous sauf super_admin
@@ -259,9 +280,10 @@ def login():
         else:
             # échec de connexion
             current_app.logger.warning(f"Tentative de connexion échouée pour identifiant={escape(identifiant)} depuis {ip}")
-            flash('Identifiant ou mot de passe / code PIN incorrect.', 'danger')
+            if not any(category in ("info", "warning") for category, _ in session.get("_flashes", [])):
+                flash('Identifiant ou mot de passe / code PIN incorrect.', 'danger')
 
-    return render_template('login.html', form=form)
+    return render_template('login.html', form=form, active_login_type=active_login_type)
 
 @main.route('/portal_parent')
 @login_required

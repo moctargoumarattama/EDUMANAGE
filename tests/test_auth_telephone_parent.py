@@ -86,23 +86,30 @@ class AuthTelephoneParentTestCase(unittest.TestCase):
         db.drop_all()
         self.ctx.pop()
 
-    def post_login(self, identifiant, password):
+    def post_login(self, identifiant, password, login_type="terrain"):
+        data = {"login_type": login_type, "password": password}
+        if login_type == "admin":
+            data["email"] = identifiant
+        else:
+            data["identifiant"] = identifiant
+            data["telephone"] = identifiant
+            data["mot_de_passe"] = password
         return self.app.test_client().post(
             "/login",
-            data={"identifiant": identifiant, "mot_de_passe": password},
+            data=data,
         )
 
     def test_admin_login_email_password(self):
-        response = self.post_login("ADMIN.AUTH@test.local", "AdminPass123")
+        response = self.post_login("ADMIN.AUTH@test.local", "AdminPass123", login_type="admin")
 
         self.assertEqual(response.status_code, 302)
         self.assertIn("/", response.headers["Location"])
 
-    def test_admin_login_phone_password(self):
+    def test_admin_login_phone_password_refused_on_terrain_space(self):
         response = self.post_login("90111111", "AdminPass123")
 
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("/", response.headers["Location"])
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Direction", response.data)
 
     def test_parent_login_local_phone_pin(self):
         response = self.post_login("90123456", "1234")

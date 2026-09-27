@@ -68,6 +68,8 @@ class LoginForm(FlaskForm):
                 or request.form.get('email')
                 or ''
             ).strip()
+        if not self.mot_de_passe.data:
+            self.mot_de_passe.data = (request.form.get('password') or '').strip()
         return super().validate(extra_validators)
 
 class ParentLoginForm(FlaskForm):

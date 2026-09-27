@@ -3,11 +3,12 @@
 {% block title %}Connexion - KLASORA{% endblock %}
 
 {% block content %}
+{% set active_mode = active_login_type|default('terrain') %}
 <div class="login-page">
     <section class="login-shell" aria-label="Connexion KLASORA">
         <div class="login-card position-relative">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <a href="{{ url_for('main.index') }}" class="btn btn-sm btn-light border rounded-pill px-3 text-secondary shadow-sm" style="font-size: 0.78rem; font-weight: 500; transition: all 0.2s;" title="Retourner à la page d'accueil publique">
+                <a href="{{ url_for('main.index') }}" class="btn btn-sm btn-light border rounded-pill px-3 text-secondary shadow-sm" style="font-size: 0.78rem; font-weight: 500; transition: all 0.2s;" title="Retourner a la page d'accueil publique">
                     <i class="fas fa-arrow-left me-1"></i>Accueil
                 </a>
             </div>
@@ -17,46 +18,92 @@
                 <h1>Connexion</h1>
             </div>
 
-            <form method="POST" action="{{ url_for('main.login') }}" class="login-form needs-validation" novalidate>
-                {{ form.hidden_tag() }}
+            <div id="section-terrain" class="login-mode-panel" {% if active_mode == 'admin' %}style="display: none;"{% endif %}>
+                <h2 class="login-mode-title">Connexion Enseignants & Parents</h2>
+                <form method="POST" action="{{ url_for('main.login') }}" class="login-form needs-validation" novalidate>
+                    {{ form.csrf_token }}
+                    <input type="hidden" name="login_type" value="terrain">
 
-                <div>
-                    <label class="form-label" for="{{ form.telephone.id }}">Numero de telephone</label>
-                    {{ form.telephone(class="form-control", type="tel", inputmode="tel", placeholder="Ex: 90123456 ou +212 7 70 01 02 64", autocomplete="username") }}
-                    <div class="invalid-feedback">Numero de telephone requis.</div>
-                    {% for error in form.telephone.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                    {% endfor %}
-                </div>
-
-                <div>
-                    <label class="form-label" for="{{ form.mot_de_passe.id }}">Mot de passe ou Code PIN</label>
-                    <div class="input-group">
-                        {{ form.mot_de_passe(class="form-control", placeholder="••••••••", autocomplete="current-password") }}
-                        <button class="btn btn-outline-secondary" type="button" id="togglePassword" tabindex="-1">
-                            <i class="fas fa-eye" id="togglePasswordIcon"></i>
-                        </button>
-                        <div class="invalid-feedback">Mot de passe requis.</div>
+                    <div class="login-field">
+                        <label class="form-label" for="terrain-telephone">Numero de telephone</label>
+                        <input id="terrain-telephone" class="form-control" type="tel" name="telephone" inputmode="tel" placeholder="Ex: 90123456 ou +212 7 70 01 02 64" autocomplete="username" required autofocus>
+                        <div class="invalid-feedback">Numero de telephone requis.</div>
                     </div>
-                    {% for error in form.mot_de_passe.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                    {% endfor %}
+
+                    <div class="login-field">
+                        <label class="form-label" for="terrain-password">Mot de passe / Code d'acces</label>
+                        <div class="input-group">
+                            <input id="terrain-password" class="form-control js-password-input" type="password" name="password" placeholder="........" autocomplete="current-password" required>
+                            <button class="btn btn-outline-secondary js-toggle-password" type="button" tabindex="-1" aria-label="Afficher le mot de passe">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <div class="invalid-feedback">Mot de passe requis.</div>
+                        </div>
+                    </div>
+
+                    <div class="login-form-row login-grid-full">
+                        <label class="form-check mb-0">
+                            {{ form.remember(class="form-check-input", id="rememberTerrain") }}
+                            <span class="form-check-label">Se souvenir</span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary login-submit login-grid-full">
+                        <i class="fas fa-sign-in-alt me-2" aria-hidden="true"></i>Se connecter
+                    </button>
+
+                    <p class="login-note login-grid-full mt-2 mb-0 text-center small">
+                        Code d'acces oublie ? Contactez le secretariat de votre ecole.
+                    </p>
+                </form>
+
+                <div class="login-switch mt-3 pt-3 border-top text-center">
+                    <button type="button" onclick="basculerMode('admin')" class="btn btn-link btn-sm text-muted text-decoration-underline px-0">
+                        Acces Direction & Administration
+                    </button>
                 </div>
+            </div>
 
-                <div class="login-form-row">
-                    <label class="form-check mb-0">
-                        {{ form.remember(class="form-check-input", id="rememberMe") }}
-                        <span class="form-check-label">Se souvenir</span>
-                    </label>
-                    <a href="{{ url_for('main.request_reset_password') }}">Mot de passe oublié </a>
+            <div id="section-admin" class="login-mode-panel" {% if active_mode != 'admin' %}style="display: none;"{% endif %}>
+                <h2 class="login-mode-title text-primary">Espace Administration</h2>
+                <form method="POST" action="{{ url_for('main.login') }}" class="login-form needs-validation" novalidate>
+                    {{ form.csrf_token }}
+                    <input type="hidden" name="login_type" value="admin">
+
+                    <div class="login-field">
+                        <label class="form-label" for="admin-email">Email administratif</label>
+                        <input id="admin-email" class="form-control" type="email" name="email" placeholder="admin@ecole.com" autocomplete="username" required>
+                        <div class="invalid-feedback">Email administratif requis.</div>
+                    </div>
+
+                    <div class="login-field">
+                        <label class="form-label" for="admin-password">Mot de passe</label>
+                        <div class="input-group">
+                            <input id="admin-password" class="form-control js-password-input" type="password" name="password" placeholder="........" autocomplete="current-password" required>
+                            <button class="btn btn-outline-secondary js-toggle-password" type="button" tabindex="-1" aria-label="Afficher le mot de passe">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <div class="invalid-feedback">Mot de passe requis.</div>
+                        </div>
+                    </div>
+
+                    <div class="login-grid-full text-end small my-1">
+                        <a href="{{ url_for('main.request_reset_password') }}" class="text-primary text-decoration-none">
+                            Mot de passe oublie ?
+                        </a>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary login-submit login-grid-full">
+                        <i class="fas fa-user-shield me-2" aria-hidden="true"></i>Connexion Administration
+                    </button>
+                </form>
+
+                <div class="login-switch mt-3 pt-3 border-top text-center">
+                    <button type="button" onclick="basculerMode('terrain')" class="btn btn-link btn-sm text-muted text-decoration-underline px-0">
+                        Retour a l'espace Enseignants & Parents
+                    </button>
                 </div>
-
-                <button type="submit" class="btn btn-primary login-submit">
-                    <i class="fas fa-sign-in-alt me-2" aria-hidden="true"></i>Se connecter
-                </button>
-            </form>
-
-            <p class="login-note mt-3 mb-1">Compte fourni par l'établissement.</p>
+            </div>
 
             <div class="text-center mt-2">
                 <a href="{{ url_for('main.index') }}" class="text-muted small text-decoration-none" style="font-size: 0.78rem;">
@@ -70,6 +117,23 @@
 
 {% block scripts %}
 <script>
+function basculerMode(mode) {
+    const terrain = document.getElementById('section-terrain');
+    const admin = document.getElementById('section-admin');
+    if (!terrain || !admin) return;
+    if (mode === 'admin') {
+        terrain.style.display = 'none';
+        admin.style.display = 'block';
+        const email = document.getElementById('admin-email');
+        if (email) email.focus();
+    } else {
+        admin.style.display = 'none';
+        terrain.style.display = 'block';
+        const phone = document.getElementById('terrain-telephone');
+        if (phone) phone.focus();
+    }
+}
+
 document.querySelectorAll('.needs-validation').forEach((form) => {
     form.addEventListener('submit', (event) => {
         if (!form.checkValidity()) {
@@ -80,24 +144,17 @@ document.querySelectorAll('.needs-validation').forEach((form) => {
     });
 });
 
-// Toggle password visibility
-const togglePassword = document.getElementById('togglePassword');
-const passwordInput = document.getElementById('mot_de_passe');
-const togglePasswordIcon = document.getElementById('togglePasswordIcon');
-
-if (togglePassword && passwordInput) {
-    togglePassword.addEventListener('click', function () {
-        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-        passwordInput.setAttribute('type', type);
-        
-        if (type === 'text') {
-            togglePasswordIcon.classList.remove('fa-eye');
-            togglePasswordIcon.classList.add('fa-eye-slash');
-        } else {
-            togglePasswordIcon.classList.remove('fa-eye-slash');
-            togglePasswordIcon.classList.add('fa-eye');
-        }
+document.querySelectorAll('.js-toggle-password').forEach((button) => {
+    button.addEventListener('click', function () {
+        const group = this.closest('.input-group');
+        const input = group ? group.querySelector('.js-password-input') : null;
+        const icon = this.querySelector('i');
+        if (!input || !icon) return;
+        const show = input.getAttribute('type') === 'password';
+        input.setAttribute('type', show ? 'text' : 'password');
+        icon.classList.toggle('fa-eye', !show);
+        icon.classList.toggle('fa-eye-slash', show);
     });
-}
+});
 </script>
 {% endblock %}
