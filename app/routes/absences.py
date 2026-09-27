@@ -1,5 +1,4 @@
 from . import main
-from types import SimpleNamespace
 import pandas as pd
 from .common import (
     abort,
@@ -30,6 +29,7 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload
 from app.authorization import tenant_required
 from app.services.annees_scolaires import get_annee_consultee
+from app.services.scolaire import niveaux_depuis_classes
 from app.services.structure_annuelle import get_niveaux_annee
 from app.services.absences_annuelles import (
     _parent_enfant_ids,
@@ -53,19 +53,6 @@ def _ecole_id_courante():
 def _remplir_choix_absence(form, ecole_id, annee):
     form.eleve_id.choices = get_eleves_choices_absences(ecole_id, annee, current_user)
     form.cours_id.choices = get_cours_choices_absences(ecole_id, annee, current_user)
-
-
-def _niveaux_depuis_classes(classes):
-    niveaux_par_id = {}
-    for classe in classes:
-        niveau = getattr(classe, "niveau_scolaire", None)
-        if niveau and niveau.id not in niveaux_par_id:
-            niveaux_par_id[niveau.id] = niveau
-            continue
-        niveau_nom = (getattr(classe, "niveau", None) or "").strip()
-        if niveau_nom and f"legacy:{niveau_nom}" not in niveaux_par_id:
-            niveaux_par_id[f"legacy:{niveau_nom}"] = SimpleNamespace(id=niveau_nom, nom=niveau_nom, ordre=999)
-    return sorted(niveaux_par_id.values(), key=lambda niveau: (niveau.ordre, niveau.nom))
 
 
 def _notifier_whatsapp_absence(absence, ecole=None, eleve=None, cours=None):
@@ -332,7 +319,7 @@ def absences():
 
     classes = get_classes_absences(ecole_id, annee_consultee, current_user)
     if current_user.role == "professeur":
-        niveaux_annee = _niveaux_depuis_classes(classes)
+        niveaux_annee = niveaux_depuis_classes(classes)
     else:
         niveaux_annee = get_niveaux_annee(ecole_id, annee_consultee.id) if (ecole_id and annee_consultee) else []
 

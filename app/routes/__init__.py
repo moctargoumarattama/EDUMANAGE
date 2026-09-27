@@ -9,11 +9,9 @@ from app.services import (
     check_ecole_access,
     generer_alertes_automatiques,
     generer_bulletin_pdf,
-    get_cache,
     get_qr_cache_path,
     get_statistics,
     notifier_alertes,
-    set_cache,
 )
 
 from . import auth

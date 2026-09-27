@@ -371,38 +371,6 @@ def log_action(module, action, level="INFO", user_id=None, details=None):
 
 
 # ====================================================================
-# 🎨 CONTEXTE POUR TEMPLATES
-# ====================================================================
-
-def setup_template_context():
-    """Configure le contexte global pour les templates"""
-    @current_app.context_processor
-    def inject_globals():
-        ec_res = get_ecole_courante()
-        annee = None
-        setup_state = None
-        try:
-            if not isinstance(ec_res, tuple) and ec_res:
-                annee = get_annee_courante()
-                if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'role', None) == 'admin':
-                    from app.utils import get_school_setup_state
-                    setup_state = get_school_setup_state(ec_res.id)
-        except Exception as e:
-            current_app.logger.debug(f"Impossible d'injecter l'année courante ou setup_state: {e}")
-            annee = None
-
-        from app.models import ADMIN_TOUR_VERSION
-        return {
-            'ecole_courante': ec_res if not isinstance(ec_res, tuple) else None,
-            'annee_courante': annee,
-            'school_setup_state': setup_state,
-            'ADMIN_TOUR_VERSION': ADMIN_TOUR_VERSION,
-            'is_super_admin': is_super_admin(),
-            'get_ecole_id': get_ecole_id
-        }
-
-
-# ====================================================================
 # 🔄 MIDDLEWARE POUR CHAQUE REQUÊTE
 # ====================================================================
 

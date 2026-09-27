@@ -1819,22 +1819,6 @@ def supprimer_eleve_cascade(id):
         flash("Erreur inattendue lors de la suppression.", "danger")
         return redirect(url_for('main.eleves'))
 
-@login_required
-@role_required('admin')
-def supprimer_eleve_route(id):
-    """Supprimer un élève"""
-    eleve = Eleve.query.get_or_404(id)
-    
-    # Vérifier s'il y a des données liées
-    if eleve.notes or eleve.paiements or eleve.absences:
-        flash("Impossible de supprimer cet élève car il a des données associées.", "danger")
-        return redirect(url_for('main.profile'))
-    
-    db.session.delete(eleve)
-    db.session.commit()
-    flash("Élève supprimé avec succès.", "success")
-    return redirect(url_for('main.profile'))
-
 @main.route('/api/eleves/<int:eleve_id>', methods=['DELETE'])
 @login_required
 @role_required('admin')

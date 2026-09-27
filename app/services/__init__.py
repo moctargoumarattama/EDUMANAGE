@@ -20,27 +20,7 @@ from app.utils import get_ecole_filter_query
 from app.services.paiements_annuels import get_mois_scolaires
 
 
-_stats_cache = {}
-CACHE_DURATION = 60
 PER_PAGE_ALERTES = 10
-
-
-def get_cache(user_id, key):
-    """Retourne le cache si valide pour un utilisateur."""
-    now = datetime.now()
-    if user_id in _stats_cache and key in _stats_cache[user_id]:
-        data, timestamp = _stats_cache[user_id][key]
-        if (now - timestamp).total_seconds() < CACHE_DURATION:
-            return data
-    return None
-
-
-def set_cache(user_id, key, data):
-    """Enregistre les donnees dans le cache pour un utilisateur."""
-    now = datetime.now()
-    if user_id not in _stats_cache:
-        _stats_cache[user_id] = {}
-    _stats_cache[user_id][key] = (data, now)
 
 
 def check_ecole_access(obj, objet_type="generic"):

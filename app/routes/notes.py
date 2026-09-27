@@ -1,6 +1,5 @@
 import io
 import pandas as pd
-from types import SimpleNamespace
 from datetime import datetime
 from flask import abort, flash, g, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
@@ -18,6 +17,7 @@ from .common import (
     role_required,
 )
 from app.services.annees_scolaires import get_annee_consultee
+from app.services.scolaire import niveaux_depuis_classes
 from app.utils import sanitize_internal_url
 from app.services.notes_annuelles import (
     MESSAGE_ANNEE_ARCHIVEE,
@@ -56,21 +56,6 @@ def _notes_return_url():
         _notes_context_url(),
     )
 
-
-
-def _niveaux_depuis_classes(classes):
-    niveaux_par_id = {}
-    for classe in classes:
-        niveau = getattr(classe, "niveau_scolaire", None)
-        if niveau and niveau.id not in niveaux_par_id:
-            niveaux_par_id[niveau.id] = niveau
-            continue
-        niveau_nom = (getattr(classe, "niveau", None) or "").strip()
-        if niveau_nom and f"legacy:{niveau_nom}" not in niveaux_par_id:
-            niveaux_par_id[f"legacy:{niveau_nom}"] = SimpleNamespace(id=niveau_nom, nom=niveau_nom, ordre=999)
-    return sorted(niveaux_par_id.values(), key=lambda niveau: (niveau.ordre, niveau.nom))
-
-
 @main.route('/notes', methods=['GET', 'POST'])
 @login_required
 @role_required('admin', 'professeur', 'parent')
@@ -93,7 +78,7 @@ def notes():
     # ------------------- Classes et Niveaux (Requis pour filtres) -------------------
     classes_list = get_classes_notes(ecole_id, annee_consultee, user=current_user)
     if current_user.role == "professeur":
-        niveaux_annee = _niveaux_depuis_classes(classes_list)
+        niveaux_annee = niveaux_depuis_classes(classes_list)
     else:
         from app.services.structure_annuelle import get_niveaux_annee
         niveaux_annee = get_niveaux_annee(ecole_id, annee_consultee.id) if annee_consultee else []
