@@ -28,6 +28,47 @@ from .common import (
     url_for,
 )
 from app.access_codes import generate_access_code
+from app.services.phone_numbers import normaliser_numero_whatsapp
+from app.services.whatsapp_queue import enqueue_message
+
+
+def _notifier_whatsapp_reset_password(user, nouveau_mdp):
+    try:
+        if not user or not getattr(user, "ecole_id", None):
+            return None
+
+        ecole = getattr(user, "ecole", None) or db.session.get(Ecole, user.ecole_id)
+        if not ecole or not getattr(ecole, "whatsapp_enabled", False):
+            return None
+
+        telephone = normaliser_numero_whatsapp(getattr(user, "telephone", None))
+        if not telephone:
+            current_app.logger.warning(
+                "Notification WhatsApp reset password ignoree: telephone absent user_id=%s",
+                getattr(user, "id", None),
+            )
+            return None
+
+        nom = f"{user.prenom or ''} {user.nom or ''}".strip() or "utilisateur"
+        message = (
+            f"Bonjour {nom}, votre mot de passe KLASORA a ete mis a jour par l'administration "
+            f"de {ecole.nom}. Acces : https://klasora.com - Numero : {telephone}. "
+            f"Mot de passe : {nouveau_mdp}."
+        )
+        return enqueue_message(
+            ecole_id=ecole.id,
+            destinataire=telephone,
+            message=message,
+            type_message="general",
+            commit=True,
+        )
+    except Exception as exc:
+        current_app.logger.warning(
+            "Notification WhatsApp reset password ignoree user_id=%s: %s",
+            getattr(user, "id", None),
+            exc,
+        )
+        return None
 
 
 def _parent_delete_block_response(user):
@@ -111,7 +152,6 @@ def gestion_utilisateurs():
     if current_user.role == 'super_admin':
         return redirect(url_for('main.gestion_ecoles'))
 
-    page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '').strip()
     role_filter = request.args.get('role', '').strip()
     statut_filter = request.args.get('statut', '').strip()
@@ -119,7 +159,7 @@ def gestion_utilisateurs():
 
     try:
         if not ecole:
-            flash("Votre compte n'est associé ? aucune école.", "danger")
+            flash("Votre compte n'est associé à aucune école.", "danger")
             return redirect(url_for('main.index'))
 
         primary_admin = _primary_admin_for_ecole(current_user.ecole_id)
@@ -145,14 +185,17 @@ def gestion_utilisateurs():
         if statut_filter:
             utilisateurs_query = utilisateurs_query.filter(Utilisateur.statut == statut_filter)
 
-        utilisateurs = utilisateurs_query.order_by(Utilisateur.date_creation.desc(), Utilisateur.nom.asc()).paginate(
-            page=page,
-            per_page=25,
-            error_out=False
-        )
+        all_users = utilisateurs_query.order_by(Utilisateur.date_creation.desc(), Utilisateur.nom.asc()).all()
+
+        grouped = {'admin': [], 'professeur': [], 'parent': []}
+        for u in all_users:
+            key = u.role if u.role in grouped else 'admin'
+            grouped[key].append(u)
+
         return render_template(
             'gestion_utilisateurs.html',
-            utilisateurs=utilisateurs,
+            grouped=grouped,
+            total_users=len(all_users),
             search=search,
             role_filter=role_filter,
             statut_filter=statut_filter,
@@ -338,6 +381,7 @@ def admin_reset_password(user_id):
         # Hachage et remplacement
         user.set_mot_de_passe(nouveau_mdp)
         db.session.commit()
+        whatsapp_item = _notifier_whatsapp_reset_password(user, nouveau_mdp)
 
         # Log de l'action s'il y a un système de journalisation
         if hasattr(current_app, 'log_correction'):
@@ -354,6 +398,7 @@ def admin_reset_password(user_id):
         return jsonify({
             'success': True,
             'password': nouveau_mdp,
+            'whatsapp_queued': bool(whatsapp_item),
             'message': 'Nouveau mot de passe généré avec succès.'
         }), 200
 

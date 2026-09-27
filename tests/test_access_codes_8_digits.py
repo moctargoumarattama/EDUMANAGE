@@ -5,7 +5,7 @@ from unittest.mock import patch
 from app import create_app, db
 from app.access_codes import generate_access_code, is_valid_access_code
 from app.config import Config
-from app.models import AnneeScolaire, Classe, Ecole, Eleve, Utilisateur, Professeur
+from app.models import AnneeScolaire, Classe, Ecole, Eleve, MessageQueue, Utilisateur, Professeur
 
 
 class TestConfig(Config):
@@ -195,9 +195,38 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
         self.assertEqual(payload["password"], "13572468")
+        self.assertFalse(payload["whatsapp_queued"])
         db.session.refresh(user)
         self.assertNotEqual(user.mot_de_passe, "13572468")
         self.assertTrue(user.check_mot_de_passe("13572468"))
+
+    def test_admin_reset_password_enqueues_whatsapp_when_enabled(self):
+        client = self.login_admin()
+        self.ecole.whatsapp_enabled = True
+        self.ecole.whatsapp_sender_phone = "90000000"
+        user = Utilisateur(
+            nom="Parent",
+            prenom="Awa",
+            email=None,
+            telephone="90123456",
+            role="parent",
+            ecole_id=self.ecole.id,
+        )
+        user.set_mot_de_passe("11112222")
+        db.session.add(user)
+        db.session.commit()
+
+        with patch("app.routes.utilisateurs.generate_access_code", return_value="24681357"):
+            response = client.post(f"/admin/utilisateur/{user.id}/reset-password")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["whatsapp_queued"])
+        item = MessageQueue.query.one()
+        self.assertEqual(item.ecole_id, self.ecole.id)
+        self.assertEqual(item.destinataire, "+22790123456")
+        self.assertIn("Mot de passe : 24681357", item.message)
+        self.assertIn("https://klasora.com", item.message)
 
 
     def test_professeur_code_unique_per_school(self):

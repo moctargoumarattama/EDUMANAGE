@@ -49,7 +49,8 @@ class TestPerformancePhase3(unittest.TestCase):
             match = re.search(pattern, content)
             self.assertIsNotNone(match, f"Script {script_name} non trouvé dans base.html")
             self.assertIn('defer', match.group(0), f"Script {script_name} doit avoir l'attribut defer")
-            self.assertIn("v='14'", match.group(0), f"Script {script_name} doit avoir v='14'")
+            expected_version = "v='15-touch-perf'" if script_name == 'main.js' else "v='14'"
+            self.assertIn(expected_version, match.group(0), f"Script {script_name} doit avoir {expected_version}")
 
     def test_service_worker_cache_version_and_purge(self):
         """Vérifie que service-worker.js est synchronisé en v14 et purge les anciens caches."""

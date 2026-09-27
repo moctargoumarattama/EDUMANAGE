@@ -36,6 +36,7 @@ from app.access_codes import generate_access_code, is_valid_access_code
 from app.models import Note
 from app.services.phone_numbers import normaliser_numero_whatsapp
 from app.services.whatsapp_queue import enqueue_message
+from app.services.whatsapp_notifications import notifier_professeur_affectation_cours
 from sqlalchemy.exc import IntegrityError
 
 
@@ -566,14 +567,23 @@ def assigner_classes_professeur(id):
                     return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
                 cours.professeur_id = nouveau_prof.id
                 message = f"Professeur change pour {cours.nom} - {cours.classe.nom}."
+                professeur_notifie = nouveau_prof
             else:
                 if cours.professeur_id not in (None, professeur.id):
                     flash("Ce cours est deja affecte a un autre professeur.", "warning")
                     return redirect(url_for('main.assigner_classes_professeur', id=professeur.id))
                 cours.professeur_id = professeur.id
                 message = f"{professeur.prenom} {professeur.nom} affecte a {cours.nom} - {cours.classe.nom}."
+                professeur_notifie = professeur
 
             db.session.commit()
+            if cours.professeur_id and ancienne_valeur != cours.professeur_id:
+                notifier_professeur_affectation_cours(
+                    professeur_notifie,
+                    cours,
+                    ecole=getattr(current_user, "ecole", None),
+                    commit=True,
+                )
 
 
             current_app.log_correction(

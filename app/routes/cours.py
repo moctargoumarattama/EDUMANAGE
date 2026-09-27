@@ -42,6 +42,7 @@ from app.services.annees_scolaires import get_annee_consultee
 from app.services.classes_annuelles import classe_est_ouverte
 from app.services.cours_annuels import valider_classe_pour_nouveau_cours
 from app.services.cours_uniqueness import find_duplicate_cours, normalize_cours_nom
+from app.services.whatsapp_notifications import notifier_professeur_affectation_cours
 from app.utils import get_annee_active
 
 
@@ -284,6 +285,8 @@ def affecter_professeur_cours(cours_id):
     ancien_prof_id = cours_obj.professeur_id
     cours_obj.professeur_id = professeur.id if professeur else None
     db.session.commit()
+    if professeur and ancien_prof_id != professeur.id:
+        notifier_professeur_affectation_cours(professeur, cours_obj, ecole=ecole_courante, commit=True)
 
 
     if request.is_json:
@@ -449,6 +452,8 @@ def modifier_cours(id):
         cours.professeur_id = professeur.id
         cours.classe_id = classe.id
         db.session.commit()
+        if ancien_prof_id != professeur.id:
+            notifier_professeur_affectation_cours(professeur, cours, ecole=ecole_courante, commit=True)
 
 
         flash("Cours modifié avec succès.", "success")

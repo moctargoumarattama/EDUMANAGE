@@ -64,6 +64,7 @@
     <button type="button"
             id="klasoraSpeedDialTrigger"
             class="klasora-speed-dial-trigger"
+            aria-label="Assistant IA"
             aria-expanded="false"
             aria-haspopup="true"
             aria-controls="klasoraSpeedDialMenu"
@@ -294,10 +295,12 @@
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
+    pointer-events: none;
 }
 
 /* Bouton Déclencheur Principal FAB */
 .klasora-speed-dial-trigger {
+    pointer-events: auto;
     display: inline-flex;
     align-items: center;
     gap: 9px;
@@ -442,8 +445,11 @@
 .klasora-speed-dial.is-open .klasora-speed-dial-menu {
     opacity: 1;
     visibility: visible;
-    pointer-events: auto;
     transform: translateY(0) scale(1);
+}
+
+.klasora-speed-dial.is-open .klasora-speed-dial-item {
+    pointer-events: auto;
 }
 
 /* Items d'action du Speed Dial */
@@ -1192,6 +1198,42 @@
     display: none !important;
 }
 
+/* Reserve a place in the mobile navbar instead of covering page actions. */
+@media (max-width: 991.98px) {
+    .klasora-speed-dial {
+        position: static !important;
+        inset: auto !important;
+        width: 44px;
+        height: 44px;
+        flex: 0 0 44px;
+        touch-action: manipulation;
+    }
+
+    .klasora-speed-dial .klasora-speed-dial-trigger {
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 50%;
+        cursor: pointer;
+        touch-action: manipulation;
+        transform: none;
+    }
+
+    .klasora-speed-dial .speed-dial-trigger-label,
+    .klasora-speed-dial .speed-dial-trigger-chevron {
+        display: none;
+    }
+
+    .klasora-speed-dial.is-mobile-docked .klasora-speed-dial-menu {
+        top: calc(100% + 8px);
+        bottom: auto;
+        right: 12px;
+        max-width: calc(100vw - 24px);
+        transform-origin: top right;
+    }
+}
+
 /* ==========================================================================
      DESIGN MOBILE RAFFINÉ (BOTTOM SHEET HYPER CONFORTABLE)
      ========================================================================== */
@@ -1327,6 +1369,10 @@
     }
 
     let isRequestInProgress = false;
+    const mobileWidgetQuery = window.matchMedia('(max-width: 991.98px)');
+    const mobileWidgetHost = document.querySelector('.navbar-mobile-actions');
+    const desktopWidgetAnchor = document.createComment('assistant desktop position');
+    speedDial.before(desktopWidgetAnchor);
 
     // =========================================================================
     // 1. GESTION DU SPEED DIAL EXTENSIBLE & DU DÉPLACEMENT FLUIDE (DRAGGABLE)
@@ -1366,6 +1412,7 @@
     } catch (e) {}
 
     function onBtnPointerDown(e) {
+        if (mobileWidgetQuery.matches) return;
         if (e.button !== undefined && e.button !== 0) return;
         isBtnPointerDown = true;
         isBtnDragging = false;
@@ -1475,6 +1522,23 @@
         triggerBtn.setAttribute('aria-expanded', 'false');
         if (speedDialMenu) speedDialMenu.setAttribute('aria-hidden', 'true');
     }
+
+    function syncSpeedDialPlacement() {
+        const docked = mobileWidgetQuery.matches && mobileWidgetHost;
+        if (Boolean(docked) === speedDial.classList.contains('is-mobile-docked')) return;
+        onBtnPointerUp();
+        didBtnMove = false;
+        suppressBtnClickUntil = 0;
+        closeSpeedDial();
+        speedDial.classList.toggle('is-mobile-docked', Boolean(docked));
+        if (docked) {
+            mobileWidgetHost.prepend(speedDial);
+        } else {
+            desktopWidgetAnchor.after(speedDial);
+        }
+    }
+
+    syncSpeedDialPlacement();
 
     function toggleSpeedDial() {
         if (speedDial.classList.contains('is-open')) {
@@ -2258,7 +2322,8 @@
 
     // Ajustement de sécurité au redimensionnement de l'écran
     window.addEventListener('resize', function() {
-        if (speedDial.classList.contains('is-repositioned')) {
+        syncSpeedDialPlacement();
+        if (!mobileWidgetQuery.matches && speedDial.classList.contains('is-repositioned')) {
             const rect = speedDial.getBoundingClientRect();
             const w = speedDial.offsetWidth || 150;
             const h = speedDial.offsetHeight || 50;

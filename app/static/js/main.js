@@ -3,6 +3,103 @@
 // Interactions d'interface & comportements visuels
 // ==================================================
 
+// Activer le retour tactile instantané (:active) sur iOS Safari et navigateurs mobiles
+document.addEventListener('touchstart', function() {}, { passive: true });
+
+(function() {
+    const LOADING_BAR_ID = 'klasora-top-navigation-loader';
+    let resetTimer = null;
+    let finishTimer = null;
+
+    function ensureLoadingBar() {
+        let bar = document.getElementById(LOADING_BAR_ID);
+        if (bar) return bar;
+
+        bar = document.createElement('div');
+        bar.id = LOADING_BAR_ID;
+        bar.setAttribute('aria-hidden', 'true');
+        bar.style.position = 'fixed';
+        bar.style.top = '0';
+        bar.style.left = '0';
+        bar.style.width = '100%';
+        bar.style.height = '3px';
+        bar.style.background = 'linear-gradient(90deg, #2563eb, #38bdf8)';
+        bar.style.boxShadow = '0 0 10px rgba(37, 99, 235, 0.55)';
+        bar.style.transform = 'scaleX(0)';
+        bar.style.transformOrigin = 'left center';
+        bar.style.opacity = '0';
+        bar.style.pointerEvents = 'none';
+        bar.style.zIndex = '9999';
+        bar.style.transition = 'transform 650ms ease, opacity 180ms ease';
+        document.documentElement.appendChild(bar);
+        return bar;
+    }
+
+    function resetTopLoadingBar() {
+        window.clearTimeout(resetTimer);
+        window.clearTimeout(finishTimer);
+        const bar = document.getElementById(LOADING_BAR_ID);
+        if (!bar) return;
+
+        bar.style.transition = 'none';
+        bar.style.opacity = '0';
+        bar.style.transform = 'scaleX(0)';
+        window.requestAnimationFrame(function() {
+            bar.style.transition = 'transform 650ms ease, opacity 180ms ease';
+        });
+    }
+
+    function finishTopLoadingBar() {
+        window.clearTimeout(resetTimer);
+        const bar = document.getElementById(LOADING_BAR_ID);
+        if (!bar) return;
+
+        bar.style.transform = 'scaleX(1)';
+        finishTimer = window.setTimeout(function() {
+            bar.style.opacity = '0';
+            bar.style.transform = 'scaleX(0)';
+        }, 160);
+    }
+
+    function showTopLoadingBar() {
+        const bar = ensureLoadingBar();
+        window.clearTimeout(resetTimer);
+        window.clearTimeout(finishTimer);
+
+        bar.style.opacity = '1';
+        bar.style.transform = 'scaleX(0.12)';
+        window.requestAnimationFrame(function() {
+            bar.style.transform = 'scaleX(0.72)';
+        });
+
+        // Local UI buttons and invalid forms must not leave the bar stuck.
+        resetTimer = window.setTimeout(finishTopLoadingBar, 2200);
+    }
+
+    function shouldShowLoadingFor(target) {
+        const action = target && target.closest('.home-stat-card, .home-action-card, .btn');
+        if (!action) return false;
+        if (action.matches('[disabled], .disabled, [aria-disabled="true"]')) return false;
+
+        const href = action.getAttribute('href');
+        if (href && (href.startsWith('#') || href.startsWith('javascript:'))) return false;
+        if (action.matches('[data-bs-toggle], [data-bs-dismiss]')) return false;
+
+        return true;
+    }
+
+    function handleNavigationIntent(event) {
+        if (event.defaultPrevented) return;
+        if (event.type === 'click' && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) return;
+        if (!shouldShowLoadingFor(event.target)) return;
+        showTopLoadingBar();
+    }
+
+    document.addEventListener('pointerdown', handleNavigationIntent, { passive: true, capture: true });
+    document.addEventListener('click', handleNavigationIntent, { passive: true, capture: true });
+    window.addEventListener('pageshow', resetTopLoadingBar);
+})();
+
 document.addEventListener('DOMContentLoaded', function() {
     // 1. Initialisation des tooltips Bootstrap
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));

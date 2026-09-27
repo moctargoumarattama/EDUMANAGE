@@ -12,6 +12,7 @@ from app.models import (
     Eleve,
     EmploiTemps,
     Inscription,
+    MessageQueue,
     NiveauScolaire,
     Note,
     Professeur,
@@ -205,6 +206,27 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
         self.assertEqual(Absence.query.count(), 1)
         self.assertEqual(EmploiTemps.query.count(), 1)
         self.assertEqual(Inscription.query.count(), 1)
+
+    def test_affectation_cours_envoie_whatsapp_au_professeur(self):
+        self.ecole_a.whatsapp_enabled = True
+        self.ecole_a.whatsapp_sender_phone = "90000000"
+        self.prof_moussa.telephone = "90123456"
+        db.session.commit()
+
+        client = self.login_as(self.admin, self.ecole_a.id)
+        response = client.post(
+            f"/cours/{self.target_course.id}/professeur",
+            data={"professeur_id": self.prof_moussa.id},
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        item = MessageQueue.query.one()
+        self.assertEqual(item.ecole_id, self.ecole_a.id)
+        self.assertEqual(item.destinataire, "+22790123456")
+        self.assertIn(self.target_course.nom, item.message)
+        self.assertIn(self.target_classe.nom, item.message)
+        self.assertIn("nouveau cours", item.message.lower())
 
     def test_assigner_classes_affiche_classe_avec_ou_sans_cours_et_isole_ecole(self):
         self.prof_ali.specialite = "Non renseignée"
