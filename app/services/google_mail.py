@@ -1,4 +1,4 @@
-"""
+﻿"""
 Service d'intégration Gmail par École pour KLASORA
 OAuth 2.0 (Gmail API REST) avec chiffrement Fernet des tokens au repos.
 
@@ -16,9 +16,6 @@ import json
 import logging
 import os
 from datetime import datetime, timedelta
-from email.message import EmailMessage
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from typing import Optional, Tuple
 from urllib.parse import urlencode
 
@@ -36,7 +33,6 @@ GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
-GMAIL_SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
 
 # Scope minimal pour l'envoi d'emails et l'identification de l'adresse
 GOOGLE_SCOPES = [
@@ -400,62 +396,3 @@ def get_school_mail_status(ecole_id: int) -> dict:
 # -----------------------------------------------------------------------------
 # Envoi d'e-mails (École via Gmail REST API & Plateforme via SMTP)
 # -----------------------------------------------------------------------------
-def send_school_email(
-    ecole_id: int,
-    to: str,
-    subject: str,
-    html_body: str,
-    text_body: Optional[str] = None
-) -> bool:
-    """
-    Envoie un e-mail au nom de l'école via son propre compte Gmail connecté.
-    Utilise l'API REST Gmail (users.messages.send) avec encodage base64url du RFC 2822.
-    """
-    access_token, sender_email = get_valid_access_token(ecole_id)
-    ecole = db.session.get(Ecole, ecole_id)
-    school_name = ecole.nom if ecole else "Établissement scolaire"
-
-    # Construction du message MIME
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = f"{school_name} <{sender_email}>"
-    msg["To"] = to
-
-    if text_body:
-        msg.attach(MIMEText(text_body, "plain", "utf-8"))
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
-
-    raw_message = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
-
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-    }
-    payload = {"raw": raw_message}
-
-    try:
-        resp = requests.post(GMAIL_SEND_URL, headers=headers, json=payload, timeout=15)
-        if resp.status_code not in (200, 201):
-            logger.error(f"Échec envoi Gmail API (école {ecole_id}): {resp.status_code} - {resp.text}")
-            raise SchoolMailSendError(
-                f"Google n'a pas pu envoyer le message (Erreur {resp.status_code})."
-            )
-        logger.info(f"Email envoyé avec succès via Gmail de l'école {ecole_id} à {to}")
-        return True
-    except requests.RequestException as e:
-        logger.error(f"Erreur réseau lors de l'envoi Gmail API (école {ecole_id}): {e}")
-        raise SchoolMailSendError("Impossible de contacter le service Gmail pour envoyer le message.")
-
-
-def send_platform_email(
-    to: str,
-    subject: str,
-    html_body: str,
-    text_body: Optional[str] = None
-) -> bool:
-    """
-    Envoie un e-mail système pour la plateforme KLASORA (création école, mot de passe oublié).
-    Utilise le serveur SMTP configuré globalement.
-    """
-    from app.notifications import envoyer_email
-    return envoyer_email(to, subject, html_body, context="platform_email")

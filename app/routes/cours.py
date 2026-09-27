@@ -285,9 +285,6 @@ def affecter_professeur_cours(cours_id):
     cours_obj.professeur_id = professeur.id if professeur else None
     db.session.commit()
 
-    if professeur and professeur.id != ancien_prof_id:
-        from app.services.cours_notifications import notifier_professeur_cours_assigne
-        notifier_professeur_cours_assigne(cours_obj, professeur)
 
     if request.is_json:
         return jsonify({"success": True, "professeur_id": cours_obj.professeur_id})
@@ -351,9 +348,6 @@ def ajouter_cours():
             db.session.add(nouveau_cours)
             db.session.commit()
 
-            if prof:
-                from app.services.cours_notifications import notifier_professeur_cours_assigne
-                notifier_professeur_cours_assigne(nouveau_cours, prof)
 
             current_app.log_correction(
                 action="ajout",
@@ -456,9 +450,6 @@ def modifier_cours(id):
         cours.classe_id = classe.id
         db.session.commit()
 
-        if professeur and professeur.id != ancien_prof_id:
-            from app.services.cours_notifications import notifier_professeur_cours_assigne
-            notifier_professeur_cours_assigne(cours, professeur)
 
         flash("Cours modifié avec succès.", "success")
         return redirect(url_for('main.cours_details', id=cours.id))

@@ -1,4 +1,4 @@
-import unittest
+﻿import unittest
 from datetime import datetime
 from sqlalchemy.pool import StaticPool
 from werkzeug.security import generate_password_hash
@@ -28,16 +28,16 @@ class TestDashboardEmailAlert(unittest.TestCase):
         db.create_all()
         self.client = self.app.test_client()
 
-        # 1. Création de l'école
+        # 1. CrÃ©ation de l'Ã©cole
         self.ecole = Ecole(
-            nom="Lycée de Test",
+            nom="LycÃ©e de Test",
             email="contact@lycee-test.edu",
             onboarding_complete=True
         )
         db.session.add(self.ecole)
         db.session.commit()
 
-        # 2. Création de l'année scolaire active
+        # 2. CrÃ©ation de l'annÃ©e scolaire active
         self.annee = AnneeScolaire(
             nom="2025-2026",
             date_debut=datetime(2025, 9, 1),
@@ -88,8 +88,8 @@ class TestDashboardEmailAlert(unittest.TestCase):
         db.drop_all()
         self.app_context.pop()
 
-    def test_bureau_affiche_alerte_email_non_connecte(self):
-        """Vérifie que le bureau admin affiche la bannière d'alerte permanente si Gmail n'est pas connecté."""
+    def test_bureau_masque_alerte_email_non_connecte(self):
+        """VÃ©rifie que le bureau admin affiche la banniÃ¨re d'alerte permanente si Gmail n'est pas connectÃ©."""
         with self.client:
             with self.client.session_transaction() as sess:
                 sess['_user_id'] = str(self.admin.id)
@@ -100,13 +100,13 @@ class TestDashboardEmailAlert(unittest.TestCase):
             self.assertEqual(res.status_code, 200)
             content = res.get_data(as_text=True)
 
-            # Doit afficher le titre d'alerte et le bouton d'action vers parametres/email
-            self.assertIn("Messagerie officielle non configurée", content)
-            self.assertIn("Connecter Gmail", content)
-            self.assertIn("/parametres/email", content)
+            # Le dashboard ne doit plus reclamer Gmail.
+            self.assertNotIn("Messagerie officielle non configur", content)
+            self.assertNotIn("Connecter Gmail", content)
+            self.assertNotIn("/parametres/email", content)
 
     def test_bureau_masque_alerte_email_si_connecte(self):
-        """Vérifie que la bannière d'alerte disparaît du bureau dès que Gmail est connecté."""
+        """VÃ©rifie que la banniÃ¨re d'alerte disparaÃ®t du bureau dÃ¨s que Gmail est connectÃ©."""
         gmail_config = EcoleGoogleMailConfig(
             ecole_id=self.ecole.id,
             google_email="admin-gmail@lycee-test.edu",
@@ -126,11 +126,11 @@ class TestDashboardEmailAlert(unittest.TestCase):
             self.assertEqual(res.status_code, 200)
             content = res.get_data(as_text=True)
 
-            # Ne doit PLUS afficher la bannière d'alerte
-            self.assertNotIn("Messagerie officielle de l'établissement non configurée", content)
+            # Ne doit PLUS afficher la banniÃ¨re d'alerte
+            self.assertNotIn("Messagerie officielle de l'Ã©tablissement non configurÃ©e", content)
 
     def test_bureau_professeur_ne_voit_pas_alerte_admin(self):
-        """Vérifie que les professeurs n'ont pas cette alerte d'administration sur leur bureau."""
+        """VÃ©rifie que les professeurs n'ont pas cette alerte d'administration sur leur bureau."""
         with self.client:
             with self.client.session_transaction() as sess:
                 sess['_user_id'] = str(self.prof_user.id)
@@ -144,7 +144,7 @@ class TestDashboardEmailAlert(unittest.TestCase):
             self.assertEqual(res_prof.status_code, 200)
             content = res_prof.get_data(as_text=True)
 
-            self.assertNotIn("Messagerie officielle de l'établissement non configurée", content)
+            self.assertNotIn("Messagerie officielle de l'Ã©tablissement non configurÃ©e", content)
 
 
 if __name__ == '__main__':

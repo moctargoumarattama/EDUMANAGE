@@ -105,8 +105,7 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
 
     def test_professeur_auto_manual_and_invalid_codes(self):
         client = self.login_admin()
-        with patch("app.routes.professeurs.generate_access_code", return_value="47295106"), \
-             patch("app.notifications.envoyer_email", return_value=True):
+        with patch("app.routes.professeurs.generate_access_code", return_value="47295106"):
             response = client.post("/ajouter_professeur", data=self.professeur_data(), follow_redirects=False)
 
         self.assertEqual(response.status_code, 302)
@@ -115,12 +114,11 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
         self.assertNotEqual(prof_user.mot_de_passe, "47295106")
         self.assertTrue(prof_user.check_mot_de_passe("47295106"))
 
-        with patch("app.notifications.envoyer_email", return_value=True):
-            response = client.post(
-                "/ajouter_professeur",
-                data=self.professeur_data(code_prof="12345678", telephone="90000001"),
-                follow_redirects=False,
-            )
+        response = client.post(
+            "/ajouter_professeur",
+            data=self.professeur_data(code_prof="12345678", telephone="90000001"),
+            follow_redirects=False,
+        )
 
         self.assertEqual(response.status_code, 302)
         prof_user = Utilisateur.query.filter_by(telephone="+22790000001", role="professeur").first()
@@ -144,8 +142,7 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
 
     def test_parent_auto_manual_and_existing_parent_password_preserved(self):
         client = self.login_admin()
-        with patch("app.routes.eleves.generate_access_code", return_value="58310427"), \
-             patch("app.notifications.envoyer_email", return_value=True):
+        with patch("app.routes.eleves.generate_access_code", return_value="58310427"):
             response = client.post("/ajouter_eleve", data=self.eleve_data(), follow_redirects=False)
 
         self.assertEqual(response.status_code, 302)
@@ -155,12 +152,11 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
         self.assertNotEqual(parent.mot_de_passe, "58310427")
         self.assertTrue(parent.check_mot_de_passe("58310427"))
 
-        with patch("app.notifications.envoyer_email", return_value=True):
-            response = client.post(
-                "/ajouter_eleve",
-                data=self.eleve_data(email="parent2@example.com", code_parent="87654321", telephone="92000000"),
-                follow_redirects=False,
-            )
+        response = client.post(
+            "/ajouter_eleve",
+            data=self.eleve_data(email="parent2@example.com", code_parent="87654321", telephone="92000000"),
+            follow_redirects=False,
+        )
 
         self.assertEqual(response.status_code, 302)
         parent2 = Utilisateur.query.filter_by(telephone="92000000", role="parent").first()

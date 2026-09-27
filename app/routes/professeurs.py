@@ -278,23 +278,6 @@ def ajouter_professeur():
                 niveau="info"
             )
 
-            # ---------------- Envoi email ----------------
-            email_ok = True
-            if nouveau_professeur.email:
-                from app.notifications import envoyer_email
-                sujet = "Bienvenue sur KLASORA — Votre espace professeur est prêt"
-                message = render_template(
-                    'emails/bienvenue_professeur.html',
-                    professeur=nouveau_professeur,
-                    ecole=current_user.ecole,
-                    mot_de_passe=code_prof
-                )
-                email_ok = envoyer_email(nouveau_professeur.email, sujet, message, context="welcome_professor")
-                if email_ok:
-                    current_app.logger.info("EMAIL_SUCCESS_HANDLED type=welcome_professor recipient=%s", nouveau_professeur.email)
-                else:
-                    current_app.logger.warning("EMAIL_FAILED_HANDLED type=welcome_professor recipient=%s", nouveau_professeur.email)
-                    flash("Professeur ajouté, mais l'email de bienvenue n'a pas pu être envoyé.", "warning")
 
             flash(f"âœ… Professeur ajouté avec succès. Code d'accès: {code_prof}", "success")
             return redirect(url_for('main.professeurs'))
@@ -592,13 +575,6 @@ def assigner_classes_professeur(id):
 
             db.session.commit()
 
-            # Déclencher la notification e-mail (Option B : prof + copie école)
-            if action == "change" and 'nouveau_prof' in locals() and nouveau_prof and ancienne_valeur != nouveau_prof.id:
-                from app.services.cours_notifications import notifier_professeur_cours_assigne
-                notifier_professeur_cours_assigne(cours, nouveau_prof)
-            elif action != "remove" and professeur and ancienne_valeur != professeur.id:
-                from app.services.cours_notifications import notifier_professeur_cours_assigne
-                notifier_professeur_cours_assigne(cours, professeur)
 
             current_app.log_correction(
                 action="modification",

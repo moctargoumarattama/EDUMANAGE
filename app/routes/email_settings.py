@@ -19,13 +19,10 @@ from . import main
 from app.models import Ecole, db
 from app.services.google_mail import (
     GoogleOAuthError,
-    SchoolMailNotConfiguredError,
-    SchoolMailSendError,
     connect_school_gmail,
     get_google_auth_url,
     get_school_mail_status,
     revoke_and_disconnect_school_gmail,
-    send_school_email,
 )
 
 GOOGLE_OAUTH_STATE_SALT = "google-mail-oauth-state"
@@ -197,74 +194,12 @@ def google_mail_callback():
 @main.route("/parametres/email/test", methods=["POST"])
 @login_required
 def envoyer_email_test_ecole():
-    """
-    Envoie un e-mail de test immédiat depuis le compte Gmail connecté
-    vers ce même compte pour confirmer son bon fonctionnement.
-    """
+    """Ancien test email ecole, desactive au profit de WhatsApp."""
     ok, redirect_resp = check_school_admin_access()
     if not ok:
         return redirect_resp
-
-    status = get_school_mail_status(current_user.ecole_id)
-    if not status["is_connected"] or not status["email"]:
-        flash(
-            "Veuillez d'abord connecter votre compte Gmail avant d'envoyer un e-mail de test.",
-            "warning",
-        )
-        return redirect(url_for("main.config_email"))
-
-    ecole = db.session.get(Ecole, current_user.ecole_id)
-    school_name = ecole.nom if ecole else "Votre établissement"
-    recipient = status["email"]
-
-    subject = f"✅ Test de connexion Gmail réussi - {school_name}"
-    html_body = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
-        <h2 style="color: #16a34a; margin-top: 0;">Connexion Gmail réussie !</h2>
-        <p>Bonjour,</p>
-        <p>Ce message confirme que le compte Gmail de votre établissement <strong>{school_name}</strong> est parfaitement connecté à <strong>KLASORA</strong>.</p>
-        <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 12px 16px; margin: 20px 0; border-radius: 4px;">
-            <p style="margin: 0; color: #166534; font-size: 14px;">
-                <strong>Adresse expéditrice configurée :</strong> {recipient}<br>
-                <strong>Statut :</strong> Opérationnel et sécurisé
-            </p>
-        </div>
-        <p>Vos bulletins scolaires, notifications d'absences et messages aux parents seront désormais acheminés directement depuis cette adresse sans passer par les dossiers de courriers indésirables.</p>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 25px 0;">
-        <p style="color: #6b7280; font-size: 12px; margin: 0;">
-            Message envoyé automatiquement par KLASORA.
-        </p>
-    </div>
-    """
-    text_body = (
-        f"Connexion Gmail réussie !\n\n"
-        f"Ce message confirme que le compte Gmail de votre établissement {school_name} "
-        f"est parfaitement connecté à KLASORA ({recipient})."
-    )
-
-    try:
-        send_school_email(
-            ecole_id=current_user.ecole_id,
-            to=recipient,
-            subject=subject,
-            html_body=html_body,
-            text_body=text_body,
-        )
-        flash(
-            f"E-mail de test envoyé avec succès à {recipient} ! "
-            "Vérifiez votre boîte de réception Gmail (et les spams si besoin) ✉️",
-            "success",
-        )
-    except SchoolMailNotConfiguredError as e:
-        flash(str(e), "warning")
-    except SchoolMailSendError as e:
-        flash(f"Échec de l'envoi de l'e-mail de test : {e}", "danger")
-    except Exception as e:
-        current_app.logger.error(f"Erreur inattendue test email école {current_user.ecole_id}: {e}")
-        flash(f"Une erreur est survenue lors de l'envoi du test : {e}", "danger")
-
+    flash("Le canal email ecole est desactive. Les notifications terrain passent par WhatsApp.", "info")
     return redirect(url_for("main.config_email"))
-
 
 @main.route("/parametres/email/disconnect", methods=["POST"])
 @login_required

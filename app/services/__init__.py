@@ -16,7 +16,6 @@ from sqlalchemy import func
 
 from app import db
 from app.models import Absence, Cours, Eleve, Inscription, Note, Paiement, Professeur
-from app.notifications import envoyer_email
 from app.utils import get_ecole_filter_query
 from app.services.paiements_annuels import get_mois_scolaires
 
@@ -346,20 +345,12 @@ def notifier_alertes(alertes):
                         f"Source: {a['source']}"
                     )
 
-                    email_ok = True
-                    if eleve and eleve.email_parent:
-                        email_ok = envoyer_email(
-                            eleve.email_parent,
-                            f"Alerte: {a['titre']}",
-                            message,
-                            context="alert_parent_notification",
-                        )
-                        if email_ok:
-                            current_app.logger.info("EMAIL_SUCCESS_HANDLED type=alert_parent_notification recipient=%s", eleve.email_parent)
-                        else:
-                            current_app.logger.warning("EMAIL_FAILED_HANDLED type=alert_parent_notification recipient=%s", eleve.email_parent)
-
-                    a['notifie'] = email_ok
+                    current_app.logger.info(
+                        "Alerte parent non envoyee par email (WhatsApp/canal terrain uniquement) eleve_id=%s titre=%s",
+                        a.get('eleve_id'),
+                        a.get('titre'),
+                    )
+                    a['notifie'] = True
 
             try:
                 db.session.commit()

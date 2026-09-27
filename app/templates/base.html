@@ -603,16 +603,6 @@
                                         </a>
                                     </li>
                                     <li>
-                                        <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ url_for('main.config_email') }}">
-                                            <span><i class="fas fa-envelope me-2 text-primary"></i>E-mail de l'établissement</span>
-                                            {% if current_user.ecole and current_user.ecole.google_mail_config and current_user.ecole.google_mail_config.is_connected %}
-                                                <span class="badge bg-success ms-2" style="font-size: 0.65rem;">Connecté</span>
-                                            {% else %}
-                                                <span class="badge bg-warning text-dark ms-2" style="font-size: 0.65rem;">À connecter</span>
-                                            {% endif %}
-                                        </a>
-                                    </li>
-                                    <li>
                                         <a class="dropdown-item d-flex align-items-center justify-content-between" href="{{ url_for('main.whatsapp_connect') }}">
                                             <span><i class="fab fa-whatsapp me-2 text-success"></i>Connexion WhatsApp</span>
                                             <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-2" style="font-size: 0.65rem;">Local</span>

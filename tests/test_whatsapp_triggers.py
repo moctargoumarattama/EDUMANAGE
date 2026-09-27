@@ -248,21 +248,20 @@ class WhatsAppTriggersTestCase(unittest.TestCase):
     def test_professor_creation_enqueues_whatsapp_account_message(self):
         self._login_admin()
 
-        with patch("app.notifications.envoyer_email", return_value=True):
-            response = self.client.post(
-                "/ajouter_professeur",
-                data={
-                    "nom": "Issoufou",
-                    "prenom": "Mahamadou",
-                    "date_naissance": "",
-                    "adresse": "Niamey",
-                    "telephone": "0770010264",
-                    "specialite": "Mathematiques",
-                    "matieres_enseignees": "Mathematiques",
-                    "code_prof": "24681357",
-                },
-                follow_redirects=False,
-            )
+        response = self.client.post(
+            "/ajouter_professeur",
+            data={
+                "nom": "Issoufou",
+                "prenom": "Mahamadou",
+                "date_naissance": "",
+                "adresse": "Niamey",
+                "telephone": "0770010264",
+                "specialite": "Mathematiques",
+                "matieres_enseignees": "Mathematiques",
+                "code_prof": "24681357",
+            },
+            follow_redirects=False,
+        )
 
         self.assertEqual(response.status_code, 302)
         professeur = Professeur.query.filter_by(telephone="+212770010264").first()

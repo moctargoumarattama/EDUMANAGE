@@ -393,39 +393,12 @@ def envoyer_credentials_parent(parent_id):
         eleve.code_parent = Eleve.generer_code_parent()
         db.session.commit()
 
-    try:
-        import qrcode, io, base64
-        qr_data = f"Parent: {parent.prenom} {parent.nom}\nEmail: {parent.email}\nMot de passe: {eleve.code_parent}"
-        qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=4)
-        qr.add_data(qr_data)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
-        buffer = io.BytesIO()
-        img.save(buffer, format='PNG')
-        buffer.seek(0)
-        qr_base64 = base64.b64encode(buffer.getvalue()).decode()
-
-        sujet = "Bienvenue sur KLASORA — Votre espace parent est prêt"
-        message = render_template(
-            'emails/bienvenue_parent.html',
-            parent=parent,
-            ecole=parent.ecole,
-            mot_de_passe=eleve.code_parent
-        )
-
-        from app.notifications import envoyer_email
-        email_ok = envoyer_email(parent.email, sujet, message, context="resend_parent_credentials")
-        if email_ok:
-            current_app.logger.info("EMAIL_SUCCESS_HANDLED type=resend_parent_credentials recipient=%s", parent.email)
-            return jsonify({'success': True, 'message': 'Email envoyé avec succès.'}), 200
-
-        current_app.logger.warning("EMAIL_FAILED_HANDLED type=resend_parent_credentials recipient=%s", parent.email)
-        return jsonify({'success': False, 'message': 'Erreur lors de l’envoi de l’email.'}), 500
-
-    except Exception as e:
-        from flask import current_app
-        current_app.logger.error("Erreur préparation credentials parent: %s", e)
-        return jsonify({'success': False, 'message': "Erreur lors de la préparation de l'email."}), 500
+    return jsonify({
+        'success': True,
+        'message': 'Code parent disponible. Communiquez-le via le coupon imprime ou WhatsApp.',
+        'code_parent': eleve.code_parent,
+        'telephone': parent.telephone,
+    }), 200
 
 def seed_critical_corrections_if_empty():
     """Génère des données d'audit critiques initiales si la table est vide pour la démonstration"""

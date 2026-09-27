@@ -310,7 +310,7 @@ def request_reset_password():
         email = form.email.data.lower()
         utilisateur = Utilisateur.query.filter_by(email=email).first()
 
-        if utilisateur:
+        if utilisateur and utilisateur.role in ("admin", "super_admin"):
             # Génération du token sécurisé
             serializer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
             token = serializer.dumps(email, salt=current_app.config['SECURITY_PASSWORD_SALT'])
@@ -440,33 +440,6 @@ def demander_demo():
             f"DEMANDE_PRESENTATION_REÇUE : Établissement='{nom_ecole}', "
             f"Tél='{telephone}', Email='{email}', Ville='{ville}', Msg='{message[:120]}'"
         )
-
-        # Notification par email si le service mail est disponible
-        try:
-            from app.notifications import envoyer_email
-            admin_dest = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME') or "contact@klasora.com"
-            sujet_mail = f"🎓 Demande de présentation KLASORA : {nom_ecole} ({ville or 'Ville non précisée'})"
-            corps_mail = f"""Bonjour l'équipe KLASORA,
-
-Une nouvelle demande de présentation a été soumise sur la plateforme :
-
-• Établissement : {nom_ecole}
-• Téléphone / WhatsApp : {telephone or 'Non renseigné'}
-• Email : {email or 'Non renseigné'}
-• Ville / Pays : {ville or 'Non renseigné'}
-
-Message :
-{message or 'Aucun message particulier.'}
-
-Date de réception : {datetime.utcnow().strftime('%d/%m/%Y %H:%M UTC')}
-"""
-            email_ok = envoyer_email(admin_dest, sujet_mail, corps_mail, context="demo_request")
-            if email_ok:
-                current_app.logger.info("EMAIL_SUCCESS_HANDLED type=demo_request recipient=%s", admin_dest)
-            else:
-                current_app.logger.warning("EMAIL_FAILED_HANDLED type=demo_request recipient=%s", admin_dest)
-        except Exception as e:
-            current_app.logger.warning("Notification email presentation non envoyee (preparation, non bloquant): %s", e)
 
         success_msg = "Merci ! Votre demande de présentation a bien été enregistrée. Notre équipe vous contactera sous 24h ouvrées."
         if is_json:
