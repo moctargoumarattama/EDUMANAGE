@@ -47,7 +47,6 @@ class AnneeScolaire(db.Model):
     # Lien avec l'école
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'), nullable=False)
     ecole = db.relationship('Ecole', backref='annees_scolaires')
-    __table_args__ = (db.Index('idx_ecole_id', 'ecole_id'),)
 
     # Relations
     classes = db.relationship('Classe', back_populates='annee_scolaire', lazy=True)
@@ -725,6 +724,7 @@ class Note(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     __table_args__ = (
+        db.Index('ix_note_inscription_cours', 'inscription_id', 'cours_id'),
         db.Index('ix_note_ecole_eleve', 'ecole_id', 'eleve_id'),
         db.Index('ix_note_cours_eleve', 'cours_id', 'eleve_id'),
     )
@@ -776,6 +776,7 @@ class Paiement(db.Model):
     )
 
     __table_args__ = (
+        db.Index('ix_paiement_inscription_id', 'inscription_id'),
         db.Index('ix_paiement_ecole_statut', 'ecole_id', 'statut'),
         db.Index('ix_paiement_eleve_id', 'eleve_id'),
     )
@@ -1029,6 +1030,10 @@ class EmploiTemps(db.Model):
     cours = db.relationship('Cours', back_populates='emplois_du_temps')
     classe = db.relationship('Classe', back_populates='emplois')
 
+    __table_args__ = (
+        db.Index('ix_emploi_temps_ecole', 'ecole_id'),
+    )
+
     @property
     def annee_scolaire(self):
         return self.classe.annee_scolaire if self.classe else None
@@ -1113,6 +1118,10 @@ class Log(db.Model):
     ip_address = db.Column(db.String(45))
 
     utilisateur = db.relationship('Utilisateur', back_populates='logs')
+    __table_args__ = (
+        db.Index('ix_log_ecole_timestamp', 'ecole_id', 'timestamp'),
+    )
+
 
     def __repr__(self):
         return f'<Log {self.timestamp} {self.level} {self.action}>'

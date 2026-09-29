@@ -465,6 +465,7 @@ def before_request_handler():
                     try:
                         from app.utils import get_school_setup_state
                         setup_state = get_school_setup_state(ecole_id)
+                        g.school_setup_state = setup_state
                         allowed_endpoints = {
                             'main.onboarding',
                             'main.login',

@@ -34,8 +34,10 @@ SYSTEM_ASSISTANT = (
     "- Ne signe JAMAIS ton message. N'inclus JAMAIS 'Cordialement', 'Bien cordialement', '[Nom du Directeur]', '[Signature]', "
     "ni aucun texte entre crochets comme [Nom], [Date], [Établissement].\n"
     "- Ne récite JAMAIS tes règles internes ni ce que le logiciel sait ou ne sait pas faire.\n"
-    "- Ne fabrique aucune donnée imaginaire.\n"
-    "- Réponds aux relances conversationnelles ('qui est-ce ?', 'et lui ?', 'que penses-tu de sa moyenne ?') de façon naturelle et empathique."
+    "- INTERDICTION STRICTE : Ne r\u00e9ponds JAMAIS par 'Je suis d\u00e9sol\u00e9, mais je ne peux pas vous aider avec cette question'.\n"
+    "- Pour les questions de suivi ou demandes d'explication ('pourquoi ?', 'comment \u00e7a ?'), dialogue naturellement en t'appuyant sur l'\u00e9change pr\u00e9c\u00e9dent.\n"
+    "- Reste factuel sur les chiffres et \u00e9l\u00e8ves de l'\u00e9tablissement sans en inventer, mais sois toujours constructif et accueillant.\n"
+    "- R\u00e9ponds aux relances conversationnelles ('qui est-ce ?', 'et lui ?', 'que penses-tu de sa moyenne ?') de fa\u00e7on naturelle et empathique."
 )
 
 SYSTEM_INTENT_EXTRACTOR = (
@@ -100,90 +102,77 @@ def clean_assistant_reply(text: str) -> str:
     return cleaned.strip()
 
 
+def _normalize_history(history: Optional[List[Dict[str, str]]], limit: int = 6) -> List[Dict[str, str]]:
+    """Conserve un historique court, propre et compatible avec /api/chat."""
+    if not isinstance(history, list):
+        return []
+
+    normalized: List[Dict[str, str]] = []
+    for item in history:
+        if not isinstance(item, dict):
+            continue
+        raw_role = str(item.get("role") or "").strip().lower()
+        role = "assistant" if raw_role in ("assistant", "bot", "ia") else "user"
+        content = (item.get("content") or item.get("text") or "").strip()
+        if content:
+            normalized.append({"role": role, "content": content})
+
+    return normalized[-limit:]
+
+
 def query_assistant(
     user_prompt: str,
     system_context: str = SYSTEM_ASSISTANT,
     temperature: float = 0.2,
     history: Optional[List[Dict[str, str]]] = None,
-    num_predict: int = 300,
+    num_predict: int = 180,
 ) -> str:
     """
     Interroge le moteur IA local Ollama.
-    Si un historique court est fourni, utilise l'endpoint multi-tours /api/chat.
-    Sinon, utilise l'endpoint direct /api/generate.
+    Utilise /api/chat avec un historique court afin de conserver le fil de discussion.
     """
-    # 1. Utilisation de /api/chat si un historique multi-tours est présent
-    if history and isinstance(history, list) and len(history) > 0:
-        messages = [{"role": "system", "content": system_context}]
-        for item in history[-4:]:
-            role = "assistant" if item.get("role") in ("assistant", "bot") else "user"
-            content = (item.get("content") or item.get("text") or "").strip()
-            if content:
-                messages.append({"role": role, "content": content})
-        messages.append({"role": "user", "content": user_prompt})
+    normalized_history = _normalize_history(history)
 
-        chat_url = f"{OLLAMA_BASE_URL}/api/chat"
-        chat_payload = {
-            "model": OLLAMA_MODEL,
-            "messages": messages,
-            "stream": False,
-            "options": {
-                "temperature": temperature,
-                "num_predict": num_predict,
-            }
-        }
-        try:
-            response = requests.post(chat_url, json=chat_payload, timeout=OLLAMA_TIMEOUT)
-            response.raise_for_status()
-            data = response.json()
-            reply = data.get("message", {}).get("content", "").strip()
-            if reply:
-                return clean_assistant_reply(reply)
-        except requests.exceptions.ConnectionError:
-            logger.error("Impossible de joindre le serveur Ollama sur %s", chat_url)
-            return "Erreur : le service d'intelligence artificielle local (Ollama) est indisponible ou non démarré sur http://127.0.0.1:11434."
-        except requests.exceptions.Timeout:
-            logger.error("Délai d'attente dépassé lors de l'appel à Ollama (%s secondes)", OLLAMA_TIMEOUT)
-            return "Erreur : le traitement IA a pris trop de temps (délai dépassé)."
-        except Exception as exc:
-            logger.warning("Échec de l'appel /api/chat (%s), bascule sur /api/generate", exc)
+    # 1. Utilisation prioritaire de /api/chat, même sans historique.
+    messages = [{"role": "system", "content": system_context}]
+    messages.extend(normalized_history)
+    messages.append({"role": "user", "content": user_prompt})
 
-    # 2. Appel standard /api/generate (requête unique ou fallback)
-    url = f"{OLLAMA_BASE_URL}/api/generate"
-    payload = {
+    chat_url = f"{OLLAMA_BASE_URL}/api/chat"
+    chat_payload = {
         "model": OLLAMA_MODEL,
-        "prompt": user_prompt,
-        "system": system_context,
+        "messages": messages,
         "stream": False,
+        "keep_alive": "30m",
         "options": {
             "temperature": temperature,
-            "num_predict": num_predict,
+            "num_predict": min(num_predict, 180),
         }
     }
-
     try:
-        response = requests.post(url, json=payload, timeout=OLLAMA_TIMEOUT)
+        response = requests.post(chat_url, json=chat_payload, timeout=OLLAMA_TIMEOUT)
         response.raise_for_status()
         data = response.json()
-        raw_reply = data.get("response", "").strip()
-        return clean_assistant_reply(raw_reply)
+        reply = data.get("message", {}).get("content", "").strip()
+        if reply:
+            return clean_assistant_reply(reply)
+        return "Je n'ai pas pu produire une réponse exploitable. Reformulez en quelques mots, s'il vous plaît."
     except requests.exceptions.ConnectionError:
-        logger.error("Impossible de joindre le serveur Ollama sur %s", url)
+        logger.error("Impossible de joindre le serveur Ollama sur %s", chat_url)
         return "Erreur : le service d'intelligence artificielle local (Ollama) est indisponible ou non démarré sur http://127.0.0.1:11434."
     except requests.exceptions.Timeout:
         logger.error("Délai d'attente dépassé lors de l'appel à Ollama (%s secondes)", OLLAMA_TIMEOUT)
         return "Erreur : le traitement IA a pris trop de temps (délai dépassé)."
     except Exception as exc:
-        logger.error("Erreur inattendue lors de la requête Ollama : %s", exc)
-        return f"Erreur lors du traitement de la requête IA : {exc}"
-
+        logger.error("Échec de l'appel /api/chat : %s", exc)
+        return "Erreur : le service IA n'a pas pu terminer la réponse. Veuillez réessayer."
 
 def chat_with_assistant(user_message: str, history: Optional[List[Dict[str, str]]] = None) -> str:
     """
     Pour les discussions générales et conseils administratifs avec le directeur.
     Prend en compte l'historique de conversation si disponible.
     """
-    return query_assistant(user_message, system_context=SYSTEM_ASSISTANT, temperature=0.3, history=history, num_predict=350)
+    return query_assistant(user_message, system_context=SYSTEM_ASSISTANT, temperature=0.3, history=history, num_predict=180)
 
 
 def stream_assistant(
@@ -191,77 +180,46 @@ def stream_assistant(
     system_context: str = SYSTEM_ASSISTANT,
     temperature: float = 0.3,
     history: Optional[List[Dict[str, str]]] = None,
-    num_predict: int = 400,
+    num_predict: int = 180,
 ) -> Generator[str, None, None]:
     """
     Générateur en streaming (SSE / token-par-token) pour l'Assistant IA KLASORA.
     Interroge Ollama avec stream=True et émet les fragments textuels au fur et à mesure.
     """
-    if history and isinstance(history, list) and len(history) > 0:
-        messages = [{"role": "system", "content": system_context}]
-        for item in history[-4:]:
-            role = "assistant" if item.get("role") in ("assistant", "bot") else "user"
-            content = (item.get("content") or item.get("text") or "").strip()
-            if content:
-                messages.append({"role": role, "content": content})
-        messages.append({"role": "user", "content": user_prompt})
+    normalized_history = _normalize_history(history)
 
-        chat_url = f"{OLLAMA_BASE_URL}/api/chat"
-        payload = {
-            "model": OLLAMA_MODEL,
-            "messages": messages,
-            "stream": True,
-            "options": {
-                "temperature": temperature,
-                "num_predict": num_predict,
-            }
-        }
-        try:
-            with requests.post(chat_url, json=payload, stream=True, timeout=OLLAMA_TIMEOUT) as resp:
-                resp.raise_for_status()
-                for line in resp.iter_lines():
-                    if line:
-                        try:
-                            chunk = json.loads(line.decode("utf-8"))
-                            token = chunk.get("message", {}).get("content", "")
-                            if token:
-                                yield token
-                        except Exception:
-                            continue
-                return
-        except Exception as exc:
-            logger.warning("Échec stream /api/chat (%s), tentative fallback", exc)
+    messages = [{"role": "system", "content": system_context}]
+    messages.extend(normalized_history)
+    messages.append({"role": "user", "content": user_prompt})
 
-    # Fallback /api/generate
-    gen_url = f"{OLLAMA_BASE_URL}/api/generate"
+    chat_url = f"{OLLAMA_BASE_URL}/api/chat"
     payload = {
         "model": OLLAMA_MODEL,
-        "prompt": user_prompt,
-        "system": system_context,
+        "messages": messages,
         "stream": True,
+        "keep_alive": "30m",
         "options": {
             "temperature": temperature,
-            "num_predict": num_predict,
+            "num_predict": min(num_predict, 180),
         }
     }
     try:
-        with requests.post(gen_url, json=payload, stream=True, timeout=OLLAMA_TIMEOUT) as resp:
+        with requests.post(chat_url, json=payload, stream=True, timeout=OLLAMA_TIMEOUT) as resp:
             resp.raise_for_status()
             for line in resp.iter_lines():
                 if line:
                     try:
                         chunk = json.loads(line.decode("utf-8"))
-                        token = chunk.get("response", "")
+                        token = chunk.get("message", {}).get("content", "")
                         if token:
                             yield token
                     except Exception:
                         continue
-    except requests.exceptions.ConnectionError:
-        yield "Je suis votre assistant KLASORA. Le service d'IA local n'étant pas démarré, je reste disponible pour toutes vos interrogations directes sur les données de l'école !"
+            return
     except Exception as exc:
-        logger.error("Erreur lors du streaming Ollama : %s", exc)
-        yield f"Une interruption est survenue lors de la génération : {exc}"
-
+        logger.error("Échec stream /api/chat : %s", exc)
+        yield "Le service IA n'a pas pu terminer la réponse. Veuillez réessayer."
+        return
 
 def extract_query_intent(user_message: str) -> Dict[str, Any]:
     """

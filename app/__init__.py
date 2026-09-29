@@ -183,24 +183,30 @@ def create_app(config_class=None):
             from .middleware import get_ecole_courante
             from app.services.annees_scolaires import get_annee_consultee
             from flask_login import current_user
+            from flask import session
 
             annee_active = None
             annee_consultee = None
             setup_state = None
             ecole = get_ecole_courante()
 
-            if isinstance(ecole, tuple):  # Super-admin sans école choisie
-                pass
-            elif ecole:
+            if not isinstance(ecole, tuple) and ecole:
+                # 1) annee_consultee: reuse g.annee_courante
+                annee_consultee = getattr(g, 'annee_courante', None)
+                if not annee_consultee:
+                    annee_consultee = get_annee_consultee(ecole.id)
+                
+                # 2) annee_active (get_annee_active caches in g internally)
                 annee_active = get_annee_active(ecole.id)
-                annee_consultee = get_annee_consultee(ecole.id)
+                
+                # 3) setup_state: reuse session or g
                 if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'role', None) == 'admin':
-                    setup_state = get_school_setup_state(ecole.id)
-            elif getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'ecole', None):
-                annee_active = get_annee_active(current_user.ecole.id)
-                annee_consultee = get_annee_consultee(current_user.ecole.id)
-                if getattr(current_user, 'role', None) == 'admin':
-                    setup_state = get_school_setup_state(current_user.ecole.id)
+                    if session.get('onboarding_complete') is True or session.get(f'onboarding_complete_{ecole.id}') is True:
+                        setup_state = {'setup_complete': True, 'current_step': 'complete'}
+                    elif hasattr(g, 'school_setup_state'):
+                        setup_state = g.school_setup_state
+                    else:
+                        setup_state = get_school_setup_state(ecole.id)
 
             from app.models import ADMIN_TOUR_VERSION, SupportTicket, DemandePresentation
             nouveau_tickets_count = 0

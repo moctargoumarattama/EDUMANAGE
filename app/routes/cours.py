@@ -111,13 +111,8 @@ def cours():
     delete_form = DeleteForm()
     annee_consultee = get_annee_consultee(ecole_courante.id)
 
-    # Comptage direct et ultra-rapide des notes en SQL (évite de charger des dizaines de milliers d'objets Note)
-    notes_count_map = dict(
-        db.session.query(Note.cours_id, func.count(Note.id))
-        .filter(Note.ecole_id == ecole_courante.id)
-        .group_by(Note.cours_id)
-        .all()
-    )
+    # Déclaration du map vide, il sera rempli dynamiquement après la récupération des cours
+    notes_count_map = {}
 
     def cours_to_dict(cours_item):
         return {
@@ -186,6 +181,14 @@ def cours():
             base_query = base_query.filter(Cours.professeur_id.is_(None))
 
         tous_cours = base_query.outerjoin(NiveauScolaire, Classe.niveau_id == NiveauScolaire.id).order_by(*ordre_pedagogique_classe(), Cours.nom.asc()).all()
+        if tous_cours:
+            cours_ids = [c.id for c in tous_cours]
+            notes_count_map.update(dict(
+                db.session.query(Note.cours_id, func.count(Note.id))
+                .filter(Note.cours_id.in_(cours_ids))
+                .group_by(Note.cours_id)
+                .all()
+            ))
         form.professeur_id.choices = _professeur_choices(professeurs)
         form.classe_id.choices = [
             (classe.id, f"{classe.nom} ({classe.niveau})")
@@ -225,6 +228,14 @@ def cours():
             prof_query = prof_query.filter(Classe.niveau == niveau)
 
         mes_cours = prof_query.outerjoin(NiveauScolaire, Classe.niveau_id == NiveauScolaire.id).order_by(*ordre_pedagogique_classe(), Cours.nom.asc()).all()
+        if mes_cours:
+            cours_ids = [c.id for c in mes_cours]
+            notes_count_map.update(dict(
+                db.session.query(Note.cours_id, func.count(Note.id))
+                .filter(Note.cours_id.in_(cours_ids))
+                .group_by(Note.cours_id)
+                .all()
+            ))
         notes_total = sum(notes_count_map.get(c.id, 0) for c in mes_cours)
         cours_total = len(mes_cours)
         professeurs_actifs = 1

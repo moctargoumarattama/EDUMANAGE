@@ -431,7 +431,7 @@ def deploy_app():
         if not os.path.exists(DEPLOY_SCRIPT):
             create_deploy_script()
             
-        result = subprocess.run([DEPLOY_SCRIPT], capture_output=True, text=True, shell=True)
+        result = subprocess.run(["bash", DEPLOY_SCRIPT], capture_output=True, text=True)
         
         if result.returncode == 0:
             log_action("DEPLOIEMENT", "DÃ©ploiement rÃ©ussi")
@@ -1155,12 +1155,14 @@ def set_param(cle, valeur, description=None):
         current_app.logger.error(f"Erreur set_param({cle}): {e}")
         return False
 
+import time
+_MAINTENANCE_CACHE = {'value': None, 'expires_at': 0}
+
 def get_maintenance_status():
-    try:
-        if hasattr(g, '_maintenance_status'):
-            return g._maintenance_status
-    except RuntimeError:
-        pass
+    global _MAINTENANCE_CACHE
+    now = time.time()
+    if _MAINTENANCE_CACHE['value'] is not None and now < _MAINTENANCE_CACHE['expires_at']:
+        return _MAINTENANCE_CACHE['value']
 
     active = get_param('maintenance_mode', 'false') == 'true'
     if not active:
@@ -1178,6 +1180,9 @@ def get_maintenance_status():
             'updated_at': updated_at
         }
 
+    _MAINTENANCE_CACHE['value'] = res
+    _MAINTENANCE_CACHE['expires_at'] = now + 60
+    
     try:
         g._maintenance_status = res
     except RuntimeError:
@@ -1186,15 +1191,20 @@ def get_maintenance_status():
     return res
 
 def set_maintenance_status(active: bool, message: str = None):
+    global _MAINTENANCE_CACHE
     set_param('maintenance_mode', 'true' if active else 'false', 'Mode maintenance actif')
     if message:
         set_param('maintenance_message', message, 'Message affiché en mode maintenance')
     set_param('maintenance_updated_at', datetime.now().strftime('%d/%m/%Y à %H:%M'), 'Dernière mise à jour maintenance')
+    
+    # Invalidate cache
+    _MAINTENANCE_CACHE = {'value': None, 'expires_at': 0}
     try:
         if hasattr(g, '_maintenance_status'):
             del g._maintenance_status
     except RuntimeError:
         pass
+        
     action = "ACTIVATION" if active else "DÉSACTIVATION"
     log_action(f"MAINTENANCE_{action}", f"Mode maintenance {'activé' if active else 'désactivé'}")
 

@@ -271,6 +271,7 @@ def get_notes_annee(ecole_id, annee, user=None, classe_id=None, cours_id=None, e
         Note.query.options(
             selectinload(Note.eleve),
             selectinload(Note.cours).selectinload(Cours.classe),
+            selectinload(Note.cours).selectinload(Cours.professeur),
             selectinload(Note.inscription).selectinload(Inscription.classe),
         )
         .filter(

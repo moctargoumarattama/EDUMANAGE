@@ -91,29 +91,32 @@ def get_statistics(classes):
     }
 
 
+
+import time
+_ALERTES_CACHE = {}
+
 def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
-    """
-    Génère les alertes scolaires pour une école et une année scolaire donnée.
-    Respecte l'ancrage annuel strict : Inscription -> Année consultée.
-    """
+    from flask_login import current_user
     from app.utils import get_annee_consultee
-    from app.models import AnneeScolaire
+    from app.models import AnneeScolaire, Inscription, Eleve
 
     if ecole_id is None:
         ecole_id = getattr(current_user, 'ecole_id', None)
-
-    if not ecole_id:
-        return []
-
+    if not ecole_id: return []
+    
     if annee is None:
         annee = get_annee_consultee(ecole_id)
+    if not annee: return []
+    if annee.statut == 'planifiee': return []
 
-    if not annee:
-        return []
-
-    # Année planifiée : préparation uniquement, aucune alerte d'absence, note ou impayé
-    if annee.statut == 'planifiee':
-        return []
+    cache_key = f"{ecole_id}_{annee.id}"
+    now = time.time()
+    
+    global _ALERTES_CACHE
+    if cache_key in _ALERTES_CACHE:
+        cached_data, timestamp = _ALERTES_CACHE[cache_key]
+        if now - timestamp < 300:  # 5 minutes TTL
+            return cached_data[:limit] if limit else cached_data
 
     alertes = []
     maintenant = datetime.now()

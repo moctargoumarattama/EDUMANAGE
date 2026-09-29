@@ -417,7 +417,8 @@ def eleves():
             ]
         })
 
-    annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
+    from app.utils import get_annee_active
+    annee_active = get_annee_active(ecole_id)
     classes_ouvertes_annee_active = []
     anciens_eleves_non_inscrits = []
     if annee_active:

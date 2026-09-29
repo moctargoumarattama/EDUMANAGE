@@ -30,9 +30,6 @@ from app import db
 from app.ai_service import (
     SYSTEM_ASSISTANT,
     chat_with_assistant,
-    clean_assistant_reply,
-    extract_query_intent,
-    query_assistant,
     stream_assistant,
 )
 from app.authorization import role_required
@@ -42,6 +39,29 @@ from app.services.annees_scolaires import get_annee_active
 logger = logging.getLogger(__name__)
 
 assistant_bp = Blueprint("assistant", __name__, url_prefix="/api/assistant")
+
+
+def _get_assistant_payload() -> Dict[str, Any]:
+    payload = request.get_json(silent=True)
+    if isinstance(payload, dict):
+        return payload
+    if request.form:
+        data = request.form.to_dict(flat=True)
+        raw_history = data.get("history")
+        if raw_history:
+            try:
+                data["history"] = json.loads(raw_history)
+            except Exception:
+                data["history"] = []
+        return data
+    return {}
+
+
+def _payload_history(payload: Dict[str, Any]) -> List[Dict[str, str]]:
+    history = payload.get("history")
+    if not isinstance(history, list):
+        history = session.get("assistant_history", [])
+    return history if isinstance(history, list) else []
 
 # Expressions régulières pour détecter les références anaphoriques (pronoms possessifs, relatifs et questions de suivi)
 ANAPHORA_PATTERNS = [
@@ -1445,9 +1465,9 @@ def api_assistant_chat():
     POST /api/assistant/chat
     Reçoit {"message": "...", "history": [...]} et renvoie la réponse de l'assistant.
     """
-    payload = request.get_json(silent=True) or {}
+    payload = _get_assistant_payload()
     user_message = (payload.get("message") or payload.get("prompt") or "").strip()
-    history = payload.get("history") or []
+    history = _payload_history(payload)
 
     if not user_message:
         return jsonify({
@@ -1488,9 +1508,9 @@ def api_assistant_stream():
     - Mode Analytique / Rédaction longue via Ollama : émet les tokens mot-à-mot via stream_assistant.
     Format SSE : data: {"chunk": "...", "done": false}\n\ndata: {"done": true}\n\n
     """
-    payload = request.get_json(silent=True) or {}
+    payload = _get_assistant_payload()
     question = (payload.get("question") or payload.get("message") or "").strip()
-    history = payload.get("history") or []
+    history = _payload_history(payload)
 
     def sse_event(chunk: str, done: bool = False) -> str:
         return f"data: {json.dumps({'chunk': chunk, 'done': done}, ensure_ascii=False)}\n\n"
@@ -1641,9 +1661,9 @@ def api_assistant_query_data():
     - Conseils administratifs et rédaction officielle
     Prend en compte la session Flask (anaphores) et l'historique court multi-tours.
     """
-    payload = request.get_json(silent=True) or {}
+    payload = _get_assistant_payload()
     question = (payload.get("question") or payload.get("message") or "").strip()
-    history = payload.get("history") or []
+    history = _payload_history(payload)
 
     if not question:
         return jsonify({
@@ -1673,8 +1693,13 @@ def api_assistant_query_data():
         intent = fast_intent
         logger.info("Classification intention ultra-rapide (Python) : %s", intent)
     else:
-        # Fallback IA locale uniquement si la question est complexe ou atypique
-        intent = extract_query_intent(question)
+        intent = {
+            "intention": "autre",
+            "classe": None,
+            "eleve": None,
+            "periode": None,
+            "seuil": None,
+        }
 
     intention = intent.get("intention", "autre")
     classe_param = intent.get("classe")
@@ -2427,25 +2452,23 @@ def api_assistant_query_data():
             "error": f"Erreur lors de la consultation des données scolaires : {db_exc}"
         }), 500
 
-    # 6. Synthèse certifiée ou rendu direct structuré ultra-rapide
-    is_analytical = any(w in q_lower for w in ("analyse", "avis", "conseil", "conseils", "pourquoi", "explique", "rédige", "redige", "lettre", "convocation", "rapport", "comparaison"))
-
-    if intention == "fiche_eleve" and records_summary and not is_analytical:
+    # 6. Rendu direct structuré ultra-rapide, sans deuxième appel IA.
+    if intention == "fiche_eleve" and records_summary:
         final_reply = _format_fiche_eleve_markdown(records_summary[0])
         if len(records_summary) > 1:
             noms_autres = ", ".join(f"{r['nom_complet']} ({r['classe']})" for r in records_summary[1:3])
             final_reply += f"\n\n*Note : D'autres élèves correspondent également : {noms_autres}.*"
-    elif intention == "notes" and records_summary and not is_analytical and eleve_param:
+    elif intention == "notes" and records_summary and eleve_param:
         final_reply = _format_notes_eleve_markdown(records_summary[0], periode_param)
         if len(records_summary) > 1:
             noms_autres = ", ".join(f"{r['nom_complet']} ({r['classe']})" for r in records_summary[1:3])
             final_reply += f"\n\n*Note : D'autres élèves correspondent également : {noms_autres}.*"
-    elif intention == "absences" and records_summary and not is_analytical and eleve_param:
+    elif intention == "absences" and records_summary and eleve_param:
         final_reply = _format_absences_eleve_markdown(records_summary[0])
         if len(records_summary) > 1:
             noms_autres = ", ".join(f"{r['nom_complet']} ({r['classe']})" for r in records_summary[1:3])
             final_reply += f"\n\n*Note : D'autres élèves correspondent également : {noms_autres}.*"
-    elif intention == "contact_parent" and records_summary and not is_analytical:
+    elif intention == "contact_parent" and records_summary:
         if eleve_param or len(records_summary) == 1:
             final_reply = _format_contact_parent_markdown(records_summary[0])
             if len(records_summary) > 1:
@@ -2460,24 +2483,14 @@ def api_assistant_query_data():
                 mail = r.get("email_parent") or r.get("parent_email", "Non renseigné")
                 lines.append(f"• **{el_nom}** ({cl_nom}) : Tél: `{tel}` | Email: {mail}")
             final_reply = "\n".join(lines)
+    elif records_summary:
+        final_reply = "\n".join([
+            "**Voici les éléments trouvés :**",
+            "",
+            *context_lines[:20],
+        ])
     else:
-        # Synthèse IA avec injection du contexte certifié
-        data_context = "\n".join(context_lines) if context_lines else "Aucun enregistrement ne correspond aux critères demandés dans l'établissement."
-        summary_prompt = (
-            f"Question du directeur : \"{question}\"\n\n"
-            f"Données scolaires certifiées de l'établissement KLASORA :\n"
-            f"{data_context}\n\n"
-            "Consignes impératives :\n"
-            "1. Rédige une réponse humaine, intelligente, fluide et chaleureuse au directeur en vous basant STRICTEMENT sur ces données réelles.\n"
-            "2. Si un élève ou une information n'a pas été trouvé, indique-le poliment et avec empathie sans rien inventer.\n"
-            "3. Mets en valeur les points clés (notes, moyenne, absences, contacts) de manière claire, concise et naturelle.\n"
-            "4. INTERDICTION STRICTE DE SIGNATURE : Tu réponds dans une messagerie instantanée directe. Ne termine JAMAIS par 'Cordialement', 'Bien cordialement', '[Nom du Directeur]', '[Signature]', ni aucun texte entre crochets comme [Nom].\n"
-            "5. RÈGLE IMPÉRATIVE DE VOCABULAIRE : Ne mentionne JAMAIS de termes techniques tels que 'base de données', 'requête', 'SQL', 'serveur', 'null' ou 'système'. Exprime-toi toujours de façon humaine, élégante et axée sur la scolarité."
-        )
-
-        final_reply = clean_assistant_reply(
-            query_assistant(summary_prompt, system_context=SYSTEM_ASSISTANT, temperature=0.2, history=history)
-        )
+        final_reply = "Je n'ai trouvé aucun élément correspondant dans les données de l'établissement."
 
     # Ajout automatique du bouton interactif d'accès au dossier si un élève unique est ciblé
     target_el_id = records_summary[0].get("eleve_id") if (records_summary and len(records_summary) == 1 and records_summary[0].get("eleve_id")) else session.get("ai_last_eleve_id")

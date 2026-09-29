@@ -346,6 +346,24 @@
     box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.6), 0 10px 25px -4px rgba(37, 99, 235, 0.5);
 }
 
+.klasora-speed-dial.is-attention .klasora-speed-dial-trigger {
+    animation: klasoraAiAttentionBlink 1.15s ease-in-out infinite;
+}
+
+@keyframes klasoraAiAttentionBlink {
+    0%, 100% {
+        transform: translateY(0) scale(1);
+        box-shadow: 0 10px 25px -4px rgba(37, 99, 235, 0.5),
+                    0 4px 12px -2px rgba(15, 23, 42, 0.25);
+    }
+    50% {
+        transform: translateY(-2px) scale(1.06);
+        box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.18),
+                    0 18px 34px -4px rgba(37, 99, 235, 0.72),
+                    0 8px 18px -2px rgba(15, 23, 42, 0.34);
+    }
+}
+
 .speed-dial-trigger-inner {
     position: relative;
     width: 34px;
@@ -1339,7 +1357,6 @@
     const STORAGE_KEY_BTN_POS = 'klasora_speed_dial_pos_v1';
     const STORAGE_KEY_WIN_POS = 'klasora_ai_win_pos_v1';
     const STORAGE_KEY_EXPANDED = 'klasora_ai_win_expanded_v1';
-    const API_ENDPOINT = '/api/assistant/query-data';
     const STREAM_ENDPOINT = '/api/assistant/stream';
 
     // Éléments du DOM Speed Dial & Chat
@@ -1373,6 +1390,15 @@
     const mobileWidgetHost = document.querySelector('.navbar-mobile-actions');
     const desktopWidgetAnchor = document.createComment('assistant desktop position');
     speedDial.before(desktopWidgetAnchor);
+    speedDial.classList.add('is-attention');
+    const attentionTimer = window.setTimeout(() => {
+        speedDial.classList.remove('is-attention');
+    }, 30000);
+
+    function stopAssistantAttention() {
+        speedDial.classList.remove('is-attention');
+        window.clearTimeout(attentionTimer);
+    }
 
     // =========================================================================
     // 1. GESTION DU SPEED DIAL EXTENSIBLE & DU DÉPLACEMENT FLUIDE (DRAGGABLE)
@@ -1541,6 +1567,7 @@
     syncSpeedDialPlacement();
 
     function toggleSpeedDial() {
+        stopAssistantAttention();
         if (speedDial.classList.contains('is-open')) {
             closeSpeedDial();
         } else {
@@ -1788,6 +1815,7 @@
     // 4. OUVERTURE / FERMETURE & GESTION DU BACKDROP
     // =========================================================================
     function toggleChat(forceOpen) {
+        stopAssistantAttention();
         const isOpen = !chatWindow.classList.contains('klasora-ai-hidden');
         const nextState = forceOpen !== undefined ? forceOpen : !isOpen;
 
@@ -1984,6 +2012,45 @@
         if (shouldSave) {
             saveMessageToHistory(role, text, timeSpan.textContent);
         }
+        scrollToBottom();
+    }
+
+    function appendRetryMessage(questionText) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'klasora-ai-msg klasora-ai-msg-bot';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'klasora-ai-msg-avatar';
+        avatar.innerHTML = '<i class="fas fa-robot"></i>';
+
+        const bubbleWrap = document.createElement('div');
+        bubbleWrap.className = 'klasora-ai-bubble-wrap';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'klasora-ai-bubble';
+        bubble.innerHTML = renderMarkdown("**Service momentanément indisponible.** La réponse a pris trop de temps ou la connexion a été interrompue.");
+
+        const retryBtn = document.createElement('button');
+        retryBtn.type = 'button';
+        retryBtn.className = 'klasora-ai-copy-btn';
+        retryBtn.innerHTML = '<i class="fas fa-redo"></i> Réessayer';
+        retryBtn.addEventListener('click', () => sendMessage(questionText));
+        bubble.appendChild(document.createElement('br'));
+        bubble.appendChild(retryBtn);
+
+        const metaDiv = document.createElement('div');
+        metaDiv.className = 'klasora-ai-msg-meta';
+
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'klasora-ai-msg-time';
+        timeSpan.textContent = getFormattedTime();
+        metaDiv.appendChild(timeSpan);
+
+        bubbleWrap.appendChild(bubble);
+        bubbleWrap.appendChild(metaDiv);
+        msgDiv.appendChild(avatar);
+        msgDiv.appendChild(bubbleWrap);
+        messagesList.appendChild(msgDiv);
         scrollToBottom();
     }
 
@@ -2198,39 +2265,8 @@
                 throw new Error("Flux SSE non disponible");
             }
         } catch (err) {
-            console.warn('[KLASORA AI] Bascule sur endpoint standard /query-data :', err);
-            try {
-                const csrfToken = getCsrfToken();
-                const fbResponse = await fetch(API_ENDPOINT, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken,
-                        'X-CSRF-Token': csrfToken,
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    body: JSON.stringify({
-                        question: questionText,
-                        history: historyPayload
-                    })
-                });
-                const data = await fbResponse.json();
-                if (fbResponse.ok && data.success && data.reply) {
-                    if (liveBot) {
-                        liveBot.bubble.innerHTML = renderMarkdown(data.reply);
-                        attachCopyButton(liveBot.metaDiv, data.reply);
-                        saveMessageToHistory('bot', data.reply, liveBot.timeSpan.textContent);
-                    } else {
-                        appendMessageDom('bot', data.reply, getFormattedTime(), true);
-                    }
-                } else {
-                    const errMsg = data.error || data.message || "Une erreur est survenue lors du traitement. Veuillez reformuler ou réessayer.";
-                    appendMessageDom('bot', `⚠️ **Information :** ${errMsg}`, getFormattedTime(), true);
-                }
-            } catch (fallbackErr) {
-                console.error('[KLASORA AI] Erreur finale :', fallbackErr);
-                appendMessageDom('bot', "⚠️ **Service momentanément indisponible :** Veuillez réessayer dans un instant ou contacter le support technique.", getFormattedTime(), true);
-            }
+            console.warn('[KLASORA AI] Stream interrompu, aucun fallback lourd relanc\u00e9 :', err);
+            appendRetryMessage(questionText);
         } finally {
             stopDynamicThinkingSteps();
             typingIndicator.classList.add('klasora-ai-hidden');
