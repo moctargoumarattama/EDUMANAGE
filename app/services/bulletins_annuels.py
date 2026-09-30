@@ -114,7 +114,7 @@ def get_inscriptions_bulletins(ecole_id, annee, user):
 
 def _get_appreciation(moyenne):
     if moyenne is None:
-        return "En attente"
+        return "Non évalué"
     if moyenne >= 16:
         return "Excellent"
     if moyenne >= 14:
@@ -136,6 +136,8 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
     - Coefficient officiel = Cours.coefficient.
     - Points matière = moyenne_semestre * Cours.coefficient.
     - Moyenne générale semestrielle = sum(points) / sum(coefficients) des matières finalisées.
+    - Les matières non évaluées (dispense, absence, saisie en attente) sont mentionnées "Non évalué"
+      et leur coefficient est retiré du diviseur pour ne pas pénaliser indûment l'élève.
     - Le bulletin n'est FINAL (officiel) SSI toutes les matières attendues sont notées ET la période est publiée.
     """
     if not inscription or inscription.ecole_id != ecole_id:
@@ -151,44 +153,67 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
         ).first()
         periode_publiee = bool(p_obj and p_obj.publie)
 
-    # Sélection des notes de cette inscription pour la période demandée
+    # Sélection des notes de cette inscription pour la période demandée (restreintes à la classe)
     q = Note.query.options(joinedload(Note.cours).joinedload(Cours.professeur)).filter(
         Note.inscription_id == inscription.id,
         Note.ecole_id == ecole_id,
         Note.periode == target_periode
     )
+    if inscription.classe_id:
+        q = q.join(Cours, Note.cours_id == Cours.id).filter(Cours.classe_id == inscription.classe_id)
 
     notes = q.order_by(Note.cours_id, Note.date_evaluation.desc()).all()
 
-    # Regroupement des notes par cours
+    # Regroupement des notes par cours_id et cours_nom
     notes_par_cours = defaultdict(list)
+    notes_par_cours_id = defaultdict(list)
     for n in notes:
         cours_nom = n.cours.nom if n.cours else (n.matiere or "Non renseigné")
         notes_par_cours[cours_nom].append(n)
+        if n.cours_id:
+            notes_par_cours_id[n.cours_id].append(n)
+
+    from app.services.evaluations import get_cours_attendus_classe, calculer_moyenne_matiere
+    cours_attendus = get_cours_attendus_classe(ecole_id, inscription.classe_id, annee.id) if inscription.classe_id else []
 
     disciplines = []
     moyennes_par_cours = {}
     coefficients_par_cours = {}
     points_par_cours = {}
 
-    for cours_nom, c_notes in sorted(notes_par_cours.items(), key=lambda x: (x[0] or "").lower()):
-        cours = c_notes[0].cours if (c_notes and c_notes[0].cours) else None
-        cours_coef = cours.coefficient if (cours and cours.coefficient) else 1.0
-        from app.services.evaluations import calculer_moyenne_matiere
-        controles = [n for n in c_notes if n.type_evaluation in TYPES_CONTROLE_CONTINU]
-        comp = next((n for n in c_notes if n.type_evaluation == TYPE_COMPOSITION), None)
+    vus_cours_ids = set()
 
-        moy_controles = calculer_moyenne_controles(controles)
-        note_comp = comp.valeur if comp else None
-        moy_semestre = calculer_moyenne_matiere(c_notes)
-        pts = calculer_points_matiere(moy_semestre, cours_coef)
+    # 1. Traitement des cours officiels attendus pour la classe
+    for cours in cours_attendus:
+        vus_cours_ids.add(cours.id)
+        cours_nom = cours.nom
+        cours_coef = cours.coefficient if (cours.coefficient and cours.coefficient > 0) else 1.0
+        c_notes = notes_par_cours_id.get(cours.id, [])
 
         prof_nom = "Non assigné"
-        if cours and cours.professeur:
+        if cours.professeur:
             p = cours.professeur
             prof_nom = f"{p.prenom or ''} {p.nom or ''}".strip() or "Non assigné"
 
-        apprec_disc = _get_appreciation(moy_semestre)
+        if c_notes:
+            controles = [n for n in c_notes if n.type_evaluation in TYPES_CONTROLE_CONTINU]
+            comp = next((n for n in c_notes if n.type_evaluation == TYPE_COMPOSITION), None)
+
+            moy_controles = calculer_moyenne_controles(controles) if controles else None
+            note_comp = comp.valeur if comp else None
+            moy_semestre = calculer_moyenne_matiere(c_notes)
+            pts = calculer_points_matiere(moy_semestre, cours_coef) if moy_semestre is not None else None
+            est_fin = (moy_semestre is not None)
+            apprec_disc = _get_appreciation(moy_semestre)
+        else:
+            controles = []
+            comp = None
+            moy_controles = None
+            note_comp = None
+            moy_semestre = None
+            pts = None
+            est_fin = False
+            apprec_disc = "Non évalué"
 
         disciplines.append({
             'cours': cours,
@@ -199,7 +224,7 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
             'moyenne_semestre': moy_semestre,
             'coefficient': cours_coef,
             'points': pts,
-            'est_finalisee': (moy_semestre is not None),
+            'est_finalisee': est_fin,
             'appreciation': apprec_disc,
             'notes_controles': controles,
             'notes': c_notes,
@@ -208,6 +233,34 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
         moyennes_par_cours[cours_nom] = moy_semestre
         coefficients_par_cours[cours_nom] = cours_coef
         points_par_cours[cours_nom] = pts
+
+    # 2. Traitement d'éventuels cours hors liste officielle ayant des notes
+    for n in notes:
+        if n.cours_id and n.cours_id not in vus_cours_ids:
+            vus_cours_ids.add(n.cours_id)
+            cours = n.cours
+            cours_nom = cours.nom if cours else (n.matiere or "Non renseigné")
+            cours_coef = cours.coefficient if (cours and cours.coefficient) else 1.0
+            c_notes = notes_par_cours_id.get(n.cours_id, [n])
+            moy_semestre = calculer_moyenne_matiere(c_notes)
+            pts = calculer_points_matiere(moy_semestre, cours_coef) if moy_semestre is not None else None
+            disciplines.append({
+                'cours': cours,
+                'cours_nom': cours_nom,
+                'professeur_nom': "Non assigné",
+                'moyenne_controles': None,
+                'note_composition': None,
+                'moyenne_semestre': moy_semestre,
+                'coefficient': cours_coef,
+                'points': pts,
+                'est_finalisee': (moy_semestre is not None),
+                'appreciation': _get_appreciation(moy_semestre),
+                'notes_controles': [],
+                'notes': c_notes,
+            })
+            moyennes_par_cours[cours_nom] = moy_semestre
+            coefficients_par_cours[cours_nom] = cours_coef
+            points_par_cours[cours_nom] = pts
 
     # Calcul de complétude canonique via evaluations.py
     from app.services.evaluations import (
@@ -224,7 +277,9 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
         periode_publiee=periode_publiee
     )
 
-    total_points = round(sum(d['points'] for d in disciplines if d['est_finalisee']), 2)
+    # Neutralisation des matières non évaluées :
+    # Seules les matières évaluées contribuent au total des points et au diviseur des coefficients
+    total_points = round(sum(d['points'] for d in disciplines if d['est_finalisee'] and d['points'] is not None), 2)
     total_coefs = sum(d['coefficient'] for d in disciplines if d['est_finalisee'])
     moyenne_generale = eval_info["average"]
 

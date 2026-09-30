@@ -217,21 +217,28 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
     expected_subjects = len(cours_attendus)
     expected_coefficients = sum(c.coefficient if (c.coefficient and c.coefficient > 0) else 1.0 for c in cours_attendus)
 
-    # Récupération des notes de l'inscription pour la période
+    # Map cours attendus de la classe
+    cours_map = {c.id: c for c in cours_attendus}
+    allowed_cours_ids = set(cours_map.keys())
+
+    # Récupération des notes de l'inscription pour la période restreintes aux cours officiels de la classe
     if notes is None:
         query = Note.query.filter(
             Note.inscription_id == inscription.id,
             Note.ecole_id == ecole_id,
             Note.annee_id == annee_id,
+            Note.cours_id.in_(allowed_cours_ids) if allowed_cours_ids else False,
         )
         if periode:
             query = query.filter(Note.periode == periode)
-        notes_list = query.all()
+        notes_list = query.all() if allowed_cours_ids else []
     else:
-        if periode:
-            notes_list = [n for n in notes if getattr(n, "periode", None) == periode or getattr(n, "periode", None) is None]
-        else:
-            notes_list = list(notes)
+        # Filtrer strictement les notes pour ne retenir que les cours rattachés à la classe
+        notes_list = [
+            n for n in notes
+            if ((getattr(n, "cours_id", None) in allowed_cours_ids) or (getattr(n, "cours", None) and n.cours.id in allowed_cours_ids))
+            and (periode is None or getattr(n, "periode", None) == periode or getattr(n, "periode", None) is None)
+        ]
 
     # Regroupement par cours_id
     notes_par_cours = defaultdict(list)
@@ -242,11 +249,8 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
     evaluated_coefficients = 0.0
     matieres_finalisees = []
     disciplines_details = {}
-
-    # Map cours attendus
-    cours_map = {c.id: c for c in cours_attendus}
     
-    # Traitement de chaque cours attendu
+    # Traitement de chaque cours attendu officiel de la classe
     for c_id, c_obj in cours_map.items():
         c_notes = notes_par_cours.get(c_id, [])
         coef = c_obj.coefficient if (c_obj.coefficient and c_obj.coefficient > 0) else 1.0
@@ -285,17 +289,14 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
                 "notes_count": 0,
             }
 
-    # Prise en compte de cours optionnels ou hors liste avec des notes
-    for c_id, c_notes in notes_par_cours.items():
-        if c_id not in cours_map:
-            c_obj = c_notes[0].cours if (c_notes and c_notes[0].cours) else None
-            coef = c_obj.coefficient if (c_obj and c_obj.coefficient) else 1.0
-            moy_sem = calculer_moyenne_matiere(c_notes)
-            if moy_sem is not None:
-                evaluated_subjects += 1
-                evaluated_coefficients += coef
-                pts = round(moy_sem * coef, 2)
-                matieres_finalisees.append({"moyenne": moy_sem, "coefficient": coef, "points": pts})
+    # Garde-fou logique absolu : le nombre de matières évaluées ne doit JAMAIS excéder le total attendu
+    if expected_subjects > 0:
+        evaluated_subjects = min(evaluated_subjects, expected_subjects)
+    else:
+        evaluated_subjects = 0
+
+    if evaluated_coefficients > expected_coefficients:
+        evaluated_coefficients = expected_coefficients
 
     missing_subjects = [
         d["cours"] for d in disciplines_details.values() if not d["evalue"]
@@ -309,7 +310,7 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
         return {
             "status": STATUS_NON_EVALUE,
             "average": None,
-            "evaluated_subjects": evaluated_subjects,
+            "evaluated_subjects": 0,
             "expected_subjects": 0,
             "completion_ratio": 0.0,
             "completion_percent": 0.0,
@@ -324,11 +325,8 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
             "missing_subjects_names": [],
         }
 
-    # Calcul des ratios et moyennes
-    if evaluated_coefficients > expected_coefficients:
-        evaluated_coefficients = expected_coefficients
-
-    completion_ratio = round(evaluated_coefficients / expected_coefficients, 4) if expected_coefficients > 0 else 0.0
+    # Calcul des ratios et moyennes avec garde-fous stricts
+    completion_ratio = min(1.0, round(evaluated_coefficients / expected_coefficients, 4)) if expected_coefficients > 0 else 0.0
     completion_percent = round(completion_ratio * 100.0, 1)
 
     if evaluated_subjects == 0:

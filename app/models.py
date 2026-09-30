@@ -1431,6 +1431,14 @@ class PeriodeBulletin(db.Model):
     def est_active(self):
         return self.publie and self.periode_active
 
+    @property
+    def est_publie(self):
+        return bool(self.publie)
+
+    @est_publie.setter
+    def est_publie(self, value):
+        self.publie = bool(value)
+
 
 # -----------------------------------------------------------------------------
 # Configuration Gmail par École (Google OAuth 2.0 & Gmail API)

@@ -416,6 +416,67 @@ class EvaluationsCompletenessTestCase(unittest.TestCase):
         self.assertIn(ins1.id, stats["rangs_par_inscription"])
         self.assertIn(ins2.id, stats["rangs_par_inscription"])
 
+    def test_scenario_m_exclusion_cours_hors_classe_et_garde_fou(self):
+        """Scénario M : Les notes dans des cours hors cursus de la classe ne gonflent JAMAIS evaluated_subjects."""
+        # Classe A a 2 cours officiels (expected_subjects = 2)
+        c1 = Cours(nom="Maths A", coefficient=2.0, ecole_id=self.ecole.id, classe_id=self.classe.id)
+        c2 = Cours(nom="Français A", coefficient=2.0, ecole_id=self.ecole.id, classe_id=self.classe.id)
+        
+        # Classe B a 3 autres cours
+        classe_b = Classe(nom="6ème B", niveau="6ème", ecole_id=self.ecole.id, annee_scolaire_id=self.annee.id)
+        db.session.add_all([c1, c2, classe_b])
+        db.session.flush()
+
+        c_b1 = Cours(nom="Autre 1", coefficient=1.0, ecole_id=self.ecole.id, classe_id=classe_b.id)
+        c_b2 = Cours(nom="Autre 2", coefficient=1.0, ecole_id=self.ecole.id, classe_id=classe_b.id)
+        c_b3 = Cours(nom="Autre 3", coefficient=1.0, ecole_id=self.ecole.id, classe_id=classe_b.id)
+        
+        eleve = Eleve(nom="Strict", prenom="Cursus", ecole_id=self.ecole.id, date_naissance=date(2012, 1, 1))
+        db.session.add_all([c_b1, c_b2, c_b3, eleve])
+        db.session.flush()
+
+        ins = Inscription(eleve_id=eleve.id, classe_id=self.classe.id, annee_scolaire_id=self.annee.id, ecole_id=self.ecole.id)
+        db.session.add(ins)
+        db.session.flush()
+
+        # L'élève a 1 note dans sa classe (Maths A) et 3 notes dans des cours hors classe
+        n1 = Note(valeur=14.0, coefficient=1.0, type_evaluation=TYPE_DEVOIR, inscription_id=ins.id, eleve_id=ins.eleve_id, cours_id=c1.id, ecole_id=self.ecole.id, annee_id=self.annee.id, periode="Semestre 1")
+        nb1 = Note(valeur=12.0, coefficient=1.0, type_evaluation=TYPE_DEVOIR, inscription_id=ins.id, eleve_id=ins.eleve_id, cours_id=c_b1.id, ecole_id=self.ecole.id, annee_id=self.annee.id, periode="Semestre 1")
+        nb2 = Note(valeur=13.0, coefficient=1.0, type_evaluation=TYPE_DEVOIR, inscription_id=ins.id, eleve_id=ins.eleve_id, cours_id=c_b2.id, ecole_id=self.ecole.id, annee_id=self.annee.id, periode="Semestre 1")
+        nb3 = Note(valeur=15.0, coefficient=1.0, type_evaluation=TYPE_DEVOIR, inscription_id=ins.id, eleve_id=ins.eleve_id, cours_id=c_b3.id, ecole_id=self.ecole.id, annee_id=self.annee.id, periode="Semestre 1")
+        db.session.add_all([n1, nb1, nb2, nb3])
+        db.session.commit()
+
+        # Évaluation avec notes=None (requête SQL directe)
+        res_sql = calculer_completude_inscription(self.ecole.id, self.annee.id, ins, periode="Semestre 1")
+        self.assertEqual(res_sql["expected_subjects"], 2)
+        self.assertEqual(res_sql["evaluated_subjects"], 1)  # Strictement 1, et PAS 4 (1 + 3) !
+        self.assertLessEqual(res_sql["evaluated_subjects"], res_sql["expected_subjects"])
+        self.assertEqual(res_sql["status"], STATUS_PROVISOIRE)
+        self.assertEqual(res_sql["completion_percent"], 50.0)
+
+        # Évaluation avec notes passées en argument (ex: chargement par lot)
+        toutes_notes = [n1, nb1, nb2, nb3]
+        res_batch = calculer_completude_inscription(self.ecole.id, self.annee.id, ins, periode="Semestre 1", notes=toutes_notes)
+        self.assertEqual(res_batch["expected_subjects"], 2)
+        self.assertEqual(res_batch["evaluated_subjects"], 1)  # Toujours 1 sur 2
+        self.assertLessEqual(res_batch["evaluated_subjects"], res_batch["expected_subjects"])
+        self.assertEqual(res_batch["status"], STATUS_PROVISOIRE)
+        self.assertEqual(res_batch["completion_percent"], 50.0)
+
+        # Ajout de la 2ème matière officielle
+        n2 = Note(valeur=16.0, coefficient=1.0, type_evaluation=TYPE_DEVOIR, inscription_id=ins.id, eleve_id=ins.eleve_id, cours_id=c2.id, ecole_id=self.ecole.id, annee_id=self.annee.id, periode="Semestre 1")
+        db.session.add(n2)
+        db.session.commit()
+
+        res_complete = calculer_completude_inscription(self.ecole.id, self.annee.id, ins, periode="Semestre 1", periode_publiee=True)
+        self.assertEqual(res_complete["expected_subjects"], 2)
+        self.assertEqual(res_complete["evaluated_subjects"], 2)  # Exactement 2, et JAMAIS 5 (2 + 3) !
+        self.assertLessEqual(res_complete["evaluated_subjects"], res_complete["expected_subjects"])
+        self.assertEqual(res_complete["status"], STATUS_COMPLETE)
+        self.assertEqual(res_complete["completion_percent"], 100.0)
+        self.assertTrue(res_complete["is_official"])
+
 
 if __name__ == "__main__":
     unittest.main()

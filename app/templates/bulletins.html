@@ -50,29 +50,23 @@
     </div>
     {% else %}
 
-    <!-- En-tête de la page -->
-    <div class="row mb-4">
+    <!-- En-tête de la page (Compact mobile-first) -->
+    <div class="row mb-2 mb-md-4">
         <div class="col-12">
-            <div class="bg-animated p-4 rounded-3 position-relative overflow-hidden shadow-sm" style="background: var(--gradient-success);">
+            <div class="bg-animated py-2.5 px-3 py-md-4 px-md-4 rounded-3 position-relative overflow-hidden shadow-sm" style="background: var(--gradient-success);">
                 <div class="position-absolute top-0 end-0 w-50 h-100 opacity-25 d-none d-md-block" style="pointer-events: none;">
                     <i class="fas fa-award fa-10x text-white" style="position: absolute; right: -20px; top: -30px;"></i>
                 </div>
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center position-relative gap-3">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center position-relative gap-2 gap-md-3">
                     <div class="text-white">
-                        <h2 class="mb-1 fw-bold"><i class="fas fa-file-pdf me-2"></i>Bulletins Scolaires</h2>
-                        <p class="mb-0 opacity-75">Résultats académiques et bulletins officiels organisés par classe {% if annee_consultee %}— <strong>{{ annee_consultee.nom }}</strong>{% endif %}</p>
+                        <h2 class="mb-0 mb-md-1 fw-bold fs-5 fs-md-2"><i class="fas fa-file-pdf me-2"></i>Bulletins Scolaires</h2>
+                        <p class="mb-0 opacity-75 small d-none d-sm-block">Résultats académiques et bulletins officiels organisés par classe {% if annee_consultee %}— <strong>{{ annee_consultee.nom }}</strong>{% endif %}</p>
                     </div>
                     <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2 w-100 w-md-auto">
-                        <button type="button" class="btn btn-light btn-sm fw-bold shadow-sm text-center rounded-pill px-3 py-1.5" id="btnToggleAllClasses">
+                        <button type="button" class="btn btn-light btn-sm fw-bold shadow-sm text-center rounded-pill px-3 py-1" id="btnToggleAllClasses">
                             <i class="fas fa-expand-alt me-1" id="btnToggleAllIcon"></i>
                             <span id="btnToggleAllText">Tout déplier</span>
                         </button>
-                        {% if current_user.role == 'admin' %}
-                        <a href="{{ url_for('main.gestion_periodes') }}" class="btn btn-outline-light btn-sm fw-bold shadow-sm text-center rounded-pill px-3 py-1.5">
-                            <i class="fas fa-calendar-alt me-1"></i>
-                            <span>Périodes{% if periode_active %} : {{ periode_active.nom }}{% endif %}</span>
-                        </a>
-                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -80,42 +74,103 @@
     </div>
 
     {% if statut_warning %}
-    <div class="row mb-4">
+    <div class="row mb-2 mb-md-3">
         <div class="col-12">
-            <div class="alert {% if annee_consultee and annee_consultee.statut == 'archivee' %}alert-info{% else %}alert-warning{% endif %} d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-3 shadow-sm border-0" role="alert" style="border-radius: 1rem;">
-                <i class="fas fa-info-circle fa-2x {% if annee_consultee and annee_consultee.statut == 'archivee' %}text-info{% else %}text-warning{% endif %} flex-shrink-0"></i>
+            <div class="alert {% if annee_consultee and annee_consultee.statut == 'archivee' %}alert-info{% else %}alert-warning{% endif %} d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2.5 shadow-sm border-0 py-2 px-3" role="alert" style="border-radius: 0.75rem;">
+                <i class="fas fa-info-circle fa-lg {% if annee_consultee and annee_consultee.statut == 'archivee' %}text-info{% else %}text-warning{% endif %} flex-shrink-0"></i>
                 <div>
-                    <h5 class="alert-heading mb-1 fw-bold">Information sur l'année scolaire</h5>
-                    <p class="mb-0 small">{{ statut_warning }}</p>
+                    <h6 class="alert-heading mb-0 fw-bold">Information sur l'année scolaire</h6>
+                    <p class="mb-0 small" style="font-size: 0.8rem;">{{ statut_warning }}</p>
                 </div>
-            </div>
-        </div>
-    </div>
-    {% elif not periode_publiee %}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="alert alert-warning border-0 shadow-sm d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3 p-3" style="border-radius: 1rem;">
-                <div class="d-flex align-items-start align-items-md-center gap-3">
-                    <div class="bg-warning bg-opacity-25 rounded-circle p-2 text-dark flex-shrink-0">
-                        <i class="fas fa-clock fa-2x"></i>
-                    </div>
-                    <div>
-                        <h6 class="alert-heading mb-1 fw-bold text-dark">Période non publiée — Évaluations en cours</h6>
-                        <p class="mb-0 text-muted small">Tant que la période n'est pas clôturée et publiée par l'administration, les moyennes et bulletins sont strictly <strong>provisoires</strong>. Les rangs, mentions et statistiques de classe seront calculés lors de la publication.</p>
-                    </div>
-                </div>
-                {% if current_user.role == 'admin' %}
-                <a href="{{ url_for('main.gestion_periodes') }}" class="btn btn-warning btn-sm fw-bold shadow-sm text-nowrap rounded-pill px-3 py-1.5 w-100 w-md-auto text-center mt-1 mt-md-0">
-                    <i class="fas fa-bullhorn me-1"></i>Gérer les périodes
-                </a>
-                {% endif %}
             </div>
         </div>
     </div>
     {% endif %}
 
-    <!-- Barre de filtrage par puces (Chips) pour les classes -->
-    <div class="class-chips-bar-wrapper mb-3" id="classChipsBar">
+    <!-- Panneau de commande de la Période (Publication / Clôture directe) -->
+    {% if periode_active %}
+    <div class="row mb-2 mb-md-3">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-3 overflow-hidden bg-white">
+                <div class="card-body p-2.5 p-md-3 d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-2.5">
+                    <div class="d-flex align-items-center gap-2.5">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center {% if periode_publiee %}bg-success-subtle text-success{% else %}bg-primary-subtle text-primary{% endif %}" style="width: 38px; height: 38px; flex-shrink: 0;">
+                            <i class="fas {% if periode_publiee %}fa-lock{% else %}fa-edit{% endif %}"></i>
+                        </div>
+                        <div>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <h6 class="mb-0 fw-bold text-dark">{{ periode_active.nom }}</h6>
+                                {% if periode_publiee %}
+                                <span class="badge bg-success text-white rounded-pill px-2.5 py-0.5" style="font-size: 0.75rem;">
+                                    <i class="fas fa-check-circle me-1"></i>Période clôturée (Officielle)
+                                </span>
+                                {% else %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-0.5" style="font-size: 0.75rem;">
+                                    <i class="fas fa-pen me-1"></i>Saisie en cours (Notes provisoires)
+                                </span>
+                                {% endif %}
+                            </div>
+                            <p class="mb-0 text-muted small mt-0.5" style="font-size: 0.78rem;">
+                                {% if periode_publiee %}
+                                Les bulletins et classements officiels sont validés et consultables par les familles.
+                                {% else %}
+                                Les moyennes et rangs sont calculés en temps réel et seront scellés lors de la clôture.
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    {% if current_user.role in ['admin', 'directeur'] %}
+                    <div class="d-flex align-items-center gap-2 w-100 w-md-auto justify-content-end">
+                        {% if not periode_publiee %}
+                        <button type="button" 
+                                class="btn btn-success btn-sm fw-bold rounded-pill px-3 py-1.5 shadow-sm text-nowrap w-100 w-md-auto"
+                                data-bs-toggle="modal" 
+                                data-bs-target="#modalCloturerPeriode">
+                            <i class="fas fa-lock me-1.5"></i>Clôturer la période &amp; Sceller les rangs
+                        </button>
+                        {% else %}
+                        <button type="button" 
+                                class="btn btn-outline-secondary btn-sm fw-semibold rounded-pill px-3 py-1.5 shadow-sm text-nowrap w-100 w-md-auto"
+                                data-bs-toggle="modal" 
+                                data-bs-target="#modalRouvrirPeriode">
+                            <i class="fas fa-unlock me-1.5 text-warning"></i>Rouvrir la saisie
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sélecteur compact de classes sur Mobile (< 768px, affichage immédiat au-dessus de la ligne de flottaison) -->
+    <div class="d-block d-md-none mb-3" id="mobileClassSelectWrapper">
+        <label for="mobileSelectClasse" class="form-label small text-muted fw-bold mb-1 d-flex align-items-center justify-content-between">
+            <span><i class="fas fa-graduation-cap me-1.5 text-primary"></i>Choisir une classe :</span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill font-monospace" style="font-size: 0.72rem;">{{ classes|length }} classes</span>
+        </label>
+        <div class="input-group shadow-sm" style="border-radius: 0.75rem; overflow: hidden;">
+            <span class="input-group-text bg-white border-primary border-end-0 text-primary">
+                <i class="fas fa-chalkboard-teacher"></i>
+            </span>
+            <select id="mobileSelectClasse" class="form-select form-select-lg border-primary border-start-0 fw-semibold text-dark ps-1" style="font-size: 0.95rem;">
+                <option value="all" selected>⭐ Toutes les classes (Vue d'ensemble)</option>
+                {% for cl in classes %}
+                    {% set cl_stat = classe_stats.get(cl.id, {}) %}
+                    {% set cl_eff = cl_stat.effectif|default(eleves_par_classe.get(cl.id, [])|length) %}
+                    <option value="{{ cl.id }}">{{ cl.nom }}{% if cl.niveau %} ({{ cl.niveau }}){% endif %} ({{ cl_eff }} élève{{ 's' if cl_eff > 1 else '' }})</option>
+                {% endfor %}
+                {% if eleves_sans_classe %}
+                    <option value="orphan">Sans classe assignée ({{ eleves_sans_classe|length }} élèves)</option>
+                {% endif %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Barre de filtrage par puces (Chips) pour les classes sur Desktop (>= 768px) -->
+    <div class="class-chips-bar-wrapper mb-3 d-none d-md-block" id="classChipsBar">
         <div class="class-chips-container d-flex align-items-center gap-2 overflow-x-auto pb-2" style="scrollbar-width: thin;">
             <button type="button" class="btn btn-sm class-filter-chip active rounded-pill px-3 py-1 text-nowrap fw-semibold border shadow-sm" data-class-chip="">
                 <i class="fas fa-th-large me-1"></i>Toutes les classes
@@ -236,9 +291,9 @@
         {% set c_stats = classe_stats.get(classe.id, {}) %}
         {% set effectif = c_stats.effectif|default(c_items|length) %}
         {% set evalues_count = c_stats.evalues_count|default(0) %}
-        {% set moyenne_classe = c_stats.moyenne_classe|default(0) %}
-        {% set meilleure_moyenne = c_stats.meilleure_moyenne|default(0) %}
-        {% set taux_reussite = c_stats.taux_reussite|default(0) %}
+        {% set moyenne_classe = c_stats.moyenne_classe if c_stats.moyenne_classe is defined else None %}
+        {% set meilleure_moyenne = c_stats.meilleure_moyenne if c_stats.meilleure_moyenne is defined else None %}
+        {% set taux_reussite = c_stats.taux_reussite if c_stats.taux_reussite is defined else None %}
 
         <div class="class-bulletin-card card border shadow-sm mb-3" 
              id="cardClasse{{ classe.id }}"
@@ -246,8 +301,8 @@
              data-classe-nom="{{ classe.nom|lower }}"
              data-niveau-ordre="{{ classe.niveau_scolaire.ordre if classe.niveau_scolaire else 999 }}"
              data-effectif="{{ effectif }}"
-             data-moyenne="{{ moyenne_classe }}"
-             data-taux="{{ taux_reussite }}"
+             data-moyenne="{{ moyenne_classe if moyenne_classe is not none else '' }}"
+             data-taux="{{ taux_reussite if taux_reussite is not none else '' }}"
              data-evalues="{{ evalues_count }}">
 
             <!-- En-tête accordéon de la classe -->
@@ -275,6 +330,17 @@
                             <span class="badge bg-light text-dark border">
                                 <i class="fas fa-clipboard-check me-1 text-info"></i>{{ evalues_count }} évalué(s)
                             </span>
+                            {% if current_user.role in ['admin', 'directeur', 'secretaire'] and effectif > 0 %}
+                            <a href="{{ url_for('main.export_pdf_groupe_classe', classe_id=classe.id, periode_id=periode_active.id if periode_active else None) }}" 
+                               class="btn btn-sm btn-primary rounded-pill px-2.5 px-md-3 py-1 fw-bold shadow-sm d-inline-flex align-items-center gap-1.5 text-nowrap"
+                               onclick="event.stopPropagation();"
+                               title="Imprimer tous les bulletins de {{ classe.nom }} en un seul document PDF multipages"
+                               target="_blank">
+                                <i class="fas fa-print"></i>
+                                <span class="d-none d-sm-inline">Imprimer la classe complète (PDF unique)</span>
+                                <span class="d-inline d-sm-none">PDF Classe (tout)</span>
+                            </a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -282,22 +348,27 @@
                 <div class="class-bulletin-stats d-flex align-items-center gap-2">
                     <div class="d-none d-sm-flex align-items-center gap-2">
                         {% if moyenne_classe is not none %}
-                        <span class="badge {% if moyenne_classe is not none and moyenne_classe >= 10 %}bg-success{% elif moyenne_classe is not none %}bg-danger{% else %}bg-secondary{% endif %} py-2 px-3 shadow-sm">
-                            <i class="fas fa-chart-line me-1"></i>Moyenne : {{ moyenne_classe }}/20
+                        <span class="badge {% if moyenne_classe >= 10 %}bg-success{% else %}bg-danger{% endif %} py-2 px-3 shadow-sm">
+                            <i class="fas fa-chart-line me-1"></i>Moyenne : {{ "%.2f"|format(moyenne_classe) if moyenne_classe is number else moyenne_classe }}/20
+                            {% if not periode_publiee %}
+                            <span class="badge bg-warning text-dark ms-1 py-0.5 px-1.5" style="font-size: 0.7rem;">Provisoire</span>
+                            {% else %}
+                            <span class="badge bg-success-subtle text-success ms-1 py-0.5 px-1.5" style="font-size: 0.7rem;">Officiel</span>
+                            {% endif %}
                         </span>
                         {% else %}
-                        <span class="badge bg-secondary py-2 px-3 shadow-sm">
-                            <i class="fas fa-chart-line me-1"></i>Moyenne classe : En attente
+                        <span class="badge bg-light text-muted border py-2 px-3 shadow-sm">
+                            <i class="fas fa-chart-line me-1 text-secondary"></i>Moyenne : En attente de saisie
                         </span>
                         {% endif %}
 
                         {% if meilleure_moyenne is not none %}
                         <span class="badge bg-primary py-2 px-3 shadow-sm">
-                            <i class="fas fa-trophy me-1"></i>Top : {{ meilleure_moyenne }}/20
+                            <i class="fas fa-trophy me-1"></i>Top : {{ "%.2f"|format(meilleure_moyenne) if meilleure_moyenne is number else meilleure_moyenne }}/20
                         </span>
                         {% else %}
-                        <span class="badge bg-secondary py-2 px-3 shadow-sm">
-                            <i class="fas fa-trophy me-1"></i>Top : En attente
+                        <span class="badge bg-light text-muted border py-2 px-3 shadow-sm">
+                            <i class="fas fa-trophy me-1 text-secondary"></i>Top : —
                         </span>
                         {% endif %}
 
@@ -306,8 +377,8 @@
                             <i class="fas fa-percentage me-1"></i>Réussite : {{ taux_reussite }}%
                         </span>
                         {% else %}
-                        <span class="badge bg-secondary py-2 px-3 shadow-sm" title="Aucun élève n'a complété l'ensemble de ses évaluations">
-                            <i class="fas fa-percentage me-1"></i>Réussite : En attente
+                        <span class="badge bg-light text-muted border py-2 px-3 shadow-sm">
+                            <i class="fas fa-percentage me-1 text-secondary"></i>Réussite : —
                         </span>
                         {% endif %}
                     </div>
@@ -337,7 +408,7 @@
                                     <th>Élève</th>
                                     <th style="min-width: 170px;">Moyenne générale</th>
                                     <th class="text-center" style="min-width: 130px;">Appréciation</th>
-                                    <th class="text-center" style="min-width: 110px;">Notes</th>
+                                    <th class="text-center" style="min-width: 140px;">Matières</th>
                                     <th class="text-end pe-3" style="width: 160px;">Bulletin</th>
                                 </tr>
                             </thead>
@@ -352,14 +423,16 @@
                                     data-student-notes="{{ item.notes_count }}"
                                     data-bulletin-genere="{{ '1' if item.bulletin_genere else '0' }}">
                                     <td class="ps-3 text-center">
-                                        {% if item.status == 'complete' and item.rang_classe %}
-                                        <span class="badge {% if item.rang_classe == 1 %}bg-warning text-dark{% elif item.rang_classe <= 3 %}bg-primary{% else %}bg-secondary{% endif %} rounded-pill px-2 py-1 shadow-sm">
-                                            #{{ item.rang_classe }}
-                                        </span>
-                                        {% elif item.status == 'provisoire' %}
-                                        <span class="badge bg-light text-muted border px-2 py-1" title="Le classement sera disponible lorsque toutes les matières seront évaluées">
-                                            <i class="fas fa-clock me-1 text-warning"></i>En attente
-                                        </span>
+                                        {% if item.rang_classe %}
+                                            {% if periode_publiee %}
+                                            <span class="badge {% if item.rang_classe == 1 %}bg-warning text-dark{% elif item.rang_classe <= 3 %}bg-primary{% else %}bg-secondary{% endif %} rounded-pill px-2.5 py-1 shadow-sm">
+                                                #{{ item.rang_classe }}
+                                            </span>
+                                            {% else %}
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1" style="font-size: 0.75rem;" title="Rang estimé en temps réel selon les notes saisies">
+                                                #{{ item.rang_classe }} <small class="text-muted">(Estimé)</small>
+                                            </span>
+                                            {% endif %}
                                         {% else %}
                                         <span class="text-muted fst-italic">--</span>
                                         {% endif %}
@@ -378,48 +451,59 @@
                                         </div>
                                     </td>
                                     <td>
-                                        {% if item.status == 'complete' and item.moyenne_raw is not none %}
+                                        {% if item.moyenne_raw is not none %}
                                         <div class="d-flex align-items-center">
                                             <div class="fw-bold fs-6 {% if item.moyenne_raw >= 10 %}text-success{% else %}text-danger{% endif %} me-2" style="min-width: 65px;">
-                                                {{ item.moyenne_raw }}/20
+                                                {{ "%.2f"|format(item.moyenne_raw) if item.moyenne_raw is number else item.moyenne_raw }}/20
                                             </div>
-                                            <div class="progress flex-grow-1" style="height: 7px; border-radius: 4px; max-width: 90px;">
+                                            <div class="progress flex-grow-1" style="height: 7px; border-radius: 4px; max-width: 80px;">
                                                 <div class="progress-bar {% if item.moyenne_raw >= 10 %}bg-success{% else %}bg-danger{% endif %}"
                                                      role="progressbar" 
-                                                     style="width: {{ (item.moyenne_raw / 20 * 100)|round }}%;">
+                                                     {{ ('style="width: ' ~ ((item.moyenne_raw / 20 * 100)|round|int) ~ '%;"')|safe }}>
                                                 </div>
                                             </div>
-                                        </div>
-                                        {% elif item.status == 'provisoire' and item.moyenne_raw is not none %}
-                                        <div>
-                                            <span class="badge bg-warning text-dark me-1" title="Moyenne provisoire">
-                                                Moy. provisoire : {{ item.moyenne_raw }}/20
+                                            {% if not periode_publiee %}
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle ms-2 py-0.5 px-1.5" style="font-size: 0.68rem;" title="Moyenne calculée en temps réel au fil des saisies">
+                                                Provisoire
                                             </span>
-                                            <small class="text-muted d-block" style="font-size: 0.75rem;">
-                                                {{ item.eval_info.evaluated_subjects }}/{{ item.eval_info.expected_subjects }} matières renseignées
-                                            </small>
+                                            {% endif %}
                                         </div>
                                         {% else %}
                                         <span class="text-muted fst-italic small">--</span>
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
-                                        {% if item.status == 'complete' %}
+                                        {% if item.moyenne_raw is not none %}
                                         <span class="badge {{ item.badge_class }} py-2 px-3 shadow-sm">
                                             {{ item.appreciation }}
-                                        </span>
-                                        {% elif item.status == 'provisoire' %}
-                                        <span class="badge bg-light text-muted border py-2 px-3">
-                                            En attente
                                         </span>
                                         {% else %}
                                         <span class="text-muted fst-italic">--</span>
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge bg-light text-dark border py-2 px-2">
-                                            <i class="fas fa-sticky-note me-1 text-primary"></i>{{ item.notes_count }} note(s)
+                                        {% if item.is_complet and item.eval_info.expected_subjects > 0 %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle py-1.5 px-2.5 rounded-pill fw-semibold" title="{{ item.notes_count }} note(s) saisie(s)">
+                                            <i class="fas fa-check-circle bi bi-check-circle me-1"></i>{{ item.eval_info.expected_subjects }}/{{ item.eval_info.expected_subjects }} (Complet)
                                         </span>
+                                        {% elif item.eval_info.expected_subjects > 0 %}
+                                        {% set missing_tooltip = "Matières non renseignées :<br>• " ~ item.matieres_manquantes|join("<br>• ") if item.matieres_manquantes else "" %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-1.5 px-2.5 rounded-pill fw-semibold" 
+                                              data-bs-toggle="tooltip" 
+                                              data-bs-html="true" 
+                                              title="{{ missing_tooltip }}">
+                                            <i class="fas fa-exclamation-circle bi bi-exclamation-circle me-1"></i>{{ item.eval_info.evaluated_subjects }}/{{ item.eval_info.expected_subjects }} ({{ item.matieres_manquantes_count }} manquante{{ 's' if item.matieres_manquantes_count > 1 else '' }})
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-light text-muted border py-1.5 px-2.5 rounded-pill">
+                                            <i class="fas fa-book-open bi bi-book me-1"></i>0 matière
+                                        </span>
+                                        {% endif %}
+                                        {% if item.notes_count > 0 %}
+                                        <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">
+                                            <i class="fas fa-sticky-note me-1 text-secondary"></i>{{ item.notes_count }} note{{ 's' if item.notes_count > 1 else '' }}
+                                        </small>
+                                        {% endif %}
                                     </td>
                                     <td class="text-end pe-3">
                                         <a href="{{ url_for('main.bulletin_eleve', id=eleve.id, inscription_id=item.inscription.id if item.inscription else None) }}" 
@@ -457,40 +541,42 @@
                                     </div>
                                 </div>
                                 <div>
-                                    {% if item.status == 'complete' and item.rang_classe %}
-                                    <span class="badge {% if item.rang_classe == 1 %}bg-warning text-dark{% elif item.rang_classe <= 3 %}bg-primary{% else %}bg-secondary{% endif %} rounded-pill px-2 py-1">
-                                        Rang #{{ item.rang_classe }}
-                                    </span>
-                                    {% elif item.status == 'provisoire' %}
-                                    <span class="badge bg-light text-muted border px-2 py-1">
-                                        <i class="fas fa-clock me-1 text-warning"></i>En attente
-                                    </span>
+                                    {% if item.rang_classe %}
+                                        {% if periode_publiee %}
+                                        <span class="badge {% if item.rang_classe == 1 %}bg-warning text-dark{% elif item.rang_classe <= 3 %}bg-primary{% else %}bg-secondary{% endif %} rounded-pill px-2 py-1">
+                                            Rang #{{ item.rang_classe }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2 py-1" style="font-size: 0.72rem;">
+                                            Rang #{{ item.rang_classe }} (Estimé)
+                                        </span>
+                                        {% endif %}
+                                    {% else %}
+                                    <span class="text-muted fst-italic small">--</span>
                                     {% endif %}
                                 </div>
                             </div>
 
                             <div class="bulletin-student-mini-body mb-2">
-                                {% if item.status == 'complete' and item.moyenne_raw is not none %}
+                                {% if item.moyenne_raw is not none %}
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <span class="small text-muted">Moyenne générale :</span>
-                                    <span class="fw-bold {% if item.moyenne_raw >= 10 %}text-success{% else %}text-danger{% endif %}">
-                                        {{ item.moyenne_raw }}/20
-                                    </span>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <span class="fw-bold {% if item.moyenne_raw >= 10 %}text-success{% else %}text-danger{% endif %}">
+                                            {{ "%.2f"|format(item.moyenne_raw) if item.moyenne_raw is number else item.moyenne_raw }}/20
+                                        </span>
+                                        {% if not periode_publiee %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-0.5 px-1" style="font-size: 0.65rem;">
+                                            Provisoire
+                                        </span>
+                                        {% endif %}
+                                    </div>
                                 </div>
                                 <div class="progress mb-2" style="height: 6px; border-radius: 4px;">
                                     <div class="progress-bar {% if item.moyenne_raw >= 10 %}bg-success{% else %}bg-danger{% endif %}" 
                                          role="progressbar" 
-                                         style="width: {{ (item.moyenne_raw / 20 * 100)|round }}%;">
+                                         {{ ('style="width: ' ~ ((item.moyenne_raw / 20 * 100)|round|int) ~ '%;"')|safe }}>
                                     </div>
-                                </div>
-                                {% elif item.status == 'provisoire' and item.moyenne_raw is not none %}
-                                <div class="mb-2">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <span class="badge bg-warning text-dark">Moy. provisoire : {{ item.moyenne_raw }}/20</span>
-                                    </div>
-                                    <small class="text-muted d-block" style="font-size: 0.75rem;">
-                                        {{ item.eval_info.evaluated_subjects }}/{{ item.eval_info.expected_subjects }} matières renseignées
-                                    </small>
                                 </div>
                                 {% else %}
                                 <div class="d-flex justify-content-between align-items-center mb-1">
@@ -500,20 +586,37 @@
                                 {% endif %}
 
                                 <div class="d-flex justify-content-between align-items-center mt-1">
-                                    {% if item.status == 'complete' %}
+                                    {% if item.moyenne_raw is not none %}
                                     <span class="badge {{ item.badge_class }} py-1 px-2">
                                         {{ item.appreciation }}
-                                    </span>
-                                    {% elif item.status == 'provisoire' %}
-                                    <span class="badge bg-light text-muted border py-1 px-2">
-                                        Mention : En attente
                                     </span>
                                     {% else %}
                                     <span class="text-muted fst-italic small">--</span>
                                     {% endif %}
-                                    <span class="badge bg-white text-dark border py-1 px-2 small">
-                                        <i class="fas fa-sticky-note me-1 text-primary"></i>{{ item.notes_count }} note(s)
-                                    </span>
+                                    <div class="text-end">
+                                        {% if item.is_complet and item.eval_info.expected_subjects > 0 %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2 small">
+                                            <i class="fas fa-check-circle bi bi-check-circle me-1"></i>{{ item.eval_info.expected_subjects }}/{{ item.eval_info.expected_subjects }} (Complet)
+                                        </span>
+                                        {% elif item.eval_info.expected_subjects > 0 %}
+                                        {% set missing_tooltip_m = "Matières non renseignées :<br>• " ~ item.matieres_manquantes|join("<br>• ") if item.matieres_manquantes else "" %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-1 px-2 small"
+                                              data-bs-toggle="tooltip" 
+                                              data-bs-html="true" 
+                                              title="{{ missing_tooltip_m }}">
+                                            <i class="fas fa-exclamation-circle bi bi-exclamation-circle me-1"></i>{{ item.eval_info.evaluated_subjects }}/{{ item.eval_info.expected_subjects }} ({{ item.matieres_manquantes_count }} manq.)
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-white text-muted border py-1 px-2 small">
+                                            0 mat.
+                                        </span>
+                                        {% endif %}
+                                        {% if item.notes_count > 0 %}
+                                        <small class="text-muted d-block mt-0.5" style="font-size: 0.7rem;">
+                                            {{ item.notes_count }} note{{ 's' if item.notes_count > 1 else '' }}
+                                        </small>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
 
@@ -583,7 +686,7 @@
                                     <th class="ps-3">Élève</th>
                                     <th>Moyenne</th>
                                     <th class="text-center">Appréciation</th>
-                                    <th class="text-center">Notes</th>
+                                    <th class="text-center">Matières</th>
                                     <th class="text-end pe-3">Action</th>
                                 </tr>
                             </thead>
@@ -606,7 +709,14 @@
                                         <span class="badge {{ item.badge_class }} py-2 px-3 shadow-sm">{{ item.appreciation }}</span>
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge bg-light text-dark border">{{ item.notes_count }} note(s)</span>
+                                        <span class="badge bg-light text-dark border">
+                                            <i class="fas fa-book-open me-1 text-primary"></i>{{ item.eval_info.evaluated_subjects }}/{{ item.eval_info.expected_subjects }} matière{{ 's' if item.eval_info.evaluated_subjects > 1 else '' }}
+                                        </span>
+                                        {% if item.notes_count > 0 %}
+                                        <small class="text-muted d-block mt-1" style="font-size: 0.72rem;">
+                                            {{ item.notes_count }} note{{ 's' if item.notes_count > 1 else '' }}
+                                        </small>
+                                        {% endif %}
                                     </td>
                                     <td class="text-end pe-3">
                                         <a href="{{ url_for('main.bulletin_eleve', id=eleve.id, inscription_id=item.inscription.id if item.inscription else None) }}" class="btn btn-sm btn-outline-primary fw-bold" target="_blank" rel="noopener">
@@ -673,8 +783,149 @@
         </div>
     </div>
 
-    {% endif %}
+{% if current_user.role in ['admin', 'directeur'] and periode_active %}
+<!-- Modale de Confirmation de Clôture de Période -->
+<div class="modal fade" id="modalCloturerPeriode" tabindex="-1" aria-labelledby="modalCloturerLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
+            <form method="POST" action="{{ url_for('main.toggle_publication_periode', periode_id=periode_active.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if request.args.get('classe_id') %}
+                <input type="hidden" name="classe_id" value="{{ request.args.get('classe_id') }}">
+                {% endif %}
+                {% if request.args.get('search') %}
+                <input type="hidden" name="search" value="{{ request.args.get('search') }}">
+                {% endif %}
+                <div class="modal-header bg-success bg-opacity-10 border-0 py-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="modalCloturerLabel">
+                            Clôturer la période {{ periode_active.nom }}
+                        </h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary mb-3 fs-6">
+                        Voulez-vous clôturer la période <strong>{{ periode_active.nom }}</strong> ? Cette action validera les moyennes, attribuera les rangs officiels (#1, #2...) et scellera les bulletins.
+                    </p>
+
+                    <!-- Synthèse de complétude intelligente -->
+                    {% if total_eleves_incomplets is defined and total_eleves_incomplets == 0 %}
+                    <div class="alert alert-success border-0 d-flex align-items-center gap-2.5 p-3 rounded-3 mb-3 shadow-sm">
+                        <i class="fas fa-check-circle fs-4 text-success flex-shrink-0"></i>
+                        <div>
+                            <div class="fw-bold text-success">✅ Tous les élèves ont 100% de leurs matières renseignées.</div>
+                            <div class="small text-muted">Toutes les notes attendues ont été saisies pour l'ensemble des classes sur cette période.</div>
+                        </div>
+                    </div>
+                    {% elif total_eleves_incomplets is defined and total_eleves_incomplets > 0 %}
+                    <div class="alert alert-warning border border-warning-subtle rounded-3 p-3 mb-3 shadow-sm">
+                        <div class="d-flex align-items-center gap-2 mb-1.5">
+                            <i class="fas fa-exclamation-triangle text-warning fs-5 flex-shrink-0"></i>
+                            <div class="fw-bold text-dark">
+                                ⚠️ Attention : {{ total_eleves_incomplets }} élève{{ 's' if total_eleves_incomplets > 1 else '' }} ont des matières non évaluées (dispense, absence ou note non saisie).
+                            </div>
+                        </div>
+                        <p class="small text-muted mb-2">
+                            Les matières sans note afficheront la mention neutre <em>« Non évalué »</em> sur le bulletin et leur coefficient sera neutralisé pour que la moyenne reflète fidèlement le travail réellement évalué.
+                        </p>
+                        <div class="accordion accordion-flush" id="accordionIncomplets">
+                            <div class="accordion-item bg-transparent border-0">
+                                <h2 class="accordion-header" id="headingIncomplets">
+                                    <button class="accordion-button collapsed py-1.5 px-2.5 bg-white border rounded-2 small fw-semibold text-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseIncomplets" aria-expanded="false" aria-controls="collapseIncomplets">
+                                        <i class="fas fa-list-ul me-1.5"></i>Consulter les {{ total_eleves_incomplets }} élève{{ 's' if total_eleves_incomplets > 1 else '' }} concerné{{ 's' if total_eleves_incomplets > 1 else '' }} et leurs matières manquantes
+                                    </button>
+                                </h2>
+                                <div id="collapseIncomplets" class="accordion-collapse collapse" aria-labelledby="headingIncomplets">
+                                    <div class="accordion-body p-2 mt-1.5 bg-white border rounded-2" style="max-height: 180px; overflow-y: auto;">
+                                        <ul class="list-group list-group-flush small mb-0">
+                                            {% for inc in tous_eleves_incomplets %}
+                                            <li class="list-group-item px-2 py-1.5 d-flex justify-content-between align-items-start border-bottom-0">
+                                                <div>
+                                                    <span class="fw-bold text-dark">{{ inc.nom }}</span>
+                                                    {% if inc.classe_nom %}<span class="badge bg-light text-secondary border ms-1">{{ inc.classe_nom }}</span>{% endif %}
+                                                    <div class="text-muted" style="font-size: 0.75rem;">
+                                                        Matière{{ 's' if inc.matieres|length > 1 else '' }} non renseignée{{ 's' if inc.matieres|length > 1 else '' }} : <strong>{{ inc.matieres|join(', ') }}</strong>
+                                                    </div>
+                                                </div>
+                                                <span class="badge bg-warning text-dark rounded-pill">{{ inc.count }} manq.</span>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="p-3 bg-light rounded-3 text-muted small border">
+                        <div class="fw-semibold text-dark mb-1"><i class="fas fa-info-circle me-1 text-primary"></i>Impacts de la clôture :</div>
+                        <ul class="mb-0 ps-3">
+                            <li>Les moyennes sont scellées et les rangs officiels (#1, #2...) sont validés.</li>
+                            <li>Les bulletins de notes deviennent officiels et téléchargeables.</li>
+                            <li>Vous pourrez rouvrir la saisie à tout moment en cas de besoin de correction.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light py-2.5 px-4 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success fw-bold rounded-pill px-4 shadow-sm">
+                        <i class="fas fa-lock me-1"></i>{% if total_eleves_incomplets is defined and total_eleves_incomplets > 0 %}Clôturer quand même et valider les bulletins{% else %}Confirmer la clôture{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
+
+<!-- Modale de Confirmation de Réouverture de Période -->
+<div class="modal fade" id="modalRouvrirPeriode" tabindex="-1" aria-labelledby="modalRouvrirLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
+            <form method="POST" action="{{ url_for('main.toggle_publication_periode', periode_id=periode_active.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% if request.args.get('classe_id') %}
+                <input type="hidden" name="classe_id" value="{{ request.args.get('classe_id') }}">
+                {% endif %}
+                {% if request.args.get('search') %}
+                <input type="hidden" name="search" value="{{ request.args.get('search') }}">
+                {% endif %}
+                <div class="modal-header bg-warning bg-opacity-10 border-0 py-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                            <i class="fas fa-unlock"></i>
+                        </div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="modalRouvrirLabel">
+                            Rouvrir la saisie — {{ periode_active.nom }}
+                        </h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary mb-3 fs-6">
+                        Voulez-vous rouvrir la période <strong>{{ periode_active.nom }}</strong> pour modification ?
+                    </p>
+                    <div class="p-3 bg-warning-subtle text-dark rounded-3 small border border-warning-subtle">
+                        <i class="fas fa-exclamation-triangle me-1 text-warning"></i>
+                        Les bulletins repasseront temporairement en statut provisoire le temps d'autoriser la correction de notes par les enseignants.
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light py-2.5 px-4 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-warning text-dark fw-bold rounded-pill px-4 shadow-sm">
+                        <i class="fas fa-unlock me-1"></i>Confirmer la réouverture
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
 
 <!-- Contrôleur JavaScript interactif sans aucun faux bouton -->
 <script>
@@ -682,6 +933,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('bulletinSearchInput');
     const btnClearSearch = document.getElementById('btnClearSearch');
     const filterClasse = document.getElementById('filterClasseSelect');
+    const mobileSelectClasse = document.getElementById('mobileSelectClasse');
     const filterMention = document.getElementById('filterMentionSelect');
     const sortSelect = document.getElementById('sortClasseSelect');
     const pageSizeSelect = document.getElementById('classePageSizeSelect');
@@ -710,12 +962,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const initialParams = new URLSearchParams(window.location.search);
     if (searchInput && initialParams.has('search')) searchInput.value = initialParams.get('search') || '';
     if (filterClasse && initialParams.has('classe_id')) filterClasse.value = initialParams.get('classe_id') || '';
+    if (mobileSelectClasse && initialParams.has('classe_id')) mobileSelectClasse.value = initialParams.get('classe_id') || 'all';
     if (filterMention && initialParams.has('mention')) filterMention.value = initialParams.get('mention') || '';
     const initialStatutBulletin = initialParams.get('statut_bulletin') || '';
     const initialPeriode = initialParams.get('periode') || '';
 
-    // Synchronisation des puces de classes
+    // Synchronisation des puces de classes et du sélecteur mobile
     function syncChips(selectedClasse) {
+        if (mobileSelectClasse) {
+            mobileSelectClasse.value = selectedClasse || 'all';
+        }
         classChips.forEach(chip => {
             const chipVal = chip.dataset.classChip || '';
             if (chipVal === selectedClasse) {
@@ -1031,6 +1287,29 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    if (mobileSelectClasse) {
+        mobileSelectClasse.addEventListener('change', function() {
+            const val = this.value;
+            const targetClasse = (val === 'all') ? '' : val;
+            if (filterClasse) filterClasse.value = targetClasse;
+            currentPage = 1;
+            applyFilters();
+
+            if (targetClasse) {
+                // Déplier automatiquement l'accordéon de la classe sélectionnée
+                const targetCard = document.querySelector(`.class-bulletin-card[data-classe-id="${targetClasse}"]`);
+                if (targetCard) {
+                    const collapseEl = targetCard.querySelector('.collapse');
+                    if (collapseEl && window.bootstrap) {
+                        const bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl, { toggle: false });
+                        bsCollapse.show();
+                    }
+                    targetCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        });
+    }
+
     if (filterMention) {
         filterMention.addEventListener('change', () => {
             currentPage = 1;
@@ -1055,6 +1334,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btnReset.addEventListener('click', () => {
             if (searchInput) searchInput.value = '';
             if (filterClasse) filterClasse.value = '';
+            if (mobileSelectClasse) mobileSelectClasse.value = 'all';
             if (filterMention) filterMention.value = '';
             if (sortSelect) sortSelect.value = 'name_asc';
             if (pageSizeSelect) pageSizeSelect.value = '10';
@@ -1063,8 +1343,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Initialisation des infobulles Bootstrap pour les alertes de matières manquantes
+    function initTooltips() {
+        if (window.bootstrap && bootstrap.Tooltip) {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                bootstrap.Tooltip.getInstance(tooltipTriggerEl) || new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+    }
+
     // Initialisation
     applyFilters();
+    initTooltips();
 });
 </script>
 {% endblock %}
