@@ -13,7 +13,7 @@
     </nav>
 
     <div class="row g-4 align-items-stretch justify-content-center">
-        <!-- 🎥 Colonne Vidéo de Présentation Autoplay -->
+        <!-- 🎥 Colonne Vidéo de Présentation -->
         <div class="col-lg-6 col-xl-6 d-flex">
             <div class="w-100 d-flex flex-column justify-content-between p-4 p-md-5 bg-white rounded-4 shadow-sm border">
                 <div>
@@ -28,13 +28,13 @@
 
                     <h2 class="fs-3 fw-bold text-dark mb-2">Découvrez KLASORA en Vidéo</h2>
                     <p class="text-muted small mb-4">
-                        Visionnez notre vidéo officielle de présentation. La vidéo démarre automatiquement pour vous faire découvrir les fonctionnalités clés.
+                        Visionnez notre vidéo officielle de présentation à votre rythme pour découvrir les fonctionnalités clés.
                     </p>
 
-                    <!-- Player Vidéo Responsive & Autoplay avec bouton d'activation du son -->
+                    <!-- Player Vidéo Responsive avec bouton d'activation du son -->
                     <div class="position-relative rounded-4 overflow-hidden shadow-sm border bg-dark mx-auto" style="max-width: 360px;">
                         <div class="ratio bg-dark" style="--bs-aspect-ratio: 160%;">
-                            <video id="mainDemoVideo" autoplay muted playsinline loop controls preload="auto" class="w-100 h-100 rounded-4" style="object-fit: contain; background: #0f172a;">
+                            <video id="mainDemoVideo" muted playsinline controls preload="none" poster="{{ url_for('static', filename='img/logo-klasora.png') }}" class="w-100 h-100 rounded-4" style="object-fit: contain; background: #0f172a;">
                                 <source src="{{ url_for('static', filename='video/Comment_KLASORA_Centralise_La_Gestion_Scolaire.mp4') }}" type="video/mp4">
                                 Votre navigateur ne prend pas en charge la lecture vidéo HTML5.
                             </video>
@@ -120,10 +120,9 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const video = document.getElementById('pageDemoVideo');
+    const video = document.getElementById('mainDemoVideo');
     const btn = document.getElementById('pageUnmuteBtn');
     if (video) {
-        video.play().catch(() => {});
         if (btn) {
             btn.addEventListener('click', function(e) {
                 e.preventDefault();

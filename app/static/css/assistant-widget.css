@@ -1,0 +1,1090 @@
+/* 1. Backdrop pour mobile */
+.klasora-ai-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 1054;
+    transition: opacity 0.24s ease;
+}
+
+/* ==========================================================================
+   MASQUAGE DU BOUTON SUPPORT INDÉPENDANT LORSQUE LE SPEED DIAL EST PRÉSENT
+   ========================================================================== */
+#klasoraSupportTriggerBtn {
+    display: none !important;
+}
+
+@media print {
+    #klasoraSpeedDial,
+    #klasoraAiChatWindow,
+    #klasoraAiBackdrop {
+        display: none !important;
+    }
+}
+
+/* ==========================================================================
+   2. CONTENEUR SPEED DIAL FLOTTANT DÉPLAÇABLE (ASSISTANCE & IA)
+   ========================================================================== */
+.klasora-speed-dial {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1055;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    pointer-events: none;
+}
+
+/* Bouton Déclencheur Principal FAB */
+.klasora-speed-dial-trigger {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    height: 50px;
+    padding: 0 16px 0 10px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 9999px;
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #4361ee 100%);
+    color: #ffffff !important;
+    box-shadow: 0 10px 25px -4px rgba(37, 99, 235, 0.5),
+                0 4px 12px -2px rgba(15, 23, 42, 0.25);
+    cursor: grab;
+    cursor: -webkit-grab;
+    outline: none;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                background 0.2s ease;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.klasora-speed-dial-trigger * {
+    pointer-events: none;
+}
+
+.klasora-speed-dial-trigger:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 14px 30px -4px rgba(37, 99, 235, 0.65),
+                0 6px 16px -2px rgba(15, 23, 42, 0.3);
+    background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 55%, #3b82f6 100%);
+}
+
+.klasora-speed-dial.is-dragging .klasora-speed-dial-trigger {
+    cursor: grabbing !important;
+    cursor: -webkit-grabbing !important;
+    transform: scale(1.05) !important;
+    box-shadow: 0 18px 36px -4px rgba(37, 99, 235, 0.75),
+                0 8px 18px -2px rgba(15, 23, 42, 0.35) !important;
+    transition: none !important;
+}
+
+.klasora-speed-dial-trigger:focus-visible {
+    box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.6), 0 10px 25px -4px rgba(37, 99, 235, 0.5);
+}
+
+.klasora-speed-dial.is-attention .klasora-speed-dial-trigger {
+    animation: klasoraAiAttentionBlink 1.15s ease-in-out infinite;
+}
+
+@keyframes klasoraAiAttentionBlink {
+    0%, 100% {
+        transform: translateY(0) scale(1);
+        box-shadow: 0 10px 25px -4px rgba(37, 99, 235, 0.5),
+                    0 4px 12px -2px rgba(15, 23, 42, 0.25);
+    }
+    50% {
+        transform: translateY(-2px) scale(1.06);
+        box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.18),
+                    0 18px 34px -4px rgba(37, 99, 235, 0.72),
+                    0 8px 18px -2px rgba(15, 23, 42, 0.34);
+    }
+}
+
+.speed-dial-trigger-inner {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.22);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    color: #ffffff;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.4);
+    flex-shrink: 0;
+}
+
+.speed-dial-trigger-label {
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #ffffff;
+    white-space: nowrap;
+}
+
+.speed-dial-trigger-chevron {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.75);
+    margin-left: 2px;
+    transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.speed-dial-icon-closed {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.24s ease;
+}
+
+.speed-dial-icon-opened {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.24s ease;
+}
+
+/* État ouvert du Speed Dial */
+.klasora-speed-dial.is-open .speed-dial-icon-closed {
+    display: none;
+}
+
+.klasora-speed-dial.is-open .speed-dial-icon-opened {
+    display: inline-flex;
+}
+
+.klasora-speed-dial.is-open .speed-dial-trigger-chevron {
+    transform: rotate(180deg);
+}
+
+.klasora-speed-dial.is-open .klasora-speed-dial-trigger {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    box-shadow: 0 8px 20px -2px rgba(30, 58, 138, 0.6);
+}
+
+/* État lorsque la fenêtre de chat IA est active */
+.klasora-speed-dial-trigger.is-chat-active {
+    background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+    border-color: rgba(147, 197, 253, 0.8);
+}
+
+/* Menu extensible Speed Dial */
+.klasora-speed-dial-menu {
+    position: absolute;
+    bottom: calc(100% + 14px);
+    right: 0;
+    display: flex;
+    flex-direction: column-reverse; /* Option 1 (Support) en haut, Option 2 (IA) au-dessus du bouton */
+    gap: 12px;
+    align-items: flex-end;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(12px) scale(0.96);
+    transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.22s;
+    transform-origin: bottom right;
+}
+
+/* Si le Speed Dial est près du haut de l'écran (expand down) */
+.klasora-speed-dial.expand-down .klasora-speed-dial-menu {
+    bottom: auto;
+    top: calc(100% + 14px);
+    flex-direction: column;
+    transform-origin: top right;
+    transform: translateY(-12px) scale(0.96);
+}
+
+.klasora-speed-dial.is-open .klasora-speed-dial-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+.klasora-speed-dial.is-open .klasora-speed-dial-item {
+    pointer-events: auto;
+}
+
+/* Items d'action du Speed Dial */
+.klasora-speed-dial-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    outline: none;
+    text-decoration: none;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.klasora-speed-dial-item:hover {
+    transform: translateX(-4px);
+}
+
+.klasora-speed-dial-item:focus-visible .speed-dial-item-card {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+/* Carte de texte / label de chaque option */
+.speed-dial-item-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 9px 14px;
+    box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.14),
+                0 2px 6px -1px rgba(15, 23, 42, 0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+    min-width: 195px;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.klasora-speed-dial-item:hover .speed-dial-item-card {
+    border-color: #93c5fd;
+    background-color: #f8fafc;
+    box-shadow: 0 14px 28px -4px rgba(15, 23, 42, 0.2);
+}
+
+/* Ligne supérieure : Titre + Badge alignés sans aucun chevauchement */
+.speed-dial-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    width: 100%;
+}
+
+.speed-dial-item-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.speed-dial-item-badge {
+    position: static !important; /* Aucun positionnement absolu : élimine toute collision */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 6px;
+    line-height: 1.1;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.speed-dial-item-badge.badge-ai {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.speed-dial-item-badge.badge-support {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.speed-dial-item-desc {
+    font-size: 0.72rem;
+    color: #64748b;
+    margin-top: 3px;
+    white-space: nowrap;
+}
+
+/* Pastille icône circulaire */
+.speed-dial-item-icon-circle {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    color: #ffffff;
+    box-shadow: 0 6px 16px -2px rgba(15, 23, 42, 0.18);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+    flex-shrink: 0;
+}
+
+.klasora-speed-dial-item:hover .speed-dial-item-icon-circle {
+    transform: scale(1.08);
+}
+
+/* Couleur spécifique Support */
+.icon-support {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    box-shadow: 0 6px 16px -2px rgba(3, 105, 161, 0.45);
+}
+
+/* Couleur spécifique IA */
+.icon-ai {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 6px 16px -2px rgba(37, 99, 235, 0.45);
+}
+
+/* Pastille statut animée */
+.klasora-ai-status-dot {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #10b981;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    animation: klasoraAiPulse 2s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+@keyframes klasoraAiPulse {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* 3. Fenêtre de Chat Flottante (Déplaçable sur PC & Élastique) */
+.klasora-ai-window {
+    position: fixed;
+    bottom: 86px;
+    right: 24px;
+    width: 420px;
+    max-width: calc(100vw - 32px);
+    height: 610px;
+    max-height: calc(100vh - 100px);
+    z-index: 1060;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 20px 50px -10px rgba(15, 23, 42, 0.28),
+                0 0 0 1px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+    transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.24s,
+                width 0.25s ease,
+                height 0.25s ease;
+    transform-origin: bottom right;
+}
+
+/* Mode élargi sur PC (Wide Mode) pour lire les dossiers et fiches */
+.klasora-ai-window.is-expanded {
+    width: 760px;
+    height: 680px;
+    max-height: calc(100vh - 80px);
+}
+
+.klasora-ai-window.klasora-ai-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(16px) scale(0.96);
+}
+
+.klasora-ai-window.is-dragging-window {
+    box-shadow: 0 28px 65px -10px rgba(15, 23, 42, 0.38),
+                0 0 0 1px rgba(37, 99, 235, 0.3) !important;
+    transition: none !important;
+}
+
+/* Poignée mobile (Swipe to close) */
+.klasora-ai-mobile-handle-wrap {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0 4px;
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+    cursor: grab;
+    touch-action: none;
+}
+
+.klasora-ai-mobile-handle {
+    width: 38px;
+    height: 4.5px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* En-tête */
+.klasora-ai-header {
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
+    color: #ffffff;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.klasora-ai-header-drag-zone {
+    flex: 1;
+    cursor: grab;
+    cursor: -webkit-grab;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.klasora-ai-header-drag-zone:active {
+    cursor: grabbing;
+    cursor: -webkit-grabbing;
+}
+
+.klasora-ai-header-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.klasora-ai-avatar {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    color: #ffffff;
+    flex-shrink: 0;
+}
+
+.klasora-ai-avatar-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background-color: #10b981;
+    border: 2px solid #2563eb;
+}
+
+.klasora-ai-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: #ffffff;
+}
+
+.klasora-ai-header-move-icon {
+    font-size: 0.76rem;
+    color: rgba(255, 255, 255, 0.55);
+    margin-left: 6px;
+}
+
+.klasora-ai-subtitle {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.88);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 1px;
+}
+
+.klasora-ai-live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #34d399;
+}
+
+.klasora-ai-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.klasora-ai-header-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.88);
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.klasora-ai-header-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+/* Suggestions Rapides (Pills) */
+.klasora-ai-pills-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 0;
+}
+
+.klasora-ai-pills-bar::-webkit-scrollbar {
+    display: none;
+}
+
+.klasora-ai-pill {
+    display: inline-flex;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    font-size: 0.76rem;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: all 0.18s ease;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.klasora-ai-pill:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+.klasora-ai-pill:active {
+    transform: translateY(0);
+}
+
+/* Zone Centrale des Messages */
+.klasora-ai-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+.klasora-ai-body::-webkit-scrollbar {
+    width: 6px;
+}
+.klasora-ai-body::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 4px;
+}
+
+.klasora-ai-messages-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* Bulles de Messages */
+.klasora-ai-msg {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    max-width: 90%;
+    animation: klasoraAiFadeIn 0.22s ease-out forwards;
+}
+
+@keyframes klasoraAiFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.klasora-ai-msg-bot {
+    align-self: flex-start;
+}
+
+.klasora-ai-msg-user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+.klasora-ai-msg-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.klasora-ai-bubble-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.klasora-ai-bubble {
+    padding: 12px 14px;
+    border-radius: 16px;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    word-break: break-word;
+    position: relative;
+}
+
+.klasora-ai-msg-bot .klasora-ai-bubble {
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    border-top-left-radius: 4px;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.klasora-ai-msg-user .klasora-ai-bubble {
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+    color: #ffffff;
+    border-top-right-radius: 4px;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.klasora-ai-msg-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 4px;
+    font-size: 0.72rem;
+    color: #64748b;
+}
+
+.klasora-ai-msg-user .klasora-ai-msg-meta {
+    justify-content: flex-end;
+}
+
+/* Bouton Copier pour les réponses */
+.klasora-ai-copy-btn {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.18s ease;
+}
+
+.klasora-ai-copy-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.klasora-ai-copy-btn.is-copied {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #15803d;
+}
+
+/* Bouton interactif d'accès au dossier scolaire */
+.klasora-ai-card-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 10px;
+    margin-bottom: 4px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff !important;
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-decoration: none !important;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
+}
+
+.klasora-ai-card-btn:hover {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.38);
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+.klasora-ai-card-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+
+.klasora-ai-card-btn i {
+    font-size: 0.9rem;
+}
+
+.klasora-ai-card-btn.klasora-ai-choice-btn {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    color: #1d4ed8 !important;
+    border: 1.5px solid #93c5fd;
+    box-shadow: 0 2px 5px rgba(29, 78, 216, 0.12);
+}
+
+.klasora-ai-card-btn.klasora-ai-choice-btn:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff !important;
+    border-color: #1d4ed8;
+    box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
+}
+
+/* Listes & typographie */
+.klasora-ai-list {
+    margin: 4px 0;
+    padding-left: 1.25rem;
+}
+
+.klasora-ai-list li {
+    margin-bottom: 3px;
+}
+
+.klasora-ai-bubble strong {
+    font-weight: 600;
+}
+
+.klasora-ai-bubble code {
+    background: rgba(0, 0, 0, 0.06);
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 0.83em;
+    font-family: Consolas, monospace;
+}
+
+/* Indicateur de saisie Skeleton Shimmer Moderne */
+.klasora-ai-typing-indicator {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 6px;
+    animation: klasoraAiFadeIn 0.2s ease-out forwards;
+}
+
+.klasora-ai-skeleton-card {
+    background: #ffffff !important;
+    border: 1px solid rgba(67, 97, 238, 0.18) !important;
+    border-radius: 16px !important;
+    border-top-left-radius: 4px !important;
+    padding: 12px 14px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    min-width: 230px;
+    max-width: 320px;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08) !important;
+}
+
+.klasora-ai-skeleton-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.klasora-ai-typing-label {
+    font-size: 0.78rem;
+    color: #1e3a8a;
+    font-weight: 600;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.klasora-ai-skeleton-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+.klasora-ai-shimmer-line {
+    height: 8px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f1f5f9 25%, #dbeafe 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    animation: klasoraAiShimmer 1.5s infinite ease-in-out;
+}
+
+.klasora-ai-shimmer-line.line-1 { width: 92%; }
+.klasora-ai-shimmer-line.line-2 { width: 75%; }
+.klasora-ai-shimmer-line.line-3 { width: 48%; }
+
+@keyframes klasoraAiShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.klasora-ai-sparkle-pulse {
+    animation: klasoraAiPulseGlow 1.8s infinite ease-in-out;
+}
+
+@keyframes klasoraAiPulseGlow {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(37, 99, 235, 0.3)); }
+    50% { transform: scale(1.15); filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.8)); }
+}
+
+/* Zone de Saisie (Footer) */
+.klasora-ai-footer {
+    padding: 10px 14px 10px;
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+.klasora-ai-input-form {
+    margin: 0;
+}
+
+.klasora-ai-input-container {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    background: #f8fafc;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 16px;
+    padding: 6px 8px 6px 12px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.klasora-ai-input-container:focus-within {
+    background: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.klasora-ai-textarea {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #0f172a;
+    resize: none;
+    max-height: 110px;
+    min-height: 24px;
+    padding: 4px 0;
+}
+
+.klasora-ai-textarea::placeholder {
+    color: #94a3b8;
+}
+
+.klasora-ai-send-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.92rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+}
+
+.klasora-ai-send-btn:hover:not(:disabled) {
+    transform: scale(1.05);
+    background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
+}
+
+.klasora-ai-send-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.klasora-ai-footer-note {
+    font-size: 0.7rem;
+    color: #64748b;
+    text-align: center;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.klasora-ai-hidden {
+    display: none !important;
+}
+
+/* Reserve a place in the mobile navbar instead of covering page actions. */
+@media (max-width: 991.98px) {
+    .klasora-speed-dial {
+        position: static !important;
+        inset: auto !important;
+        width: 44px;
+        height: 44px;
+        flex: 0 0 44px;
+        touch-action: manipulation;
+    }
+
+    .klasora-speed-dial .klasora-speed-dial-trigger {
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 50%;
+        cursor: pointer;
+        touch-action: manipulation;
+        transform: none;
+    }
+
+    .klasora-speed-dial .speed-dial-trigger-label,
+    .klasora-speed-dial .speed-dial-trigger-chevron {
+        display: none;
+    }
+
+    .klasora-speed-dial.is-mobile-docked .klasora-speed-dial-menu {
+        top: calc(100% + 8px);
+        bottom: auto;
+        right: 12px;
+        max-width: calc(100vw - 24px);
+        transform-origin: top right;
+    }
+}
+
+/* ==========================================================================
+     DESIGN MOBILE RAFFINÉ (BOTTOM SHEET HYPER CONFORTABLE)
+     ========================================================================== */
+@media (max-width: 576px) {
+    .klasora-ai-mobile-handle-wrap {
+        display: flex;
+    }
+
+    .klasora-speed-dial {
+        bottom: 20px;
+        right: 18px;
+    }
+
+    .klasora-speed-dial-trigger {
+        height: 46px;
+        padding: 0 14px 0 10px;
+    }
+
+    .speed-dial-trigger-inner {
+        width: 30px;
+        height: 30px;
+        font-size: 0.94rem;
+    }
+
+    .speed-dial-trigger-label {
+        font-size: 0.84rem;
+    }
+
+    .speed-dial-item-card {
+        min-width: 165px;
+        padding: 7px 12px;
+    }
+
+    .speed-dial-item-title {
+        font-size: 0.84rem;
+    }
+
+    .speed-dial-item-badge {
+        font-size: 0.62rem;
+        padding: 1px 5px;
+    }
+
+    .speed-dial-item-desc {
+        font-size: 0.68rem;
+    }
+
+    .speed-dial-item-icon-circle {
+        width: 40px;
+        height: 40px;
+        font-size: 1.05rem;
+    }
+
+    /* Bottom Sheet fluide sur mobile */
+    .klasora-ai-window {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 86dvh !important;
+        max-height: 86dvh !important;
+        border-radius: 22px 22px 0 0 !important;
+        transform: translateY(0);
+        box-shadow: 0 -12px 35px rgba(15, 23, 42, 0.25) !important;
+        z-index: 1060;
+        transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, visibility 0.28s !important;
+        transform-origin: bottom center;
+    }
+
+    .klasora-ai-window.klasora-ai-hidden {
+        transform: translateY(100%) !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
+
+    .klasora-ai-header {
+        padding: 10px 14px;
+    }
+
+    .klasora-ai-footer {
+        padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+    }
+
+    .klasora-ai-textarea {
+        font-size: 16px; /* Empêche le zoom automatique sur iOS */
+    }
+}

@@ -43,7 +43,7 @@
                     <div class="kl-hero-video-halo"></div>
                     <div class="kl-hero-video-card position-relative rounded-4 overflow-hidden shadow-lg border mx-auto" style="max-width: 360px; background: #0f172a;">
                         <div class="ratio bg-dark" style="--bs-aspect-ratio: 160%;">
-                            <video id="heroDemoVideo" autoplay muted playsinline loop controls preload="auto" class="w-100 h-100 rounded-4" style="object-fit: contain; background: #0f172a;">
+                            <video id="heroDemoVideo" muted playsinline controls preload="none" poster="{{ url_for('static', filename='img/logo-klasora.png') }}" class="w-100 h-100 rounded-4" style="object-fit: contain; background: #0f172a;">
                                 <source src="{{ url_for('static', filename='video/Comment_KLASORA_Centralise_La_Gestion_Scolaire.mp4') }}" type="video/mp4">
                                 Votre navigateur ne prend pas en charge la lecture vidéo HTML5.
                             </video>
@@ -264,7 +264,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const video = document.getElementById('heroDemoVideo');
     const btn = document.getElementById('heroUnmuteBtn');
     if (video) {
-        video.play().catch(() => {});
         if (btn) {
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
