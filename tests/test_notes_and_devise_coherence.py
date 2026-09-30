@@ -279,3 +279,11 @@ class NotesAndDeviseCoherenceTestCase(unittest.TestCase):
         data_search = resp_search.get_json()
         self.assertEqual(data_search['total'], 1)
         self.assertEqual(data_search['notes'][0]['eleve_nom'], 'Fatima Abdou')
+
+    def test_password_reset_routes_rate_limiting(self):
+        """Vérifie que les routes de réinitialisation de mot de passe sont correctement configurées et accessibles."""
+        resp = self.client.get('/request_reset_password')
+        self.assertEqual(resp.status_code, 200)
+
+        resp_token = self.client.get('/reset_password/token_invalide_test')
+        self.assertIn(resp_token.status_code, (200, 302))

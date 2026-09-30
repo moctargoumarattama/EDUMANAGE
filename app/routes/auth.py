@@ -380,6 +380,7 @@ def aide():
     return render_template('aide.html')
 
 @main.route('/request_reset_password', methods=['GET', 'POST'])
+@limiter.limit("5 per minute; 20 per day", key_func=get_remote_address)
 def request_reset_password():
     """Page pour demander un lien de réinitialisation par email"""
     from app.forms import RequestResetPasswordForm
@@ -430,6 +431,7 @@ def request_reset_password():
     return render_template('request_reset_password.html', form=form)
 
 @main.route('/reset_password/<token>', methods=['GET', 'POST'])
+@limiter.limit("10 per minute", key_func=get_remote_address)
 def reset_password_token(token):
     """Réinitialisation du mot de passe via token sécurisé"""
     from app.forms import ResetPasswordConfirmForm

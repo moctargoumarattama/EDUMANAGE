@@ -49,11 +49,12 @@ class TestLandingPage(unittest.TestCase):
         html = response.data.decode('utf-8')
         
         # Titre principal
-        self.assertIn("Tout votre établissement scolaire, dans une seule plateforme.", html)
+        self.assertIn("Prêt à moderniser la gestion de votre établissement ?", html)
         # Sous-titre
-        self.assertIn("Élèves, enseignants, notes, absences, paiements, bulletins, emplois du temps et suivi administratif.", html)
+        self.assertIn("Notes, absences, paiements : tout au même endroit.", html)
+        self.assertIn("Un assistant IA pour vous accompagner au quotidien.", html)
         # Petite phrase d'accroche
-        self.assertIn("Une gestion scolaire moderne, simple et centralisée.", html)
+        self.assertIn("Gestion scolaire &amp; intelligence artificielle", html)
         # Bouton Se connecter
         self.assertIn("Se connecter", html)
         self.assertIn("/login", html)
@@ -85,7 +86,7 @@ class TestLandingPage(unittest.TestCase):
         self.assertIn("Professeurs", html)
         self.assertIn("Parents", html)
         # Phrase obligatoire sous le schéma
-        self.assertIn("Chaque utilisateur dispose uniquement des accès correspondant à son rôle.", html)
+        self.assertIn("L’IA et les écrans respectent les droits de chaque utilisateur.", html)
 
     def test_05_landing_contient_securite_factuelle_et_liens(self):
         """5. Vérifie le bloc de sécurité et les liens vers /securite et /politique-confidentialite."""
@@ -103,8 +104,9 @@ class TestLandingPage(unittest.TestCase):
         response = self.client.get('/')
         html = response.data.decode('utf-8')
         
-        texte_attendu = "KLASORA est une plateforme de gestion scolaire conçue par des ingénieurs nigériens établis au Maroc. Elle est née d’un objectif simple : proposer aux établissements scolaires une solution moderne, pratique et adaptée à leurs réalités quotidiennes."
-        self.assertIn(texte_attendu, html)
+        self.assertIn("Conçue par des ingénieurs nigériens établis au Maroc", html)
+        self.assertIn("KLASORA propose aux écoles un outil moderne, pratique et adapté au terrain.", html)
+        self.assertIn("Notes, absences, paiements, bulletins et suivi administratif sont réunis", html)
 
     def test_07_landing_contient_cta_final_et_footer(self):
         """7. Vérifie la présence du footer compact et du copyright."""
