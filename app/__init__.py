@@ -87,10 +87,10 @@ def create_app(config_class=None):
     app_env = (app.config.get("APP_ENV") or app.config.get("ENV") or os.environ.get("APP_ENV") or os.environ.get("FLASK_ENV") or "").lower()
     if not is_testing and is_production_environment(app_env):
         db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
-        if not db_uri or db_uri.startswith("sqlite://") or db_uri.startswith("sqlite:///"):
+        if not db_uri or "sqlite" in db_uri.lower():
             raise RuntimeError(
-                "ERREUR CRITIQUE DE CONFIGURATION : DATABASE_URL (PostgreSQL) est obligatoire en production. "
-                "Le repli sur SQLite est formellement interdit."
+                "ERREUR CRITIQUE PRODUCTION : L'application refuse de démarrer sur SQLite ! "
+                "Une connexion PostgreSQL valide est obligatoire dans DATABASE_URL."
             )
 
     # Initialisation des extensions

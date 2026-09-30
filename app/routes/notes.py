@@ -8,12 +8,15 @@ from . import main
 from app.authorization import tenant_required
 from .common import (
     AnneeScolaire,
+    Classe,
     Cours,
+    Eleve,
     Note,
     NoteForm,
     Professeur,
     can_manage_note,
     db,
+    func,
     role_required,
 )
 from app.services.annees_scolaires import get_annee_consultee
@@ -30,6 +33,7 @@ from app.services.notes_annuelles import (
     get_eleves_choices_notes,
     get_inscriptions_notes,
     get_notes_annee,
+    get_notes_query,
     modifier_note as service_modifier_note,
     notes_modifiables,
     saisir_notes_classe as service_saisir_notes_classe,
@@ -38,7 +42,7 @@ from app.services.notes_annuelles import (
 )
 
 
-_NOTES_CONTEXT_ARGS = ('classe_id', 'cours_id', 'periode', 'type_evaluation', 'search', 'eleve_id')
+_NOTES_CONTEXT_ARGS = ('classe_id', 'cours_id', 'periode', 'periode_id', 'type_evaluation', 'type_eval', 'search', 'eleve_id')
 
 
 def _notes_context_url():
@@ -90,8 +94,10 @@ def notes():
     cours_id = request.args.get('cours_id', type=int)
     eleve_id = request.args.get('eleve_id', type=int)
     niveau_param = (request.args.get('niveau') or request.args.get('niveau_id') or '').strip()
-    periode = (request.args.get('periode') or '').strip()
-    type_evaluation = (request.args.get('type_evaluation') or '').strip()
+    periode_id = (request.args.get('periode_id') or request.args.get('periode') or '').strip()
+    type_eval = (request.args.get('type_eval') or request.args.get('type_evaluation') or '').strip()
+    periode = periode_id
+    type_evaluation = type_eval
 
     # Résolution intelligente de classe_id à partir du nom ou de l'ID
     classe_id = None
@@ -131,8 +137,8 @@ def notes():
 
     form = NoteForm() if current_user.role == 'professeur' else None
 
-    # ------------------- Récupération des notes et statistiques -------------------
-    toutes_notes = get_notes_annee(
+    # ------------------- Récupération des notes et statistiques (Requêtes SQL natives) -------------------
+    query = get_notes_query(
         ecole_id=ecole_id,
         annee=annee_consultee,
         user=current_user,
@@ -141,46 +147,46 @@ def notes():
         eleve_id=eleve_id,
     )
 
-    notes_filtrees = toutes_notes
-    if periode:
-        notes_filtrees = [n for n in notes_filtrees if (n.periode or '').strip().lower() == periode.lower()]
-    if type_evaluation:
-        notes_filtrees = [n for n in notes_filtrees if (n.type_evaluation or '').strip().lower() == type_evaluation.lower()]
-    if cours_id or cours_param:
-        def note_match_cours(n):
-            if cours_id and n.cours_id == cours_id:
-                return True
-            if cours_param and n.cours and n.cours.nom.strip().lower() == cours_param.lower():
-                return True
-            return False
-        notes_filtrees = [n for n in notes_filtrees if note_match_cours(n)]
-    if eleve_id:
-        notes_filtrees = [n for n in notes_filtrees if n.eleve_id == eleve_id]
-    if classe_id:
-        def note_match_classe(n):
-            if n.inscription and n.inscription.classe_id == classe_id:
-                return True
-            if n.cours and n.cours.classe_id == classe_id:
-                return True
-            return False
-        notes_filtrees = [n for n in notes_filtrees if note_match_classe(n)]
-    if niveau_param:
-        def note_match_niveau(n):
-            cl = (n.inscription.classe if n.inscription else None) or (n.cours.classe if n.cours else None)
-            if not cl:
-                return False
-            if str(niveau_param).isdigit():
-                return getattr(cl, 'niveau_id', None) == int(niveau_param) or str(cl.niveau) == str(niveau_param)
-            return str(cl.niveau or '').strip().lower() == niveau_param.lower()
-        notes_filtrees = [n for n in notes_filtrees if note_match_niveau(n)]
+    if cours_param and not cours_id:
+        if not classe_id:
+            query = query.join(Cours, Note.cours_id == Cours.id)
+        query = query.filter(func.lower(Cours.nom) == cours_param.lower())
+
+    if niveau_param and not classe_id:
+        if not (cours_param and not cours_id):
+            query = query.join(Cours, Note.cours_id == Cours.id)
+        query = query.join(Classe, Cours.classe_id == Classe.id)
+        if str(niveau_param).isdigit():
+            query = query.filter(db.or_(Classe.niveau_id == int(niveau_param), Classe.niveau == str(niveau_param)))
+        else:
+            query = query.filter(func.lower(Classe.niveau) == niveau_param.lower())
+
+    # Filtre SQL natif sur la période (si periode_id fourni)
+    if periode_id:
+        query = query.filter(Note.periode_id == periode_id)
+
+    # Filtre SQL natif sur le type d'évaluation (si type_eval fourni)
+    if type_eval:
+        query = query.filter(Note.type_evaluation == type_eval)
+
+    # Filtre SQL natif sur la recherche texte (élèves en jointure SQL)
     if search:
-        s_lower = search.lower()
-        def note_match_search(n):
-            nom_eleve = f"{n.eleve.prenom} {n.eleve.nom}".lower() if n.eleve else ""
-            nom_cours = n.cours.nom.lower() if n.cours else ""
-            matricule = (n.eleve.code_parent or "").lower() if n.eleve else ""
-            return s_lower in nom_eleve or s_lower in nom_cours or s_lower in matricule
-        notes_filtrees = [n for n in notes_filtrees if note_match_search(n)]
+        s_clean = search.strip()
+        search_term = f"%{s_clean}%"
+        query = query.join(Eleve, Note.eleve_id == Eleve.id)
+        search_clauses = [
+            Eleve.nom.ilike(search_term),
+            Eleve.prenom.ilike(search_term),
+            (Eleve.prenom + ' ' + Eleve.nom).ilike(search_term),
+            (Eleve.nom + ' ' + Eleve.prenom).ilike(search_term),
+            Eleve.code_parent.ilike(search_term),
+        ]
+        if classe_id:
+            search_clauses.append(Cours.nom.ilike(search_term))
+        query = query.filter(db.or_(*search_clauses))
+
+    # Exécution unique du .all() sur les résultats filtrés nativement par SQLAlchemy
+    notes_filtrees = query.all()
 
     stats = calculer_statistiques_notes(notes_filtrees)
 
@@ -245,12 +251,10 @@ def notes():
             periode_cible = p_active.nom
 
     # Notes nécessaires au calcul de complétude pédagogique
-    # Pour l'admin, toutes_notes contient déjà toutes les notes de l'école.
-    # Pour le professeur, toutes_notes ne contient que ses propres cours :
-    # on charge en une seule requête les notes de l'ensemble des matières
-    # uniquement pour les inscriptions autorisées de la page (sans exposer ces notes hors complétude).
-    if current_user.role == 'professeur':
-        inscr_ids_visibles = [ins.id for ins in inscriptions if ins.id]
+    # Pour le professeur ou si des filtres spécifiques (période/type/recherche) sont actifs,
+    # on charge les notes des inscriptions visibles de la classe pour garantir un calcul d'exhaustivité exact.
+    inscr_ids_visibles = [ins.id for ins in inscriptions if ins.id]
+    if current_user.role == 'professeur' or (periode_id or type_eval or search):
         notes_completude = (
             Note.query.filter(
                 Note.ecole_id == ecole_id,
@@ -260,7 +264,7 @@ def notes():
             if (inscr_ids_visibles and annee_consultee) else []
         )
     else:
-        notes_completude = toutes_notes
+        notes_completude = notes_filtrees
 
     notes_par_inscription = defaultdict(list)
     for n in notes_completude:

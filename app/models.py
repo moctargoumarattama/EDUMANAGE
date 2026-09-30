@@ -169,8 +169,6 @@ class AnneeNiveauConfig(db.Model):
         return f'<AnneeNiveauConfig ecole={self.ecole_id} annee={self.annee_scolaire_id} niveau={self.niveau_id} actif={self.actif}>'
 
 
-_ecole_slogans = {}
-
 
 class Ecole(db.Model):
     __tablename__ = 'ecole'
@@ -195,6 +193,7 @@ class Ecole(db.Model):
     whatsapp_enabled = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
     whatsapp_sender_phone = db.Column(db.String(30))
     whatsapp_provider = db.Column(db.String(50), default='manual')
+    devise = db.Column(db.String(255), nullable=True)
 
     # Relations
     utilisateurs = db.relationship(
@@ -233,23 +232,12 @@ class Ecole(db.Model):
         return f'<Ecole {self.nom}>'
 
     @property
-    def devise(self):
-        return _ecole_slogans.get(self.id, getattr(self, '_devise', ''))
-
-    @devise.setter
-    def devise(self, val):
-        val_str = str(val or '').strip()
-        self._devise = val_str
-        if self.id:
-            _ecole_slogans[self.id] = val_str
-
-    @property
     def slogan(self):
-        return self.devise
+        return self.devise or ""
 
     @slogan.setter
-    def slogan(self, val):
-        self.devise = val
+    def slogan(self, value):
+        self.devise = value
 
     # --- Conversion en dictionnaire pour la sauvegarde JSON ---
     def to_dict(self):
@@ -704,6 +692,7 @@ class Note(db.Model):
     coefficient = db.Column(db.Float, default=1.0)
     type_evaluation = db.Column(db.String(50))
     periode = db.Column(db.String(50), default='Trimestre 1')
+    periode_id = db.synonym('periode')
     date_evaluation = db.Column(db.DateTime, default=datetime.utcnow)
     annee_id = db.Column(db.Integer, db.ForeignKey('annee_scolaire.id'))
     annee = db.relationship('AnneeScolaire', backref='notes')

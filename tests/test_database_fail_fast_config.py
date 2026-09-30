@@ -20,15 +20,16 @@ class DatabaseFailFastConfigTestCase(unittest.TestCase):
         with patch.dict(os.environ, {"DATABASE_URL": "", "APP_ENV": "production", "SECRET_KEY": "a" * 32}, clear=False):
             with self.assertRaises(RuntimeError) as ctx:
                 ProductionConfig.validate()
-            self.assertIn("DATABASE_URL (PostgreSQL) est obligatoire en production", str(ctx.exception))
-            self.assertIn("Le repli sur SQLite est formellement interdit", str(ctx.exception))
+            self.assertIn("ERREUR CRITIQUE PRODUCTION", str(ctx.exception))
+            self.assertIn("refuse de démarrer sur SQLite", str(ctx.exception))
+            self.assertIn("DATABASE_URL", str(ctx.exception))
 
     def test_production_fails_fast_with_sqlite_url(self):
         """En production avec une URL SQLite, ProductionConfig.validate() doit lever RuntimeError."""
         with patch.dict(os.environ, {"DATABASE_URL": "sqlite:///instance/ecole.db", "APP_ENV": "production", "SECRET_KEY": "a" * 32}, clear=False):
             with self.assertRaises(RuntimeError) as ctx:
                 ProductionConfig.validate()
-            self.assertIn("DATABASE_URL (PostgreSQL) est obligatoire en production", str(ctx.exception))
+            self.assertIn("refuse de démarrer sur SQLite", str(ctx.exception))
 
     def test_production_validates_with_postgres_url(self):
         """En production avec une URL PostgreSQL valide, ProductionConfig.validate() doit réussir."""
@@ -69,5 +70,10 @@ class DatabaseFailFastConfigTestCase(unittest.TestCase):
             with patch("app.config.is_testing_environment", return_value=False):
                 with self.assertRaises(RuntimeError) as ctx:
                     create_app(ProductionConfig)
-                self.assertIn("DATABASE_URL (PostgreSQL) est obligatoire en production", str(ctx.exception))
+                self.assertIn("refuse de démarrer sur SQLite", str(ctx.exception))
+
+    def test_opt_klasora_detects_production(self):
+        """La presence du dossier VPS /opt/klasora force le mode production."""
+        with patch("app.config.os.path.exists", return_value=True):
+            self.assertTrue(is_production_environment("development"))
 

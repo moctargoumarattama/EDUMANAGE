@@ -262,10 +262,10 @@ def get_cours_choices_notes(ecole_id, annee, user=None, classe_id=None):
     return choices
 
 
-def get_notes_annee(ecole_id, annee, user=None, classe_id=None, cours_id=None, eleve_id=None):
-    """Retourne toutes les notes de l'année consultée avec filtres et jointures optimisées."""
+def get_notes_query(ecole_id, annee, user=None, classe_id=None, cours_id=None, eleve_id=None):
+    """Retourne la requête SQLAlchemy pour les notes de l'année consultée avec filtres et jointures optimisées."""
     if not ecole_id or not annee:
-        return []
+        return Note.query.filter(db.literal(False))
 
     query = (
         Note.query.options(
@@ -283,10 +283,10 @@ def get_notes_annee(ecole_id, annee, user=None, classe_id=None, cours_id=None, e
     role = getattr(user, "role", None)
     if role == "parent":
         ids = _parent_enfant_ids(user)
-        query = query.filter(Note.eleve_id.in_(ids)) if ids else query.filter(False)
+        query = query.filter(Note.eleve_id.in_(ids)) if ids else query.filter(db.literal(False))
     elif role == "professeur":
         c_ids = _professeur_cours_ids(user, annee.id)
-        query = query.filter(Note.cours_id.in_(c_ids)) if c_ids else query.filter(False)
+        query = query.filter(Note.cours_id.in_(c_ids)) if c_ids else query.filter(db.literal(False))
 
     if eleve_id:
         query = query.filter(Note.eleve_id == eleve_id)
@@ -297,7 +297,21 @@ def get_notes_annee(ecole_id, annee, user=None, classe_id=None, cours_id=None, e
     if classe_id:
         query = query.join(Cours, Note.cours_id == Cours.id).filter(Cours.classe_id == classe_id)
 
-    return query.order_by(Note.date_evaluation.desc()).all()
+    return query.order_by(Note.date_evaluation.desc())
+
+
+def get_notes_annee(ecole_id, annee, user=None, classe_id=None, cours_id=None, eleve_id=None):
+    """Retourne toutes les notes de l'année consultée avec filtres et jointures optimisées."""
+    if not ecole_id or not annee:
+        return []
+    return get_notes_query(
+        ecole_id=ecole_id,
+        annee=annee,
+        user=user,
+        classe_id=classe_id,
+        cours_id=cours_id,
+        eleve_id=eleve_id,
+    ).all()
 
 
 def calculer_statistiques_notes(notes_list):

@@ -29,6 +29,7 @@ from .common import (
     timedelta,
     url_for,
 )
+from app.models import DemandePresentation, Log
 from app.services.annees_scolaires import get_annee_consultee
 from app.utils_classes import classes_triees_pedagogique
 from app.services.statistiques_annuelles import (
@@ -492,7 +493,6 @@ def notifications():
 
 @main.route('/recherche')
 @login_required
-@tenant_required
 def recherche():
     terme = request.args.get('q', '').strip()
     type_recherche = request.args.get('type', 'all')
@@ -500,7 +500,156 @@ def recherche():
     page = max(request.args.get('page', 1, type=int) or 1, 1)
     per_page = min(max(request.args.get('per_page', 10, type=int) or 10, 1), 30)
 
-    ecole_id = g.ecole_id
+    if current_user.role == 'super_admin':
+        types_plateforme = {'all', 'ecoles', 'utilisateurs', 'demandes', 'logs'}
+        type_recherche = type_recherche if type_recherche in types_plateforme else 'all'
+
+        if not terme:
+            return render_template(
+                'recherche.html',
+                results=None,
+                pagination=None,
+                classes_recherche=[],
+                type_recherche=type_recherche,
+                classe_id=None,
+                super_admin_search=True,
+            )
+
+        like = f"%{terme}%"
+        results = {'ecoles': [], 'utilisateurs': [], 'demandes': [], 'logs': [], 'total': 0}
+
+        if type_recherche in ('all', 'ecoles'):
+            ecoles = (
+                Ecole.query
+                .filter(
+                    db.or_(
+                        Ecole.nom.ilike(like),
+                        Ecole.adresse.ilike(like),
+                        Ecole.email.ilike(like),
+                        Ecole.telephone.ilike(like),
+                        Ecole.directeur.ilike(like),
+                        Ecole.statut.ilike(like),
+                    )
+                )
+                .order_by(Ecole.nom.asc())
+                .limit(12)
+                .all()
+            )
+            results['ecoles'] = [
+                {
+                    'id': e.id,
+                    'nom': e.nom,
+                    'statut': e.statut or 'actif',
+                    'ville': getattr(e, 'ville', None) or e.adresse or '',
+                    'contact': e.telephone or e.email or '',
+                    'directeur': e.directeur or '',
+                    'url': url_for('main.gestion_ecoles'),
+                }
+                for e in ecoles
+            ]
+
+        if type_recherche in ('all', 'utilisateurs'):
+            utilisateurs = (
+                Utilisateur.query
+                .options(db.joinedload(Utilisateur.ecole))
+                .filter(
+                    db.or_(
+                        Utilisateur.nom.ilike(like),
+                        Utilisateur.prenom.ilike(like),
+                        Utilisateur.email.ilike(like),
+                        Utilisateur.telephone.ilike(like),
+                        Utilisateur.role.ilike(like),
+                        Utilisateur.statut.ilike(like),
+                    )
+                )
+                .order_by(Utilisateur.date_creation.desc())
+                .limit(12)
+                .all()
+            )
+            results['utilisateurs'] = [
+                {
+                    'id': u.id,
+                    'nom': f"{u.prenom or ''} {u.nom or ''}".strip() or u.email or 'Utilisateur',
+                    'role': u.role,
+                    'statut': u.statut or '',
+                    'email': u.email or '',
+                    'ecole': u.ecole.nom if u.ecole else 'Plateforme',
+                    'url': url_for('main.profile', search=u.email or u.nom or ''),
+                }
+                for u in utilisateurs
+            ]
+
+        if type_recherche in ('all', 'demandes'):
+            demandes = (
+                DemandePresentation.query
+                .filter(
+                    db.or_(
+                        DemandePresentation.nom_ecole.ilike(like),
+                        DemandePresentation.telephone.ilike(like),
+                        DemandePresentation.email.ilike(like),
+                        DemandePresentation.ville.ilike(like),
+                        DemandePresentation.statut.ilike(like),
+                    )
+                )
+                .order_by(DemandePresentation.created_at.desc())
+                .limit(12)
+                .all()
+            )
+            results['demandes'] = [
+                {
+                    'id': d.id,
+                    'nom': d.nom_ecole,
+                    'statut': d.statut,
+                    'ville': d.ville or '',
+                    'contact': d.telephone or d.email or '',
+                    'date': d.created_at.strftime('%d/%m/%Y %H:%M') if d.created_at else '',
+                    'url': url_for('admin.demandes_presentation'),
+                }
+                for d in demandes
+            ]
+
+        if type_recherche in ('all', 'logs'):
+            logs = (
+                Log.query
+                .filter(
+                    db.or_(
+                        Log.module.ilike(like),
+                        Log.action.ilike(like),
+                        Log.details.ilike(like),
+                        Log.level.ilike(like),
+                        Log.ip_address.ilike(like),
+                    )
+                )
+                .order_by(Log.timestamp.desc())
+                .limit(12)
+                .all()
+            )
+            results['logs'] = [
+                {
+                    'id': log.id,
+                    'module': log.module,
+                    'action': log.action,
+                    'level': log.level,
+                    'date': log.timestamp.strftime('%d/%m/%Y %H:%M') if log.timestamp else '',
+                    'details': (log.details or '')[:140],
+                    'url': url_for('admin.view_logs'),
+                }
+                for log in logs
+            ]
+
+        results['total'] = sum(len(results[key]) for key in ('ecoles', 'utilisateurs', 'demandes', 'logs'))
+        return render_template(
+            'recherche.html',
+            results=results,
+            terme=terme,
+            pagination=None,
+            classes_recherche=[],
+            type_recherche=type_recherche,
+            classe_id=None,
+            super_admin_search=True,
+        )
+
+    ecole_id = current_user.ecole_id
 
     annee_consultee = get_annee_consultee(ecole_id) if ecole_id else None
     classes_query = Classe.query.filter_by(ecole_id=ecole_id) if ecole_id else Classe.query.filter(db.false())

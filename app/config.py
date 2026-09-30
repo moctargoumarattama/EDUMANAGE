@@ -31,10 +31,32 @@ def is_testing_environment():
 
 
 def is_production_environment(env=None):
-    """Detect if environment is explicitly production."""
-    if env is None:
-        env = os.environ.get("APP_ENV", os.environ.get("FLASK_ENV", os.environ.get("ENV", "development"))).lower()
-    return env in {"prod", "production"}
+    """Detect explicit production or the VPS deployment directory."""
+    values = []
+    if env is not None:
+        values.append(env)
+    values.extend([
+        os.environ.get("APP_ENV", ""),
+        os.environ.get("FLASK_ENV", ""),
+        os.environ.get("ENV", ""),
+    ])
+    return any(str(value).lower() in {"prod", "production"} for value in values) or os.path.exists("/opt/klasora")
+
+
+def _validate_production_database_url(db_url):
+    if not db_url or "sqlite" in db_url.lower():
+        raise RuntimeError(
+            "ERREUR CRITIQUE PRODUCTION : L'application refuse de démarrer sur SQLite ! "
+            "Une connexion PostgreSQL valide est obligatoire dans DATABASE_URL."
+        )
+    return True
+
+
+def _get_database_uri():
+    db_url = os.environ.get("DATABASE_URL", "").strip()
+    if not is_testing_environment() and is_production_environment():
+        _validate_production_database_url(db_url)
+    return normalize_database_url(db_url or _get_default_sqlite_uri())
 
 
 def _env_bool(name, default=False):
@@ -88,7 +110,7 @@ class Config:
     REMEMBER_COOKIE_SAMESITE = "Lax"
 
     # Base de donnees
-    SQLALCHEMY_DATABASE_URI = normalize_database_url(os.environ.get("DATABASE_URL") or _get_default_sqlite_uri())
+    SQLALCHEMY_DATABASE_URI = _get_database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = get_engine_options(SQLALCHEMY_DATABASE_URI)
 
@@ -130,11 +152,7 @@ class Config:
         env = getattr(cls, "APP_ENV", os.environ.get("APP_ENV", os.environ.get("FLASK_ENV", os.environ.get("ENV", "development")))).lower()
         if is_production_environment(env) or getattr(cls, "APP_ENV", "") == "production":
             db_url = getattr(cls, "SQLALCHEMY_DATABASE_URI", "") or os.environ.get("DATABASE_URL", "").strip()
-            if not db_url or db_url.startswith("sqlite://") or db_url.startswith("sqlite:///"):
-                raise RuntimeError(
-                    "ERREUR CRITIQUE DE CONFIGURATION : DATABASE_URL (PostgreSQL) est obligatoire en production. "
-                    "Le repli sur SQLite est formellement interdit."
-                )
+            _validate_production_database_url(db_url)
         return True
 
 
@@ -162,11 +180,7 @@ class ProductionConfig(Config):
     def validate(cls):
         # 1. Verification DATABASE_URL obligatoire (PostgreSQL) - Repli SQLite formellement interdit
         db_url = os.environ.get("DATABASE_URL", "").strip()
-        if not db_url or db_url.startswith("sqlite://") or db_url.startswith("sqlite:///"):
-            raise RuntimeError(
-                "ERREUR CRITIQUE DE CONFIGURATION : DATABASE_URL (PostgreSQL) est obligatoire en production. "
-                "Le repli sur SQLite est formellement interdit."
-            )
+        _validate_production_database_url(db_url)
         # 2. Verification SECRET_KEY
         weak_values = {
             "",
@@ -198,7 +212,7 @@ def get_config():
     if is_testing_environment():
         return TestingConfig
     env = os.environ.get("APP_ENV", os.environ.get("FLASK_ENV", os.environ.get("ENV", "development"))).lower()
-    if env in {"prod", "production"}:
+    if is_production_environment(env):
         return ProductionConfig
     if env in {"test", "testing"}:
         return TestingConfig

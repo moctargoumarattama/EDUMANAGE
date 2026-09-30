@@ -243,7 +243,7 @@
         }
     });
 
-    // Option 1 : Support Technique & Urgence
+    // Support Technique pour les admins d'école
     if (speedDialSupportBtn) {
         speedDialSupportBtn.addEventListener('click', function(e) {
             e.preventDefault();
@@ -261,7 +261,7 @@
         });
     }
 
-    // Option 2 : Assistant IA de Direction
+    // Assistant IA de Direction
     if (speedDialAiBtn) {
         speedDialAiBtn.addEventListener('click', function(e) {
             e.preventDefault();

@@ -3,6 +3,7 @@
 {% block title %}Recherche en Temps Réel - KLASORA{% endblock %}
 
 {% block content %}
+{% set is_super_search = super_admin_search|default(false) %}
 <style>
 .search-hero-card {
     background: #ffffff;
@@ -157,6 +158,10 @@
 .result-avatar.students { background: linear-gradient(135deg, #4361ee, #3a0ca3); }
 .result-avatar.teachers { background: linear-gradient(135deg, #ec4899, #8b5cf6); }
 .result-avatar.courses  { background: linear-gradient(135deg, #06b6d4, #0284c7); }
+.result-avatar.schools  { background: linear-gradient(135deg, #4361ee, #2563eb); }
+.result-avatar.users    { background: linear-gradient(135deg, #14b8a6, #0f766e); }
+.result-avatar.leads    { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+.result-avatar.logs     { background: linear-gradient(135deg, #f59e0b, #d97706); }
 
 .historique-item {
     background: #f8fafc;
@@ -188,9 +193,15 @@
         <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
             <div>
                 <h2 class="h4 fw-bold text-dark mb-1 d-flex align-items-center gap-2">
-                    <i class="fas fa-bolt text-primary"></i> Recherche en Temps Réel
+                    <i class="fas fa-bolt text-primary"></i> {% if is_super_search %}Recherche Plateforme{% else %}Recherche en Temps Réel{% endif %}
                 </h2>
-                <p class="text-muted small mb-0">Tapez simplement votre recherche : les résultats s'actualisent instantanément.</p>
+                <p class="text-muted small mb-0">
+                    {% if is_super_search %}
+                        Recherchez écoles, comptes, demandes de présentation et journaux système.
+                    {% else %}
+                        Tapez simplement votre recherche : les résultats s'actualisent instantanément.
+                    {% endif %}
+                </p>
             </div>
             <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1.5 rounded-pill small fw-semibold d-inline-flex align-items-center gap-1.5">
                 <span class="live-dot" style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></span> Temps réel actif
@@ -200,11 +211,11 @@
         <form action="{{ url_for('main.recherche') }}" method="GET" id="global-search-form" onsubmit="return false;">
             <div class="row g-3">
                 <!-- Large Real-Time Input -->
-                <div class="col-12 col-md-8 col-lg-9">
+                <div class="col-12 {% if not is_super_search %}col-md-8 col-lg-9{% endif %}">
                     <div class="search-input-wrapper">
                         <i class="fas fa-search search-input-icon" id="search-status-icon"></i>
                         <input type="text" name="q" class="form-control search-input-custom" id="global-search-input"
-                               placeholder="{% if current_user.role == 'professeur' %}Rechercher un élève ou un cours en temps réel...{% else %}Nom, prénom, matricule, professeur ou cours...{% endif %}"
+                               placeholder="{% if is_super_search %}École, admin, téléphone, demande, log système...{% elif current_user.role == 'professeur' %}Rechercher un élève ou un cours en temps réel...{% else %}Nom, prénom, matricule, professeur ou cours...{% endif %}"
                                value="{{ request.args.get('q', '') }}"
                                autocomplete="off" aria-label="Recherche">
                         <button type="button" class="search-clear-btn" id="search-clear-btn" title="Effacer">
@@ -214,6 +225,7 @@
                 </div>
 
                 <!-- Class Dropdown -->
+                {% if not is_super_search %}
                 <div class="col-12 col-md-4 col-lg-3">
                     <select class="form-select search-select-custom" name="classe" id="filter-classe-select">
                         <option value="">Toutes les classes</option>
@@ -222,6 +234,7 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% endif %}
             </div>
 
             <!-- Type Filter Tabs (No Submit Button) -->
@@ -229,24 +242,39 @@
             <div class="d-flex align-items-center flex-wrap gap-2 mt-3 pt-2 border-top">
                 <span class="text-muted small me-1 fw-semibold"><i class="fas fa-layer-group me-1"></i>Filtres :</span>
                 
-                <button type="button" class="search-filter-pill filter-type-btn {% if type_recherche == 'all' or not type_recherche %}active{% endif %}" data-type="all">
-                    <i class="fas fa-border-all"></i> Tous
-                </button>
-                
-                <button type="button" class="search-filter-pill filter-type-btn {% if type_recherche == 'eleves' %}active{% endif %}" data-type="eleves">
-                    <i class="fas fa-user-graduate"></i> Élèves
-                </button>
-                
-                {% if current_user.role == 'admin' %}
-                <button type="button" class="search-filter-pill filter-type-btn {% if type_recherche == 'professeurs' %}active{% endif %}" data-type="professeurs">
-                    <i class="fas fa-chalkboard-teacher"></i> Professeurs
-                </button>
-                {% endif %}
-                
-                {% if current_user.role in ['admin', 'professeur'] %}
-                <button type="button" class="search-filter-pill filter-type-btn {% if type_recherche == 'cours' %}active{% endif %}" data-type="cours">
-                    <i class="fas fa-book"></i> Cours
-                </button>
+                {% if is_super_search %}
+                    <button type="button" class="search-filter-pill filter-type-btn {% if type_recherche == 'all' or not type_recherche %}active{% endif %}" data-type="all">
+                        <i class="fas fa-border-all"></i> Tous
+                    </button>
+                    <button type="button" class="search-filter-pill filter-type-btn {% if type_recherche == 'ecoles' %}active{% endif %}" data-type="ecoles">
+                        <i class="fas fa-school"></i> Écoles
+                    </button>
+                    <button type="button" class="search-filter-pill filter-type-btn {% if type_recherche == 'utilisateurs' %}active{% endif %}" data-type="utilisateurs">
+                        <i class="fas fa-users"></i> Comptes
+                    </button>
+                    <button type="button" class="search-filter-pill filter-type-btn {% if type_recherche == 'demandes' %}active{% endif %}" data-type="demandes">
+                        <i class="fas fa-handshake"></i> Demandes
+                    </button>
+                    <button type="button" class="search-filter-pill filter-type-btn {% if type_recherche == 'logs' %}active{% endif %}" data-type="logs">
+                        <i class="fas fa-file-alt"></i> Logs
+                    </button>
+                {% else %}
+                    <button type="button" class="search-filter-pill filter-type-btn {% if type_recherche == 'all' or not type_recherche %}active{% endif %}" data-type="all">
+                        <i class="fas fa-border-all"></i> Tous
+                    </button>
+                    <button type="button" class="search-filter-pill filter-type-btn {% if type_recherche == 'eleves' %}active{% endif %}" data-type="eleves">
+                        <i class="fas fa-user-graduate"></i> Élèves
+                    </button>
+                    {% if current_user.role == 'admin' %}
+                    <button type="button" class="search-filter-pill filter-type-btn {% if type_recherche == 'professeurs' %}active{% endif %}" data-type="professeurs">
+                        <i class="fas fa-chalkboard-teacher"></i> Professeurs
+                    </button>
+                    {% endif %}
+                    {% if current_user.role in ['admin', 'professeur'] %}
+                    <button type="button" class="search-filter-pill filter-type-btn {% if type_recherche == 'cours' %}active{% endif %}" data-type="cours">
+                        <i class="fas fa-book"></i> Cours
+                    </button>
+                    {% endif %}
                 {% endif %}
             </div>
         </form>
@@ -264,8 +292,110 @@
             </span>
         </div>
 
+        {% if is_super_search %}
+        {% if results.ecoles %}
+        <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <span class="badge bg-primary text-white rounded-pill px-2.5 py-1"><i class="fas fa-school me-1"></i>Écoles ({{ results.ecoles|length }})</span>
+            </div>
+            <div class="row g-3">
+                {% for ecole in results.ecoles %}
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="result-card p-3 h-100 d-flex align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-3 min-w-0">
+                            <div class="result-avatar schools"><i class="fas fa-school"></i></div>
+                            <div class="min-w-0">
+                                <h6 class="fw-bold text-dark mb-0 text-truncate">{{ ecole.nom }}</h6>
+                                <small class="text-muted d-block text-truncate">{{ ecole.ville or 'Établissement' }}</small>
+                                <span class="badge bg-light text-dark border mt-1">{{ ecole.statut }}</span>
+                            </div>
+                        </div>
+                        <a href="{{ ecole.url }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 flex-shrink-0">Ouvrir</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if results.utilisateurs %}
+        <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <span class="badge text-white rounded-pill px-2.5 py-1" style="background: #0f766e;"><i class="fas fa-users me-1"></i>Comptes ({{ results.utilisateurs|length }})</span>
+            </div>
+            <div class="row g-3">
+                {% for user in results.utilisateurs %}
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="result-card p-3 h-100 d-flex align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-3 min-w-0">
+                            <div class="result-avatar users"><i class="fas fa-user-shield"></i></div>
+                            <div class="min-w-0">
+                                <h6 class="fw-bold text-dark mb-0 text-truncate">{{ user.nom }}</h6>
+                                <small class="text-muted d-block text-truncate">{{ user.role }} · {{ user.ecole }}</small>
+                                {% if user.email %}<small class="text-muted d-block text-truncate">{{ user.email }}</small>{% endif %}
+                            </div>
+                        </div>
+                        <a href="{{ user.url }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 flex-shrink-0">Gérer</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if results.demandes %}
+        <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <span class="badge text-white rounded-pill px-2.5 py-1" style="background: #7c3aed;"><i class="fas fa-handshake me-1"></i>Demandes ({{ results.demandes|length }})</span>
+            </div>
+            <div class="row g-3">
+                {% for demande in results.demandes %}
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="result-card p-3 h-100 d-flex align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-3 min-w-0">
+                            <div class="result-avatar leads"><i class="fas fa-handshake"></i></div>
+                            <div class="min-w-0">
+                                <h6 class="fw-bold text-dark mb-0 text-truncate">{{ demande.nom }}</h6>
+                                <small class="text-muted d-block text-truncate">{{ demande.ville or demande.contact }}</small>
+                                <span class="badge bg-light text-dark border mt-1">{{ demande.statut }}</span>
+                            </div>
+                        </div>
+                        <a href="{{ demande.url }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 flex-shrink-0">Voir</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if results.logs %}
+        <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <span class="badge text-white rounded-pill px-2.5 py-1" style="background: #d97706;"><i class="fas fa-file-alt me-1"></i>Logs ({{ results.logs|length }})</span>
+            </div>
+            <div class="row g-3">
+                {% for log in results.logs %}
+                <div class="col-12 col-md-6 col-xl-4">
+                    <div class="result-card p-3 h-100 d-flex align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-3 min-w-0">
+                            <div class="result-avatar logs"><i class="fas fa-file-alt"></i></div>
+                            <div class="min-w-0">
+                                <h6 class="fw-bold text-dark mb-0 text-truncate">{{ log.action }}</h6>
+                                <small class="text-muted d-block text-truncate">{{ log.module }} · {{ log.date }}</small>
+                                {% if log.details %}<small class="text-muted d-block text-truncate">{{ log.details }}</small>{% endif %}
+                            </div>
+                        </div>
+                        <a href="{{ log.url }}" class="btn btn-sm btn-outline-warning rounded-pill px-3 flex-shrink-0">Logs</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+
         <!-- Section Élèves -->
-        {% if results.eleves %}
+        {% if not is_super_search and results.eleves %}
         <div class="mb-4">
             <div class="d-flex align-items-center gap-2 mb-3">
                 <span class="badge bg-primary text-white rounded-pill px-2.5 py-1"><i class="fas fa-user-graduate me-1"></i>Élèves ({{ results.eleves|length }})</span>
@@ -359,7 +489,7 @@
         {% endif %}
 
         <!-- Section Professeurs -->
-        {% if current_user.role == 'admin' and results.professeurs %}
+        {% if not is_super_search and current_user.role == 'admin' and results.professeurs %}
         <div class="mb-4">
             <div class="d-flex align-items-center gap-2 mb-3">
                 <span class="badge text-white rounded-pill px-2.5 py-1" style="background: #ec4899;"><i class="fas fa-chalkboard-teacher me-1"></i>Professeurs ({{ results.professeurs|length }})</span>
@@ -388,7 +518,7 @@
         {% endif %}
 
         <!-- Section Cours -->
-        {% if results.cours %}
+        {% if not is_super_search and results.cours %}
         <div class="mb-4">
             <div class="d-flex align-items-center gap-2 mb-3">
                 <span class="badge bg-info text-white rounded-pill px-2.5 py-1"><i class="fas fa-book me-1"></i>Cours ({{ results.cours|length }})</span>
@@ -437,7 +567,13 @@
                 <i class="fas fa-bolt fa-2x"></i>
             </div>
             <h5 class="fw-bold text-dark mb-2">Recherche instantanée en temps réel</h5>
-            <p class="text-muted small mb-0">Saisissez un nom, un prénom, un matricule ou un cours : les résultats apparaissent sans rechargement de page.</p>
+            <p class="text-muted small mb-0">
+                {% if is_super_search %}
+                    Saisissez une école, un compte, une demande ou un événement système.
+                {% else %}
+                    Saisissez un nom, un prénom, un matricule ou un cours : les résultats apparaissent sans rechargement de page.
+                {% endif %}
+            </p>
         </div>
         {% endif %}
     </div>

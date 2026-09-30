@@ -13,9 +13,7 @@
 <!-- ==========================================================================
      MENU FLOTTANT EXTENSIBLE (SPEED DIAL) ASSISTANCE & IA
      Design Premium : 1 seul point d'ancrage déplaçable,
-     Menu fluide vers le haut avec 2 actions claires :
-     1. Support Technique & WhatsApp Direct
-     2. Assistant IA de Direction (Fiche élève, Notes, Absences)
+     Le support reste disponible pour les admins d'école, pas pour le super admin.
      ========================================================================== -->
 <div id="klasoraSpeedDial"
      class="klasora-speed-dial"
@@ -24,7 +22,8 @@
 
     <!-- Menu des actions extensibles vers le haut -->
     <div id="klasoraSpeedDialMenu" class="klasora-speed-dial-menu" aria-hidden="true">
-        <!-- Option 1 : Support Technique -->
+        {% if current_user.role != 'super_admin' %}
+        <!-- Support Technique -->
         <button type="button"
                 id="speedDialSupportBtn"
                 class="klasora-speed-dial-item item-support"
@@ -41,8 +40,9 @@
                 <i class="fas fa-headset" aria-hidden="true"></i>
             </span>
         </button>
+        {% endif %}
 
-        <!-- Option 2 : Assistant IA -->
+        <!-- Assistant IA -->
         <button type="button"
                 id="speedDialAiBtn"
                 class="klasora-speed-dial-item item-ai"
