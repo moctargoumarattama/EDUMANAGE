@@ -60,14 +60,13 @@ def generer_qrcode_eleve(id):
         scan_url = url_for('main.voir_eleve', eleve_id=eleve.id, _external=True)
 
     cache_path = _get_qr_cache_path(eleve, ins.id if ins else None)
-    if not os.path.exists(cache_path):
-        img_buf = generer_qr_code_buffer(scan_url)
+    if os.path.exists(cache_path):
+        return send_file(cache_path, mimetype='image/png',
+                         download_name=f"qrcode_{eleve.prenom}_{eleve.nom}.png")
 
-        # Sauvegarder dans le cache pour rétrocompatibilité
-        with open(cache_path, "wb") as f:
-            f.write(img_buf.getvalue())
-
-    return send_file(cache_path, mimetype='image/png',
+    # Génération et distribution directe en flux mémoire (BytesIO sans écriture disque)
+    img_buf = generer_qr_code_buffer(scan_url)
+    return send_file(img_buf, mimetype='image/png',
                      download_name=f"qrcode_{eleve.prenom}_{eleve.nom}.png")
 
 
@@ -109,6 +108,10 @@ def api_qr_info(eleve_id):
 def qrcodes_etudiants():
     import base64
     from app.models import Cours
+
+    from app.services.qr_cache import maybe_cleanup_qr_cache
+    # Purge opportuniste non bloquante des vieux QR codes (> 7 jours, max 1x / 24h)
+    maybe_cleanup_qr_cache(max_age_days=7)
 
     ecole_id = current_user.ecole_id
 
@@ -210,13 +213,9 @@ def qrcodes_etudiants():
             with open(cache_path, "rb") as f:
                 img_data = base64.b64encode(f.read()).decode()
         else:
-            # Génération du QR code en mémoire directement
+            # Génération directe en mémoire (BytesIO / Base64 sans écriture disque inutile)
             img_buf = generer_qr_code_buffer(scan_url)
             img_data = base64.b64encode(img_buf.getvalue()).decode()
-
-            # Mettre à jour le fichier cache physique pour rétrocompatibilité
-            with open(cache_path, "wb") as f:
-                f.write(img_buf.getvalue())
 
         if classe_nom not in qrcodes_par_classe:
             qrcodes_par_classe[classe_nom] = {

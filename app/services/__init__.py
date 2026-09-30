@@ -54,13 +54,18 @@ def check_ecole_access(obj, objet_type="generic"):
     return True
 
 
-def get_qr_cache_path(eleve):
-    base_dir = os.path.join(current_app.root_path, "static", "qrcache")
-    os.makedirs(base_dir, exist_ok=True)
+from .qr_cache import (
+    cleanup_qr_cache,
+    get_qr_cache_dir,
+    get_qr_cache_stats,
+    maybe_cleanup_qr_cache,
+)
 
+
+def get_qr_cache_path(eleve):
+    base_dir = str(get_qr_cache_dir())
     key = f"{eleve.id}-{eleve.updated_at}".encode()
     filename = hashlib.md5(key).hexdigest() + ".png"
-
     return os.path.join(base_dir, filename)
 
 

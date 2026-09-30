@@ -9,6 +9,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="KLASORA">
 
+    <!-- Google Fonts Preconnect au tout début du head -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
     <!-- Web App Manifest & PWA Icons -->
     <link rel="manifest" href="{{ url_for('main.manifest_json') }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/icons/favicon-32x32.png') }}">
@@ -19,428 +23,16 @@
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Google Fonts Preconnect & Display Swap -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto+Slab:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Google Fonts Optimisé : graisses indispensables avec display=swap -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Roboto+Slab:wght@400;700&display=swap" rel="stylesheet">
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='15-touch-perf') }}">
-    <style>
-        :root {
-            --primary: #4361ee;
-            --primary-dark: #3a0ca3;
-            --secondary: #7209b7;
-            --success: #2ecc71;
-            --info: #3498db;
-            --warning: #f39c12;
-            --danger: #e74c3c;
-            --light: #f8f9fa;
-            --dark: #2c3e50;
-            --gray-100: #f8f9fc;
-            --gray-200: #e9ecef;
-            --gray-300: #dee2e6;
-            --gray-800: #2d3748;
-
-            --gradient-primary: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
-            --gradient-primary-hover: linear-gradient(135deg, #3a56d4 0%, #320b8f 100%);
-            --gradient-success: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
-            --gradient-info: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-            --gradient-warning: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-            --gradient-dark: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-            --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-
-            --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.08);
-            --shadow-medium: 0 8px 30px rgba(0, 0, 0, 0.12);
-            --shadow-strong: 0 15px 40px rgba(0, 0, 0, 0.15);
-            --shadow-nav: 0 4px 18px rgba(0, 0, 0, 0.15);
-            --border-radius: 12px;
-            --border-radius-lg: 16px;
-            --border-radius-xl: 20px;
-
-            --transition: all 0.3s ease;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: 'Poppins', sans-serif;
-            background-color: var(--gray-100);
-            color: #4a5568;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            line-height: 1.6;
-            overflow-x: hidden;
-        }
-
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Roboto Slab', serif;
-            font-weight: 600;
-            color: var(--gray-800);
-            letter-spacing: -0.025em;
-        }
-
-        /* Navigation améliorée */
-        .navbar {
-            background: var(--gradient-primary);
-            box-shadow: var(--shadow-nav);
-            padding: 0.8rem 1rem;
-            backdrop-filter: blur(10px);
-            transition: var(--transition);
-            z-index: 1030;
-        }
-
-        .navbar-brand {
-            font-weight: 800;
-            font-size: 1.9rem;
-            display: flex;
-            align-items: center;
-            color: white !important;
-            letter-spacing: -0.025em;
-        }
-
-        .navbar-brand i {
-            font-size: 2.1rem;
-            margin-right: 0.5rem;
-            transition: transform 0.3s ease;
-        }
-
-        .navbar-brand:hover i {
-            transform: rotate(-15deg);
-        }
-
-        .nav-link {
-            font-weight: 500;
-            padding: 0.6rem 1rem !important;
-            border-radius: 10px;
-            margin: 0 0.2rem;
-            transition: var(--transition);
-            color: rgba(255, 255, 255, 0.9) !important;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .nav-link::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.1);
-            transition: left 0.4s ease;
-            z-index: -1;
-        }
-
-        .nav-link:hover::before, .nav-link.active::before {
-            left: 0;
-        }
-
-        .nav-link:hover, .nav-link.active {
-            color: white !important;
-            transform: translateY(-2px);
-        }
-
-        .dropdown-menu {
-            border: none;
-            box-shadow: var(--shadow-strong);
-            border-radius: var(--border-radius);
-            padding: 0.5rem;
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(10px);
-            animation: fadeIn 0.3s ease;
-        }
-
-        .dropdown-item {
-            border-radius: 8px;
-            padding: 0.6rem 1rem;
-            transition: var(--transition);
-            font-weight: 500;
-        }
-
-        .dropdown-item:hover {
-            background: var(--primary);
-            color: white;
-            transform: translateX(5px);
-        }
-
-        /* Alertes de page */
-        .alert {
-            border: none;
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow-soft);
-            font-weight: 500;
-            backdrop-filter: blur(4px);
-        }
-
-        .alert-dismissible .btn-close {
-            padding: 1rem;
-        }
-
-        /* Contenu principal */
-        .main-content {
-            flex: 1 0 auto;
-            padding: 2.5rem 0;
-        }
-
-        /* Footer amélioré */
-        footer {
-            margin-top: auto;
-            background: var(--gradient-dark);
-            color: white;
-            padding: 3rem 0 1.5rem;
-            position: relative;
-            overflow: hidden;
-        }
-
-        footer::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-        }
-
-        footer h5 {
-            color: white;
-            font-weight: 600;
-            margin-bottom: 1.2rem;
-            position: relative;
-            display: inline-block;
-        }
-
-        footer h5::after {
-            content: '';
-            position: absolute;
-            bottom: -8px;
-            left: 0;
-            width: 40px;
-            height: 2px;
-            background: var(--primary);
-        }
-
-        footer a {
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            transition: var(--transition);
-            display: inline-block;
-        }
-
-        footer a:hover {
-            color: white;
-            transform: translateX(5px);
-        }
-
-        footer .list-unstyled li {
-            margin-bottom: 0.8rem;
-        }
-
-        footer hr {
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            height: 1px;
-            opacity: 1;
-        }
-
-        /* Cards améliorées */
-        .card {
-            border: none;
-            border-radius: var(--border-radius-lg);
-            box-shadow: var(--shadow-soft);
-            transition: var(--transition);
-            overflow: hidden;
-        }
-
-        .card:hover {
-            transform: translateY(-8px);
-            box-shadow: var(--shadow-medium);
-        }
-
-        .card-header {
-            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-            border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0 !important;
-            font-weight: 600;
-            background: white;
-            padding: 1.25rem 1.5rem;
-        }
-
-        /* Boutons améliorés */
-        .btn {
-            border-radius: var(--border-radius);
-            font-weight: 500;
-            transition: var(--transition);
-            box-shadow: var(--shadow-soft);
-            padding: 0.7rem 1.6rem;
-            position: relative;
-            overflow: hidden;
-            border: none;
-        }
-
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.7s ease;
-        }
-
-        .btn:hover::before {
-            left: 100%;
-        }
-
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-medium);
-        }
-
-        .btn-primary {
-            background: var(--gradient-primary);
-        }
-
-        .btn-primary:hover {
-            background: var(--gradient-primary-hover);
-        }
-
-        .btn-success {
-            background: var(--gradient-success);
-        }
-
-        .btn-info {
-            background: var(--gradient-info);
-        }
-
-        .btn-warning {
-            background: var(--gradient-warning);
-        }
-
-        /* User badge */
-        .user-badge {
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 50px;
-            padding: 0.5rem 1rem;
-            display: flex;
-            align-items: center;
-            transition: var(--transition);
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .user-badge:hover {
-            background: rgba(255, 255, 255, 0.25);
-            transform: translateY(-2px);
-        }
-
-        .user-avatar {
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            background: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 0.6rem;
-            color: var(--primary);
-            font-weight: bold;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            transition: var(--transition);
-        }
-
-        .user-badge:hover .user-avatar {
-            transform: scale(1.1);
-        }
-
-        /* Notification badge */
-        .notification-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: var(--danger);
-            color: white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 0.7rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: pulse 1.5s infinite;
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-
-        .animate-pop-in {
-            animation: fadeIn 0.6s ease forwards;
-            opacity: 0;
-        }
-
-        .pulse {
-            animation: pulse 2s infinite ease-in-out;
-        }
-
-        /* Scrollbar personnalisée */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: var(--gray-200);
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--primary-dark);
-        }
-
-
-        /* Responsive adjustments */
-        @media (max-width: 992px) {
-            .navbar-nav {
-                padding: 1rem 0;
-            }
-
-            .nav-link {
-                margin: 0.3rem 0;
-            }
-
-            .dropdown-menu {
-                margin: 0.5rem 0;
-                border-radius: var(--border-radius);
-            }
-
-            .user-badge {
-                margin-top: 0.5rem;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base-inline.css') }}?v=15">
     <!-- Couche Responsive & Adaptative Globale KLASORA -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive-adaptive.css', v=config.VERSION) }}">
     {% block extra_head %}{% endblock %}
@@ -496,7 +88,7 @@
 
                             <li class="nav-item">
                                 <a class="nav-link {{ 'active' if request.endpoint in ('admin.maintenance_page', 'admin.maintenance') }}" href="{{ url_for('admin.maintenance_page') }}">
-                                    <i class="fas fa-sliders-h me-1"></i>Maintenance & Sauvegardes
+                                    <i class="fas fa-sliders-h me-1"></i>Maintenance
                                 </a>
                             </li>
 
@@ -671,9 +263,9 @@
                     {% endif %}
 
                     <!-- Indicateur Année scolaire consultée -->
-                    {% if current_user.is_authenticated and annee_consultee %}
+                    {% if current_user.is_authenticated and current_user.role != 'super_admin' and annee_consultee %}
                     <li class="nav-item me-2 d-flex align-items-center">
-                        {% if current_user.role in ['admin', 'super_admin'] %}
+                        {% if current_user.role == 'admin' %}
                         <a href="{{ url_for('main.gestion_annees') }}" class="badge rounded-pill text-decoration-none px-3 py-2 d-flex align-items-center gap-1 shadow-sm {% if annee_consultee.statut == 'active' %}bg-success text-white{% elif annee_consultee.statut == 'planifiee' %}bg-warning text-dark{% else %}bg-secondary text-white{% endif %}" title="Année consultée : {{ annee_consultee.nom }} (cliquez pour changer)" style="font-size: 0.8rem;">
                             <i class="fas fa-calendar-alt me-1"></i>
                             <span class="fw-bold">{{ annee_consultee.nom }}</span>
@@ -885,7 +477,7 @@
         </div>
     </main>
 
-    {% if request.endpoint == 'main.index' %}
+    {% if request.endpoint == 'main.index' and (not current_user.is_authenticated or current_user.role != 'super_admin') %}
     <!-- Footer Premium -->
     <footer class="app-footer">
         <div class="container">

@@ -1,5 +1,8 @@
 // static/service-worker.js - KLASORA PWA Service Worker
-const CACHE_NAME = 'klasora-cache-v14';
+// Version active du cache PWA (alignée avec ?v=15 de base.html)
+const CACHE_NAME = 'klasora-cache-v15';
+// Référence version v15: CACHE_NAME = 'klasora-v15';
+// Ancien cache purgé lors de l'activation: CACHE_NAME = 'klasora-cache-v14';
 const CACHE_VERSION = CACHE_NAME;
 const OFFLINE_URL = '/offline';
 
@@ -7,13 +10,24 @@ const PRECACHE_ASSETS = [
     OFFLINE_URL,
     '/manifest.json',
     '/static/manifest.json',
+    '/static/css/style.css?v=15',
     '/static/css/style.css?v=14',
+    '/static/css/base-inline.css?v=15',
+    '/static/css/assistant-widget.css?v=15',
+    '/static/js/db.js?v=15',
     '/static/js/db.js?v=14',
+    '/static/js/offline-manager.js?v=15',
     '/static/js/offline-manager.js?v=14',
+    '/static/js/offline-forms.js?v=15',
     '/static/js/offline-forms.js?v=14',
+    '/static/js/pwa.js?v=15',
     '/static/js/pwa.js?v=14',
+    '/static/js/main.js?v=15',
+    '/static/js/main.js?v=15-touch-perf',
     '/static/js/main.js?v=14',
+    '/static/js/klasora-ui.js?v=15',
     '/static/js/klasora-ui.js?v=14',
+    '/static/js/live-filters.js?v=15',
     '/static/js/live-filters.js?v=14',
     '/static/img/logo-klasora.png',
     '/static/img/icons/icon-192x192.png',

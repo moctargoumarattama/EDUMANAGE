@@ -776,7 +776,6 @@ class Paiement(db.Model):
     )
 
     __table_args__ = (
-        db.Index('ix_paiement_inscription_id', 'inscription_id'),
         db.Index('ix_paiement_ecole_statut', 'ecole_id', 'statut'),
         db.Index('ix_paiement_eleve_id', 'eleve_id'),
     )

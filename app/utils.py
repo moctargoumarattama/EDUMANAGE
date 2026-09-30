@@ -775,3 +775,19 @@ def nettoyer_repertoire_ecole(ecole_id: int, static_folder: Optional[str] = None
         )
         # Ne pas lever d'exception pour préserver la transaction en DB
         return False
+
+
+# Accès différé au service de purge QR cache pour éviter tout cycle d'import avec app.services
+def cleanup_qr_cache(*args, **kwargs):
+    from app.services.qr_cache import cleanup_qr_cache as _cleanup
+    return _cleanup(*args, **kwargs)
+
+
+def get_qr_cache_dir(*args, **kwargs):
+    from app.services.qr_cache import get_qr_cache_dir as _get_dir
+    return _get_dir(*args, **kwargs)
+
+
+def get_qr_cache_stats(*args, **kwargs):
+    from app.services.qr_cache import get_qr_cache_stats as _get_stats
+    return _get_stats(*args, **kwargs)

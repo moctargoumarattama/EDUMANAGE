@@ -1079,7 +1079,7 @@ def get_school_backups(ecole_id):
 
                 ts_display = ts_obj.strftime('%d/%m/%Y %H:%M:%S') if ts_obj else "Inconnu"
                 b_type = metadata.get('backup_type', 'manual')
-                b_label = 'Automatique' if b_type == 'automatic' else ('SÃ©curitÃ© Restore' if b_type == 'safety_restore' else 'Manuel')
+                b_label = 'Automatique' if b_type == 'automatic' else ('Sécurité' if b_type == 'safety_restore' else 'Manuel')
                 badge_class = 'bg-success' if b_type == 'automatic' else ('bg-warning text-dark' if b_type == 'safety_restore' else 'bg-primary')
 
                 backups.append({
@@ -1155,14 +1155,12 @@ def set_param(cle, valeur, description=None):
         current_app.logger.error(f"Erreur set_param({cle}): {e}")
         return False
 
-import time
-_MAINTENANCE_CACHE = {'value': None, 'expires_at': 0}
-
 def get_maintenance_status():
-    global _MAINTENANCE_CACHE
-    now = time.time()
-    if _MAINTENANCE_CACHE['value'] is not None and now < _MAINTENANCE_CACHE['expires_at']:
-        return _MAINTENANCE_CACHE['value']
+    try:
+        if hasattr(g, '_maintenance_status') and g._maintenance_status is not None:
+            return g._maintenance_status
+    except RuntimeError:
+        pass
 
     active = get_param('maintenance_mode', 'false') == 'true'
     if not active:
@@ -1180,9 +1178,6 @@ def get_maintenance_status():
             'updated_at': updated_at
         }
 
-    _MAINTENANCE_CACHE['value'] = res
-    _MAINTENANCE_CACHE['expires_at'] = now + 60
-    
     try:
         g._maintenance_status = res
     except RuntimeError:
@@ -1191,17 +1186,16 @@ def get_maintenance_status():
     return res
 
 def set_maintenance_status(active: bool, message: str = None):
-    global _MAINTENANCE_CACHE
     set_param('maintenance_mode', 'true' if active else 'false', 'Mode maintenance actif')
     if message:
         set_param('maintenance_message', message, 'Message affiché en mode maintenance')
     set_param('maintenance_updated_at', datetime.now().strftime('%d/%m/%Y à %H:%M'), 'Dernière mise à jour maintenance')
     
-    # Invalidate cache
-    _MAINTENANCE_CACHE = {'value': None, 'expires_at': 0}
     try:
         if hasattr(g, '_maintenance_status'):
             del g._maintenance_status
+        if hasattr(g, '_system_params'):
+            del g._system_params
     except RuntimeError:
         pass
         
@@ -1259,39 +1253,22 @@ def check_and_run_daily_backup():
     return False
 
 def get_cache_info():
-    if not os.path.exists(CACHE_DIR):
-        os.makedirs(CACHE_DIR, exist_ok=True)
-        return {'count': 0, 'size_kb': 0, 'size_mb': 0}
-
-    files = [f for f in os.listdir(CACHE_DIR) if os.path.isfile(os.path.join(CACHE_DIR, f))]
-    total_size = sum(os.path.getsize(os.path.join(CACHE_DIR, f)) for f in files)
+    from app.services.qr_cache import get_qr_cache_stats
+    stats = get_qr_cache_stats()
     return {
-        'count': len(files),
-        'size_kb': round(total_size / 1024, 1),
-        'size_mb': round(total_size / (1024 * 1024), 2)
+        'count': stats['count'],
+        'size_kb': stats['size_kb'],
+        'size_mb': stats['size_mb']
     }
 
 def purge_cache():
-    if not os.path.exists(CACHE_DIR):
-        return {'deleted': 0, 'freed_kb': 0, 'freed_mb': 0}
-    
-    count = 0
-    freed = 0
-    for f in os.listdir(CACHE_DIR):
-        p = os.path.join(CACHE_DIR, f)
-        if os.path.isfile(p):
-            try:
-                freed += os.path.getsize(p)
-                os.remove(p)
-                count += 1
-            except Exception as e:
-                current_app.logger.warning(f"Impossible de supprimer {p}: {e}")
-                
-    log_action("CACHE_PURGE", f"Cache purgÃ©: {count} fichiers supprimÃ©s ({round(freed / 1024, 1)} Ko libÃ©rÃ©s)")
+    from app.services.qr_cache import cleanup_qr_cache
+    res = cleanup_qr_cache(max_age_days=0)
+    log_action("CACHE_PURGE", f"Cache purgé: {res['deleted']} fichiers supprimés ({res['freed_kb']} Ko libérés)")
     return {
-        'deleted': count,
-        'freed_kb': round(freed / 1024, 1),
-        'freed_mb': round(freed / (1024 * 1024), 2)
+        'deleted': res['deleted'],
+        'freed_kb': res['freed_kb'],
+        'freed_mb': res['freed_mb']
     }
 
 def get_database_health():
@@ -1337,8 +1314,8 @@ def get_all_backups_list():
                 except Exception:
                     pass
 
-            b_label = 'Automatique' if b_type == 'automatic' else ('SÃ©curitÃ© Restore' if b_type == 'safety_restore' else 'Manuel')
-            type_display = f"Ã‰cole ({b_label})" if is_school else ("PostgreSQL" if is_postgresql else "ComplÃ¨te")
+            b_label = 'Automatique' if b_type == 'automatic' else ('Sécurité' if b_type == 'safety_restore' else 'Manuel')
+            type_display = f"École ({b_label})" if is_school else ("PostgreSQL" if is_postgresql else "Complète")
             badge_class = 'bg-success' if b_type == 'automatic' else ('bg-info' if is_school else 'bg-primary')
 
             backups.append({
@@ -1348,7 +1325,7 @@ def get_all_backups_list():
                 'backup_type_label': b_label,
                 'size_kb': round(stat.st_size / 1024, 1),
                 'size_mb': round(stat.st_size / (1024 * 1024), 2),
-                'date_formatted': dt.strftime('%d/%m/%Y Ã  %H:%M:%S'),
+                'date_formatted': dt.strftime('%d/%m/%Y à %H:%M:%S'),
                 'mtime': stat.st_mtime,
                 'type': type_display,
                 'badge_class': badge_class

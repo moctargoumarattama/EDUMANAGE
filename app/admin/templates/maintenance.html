@@ -46,12 +46,12 @@
             <div class="col-md-5">
                 {% if maint_status.active %}
                     <input type="hidden" name="active" value="0">
-                    <button type="submit" class="btn btn-success w-100 fw-semibold" onclick="return confirm('Désactiver le mode maintenance ');">
+                    <button type="submit" class="btn btn-success w-100 fw-semibold" onclick="return confirm('Désactiver le mode maintenance et rouvrir la plateforme ?');">
                         <i class="fas fa-globe me-1"></i>Désactiver
                     </button>
                 {% else %}
                     <input type="hidden" name="active" value="1">
-                    <button type="submit" class="btn btn-danger w-100 fw-semibold" onclick="return confirm('Activer le mode maintenance ');">
+                    <button type="submit" class="btn btn-danger w-100 fw-semibold" onclick="return confirm('Activer le mode maintenance et restreindre l\'accès ?');">
                         <i class="fas fa-ban me-1"></i>Activer
                     </button>
                 {% endif %}
@@ -115,7 +115,7 @@
                 <tbody>
                     {% for b in backups %}
                     <tr>
-                        <td><i class="fas fa-file-database text-muted me-2"></i><span class="fw-semibold">{{ b.filename }}</span></td>
+                        <td><i class="fas fa-database text-muted me-2"></i><span class="fw-semibold">{{ b.filename }}</span></td>
                         <td><span class="badge {{ b.badge_class }}">{{ b.type }}</span></td>
                         <td>{{ b.size_kb }} Ko ({{ b.size_mb }} Mo)</td>
                         <td>{{ b.date_formatted }}</td>
@@ -141,7 +141,7 @@
             <article class="maintenance-backup-card">
                 <div class="maintenance-backup-card-head">
                     <span class="maintenance-backup-file">
-                        <i class="fas fa-file-database text-primary"></i>
+                        <i class="fas fa-database text-primary"></i>
                         <strong>{{ b.filename }}</strong>
                     </span>
                     <span class="badge {{ b.badge_class }}">{{ b.type }}</span>
@@ -216,21 +216,28 @@
 
     <div class="col-lg-5">
         <div class="admin-card h-100 mb-0">
-            <h2 class="border-0 pb-0 mb-3"><i class="fas fa-bolt text-warning"></i> Cache</h2>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="border-0 pb-0 mb-0"><i class="fas fa-bolt text-warning"></i> Cache & QR</h2>
+                <span class="badge bg-light text-success border small"><i class="fas fa-check-circle me-1"></i>Auto-purge</span>
+            </div>
             <div class="p-3 bg-light rounded border mb-3">
                 <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="small text-muted">Fichiers</span>
+                    <span class="small text-muted">Fichiers en cache</span>
                     <strong class="text-dark">{{ cache_info.count }}</strong>
                 </div>
-                <div class="d-flex justify-content-between align-items-center">
-                    <span class="small text-muted">Espace</span>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="small text-muted">Espace disque</span>
                     <strong class="text-dark">{{ cache_info.size_kb }} Ko ({{ cache_info.size_mb }} Mo)</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="small text-muted">Politique de rétention</span>
+                    <span class="small fw-semibold text-secondary">48h / flux mémoire</span>
                 </div>
             </div>
 
             <form action="{{ url_for('admin.purge_cache_route') }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-warning w-100 fw-semibold" onclick="return confirm('Purger le cache ');"><i class="fas fa-trash-alt me-1"></i>Purger</button>
+                <button type="submit" class="btn btn-warning w-100 fw-semibold" onclick="return confirm('Purger immédiatement l\'ensemble des fichiers en cache ?');"><i class="fas fa-trash-alt me-1"></i>Purger le cache</button>
             </form>
         </div>
     </div>

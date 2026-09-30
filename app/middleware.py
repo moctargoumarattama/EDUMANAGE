@@ -12,7 +12,7 @@ Corrections et renforts sans déformation du code original :
 - Petites améliorations de sécurité (has_ecole_access extended)
 """
 
-from flask import session, g, current_app, redirect, url_for, flash, render_template, abort, request, jsonify
+from flask import session, g, current_app, redirect, url_for, flash, render_template, abort, request, jsonify, make_response
 from flask_login import current_user
 from functools import wraps
 from app.models import Ecole, Log
@@ -401,7 +401,11 @@ def before_request_handler():
             is_auth_route = request.endpoint in ('main.login', 'main.logout') or request.path in ('/login', '/logout')
 
             if not is_super_admin_user and not is_auth_route:
-                return render_template('maintenance_client.html', maintenance_message=maint.get('message')), 503
+                resp = make_response(render_template('maintenance_client.html', maintenance_message=maint.get('message')), 503)
+                resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0, private'
+                resp.headers['Pragma'] = 'no-cache'
+                resp.headers['Expires'] = '0'
+                return resp
     except Exception as e:
         current_app.logger.error(f"Erreur vérification mode maintenance: {e}")
 
@@ -435,7 +439,11 @@ def before_request_handler():
                 if current_ep not in allowed_eps and not current_ep.startswith('static') and current_ep != 'admin.static' and not request.path.startswith('/static/'):
                     if ecole.statut == 'maintenance':
                         m_msg = ecole.motif_blocage or f"L'établissement '{ecole.nom}' est actuellement en maintenance."
-                        return render_template('maintenance_client.html', maintenance_message=m_msg), 503
+                        resp = make_response(render_template('maintenance_client.html', maintenance_message=m_msg), 503)
+                        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0, private'
+                        resp.headers['Pragma'] = 'no-cache'
+                        resp.headers['Expires'] = '0'
+                        return resp
 
                     from flask_login import logout_user
                     if current_user.role == 'admin':

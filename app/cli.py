@@ -54,8 +54,28 @@ def register_cli_commands(app):
     def backup_daily_command():
         """Alias pour backup-schools-daily."""
         from app.admin.scripts import run_daily_automatic_backups
+        from app.services.qr_cache import cleanup_qr_cache
         res = run_daily_automatic_backups()
         click.echo(f"[KLASORA] Sauvegarde terminée : {res['success']} réussie(s), {res['skipped']} déjà faite(s) aujourd'hui, {res['failed']} échouée(s).")
+        qr_res = cleanup_qr_cache(max_age_days=7)
+        if qr_res['deleted'] > 0:
+            click.echo(f"[KLASORA] Maintenance QR cache : {qr_res['deleted']} fichier(s) expiré(s) purgé(s) ({qr_res['freed_kb']} Ko libérés).")
+
+    @app.cli.command("cleanup-qrcache")
+    @click.option("--max-age-days", default=7, show_default=True, type=int, help="Âge maximal des fichiers en jours avant suppression.")
+    @click.option("--all", "purge_all", is_flag=True, help="Purger l'intégralité du cache sans condition d'âge.")
+    def cleanup_qrcache_command(max_age_days, purge_all):
+        """Purge les fichiers temporaires expirés du cache QR codes (app/static/qrcache)."""
+        from app.services.qr_cache import cleanup_qr_cache
+        days = 0 if purge_all else max_age_days
+        target_label = "TOUT" if purge_all else f"> {days} jour(s)"
+        click.echo(f"[KLASORA] Nettoyage du cache QR codes en cours (critère : {target_label})...")
+        res = cleanup_qr_cache(max_age_days=days)
+        click.echo(
+            f"[KLASORA] Nettoyage terminé : {res['deleted']} fichier(s) purgé(s) "
+            f"({res['freed_kb']} Ko libérés), {res['remaining']} restant(s), {res['errors']} erreur(s)."
+        )
+
     @app.cli.command("system-health")
     def system_health_command():
         """Affiche un etat runtime leger sans modifier la base."""

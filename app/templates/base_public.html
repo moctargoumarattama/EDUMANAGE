@@ -109,15 +109,31 @@
     </main>
 
     <!-- ====================================================================
-         FOOTER COMPACT AVEC LES 4 LIENS
+         FOOTER COMPACT AVEC LIENS PUBLICS
          ==================================================================== -->
-    <footer class="kl-footer py-4">
+    <footer class="kl-footer">
         <div class="container text-center">
-            <div class="d-flex flex-wrap justify-content-center gap-4 mb-3" style="font-size: 0.9rem;">
-                <a href="{{ url_for('main.securite') }}" class="text-decoration-none">Sécurité des données</a>
-                <a href="{{ url_for('main.politique_confidentialite') }}" class="text-decoration-none">Politique de confidentialité</a>
-                <a href="{{ url_for('main.demander_demo') }}" class="text-decoration-none">Demander une présentation</a>
-                <a href="{{ url_for('main.login') }}" class="text-decoration-none">Espace de connexion</a>
+            <div class="kl-footer-actions" aria-label="Liens utiles">
+                <a href="{{ url_for('main.securite') }}" class="kl-footer-chip">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Sécurité</span>
+                </a>
+                <a href="{{ url_for('main.politique_confidentialite') }}" class="kl-footer-chip">
+                    <i class="fas fa-file-contract"></i>
+                    <span>Confidentialité</span>
+                </a>
+                <a href="{{ url_for('main.demander_demo') }}" class="kl-footer-chip">
+                    <i class="fas fa-play-circle"></i>
+                    <span>Présentation</span>
+                </a>
+                <a href="{{ url_for('main.login') }}" class="kl-footer-chip">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Connexion</span>
+                </a>
+                <a href="https://wa.me/212770010264" target="_blank" rel="noopener noreferrer" class="kl-footer-chip kl-footer-whatsapp" aria-label="Contacter KLASORA sur WhatsApp">
+                    <i class="fab fa-whatsapp"></i>
+                    <span>WhatsApp</span>
+                </a>
             </div>
 
             <div class="kl-footer-bottom border-0 pt-0">

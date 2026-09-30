@@ -11,11 +11,46 @@ class OfflineManager {
         this.retryDelay = 5000;
         this.maxRetryDelay = 60000;
         this.preloadFreshnessMs = 15 * 60 * 1000;
+        this.adminPreloadTTL = 12 * 60 * 60 * 1000; // 12 heures pour l'annuaire administratif
     }
 
     /**
      * Initialiser le gestionnaire
      */
+
+    /**
+     * Accès sécurisé à localStorage (compatible navigation privée & cookies tiers bloqués)
+     */
+    _getStorageItem(key) {
+        try {
+            return (typeof window !== 'undefined' && window.localStorage)
+                ? window.localStorage.getItem(key)
+                : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    _setStorageItem(key, value) {
+        try {
+            if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.setItem(key, value);
+            }
+        } catch (e) {
+            // Mode navigation privée ou quota dépassé : ne pas interrompre l'exécution
+        }
+    }
+
+    _removeStorageItem(key) {
+        try {
+            if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.removeItem(key);
+            }
+        } catch (e) {
+            // Silencieux en navigation privée
+        }
+    }
+
     async init() {
         console.log('🎯 Initialisation OfflineManager V2');
 
@@ -82,27 +117,29 @@ class OfflineManager {
         return false;
     }
 
-    async shouldRefreshPreload(cacheKey, force = false) {
+    async shouldRefreshPreload(cacheKey, force = false, customTTL = null) {
         if (force) return true;
 
-        const lastPreload = Number(localStorage.getItem(`offline-preload:${cacheKey}`) || 0);
+        const ttl = customTTL || this.preloadFreshnessMs;
+        const lastPreload = Number(this._getStorageItem(`offline-preload:${cacheKey}`) || 0);
         if (!lastPreload) return true;
 
         const cachedData = await offlineDB.getCachedData(cacheKey);
         if (!cachedData) {
-            localStorage.removeItem(`offline-preload:${cacheKey}`);
+            this._removeStorageItem(`offline-preload:${cacheKey}`);
             return true;
         }
 
-        const isFresh = (Date.now() - lastPreload) < this.preloadFreshnessMs;
+        const isFresh = (Date.now() - lastPreload) < ttl;
         if (isFresh) {
-            console.log(`ℹ️ Préchargement ignoré, cache récent (${cacheKey})`);
+            const ageMinutes = Math.round((Date.now() - lastPreload) / 60000);
+            console.log(`ℹ️ Préchargement ignoré, cache récent (${cacheKey}, âgé de ${ageMinutes} min)`);
         }
         return !isFresh;
     }
 
     markPreloadRefreshed(cacheKey) {
-        localStorage.setItem(`offline-preload:${cacheKey}`, String(Date.now()));
+        this._setStorageItem(`offline-preload:${cacheKey}`, String(Date.now()));
     }
 
     async runSinglePreload(cacheKey, force, loader) {
@@ -119,46 +156,80 @@ class OfflineManager {
 
     /**
      * Précharger les données d'administration hors-ligne
+     * Conditionné par un cache TTL de 12h (clé localStorage: klasora_offline_admin_last_sync)
      */
     async preloadAdminData(force = false) {
         const cacheKey = offlineDB.getAdminCacheKey();
         return await this.runSinglePreload(cacheKey, force, async () => {
+            const ADMIN_SYNC_KEY = 'klasora_offline_admin_last_sync';
+            const now = Date.now();
 
-        if (!this.isOnline && !force) {
-            return await offlineDB.getCachedData(cacheKey);
-        }
+            // 1. Contrôle de fraîcheur via localStorage & IndexedDB si non forcé
+            if (!force) {
+                const lastSyncStr = this._getStorageItem(ADMIN_SYNC_KEY);
+                const lastSync = lastSyncStr ? Number(lastSyncStr) : 0;
+                const cachedData = await offlineDB.getCachedData(cacheKey);
 
-        if (!(await this.shouldRefreshPreload(cacheKey, force))) {
-            return await offlineDB.getCachedData(cacheKey);
-        }
-
-        try {
-            console.log(`📥 Chargement des données hors-ligne de l'administrateur (${cacheKey})...`);
-            const response = await fetch('/api/admin/offline-data', {
-                headers: { 'Accept': 'application/json' }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    await offlineDB.cacheData(cacheKey, data, 1440); // 24h
-                    this.markPreloadRefreshed(cacheKey);
-                    console.log(`✅ Données administrateur préchargées (${data.classes.length} classes, ${data.cours.length} cours, ${data.eleves.length} élèves)`);
-                    this.emit('admin-data-loaded', data);
-                    return data;
+                // Si des données valides existent et ont été synchronisées il y a moins de 12 heures
+                if (cachedData && lastSync > 0 && (now - lastSync) < this.adminPreloadTTL) {
+                    const elapsedMinutes = Math.round((now - lastSync) / 60000);
+                    const remainingHours = ((this.adminPreloadTTL - (now - lastSync)) / (3600 * 1000)).toFixed(1);
+                    console.log(`ℹ️ [Admin Preload] Cache frais (${elapsedMinutes} min écoulées, expiration dans ~${remainingHours}h). Requête /api/admin/offline-data évitée.`);
+                    return cachedData;
                 }
-            } else if (response.status === 401) {
-                console.warn('⚠️ Session expirée lors du chargement des données administrateur');
-                this.emit('sync-auth-required');
-            } else if (response.status === 403) {
-                console.warn('⛔ Accès refusé (403) aux données administrateur');
-            }
-        } catch (e) {
-            console.warn('⚠️ Impossible de rafraîchir les données administrateur (mode hors-ligne):', e.message);
-        }
 
-        return await offlineDB.getCachedData(cacheKey);
+                // Si le client est hors-ligne, restituer le cache existant même expiré
+                if (!this.isOnline) {
+                    return cachedData;
+                }
+            }
+
+            // 2. Si hors-ligne strict sans forçage
+            if (!this.isOnline && !force) {
+                return await offlineDB.getCachedData(cacheKey);
+            }
+
+            // 3. Récupération distante discrète
+            try {
+                console.log(`📥 [Admin Preload] Récupération des données hors-ligne (${cacheKey})...${force ? ' (forcé)' : ''}`);
+                const response = await fetch('/api/admin/offline-data', {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        await offlineDB.cacheData(cacheKey, data, 1440); // 24h
+                        
+                        // Mettre à jour le timestamp TTL de synchronisation (12h)
+                        this._setStorageItem(ADMIN_SYNC_KEY, String(Date.now()));
+                        this.markPreloadRefreshed(cacheKey);
+
+                        console.log(`✅ Données administrateur préchargées (${data.classes ? data.classes.length : 0} classes, ${data.cours ? data.cours.length : 0} cours, ${data.eleves ? data.eleves.length : 0} élèves)`);
+                        this.emit('admin-data-loaded', data);
+                        return data;
+                    }
+                } else if (response.status === 401) {
+                    console.warn('⚠️ Session expirée lors du chargement des données administrateur');
+                    this.emit('sync-auth-required');
+                } else if (response.status === 403) {
+                    console.warn('⛔ Accès refusé (403) aux données administrateur');
+                }
+            } catch (e) {
+                console.warn('⚠️ Impossible de rafraîchir les données administrateur (mode hors-ligne):', e.message);
+            }
+
+            return await offlineDB.getCachedData(cacheKey);
         });
+    }
+
+    /**
+     * Forcer l'actualisation manuelle des données administrateur hors-ligne
+     * Déclenchable par bouton UI ou script externe
+     */
+    async refreshAdminOfflineData() {
+        console.log('🔄 Actualisation manuelle forcée des données hors-ligne administrateur...');
+        return await this.preloadAdminData(true);
     }
 
     /**

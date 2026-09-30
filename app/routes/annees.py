@@ -1,4 +1,4 @@
-from . import main
+﻿from . import main
 from .common import (
     AnneeScolaire,
     CSRFForm,
@@ -61,7 +61,7 @@ from app.services.duplication_structure import dupliquer_structure_annee
 
 
 def _current_ecole_id_for_annees():
-    return current_user.ecole_id if current_user.role != 'super_admin' else session.get('ecole_id')
+    return current_user.ecole_id
 
 
 def _annee_saisie_depuis_form():
@@ -77,7 +77,7 @@ def _annee_saisie_depuis_form():
 
 @main.route('/annees', methods=['GET', 'POST'])
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def gestion_annees():
     csrf_form = CSRFForm()
 
@@ -374,7 +374,7 @@ def gestion_annees():
 
 @main.route('/annees/<int:annee_id>/supprimer', methods=['POST'])
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def supprimer_annee_planifiee(annee_id):
     csrf_form = CSRFForm()
     if not csrf_form.validate_on_submit():
@@ -417,7 +417,7 @@ def supprimer_annee_planifiee(annee_id):
 
 @main.route('/annees/<int:annee_id>/semestres', methods=['POST'])
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def configurer_semestres(annee_id):
     csrf_form = CSRFForm()
     if not csrf_form.validate_on_submit():
@@ -455,7 +455,7 @@ def configurer_semestres(annee_id):
 
 @main.route('/annees/<int:annee_id>/modifier', methods=['POST'])
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def modifier_annee(annee_id):
     csrf_form = CSRFForm()
     if not csrf_form.validate_on_submit():
@@ -522,7 +522,7 @@ def modifier_annee(annee_id):
 
 @main.route('/annees/<int:annee_id>/consulter', methods=['POST'])
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def consulter_annee(annee_id):
     ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:
@@ -542,7 +542,7 @@ def consulter_annee(annee_id):
 
 @main.route('/changer_annee/<int:annee_id>', methods=['POST'])
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def changer_annee(annee_id):
     ecole_id = _current_ecole_id_for_annees()
     annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first_or_404()
@@ -551,7 +551,7 @@ def changer_annee(annee_id):
 
 @main.route('/annees/<int:annee_id>/preparer-structure', methods=['POST'])
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def preparer_structure_annee_route(annee_id):
     ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:
@@ -600,7 +600,7 @@ def preparer_structure_annee_route(annee_id):
 
 @main.route('/annees/<int:annee_id>/preparation', methods=['GET', 'POST'], endpoint='preparation_annee')
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def preparation_annee(annee_id):
     return onboarding_rentree(cible_id=annee_id)
 
@@ -608,7 +608,7 @@ def preparation_annee(annee_id):
 
 @main.route('/annees/<int:annee_id>/activation', methods=['GET'], endpoint='activation_annee_confirmation')
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def activation_annee_confirmation(annee_id):
     ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:
@@ -653,7 +653,7 @@ def activation_annee_confirmation(annee_id):
 
 @main.route('/annees/<int:annee_id>/activer', methods=['POST'], endpoint='activer_annee')
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def activer_annee(annee_id):
     ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:
@@ -683,7 +683,7 @@ def activer_annee(annee_id):
 
 @main.route('/annees/<int:annee_id>/structure', methods=['GET', 'POST'])
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def structure_annee(annee_id):
     ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:
@@ -795,7 +795,7 @@ def structure_annee(annee_id):
 
 @main.route('/annees/<int:source_id>/passage/<int:cible_id>', methods=['GET'])
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def passage_annee(source_id, cible_id):
     ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:
@@ -986,7 +986,7 @@ def passage_annee(source_id, cible_id):
 @main.route('/annees/<int:source_id>/passage/<int:cible_id>/eleves/<int:eleve_id>', methods=['GET', 'POST'], endpoint='passage_eleve')
 @main.route('/annees/<int:source_id>/passage/<int:cible_id>/eleves/<int:eleve_id>/executer', methods=['POST'], endpoint='passage_eleve_executer')
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def passage_eleve(source_id, cible_id, eleve_id):
     ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:
@@ -1105,7 +1105,7 @@ def passage_eleve(source_id, cible_id, eleve_id):
 
 @main.route('/annees/<int:source_id>/passage/<int:cible_id>/masse/apercu', methods=['POST'], endpoint='passage_masse_apercu')
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def passage_masse_apercu(source_id, cible_id):
     ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:
@@ -1173,7 +1173,7 @@ def passage_masse_apercu(source_id, cible_id):
 
 @main.route('/annees/<int:source_id>/passage/<int:cible_id>/masse/confirmer', methods=['POST'], endpoint='passage_masse_confirmer')
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def passage_masse_confirmer(source_id, cible_id):
     ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:
@@ -1238,7 +1238,7 @@ def passage_masse_confirmer(source_id, cible_id):
 
 @main.route('/annees/<int:annee_id>/reinscrire_eleve', methods=['POST'], endpoint='reinscrire_ancien_eleve')
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def reinscrire_ancien_eleve_route(annee_id):
     ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:
@@ -1276,7 +1276,7 @@ def reinscrire_ancien_eleve_route(annee_id):
 
 @main.route('/annees/<int:source_id>/passage/<int:cible_id>/annuler/<int:eleve_id>', methods=['POST'], endpoint='annuler_decision_eleve')
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def annuler_decision_eleve(source_id, cible_id, eleve_id):
     ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:
@@ -1304,7 +1304,7 @@ def annuler_decision_eleve(source_id, cible_id, eleve_id):
 
 @main.route('/annees/<int:source_id>/dupliquer_vers/<int:cible_id>', methods=['POST'], endpoint='dupliquer_structure_annee_route')
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def dupliquer_structure_annee_route(source_id, cible_id):
     ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:
@@ -1332,7 +1332,7 @@ def dupliquer_structure_annee_route(source_id, cible_id):
 @main.route('/annees/<int:cible_id>/onboarding_rentree', methods=['GET', 'POST'], endpoint='onboarding_rentree')
 @main.route('/annees/<int:cible_id>/wizard', methods=['GET', 'POST'], endpoint='wizard_rentree')
 @login_required
-@role_required('admin', 'super_admin')
+@role_required('admin')
 def onboarding_rentree(cible_id):
     ecole_id = _current_ecole_id_for_annees()
     if not ecole_id:

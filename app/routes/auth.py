@@ -122,22 +122,29 @@ def index():
         except Exception:
             sys_stats = {}
 
+        from datetime import timedelta
+        active_24h_cutoff = datetime.utcnow() - timedelta(hours=24)
+        active_24h_count = (
+            Utilisateur.query
+            .filter(
+                Utilisateur.statut == 'actif',
+                Utilisateur.dernier_acces.isnot(None),
+                Utilisateur.dernier_acces >= active_24h_cutoff,
+            )
+            .count()
+        )
+
         stats = {
             'total_ecoles': Ecole.query.count(),
+            'active_24h': active_24h_count,
             'disk_usage': sys_stats.get('disk_usage', 'N/A'),
             'db_backend': sys_stats.get('db_backend', 'Base'),
             'db_version': sys_stats.get('db_version', 'N/A'),
             'last_backup': sys_stats.get('last_backup'),
             'table_count': sys_stats.get('table_count', 'N/A'),
         }
-        ecole_id = session.get('ecole_id')
         annee_planifiee = None
         etat_planifiee = None
-        if ecole_id:
-            annee_planifiee = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut='planifiee').order_by(AnneeScolaire.date_debut.desc(), AnneeScolaire.id.desc()).first()
-            if annee_planifiee:
-                from app.services.preparation_annee import get_etat_preparation_annee
-                etat_planifiee = get_etat_preparation_annee(ecole_id, annee_planifiee.id)
 
         return render_template(
             'index.html',
@@ -205,6 +212,17 @@ def index():
 def login():
     """Route de connexion principale pour tous les utilisateurs avec sécurité multi-écoles"""
     if current_user.is_authenticated:
+        from app.admin.scripts import get_maintenance_status
+        maint = get_maintenance_status()
+        is_maint = maint.get('active', False)
+        is_sa = getattr(current_user, 'role', None) == 'super_admin'
+
+        if request.args.get('switch') == '1' or (is_maint and not is_sa):
+            logout_user()
+            if is_maint:
+                flash("La plateforme est en mode maintenance. Connectez-vous avec vos identifiants Super Administrateur.", "info")
+            return redirect(url_for('main.login'))
+
         role = getattr(current_user, "role", None)
         endpoint_par_role = {
             "admin": "main.index",

@@ -265,6 +265,35 @@ class PerformancePhase2TestCase(unittest.TestCase):
         self.assertIsNotNone(abs_obj.annee_inscription)
         self.assertEqual(abs_obj.annee_inscription.eleve_id, abs_obj.eleve_id)
 
+    def test_06_absences_pagination_serveur_sql_native(self):
+        """Vérifie la pagination SQL native côté serveur et la préservation des filtres."""
+        self._login_admin()
+
+        # Requête page 1 avec 5 éléments par page sur 15 total
+        res = self.client.get('/absences?per_page=5&page=1')
+        self.assertEqual(res.status_code, 200)
+        html = res.data.decode('utf-8')
+
+        # Doit contenir les compteurs globaux et la navigation pagination serveur
+        self.assertIn("15", html)
+        self.assertIn("Page 1", html)
+        self.assertIn("page=2", html)
+        self.assertIn("Suivant", html)
+
+        # Requête page 2
+        res2 = self.client.get('/absences?per_page=5&page=2')
+        self.assertEqual(res2.status_code, 200)
+        html2 = res2.data.decode('utf-8')
+        self.assertIn("Page 2", html2)
+        self.assertIn("page=1", html2)
+        self.assertIn("Précédent", html2)
+
+        # Filtre avec pagination (vérification préservation filtres dans l'URL de pagination)
+        res_filter = self.client.get('/absences?per_page=3&page=1&justifiee=1')
+        self.assertEqual(res_filter.status_code, 200)
+        html_filter = res_filter.data.decode('utf-8')
+        self.assertIn("justifiee=1", html_filter)
+
 
 if __name__ == '__main__':
     unittest.main()

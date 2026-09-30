@@ -25,7 +25,7 @@ from .common import (
     url_for,
 )
 from flask import g, jsonify
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, case, func, or_
 from sqlalchemy.orm import joinedload
 from app.authorization import tenant_required
 from app.services.annees_scolaires import get_annee_consultee
@@ -278,19 +278,28 @@ def absences():
         except ValueError:
             pass
 
-    # Tri par date décroissante
-    query = query.order_by(Absence.date_absence.desc(), Absence.id.desc())
+    # Compteurs statistiques globaux via agrégation SQL native directe (zéro boucle ni saturation mémoire Python)
+    stats_query = (
+        query.with_entities(
+            func.count(Absence.id).label('total'),
+            func.sum(case((Absence.justifiee == True, 1), else_=0)).label('justifiees'),
+            func.sum(case((or_(Absence.justifiee == False, Absence.justifiee.is_(None)), 1), else_=0)).label('non_justifiees'),
+        )
+        .order_by(None)
+    )
+    stats_row = stats_query.first()
+    total = int(stats_row.total or 0) if stats_row else 0
+    absences_justifiees = int(stats_row.justifiees or 0) if stats_row else 0
+    absences_non_justifiees = int(stats_row.non_justifiees or 0) if stats_row else 0
 
-    # Exécution de la requête optimisée en 1 seule passe avec eager-loading (zéro N+1)
-    absences_all = query.all()
-    total = len(absences_all)
+    # Tri par date décroissante et pagination SQL native côté serveur
+    pagination = query.order_by(Absence.date_absence.desc(), Absence.id.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    absences_page = pagination.items
 
-    # Calcul statistique des statuts justifiées / non justifiées
-    absences_justifiees = sum(1 for a in absences_all if a.justifiee)
-    absences_non_justifiees = total - absences_justifiees
-
-    # Attacher contexte annuel pour chaque absence
-    for a in absences_all:
+    # Attacher contexte annuel uniquement pour les absences de la page courante
+    for a in absences_page:
         if not hasattr(a, 'annee_classe') or a.annee_classe is None:
             a.annee_classe = a.inscription.classe if (a.inscription and a.inscription.classe) else (a.cours.classe if (a.cours and a.cours.classe) else None)
         if not hasattr(a, 'annee_scolaire') or a.annee_scolaire is None:
@@ -302,6 +311,10 @@ def absences():
         return jsonify({
             'success': True,
             'total': total,
+            'page': pagination.page,
+            'pages': pagination.pages,
+            'has_next': pagination.has_next,
+            'has_prev': pagination.has_prev,
             'absences': [
                 {
                     'id': a.id,
@@ -313,7 +326,7 @@ def absences():
                     'motif': a.motif or "",
                     'justifiee': bool(a.justifiee)
                 }
-                for a in absences_all
+                for a in absences_page
             ]
         })
 
@@ -325,7 +338,8 @@ def absences():
 
     return render_template(
         'absences.html',
-        absences=absences_all,
+        pagination=pagination,
+        absences=absences_page,
         absences_justifiees=absences_justifiees,
         absences_non_justifiees=absences_non_justifiees,
         show_form=show_form,
@@ -337,10 +351,12 @@ def absences():
         message_annee=message_annee,
         search=search,
         classe_id=classe_id,
+        classe_param=classe_param,
         niveau=niveau_param,
         date_debut=date_debut_str,
         date_fin=date_fin_str,
-        justifiee=justifiee_param
+        justifiee=justifiee_param,
+        per_page=per_page
     )
 
 
