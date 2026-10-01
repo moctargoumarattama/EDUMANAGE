@@ -1,0 +1,202 @@
+<aside class="app-sidebar-admin d-none d-lg-flex" aria-label="Menu principal">
+    <!-- En-tête Sidebar : Brand / Logo -->
+    <div class="sidebar-brand-wrapper">
+        <a href="{{ url_for('main.index') }}" class="sidebar-brand text-decoration-none">
+            <img src="{{ url_for('static', filename='img/logo-klasora.png') }}" alt="KLASORA" class="sidebar-logo">
+            <div class="sidebar-brand-text">
+                <span class="brand-title">KLASORA</span>
+                <span class="brand-subtitle">
+                    {% if current_user.role == 'super_admin' %}SUPER ADMIN{% else %}ADMINISTRATION{% endif %}
+                </span>
+            </div>
+        </a>
+    </div>
+
+    <!-- Navigation latérale en 1-clic -->
+    <div class="sidebar-nav">
+        {% if current_user.role == 'super_admin' %}
+            <div class="nav-section-label">Supervision Globale</div>
+            <ul class="nav-list">
+                <li>
+                    <a href="{{ url_for('main.index') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.index' }}">
+                        <i class="fas fa-home nav-icon"></i>
+                        <span>Accueil / Dashboard</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.gestion_ecoles') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.gestion_ecoles' }}">
+                        <i class="fas fa-school nav-icon"></i>
+                        <span>Gérer les écoles</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.ajouter_ecole') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.ajouter_ecole' }}">
+                        <i class="fas fa-plus-circle nav-icon"></i>
+                        <span>Ajouter une école</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('admin.maintenance_page') }}" class="nav-link-item {{ 'active' if request.endpoint in ('admin.maintenance_page', 'admin.maintenance') }}">
+                        <i class="fas fa-sliders-h nav-icon"></i>
+                        <span>Maintenance système</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('admin.demandes_presentation') }}" class="nav-link-item {{ 'active' if request.endpoint == 'admin.demandes_presentation' }}">
+                        <i class="fas fa-handshake nav-icon"></i>
+                        <span>Demandes démo</span>
+                        {% if nouvelles_demandes_count and nouvelles_demandes_count > 0 %}
+                            <span class="badge bg-danger rounded-pill ms-auto">{{ nouvelles_demandes_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('admin.view_logs') }}" class="nav-link-item {{ 'active' if request.endpoint == 'admin.view_logs' }}">
+                        <i class="fas fa-file-alt nav-icon"></i>
+                        <span>Logs système</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.journaux_corrections') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.journaux_corrections' }}">
+                        <i class="fas fa-edit nav-icon"></i>
+                        <span>Journal corrections</span>
+                    </a>
+                </li>
+            </ul>
+
+        {% else %}
+            <!-- Rôle ADMIN CLASSIQUE -->
+            <div class="nav-section-label">Vue d'ensemble</div>
+            <ul class="nav-list mb-3">
+                <li>
+                    <a href="{{ url_for('main.index') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.index' }}">
+                        <i class="fas fa-th-large nav-icon"></i>
+                        <span>Tableau de bord</span>
+                    </a>
+                </li>
+            </ul>
+
+            <div class="nav-section-label">Pédagogie & Scolarité</div>
+            <ul class="nav-list mb-3">
+                <li>
+                    <a href="{{ url_for('main.eleves') }}" class="nav-link-item {{ 'active' if request.endpoint in ('main.eleves', 'main.qrcodes_etudiants', 'main.details_eleve', 'main.eleve_details') }}">
+                        <i class="fas fa-user-graduate nav-icon"></i>
+                        <span>Élèves</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.professeurs') }}" class="nav-link-item {{ 'active' if request.endpoint in ('main.professeurs', 'main.professeur_details', 'main.modifier_professeur') }}">
+                        <i class="fas fa-chalkboard-teacher nav-icon"></i>
+                        <span>Professeurs</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.liste_classes') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.liste_classes' }}">
+                        <i class="fas fa-chalkboard nav-icon"></i>
+                        <span>Classes</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.cours') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.cours' }}">
+                        <i class="fas fa-book nav-icon"></i>
+                        <span>Cours & Matières</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.admin_emplois') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.admin_emplois' }}">
+                        <i class="fas fa-calendar-alt nav-icon"></i>
+                        <span>Emplois du temps</span>
+                    </a>
+                </li>
+            </ul>
+
+            <div class="nav-section-label">Évaluations & Suivi</div>
+            <ul class="nav-list mb-3">
+                <li>
+                    <a href="{{ url_for('main.notes') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.notes' }}">
+                        <i class="fas fa-edit nav-icon"></i>
+                        <span>Notes & Devoirs</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.bulletins') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.bulletins' }}">
+                        <i class="fas fa-file-pdf nav-icon"></i>
+                        <span>Bulletins</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.point_du_jour') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.point_du_jour' }}">
+                        <i class="fas fa-clipboard-check nav-icon"></i>
+                        <span>Point du jour</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.absences') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.absences' }}">
+                        <i class="fas fa-calendar-times nav-icon"></i>
+                        <span>Absences</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.alertes') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.alertes' }}">
+                        <i class="fas fa-bell nav-icon"></i>
+                        <span>Alertes</span>
+                    </a>
+                </li>
+            </ul>
+
+            <div class="nav-section-label">Gestion & Comptabilité</div>
+            <ul class="nav-list mb-3">
+                <li>
+                    <a href="{{ url_for('main.paiements') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.paiements' }}">
+                        <i class="fas fa-money-bill-wave nav-icon"></i>
+                        <span>Paiements & Frais</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.rapports') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.rapports' }}">
+                        <i class="fas fa-chart-bar nav-icon"></i>
+                        <span>Rapports & Stats</span>
+                    </a>
+                </li>
+            </ul>
+        {% endif %}
+    </div>
+
+    <!-- Pied de Sidebar : Profil utilisateur & Déconnexion -->
+    <div class="sidebar-footer">
+        <div class="user-profile-widget">
+            <div class="avatar-circle">
+                {% if current_user.prenom and current_user.nom %}
+                    {{ current_user.prenom[0] }}{{ current_user.nom[0] }}
+                {% elif current_user.role == 'super_admin' %}
+                    <i class="fas fa-shield-alt"></i>
+                {% else %}
+                    <i class="fas fa-user"></i>
+                {% endif %}
+            </div>
+            <div class="user-info">
+                <span class="user-name" title="{{ current_user.prenom }} {{ current_user.nom }}">
+                    {% if current_user.prenom and current_user.nom %}
+                        {{ current_user.prenom }} {{ current_user.nom }}
+                    {% elif current_user.role == 'super_admin' %}
+                        Super Admin
+                    {% else %}
+                        Administrateur
+                    {% endif %}
+                </span>
+                <span class="user-role">
+                    {% if current_user.role == 'super_admin' %}
+                        Super Admin
+                    {% elif ecole_courante %}
+                        {{ ecole_courante.nom }}
+                    {% else %}
+                        Administration
+                    {% endif %}
+                </span>
+            </div>
+            <a href="{{ url_for('main.logout') }}" class="logout-btn" title="Déconnexion" onclick="if(window.klasoraPwaCleanOnLogout){window.klasoraPwaCleanOnLogout();}">
+                <i class="fas fa-sign-out-alt"></i>
+            </a>
+        </div>
+    </div>
+</aside>

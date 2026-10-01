@@ -306,10 +306,13 @@ def affecter_professeur_cours(cours_id):
     return redirect(request.referrer or url_for('main.cours'))
 
 
-@main.route('/ajouter_cours', methods=['POST'])
+@main.route('/ajouter_cours', methods=['GET', 'POST'])
 @login_required
 @role_required('admin', 'super_admin')
 def ajouter_cours():
+    if request.method == 'GET':
+        return redirect(url_for('main.cours'))
+
     ecole_courante = get_ecole_courante()
     annee_consultee = get_annee_consultee(ecole_courante.id)
     form = CoursForm()

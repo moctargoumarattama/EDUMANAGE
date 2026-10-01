@@ -196,6 +196,97 @@ def index():
                         }
                         break
 
+        # Données et formulaires pour les actions rapides et la vue d'accueil admin
+        from datetime import date
+        from sqlalchemy.orm import joinedload
+        from app.forms import EleveForm, PaiementForm, AjouterEmploiForm
+        from app.models import Absence, Paiement, Classe, Professeur, Cours, Inscription
+        from app.services.classes_annuelles import get_classes_ouvertes_annee
+        from app.utils_classes import classes_triees_pedagogique
+
+        # 1. Classes & Formulaire d'inscription élève
+        eleve_form = EleveForm()
+        if annee_consultee:
+            classes_query_form = get_classes_ouvertes_annee(ecole_id, annee_consultee.id)
+        else:
+            classes_query_form = Classe.query.filter_by(ecole_id=ecole_id).filter(db.false())
+        classes = classes_triees_pedagogique(classes_query_form).all()
+        eleve_form.classe_id.choices = [(c.id, c.nom_complet if hasattr(c, 'nom_complet') else c.nom) for c in classes]
+        eleve_form.parent_id.choices = [(0, "--- Aucun parent / Nouveau tuteur ---")]
+        parents_form = Utilisateur.query.filter_by(role='parent', ecole_id=ecole_id).order_by(Utilisateur.nom).all()
+        eleve_form.parent_id.choices += [(p.id, f"{p.prenom or ''} {p.nom or ''} ({p.telephone or 'Sans tel'})".strip()) for p in parents_form]
+
+        # 2. Formulaire d'encaissement de scolarité
+        form_paiement = PaiementForm()
+        inscriptions_annee = (
+            Inscription.query
+            .options(joinedload(Inscription.eleve), joinedload(Inscription.classe))
+            .filter(
+                Inscription.ecole_id == ecole_id,
+                Inscription.annee_scolaire_id == (annee_consultee.id if annee_consultee else 0),
+            )
+            .order_by(Inscription.classe_id, Inscription.eleve_id)
+            .all()
+        )
+        form_paiement.eleve_id.choices = [
+            (
+                ins.eleve_id,
+                f"{ins.eleve.nom} {ins.eleve.prenom} - {ins.classe.nom if ins.classe else 'Sans classe'}"
+            )
+            for ins in inscriptions_annee if ins.eleve
+        ]
+        if not form_paiement.eleve_id.choices:
+            eleves_all = Eleve.query.filter_by(ecole_id=ecole_id).order_by(Eleve.nom, Eleve.prenom).all()
+            form_paiement.eleve_id.choices = [(e.id, f"{e.nom} {e.prenom}") for e in eleves_all]
+
+        # 3. Formulaire d'affectation de cours / emploi du temps
+        emploi_form = AjouterEmploiForm(annee=annee_consultee)
+        emploi_form.classe_id.choices = [(c.id, c.nom) for c in classes]
+        professeurs = Professeur.query.filter_by(ecole_id=ecole_id).order_by(Professeur.nom).all()
+        emploi_form.professeur_id.choices = [(p.id, f"{p.prenom} {p.nom}") for p in professeurs]
+        if classes:
+            cours_query = Cours.query.filter_by(ecole_id=ecole_id, classe_id=classes[0].id).order_by(Cours.nom).all()
+            emploi_form.cours_id.choices = [(c.id, c.nom) for c in cours_query]
+        else:
+            emploi_form.cours_id.choices = []
+
+        # 4. Suivi des Présences aujourd'hui
+        today = date.today()
+        absents_today = Absence.query.filter(
+            Absence.ecole_id == ecole_id,
+            Absence.date_absence == today
+        ).count()
+        total_eleves = stats.get('total_eleves', 0) if stats else 0
+        if total_eleves > 0:
+            presents_today = max(0, total_eleves - absents_today)
+            taux_assiduite = round((presents_today / total_eleves) * 100, 1)
+        else:
+            presents_today = 0
+            taux_assiduite = 100.0
+        stats_presences_jour = {
+            'total': total_eleves,
+            'presents': presents_today,
+            'absents': absents_today,
+            'taux': taux_assiduite,
+            'date': today
+        }
+
+        # 5. Derniers versements enregistrés (5 dernières transactions)
+        derniers_paiements = (
+            Paiement.query
+            .options(
+                joinedload(Paiement.eleve),
+                joinedload(Paiement.inscription).joinedload(Inscription.classe)
+            )
+            .filter(
+                Paiement.ecole_id == ecole_id,
+                Paiement.statut != 'annule'
+            )
+            .order_by(Paiement.date_paiement.desc(), Paiement.id.desc())
+            .limit(5)
+            .all()
+        )
+
         return render_template(
             'index.html',
             stats=stats,
@@ -205,7 +296,14 @@ def index():
             annee_planifiee=annee_planifiee,
             etat_planifiee=etat_planifiee,
             email_non_connecte=email_non_connecte,
-            rappel_periode_suivante=rappel_periode_suivante
+            rappel_periode_suivante=rappel_periode_suivante,
+            stats_presences_jour=stats_presences_jour,
+            derniers_paiements=derniers_paiements,
+            classes=classes,
+            eleve_form=eleve_form,
+            form_paiement=form_paiement,
+            emploi_form=emploi_form,
+            return_url=url_for('main.index'),
         )
 
     # -----------------------------
@@ -393,12 +491,6 @@ def logout():
     response = redirect(url_for('main.login'))
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     return response
-
-@main.route('/aide')
-@login_required
-def aide():
-    """Page d'aide et support du site"""
-    return render_template('aide.html')
 
 @main.route('/request_reset_password', methods=['GET', 'POST'])
 @limiter.limit("5 per minute; 20 per day", key_func=get_remote_address)

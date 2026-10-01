@@ -54,7 +54,7 @@
         const isTeacherDashboard = currentPath.startsWith('/professeur');
         const isAdminArea = currentPath.startsWith('/admin') && !currentPath.includes('/support');
         const isAllowedPage = isAuthenticated && (isParentDashboard || isTeacherDashboard || isAdminArea);
-        const isExcludedPage = currentPath.includes('/login') || currentPath.includes('/onboarding') || currentPath.includes('/aide');
+        const isExcludedPage = currentPath.includes('/login') || currentPath.includes('/onboarding');
 
         return (
             navigator.onLine &&

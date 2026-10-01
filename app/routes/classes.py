@@ -202,10 +202,29 @@ def liste_classes():
             ]
         })
 
+    classe_form = ClasseForm()
+    niveaux_modal_form = []
+    if current_user.role in ('admin', 'super_admin'):
+        professeurs_pp = get_ecole_filter_query(Professeur).filter_by(ecole_id=ecole_id).order_by(Professeur.nom).all()
+        classe_form.professeur_principal_id.choices = [(0, "--- Aucun professeur principal ---")] + [
+            (p.id, f"{p.prenom} {p.nom}") for p in professeurs_pp
+        ]
+        if annee_consultee:
+            classe_form.annee_scolaire_id.choices = [(annee_consultee.id, annee_consultee.nom)]
+            classe_form.annee_scolaire_id.data = annee_consultee.id
+            from app.services.niveaux_annuels import get_niveaux_annuels_actifs
+            niveaux_annee_actifs = get_niveaux_annuels_actifs(ecole_id, annee_consultee.id)
+            classe_form.niveau_id.choices = [(n.id, n.nom) for n in niveaux_annee_actifs]
+            classe_form.niveau.choices = [(n.nom, n.nom) for n in niveaux_annee_actifs]
+            niveaux_modal_form = [{"id": n.id, "nom": n.nom, "cycle": n.cycle} for n in niveaux_annee_actifs]
+
     return render_template(
         "classes.html",
         classes=classes_paginated.items,
         pagination=classes_paginated,
+        classe_form=classe_form,
+        form=classe_form,
+        niveaux_modal_form=niveaux_modal_form,
         total_eleves=sum(c.effectif_reel for c in all_classes),
         moyenne_effectif=int(sum(c.effectif_reel for c in all_classes) / len(all_classes)) if all_classes else 0,
         classes_pleines=sum(1 for c in all_classes if c.effectif_reel >= (c.capacite or c.capacite_max or 35)),
@@ -317,10 +336,15 @@ def generation_rapide_classes():
 
 
 @main.route("/classes/add", methods=["GET", "POST"])
+@main.route("/ajouter_classe", methods=["GET", "POST"])
 @login_required
 @role_required('admin')
 def ajouter_classe():
     from app.models import AnneeScolaire, Professeur, Classe, NiveauScolaire
+
+    # Redirection propre vers la page mère pour toute requête GET historique
+    if request.method == "GET":
+        return redirect(url_for("main.liste_classes"))
 
     # Résolution de l'année cible : paramètre explicite > année consultée > année active > dernière année non archivée
     annee_cible = get_annee_consultee(current_user.ecole_id)
@@ -349,12 +373,6 @@ def ajouter_classe():
     form.niveau_id.choices = [(n.id, n.nom) for n in niveaux_annee]
     form.niveau.choices = [(n.nom, n.nom) for n in niveaux_annee]
 
-    if request.method == "GET":
-        if selected_niveau_id and any(choice_id == selected_niveau_id for choice_id, _label in form.niveau_id.choices):
-            form.niveau_id.data = selected_niveau_id
-        elif not form.niveau_id.data and form.niveau_id.choices:
-            form.niveau_id.data = form.niveau_id.choices[0][0]
-
     # Garde-fou 3 : Calculer niveau et nom côté backend si non renseignés dans le payload UI
     niveau_obj = db.session.get(NiveauScolaire, form.niveau_id.data) if form.niveau_id.data else None
     if niveau_obj:
@@ -368,7 +386,7 @@ def ajouter_classe():
             from app.services.structure_annuelle import niveau_est_dans_structure
             if not niveau_est_dans_structure(current_user.ecole_id, annee_cible.id, form.niveau_id.data):
                 flash("Le niveau sélectionné n'est pas configuré pour cette année scolaire.", "danger")
-                return redirect(url_for("main.ajouter_classe"))
+                return redirect(url_for("main.liste_classes"))
 
             prof_id = form.professeur_principal_id.data if (form.professeur_principal_id.data and form.professeur_principal_id.data > 0) else None
             capacite_val = form.capacite.data or form.effectif.data or 35
@@ -383,7 +401,7 @@ def ajouter_classe():
             )
             if error_msg:
                 flash(error_msg, "warning")
-                return redirect(url_for("main.ajouter_classe", niveau_id=form.niveau_id.data))
+                return redirect(url_for("main.liste_classes"))
             flash(f"Classe '{classe.nom}' ajoutée avec succès pour l'année {annee_cible.nom}.", "success")
             return redirect(url_for("main.liste_classes"))
 
@@ -391,22 +409,13 @@ def ajouter_classe():
             db.session.rollback()
             current_app.logger.error(f"Erreur ajout classe : {e}")
             flash("Erreur lors de l'ajout de la classe.", "danger")
-            return redirect(url_for("main.ajouter_classe", niveau_id=form.niveau_id.data))
+            return redirect(url_for("main.liste_classes"))
+    else:
+        for field, errors in form.errors.items():
+            for error in errors:
+                flash(f"{form[field].label.text if field in form else field} : {error}", "danger")
 
-    niveaux_form = []
-    for niveau_id, label in form.niveau_id.choices:
-        niveau = db.session.get(NiveauScolaire, niveau_id)
-        if niveau:
-            niveaux_form.append({"id": niveau.id, "nom": label, "cycle": niveau.cycle})
-
-    return render_template(
-        "add_class.html",
-        form=form,
-        professeurs=professeurs,
-        annee_active=annee_cible,
-        niveaux_form=niveaux_form,
-        selected_niveau_id=selected_niveau_id,
-    )
+    return redirect(url_for("main.liste_classes"))
 
 @main.route("/classes/<int:classe_id>")
 @login_required

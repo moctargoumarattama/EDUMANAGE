@@ -1,0 +1,133 @@
+<div class="modal fade" id="modalAjouterCours" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalAjouterCoursLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="modalAjouterCoursLabel">
+                    <i class="fas fa-book-open"></i>
+                    <span>Ajouter un nouveau cours</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            {% set f_crs = form or cours_form %}
+            <form method="POST" action="{{ url_for('main.ajouter_cours') }}" class="needs-validation" id="formAjouterCours" novalidate>
+                {{ f_crs.hidden_tag() if f_crs and f_crs.hidden_tag is defined else '' }}
+                <div class="modal-body p-4">
+                    {% if annee_consultee %}
+                    <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom flex-wrap gap-2">
+                        <span class="text-muted small">Année scolaire consultée :</span>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1.5 rounded-pill small fw-semibold">
+                            <i class="fas fa-calendar-alt me-1"></i>{{ annee_consultee.nom }}
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    <div class="row g-3">
+                        <div class="col-12 col-md-8">
+                            <label class="form-label fw-semibold" for="modal_cours_nom">Nom de la matière / cours <span class="text-danger">*</span></label>
+                            {% if f_crs and f_crs.nom %}
+                                {{ f_crs.nom(class="form-control", id="modal_cours_nom", placeholder="Ex: Mathématiques, Français, SVT...", required=true) }}
+                            {% else %}
+                                <input type="text" class="form-control" name="nom" id="modal_cours_nom" placeholder="Ex: Mathématiques, Français, SVT..." required>
+                            {% endif %}
+                            <div class="invalid-feedback">Le nom du cours est obligatoire.</div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold" for="modal_cours_coefficient">Coefficient <span class="text-danger">*</span></label>
+                            {% if f_crs and f_crs.coefficient %}
+                                {{ f_crs.coefficient(class="form-control", id="modal_cours_coefficient", placeholder="1", step="any", required=true) }}
+                            {% else %}
+                                <input type="number" step="any" class="form-control" name="coefficient" id="modal_cours_coefficient" value="1" placeholder="1" required>
+                            {% endif %}
+                            <div class="invalid-feedback">Le coefficient est requis.</div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="modal_cours_classe_id">Classe cible <span class="text-danger">*</span></label>
+                            {% if f_crs and f_crs.classe_id %}
+                                {{ f_crs.classe_id(class="form-select", id="modal_cours_classe_id", required=true) }}
+                            {% else %}
+                                <select class="form-select" name="classe_id" id="modal_cours_classe_id" required>
+                                    <option value="" disabled selected>-- Sélectionner une classe --</option>
+                                </select>
+                            {% endif %}
+                            <div class="invalid-feedback">Veuillez obligatoirement sélectionner une classe.</div>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="modal_cours_professeur_id">Professeur assigné</label>
+                            {% if f_crs and f_crs.professeur_id %}
+                                {{ f_crs.professeur_id(class="form-select", id="modal_cours_professeur_id") }}
+                            {% else %}
+                                <select class="form-select" name="professeur_id" id="modal_cours_professeur_id">
+                                    <option value="">-- Aucun professeur assigné --</option>
+                                </select>
+                            {% endif %}
+                            <div class="form-text text-muted small">Peut être affecté plus tard si besoin.</div>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" for="modal_cours_description">Description ou objectifs (optionnel)</label>
+                            {% if f_crs and f_crs.description %}
+                                {{ f_crs.description(class="form-control", id="modal_cours_description", rows="3", placeholder="Brève présentation du cours ou remarques pédagogiques...") }}
+                            {% else %}
+                                <textarea class="form-control" name="description" id="modal_cours_description" rows="3" placeholder="Brève présentation du cours ou remarques pédagogiques..."></textarea>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light px-4 py-3">
+                    <button type="button" class="btn btn-outline-secondary px-3" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Annuler
+                    </button>
+                    <button type="submit" class="btn btn-success px-4 shadow-sm" id="btnSubmitAjouterCours">
+                        <span class="spinner-border spinner-border-sm me-1 d-none submit-spinner" role="status" aria-hidden="true"></span>
+                        <span class="submit-text"><i class="fas fa-check me-1"></i>Enregistrer le cours</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modalEl = document.getElementById('modalAjouterCours');
+    const formEl = document.getElementById('formAjouterCours');
+    if (!modalEl || !formEl) return;
+
+    const submitBtn = modalEl.querySelector('#btnSubmitAjouterCours');
+
+    // Reset à la fermeture
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        formEl.reset();
+        formEl.classList.remove('was-validated');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            const spinner = submitBtn.querySelector('.submit-spinner');
+            if (spinner) spinner.classList.add('d-none');
+            const textSpan = submitBtn.querySelector('.submit-text');
+            if (textSpan) textSpan.innerHTML = '<i class="fas fa-check me-1"></i>Enregistrer le cours';
+        }
+    });
+
+    // Anti double-clic
+    formEl.addEventListener('submit', function (event) {
+        if (!formEl.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+            formEl.classList.add('was-validated');
+            return;
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            const spinner = submitBtn.querySelector('.submit-spinner');
+            if (spinner) spinner.classList.remove('d-none');
+            const textSpan = submitBtn.querySelector('.submit-text');
+            if (textSpan) textSpan.textContent = 'Enregistrement en cours...';
+        }
+    });
+});
+</script>

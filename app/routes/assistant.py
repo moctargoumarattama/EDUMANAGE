@@ -191,6 +191,242 @@ def _get_chitchat_response(text: str) -> Optional[str]:
     return None
 
 
+def _get_application_guide_response(text: str) -> Optional[str]:
+    """
+    Fournit une assistance contextuelle et un guide pas-à-pas direct pour l'utilisation de KLASORA.
+    Remplace l'ancienne page statique /aide en apportant un conseil précis avec liens directs.
+    """
+    if not text:
+        return None
+    raw = text.lower().strip()
+    norm = _normalize_text(raw)
+
+    # 1. Inscrire / Ajouter un élève
+    if any(k in norm for k in (
+        "inscrire un eleve", "inscrire eleve", "ajouter un eleve", "ajouter eleve", 
+        "nouvel eleve", "creer un eleve", "creer eleve", "inscription eleve", "comment inscrire"
+    )):
+        return (
+            "🎓 **Guide : Inscrire un nouvel élève sur KLASORA**\n\n"
+            "Pour inscrire un élève dans votre établissement :\n\n"
+            "1. Cliquez sur **« Élèves »** dans la barre latérale gauche (ou sur le bouton **« + Inscrire un élève »** depuis le tableau de bord).\n"
+            "2. Renseignez les informations de l'élève (Nom, Prénom, Date de naissance, Sexe, Classe d'affectation).\n"
+            "3. Renseignez les coordonnées des parents/tuteurs (Téléphone, Nom, Email).\n"
+            "4. Cliquez sur **« Enregistrer l'inscription »**.\n\n"
+            "💡 *Astuce KLASORA* : Lors de l'inscription, le **compte d'accès des parents est généré automatiquement** avec leurs identifiants !\n\n"
+            "👉 [Accéder à la gestion des élèves](/eleves)"
+        )
+
+    # 2. Créer une classe
+    if any(k in norm for k in (
+        "creer une classe", "creer classe", "ajouter une classe", "ajouter classe",
+        "nouvelle classe", "configurer classe", "comment creer une classe"
+    )):
+        return (
+            "🏫 **Guide : Créer et gérer une classe**\n\n"
+            "Pour configurer vos divisions et classes :\n\n"
+            "1. Rendez-vous dans **« Classes »** depuis le menu latéral gauche.\n"
+            "2. Cliquez sur le bouton **« + Nouvelle classe »**.\n"
+            "3. Indiquez le **Nom** de la classe (ex: *6ème A*, *Terminale S1*).\n"
+            "4. Choisissez le **Cycle** (*Primaire*, *Collège* ou *Lycée*), le niveau scolaire et la section/série.\n"
+            "5. Définissez la **Capacité maximale** de la salle et désignez éventuellement un professeur principal.\n"
+            "6. Cliquez sur **« Créer la classe »**.\n\n"
+            "👉 [Accéder à la gestion des classes](/classes)"
+        )
+
+    # 3. Cours & Matières
+    if any(k in norm for k in (
+        "ajouter un cours", "ajouter cours", "affecter un cours", "affecter cours",
+        "creer un cours", "creer cours", "ajouter matiere", "nouveau cours", "comment affecter un cours"
+    )):
+        return (
+            "📚 **Guide : Ajouter et affecter un cours**\n\n"
+            "Pour organiser les enseignements par classe :\n\n"
+            "1. Rendez-vous dans **« Cours & Matières »** (ou utilisez l'action rapide **« + Affecter un cours »** sur l'accueil).\n"
+            "2. Cliquez sur **« + Ajouter un cours »**.\n"
+            "3. Sélectionnez la **Classe** concernée.\n"
+            "4. Renseignez le libellé de la **Matière** (ex: *Mathématiques*, *Français*, *SVT*).\n"
+            "5. Précisez le **Coefficient** officiel pour le calcul des moyennes du bulletin.\n"
+            "6. Attribuez l'**Enseignant** responsable de ce cours et validez.\n\n"
+            "👉 [Accéder à la gestion des cours](/cours)"
+        )
+
+    # 4. Professeurs / Enseignants
+    if any(k in norm for k in (
+        "ajouter un professeur", "ajouter professeur", "ajouter un prof", "ajouter prof",
+        "ajouter enseignant", "nouveau professeur", "nouveau prof", "nouveau enseignant", "recruter prof"
+    )):
+        return (
+            "👨‍🏫 **Guide : Gérer le corps enseignant**\n\n"
+            "Pour inscrire un nouveau professeur :\n\n"
+            "1. Ouvrez la section **« Professeurs »** dans la barre latérale gauche.\n"
+            "2. Cliquez sur **« + Nouveau professeur »**.\n"
+            "3. Saisissez son identité, sa spécialité principale, son téléphone et son adresse email.\n"
+            "4. Le compte utilisateur de l'enseignant est alors créé afin qu'il puisse se connecter pour faire l'appel et saisir ses notes.\n\n"
+            "👉 [Accéder à la liste des professeurs](/professeurs)"
+        )
+
+    # 5. Point du jour & Appel / Absences
+    if any(k in norm for k in (
+        "faire l appel", "faire appel", "comment pointer", "point du jour", "saisir absences",
+        "enregistrer absence", "declarer absence", "gestion des absences", "marquer absent"
+    )):
+        return (
+            "⏱️ **Guide : Faire l'appel & Suivre les absences**\n\n"
+            "Pour relever les présences des élèves en début de journée ou par cours :\n\n"
+            "1. Rendez-vous dans **« Point du jour »** via la barre latérale gauche.\n"
+            "2. Choisissez la **Classe** et la **Date** du jour.\n"
+            "3. Par défaut, tous les élèves sont présumés présents. Il vous suffit de cocher les élèves **Absents** ou **En retard**.\n"
+            "4. Vous pouvez renseigner un motif ou cocher *Justifié* si un justificatif médical/parental a été fourni.\n"
+            "5. Cliquez sur **« Enregistrer le point du jour »**.\n\n"
+            "💡 *Astuce* : Pour analyser l'historique complet des absences de chaque élève, consultez [Suivi des absences](/absences).\n\n"
+            "👉 [Ouvrir le Point du jour](/point-du-jour)"
+        )
+
+    # 6. Saisie des notes & Évaluations
+    if any(k in norm for k in (
+        "saisir les notes", "saisir notes", "enregistrer notes", "mettre des notes",
+        "ajouter une note", "saisie des notes", "evaluations", "comment noter"
+    )):
+        return (
+            "📝 **Guide : Saisie des notes & Évaluations**\n\n"
+            "Pour saisir les notes obtenues par les élèves :\n\n"
+            "1. Rendez-vous dans **« Notes & Devoirs »** via le menu latéral gauche.\n"
+            "2. Choisissez la **Classe**, la **Matière / Cours** et le **Trimestre / Semestre** en cours.\n"
+            "3. Définissez le type d'évaluation (*Interrogation*, *Devoir surveillé*, *Composition*).\n"
+            "4. Renseignez la note sur 20 pour chaque élève de la liste.\n"
+            "5. Cliquez sur **« Enregistrer les notes »**.\n\n"
+            "💡 *Précision* : Les moyennes individuelles et de classe sont recalculées automatiquement en temps réel avec les coefficients !\n\n"
+            "👉 [Accéder à la saisie des notes](/notes)"
+        )
+
+    # 7. Bulletins & Clôture de trimestre
+    if any(k in norm for k in (
+        "generer les bulletins", "creer bulletins", "imprimer bulletins", "ou sont les bulletins",
+        "bulletin scolaire", "bulletins", "cloturer trimestre", "calculer moyennes generales", "bulletin trimestriel"
+    )):
+        return (
+            "📄 **Guide : Génération et Clôture des bulletins**\n\n"
+            "Pour éditer les bulletins officiels d'une classe :\n\n"
+            "1. Rendez-vous dans **« Bulletins »** via le menu latéral gauche.\n"
+            "2. Sélectionnez la **Classe** et la **Période** (Trimestre 1, 2 ou 3).\n"
+            "3. Vérifiez les moyennes globales, les rangs attribués et les appréciations du conseil de classe.\n"
+            "4. Cliquez sur **« Clôturer la période »** pour verrouiller les modifications.\n"
+            "5. Téléchargez et imprimez l'ensemble des bulletins en **PDF officiel** en un seul clic !\n\n"
+            "👉 [Accéder aux bulletins scolaires](/bulletins)"
+        )
+
+    # 8. Paiements & Scolarité / Impayés
+    if any(k in norm for k in (
+        "enregistrer un paiement", "enregistrer paiement", "comment encaisser", "encaisser scolarite",
+        "frais de scolarite", "paiement scolarite", "gestion des paiements", "recu de paiement"
+    )):
+        return (
+            "💰 **Guide : Encaisser les frais de scolarité & Paiements**\n\n"
+            "Pour enregistrer un versement effectué par une famille :\n\n"
+            "1. Rendez-vous dans **« Paiements & Frais »** (ou cliquez sur le bouton rapide **« + Encaisser scolarité »** sur l'accueil).\n"
+            "2. Recherchez et sélectionnez l'**Élève** concerné.\n"
+            "3. Indiquez le **Montant versé**, le motif (*Frais d'inscription*, *Mensualité*, *Cantine*, *Transport*) et le mode (*Espèces*, *Virement*, *Chèque*).\n"
+            "4. Cliquez sur **« Valider le paiement »** pour générer et imprimer le **reçu officiel** avec numéro de reçu unique.\n\n"
+            "💡 *Suivi des impayés* : Le tableau de bord et la page des paiements vous indiquent instantanément le solde restant dû pour chaque famille.\n\n"
+            "👉 [Accéder à la gestion des paiements](/paiements)"
+        )
+
+    # 9. WhatsApp & Alertes
+    if any(k in norm for k in (
+        "connecter whatsapp", "connexion whatsapp", "activer whatsapp", "alertes whatsapp",
+        "sms parents", "messages parents", "whatsapp"
+    )):
+        return (
+            "📲 **Guide : Notifications & Connexion WhatsApp**\n\n"
+            "Pour communiquer directement avec les familles sur leur téléphone :\n\n"
+            "1. Cliquez sur le bouton **« WhatsApp »** situé dans la barre supérieure.\n"
+            "2. Scannez le **QR Code** avec l'application WhatsApp de l'établissement.\n"
+            "3. Une fois connecté, vous pourrez envoyer instantanément :\n"
+            "   • Des alertes d'absence dès la fin de l'appel du matin.\n"
+            "   • Des rappels d'échéances et de scolarité impayée.\n"
+            "   • Les notifications de disponibilité des bulletins.\n\n"
+            "👉 [Ouvrir la connexion WhatsApp](/whatsapp-connect)"
+        )
+
+    # 10. Comptes & Utilisateurs internes
+    if any(k in norm for k in (
+        "creer un compte", "creer utilisateur", "ajouter utilisateur", "gestion des utilisateurs",
+        "comptes utilisateurs", "creer acces", "droits d acces"
+    )):
+        return (
+            "👥 **Guide : Gestion des comptes et accès utilisateurs**\n\n"
+            "Pour créer ou gérer les accès internes du personnel :\n\n"
+            "1. Cliquez sur **« Comptes »** dans la barre supérieure.\n"
+            "2. Cliquez sur **« + Nouvel utilisateur »**.\n"
+            "3. Renseignez le nom, l'email professionnel, le mot de passe provisoire et le rôle attribué (*Directeur adjoint*, *Secrétaire*, *Comptable*).\n"
+            "4. L'utilisateur pourra immédiatement se connecter et travailler selon ses permissions.\n\n"
+            "👉 [Gérer les comptes utilisateurs](/gestion-utilisateurs)"
+        )
+
+    # 11. Année scolaire & Rentrée
+    if any(k in norm for k in (
+        "changer d annee", "changer annee", "nouvelle annee", "annee scolaire",
+        "preparer la rentree", "cloturer l annee", "annee active"
+    )):
+        return (
+            "📅 **Guide : Année scolaire & Préparation de rentrée**\n\n"
+            "Pour configurer ou basculer d'année scolaire :\n\n"
+            "1. Cliquez sur le **badge de l'année scolaire en haut à droite** (ex: *2026-2027 (Active)*).\n"
+            "2. Vous pouvez créer la prochaine année scolaire à l'avance (statut *Planifiée*).\n"
+            "3. Lancez l'assistant de rentrée pour faire passer automatiquement les élèves admis dans la classe supérieure.\n"
+            "4. Activez la nouvelle année dès le jour officiel de la rentrée des classes.\n\n"
+            "👉 [Accéder à la gestion des années scolaires](/gestion-annees)"
+        )
+
+    # 12. Mode Hors-ligne (PWA)
+    if any(k in norm for k in (
+        "hors ligne", "mode hors ligne", "sans internet", "pwa", "synchronisation hors ligne", "sync hors ligne"
+    )):
+        return (
+            "📶 **Guide : Mode Hors-ligne & Synchronisation**\n\n"
+            "KLASORA est conçu pour fonctionner même lors des coupures de connexion Internet :\n\n"
+            "1. Vous pouvez continuer à pointer les absences ou consulter vos fiches élèves sans connexion.\n"
+            "2. Vos actions sont sécurisées localement dans votre navigateur.\n"
+            "3. Dès que votre connexion est rétablie, cliquez sur **« Sync hors-ligne »** dans la barre supérieure pour téléverser toutes vos modifications sur le serveur.\n\n"
+            "👉 [Accéder à la synchronisation hors-ligne](/sync-hors-ligne)"
+        )
+
+    # 13. Emplois du temps
+    if any(k in norm for k in (
+        "emploi du temps", "emplois du temps", "planning", "planning scolaire", "horaires des cours"
+    )):
+        return (
+            "🗓️ **Guide : Planifier les emplois du temps**\n\n"
+            "Pour organiser les horaires de cours :\n\n"
+            "1. Ouvrez **« Emplois du temps »** dans le menu latéral gauche.\n"
+            "2. Sélectionnez la classe voulue.\n"
+            "3. Positionnez chaque matière sur la grille horaire de la semaine en choisissant la salle et le professeur.\n"
+            "4. Les conflits d'horaires pour un même professeur sont détectés pour éviter les chevauchements.\n\n"
+            "👉 [Accéder aux emplois du temps](/admin-emplois)"
+        )
+
+    # 14. Guide général / Aide globale
+    if any(k in norm for k in (
+        "aide", "besoin d aide", "comment utiliser", "guide d utilisation", "guide",
+        "tutoriel", "comment ca marche", "comment fonctionne", "ou se trouve", "que puis je faire"
+    )):
+        return (
+            "🎓 **Centre d'Assistance & Guide KLASORA**\n\n"
+            "Je suis là pour vous accompagner sur l'ensemble de la plateforme ! Voici les raccourcis clés :\n\n"
+            "• 👤 **Élèves & Inscriptions** : Inscrire et gérer les dossiers `[Élèves](/eleves)`\n"
+            "• 🏫 **Structure Pédagogique** : Configurer les `[Classes](/classes)` et `[Cours](/cours)`\n"
+            "• ⏱️ **Présences & Appel** : Pointer l'appel quotidien `[Point du jour](/point-du-jour)`\n"
+            "• 📝 **Résultats Scolaires** : Saisir les `[Notes](/notes)` et éditer les `[Bulletins](/bulletins)`\n"
+            "• 💰 **Comptabilité Scolaire** : Encaisser et suivre la caisse `[Paiements](/paiements)`\n"
+            "• 📲 **Communication** : Alertes automatiques `[WhatsApp](/whatsapp-connect)`\n"
+            "• 👥 **Personnel & Accès** : Administrer les `[Comptes utilisateurs](/gestion-utilisateurs)`\n\n"
+            "💬 *Demandez-moi simplement ce que vous voulez faire (ex: « Comment inscrire un élève ? » ou « Comment faire l'appel ? ») et je vous guide pas à pas !*"
+        )
+
+    return None
+
+
 def _clean_search_term(term: str) -> str:
     """Nettoie les stop-words et préfixes fréquents d'une question scolaire ou conversationnelle."""
     if not term:
@@ -1531,6 +1767,13 @@ def api_assistant_stream():
             yield sse_event(chitchat, done=True)
         return Response(chitchat_stream(), mimetype="text/event-stream")
 
+    # 1b. Guide d'utilisation / Aide intégrée KLASORA
+    guide = _get_application_guide_response(question)
+    if guide:
+        def guide_stream():
+            yield sse_event(guide, done=True)
+        return Response(guide_stream(), mimetype="text/event-stream")
+
     # 2. Fast-Path Intent Detection
     intent = _fast_detect_intent_and_entities(question, ecole_id=ecole_id)
     intention = intent.get("intention") if intent else "autre"
@@ -1681,6 +1924,18 @@ def api_assistant_query_data():
             "donnees_trouvees": 0,
             "donnees": [],
             "reply": chitchat,
+        })
+
+    # 1b. Interception des questions d'aide et guide d'utilisation
+    guide = _get_application_guide_response(question)
+    if guide:
+        return jsonify({
+            "success": True,
+            "intention": "guide_utilisation",
+            "criteres": {"intention": "guide_utilisation", "eleve": None, "classe": None},
+            "donnees_trouvees": 0,
+            "donnees": [],
+            "reply": guide,
         })
 
     ecole_id = getattr(current_user, "ecole_id", None)

@@ -40,7 +40,7 @@
                     <i class="fas fa-chevron-down" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
                 {% if form and current_user.role in ['admin', 'super_admin'] and affectations_modifiables %}
-                <button type="button" class="btn btn-sm btn-primary fw-semibold py-1.5 px-3 rounded-pill shadow-sm" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours" aria-expanded="false" aria-controls="collapseAjouterCours" id="btnToggleAddCourse">
+                <button type="button" class="btn btn-sm btn-primary fw-semibold py-1.5 px-3 rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAjouterCours" id="btnToggleAddCourse">
                     <i class="fas fa-plus-circle me-1"></i>Nouveau cours
                 </button>
                 {% endif %}
@@ -57,7 +57,7 @@
                     <i class="fas fa-chevron-down" id="iconToggleAllMob"></i><span id="textToggleAllMob">Déplier</span>
                 </button>
                 {% if form and current_user.role in ['admin', 'super_admin'] and affectations_modifiables %}
-                <button type="button" class="btn btn-xs btn-primary fw-semibold py-1 px-2.5 rounded-pill ms-auto" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours" aria-expanded="false" aria-controls="collapseAjouterCours">
+                <button type="button" class="btn btn-xs btn-primary fw-semibold py-1 px-2.5 rounded-pill ms-auto" data-bs-toggle="modal" data-bs-target="#modalAjouterCours">
                     <i class="fas fa-plus me-1"></i>+ Cours
                 </button>
                 {% endif %}
@@ -83,52 +83,9 @@
         {% endfor %}
     </div>
 
-    <!-- Formulaire d'ajout (admin, rétractable pour préserver le confort mobile) -->
+    <!-- Modale d'ajout de cours -->
     {% if form and current_user.role in ['admin', 'super_admin'] and affectations_modifiables %}
-    <div class="collapse mb-4" id="collapseAjouterCours">
-        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
-            <div class="card-header bg-primary text-white py-3 px-4 d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="fas fa-plus-circle fa-lg"></i>
-                    <h5 class="mb-0 fw-bold">Ajouter un nouveau cours</h5>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours" aria-label="Fermer"></button>
-            </div>
-            <div class="card-body p-4 bg-light bg-opacity-50">
-                <form method="POST" action="{{ url_for('main.ajouter_cours') }}" class="needs-validation" novalidate>
-                    {{ form.hidden_tag() }}
-                    <div class="row g-3">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label fw-semibold" for="nom">Nom de la matière / cours <span class="text-danger">*</span></label>
-                            {{ form.nom(class="form-control", id="nom", placeholder="Ex: Mathématiques, Français, SVT...") }}
-                        </div>
-                        <div class="col-12 col-sm-6 col-md-2">
-                            <label class="form-label fw-semibold" for="coefficient">Coefficient <span class="text-danger">*</span></label>
-                            {{ form.coefficient(class="form-control", id="coefficient", placeholder="1", step="any") }}
-                        </div>
-                        <div class="col-12 col-sm-6 col-md-3">
-                            <label class="form-label fw-semibold" for="classe_id">Classe cible <span class="text-danger">*</span></label>
-                            {{ form.classe_id(class="form-select", id="classe_id") }}
-                        </div>
-                        <div class="col-12 col-md-3">
-                            <label class="form-label fw-semibold" for="professeur_id">Professeur assigné</label>
-                            {{ form.professeur_id(class="form-select", id="professeur_id") }}
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label fw-semibold" for="description">Description ou objectifs (optionnel)</label>
-                            {{ form.description(class="form-control", id="description", rows="2", placeholder="Brève présentation du cours ou remarques pédagogiques...") }}
-                        </div>
-                        <div class="col-12 d-flex justify-content-end gap-2 pt-2">
-                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours">Annuler</button>
-                            <button type="submit" class="btn btn-success px-4">
-                                <i class="fas fa-check me-2"></i>Enregistrer le cours
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+    {% include 'partials/_modal_ajouter_cours.html' %}
     {% endif %}
 
     <!-- Barre d'outils : recherche, filtres et tri -->
@@ -653,7 +610,7 @@
         <h2 class="h4 fw-bold text-dark">Aucun cours configuré</h2>
         <p class="text-muted mb-3">Aucun cours n'est configuré pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong>.</p>
         {% if form and current_user.role in ['admin', 'super_admin'] and affectations_modifiables %}
-        <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#collapseAjouterCours">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAjouterCours">
             <i class="fas fa-plus-circle me-2"></i>Créer le premier cours
         </button>
         {% endif %}

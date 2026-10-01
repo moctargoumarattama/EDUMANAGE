@@ -8942,3 +8942,375 @@ a,
     transform: scale(0.96) !important;
     transition: transform 0.05s ease-out !important;
 }
+
+
+/* ==================================================
+   DISPOSITION DESKTOP ADMIN & SUPER ADMIN (SIDEBAR SAAS)
+   ================================================== */
+@media (min-width: 992px) {
+    .app-layout-container {
+        display: flex;
+        height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
+        width: 100%;
+        background-color: #f8fafc;
+    }
+
+    .app-sidebar-admin {
+        width: 245px;
+        min-width: 245px;
+        max-width: 245px;
+        height: 100vh;
+        max-height: 100vh;
+        position: sticky;
+        top: 0;
+        background-color: #ffffff;
+        border-right: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        z-index: 1020;
+        overflow: hidden;
+    }
+
+    .sidebar-brand-wrapper {
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        flex-shrink: 0;
+    }
+
+    .sidebar-brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .sidebar-logo {
+        max-height: 32px;
+        width: auto;
+    }
+
+    .sidebar-brand-text {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .brand-title {
+        font-family: var(--font-monospace, monospace);
+        font-weight: 700;
+        color: #0f172a;
+        font-size: 1.1rem;
+        letter-spacing: -0.5px;
+        line-height: 1.1;
+    }
+
+    .brand-subtitle {
+        font-size: 0.68rem;
+        color: #64748b;
+        font-weight: 600;
+        margin-top: 1px;
+    }
+
+    .sidebar-nav {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.5rem 0.65rem;
+        scrollbar-width: thin;
+    }
+
+    .nav-section-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: #94a3b8;
+        letter-spacing: 0.5px;
+        padding: 0.3rem 0.65rem 0.15rem 0.65rem;
+        text-transform: uppercase;
+        margin-top: 0.15rem;
+    }
+
+    .nav-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .sidebar-nav .nav-list.mb-3 {
+        margin-bottom: 0.35rem !important;
+    }
+
+    .sidebar-link,
+    .nav-link-item {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 7px 12px;
+        color: #334155;
+        font-size: 0.84rem;
+        font-weight: 500;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        transition: all 0.18s ease-in-out;
+        margin-bottom: 1px;
+    }
+
+    .sidebar-link:hover,
+    .nav-link-item:hover {
+        background-color: #f1f5f9;
+        color: #2563eb;
+    }
+
+    .sidebar-link.active,
+    .nav-link-item.active {
+        background-color: #2563eb;
+        color: #ffffff !important;
+        font-weight: 600;
+        box-shadow: 0 3px 8px rgba(37, 99, 235, 0.28);
+    }
+
+    .sidebar-link.active .nav-icon,
+    .nav-link-item.active .nav-icon {
+        color: #ffffff !important;
+    }
+
+    .nav-icon {
+        color: #64748b;
+        font-size: 0.9rem;
+        width: 18px;
+        text-align: center;
+        flex-shrink: 0;
+        transition: color 0.18s ease;
+    }
+
+    .sidebar-footer {
+        padding: 0.55rem 0.75rem;
+        border-top: 1px solid #f1f5f9;
+        background-color: #ffffff;
+        flex-shrink: 0;
+    }
+
+    .user-profile-widget {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.15rem 0.25rem;
+    }
+
+    .avatar-circle {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: #ffffff;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        flex-shrink: 0;
+        box-shadow: 0 2px 5px rgba(37, 99, 235, 0.2);
+    }
+
+    .user-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .user-name {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #0f172a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.2;
+    }
+
+    .user-role {
+        display: block;
+        font-size: 0.66rem;
+        color: #64748b;
+        line-height: 1.2;
+    }
+
+    .logout-btn {
+        color: #94a3b8;
+        font-size: 1rem;
+        padding: 0.3rem 0.45rem;
+        border-radius: 0.375rem;
+        transition: color 0.2s, background-color 0.2s;
+        text-decoration: none;
+    }
+
+    .logout-btn:hover {
+        color: #ef4444;
+        background-color: #fef2f2;
+    }
+
+    /* Main Area Desktop */
+    .app-main-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
+        background-color: #f8fafc;
+    }
+
+    .app-topbar-admin {
+        height: 60px;
+        min-height: 60px;
+        background-color: #ffffff;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 1.5rem;
+        position: sticky;
+        top: 0;
+        z-index: 1010;
+    }
+
+    .topbar-page-label {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+    }
+
+    .topbar-left {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+    }
+
+    .topbar-quick-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding-left: 1.25rem;
+        margin-left: 1.25rem;
+        border-left: 1px solid #e2e8f0;
+    }
+
+    .topbar-nav-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 50rem;
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: #334155;
+        text-decoration: none;
+        transition: all 0.18s ease-in-out;
+        white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    .topbar-nav-pill i {
+        font-size: 0.85rem;
+        transition: transform 0.18s ease;
+    }
+
+    .topbar-nav-pill:hover {
+        background-color: #eff6ff;
+        border-color: #bfdbfe;
+        color: #2563eb;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.12);
+    }
+
+    .topbar-nav-pill:hover i {
+        transform: scale(1.12);
+    }
+
+    .topbar-nav-pill.active {
+        background-color: #2563eb;
+        border-color: #2563eb;
+        color: #ffffff !important;
+        font-weight: 600;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.28);
+    }
+
+    .topbar-nav-pill.active i {
+        color: #ffffff !important;
+    }
+
+    @media (min-width: 992px) and (max-width: 1250px) {
+        .topbar-nav-pill {
+            padding: 0.3rem 0.55rem;
+            font-size: 0.76rem;
+            gap: 0.3rem;
+        }
+    }
+
+    .topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .topbar-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.85rem;
+        border-radius: 50rem;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        font-size: 0.82rem;
+        color: #334155;
+    }
+
+    .topbar-action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #475569;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        font-size: 1rem;
+    }
+
+    .topbar-action-btn:hover {
+        background-color: #eff6ff;
+        color: #2563eb;
+        border-color: #bfdbfe;
+    }
+
+    .app-content-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem;
+    }
+
+    .app-content-constrained {
+        max-width: 1400px;
+        margin: 0 auto;
+        width: 100%;
+        padding-bottom: 2.5rem;
+    }
+}
+
+/* Neutralisation du chevauchement de l'Assistant IA sur toutes les résolutions */
+#btnAssistantIA,
+.assistant-ia-trigger,
+.assistant-widget-toggle,
+.assistant-floating-btn,
+.assistant-trigger {
+    position: fixed !important;
+    bottom: 24px !important;
+    right: 24px !important;
+    z-index: 1030 !important;
+}

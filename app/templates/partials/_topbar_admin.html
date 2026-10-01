@@ -1,0 +1,147 @@
+<header class="app-topbar-admin d-none d-lg-flex" aria-label="Barre supérieure">
+    <div class="topbar-left">
+        <!-- Intitulé de la page / Module actif -->
+        <div class="topbar-page-label">
+            {% if request.endpoint == 'main.index' %}
+                <i class="fas fa-th-large me-2 text-primary"></i>Tableau de bord
+            {% elif request.endpoint in ('main.eleves', 'main.qrcodes_etudiants', 'main.details_eleve', 'main.eleve_details') %}
+                <i class="fas fa-user-graduate me-2 text-primary"></i>Gestion des Élèves
+            {% elif request.endpoint in ('main.professeurs', 'main.professeur_details', 'main.modifier_professeur') %}
+                <i class="fas fa-chalkboard-teacher me-2 text-primary"></i>Corps Enseignant
+            {% elif request.endpoint == 'main.liste_classes' %}
+                <i class="fas fa-chalkboard me-2 text-primary"></i>Classes & Niveaux
+            {% elif request.endpoint == 'main.cours' %}
+                <i class="fas fa-book me-2 text-primary"></i>Cours & Matières
+            {% elif request.endpoint == 'main.notes' %}
+                <i class="fas fa-edit me-2 text-primary"></i>Notes & Évaluations
+            {% elif request.endpoint == 'main.bulletins' %}
+                <i class="fas fa-file-pdf me-2 text-primary"></i>Bulletins Trimestriels
+            {% elif request.endpoint == 'main.point_du_jour' %}
+                <i class="fas fa-clipboard-check me-2 text-primary"></i>Point du jour
+            {% elif request.endpoint == 'main.absences' %}
+                <i class="fas fa-calendar-times me-2 text-primary"></i>Suivi des Absences
+            {% elif request.endpoint == 'main.admin_emplois' %}
+                <i class="fas fa-calendar-alt me-2 text-primary"></i>Emploi du temps
+            {% elif request.endpoint == 'main.paiements' %}
+                <i class="fas fa-money-bill-wave me-2 text-primary"></i>Gestion des Paiements
+            {% elif request.endpoint == 'main.alertes' %}
+                <i class="fas fa-bell me-2 text-primary"></i>Alertes Scolaires
+            {% elif request.endpoint == 'main.rapports' %}
+                <i class="fas fa-chart-bar me-2 text-primary"></i>Rapports & Statistiques
+            {% elif request.endpoint == 'main.gestion_annees' %}
+                <i class="fas fa-calendar-check me-2 text-primary"></i>Années Scolaires
+            {% elif request.endpoint == 'main.gestion_utilisateurs' %}
+                <i class="fas fa-users-cog me-2 text-primary"></i>Gestion des Utilisateurs
+            {% elif request.endpoint == 'main.profil_ecole' %}
+                <i class="fas fa-school me-2 text-primary"></i>Identité de l'Établissement
+            {% elif request.endpoint == 'main.whatsapp_connect' %}
+                <i class="fab fa-whatsapp me-2 text-success"></i>Connexion WhatsApp
+            {% elif request.endpoint == 'main.sync_hors_ligne' %}
+                <i class="fas fa-sync-alt me-2 text-primary"></i>Synchronisation Hors-ligne
+            {% elif request.endpoint == 'main.recherche' %}
+                <i class="fas fa-search me-2 text-primary"></i>Recherche Globale
+            {% elif request.endpoint == 'main.gestion_ecoles' %}
+                <i class="fas fa-school me-2 text-primary"></i>Gestion des Écoles
+            {% elif request.endpoint == 'main.ajouter_ecole' %}
+                <i class="fas fa-plus-circle me-2 text-primary"></i>Ajouter une École
+            {% elif request.endpoint in ('admin.maintenance_page', 'admin.maintenance') %}
+                <i class="fas fa-sliders-h me-2 text-primary"></i>Maintenance Système
+            {% elif request.endpoint == 'admin.demandes_presentation' %}
+                <i class="fas fa-handshake me-2 text-primary"></i>Demandes de Démonstration
+            {% elif request.endpoint == 'admin.view_logs' %}
+                <i class="fas fa-file-alt me-2 text-primary"></i>Logs Système
+            {% elif request.endpoint == 'main.journaux_corrections' %}
+                <i class="fas fa-edit me-2 text-primary"></i>Journal des Corrections
+            {% else %}
+                <i class="fas fa-shield-alt me-2 text-primary"></i>Espace Administration
+            {% endif %}
+        </div>
+
+        {% if current_user.is_authenticated and current_user.role == 'admin' %}
+        <!-- Boutons d'administration montés en haut sur la même ligne que Dashboard -->
+        <div class="topbar-quick-nav d-flex align-items-center">
+            <a href="{{ url_for('main.gestion_utilisateurs') }}" class="topbar-nav-pill {{ 'active' if request.endpoint == 'main.gestion_utilisateurs' }}" title="Comptes & Utilisateurs">
+                <i class="fas fa-users-cog text-primary"></i>
+                <span class="d-none d-xxl-inline">Comptes utilisateurs</span>
+                <span class="d-inline d-xxl-none">Comptes</span>
+            </a>
+            <a href="{{ url_for('main.profil_ecole') }}" class="topbar-nav-pill {{ 'active' if request.endpoint == 'main.profil_ecole' }}" title="Profil & Identité de l'établissement">
+                <i class="fas fa-school text-primary"></i>
+                <span class="d-none d-xxl-inline">Identité établissement</span>
+                <span class="d-inline d-xxl-none">Établissement</span>
+            </a>
+            <a href="{{ url_for('main.whatsapp_connect') }}" class="topbar-nav-pill {{ 'active' if request.endpoint == 'main.whatsapp_connect' }}" title="Connexion WhatsApp">
+                <i class="fab fa-whatsapp text-success"></i>
+                <span>WhatsApp</span>
+            </a>
+            <a href="{{ url_for('main.sync_hors_ligne') }}" class="topbar-nav-pill {{ 'active' if request.endpoint == 'main.sync_hors_ligne' }}" title="Synchronisation hors-ligne (PWA)">
+                <i class="fas fa-sync-alt text-primary"></i>
+                <span class="d-none d-xxl-inline">Sync hors-ligne</span>
+                <span class="d-inline d-xxl-none">Hors-ligne</span>
+            </a>
+        </div>
+        {% elif current_user.is_authenticated and current_user.role == 'super_admin' %}
+        <div class="topbar-quick-nav d-flex align-items-center">
+            <a href="{{ url_for('main.gestion_ecoles') }}" class="topbar-nav-pill {{ 'active' if request.endpoint == 'main.gestion_ecoles' }}" title="Gérer les écoles">
+                <i class="fas fa-school text-primary"></i>
+                <span>Écoles</span>
+            </a>
+            <a href="{{ url_for('admin.maintenance_page') }}" class="topbar-nav-pill {{ 'active' if request.endpoint in ('admin.maintenance_page', 'admin.maintenance') }}" title="Maintenance système">
+                <i class="fas fa-sliders-h text-primary"></i>
+                <span>Maintenance</span>
+            </a>
+            <a href="{{ url_for('admin.view_logs') }}" class="topbar-nav-pill {{ 'active' if request.endpoint == 'admin.view_logs' }}" title="Logs système">
+                <i class="fas fa-file-alt text-primary"></i>
+                <span>Logs</span>
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Actions de droite : Année consultée, Recherche, Profil -->
+    <div class="topbar-right">
+        {% if current_user.is_authenticated and current_user.role != 'super_admin' and annee_consultee %}
+            <a href="{{ url_for('main.gestion_annees') }}" class="topbar-chip text-decoration-none shadow-sm" title="Année scolaire consultée (cliquez pour configurer)">
+                <i class="fas fa-calendar-alt text-primary me-2"></i>
+                <span class="fw-bold text-dark me-1">{{ annee_consultee.nom }}</span>
+                <span class="badge {% if annee_consultee.statut == 'active' %}bg-success text-white{% elif annee_consultee.statut == 'planifiee' %}bg-warning text-dark{% else %}bg-secondary text-white{% endif %} rounded-pill px-2 py-1" style="font-size: 0.7rem;">
+                    {{ annee_consultee.statut | capitalize }}
+                </span>
+            </a>
+        {% endif %}
+
+        {% if current_user.is_authenticated and current_user.ecoles_gerees and current_user.ecoles_gerees.count() > 1 %}
+            <a href="{{ url_for('main.choisir_ecole') }}" class="topbar-chip text-decoration-none" title="Changer d'établissement">
+                <i class="fas fa-exchange-alt text-secondary me-1"></i>
+                <span class="text-muted small">Changer d'école</span>
+            </a>
+        {% endif %}
+
+        <!-- Recherche globale -->
+        <a href="{{ url_for('main.recherche') }}" class="topbar-action-btn" title="Recherche rapide" aria-label="Recherche">
+            <i class="fas fa-search"></i>
+        </a>
+
+        <!-- Assistant IA & Aide intégrée -->
+        <button type="button" class="topbar-action-btn" title="Besoin d'aide ? Ouvrir l'Assistant IA" aria-label="Assistant IA" onclick="if(window.openKlasoraAssistant){window.openKlasoraAssistant();}else{document.getElementById('klasoraSpeedDialTrigger')?.click();}">
+            <i class="fas fa-robot text-primary"></i>
+        </button>
+
+        {% if current_user.role == 'admin' %}
+        <!-- Visite guidée en accès direct -->
+        <a href="{{ url_for('main.index', start_tour=1) }}" 
+           class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 d-flex align-items-center gap-1 shadow-sm" 
+           title="Relancer la visite guidée" 
+           onclick="if(window.KlasoraTour){window.KlasoraTour.start(true);return false;}">
+            <i class="fas fa-route"></i>
+            <span class="small fw-semibold">Visite guidée</span>
+        </a>
+        {% endif %}
+
+        <!-- Bouton installer PWA si disponible -->
+        <button type="button" class="btn btn-sm btn-light border rounded-pill px-2 py-1 align-items-center gap-1 btn-install-klasora-trigger d-none" title="Installer l'application sur le bureau">
+            <i class="fas fa-download text-primary"></i>
+            <span class="small fw-semibold">Installer</span>
+        </button>
+    </div>
+</header>

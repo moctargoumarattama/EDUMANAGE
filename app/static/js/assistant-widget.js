@@ -497,6 +497,11 @@
         backdrop.addEventListener('click', () => toggleChat(false));
     }
 
+    // Exposition globale pour déclencher l'assistant depuis n'importe quel bouton
+    window.openKlasoraAssistant = function() {
+        toggleChat(true);
+    };
+
     // Fermeture avec la touche Échap
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
