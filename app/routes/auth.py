@@ -176,6 +176,26 @@ def index():
         mail_status = get_school_mail_status(ecole_id)
         email_non_connecte = not mail_status.get('is_connected', False)
 
+        # Détection d'alerte : Période clôturée avec période suivante non encore activée
+        rappel_periode_suivante = None
+        if annee_consultee:
+            from app.models import PeriodeBulletin
+            from app.routes.bulletins import _trier_periodes_chronologique
+            periodes_annee = PeriodeBulletin.query.filter_by(
+                ecole_id=ecole_id,
+                annee_id=annee_consultee.id
+            ).all()
+            periodes_triees = _trier_periodes_chronologique(periodes_annee)
+            for i, p in enumerate(periodes_triees):
+                if p.publie and i + 1 < len(periodes_triees):
+                    p_suiv = periodes_triees[i + 1]
+                    if not p_suiv.periode_active:
+                        rappel_periode_suivante = {
+                            'periode_close': p,
+                            'periode_a_activer': p_suiv
+                        }
+                        break
+
         return render_template(
             'index.html',
             stats=stats,
@@ -184,7 +204,8 @@ def index():
             force_tour_prompt=force_tour_prompt,
             annee_planifiee=annee_planifiee,
             etat_planifiee=etat_planifiee,
-            email_non_connecte=email_non_connecte
+            email_non_connecte=email_non_connecte,
+            rappel_periode_suivante=rappel_periode_suivante
         )
 
     # -----------------------------

@@ -127,25 +127,16 @@
                             </li>
                             {% endif %}
 
-                            <li class="nav-item dropdown d-none d-lg-block">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <li class="nav-item d-none d-lg-block">
+                                <a class="nav-link {{ 'active' if request.endpoint in ('main.eleves', 'main.qrcodes_etudiants', 'main.details_eleve', 'main.eleve_details') }}" href="{{ url_for('main.eleves') }}">
                                     <i class="fas fa-user-graduate me-1"></i>Élèves
                                 </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{{ url_for('main.eleves') }}"><i class="fas fa-list me-2"></i>Liste des élèves</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('main.ajouter_eleve') }}"><i class="fas fa-plus me-2"></i>Ajouter un élève</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('main.qrcodes_etudiants') }}"><i class="fas fa-qrcode me-2"></i>Badges & QR Codes</a></li>
-                                </ul>
                             </li>
 
-                            <li class="nav-item dropdown d-none d-lg-block">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <li class="nav-item d-none d-lg-block">
+                                <a class="nav-link {{ 'active' if request.endpoint in ('main.professeurs', 'main.professeur_details', 'main.modifier_professeur') }}" href="{{ url_for('main.professeurs') }}">
                                     <i class="fas fa-chalkboard-teacher me-1"></i>Professeurs
                                 </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{{ url_for('main.professeurs') }}"><i class="fas fa-list me-2"></i>Liste des professeurs</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('main.ajouter_professeur') }}"><i class="fas fa-plus me-2"></i>Ajouter un professeur</a></li>
-                                </ul>
                             </li>
 
 
@@ -489,7 +480,7 @@
                     </div>
                     <p class="footer-desc">Gestion scolaire simple, moderne & centralisée.</p>
                     <div class="footer-address">
-                        <i class="fas fa-map-marker-alt text-danger me-1"></i>RABAT RTE KENITRA MAROC
+                        <i class="fas fa-map-marker-alt me-1"></i>RABAT RTE KENITRA MAROC
                     </div>
                 </div>
 

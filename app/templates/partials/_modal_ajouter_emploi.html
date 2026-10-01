@@ -1,0 +1,231 @@
+<div class="modal fade" id="modalAjouterEmploi" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalAjouterEmploiLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="modalAjouterEmploiLabel">
+                    <i class="fas fa-calendar-plus"></i>
+                    <span>Ajouter un cours à l'emploi du temps</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            {% set f_emp = emploi_form or form %}
+            <form method="POST" action="{{ url_for('main.ajouter_emploi') }}" class="needs-validation" id="formAjouterEmploi" novalidate>
+                {{ f_emp.hidden_tag() if f_emp and f_emp.hidden_tag is defined else '' }}
+                <div class="modal-body p-4">
+                    <div class="form-section mb-4">
+                        <h6 class="fw-bold text-primary mb-3 d-flex align-items-center gap-2">
+                            <i class="fas fa-chalkboard-teacher"></i> Affectation pédagogique
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="modal_emploi_classe_id">Classe <span class="text-danger">*</span></label>
+                                {% if f_emp and f_emp.classe_id %}
+                                    {{ f_emp.classe_id(class="form-select", id="modal_emploi_classe_id", required=true) }}
+                                {% else %}
+                                    <select name="classe_id" id="modal_emploi_classe_id" class="form-select" required>
+                                        <option value="">Sélectionner une classe</option>
+                                    </select>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="modal_emploi_professeur_id">Professeur <span class="text-danger">*</span></label>
+                                {% if f_emp and f_emp.professeur_id %}
+                                    {{ f_emp.professeur_id(class="form-select", id="modal_emploi_professeur_id", required=true) }}
+                                {% else %}
+                                    <select name="professeur_id" id="modal_emploi_professeur_id" class="form-select" required>
+                                        <option value="">Sélectionner un professeur</option>
+                                    </select>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold" for="modal_emploi_cours_id">Matière / cours <span class="text-danger">*</span></label>
+                                {% if f_emp and f_emp.cours_id %}
+                                    {{ f_emp.cours_id(class="form-select", id="modal_emploi_cours_id", required=true) }}
+                                {% else %}
+                                    <select name="cours_id" id="modal_emploi_cours_id" class="form-select" required>
+                                        <option value="">Sélectionner une matière</option>
+                                    </select>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h6 class="fw-bold text-primary mb-3 d-flex align-items-center gap-2">
+                            <i class="fas fa-clock"></i> Horaire & Salle
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold" for="modal_emploi_jour">Jour <span class="text-danger">*</span></label>
+                                {% if f_emp and f_emp.jour %}
+                                    {{ f_emp.jour(class="form-select", id="modal_emploi_jour", required=true) }}
+                                {% else %}
+                                    <select name="jour" id="modal_emploi_jour" class="form-select" required>
+                                        <option value="Lundi">Lundi</option>
+                                        <option value="Mardi">Mardi</option>
+                                        <option value="Mercredi">Mercredi</option>
+                                        <option value="Jeudi">Jeudi</option>
+                                        <option value="Vendredi">Vendredi</option>
+                                        <option value="Samedi">Samedi</option>
+                                    </select>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold" for="modal_emploi_heure_debut">Début <span class="text-danger">*</span></label>
+                                {% if f_emp and f_emp.heure_debut %}
+                                    {{ f_emp.heure_debut(class="form-control", id="modal_emploi_heure_debut", required=true) }}
+                                {% else %}
+                                    <input type="time" name="heure_debut" id="modal_emploi_heure_debut" class="form-control" required>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold" for="modal_emploi_heure_fin">Fin <span class="text-danger">*</span></label>
+                                {% if f_emp and f_emp.heure_fin %}
+                                    {{ f_emp.heure_fin(class="form-control", id="modal_emploi_heure_fin", required=true) }}
+                                {% else %}
+                                    <input type="time" name="heure_fin" id="modal_emploi_heure_fin" class="form-control" required>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold" for="modal_emploi_salle">Salle</label>
+                                {% if f_emp and f_emp.salle %}
+                                    {{ f_emp.salle(class="form-control", id="modal_emploi_salle", placeholder="Ex: B12") }}
+                                {% else %}
+                                    <input type="text" name="salle" id="modal_emploi_salle" class="form-control" placeholder="Ex: B12">
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Annuler
+                    </button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4" id="btnSubmitAjouterEmploi" data-original-text="Enregistrer le créneau">
+                        <span class="submit-spinner spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
+                        <span class="submit-text"><i class="fas fa-check me-1"></i>Enregistrer le créneau</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modalEl = document.getElementById('modalAjouterEmploi');
+    const formEl = document.getElementById('formAjouterEmploi');
+    if (!modalEl || !formEl) return;
+
+    const classeSelect = modalEl.querySelector('#modal_emploi_classe_id');
+    const coursSelect = modalEl.querySelector('#modal_emploi_cours_id');
+    const professeurSelect = modalEl.querySelector('#modal_emploi_professeur_id');
+    const submitBtn = modalEl.querySelector('#btnSubmitAjouterEmploi');
+
+    function setSubmitEnabled(enabled) {
+        if (submitBtn) submitBtn.disabled = !enabled;
+    }
+
+    async function refreshCoursForClasse(preselectCoursId) {
+        if (!classeSelect || !coursSelect || !classeSelect.value) return;
+
+        coursSelect.innerHTML = '<option value="">Chargement des matières...</option>';
+        setSubmitEnabled(false);
+
+        try {
+            const response = await fetch(`/api/cours_classe/${classeSelect.value}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const cours = response.ok ? await response.json() : [];
+
+            coursSelect.innerHTML = '';
+            if (!cours.length) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'Aucune matière pour cette classe';
+                coursSelect.appendChild(opt);
+                setSubmitEnabled(false);
+                return;
+            }
+
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = '';
+            defaultOpt.textContent = '-- Sélectionner une matière --';
+            coursSelect.appendChild(defaultOpt);
+
+            cours.forEach((item) => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = item.nom;
+                opt.dataset.professeurId = item.professeur_id || '';
+                if (preselectCoursId && String(item.id) === String(preselectCoursId)) {
+                    opt.selected = true;
+                }
+                coursSelect.appendChild(opt);
+            });
+
+            setSubmitEnabled(true);
+            syncProfessorFromCourse();
+        } catch (error) {
+            coursSelect.innerHTML = '<option value="">Erreur de chargement</option>';
+            setSubmitEnabled(false);
+        }
+    }
+
+    function syncProfessorFromCourse() {
+        if (!coursSelect || !professeurSelect) return;
+        const selected = coursSelect.options[coursSelect.selectedIndex];
+        const professeurId = selected ? selected.dataset.professeurId : '';
+        if (professeurId) professeurSelect.value = professeurId;
+    }
+
+    if (classeSelect) {
+        classeSelect.addEventListener('change', () => refreshCoursForClasse());
+    }
+    if (coursSelect) {
+        coursSelect.addEventListener('change', syncProfessorFromCourse);
+    }
+
+    // Gestion de l'ouverture dynamique avec pré-sélection de classe
+    modalEl.addEventListener('show.bs.modal', function (event) {
+        const trigger = event.relatedTarget;
+        if (trigger && trigger.dataset.classeId && classeSelect) {
+            classeSelect.value = trigger.dataset.classeId;
+            refreshCoursForClasse();
+        } else if (classeSelect && classeSelect.value && (!coursSelect.options.length || coursSelect.options.length <= 1)) {
+            refreshCoursForClasse();
+        }
+    });
+
+    // Reset à la fermeture
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        formEl.reset();
+        formEl.classList.remove('was-validated');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            const spinner = submitBtn.querySelector('.submit-spinner');
+            if (spinner) spinner.classList.add('d-none');
+            const textSpan = submitBtn.querySelector('.submit-text');
+            if (textSpan) textSpan.innerHTML = '<i class="fas fa-check me-1"></i>Enregistrer le créneau';
+        }
+    });
+
+    // Anti double-clic
+    formEl.addEventListener('submit', function (event) {
+        if (!formEl.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+            formEl.classList.add('was-validated');
+            return;
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            const spinner = submitBtn.querySelector('.submit-spinner');
+            if (spinner) spinner.classList.remove('d-none');
+            const textSpan = submitBtn.querySelector('.submit-text');
+            if (textSpan) textSpan.textContent = 'Enregistrement en cours...';
+        }
+    });
+});
+</script>

@@ -24,10 +24,10 @@
         <!-- Actions d'en-tête : 1 Gros bouton vert unique + Menu Outils discret -->
         <div class="d-flex align-items-center gap-2 flex-wrap">
             {% if current_user.role in ['admin', 'super_admin'] and (not annee_consultee or annee_consultee.statut != 'archivee') %}
-            <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-success fw-bold px-3.5 py-2 rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5">
+            <button type="button" class="btn btn-success fw-bold px-3.5 py-2 rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5" data-bs-toggle="modal" data-bs-target="#modalAjouterEleve">
                 <i class="fas fa-plus-circle"></i>
                 <span>+ Inscrire un élève</span>
-            </a>
+            </button>
             {% endif %}
 
             <div class="dropdown">
@@ -56,6 +56,11 @@
                     </li>
                     {% endif %}
                     {% if current_user.role in ['admin', 'super_admin'] %}
+                    <li>
+                        <a class="dropdown-item py-2 small" href="{{ url_for('main.qrcodes_etudiants') }}">
+                            <i class="fas fa-qrcode text-info me-2"></i>Badges & QR Codes
+                        </a>
+                    </li>
                     <li>
                         <a class="dropdown-item py-2 small" href="{{ url_for('main.export_eleves_excel') }}">
                             <i class="fas fa-file-excel text-success me-2"></i>Exporter Excel
@@ -348,10 +353,10 @@
                         <div class="text-center py-4 text-muted">
                             <i class="fas fa-user-plus fa-2x mb-2 opacity-50"></i>
                             <p class="mb-2 small">Aucun élève inscrit dans cette classe pour le moment.</p>
-                            {% if current_user.role == 'admin' and (not annee_consultee or annee_consultee.statut != 'archivee') %}
-                            <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-sm btn-outline-primary">
+                            {% if current_user.role in ['admin', 'super_admin'] and (not annee_consultee or annee_consultee.statut != 'archivee') %}
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAjouterEleve" data-classe-id="{{ grp.id if grp.id != 'sans-classe' else '' }}">
                                 <i class="fas fa-plus me-1"></i>Inscrire un élève dans cette classe
-                            </a>
+                            </button>
                             {% endif %}
                         </div>
                         {% endif %}
@@ -403,9 +408,9 @@
                             Aucun élève n'est inscrit pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong>.
                         </p>
                         {% if current_user.role in ['admin', 'super_admin'] and (not annee_consultee or annee_consultee.statut != 'archivee') %}
-                        <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-primary btn-sm px-3 fw-semibold" style="border-radius: 8px;">
+                        <button type="button" class="btn btn-primary btn-sm px-3 fw-semibold" style="border-radius: 8px;" data-bs-toggle="modal" data-bs-target="#modalAjouterEleve">
                             <i class="fas fa-plus me-1"></i>Inscrire un premier élève
-                        </a>
+                        </button>
                         {% endif %}
                     {% endif %}
                 </div>
@@ -1567,6 +1572,8 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
     </div>
 </div>
+
+{% include 'partials/_modal_ajouter_eleve.html' %}
 
 <style>
 .status-tile {

@@ -1278,11 +1278,11 @@ textarea {
 }
 
 .app-footer {
-    padding: 1.25rem 0 0.85rem;
-    background: linear-gradient(180deg, #111827 0%, #0b0f19 100%);
-    border-top: 1px solid rgba(255, 255, 255, 0.09);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
-    color: rgba(255, 255, 255, 0.85);
+    padding: 1.15rem 0 0.75rem;
+    background: linear-gradient(180deg, #0f172a 0%, #090d16 100%);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05), 0 -4px 20px rgba(0, 0, 0, 0.25);
+    color: rgba(241, 245, 249, 0.85);
 }
 
 .app-footer .footer-compact {
@@ -1296,7 +1296,7 @@ textarea {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.2rem;
 }
 
 .app-footer .footer-logo-icon {
@@ -1315,8 +1315,8 @@ textarea {
 .app-footer .footer-brand h5 {
     margin: 0;
     font-size: 1.05rem;
-    font-weight: 700;
-    color: #fff;
+    font-weight: 800;
+    color: #ffffff;
     letter-spacing: -0.01em;
 }
 
@@ -1326,22 +1326,29 @@ textarea {
 
 .app-footer .footer-desc {
     margin: 0;
-    color: rgba(255, 255, 255, 0.72);
-    font-size: 0.8rem;
+    color: #94a3b8;
+    font-size: 0.78rem;
     line-height: 1.35;
 }
 
 .app-footer .footer-address {
-    margin-top: 0.35rem;
+    margin-top: 0.3rem;
     display: inline-flex;
     align-items: center;
-    font-size: 0.76rem;
+    gap: 0.35rem;
+    font-size: 0.72rem;
     font-weight: 600;
     color: #cbd5e1;
-    background: rgba(255, 255, 255, 0.06);
-    padding: 0.2rem 0.65rem;
-    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.22rem 0.65rem;
+    border-radius: 9999px;
     border: 1px solid rgba(255, 255, 255, 0.08);
+    letter-spacing: 0.02em;
+}
+
+.app-footer .footer-address i {
+    color: #f43f5e !important;
+    font-size: 0.75rem;
 }
 
 .app-footer .footer-links {
@@ -1354,22 +1361,35 @@ textarea {
 .app-footer .footer-links a {
     display: inline-flex;
     align-items: center;
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 0.82rem;
+    gap: 0.4rem;
+    color: #e2e8f0;
+    font-size: 0.8rem;
     font-weight: 600;
     text-decoration: none;
-    padding: 0.35rem 0.75rem;
-    border-radius: 8px;
+    padding: 0.36rem 0.9rem;
+    border-radius: 9999px;
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 120ms ease;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    backdrop-filter: blur(8px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-footer .footer-links a i {
+    color: #38bdf8;
+    font-size: 0.85rem;
+    transition: transform 0.2s ease;
 }
 
 .app-footer .footer-links a:hover {
-    color: #fff;
-    background: rgba(67, 97, 238, 0.25);
-    border-color: rgba(99, 102, 241, 0.4);
+    color: #ffffff;
+    background: rgba(56, 189, 248, 0.12);
+    border-color: rgba(56, 189, 248, 0.38);
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.18);
+}
+
+.app-footer .footer-links a:hover i {
+    transform: rotate(15deg);
 }
 
 .app-footer .footer-contact {
@@ -1384,46 +1404,55 @@ textarea {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    padding: 0.45rem 0.85rem;
-    border-radius: 25px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 0.8rem;
+    padding: 0.38rem 0.85rem;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+    font-size: 0.78rem;
     font-weight: 500;
     text-decoration: none;
-    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+    backdrop-filter: blur(8px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-footer .footer-mail-link i {
+    color: #818cf8;
+    font-size: 0.85rem;
 }
 
 .app-footer .footer-mail-link:hover {
-    background: rgba(67, 97, 238, 0.2);
-    border-color: rgba(99, 102, 241, 0.4);
-    color: #fff;
+    background: rgba(129, 140, 248, 0.12);
+    border-color: rgba(129, 140, 248, 0.35);
+    color: #ffffff;
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.18);
 }
 
 .app-footer .btn-footer-whatsapp {
     display: inline-flex;
     align-items: center;
-    gap: 0.65rem;
-    padding: 0.4rem 1rem;
-    border-radius: 25px;
-    background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
-    color: #fff !important;
+    gap: 0.6rem;
+    padding: 0.34rem 0.95rem;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, #059669 0%, #0d9488 100%);
+    color: #ffffff !important;
     text-decoration: none;
-    box-shadow: 0 4px 14px rgba(37, 211, 102, 0.32);
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 180ms ease, transform 120ms ease;
+    box-shadow: 0 2px 10px rgba(13, 148, 136, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .app-footer .btn-footer-whatsapp:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(37, 211, 102, 0.48);
-    color: #fff !important;
+    transform: translateY(-1px);
+    background: linear-gradient(135deg, #10b981 0%, #0f766e 100%);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    color: #ffffff !important;
 }
 
 .app-footer .btn-footer-whatsapp i {
-    font-size: 1.3rem;
+    font-size: 1.18rem;
+    color: #ffffff;
 }
 
 .app-footer .whatsapp-text {
@@ -1433,38 +1462,42 @@ textarea {
 }
 
 .app-footer .whatsapp-text small {
-    font-size: 0.64rem;
+    font-size: 0.6rem;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    opacity: 0.92;
-    line-height: 1.1;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1;
 }
 
 .app-footer .whatsapp-text strong {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     font-weight: 800;
-    line-height: 1.1;
+    color: #ffffff;
+    letter-spacing: 0.02em;
+    line-height: 1.15;
+    margin-top: 1px;
 }
 
 .app-footer .footer-bottom {
-    margin-top: 0.85rem;
-    padding-top: 0.65rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    margin-top: 0.75rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
     display: flex;
     align-items: center;
     justify-content: space-between;
     font-size: 0.74rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: #64748b;
 }
 
 .app-footer .footer-version-pill {
-    background: rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.04);
     padding: 0.15rem 0.55rem;
-    border-radius: 12px;
+    border-radius: 9999px;
     font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.09);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-weight: 500;
 }
 
 .min-w-0 {
@@ -6248,20 +6281,20 @@ body.auth-layout .main-content > .container {
 
 /* Logo footer */
 .footer-logo-img {
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     object-fit: cover;
     object-position: center;
-    border: 2px solid rgba(255,255,255,0.25);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    background: #fff;
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    background: #ffffff;
 }
 
 @media (max-width: 767.98px) {
     .footer-logo-img {
-        width: 38px;
-        height: 38px;
+        width: 32px;
+        height: 32px;
     }
 }
 /* ==========================================================================
@@ -8709,24 +8742,26 @@ body.support-modal-open {
    ========================================================================== */
 .class-bulletin-card {
     position: relative;
-    overflow: visible !important;
+    overflow: hidden !important;
+    border-radius: 12px;
 }
 
 .class-bulletin-header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    position: static !important;
     background-color: #ffffff !important;
+    user-select: none;
 }
 
 .bulletin-student-mini-card {
     background: #ffffff !important;
     border: 1px solid rgba(226, 232, 240, 0.85) !important;
-    border-radius: 14px !important;
+    border-radius: 12px !important;
     padding: 0.85rem !important;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
 }
 
 .bulletin-student-mini-card:hover {

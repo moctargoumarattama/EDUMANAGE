@@ -366,9 +366,190 @@ class BulletinsPublicationToggleTestCase(unittest.TestCase):
         html = resp.get_data(as_text=True)
         self.assertIn('id="mobileSelectClasse"', html)
         self.assertIn("⭐ Toutes les classes (Vue d'ensemble)", html)
-        self.assertIn(self.classe.nom, html)
+    def test_toggle_periode_legacy_route_direct_sans_intermediaire(self):
+        """Vérifie que l'ancienne route /toggle_periode/<id> publie directement sans page intermédiaire."""
+        self._login(self.admin_a)
+        
+        # Période initialement non publiée
+        self.assertFalse(self.periode_a.publie)
+        
+        # Appel direct GET sur la route historique
+        resp = self.client.get(f"/toggle_periode/{self.periode_a.id}")
+        self.assertEqual(resp.status_code, 302)
+        
+        # Vérification : Période publiée immédiatement
+        p_reloaded = db.session.get(PeriodeBulletin, self.periode_a.id)
+        self.assertTrue(p_reloaded.publie)
+        self.assertIsNotNone(p_reloaded.date_publication)
+        
+        # Journal d'audit créé
+        journal = JournalCorrection.query.filter_by(
+            action="BULLETIN_PUBLIE",
+            cible_id=self.periode_a.id
+        ).first()
+        self.assertIsNotNone(journal)
+
+    def test_activer_directement_periode_workflow(self):
+        """Vérifie l'activation directe d'une nouvelle période via /activer-directement."""
+        self._login(self.admin_a)
+        
+        # Création du Semestre 2
+        periode_s2 = PeriodeBulletin(
+            nom="Semestre 2",
+            annee_id=self.annee_a.id,
+            ecole_id=self.ecole_a.id,
+            publie=False,
+            periode_active=False,
+            date_debut=date(2026, 2, 1)
+        )
+        db.session.add(periode_s2)
+        db.session.commit()
+        
+        self.assertTrue(self.periode_a.periode_active)
+        self.assertFalse(periode_s2.periode_active)
+        
+        # POST sur /bulletins/periodes/<id>/activer-directement
+        resp = self.client.post(f"/bulletins/periodes/{periode_s2.id}/activer-directement")
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(f"periode_id={periode_s2.id}", resp.headers.get("Location", ""))
+        
+        # Vérification en BDD
+        p_s1 = db.session.get(PeriodeBulletin, self.periode_a.id)
+        p_s2 = db.session.get(PeriodeBulletin, periode_s2.id)
+        self.assertFalse(p_s1.periode_active)
+        self.assertTrue(p_s2.periode_active)
+        
+        # Journal d'audit créé
+        journal = JournalCorrection.query.filter_by(
+            action="PERIODE_ACTIVEE_DIRECTEMENT",
+            cible_id=periode_s2.id
+        ).first()
+        self.assertIsNotNone(journal)
+
+    def test_toggle_publication_avec_auto_activation_suivante(self):
+        """Vérifie la clôture avec la case à cocher 'activer_periode_suivante=1'."""
+        self._login(self.admin_a)
+        
+        # Création du Semestre 2
+        periode_s2 = PeriodeBulletin(
+            nom="Semestre 2",
+            annee_id=self.annee_a.id,
+            ecole_id=self.ecole_a.id,
+            publie=False,
+            periode_active=False,
+            date_debut=date(2026, 2, 1)
+        )
+        db.session.add(periode_s2)
+        db.session.commit()
+        
+        url_toggle = f"/bulletins/periodes/{self.periode_a.id}/toggle-publication"
+        resp = self.client.post(url_toggle, data={
+            "classe_id": str(self.classe.id),
+            "activer_periode_suivante": "1"
+        })
+        self.assertEqual(resp.status_code, 302)
+        # Redirigé vers la nouvelle période active
+        self.assertIn(f"periode_id={periode_s2.id}", resp.headers.get("Location", ""))
+        
+        p_s1 = db.session.get(PeriodeBulletin, self.periode_a.id)
+        p_s2 = db.session.get(PeriodeBulletin, periode_s2.id)
+        self.assertTrue(p_s1.publie)
+        self.assertFalse(p_s1.periode_active)
+        self.assertTrue(p_s2.periode_active)
+
+    def test_banniere_periode_suivante_et_switch_modal_affiches(self):
+        """Vérifie l'affichage de la bannière proactive et du switch dans la modale."""
+        self._login(self.admin_a)
+        
+        # Création du Semestre 2
+        periode_s2 = PeriodeBulletin(
+            nom="Semestre 2",
+            annee_id=self.annee_a.id,
+            ecole_id=self.ecole_a.id,
+            publie=False,
+            periode_active=False,
+            date_debut=date(2026, 2, 1)
+        )
+        db.session.add(periode_s2)
+        db.session.commit()
+        
+        # 1. Avant clôture : la modale contient le switch pré-coché
+        resp_before = self.client.get(f"/bulletins?classe_id={self.classe.id}&periode_id={self.periode_a.id}")
+        self.assertEqual(resp_before.status_code, 200)
+        html_before = resp_before.get_data(as_text=True)
+        self.assertIn('id="checkActiverSuivante"', html_before)
+        self.assertIn('Basculer immédiatement sur le Semestre 2', html_before)
+        # La bannière 'Étape suivante' n'est pas encore visible tant que S1 n'est pas clôturé
+        self.assertNotIn('Étape suivante', html_before)
+        
+        # 2. Clôture de la période sans cocher le switch
+        self.client.post(f"/bulletins/periodes/{self.periode_a.id}/toggle-publication", data={
+            "classe_id": str(self.classe.id)
+        })
+        
+        # 3. Après clôture : la bannière de basculement vers Semestre 2 s'affiche clairement
+        resp_after = self.client.get(f"/bulletins?classe_id={self.classe.id}&periode_id={self.periode_a.id}")
+        self.assertEqual(resp_after.status_code, 200)
+        html_after = resp_after.get_data(as_text=True)
+        self.assertIn('ACTION REQUISE', html_after)
+        self.assertIn('Le Semestre 1 est officiel, mais le Semestre 2 n\'est pas activé !', html_after)
+        self.assertIn('Activer le Semestre 2', html_after)
+
+    def test_carte_rappel_rouge_index_admin_si_semestre2_inactif(self):
+        """Vérifie la présence de la carte de rappel rouge sur index.html quand Semestre 1 est clos et Semestre 2 inactif."""
+        self._login(self.admin_a)
+
+        # Création du Semestre 2 (inactif)
+        periode_s2 = PeriodeBulletin(
+            nom="Semestre 2",
+            annee_id=self.annee_a.id,
+            ecole_id=self.ecole_a.id,
+            publie=False,
+            periode_active=False,
+            date_debut=date(2026, 2, 1)
+        )
+        db.session.add(periode_s2)
+        db.session.commit()
+
+        # 1. Avant clôture du Semestre 1 : pas de carte d'alerte rouge
+        resp_index_before = self.client.get("/")
+        self.assertEqual(resp_index_before.status_code, 200)
+        html_index_before = resp_index_before.get_data(as_text=True)
+        self.assertNotIn("Le Semestre 1 est clôturé, mais le Semestre 2 n'est pas activé !", html_index_before)
+
+        # 2. Clôture officielle du Semestre 1 (sans activer Semestre 2)
+        self.periode_a.publie = True
+        self.periode_a.date_publication = datetime.utcnow()
+        db.session.commit()
+
+        # 3. Visite de la page index.html admin : la carte de rappel rouge s'affiche !
+        resp_index_after = self.client.get("/")
+        self.assertEqual(resp_index_after.status_code, 200)
+        html_index_after = resp_index_after.get_data(as_text=True)
+        self.assertIn("ACTION REQUISE", html_index_after)
+        self.assertIn("Le Semestre 1 est clôturé, mais le Semestre 2 n'est pas activé !", html_index_after)
+        self.assertIn("Activer le Semestre 2 maintenant", html_index_after)
+        self.assertIn("Voir les bulletins", html_index_after)
+
+        # 4. Clic sur le bouton d'activation depuis index.html (POST avec next=/)
+        resp_activate = self.client.post(
+            f"/bulletins/periodes/{periode_s2.id}/activer-directement",
+            data={"next": "/"}
+        )
+        self.assertEqual(resp_activate.status_code, 302)
+        self.assertEqual(resp_activate.headers.get("Location"), "/")
+
+        # 5. La période 2 est maintenant active, le rappel rouge disparaît
+        p_s2_reload = db.session.get(PeriodeBulletin, periode_s2.id)
+        self.assertTrue(p_s2_reload.periode_active)
+
+        resp_index_resolved = self.client.get("/")
+        self.assertEqual(resp_index_resolved.status_code, 200)
+        html_index_resolved = resp_index_resolved.get_data(as_text=True)
+        self.assertNotIn("Le Semestre 1 est clôturé, mais le Semestre 2 n'est pas activé !", html_index_resolved)
 
 
 if __name__ == "__main__":
     unittest.main()
+
 

@@ -71,6 +71,23 @@ def _bulletins_return_url():
     )
 
 
+def _trier_periodes_chronologique(periodes):
+    """
+    Tri pédagogique et chronologique déterministe des périodes scolaires :
+    1. Numéro extrait du nom ("Semestre 1" -> 1, "Trimestre 2" -> 2)
+    2. Date de début si disponible
+    3. ID en BDD
+    """
+    import re
+    from datetime import date
+    def _cle(p):
+        match = re.search(r'\d+', p.nom or '')
+        num = int(match.group()) if match else None
+        d = p.date_debut or date.min
+        return (num if num is not None else 999, d, p.id)
+    return sorted(periodes, key=_cle)
+
+
 @main.route('/bulletin_eleve/<int:id>')
 @main.route('/bulletin/<int:id>')
 @main.route('/bulletins/<int:id>')
@@ -273,6 +290,7 @@ def bulletins():
             classe_stats={},
             eleves_sans_classe=[],
             periode_active=None,
+            periode_suivante=None,
             eleves=[],
             moyenne_generale=0,
             meilleure_moyenne=0,
@@ -301,6 +319,7 @@ def bulletins():
             classe_stats={},
             eleves_sans_classe=[],
             periode_active=None,
+            periode_suivante=None,
             eleves=[],
             moyenne_generale=0,
             meilleure_moyenne=0,
@@ -377,6 +396,20 @@ def bulletins():
 
     periode_nom = periode_active.nom if periode_active else "Semestre 1"
     periode_publiee = bool(periode_active and periode_active.publie)
+
+    # Détection intelligente de la période suivante pour le workflow "zéro erreur"
+    periode_suivante = None
+    if annee and periode_active:
+        toutes_periodes_annee = PeriodeBulletin.query.filter_by(
+            ecole_id=ecole_id,
+            annee_id=annee.id
+        ).all()
+        toutes_periodes_annee = _trier_periodes_chronologique(toutes_periodes_annee)
+        idx_p = next((i for i, p in enumerate(toutes_periodes_annee) if p.id == periode_active.id), -1)
+        if idx_p != -1 and idx_p + 1 < len(toutes_periodes_annee):
+            cand = toutes_periodes_annee[idx_p + 1]
+            if not cand.periode_active:
+                periode_suivante = cand
 
     # Filtres de recherche
     search = (request.args.get('search') or request.args.get('q') or '').strip().lower()
@@ -680,6 +713,7 @@ def bulletins():
         classe_stats=classe_stats,
         eleves_sans_classe=eleves_sans_classe,
         periode_active=periode_active,
+        periode_suivante=periode_suivante,
         eleves=eleves_avec_moyennes,
         moyenne_generale=moyenne_generale,
         meilleure_moyenne=meilleure_moyenne,
@@ -746,6 +780,15 @@ def toggle_publication_periode(periode_id):
     ecole_id = g.ecole_id
     periode = PeriodeBulletin.query.filter_by(id=periode_id, ecole_id=ecole_id).first_or_404()
 
+    redirect_args = {}
+    classe_id = request.form.get('classe_id', type=int) or request.args.get('classe_id', type=int)
+    if classe_id:
+        redirect_args['classe_id'] = classe_id
+    redirect_args['periode_id'] = periode.id
+    search = request.form.get('search') or request.args.get('search')
+    if search:
+        redirect_args['search'] = search
+
     if not periode.publie:
         periode.publie = True
         periode.date_publication = datetime.utcnow()
@@ -768,6 +811,28 @@ def toggle_publication_periode(periode_id):
                 )
             except Exception as e:
                 current_app.logger.warning(f"Calcul des rangs classe {cl.id} lors de la clôture : {e}")
+
+        # Option : Basculement automatique sur la période suivante dès la clôture
+        activer_suivante = request.form.get('activer_periode_suivante') in ['1', 'true', 'on', 'yes']
+        if activer_suivante:
+            toutes_periodes = PeriodeBulletin.query.filter_by(
+                ecole_id=ecole_id,
+                annee_id=periode.annee_id
+            ).all()
+            toutes_periodes = _trier_periodes_chronologique(toutes_periodes)
+            idx = next((i for i, p in enumerate(toutes_periodes) if p.id == periode.id), -1)
+            if idx != -1 and idx + 1 < len(toutes_periodes):
+                suivante = toutes_periodes[idx + 1]
+                PeriodeBulletin.query.filter_by(
+                    ecole_id=ecole_id,
+                    annee_id=periode.annee_id
+                ).update({'periode_active': False})
+                suivante.periode_active = True
+                redirect_args['periode_id'] = suivante.id
+                flash_msg = (
+                    f"Période clôturée avec succès. Le {suivante.nom} est désormais ACTIF ! "
+                    f"Les professeurs peuvent à présent y saisir leurs devoirs et notes."
+                )
     else:
         periode.publie = False
         action_name = "BULLETIN_REOUVERT_SAISIE"
@@ -789,13 +854,54 @@ def toggle_publication_periode(periode_id):
     db.session.commit()
 
     flash(flash_msg, flash_cat)
+    return redirect(url_for('main.bulletins', **redirect_args))
 
-    # Redirection sur la page actuelle des bulletins en conservant la classe et la période
-    redirect_args = {}
+
+@main.route('/bulletins/periodes/<int:periode_id>/activer-directement', methods=['POST'])
+@login_required
+@role_required('admin', 'directeur')
+@tenant_required
+def activer_directement_periode(periode_id):
+    """
+    Activation rapide et sécurisée de la période de travail suivante depuis la page des bulletins.
+    Bascule immédiatement l'ensemble des enseignants sur la nouvelle période de saisie.
+    """
+    ecole_id = g.ecole_id
+    periode = PeriodeBulletin.query.filter_by(id=periode_id, ecole_id=ecole_id).first_or_404()
+
+    # Désactiver les autres périodes actives de la même année pour cette école
+    PeriodeBulletin.query.filter_by(
+        ecole_id=ecole_id,
+        annee_id=periode.annee_id
+    ).update({'periode_active': False})
+
+    periode.periode_active = True
+
+    journal = JournalCorrection(
+        action="PERIODE_ACTIVEE_DIRECTEMENT",
+        description=f"Activation directe de la période de travail {periode.nom}",
+        ecole_id=ecole_id,
+        user_id=current_user.id,
+        cible_type="periode_bulletin",
+        cible_id=periode.id,
+        niveau="info"
+    )
+    db.session.add(journal)
+    db.session.commit()
+
+    flash(
+        f"Le {periode.nom} est désormais ACTIF ! Les professeurs saisiront désormais leurs devoirs et notes dans cette nouvelle période.",
+        "success"
+    )
+
+    next_url = request.form.get('next') or request.args.get('next')
+    if next_url:
+        return redirect(sanitize_internal_url(next_url, url_for('main.index')))
+
+    redirect_args = {'periode_id': periode.id}
     classe_id = request.form.get('classe_id', type=int) or request.args.get('classe_id', type=int)
     if classe_id:
         redirect_args['classe_id'] = classe_id
-    redirect_args['periode_id'] = periode.id
     search = request.form.get('search') or request.args.get('search')
     if search:
         redirect_args['search'] = search
@@ -1030,36 +1136,28 @@ def toggle_periode(id):
     ecole_id = g.ecole_id
     periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=ecole_id).first_or_404()
 
-    # Si la période n'est pas encore publiée, l'administrateur demande sa publication officielle
+    # Bascule directe sans écran intermédiaire
     if not periode.publie:
-        from app.services.evaluations import verifier_eligibilite_publication_periode
-        verif = verifier_eligibilite_publication_periode(periode.ecole_id, periode.annee_id, periode.nom)
-        
-        confirme = (request.args.get('confirmer') == '1' or request.form.get('confirmer') == '1')
-
-        # Si des élèves ont un bulletin incomplet et que l'administrateur n'a pas encore confirmé :
-        if not verif["eligible"] and not confirme:
-            return render_template(
-                'confirmer_publication_periode.html',
-                periode=periode,
-                verif=verif
-            )
-
         periode.publie = True
         periode.date_publication = datetime.utcnow()
         action_name = "BULLETIN_PUBLIE"
         desc = f"Publication officielle du bulletin {periode.nom}"
         niveau = "info"
+        flash_msg = f"Période '{periode.nom}' clôturée et publiée avec succès. Les bulletins sont désormais officiels."
+        flash_cat = "success"
 
-        if not verif["eligible"]:
-            flash_msg = (
-                f"Période '{periode.nom}' publiée avec avertissement : "
-                f"{verif['total_incomplets']} élève(s) ont un bulletin incomplet et restent en statut provisoire."
-            )
-            flash_cat = "warning"
-        else:
-            flash_msg = f"Période '{periode.nom}' publiée avec succès. Les bulletins complets sont désormais officiels."
-            flash_cat = "success"
+        classes_ecole = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=periode.annee_id).all()
+        for cl in classes_ecole:
+            try:
+                calculer_stats_et_classements_classe(
+                    ecole_id=ecole_id,
+                    classe_id=cl.id,
+                    annee_id=periode.annee_id,
+                    periode=periode.nom,
+                    periode_publiee=True
+                )
+            except Exception as e:
+                current_app.logger.warning(f"Calcul des rangs classe {cl.id} lors de la clôture : {e}")
     else:
         periode.publie = False
         action_name = "BULLETIN_REOUVERT"
@@ -1081,7 +1179,7 @@ def toggle_periode(id):
     db.session.commit()
 
     flash(flash_msg, flash_cat)
-    return redirect(url_for('main.gestion_periodes'))
+    return redirect(request.referrer or url_for('main.gestion_periodes'))
 
 
 @main.route('/reouvrir_periode/<int:id>', methods=['GET', 'POST'])

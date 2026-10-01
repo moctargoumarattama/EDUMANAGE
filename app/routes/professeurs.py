@@ -178,10 +178,14 @@ def professeurs():
             ]
         })
 
+    professeur_form = ProfesseurForm()
+
     return render_template(
         'professeurs.html',
         professeurs=profs_pagination,
         delete_form=delete_form,
+        form=professeur_form,
+        professeur_form=professeur_form,
         search=search,
         classe_id=classe_id,
         matiere=matiere,
@@ -195,7 +199,12 @@ def professeurs():
 @role_required('admin')
 @tenant_required
 def ajouter_professeur():
-    """Ajout d'un professeur avec contrôle de cohérence et notifications"""
+    """Ajout d'un professeur avec contrôle de cohérence et notifications.
+    Redirige les accès GET vers la page mère professeurs avec modale intégrée.
+    """
+    if request.method == 'GET':
+        return redirect(url_for('main.professeurs'))
+
     form = ProfesseurForm()
     ecole_id = g.ecole_id
 
@@ -205,21 +214,21 @@ def ajouter_professeur():
             code_prof = form.code_prof.data.strip() if form.code_prof.data else generate_access_code()
             if not is_valid_access_code(code_prof):
                 flash("Le mot de passe doit contenir exactement 8 chiffres.", "danger")
-                return redirect(url_for('main.ajouter_professeur'))
+                return redirect(url_for('main.professeurs'))
 
             # ---------------- Vérification unicité ----------------
             if Professeur.query.filter_by(code_prof=code_prof, ecole_id=ecole_id).first():
-                flash("Ce code professeur existe d?j? dans votre école.", "danger")
-                return redirect(url_for('main.ajouter_professeur'))
+                flash("Ce code professeur existe déjà dans votre école.", "danger")
+                return redirect(url_for('main.professeurs'))
 
             # ---------------- Création utilisateur ----------------
             telephone_prof = normaliser_numero_whatsapp(form.telephone.data)
             if not telephone_prof:
-                flash("Numero de telephone professeur invalide.", "danger")
-                return redirect(url_for('main.ajouter_professeur'))
+                flash("Numéro de téléphone professeur invalide.", "danger")
+                return redirect(url_for('main.professeurs'))
             if Utilisateur.query.filter_by(telephone=telephone_prof).first():
-                flash("Ce numero de telephone est deja utilise.", "danger")
-                return redirect(url_for('main.ajouter_professeur'))
+                flash("Ce numéro de téléphone est déjà utilisé.", "danger")
+                return redirect(url_for('main.professeurs'))
 
             utilisateur = Utilisateur(
                 nom=form.nom.data.strip(),
@@ -254,8 +263,8 @@ def ajouter_professeur():
                 db.session.commit()
             except IntegrityError:
                 db.session.rollback()
-                flash("Ce mot de passe est deja utilise dans votre etablissement.", "danger")
-                return redirect(url_for('main.ajouter_professeur'))
+                flash("Ce mot de passe est déjà utilisé dans votre établissement.", "danger")
+                return redirect(url_for('main.professeurs'))
 
             # ---------------- Journalisation ----------------
             _notifier_whatsapp_compte_professeur(
@@ -279,17 +288,21 @@ def ajouter_professeur():
                 niveau="info"
             )
 
-
-            flash(f"Professeur ajoute avec succes. Mot de passe: {code_prof}", "success")
+            flash(f"Professeur ajouté avec succès. Mot de passe: {code_prof}", "success")
             return redirect(url_for('main.professeurs'))
 
         except Exception as e:
             db.session.rollback()
             import traceback
             current_app.logger.error(f"Erreur ajout professeur: {e}\n{traceback.format_exc()}")
-            flash("â Œ Erreur lors de l'ajout du professeur.", "danger")
+            flash("❌ Erreur lors de l'ajout du professeur.", "danger")
+            return redirect(url_for('main.professeurs'))
 
-    return render_template('ajouter_professeur.html', form=form)
+    # Si la validation du formulaire échoue
+    for field, errors in form.errors.items():
+        for err in errors:
+            flash(f"Erreur {field}: {err}", "danger")
+    return redirect(url_for('main.professeurs'))
 
 @main.route('/professeur/<int:id>')
 @login_required

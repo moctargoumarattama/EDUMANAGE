@@ -16,9 +16,9 @@
             </div>
             <p class="text-muted mb-0">Consultez et gérez les professeurs de votre établissement et leurs affectations par classe.</p>
         </div>
-        <a href="{{ url_for('main.ajouter_professeur') }}" class="btn btn-primary">
-            <i class="fas fa-plus me-2"></i>Ajouter
-        </a>
+        <button type="button" class="btn btn-primary shadow-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalAjouterProfesseur">
+            <i class="fas fa-plus me-2"></i>Ajouter un professeur
+        </button>
     </div>
 
     <div class="card mb-4" id="professeurs-filter-section">
@@ -131,12 +131,14 @@
         <div class="empty-state-icon"><i class="fas fa-chalkboard-teacher"></i></div>
         <h2 class="empty-state-title">Aucun professeur trouvé</h2>
         <p class="empty-state-text">Ajoutez un professeur ou modifiez votre recherche.</p>
-        <a href="{{ url_for('main.ajouter_professeur') }}" class="btn btn-primary">
+        <button type="button" class="btn btn-primary shadow-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalAjouterProfesseur">
             <i class="fas fa-plus me-2"></i>Ajouter un professeur
-        </a>
+        </button>
     </div>
     {% endif %}
 </div>
+
+{% include 'partials/_modal_ajouter_professeur.html' %}
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

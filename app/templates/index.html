@@ -98,6 +98,46 @@
         </div>
     </section>
 
+    {% if rappel_periode_suivante and current_user.role == 'admin' %}
+    <!-- 🚨 Carte de rappel ROUGE : Semestre 1 clôturé mais Semestre 2 non encore activé -->
+    <div class="alert border-0 shadow-sm rounded-4 mb-4 p-3 p-md-4" style="background: linear-gradient(135deg, #fff5f5 0%, #fee2e2 100%); border-left: 5px solid #dc2626 !important;" role="region" aria-label="Rappel d'activation de période">
+        <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+            <div class="d-flex align-items-start gap-3">
+                <div class="rounded-circle d-flex align-items-center justify-content-center bg-white shadow-sm flex-shrink-0 mt-1 mt-lg-0" style="width: 48px; height: 48px; color: #dc2626; box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.15) !important;">
+                    <i class="fas fa-exclamation-triangle fa-lg"></i>
+                </div>
+                <div>
+                    <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+                        <span class="badge bg-danger text-white rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.72rem; letter-spacing: 0.5px;">
+                            <i class="fas fa-bell me-1"></i>ACTION REQUISE
+                        </span>
+                        <h2 class="h6 fw-bold mb-0 text-danger">
+                            Le {{ rappel_periode_suivante.periode_close.nom }} est clôturé, mais le {{ rappel_periode_suivante.periode_a_activer.nom }} n'est pas activé !
+                        </h2>
+                    </div>
+                    <p class="text-secondary small mb-0" style="line-height: 1.45;">
+                        La saisie des notes du <strong>{{ rappel_periode_suivante.periode_close.nom }}</strong> est officiellement verrouillée. Cependant, le <strong>{{ rappel_periode_suivante.periode_a_activer.nom }}</strong> n'est pas encore défini comme période de travail active. 
+                        Tant que cette période n'est pas activée, <strong>les professeurs ne peuvent pas saisir de devoirs ni de notes</strong> pour ce nouveau semestre.
+                    </p>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap flex-shrink-0 ms-lg-auto">
+                <a href="{{ url_for('main.bulletins', periode_id=rappel_periode_suivante.periode_close.id) }}" class="btn btn-outline-danger px-3 py-2 rounded-3 shadow-xs fw-semibold small touch-btn text-nowrap">
+                    <i class="fas fa-eye me-1"></i>Voir les bulletins
+                </a>
+                <form method="POST" action="{{ url_for('main.activer_directement_periode', periode_id=rappel_periode_suivante.periode_a_activer.id) }}" class="d-inline m-0">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="next" value="{{ url_for('main.index') }}">
+                    <button type="submit" class="btn btn-danger px-3.5 py-2 rounded-3 shadow-sm fw-bold touch-btn text-nowrap d-inline-flex align-items-center gap-1.5">
+                        <i class="fas fa-play"></i>
+                        <span>Activer le {{ rappel_periode_suivante.periode_a_activer.nom }} maintenant</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {% if annee_planifiee and current_user.role == 'admin' %}
     <div class="alert border-0 shadow-sm rounded-4 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-3 p-3 p-md-4" style="background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); border-left: 5px solid #6366f1 !important;" role="region" aria-label="Préparation de la rentrée">
         <div class="d-flex align-items-center gap-3">

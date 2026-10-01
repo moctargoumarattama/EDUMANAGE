@@ -181,9 +181,9 @@
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
                 {% if peut_modifier and current_user.role in ('admin', 'super_admin') %}
-                <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary shadow-sm rounded-pill py-1.5 px-3" id="btnAddEmploi">
+                <button type="button" class="btn btn-primary shadow-sm rounded-pill py-1.5 px-3" data-bs-toggle="modal" data-bs-target="#modalAjouterEmploi" id="btnAddEmploi">
                     <i class="fas fa-plus me-1.5"></i>Ajouter un cours
-                </a>
+                </button>
                 {% endif %}
             </div>
         </div>
@@ -445,11 +445,14 @@
 
                             {% if peut_modifier and current_user.role in ('admin', 'super_admin') %}
                             <!-- Bouton d'ajout rapide pour cette classe -->
-                            <a href="{{ url_for('main.ajouter_emploi', classe_id=c.id) }}"
-                               class="btn btn-sm btn-outline-primary d-none d-lg-inline-flex"
-                               title="Ajouter un cours pour {{ c.nom }}">
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-primary d-none d-lg-inline-flex"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#modalAjouterEmploi"
+                                    data-classe-id="{{ c.id }}"
+                                    title="Ajouter un cours pour {{ c.nom }}">
                                 <i class="fas fa-plus me-1"></i>Cours
-                            </a>
+                            </button>
                             {% endif %}
 
                             <!-- Bouton d'impression pour cette classe -->
@@ -476,9 +479,9 @@
                                 <h6 class="text-muted fw-bold mb-1">Aucun cours planifié</h6>
                                 <p class="text-muted small mb-3">Cette classe n'a pas encore d'emploi du temps enregistré.</p>
                                 {% if peut_modifier and current_user.role in ('admin', 'super_admin') %}
-                                <a href="{{ url_for('main.ajouter_emploi', classe_id=c.id) }}" class="btn btn-sm btn-primary">
+                                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalAjouterEmploi" data-classe-id="{{ c.id }}">
                                     <i class="fas fa-plus-circle me-1"></i>Planifier un premier cours
-                                </a>
+                                </button>
                                 {% endif %}
                             </div>
                         {% else %}
@@ -761,10 +764,10 @@
                     <p class="text-muted mx-auto mb-3" style="max-width: 480px;">
                         Aucune classe n'est disponible pour planifier des emplois du temps pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong>.
                     </p>
-                    {% if current_user.role in ('admin', 'super_admin') %}
-                    <a href="{{ url_for('main.ajouter_emploi') }}" class="btn btn-primary btn-sm rounded-pill px-3">
+                    {% if current_user.role in ('admin', 'super_admin') and peut_modifier %}
+                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#modalAjouterEmploi">
                         <i class="fas fa-plus me-1"></i>Ajouter un cours
-                    </a>
+                    </button>
                     {% endif %}
                 </div>
             </div>
@@ -825,6 +828,8 @@
         </div>
     </div>
 </div>
+
+{% include 'partials/_modal_ajouter_emploi.html' %}
 {% endblock %}
 
 {% block extra_js %}

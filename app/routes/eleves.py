@@ -444,6 +444,19 @@ def eleves():
                 .all()
             )
 
+    eleve_form = EleveForm()
+    annee_classes = annee_consultee or annee_active
+    if annee_classes:
+        classes_query_form = get_classes_ouvertes_annee(ecole_id, annee_classes.id)
+    else:
+        classes_query_form = Classe.query.filter_by(ecole_id=ecole_id).filter(db.false())
+    classes_disponibles = classes_triees_pedagogique(classes_query_form).all()
+    eleve_form.classe_id.choices = [(c.id, c.nom_complet) for c in classes_disponibles]
+
+    eleve_form.parent_id.choices = [(0, "--- Aucun parent / Nouveau tuteur ---")]
+    parents_form = Utilisateur.query.filter_by(role='parent', ecole_id=ecole_id).order_by(Utilisateur.nom).all()
+    eleve_form.parent_id.choices += [(p.id, _parent_label(p)) for p in parents_form]
+
     return render_template(
         'eleves.html',
         classes=classes,
@@ -470,6 +483,8 @@ def eleves():
         annee_active=annee_active,
         classes_ouvertes_annee_active=classes_ouvertes_annee_active,
         anciens_eleves_non_inscrits=anciens_eleves_non_inscrits,
+        eleve_form=eleve_form,
+        form=eleve_form,
         return_url=_eleves_context_url()
     )
 
@@ -478,7 +493,12 @@ def eleves():
 @role_required('admin')
 @tenant_required
 def ajouter_eleve():
-    """Ajout d’un élève avec contrôle de cohérence, sécurité multi-écoles et notifications parent."""
+    """Ajout d’un élève avec contrôle de cohérence, sécurité multi-écoles et notifications parent.
+    Redirige les accès GET vers la page mère eleves avec modale intégrée.
+    """
+    if request.method == 'GET':
+        return redirect(url_for('main.eleves'))
+
     form = EleveForm()
 
     ecole_id = g.ecole_id
@@ -516,18 +536,15 @@ def ajouter_eleve():
             # 🔹 Vérif classe obligatoire et valide avec filtre multi-écoles
             if not form.classe_id.data:
                 flash("❌ La sélection d'une classe est obligatoire. Un élève doit obligatoirement être inscrit dans une classe.", "danger")
-                return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
-                                       annee_active=annee_active, classes=classes)
+                return redirect(url_for('main.eleves'))
 
             classe_selectionnee = filtre_par_ecole(Classe.query, Classe).filter_by(id=form.classe_id.data).first()
             if not classe_selectionnee or classe_selectionnee.ecole_id != ecole_id:
                 flash("❌ Classe invalide ou non autorisée pour cette école.", "danger")
-                return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
-                                       annee_active=annee_active, classes=classes)
+                return redirect(url_for('main.eleves'))
             if not annee_consultee or classe_selectionnee.annee_scolaire_id != annee_consultee.id:
                 flash("Classe invalide pour l'annee consultee.", "danger")
-                return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
-                                       annee_active=annee_active, classes=classes)
+                return redirect(url_for('main.eleves'))
 
             # ---------------- Gestion parent ----------------
             parent_id_final = None
@@ -543,8 +560,7 @@ def ajouter_eleve():
             ]):
                 if not telephone_parent:
                     flash("Le numéro de téléphone du tuteur est requis.", "danger")
-                    return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
-                                           annee_active=annee_active, classes=classes)
+                    return redirect(url_for('main.eleves'))
 
                 existing_parent = _find_parent_by_phone(ecole_id, telephone_parent)
                 if existing_parent:
@@ -557,12 +573,10 @@ def ajouter_eleve():
                     if code_parent_saisi:
                         if not is_valid_access_code(code_parent_saisi):
                             flash("Le code d'accès doit contenir exactement 8 chiffres.", "danger")
-                            return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
-                                                   annee_active=annee_active, classes=classes)
+                            return redirect(url_for('main.eleves'))
                         if Eleve.query.filter_by(code_parent=code_parent_saisi).first():
                             flash("Ce code parent est déjà utilisé par un autre élève.", "danger")
-                            return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
-                                                   annee_active=annee_active, classes=classes)
+                            return redirect(url_for('main.eleves'))
 
                     code_parent = code_parent_saisi or generate_access_code()
                     parent_utilisateur = Utilisateur(
@@ -588,17 +602,15 @@ def ajouter_eleve():
                     telephone_parent = _normaliser_telephone_parent(parent_obj.telephone)
                     if not telephone_parent:
                         flash("Le parent sélectionné n'a pas de numéro de téléphone valide.", "danger")
-                        return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
-                                               annee_active=annee_active, classes=classes)
+                        return redirect(url_for('main.eleves'))
                     parent_obj.telephone = telephone_parent
                 elif parent_obj is None and parent_id_final:
                     flash("❌ Ce parent n'appartient pas à votre école.", "danger")
-                    return redirect(url_for('main.ajouter_eleve'))
+                    return redirect(url_for('main.eleves'))
 
             if not parent_id_final:
                 flash("Le numéro de téléphone du tuteur est requis.", "danger")
-                return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
-                                       annee_active=annee_active, classes=classes)
+                return redirect(url_for('main.eleves'))
 
             # ---------------- Création élève ----------------
             nouvel_eleve = Eleve(
@@ -664,11 +676,13 @@ def ajouter_eleve():
             import traceback
             current_app.logger.error(f"Erreur ajout élève: {e}\n{traceback.format_exc()}")
             flash("❌ Erreur lors de l'ajout de l'élève. Veuillez vérifier les informations saisies.", "danger")
+            return redirect(url_for('main.eleves'))
 
-        
-    # ---------------- Affichage du formulaire ----------------
-    return render_template('ajouter_eleve.html', form=form, annees_ecole=annees_ecole,
-                           annee_active=annee_active, classes=classes)
+    # Si la validation du formulaire échoue
+    for field, errors in form.errors.items():
+        for err in errors:
+            flash(f"Erreur champ {field}: {err}", "danger")
+    return redirect(url_for('main.eleves'))
 
 @main.route('/api/eleves/classe/<int:classe_id>')
 @login_required

@@ -23,7 +23,7 @@
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
                 {% if not annee_consultee or annee_consultee.statut == 'active' %}
-                <button type="button" class="btn btn-success shadow-sm rounded-pill px-3 py-1.5" data-bs-toggle="collapse" data-bs-target="#collapseNouveauPaiement" aria-expanded="false" aria-controls="collapseNouveauPaiement" id="btnToggleAddPayment">
+                <button type="button" class="btn btn-success shadow-sm rounded-pill px-3 py-1.5" data-bs-toggle="modal" data-bs-target="#modalAjouterPaiement" id="btnToggleAddPayment">
                     <i class="fas fa-plus-circle me-1"></i>Nouveau paiement
                 </button>
                 {% endif %}
@@ -118,57 +118,9 @@
         </div>
     </div>
 
-    <!-- Formulaire d'ajout de paiement rétractable -->
+    <!-- Modale d'enregistrement de paiement -->
     {% if not annee_consultee or annee_consultee.statut == 'active' %}
-    <div class="collapse mb-4" id="collapseNouveauPaiement">
-        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
-            <div class="card-header bg-success text-white py-3 px-4 d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="fas fa-cash-register fa-lg"></i>
-                    <h5 class="mb-0 fw-bold">Enregistrer un nouveau versement</h5>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-toggle="collapse" data-bs-target="#collapseNouveauPaiement" aria-label="Fermer"></button>
-            </div>
-            <div class="card-body p-4 bg-light bg-opacity-50">
-                <form method="POST" action="{{ url_for('main.paiements') }}" class="needs-validation" novalidate>
-                    {{ form.hidden_tag() }}
-                    <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
-                    <div class="row g-3">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold" for="eleve_id">Élève concerné <span class="text-danger">*</span></label>
-                            {{ form.eleve_id(class="form-select", id="form_eleve_id", required=true) }}
-                        </div>
-                        <div class="col-12 col-sm-6 col-md-3">
-                            <label class="form-label fw-semibold" for="montant">Montant (FCFA) <span class="text-danger">*</span></label>
-                            {{ form.montant(class="form-control", id="form_montant", placeholder="Ex: 50000", required=true) }}
-                        </div>
-                        <div class="col-12 col-sm-6 col-md-3">
-                            <label class="form-label fw-semibold" for="mode_paiement">Mode de règlement <span class="text-danger">*</span></label>
-                            {{ form.mode_paiement(class="form-select", id="form_mode_paiement") }}
-                        </div>
-                        <div class="col-12 col-sm-6 col-md-3">
-                            <label class="form-label fw-semibold" for="mois">Période / Mois <span class="text-danger">*</span></label>
-                            {{ form.mois(class="form-select", id="form_mois") }}
-                        </div>
-                        <div class="col-12 col-sm-6 col-md-3">
-                            <label class="form-label fw-semibold" for="annee">Année <span class="text-danger">*</span></label>
-                            {{ form.annee(class="form-control", id="form_annee", required=true) }}
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold" for="reference">Référence / Numéro de reçu</label>
-                            {{ form.reference(class="form-control", id="form_reference", placeholder="Ex: VIR-2026-004 ou Reçu N° 128") }}
-                        </div>
-                        <div class="col-12 d-flex justify-content-end gap-2 pt-2">
-                            <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-toggle="collapse" data-bs-target="#collapseNouveauPaiement">Annuler</button>
-                            <button type="submit" class="btn btn-success rounded-pill px-4">
-                                <i class="fas fa-check me-2"></i>Valider le paiement
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+    {% include 'partials/_modal_ajouter_paiement.html' %}
     {% endif %}
 
     <!-- Barre de filtrage par puces (Chips) pour les classes -->
@@ -1258,18 +1210,19 @@ document.addEventListener('DOMContentLoaded', function() {
             e.stopPropagation();
             const eleveId = this.dataset.eleveId;
             const eleveSelect = document.getElementById('form_eleve_id');
-            const collapseForm = document.getElementById('collapseNouveauPaiement');
+            const modalEl = document.getElementById('modalAjouterPaiement');
 
             if (eleveSelect && eleveId) {
                 eleveSelect.value = eleveId;
             }
 
-            if (collapseForm) {
-                const bsCollapse = bootstrap.Collapse.getOrCreateInstance(collapseForm, { toggle: false });
-                bsCollapse.show();
-                collapseForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                const montantInput = document.getElementById('form_montant');
-                if (montantInput) montantInput.focus();
+            if (modalEl) {
+                const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                bsModal.show();
+                setTimeout(() => {
+                    const montantInput = document.getElementById('form_montant');
+                    if (montantInput) montantInput.focus();
+                }, 300);
             }
         });
     });

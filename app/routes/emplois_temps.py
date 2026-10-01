@@ -132,6 +132,19 @@ def admin_emplois():
             'salles_count': salles_count,
         })
 
+    form = None
+    if annee_consultee and peut_modifier:
+        form = AjouterEmploiForm(annee=annee_consultee)
+        classes_annee = classes_triees_pedagogique(Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_consultee.id)).all()
+        form.classe_id.choices = [(c.id, c.nom) for c in classes_annee]
+        form.professeur_id.choices = [(p.id, f"{p.prenom} {p.nom}") for p in Professeur.query.filter_by(ecole_id=ecole_id).order_by(Professeur.nom).all()]
+        selected_classe_id = classes_annee[0].id if classes_annee else None
+        if selected_classe_id:
+            cours_query = Cours.query.filter_by(ecole_id=ecole_id, classe_id=selected_classe_id).order_by(Cours.nom).all()
+            form.cours_id.choices = [(c.id, c.nom) for c in cours_query]
+        else:
+            form.cours_id.choices = []
+
     return render_template(
         'admin_emplois.html',
         emplois=all_emplois,
@@ -140,6 +153,8 @@ def admin_emplois():
         emplois_sans_classe=emplois_sans_classe,
         pagination=None,
         delete_form=delete_form,
+        form=form,
+        emploi_form=form,
         classes_count=classes_count,
         professeurs_count=professeurs_count,
         salles_count=salles_count,
@@ -159,9 +174,16 @@ def ajouter_emploi():
     """
     Ajout d'un créneau d'emploi du temps - filtré par école et année consultée.
     Autorisé en année active et planifiée. Rejeté en année archivée.
+    Redirige les accès GET vers la page mère admin_emplois avec modale intégrée.
     """
     ecole_id = g.ecole_id
     annee_consultee = get_annee_consultee(ecole_id)
+
+    if request.method == 'GET':
+        classe_id_arg = request.args.get('classe_id', type=int)
+        if classe_id_arg:
+            return redirect(url_for('main.admin_emplois', classe_id=classe_id_arg))
+        return redirect(url_for('main.admin_emplois'))
 
     if not annee_consultee:
         flash("Aucune année scolaire active ou configurée.", "warning")
@@ -178,12 +200,6 @@ def ajouter_emploi():
     form.classe_id.choices = [(c.id, c.nom) for c in classes_annee]
     form.professeur_id.choices = [(p.id, f"{p.prenom} {p.nom}") for p in Professeur.query.filter_by(ecole_id=ecole_id).order_by(Professeur.nom).all()]
     
-    # Pré-sélection de la classe si spécifiée dans l'URL
-    classe_id_arg = request.args.get('classe_id', type=int)
-    if request.method == 'GET' and classe_id_arg:
-        form.classe_id.data = classe_id_arg
-
-    # Filtrer les cours proposés par la classe sélectionnée
     selected_classe_id = form.classe_id.data or (classes_annee[0].id if classes_annee else None)
     if selected_classe_id:
         cours_query = Cours.query.filter_by(ecole_id=ecole_id, classe_id=selected_classe_id).order_by(Cours.nom).all()
@@ -207,13 +223,17 @@ def ajouter_emploi():
 
         if error:
             flash(error, "danger")
-            return render_template('admin_ajouter_emploi.html', form=form, annee_consultee=annee_consultee)
+            return redirect(url_for('main.admin_emplois'))
 
         log_action(current_user, f"Ajout créneau emploi du temps ID={creneau.id} (Classe ID={creneau.classe_id})")
         flash("Créneau d'emploi du temps ajouté avec succès !", "success")
         return redirect(url_for('main.admin_emplois'))
 
-    return render_template('admin_ajouter_emploi.html', form=form, annee_consultee=annee_consultee)
+    # Si erreurs de validation lors de la soumission POST
+    for field, errors in form.errors.items():
+        for err in errors:
+            flash(f"Erreur champ {field}: {err}", "danger")
+    return redirect(url_for('main.admin_emplois'))
 
 
 @main.route('/emploi/<int:id>/modifier', methods=['GET', 'POST'])

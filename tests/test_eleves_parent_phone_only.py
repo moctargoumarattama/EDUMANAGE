@@ -136,7 +136,7 @@ class EleveParentPhoneOnlyTestCase(unittest.TestCase):
         db.session.add(parent)
         db.session.commit()
 
-        html = self.client.get("/ajouter_eleve").get_data(as_text=True)
+        html = self.client.get("/ajouter_eleve", follow_redirects=True).get_data(as_text=True)
         self.assertIn("field.disabled = useExistingParent", html)
         self.assertIn("syncNouveauParentState();", html)
 

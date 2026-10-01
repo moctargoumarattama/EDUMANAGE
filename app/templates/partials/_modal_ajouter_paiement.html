@@ -1,0 +1,137 @@
+<div class="modal fade" id="modalAjouterPaiement" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalAjouterPaiementLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="modalAjouterPaiementLabel">
+                    <i class="fas fa-cash-register"></i>
+                    <span>Enregistrer un versement de scolarité</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            {% set f_paiement = form_paiement or form %}
+            <form method="POST" action="{{ url_for('main.paiements') }}" class="needs-validation" id="formAjouterPaiement" novalidate>
+                {{ f_paiement.hidden_tag() if f_paiement and f_paiement.hidden_tag is defined else '' }}
+                <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="form_eleve_id">Élève concerné <span class="text-danger">*</span></label>
+                            {% if f_paiement and f_paiement.eleve_id %}
+                                {{ f_paiement.eleve_id(class="form-select", id="form_eleve_id", required=true) }}
+                            {% else %}
+                                <select name="eleve_id" id="form_eleve_id" class="form-select" required>
+                                    <option value="">Sélectionner un élève</option>
+                                </select>
+                            {% endif %}
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label fw-semibold" for="form_montant">Montant (FCFA) <span class="text-danger">*</span></label>
+                            {% if f_paiement and f_paiement.montant %}
+                                {{ f_paiement.montant(class="form-control", id="form_montant", placeholder="Ex: 50000", required=true) }}
+                            {% else %}
+                                <input type="number" name="montant" id="form_montant" class="form-control" placeholder="Ex: 50000" required>
+                            {% endif %}
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label fw-semibold" for="form_mode_paiement">Mode de règlement <span class="text-danger">*</span></label>
+                            {% if f_paiement and f_paiement.mode_paiement %}
+                                {{ f_paiement.mode_paiement(class="form-select", id="form_mode_paiement") }}
+                            {% else %}
+                                <select name="mode_paiement" id="form_mode_paiement" class="form-select" required>
+                                    <option value="Espèces">Espèces</option>
+                                    <option value="Mobile Money">Mobile Money</option>
+                                    <option value="Virement bancaire">Virement bancaire</option>
+                                </select>
+                            {% endif %}
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label fw-semibold" for="form_mois">Période / Mois <span class="text-danger">*</span></label>
+                            {% if f_paiement and f_paiement.mois %}
+                                {{ f_paiement.mois(class="form-select", id="form_mois") }}
+                            {% else %}
+                                <select name="mois" id="form_mois" class="form-select" required>
+                                    <option value="Inscription">Inscription</option>
+                                    <option value="Octobre">Octobre</option>
+                                    <option value="Novembre">Novembre</option>
+                                    <option value="Décembre">Décembre</option>
+                                    <option value="Janvier">Janvier</option>
+                                    <option value="Février">Février</option>
+                                    <option value="Mars">Mars</option>
+                                    <option value="Avril">Avril</option>
+                                    <option value="Mai">Mai</option>
+                                    <option value="Juin">Juin</option>
+                                </select>
+                            {% endif %}
+                        </div>
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <label class="form-label fw-semibold" for="form_annee">Année <span class="text-danger">*</span></label>
+                            {% if f_paiement and f_paiement.annee %}
+                                {{ f_paiement.annee(class="form-control", id="form_annee", required=true) }}
+                            {% else %}
+                                <input type="number" name="annee" id="form_annee" class="form-control" required>
+                            {% endif %}
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold" for="form_reference">Référence / N° de reçu</label>
+                            {% if f_paiement and f_paiement.reference %}
+                                {{ f_paiement.reference(class="form-control", id="form_reference", placeholder="Ex: VIR-2026-004 ou Reçu N° 128") }}
+                            {% else %}
+                                <input type="text" name="reference" id="form_reference" class="form-control" placeholder="Ex: VIR-2026-004 ou Reçu N° 128">
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Annuler
+                    </button>
+                    <button type="submit" class="btn btn-success rounded-pill px-4" id="btnSubmitAjouterPaiement" data-original-text="Valider le paiement">
+                        <span class="submit-spinner spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
+                        <span class="submit-text"><i class="fas fa-check me-1"></i>Valider le paiement</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modalEl = document.getElementById('modalAjouterPaiement');
+    const formEl = document.getElementById('formAjouterPaiement');
+    if (!modalEl || !formEl) return;
+
+    const submitBtn = modalEl.querySelector('#btnSubmitAjouterPaiement');
+
+    // Reset à la fermeture
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        formEl.reset();
+        formEl.classList.remove('was-validated');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            const spinner = submitBtn.querySelector('.submit-spinner');
+            if (spinner) spinner.classList.add('d-none');
+            const textSpan = submitBtn.querySelector('.submit-text');
+            if (textSpan) textSpan.innerHTML = '<i class="fas fa-check me-1"></i>Valider le paiement';
+        }
+    });
+
+    // Anti double-clic
+    formEl.addEventListener('submit', function (event) {
+        if (!formEl.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+            formEl.classList.add('was-validated');
+            return;
+        }
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            const spinner = submitBtn.querySelector('.submit-spinner');
+            if (spinner) spinner.classList.remove('d-none');
+            const textSpan = submitBtn.querySelector('.submit-text');
+            if (textSpan) textSpan.textContent = 'Enregistrement en cours...';
+        }
+    });
+});
+</script>

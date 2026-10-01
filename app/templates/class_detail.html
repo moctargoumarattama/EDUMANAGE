@@ -51,8 +51,8 @@
             <a href="{{ url_for('main.modifier_classe', classe_id=classe.id) }}" class="btn btn-outline-warning btn-sm px-3 rounded-pill">
                 <i class="fas fa-edit me-1"></i>Modifier la classe
             </a>
-            <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-primary btn-sm px-3 rounded-pill fw-semibold shadow-sm">
-                <i class="fas fa-user-plus me-1"></i>Ajouter un élève
+            <a href="{{ url_for('main.eleves') }}" class="btn btn-primary btn-sm px-3 rounded-pill fw-semibold shadow-sm">
+                <i class="fas fa-user-plus me-1"></i>Inscrire un élève
             </a>
             {% endif %}
         </div>
@@ -263,7 +263,7 @@
                     Cette classe est actuellement vide. Vous pouvez commencer à y inscrire des élèves.
                 </p>
                 {% if current_user.role == 'admin' %}
-                <a href="{{ url_for('main.ajouter_eleve') }}" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
+                <a href="{{ url_for('main.eleves') }}" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
                     <i class="fas fa-user-plus me-1"></i>Inscrire un élève
                 </a>
                 {% endif %}
