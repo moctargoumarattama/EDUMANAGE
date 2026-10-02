@@ -1,5 +1,5 @@
 <div class="modal fade" id="modalAjouterPaiement" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalAjouterPaiementLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg modal-fullscreen-md-down">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title d-flex align-items-center gap-2" id="modalAjouterPaiementLabel">
@@ -9,7 +9,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
             {% set f_paiement = form_paiement or form %}
-            <form method="POST" action="{{ url_for('main.paiements') }}" class="needs-validation" id="formAjouterPaiement" novalidate>
+            <form method="POST" action="{{ url_for('main.paiements') }}" class="needs-validation d-flex flex-column flex-grow-1" id="formAjouterPaiement" novalidate style="min-height: 0;">
                 {{ f_paiement.hidden_tag() if f_paiement and f_paiement.hidden_tag is defined else '' }}
                 <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
                 <div class="modal-body p-4">

@@ -201,108 +201,442 @@
     <!-- ======================================================= -->
     <!-- 👑 TOUR DE CONTRÔLE SUPER ADMIN (ACCÈS EXCLUSIF)       -->
     <!-- ======================================================= -->
-    <section class="home-section mb-4">
-        <div class="home-section-header">
-            <div class="d-flex align-items-center gap-2">
-                <span class="section-title-icon" style="background: linear-gradient(135deg, #ef4444, #b91c1c); color: white;"><i class="fas fa-server"></i></span>
-                <h2 class="home-section-title">État du Système & Télémétrie</h2>
-            </div>
-            <span class="section-badge d-none d-lg-inline-flex" style="background: rgba(239, 68, 68, 0.1); color: #dc2626; border-color: rgba(239, 68, 68, 0.2);">
-                <i class="fas fa-crown me-1"></i>Tour de Contrôle
-            </span>
-        </div>
-        <div class="home-stat-grid">
-            <div class="home-stat-card">
-                <span class="home-stat-icon" style="background: linear-gradient(135deg, #4361ee, #3a0ca3); color: white;"><i class="fas fa-school"></i></span>
-                <div class="home-stat-info">
-                    <strong>{{ stats.total_ecoles }}</strong>
-                    <small>Écoles enregistrées</small>
-                </div>
-            </div>
-            <div class="home-stat-card">
-                <span class="home-stat-icon" style="background: linear-gradient(135deg, #14b8a6, #0f766e); color: white;"><i class="fas fa-user-clock"></i></span>
-                <div class="home-stat-info">
-                    <strong>{{ stats.active_24h }}</strong>
-                    <small>Actifs sur 24h</small>
-                </div>
-            </div>
-            <div class="home-stat-card">
-                <span class="home-stat-icon" style="background: linear-gradient(135deg, #10b981, #059669); color: white;"><i class="fas fa-hdd"></i></span>
-                <div class="home-stat-info">
-                    <strong>{{ stats.disk_usage }}%</strong>
-                    <small>Espace disque utilisé</small>
-                </div>
-            </div>
-            <div class="home-stat-card">
-                <span class="home-stat-icon" style="background: linear-gradient(135deg, #6366f1, #4338ca); color: white;"><i class="fas fa-database"></i></span>
-                <div class="home-stat-info">
-                    <strong class="home-stat-value home-stat-value-compact">{{ stats.db_backend }} {{ stats.db_version }}</strong>
-                    <small>{{ stats.table_count }} tables actives</small>
-                </div>
-            </div>
-        </div>
-    </section>
 
-    <section class="home-section">
-        <div class="home-section-header">
-            <div class="d-flex align-items-center gap-2">
-                <span class="section-title-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;"><i class="fas fa-th-large"></i></span>
-                <h2 class="home-section-title">Actions & Pilotage Direct</h2>
+    {% if mdp_auto %}
+    <div class="alert border-0 rounded-4 shadow-sm mb-4 position-relative overflow-hidden" id="bandeauMdpAuto"
+         style="background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 50%, #4338ca 100%); color: #fff;">
+        <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center gap-3 p-2">
+            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+                     style="width: 44px; height: 44px; background: rgba(255,255,255,0.15);">
+                    <i class="fas fa-key fa-lg"></i>
+                </div>
+                <div>
+                    <div class="fw-bold" style="font-size: 0.95rem;">Nouvel établissement créé avec succès !</div>
+                    <div class="opacity-75" style="font-size: 0.78rem;">Pour « {{ mdp_auto_nom }} » — {{ mdp_auto_email }}</div>
+                </div>
             </div>
-            <span class="text-muted small">Accès direct aux modules d'administration</span>
+            <div class="d-flex align-items-center gap-2 flex-grow-1 justify-content-md-center">
+                <div class="px-3 py-1.5 rounded-3 d-flex align-items-center gap-2"
+                     style="background: rgba(255,255,255,0.15); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.2);">
+                    <i class="fas fa-lock text-warning"></i>
+                    <span class="fw-bold" style="font-family: ui-monospace, SFMono-Regular, monospace; font-size: 1.25rem; letter-spacing: 0.12em;">{{ mdp_auto }}</span>
+                </div>
+            </div>
+            <div class="ms-md-auto">
+                <button type="button" class="btn btn-sm btn-outline-light border-white-50 opacity-75 px-2" onclick="document.getElementById('bandeauMdpAuto').remove();">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
         </div>
-        <div class="home-action-grid">
-            <a href="{{ url_for('main.gestion_ecoles') }}" class="home-action-card">
-                <span class="home-action-icon" style="background: linear-gradient(135deg, #4361ee, #3a0ca3);"><i class="fas fa-school"></i></span>
-                <div class="home-action-info">
-                    <strong>Gérer les Écoles <span class="badge bg-primary rounded-pill ms-1">{{ stats.total_ecoles }}</span></strong>
-                    <small>Établissements & accès</small>
-                </div>
-                <i class="fas fa-chevron-right action-card-arrow"></i>
-            </a>
-            <a href="{{ url_for('main.ajouter_ecole') }}" class="home-action-card">
-                <span class="home-action-icon" style="background: linear-gradient(135deg, #10b981, #059669);"><i class="fas fa-plus-circle"></i></span>
-                <div class="home-action-info">
-                    <strong>Ajouter une École</strong>
-                    <small>Nouvel établissement</small>
-                </div>
-                <i class="fas fa-chevron-right action-card-arrow"></i>
-            </a>
-            <a href="{{ url_for('admin.maintenance_page') }}" class="home-action-card">
-                <span class="home-action-icon" style="background: linear-gradient(135deg, #ef4444, #b91c1c);"><i class="fas fa-sliders-h"></i></span>
-                <div class="home-action-info">
-                    <strong>Maintenance</strong>
-                    <small>Sauvegardes & santé BDD</small>
-                </div>
-                <i class="fas fa-chevron-right action-card-arrow"></i>
-            </a>
-            <a href="{{ url_for('admin.view_logs') }}" class="home-action-card">
-                <span class="home-action-icon" style="background: linear-gradient(135deg, #0284c7, #0369a1);"><i class="fas fa-file-alt"></i></span>
-                <div class="home-action-info">
-                    <strong>Logs Système</strong>
-                    <small>Journaux & sécurité</small>
-                </div>
-                <i class="fas fa-chevron-right action-card-arrow"></i>
-            </a>
-            <a href="{{ url_for('admin.support_tickets') }}" class="home-action-card">
-                <span class="home-action-icon" style="background: linear-gradient(135deg, #0ea5e9, #0284c7);"><i class="fas fa-life-ring"></i></span>
-                <div class="home-action-info">
-                    <strong>Support KLASORA {% if nouveau_tickets_count and nouveau_tickets_count > 0 %}<span class="badge bg-danger rounded-pill ms-1">{{ nouveau_tickets_count }}</span>{% endif %}</strong>
-                    <small>Tickets d'assistance technique</small>
-                </div>
-                <i class="fas fa-chevron-right action-card-arrow"></i>
-            </a>
-            <a href="{{ url_for('admin.demandes_presentation') }}" class="home-action-card">
-                <span class="home-action-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);"><i class="fas fa-handshake"></i></span>
-                <div class="home-action-info">
-                    <strong>Demandes Présentation {% if nouvelles_demandes_count and nouvelles_demandes_count > 0 %}<span class="badge bg-danger rounded-pill ms-1">{{ nouvelles_demandes_count }}</span>{% endif %}</strong>
-                    <small>Prospects & demandes de démo</small>
-                </div>
-                <i class="fas fa-chevron-right action-card-arrow"></i>
-            </a>
-        </div>
-    </section>
+    </div>
+    {% endif %}
 
+    <!-- 🖥️ VUE PC : TOUR DE CONTRÔLE COMPLÈTE (OPTION 1) -->
+    <div class="d-none d-lg-block">
+        <!-- 1. TÉLÉMÉTRIE & SANTÉ DU SYSTÈME -->
+        <div class="row g-3 mb-4">
+            <div class="col-3">
+                <div class="superadmin-kpi-card">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted small fw-semibold">Établissements</span>
+                        <div class="superadmin-kpi-icon bg-primary-subtle text-primary">
+                            <i class="fas fa-school"></i>
+                        </div>
+                    </div>
+                    <div class="h3 fw-bold text-dark mb-1">{{ stats.total_ecoles }}</div>
+                    <div class="small text-muted d-flex align-items-center gap-2">
+                        <span class="text-success fw-medium"><i class="fas fa-check-circle me-1"></i>{{ stats.ecoles_actives|default(0) }} actives</span>
+                        {% if stats.ecoles_bloquees and stats.ecoles_bloquees > 0 %}
+                        <span class="text-danger fw-medium"><i class="fas fa-ban me-1"></i>{{ stats.ecoles_bloquees }} suspendues</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="superadmin-kpi-card">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted small fw-semibold">Élèves & Utilisateurs</span>
+                        <div class="superadmin-kpi-icon bg-info-subtle text-info">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                    <div class="h3 fw-bold text-dark mb-1">{{ stats.total_eleves|default(0) }}</div>
+                    <div class="small text-muted">
+                        <span class="text-primary fw-medium"><i class="fas fa-user-clock me-1"></i>{{ stats.active_24h }}</span> actifs sur 24h
+                    </div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="superadmin-kpi-card">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted small fw-semibold">Espace Disque Serveur</span>
+                        <div class="superadmin-kpi-icon bg-success-subtle text-success">
+                            <i class="fas fa-hdd"></i>
+                        </div>
+                    </div>
+                    <div class="h3 fw-bold text-dark mb-1">{{ stats.disk_usage }}%</div>
+                    <div class="progress" style="height: 5px;">
+                        <div class="progress-bar {% if stats.disk_usage and stats.disk_usage != 'N/A' and stats.disk_usage|float > 85 %}bg-danger{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ stats.disk_usage if stats.disk_usage != 'N/A' else 50 }}%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-3">
+                <div class="superadmin-kpi-card">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="text-muted small fw-semibold">Base de Données</span>
+                        <div class="superadmin-kpi-icon" style="background: rgba(99, 102, 241, 0.12); color: #4f46e5;">
+                            <i class="fas fa-database"></i>
+                        </div>
+                    </div>
+                    <div class="h4 fw-bold text-dark mb-1 text-truncate">{{ stats.db_backend }}</div>
+                    <div class="small text-muted">
+                        <i class="fas fa-table me-1"></i>{{ stats.table_count }} tables actives
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. ANNUAIRE & GESTION DES ÉCOLES EN DIRECT -->
+        <div class="superadmin-table-card mb-4">
+            <div class="p-3 bg-white border-bottom d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary rounded-circle p-2"><i class="fas fa-school text-white"></i></span>
+                        <h5 class="fw-bold text-dark mb-0">Établissements & Gestion en Direct</h5>
+                        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2.5">{{ ecoles|length }}</span>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Recherche instantanée -->
+                    <div class="input-group input-group-sm" style="width: 260px;">
+                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-search"></i></span>
+                        <input type="text" id="superAdminSchoolSearch" class="form-control border-start-0 bg-light" placeholder="Filtrer par nom, ville, email..." autocomplete="off">
+                    </div>
+                    <!-- Filtres -->
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-primary super-admin-filter-btn" data-filter="all">Toutes</button>
+                        <button type="button" class="btn btn-light super-admin-filter-btn" data-filter="actif">Actives</button>
+                        <button type="button" class="btn btn-light super-admin-filter-btn" data-filter="bloque">Suspendues</button>
+                    </div>
+                    <!-- Bouton Inscrire une école -->
+                    <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 fw-semibold shadow-sm d-inline-flex align-items-center gap-1.5" data-bs-toggle="modal" data-bs-target="#modalAjouterEcole">
+                        <i class="fas fa-plus-circle"></i>
+                        <span>Inscrire une école</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light text-muted small text-uppercase">
+                        <tr>
+                            <th class="ps-3" style="width: 60px;">#ID</th>
+                            <th>Établissement</th>
+                            <th>Contact Référent</th>
+                            <th class="text-center">Effectif</th>
+                            <th>Statut</th>
+                            <th class="text-end pe-3" style="width: 140px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="superAdminSchoolTableBody">
+                        {% for ecole in ecoles %}
+                        {% set is_blocked = ecole.statut in ['bloque', 'suspendu', 'inactive'] %}
+                        <tr class="super-admin-school-row" data-statut="{{ 'bloque' if is_blocked else 'actif' }}" data-search="{{ ecole.nom|lower }} {{ ecole.adresse|default('')|lower }} {{ ecole.ville|default('')|lower }} {{ ecole.email|default('')|lower }} {{ ecole.telephone|default('')|lower }}">
+                            <td class="ps-3 text-muted fw-semibold">#{{ ecole.id }}</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2.5">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold shadow-2xs flex-shrink-0" 
+                                         style="width: 36px; height: 36px; font-size: 0.85rem; background: {{ 'linear-gradient(135deg, #4361ee, #3a0ca3)' if not is_blocked else 'linear-gradient(135deg, #ef4444, #991b1b)' }};">
+                                        {{ ecole.nom[:2]|upper }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-dark" style="font-size: 0.92rem;">{{ ecole.nom }}</div>
+                                        <div class="text-muted small" style="font-size: 0.78rem;">
+                                            <i class="fas fa-map-marker-alt text-danger me-1"></i>{{ ecole.ville or ecole.adresse or 'Localisation non renseignée' }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="small">
+                                    {% if ecole.email %}
+                                    <div><a href="mailto:{{ ecole.email }}" class="text-decoration-none text-muted"><i class="fas fa-envelope text-primary me-1"></i>{{ ecole.email }}</a></div>
+                                    {% endif %}
+                                    {% if ecole.telephone %}
+                                    <div><a href="tel:{{ ecole.telephone }}" class="text-decoration-none text-muted"><i class="fas fa-phone text-success me-1"></i>{{ ecole.telephone }}</a></div>
+                                    {% endif %}
+                                    {% if not ecole.email and not ecole.telephone %}
+                                    <span class="text-muted fst-italic">Non renseigné</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="d-inline-flex gap-1.5">
+                                    <span class="badge bg-light text-dark border px-2 py-1 small" title="Élèves inscrits">
+                                        <i class="fas fa-user-graduate text-primary me-1"></i>{{ ecole.nb_eleves|default(0) }}
+                                    </span>
+                                    <span class="badge bg-light text-dark border px-2 py-1 small" title="Classes">
+                                        <i class="fas fa-chalkboard text-info me-1"></i>{{ ecole.nb_classes|default(0) }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td>
+                                {% if is_blocked %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1 rounded-pill small">
+                                    <i class="fas fa-ban me-1"></i>Suspendue
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill small">
+                                    <i class="fas fa-check-circle me-1"></i>Active
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-3">
+                                <a href="{{ url_for('main.gestion_ecoles') }}" class="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-1" title="Voir les détails et gérer">
+                                    <i class="fas fa-cog me-1"></i>Gérer
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="fas fa-school fa-2x mb-2 text-muted opacity-50 d-block"></i>
+                                Aucune école enregistrée pour le moment.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-2.5 bg-light border-top text-end px-3">
+                <a href="{{ url_for('main.gestion_ecoles') }}" class="text-decoration-none small fw-semibold text-primary">
+                    Accéder à la gestion avancée des établissements <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- 3. DOUBLE COLONNE : DEMANDES DE DÉMO & LOGS SURVEILLANCE -->
+        <div class="row g-4 mb-4">
+            <!-- 🤝 Colonne Prospects / Demandes Démo -->
+            <div class="col-6">
+                <div class="superadmin-feed-card">
+                    <div class="superadmin-feed-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="superadmin-kpi-icon" style="width: 32px; height: 32px; font-size: 0.9rem; background: rgba(139, 92, 246, 0.12); color: #7c3aed;">
+                                <i class="fas fa-handshake"></i>
+                            </span>
+                            <h6 class="fw-bold text-dark mb-0">Demandes de Démo & Prospects</h6>
+                        </div>
+                        {% if nouvelles_demandes_count and nouvelles_demandes_count > 0 %}
+                        <span class="badge bg-danger rounded-pill px-2.5 py-1 small">{{ nouvelles_demandes_count }} nouvelle(s)</span>
+                        {% endif %}
+                    </div>
+                    <div class="superadmin-feed-body">
+                        {% if demandes_recentes and demandes_recentes|length > 0 %}
+                            {% for d in demandes_recentes %}
+                            <div class="superadmin-feed-item d-flex align-items-center justify-content-between">
+                                <div>
+                                    <div class="fw-bold text-dark" style="font-size: 0.9rem;">{{ d.nom_ecole }}</div>
+                                    <div class="text-muted small" style="font-size: 0.78rem;">
+                                        <i class="fas fa-map-marker-alt me-1 text-danger"></i>{{ d.ville or 'Non spécifié' }}
+                                        <span class="mx-1">•</span>
+                                        <i class="far fa-clock me-1"></i>{{ d.created_at.strftime('%d/%m/%Y') if d.created_at else '' }}
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    {% if d.telephone %}
+                                    <a href="https://wa.me/{{ d.telephone | replace(' ', '') | replace('+', '') | replace('-', '') }}" target="_blank" class="btn btn-sm btn-outline-success rounded-pill px-2.5 py-1" title="Contacter sur WhatsApp">
+                                        <i class="fab fa-whatsapp me-1"></i>{{ d.telephone }}
+                                    </a>
+                                    {% endif %}
+                                    <span class="badge {% if d.statut == 'nouvelle' %}bg-danger-subtle text-danger{% elif d.statut == 'contactee' %}bg-warning-subtle text-warning{% else %}bg-success-subtle text-success{% endif %} rounded-pill small">
+                                        {{ d.statut|capitalize }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="p-4 text-center text-muted">
+                                <i class="fas fa-inbox fa-2x mb-2 text-muted opacity-50 d-block"></i>
+                                Aucune demande de présentation récente.
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="superadmin-feed-footer">
+                        <a href="{{ url_for('admin.demandes_presentation') }}" class="text-decoration-none small fw-semibold text-primary">
+                            Voir toutes les demandes de présentation <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 🚨 Colonne Journaux & Surveillance Système -->
+            <div class="col-6">
+                <div class="superadmin-feed-card">
+                    <div class="superadmin-feed-header">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="superadmin-kpi-icon bg-info-subtle text-info" style="width: 32px; height: 32px; font-size: 0.9rem;">
+                                <i class="fas fa-shield-alt"></i>
+                            </span>
+                            <h6 class="fw-bold text-dark mb-0">Derniers Journaux & Sécurité</h6>
+                        </div>
+                        <span class="badge bg-light text-muted border rounded-pill px-2 py-0.5 small">En direct</span>
+                    </div>
+                    <div class="superadmin-feed-body">
+                        {% if derniers_logs and derniers_logs|length > 0 %}
+                            {% for log in derniers_logs %}
+                            <div class="superadmin-feed-item d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center gap-2 text-truncate" style="max-width: 75%;">
+                                    <span class="badge {% if log.level == 'ERROR' %}bg-danger{% elif log.level == 'WARNING' %}bg-warning text-dark{% else %}bg-secondary{% endif %} rounded-pill" style="font-size: 0.68rem;">
+                                        {{ log.level }}
+                                    </span>
+                                    <div class="text-truncate">
+                                        <div class="text-dark fw-medium text-truncate" style="font-size: 0.85rem;">{{ log.action or log.module }}</div>
+                                        <div class="text-muted small" style="font-size: 0.75rem;">Module: {{ log.module }}</div>
+                                    </div>
+                                </div>
+                                <span class="text-muted small flex-shrink-0" style="font-size: 0.75rem;">
+                                    {{ log.timestamp.strftime('%H:%M:%S') if log.timestamp else '' }}
+                                </span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="p-4 text-center text-muted">
+                                <i class="fas fa-file-alt fa-2x mb-2 text-muted opacity-50 d-block"></i>
+                                Aucun journal récent enregistré.
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="superadmin-feed-footer">
+                        <a href="{{ url_for('admin.view_logs') }}" class="text-decoration-none small fw-semibold text-primary">
+                            Consulter l'intégralité des logs système <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📱 VUE MOBILE : STATS ET RACCOURCIS ÉPURÉS (PAS DE TABLEAU SURCHARGÉ) -->
+    <div class="d-lg-none">
+        <section class="home-section mb-3">
+            <div class="home-section-header">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="section-title-icon" style="background: linear-gradient(135deg, #ef4444, #b91c1c); color: white;"><i class="fas fa-server"></i></span>
+                    <h2 class="home-section-title">Supervision Mobile</h2>
+                </div>
+            </div>
+            <div class="home-stat-grid">
+                <div class="home-stat-card">
+                    <span class="home-stat-icon" style="background: linear-gradient(135deg, #4361ee, #3a0ca3); color: white;"><i class="fas fa-school"></i></span>
+                    <div class="home-stat-info">
+                        <strong>{{ stats.total_ecoles }}</strong>
+                        <small>Écoles enregistrées</small>
+                    </div>
+                </div>
+                <div class="home-stat-card">
+                    <span class="home-stat-icon" style="background: linear-gradient(135deg, #14b8a6, #0f766e); color: white;"><i class="fas fa-user-clock"></i></span>
+                    <div class="home-stat-info">
+                        <strong>{{ stats.active_24h }}</strong>
+                        <small>Actifs sur 24h</small>
+                    </div>
+                </div>
+                <div class="home-stat-card">
+                    <span class="home-stat-icon" style="background: linear-gradient(135deg, #10b981, #059669); color: white;"><i class="fas fa-hdd"></i></span>
+                    <div class="home-stat-info">
+                        <strong>{{ stats.disk_usage }}%</strong>
+                        <small>Espace disque</small>
+                    </div>
+                </div>
+                <div class="home-stat-card">
+                    <span class="home-stat-icon" style="background: linear-gradient(135deg, #6366f1, #4338ca); color: white;"><i class="fas fa-database"></i></span>
+                    <div class="home-stat-info">
+                        <strong class="home-stat-value home-stat-value-compact">{{ stats.db_backend }}</strong>
+                        <small>{{ stats.table_count }} tables</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="home-section mb-4">
+            <div class="home-action-grid">
+                <a href="{{ url_for('main.gestion_ecoles') }}" class="home-action-card">
+                    <span class="home-action-icon" style="background: linear-gradient(135deg, #4361ee, #3a0ca3);"><i class="fas fa-school"></i></span>
+                    <div class="home-action-info">
+                        <strong>Gérer les Écoles <span class="badge bg-primary rounded-pill ms-1">{{ stats.total_ecoles }}</span></strong>
+                        <small>Établissements & accès</small>
+                    </div>
+                    <i class="fas fa-chevron-right action-card-arrow"></i>
+                </a>
+                <a href="#" class="home-action-card" data-bs-toggle="modal" data-bs-target="#modalAjouterEcole">
+                    <span class="home-action-icon" style="background: linear-gradient(135deg, #10b981, #059669);"><i class="fas fa-plus-circle"></i></span>
+                    <div class="home-action-info">
+                        <strong>Inscrire une École</strong>
+                        <small>Nouveau compte directeur</small>
+                    </div>
+                    <i class="fas fa-chevron-right action-card-arrow"></i>
+                </a>
+                <a href="{{ url_for('admin.maintenance_page') }}" class="home-action-card">
+                    <span class="home-action-icon" style="background: linear-gradient(135deg, #ef4444, #b91c1c);"><i class="fas fa-sliders-h"></i></span>
+                    <div class="home-action-info">
+                        <strong>Maintenance</strong>
+                        <small>Sauvegardes & santé</small>
+                    </div>
+                    <i class="fas fa-chevron-right action-card-arrow"></i>
+                </a>
+                <a href="{{ url_for('admin.view_logs') }}" class="home-action-card">
+                    <span class="home-action-icon" style="background: linear-gradient(135deg, #0284c7, #0369a1);"><i class="fas fa-file-alt"></i></span>
+                    <div class="home-action-info">
+                        <strong>Logs Système</strong>
+                        <small>Journaux & sécurité</small>
+                    </div>
+                    <i class="fas fa-chevron-right action-card-arrow"></i>
+                </a>
+            </div>
+        </section>
+    </div>
+
+    <!-- Script de filtrage instantané PC -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('superAdminSchoolSearch');
+        const tableRows = document.querySelectorAll('.super-admin-school-row');
+        const filterButtons = document.querySelectorAll('.super-admin-filter-btn');
+
+        if (searchInput && tableRows.length) {
+            searchInput.addEventListener('input', function () {
+                const query = this.value.toLowerCase().trim();
+                tableRows.forEach(row => {
+                    const text = row.dataset.search || row.innerText.toLowerCase();
+                    row.style.display = (!query || text.includes(query)) ? '' : 'none';
+                });
+            });
+        }
+
+        if (filterButtons.length && tableRows.length) {
+            filterButtons.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    filterButtons.forEach(b => {
+                        b.classList.remove('active', 'btn-primary');
+                        b.classList.add('btn-light');
+                    });
+                    this.classList.remove('btn-light');
+                    this.classList.add('active', 'btn-primary');
+                    const filter = this.dataset.filter;
+                    tableRows.forEach(row => {
+                        const statut = row.dataset.statut;
+                        if (filter === 'all' || statut === filter) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+            });
+        }
+    });
+    </script>
     {% else %}
     <!-- 🔹 Vue pour les autres rôles -->
     {% set active_guide_step = none %}
@@ -384,7 +718,7 @@
             <span class="section-badge"><i class="fas fa-layer-group me-1"></i>8 modules</span>
         </div>
         <div class="home-action-grid">
-            <a href="{{ url_for('main.point_du_jour') }}" class="home-action-card">
+            <a href="{{ url_for('main.point_du_jour') }}" class="home-action-card" data-bs-toggle="offcanvas" data-bs-target="#offcanvasPointDuJour" role="button">
                 <span class="home-action-icon warning"><i class="fas fa-clipboard-check"></i></span>
                 <div class="home-action-info">
                     <strong>Point du jour</strong>
@@ -440,11 +774,11 @@
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
-            <a href="{{ url_for('main.rapports') }}" class="home-action-card" data-tour="rapports">
-                <span class="home-action-icon reports"><i class="fas fa-chart-pie"></i></span>
+            <a href="{{ url_for('main.paiements') }}" class="home-action-card">
+                <span class="home-action-icon payments"><i class="fas fa-money-bill-wave"></i></span>
                 <div class="home-action-info">
-                    <strong>Rapports & Stats</strong>
-                    <small>Indicateurs & bilans</small>
+                    <strong>Paiements &amp; Frais</strong>
+                    <small>Recouvrement &amp; reçus</small>
                 </div>
                 <i class="fas fa-chevron-right action-card-arrow"></i>
             </a>
@@ -471,19 +805,19 @@
                             </div>
                         </div>
                         <div class="d-flex flex-wrap align-items-center gap-2">
-                            <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2 px-3 py-2 rounded-3 shadow-xs fw-semibold small touch-btn" data-bs-toggle="modal" data-bs-target="#modalAjouterEleve">
+                            <button type="button" class="btn btn-primary d-inline-flex align-items-center gap-2 px-3 py-2 rounded-3 shadow-xs fw-semibold small touch-btn" data-bs-toggle="modal" data-bs-target="#modalAjouterEleve" data-tour="action-inscrire">
                                 <i class="fas fa-user-plus"></i>
                                 <span>+ Inscrire un élève</span>
                             </button>
-                            <button type="button" class="btn btn-success d-inline-flex align-items-center gap-2 px-3 py-2 rounded-3 shadow-xs fw-semibold small touch-btn" data-bs-toggle="modal" data-bs-target="#modalAjouterPaiement">
+                            <button type="button" class="btn btn-success d-inline-flex align-items-center gap-2 px-3 py-2 rounded-3 shadow-xs fw-semibold small touch-btn" data-bs-toggle="modal" data-bs-target="#modalAjouterPaiement" data-tour="action-encaisser">
                                 <i class="fas fa-cash-register"></i>
                                 <span>+ Encaisser scolarité</span>
                             </button>
-                            <button type="button" class="btn btn-outline-primary d-inline-flex align-items-center gap-2 px-3 py-2 rounded-3 shadow-xs fw-semibold small touch-btn" data-bs-toggle="modal" data-bs-target="#modalAjouterEmploi">
+                            <button type="button" class="btn btn-outline-primary d-inline-flex align-items-center gap-2 px-3 py-2 rounded-3 shadow-xs fw-semibold small touch-btn" data-bs-toggle="modal" data-bs-target="#modalAjouterEmploi" data-tour="action-affecter">
                                 <i class="fas fa-calendar-plus"></i>
                                 <span>+ Affecter un cours</span>
                             </button>
-                            <a href="{{ url_for('main.gestion_annees') }}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2 px-3 py-2 rounded-3 shadow-xs fw-semibold small touch-btn" title="Gestion des années scolaires">
+                            <a href="{{ url_for('main.gestion_annees') }}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2 px-3 py-2 rounded-3 shadow-xs fw-semibold small touch-btn" title="Gestion des années scolaires" data-tour="action-annee">
                                 <i class="fas fa-calendar-alt"></i>
                                 <span>Année scolaire</span>
                             </a>
@@ -498,7 +832,7 @@
             <div class="row g-3 g-lg-4">
                 <!-- 🔹 COLONNE GAUCHE : Suivi des Présences aujourd'hui -->
                 <div class="col-12 col-lg-6">
-                    <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                    <div class="card border-0 shadow-sm rounded-4 h-100 bg-white" data-tour="widget-presences">
                         <div class="card-header bg-white border-bottom border-light px-3.5 py-3 d-flex align-items-center justify-content-between">
                             <div class="d-flex align-items-center gap-2">
                                 <span class="rounded-circle d-inline-flex align-items-center justify-content-center text-primary bg-primary bg-opacity-10" style="width: 32px; height: 32px; font-size: 0.9rem;">
@@ -558,7 +892,7 @@
 
                 <!-- 🔹 COLONNE DROITE : Derniers versements enregistrés -->
                 <div class="col-12 col-lg-6">
-                    <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+                    <div class="card border-0 shadow-sm rounded-4 h-100 bg-white" data-tour="widget-versements">
                         <div class="card-header bg-white border-bottom border-light px-3.5 py-3 d-flex align-items-center justify-content-between">
                             <div class="d-flex align-items-center gap-2">
                                 <span class="rounded-circle d-inline-flex align-items-center justify-content-center text-success bg-success bg-opacity-10" style="width: 32px; height: 32px; font-size: 0.9rem;">

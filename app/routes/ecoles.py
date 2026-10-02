@@ -125,17 +125,20 @@ def ajouter_ecole():
             mot_de_passe_auto = not bool(mot_de_passe_saisi)
             mot_de_passe = mot_de_passe_saisi or generate_access_code()
 
+            return_url = request.form.get('return_url')
+            fallback_err_redirect = return_url if (return_url and (return_url.startswith('/') or return_url.startswith(request.host_url))) else url_for('main.gestion_ecoles', open_ajouter_ecole=1)
+
             if not nom_ecole:
                 flash("Le nom de l'école est obligatoire.", "danger")
-                return redirect(url_for('main.ajouter_ecole'))
+                return redirect(fallback_err_redirect)
 
             if not email_admin:
                 flash("L'email de l'administrateur est obligatoire.", "danger")
-                return redirect(url_for('main.ajouter_ecole'))
+                return redirect(fallback_err_redirect)
 
             if Utilisateur.query.filter_by(email=email_admin).first():
                 flash("Cet email est déjà utilisé par un autre utilisateur.", "danger")
-                return redirect(url_for('main.ajouter_ecole'))
+                return redirect(fallback_err_redirect)
 
             # Création école (un seul nom et un seul email)
             ecole = Ecole(
@@ -185,14 +188,20 @@ def ajouter_ecole():
                     f"École « {ecole.nom} » créée avec succès, mais l'email de bienvenue n'a pas pu être envoyé.",
                     "warning"
                 )
+            if return_url and (return_url.startswith('/') or return_url.startswith(request.host_url)):
+                return redirect(return_url)
             return redirect(url_for('main.gestion_ecoles'))
 
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Erreur création école : {e}")
             flash("Erreur lors de la création de l'école.", "danger")
+            return_url = request.form.get('return_url')
+            if return_url and (return_url.startswith('/') or return_url.startswith(request.host_url)):
+                return redirect(return_url)
+            return redirect(url_for('main.gestion_ecoles', open_ajouter_ecole=1))
 
-    return render_template('admin/ajouter_ecole.html')
+    return redirect(url_for('main.gestion_ecoles', open_ajouter_ecole=1), code=302)
 
 @main.route('/api/ecoles')
 @login_required

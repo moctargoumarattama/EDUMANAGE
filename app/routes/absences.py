@@ -39,6 +39,7 @@ from app.services.absences_annuelles import (
     get_classes_absences,
     get_cours_choices_absences,
     get_eleves_choices_absences,
+    get_palmares_absences_annuel,
     statut_annee_absences,
     verifier_mutation_absence,
 )
@@ -336,6 +337,10 @@ def absences():
     else:
         niveaux_annee = get_niveaux_annee(ecole_id, annee_consultee.id) if (ecole_id and annee_consultee) else []
 
+    palmares_absences = None
+    if current_user.role in ('admin', 'super_admin'):
+        palmares_absences = get_palmares_absences_annuel(ecole_id, annee_consultee)
+
     return render_template(
         'absences.html',
         pagination=pagination,
@@ -356,8 +361,19 @@ def absences():
         date_debut=date_debut_str,
         date_fin=date_fin_str,
         justifiee=justifiee_param,
-        per_page=per_page
+        per_page=per_page,
+        palmares_absences=palmares_absences,
     )
+
+
+@main.route('/api/absences/palmares')
+@login_required
+@role_required('admin', 'professeur')
+@tenant_required
+def api_absences_palmares():
+    ecole_id = _ecole_id_courante()
+    annee_consultee = get_annee_consultee(ecole_id)
+    return jsonify(get_palmares_absences_annuel(ecole_id, annee_consultee))
 
 
 @main.route('/absences/export_excel')
@@ -597,15 +613,25 @@ def faire_appel():
     absences_par_inscription = {a.inscription_id: a for a in absences_existantes}
 
     if request.method == "POST":
+        is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json
+
         if not can_mutate:
-            flash(message_annee or "Les absences ne peuvent pas etre modifiees pour cette annee.", "warning")
+            msg = message_annee or "Les absences ne peuvent pas être modifiées pour cette année."
+            if is_ajax:
+                return jsonify({"success": False, "message": msg}), 403
+            flash(msg, "warning")
             return redirect(url_for("main.faire_appel", classe_id=classe.id, cours_id=cours.id, date_appel=date_appel.isoformat()))
 
-        absent_ids = {
-            int(raw_id)
-            for raw_id in request.form.getlist("absent_inscription_ids")
-            if raw_id.isdigit()
-        }
+        if request.is_json:
+            data = request.get_json() or {}
+            raw_ids = data.get("absent_inscription_ids", [])
+            absent_ids = {int(x) for x in raw_ids if str(x).isdigit()}
+        else:
+            absent_ids = {
+                int(raw_id)
+                for raw_id in request.form.getlist("absent_inscription_ids")
+                if raw_id.isdigit()
+            }
         absent_ids = absent_ids & set(inscription_ids)
 
         try:
@@ -618,7 +644,7 @@ def faire_appel():
                 if ins.id in absent_ids and ins.id not in absences_par_inscription:
                     absence = Absence(
                         date_absence=date_appel,
-                        motif="Absence signalee pendant l'appel",
+                        motif="Absence signalée pendant l'appel",
                         justifiee=False,
                         eleve_id=ins.eleve_id,
                         cours_id=cours.id,
@@ -633,11 +659,21 @@ def faire_appel():
             for absence, eleve in nouvelles_absences:
                 if not absence.justifiee:
                     _notifier_whatsapp_absence(absence, ecole=ecole, eleve=eleve, cours=cours)
-            flash("Appel enregistre. Aucune presence n'a ete creee.", "success")
+
+            if is_ajax:
+                return jsonify({
+                    "success": True,
+                    "absents_count": len(absent_ids),
+                    "presents_count": max(len(inscriptions) - len(absent_ids), 0),
+                    "message": "Appel enregistré avec succès."
+                })
+            flash("Appel enregistré avec succès.", "success")
             return redirect(url_for("main.faire_appel", classe_id=classe.id, cours_id=cours.id, date_appel=date_appel.isoformat()))
         except Exception as exc:
             db.session.rollback()
             current_app.logger.exception("Erreur enregistrement appel professeur: %s", exc)
+            if is_ajax:
+                return jsonify({"success": False, "message": "Erreur lors de l'enregistrement de l'appel."}), 500
             flash("Erreur lors de l'enregistrement de l'appel.", "danger")
 
     absents_count = len(absences_par_inscription)

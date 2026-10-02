@@ -40,27 +40,37 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
-                {% if ns_inc.count > 0 %}
+                {% if current_user.role in ('admin', 'super_admin') %}
+                <button type="button" class="btn btn-sm btn-outline-primary fw-semibold py-1.5 px-3 rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5" data-bs-toggle="modal" data-bs-target="#modalPalmaresNotes" id="btnOpenPalmaresNotes" title="Palmarès académique et performances des classes">
+                    <i class="fas fa-trophy text-warning"></i>
+                    <span>Palmarès &amp; Performances</span>
+                    {% if palmares_notes and palmares_notes.classe_meilleure %}
+                    <span class="badge bg-primary rounded-pill ms-1" style="font-size: 0.68rem;">Top 5</span>
+                    {% endif %}
+                </button>
+                {% endif %}
+
+                {% if current_user.role in ('admin', 'super_admin') and ns_inc.count > 0 %}
                 <button type="button" class="btn btn-sm btn-outline-warning fw-semibold py-1.5 px-3 rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5" id="btnFilterIncomplets" title="Afficher uniquement les élèves avec évaluations incomplètes">
                     <i class="fas fa-exclamation-triangle"></i>
                     <span><strong>{{ ns_inc.count }}</strong> incomplet{{ 's' if ns_inc.count > 1 else '' }}</span>
                 </button>
                 {% endif %}
 
-                <button type="button" class="btn btn-sm btn-outline-primary fw-semibold py-1.5 px-3 rounded-pill shadow-xs d-inline-flex align-items-center gap-1.5" id="btnToggleAllAccordions" title="Déplier ou replier tous les élèves">
-                    <i class="fas fa-chevron-down" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
-                </button>
-
                 {% if current_user.role == 'professeur' and notes_modifiables %}
-                <a href="{{ url_for('main.saisie_notes_classe', return_url=return_url) }}" class="btn btn-sm btn-success rounded-pill px-3 shadow-xs" id="btnSaisieNotesClasse" title="Saisie rapide des notes par classe entière">
+                <button type="button" class="btn btn-sm btn-success rounded-pill px-3 shadow-xs fw-bold" id="btnSaisieNotesClasse" data-bs-toggle="modal" data-bs-target="#modalSaisieNotesClasseRapide" title="Saisie rapide des notes par classe entière">
                     <i class="fas fa-table-list me-1"></i>Saisie par classe
-                </a>
+                </button>
                 {% if form %}
-                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 shadow-xs" data-bs-toggle="collapse" data-bs-target="#collapseFormNote" aria-expanded="false" aria-controls="collapseFormNote" id="btnToggleAddNote" title="Saisie individuelle d'une note">
-                    <i class="fas fa-plus-circle me-1"></i>Saisie individuelle
+                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2.5 shadow-xs" data-bs-toggle="modal" data-bs-target="#modalAjouterNote" id="btnToggleAddNote" title="Saisie individuelle d'une note">
+                    <i class="fas fa-plus-circle me-1"></i>Note
                 </button>
                 {% endif %}
                 {% endif %}
+
+                <button type="button" class="btn btn-sm btn-outline-secondary fw-semibold py-1.5 px-2.5 rounded-pill shadow-xs d-inline-flex align-items-center gap-1" id="btnToggleAllAccordions" title="Déplier ou replier tous les élèves">
+                    <i class="fas fa-chevron-down" id="iconToggleAll"></i><span id="textToggleAll">Déplier tout</span>
+                </button>
 
                 {% if current_user.role == 'admin' %}
                 <a href="{{ url_for('main.export_notes_excel') }}" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-xs" title="Exporter toutes les notes vers Excel">
@@ -82,105 +92,211 @@
     </div>
     {% endif %}
 
-    <!-- Formulaire d'ajout (professeur uniquement, rétractable) -->
+    <!-- MODAL MODERNE : Saisie individuelle d'une note (Professeur) -->
     {% if current_user.role == 'professeur' and form and notes_modifiables %}
-    <div class="collapse mb-4" id="collapseFormNote">
-        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
-            <div class="card-header bg-primary text-white py-3 px-4 d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="fas fa-plus-circle fa-lg"></i>
-                    <h5 class="mb-0 fw-bold">Ajouter une nouvelle note</h5>
+    <div class="modal fade" id="modalAjouterNote" tabindex="-1" aria-labelledby="modalAjouterNoteTitre" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header bg-primary text-white py-3 px-4">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-plus-circle fa-lg"></i>
+                        <h5 class="modal-title fw-bold mb-0 text-white" id="modalAjouterNoteTitre">Ajouter une nouvelle note</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
                 </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-toggle="collapse" data-bs-target="#collapseFormNote" aria-label="Fermer"></button>
-            </div>
-            <div class="card-body p-4 bg-light bg-opacity-50">
-                <form method="POST" action="{{ url_for('main.notes') }}" class="needs-validation" novalidate>
-                    {{ form.hidden_tag() }}
-                    <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
+                <div class="modal-body p-4 bg-light bg-opacity-50">
+                    <form method="POST" action="{{ url_for('main.notes') }}" class="needs-validation" novalidate id="formAjoutNoteModal">
+                        {{ form.hidden_tag() }}
+                        <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
 
-                    {% if form.annee_id %}
-                        <input type="hidden" name="annee_id" value="{{ form.annee_id.data or (annee_active.id if annee_active else '') }}">
-                    {% elif annee_active %}
-                        <input type="hidden" name="annee_id" value="{{ annee_active.id }}">
-                    {% endif %}
+                        {% if form.annee_id %}
+                            <input type="hidden" name="annee_id" value="{{ form.annee_id.data or (annee_active.id if annee_active else '') }}">
+                        {% elif annee_active %}
+                            <input type="hidden" name="annee_id" value="{{ annee_active.id }}">
+                        {% endif %}
 
-                    <div class="row g-3">
-                        <!-- Sélection Élève -->
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold" for="eleve_id">Élève <span class="text-danger">*</span></label>
-                            <div class="input-group mb-1">
-                                <span class="input-group-text"><i class="fas fa-search text-muted"></i></span>
-                                <input type="text" class="form-control" id="rechercheEleveForm" placeholder="Filtrer la liste des élèves..." autocomplete="off">
-                                <button class="btn btn-outline-secondary" type="button" id="btnEffacerRechercheForm" title="Effacer">
-                                    <i class="fas fa-times"></i>
+                        <div class="row g-3">
+                            <!-- Sélection Élève -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold" for="eleve_id">Élève <span class="text-danger">*</span></label>
+                                <div class="input-group mb-1">
+                                    <span class="input-group-text"><i class="fas fa-search text-muted"></i></span>
+                                    <input type="text" class="form-control" id="rechercheEleveForm" placeholder="Filtrer la liste des élèves..." autocomplete="off">
+                                    <button class="btn btn-outline-secondary" type="button" id="btnEffacerRechercheForm" title="Effacer">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <select class="form-select" id="eleve_id" name="eleve_id" required>
+                                    <option value="">-- Choisir un élève --</option>
+                                    {% for choice_val, choice_label in form.eleve_id.choices %}
+                                        {% if choice_val != 0 %}
+                                        <option value="{{ choice_val }}" data-classe-id="{{ (eleve_classe_map or {}).get(choice_val, '') }}" {% if form.eleve_id.data|string == choice_val|string %}selected{% endif %}>{{ choice_label }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <div class="invalid-feedback">Veuillez sélectionner un élève.</div>
+                            </div>
+
+                            <!-- Sélection Cours -->
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold" for="cours_id">Matière / Cours <span class="text-danger">*</span></label>
+                                <select class="form-select" id="cours_id" name="cours_id" required>
+                                    <option value="">-- Choisir un cours --</option>
+                                    {% for c in tous_les_cours %}
+                                        <option value="{{ c.id }}" data-classe-id="{{ c.classe_id }}" {% if form.cours_id.data|string == c.id|string %}selected{% endif %}>{{ c.nom }} ({{ c.classe.nom if c.classe else 'Sans classe' }})</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="invalid-feedback">Veuillez sélectionner un cours.</div>
+                            </div>
+
+                            <!-- Note (/20) -->
+                            <div class="col-6 col-md-3">
+                                <label class="form-label fw-semibold" for="valeur">Note sur 20 <span class="text-danger">*</span></label>
+                                {{ form.valeur(class="form-control", id="valeur", placeholder="Ex: 15.5", min=0, max=20, step="0.25", required=true) }}
+                                <div class="invalid-feedback">Note comprise entre 0 et 20.</div>
+                            </div>
+
+                            <!-- Coefficient -->
+                            <div class="col-6 col-md-3">
+                                <label class="form-label fw-semibold" for="coefficient">Coefficient <span class="text-danger">*</span></label>
+                                {{ form.coefficient(class="form-control", id="coefficient", placeholder="1.0", min=1, step="0.5", required=true) }}
+                                <div class="invalid-feedback">Coefficient valide requis.</div>
+                            </div>
+
+                            <!-- Type d'évaluation -->
+                            <div class="col-6 col-md-3">
+                                <label class="form-label fw-semibold" for="type_evaluation">Type d'évaluation <span class="text-danger">*</span></label>
+                                {{ form.type_evaluation(class="form-select", id="type_evaluation", required=true) }}
+                                <div class="invalid-feedback">Veuillez sélectionner un type.</div>
+                            </div>
+
+                            <!-- Période -->
+                            <div class="col-6 col-md-3">
+                                <label class="form-label fw-semibold" for="periode">Période <span class="text-danger">*</span></label>
+                                {% if form.periode %}
+                                    {{ form.periode(class="form-select", id="periode", required=true) }}
+                                {% else %}
+                                    <select name="periode" id="periode" class="form-select" required>
+                                        <option value="Semestre 1" selected>Semestre 1</option>
+                                        <option value="Semestre 2">Semestre 2</option>
+                                    </select>
+                                {% endif %}
+                            </div>
+
+                            <!-- Boutons formulaire -->
+                            <div class="col-12 d-flex justify-content-end gap-2 pt-3 border-top mt-2">
+                                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Annuler</button>
+                                <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">
+                                    <i class="fas fa-check me-1.5"></i>Enregistrer la note
                                 </button>
                             </div>
-                            <select class="form-select" id="eleve_id" name="eleve_id" required>
-                                <option value="">-- Choisir un élève --</option>
-                                {% for choice_val, choice_label in form.eleve_id.choices %}
-                                    {% if choice_val != 0 %}
-                                    <option value="{{ choice_val }}" data-classe-id="{{ (eleve_classe_map or {}).get(choice_val, '') }}" {% if form.eleve_id.data|string == choice_val|string %}selected{% endif %}>{{ choice_label }}</option>
-                                    {% endif %}
-                                {% endfor %}
-                            </select>
-                            <div class="invalid-feedback">Veuillez sélectionner un élève.</div>
                         </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
-                        <!-- Sélection Cours -->
-                        <div class="col-12 col-md-6">
-                            <label class="form-label fw-semibold" for="cours_id">Matière / Cours <span class="text-danger">*</span></label>
-                            <select class="form-select" id="cours_id" name="cours_id" required>
-                                <option value="">-- Choisir un cours --</option>
-                                {% for c in tous_les_cours %}
-                                    <option value="{{ c.id }}" data-classe-id="{{ c.classe_id }}" {% if form.cours_id.data|string == c.id|string %}selected{% endif %}>{{ c.nom }} ({{ c.classe.nom if c.classe else 'Sans classe' }})</option>
-                                {% endfor %}
-                            </select>
-                            <div class="invalid-feedback">Veuillez sélectionner un cours.</div>
+    <!-- MODAL MODERNE : Saisie Rapide des Notes par Classe (Professeur) -->
+    {% if current_user.role == 'professeur' and notes_modifiables %}
+    <div class="modal fade" id="modalSaisieNotesClasseRapide" tabindex="-1" aria-labelledby="modalSaisieNotesClasseRapideTitre" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header bg-success text-white py-2.5 px-3 px-md-4">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fas fa-table-list fa-lg"></i>
+                        <div>
+                            <h6 class="modal-title fw-bold mb-0 text-white" id="modalSaisieNotesClasseRapideTitre">Saisie Rapide des Notes par Classe</h6>
+                            <small class="text-white-50" style="font-size: 0.74rem;">Renseignez les notes sans quitter la page</small>
                         </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="{{ url_for('main.saisie_notes_classe', return_url=return_url) }}" class="btn btn-xs btn-outline-light rounded-pill px-2 py-0.5 text-white" style="font-size: 0.72rem;" title="Ouvrir en pleine page">
+                            <i class="fas fa-expand me-1"></i>Plein écran
+                        </a>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                    </div>
+                </div>
 
-                        <!-- Note (/20) -->
-                        <div class="col-6 col-md-3">
-                            <label class="form-label fw-semibold" for="valeur">Note sur 20 <span class="text-danger">*</span></label>
-                            {{ form.valeur(class="form-control", id="valeur", placeholder="Ex: 15.5", min=0, max=20, step="0.25", required=true) }}
-                            <div class="invalid-feedback">Note comprise entre 0 et 20.</div>
-                        </div>
-
-                        <!-- Coefficient -->
-                        <div class="col-6 col-md-3">
-                            <label class="form-label fw-semibold" for="coefficient">Coefficient <span class="text-danger">*</span></label>
-                            {{ form.coefficient(class="form-control", id="coefficient", placeholder="1.0", min=1, step="0.5", required=true) }}
-                            <div class="invalid-feedback">Coefficient valide requis.</div>
-                        </div>
-
-                        <!-- Type d'évaluation -->
-                        <div class="col-6 col-md-3">
-                            <label class="form-label fw-semibold" for="type_evaluation">Type d'évaluation <span class="text-danger">*</span></label>
-                            {{ form.type_evaluation(class="form-select", id="type_evaluation", required=true) }}
-                            <div class="invalid-feedback">Veuillez sélectionner un type.</div>
-                        </div>
-
-                        <!-- Période -->
-                        <div class="col-6 col-md-3">
-                            <label class="form-label fw-semibold" for="periode">Période <span class="text-danger">*</span></label>
-                            {% if form.periode %}
-                                {{ form.periode(class="form-select", id="periode", required=true) }}
-                            {% else %}
-                                <select name="periode" id="periode" class="form-select" required>
+                <div class="modal-body p-3 bg-light bg-opacity-50">
+                    <!-- Paramètres évaluation compacts -->
+                    <div class="bg-white p-2.5 rounded-3 border mb-3">
+                        <div class="row g-2">
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.72rem;">Classe</label>
+                                <select class="form-select form-select-sm fw-bold text-primary shadow-none" id="modalSaisieClasseSelect">
+                                    {% for cl in classes %}
+                                    <option value="{{ cl.id }}" {% if (classe_id and cl.id == classe_id) or (not classe_id and loop.first) %}selected{% endif %}>{{ cl.nom }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.72rem;">Matière</label>
+                                <select class="form-select form-select-sm fw-semibold shadow-none" id="modalSaisieCoursSelect">
+                                    <!-- Rempli dynamiquement -->
+                                </select>
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.72rem;">Période</label>
+                                <select class="form-select form-select-sm shadow-none" id="modalSaisiePeriodeSelect">
                                     <option value="Semestre 1" selected>Semestre 1</option>
                                     <option value="Semestre 2">Semestre 2</option>
                                 </select>
-                            {% endif %}
-                        </div>
-
-                        <!-- Boutons formulaire -->
-                        <div class="col-12 d-flex justify-content-end gap-2 pt-2">
-                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#collapseFormNote">Annuler</button>
-                            <button type="submit" class="btn btn-success px-4">
-                                <i class="fas fa-check me-2"></i>Enregistrer la note
-                            </button>
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.72rem;">Type</label>
+                                <select class="form-select form-select-sm shadow-none" id="modalSaisieTypeSelect">
+                                    <option value="Devoir" selected>Devoir</option>
+                                    <option value="Interrogation">Interrogation</option>
+                                    <option value="Composition">Composition</option>
+                                </select>
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.72rem;">Coeff</label>
+                                <input type="number" class="form-control form-control-sm text-center fw-semibold shadow-none" id="modalSaisieCoeffInput" value="1.0" min="0.1" step="0.1">
+                            </div>
                         </div>
                     </div>
-                </form>
+
+                    <!-- En-tête élèves + recherche -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                        <span class="small fw-bold text-dark" id="modalSaisieTitreEleves">Élèves de la classe</span>
+                        <div class="input-group input-group-sm" style="max-width: 190px;">
+                            <span class="input-group-text bg-white border-end-0 py-0.5"><i class="fas fa-search text-muted small"></i></span>
+                            <input type="text" class="form-control border-start-0 py-0.5" id="modalSaisieRechercheEleve" placeholder="Filtrer...">
+                        </div>
+                    </div>
+
+                    <!-- Loading state -->
+                    <div id="modalSaisieLoading" class="text-center py-4">
+                        <div class="spinner-border text-success spinner-border-sm" role="status"></div>
+                        <p class="text-muted small mt-2 mb-0">Chargement des élèves...</p>
+                    </div>
+
+                    <!-- Container des élèves -->
+                    <div id="modalSaisieElevesContainer" class="bg-white rounded-3 border divide-y overflow-hidden" style="display: none; max-height: 380px; overflow-y: auto;">
+                    </div>
+
+                    <!-- Empty state -->
+                    <div id="modalSaisieVide" class="text-center py-4 bg-white rounded-3 border" style="display: none;">
+                        <i class="fas fa-user-slash fa-2x mb-2 text-muted"></i>
+                        <p class="fw-semibold text-dark mb-0 small">Aucun élève trouvé</p>
+                    </div>
+
+                    <!-- Feedback message (Succès ou Erreur) -->
+                    <div id="modalSaisieAlerte" class="alert alert-danger py-2 px-3 small mt-2 rounded-3" style="display: none;"></div>
+                </div>
+
+                <div class="modal-footer py-2 px-3 border-top bg-white d-flex justify-content-between align-items-center">
+                    <span class="badge bg-success-subtle text-success rounded-pill px-2.5 py-1" id="modalSaisieBadgeCount">0 noté(s)</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Annuler</button>
+                        <button type="button" class="btn btn-sm btn-success rounded-pill px-3.5 py-1.5 fw-bold" id="btnModalSaisieEnregistrer">
+                            <i class="fas fa-check me-1"></i>Enregistrer les notes
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -331,8 +447,10 @@
             {% set matieres_str = ns.matieres|join(';;;') %}
             {% set types_str = ns.types|join(';;;') %}
             {% set periodes_str = ns.periodes|join(';;;') %}
+            {% if current_user.role in ('admin', 'super_admin') %}
             {% set comp = (completude_par_eleve or {}).get(eleve.id) %}
             {% set is_incomplet = '1' if (comp and comp.expected_subjects > 0 and comp.evaluated_subjects < comp.expected_subjects) else '0' %}
+            {% endif %}
 
             <article class="student-note-card"
                      data-id="{{ eleve.id }}"
@@ -343,7 +461,7 @@
                      data-matieres="{{ matieres_str }}"
                      data-types="{{ types_str }}"
                      data-periodes="{{ periodes_str }}"
-                     data-incomplet="{{ is_incomplet }}"
+                     {% if current_user.role in ('admin', 'super_admin') %}data-incomplet="{{ is_incomplet }}"{% endif %}
                      data-notes-count="{{ student_notes_count }}">
 
                 <!-- En-tête cliquable pour déplier/replier les notes de l'élève -->
@@ -363,9 +481,15 @@
                                 <span class="badge bg-light text-dark border">
                                     <i class="fas fa-chalkboard me-1 text-muted"></i>{{ classe_nom }}
                                 </span>
+                                {% if eleve.matricule %}
+                                <span class="badge bg-light text-muted border" title="Matricule">
+                                    {{ eleve.matricule }}
+                                </span>
+                                {% elif current_user.role in ('admin', 'super_admin') %}
                                 <span class="badge bg-light text-muted border">
                                     ID #{{ eleve.id }}
                                 </span>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -376,7 +500,8 @@
                             <i class="fas fa-clipboard-list text-primary me-1"></i>{{ student_notes_count }} note{{ 's' if student_notes_count > 1 else '' }}
                         </span>
 
-                        <!-- Badge indicateur X/Y matières renseignées -->
+                        <!-- Badge indicateur X/Y matières renseignées (Réservé administration) -->
+                        {% if current_user.role in ('admin', 'super_admin') %}
                         {% set comp = (completude_par_eleve or {}).get(eleve.id) %}
                         {% if comp and comp.expected_subjects > 0 %}
                             {% if comp.evaluated_subjects >= comp.expected_subjects %}
@@ -393,6 +518,7 @@
                                 </span>
                             {% endif %}
                         {% endif %}
+                        {% endif %}
 
                         <!-- Chevron de dépliement -->
                         <span class="student-note-chevron">
@@ -403,6 +529,7 @@
 
                 <!-- Contenu dépliable : vue synthétique par matière -->
                 <div class="collapse student-note-content p-3" id="collapseEleve{{ eleve.id }}">
+                    {% if current_user.role in ('admin', 'super_admin') %}
                     {% set comp = (completude_par_eleve or {}).get(eleve.id) %}
                     {% if comp and comp.missing_subjects_names %}
                     <div class="alert alert-warning-subtle border border-warning-subtle text-dark d-flex align-items-center gap-2 py-2 px-3 mb-3 rounded-3" style="font-size: 0.85rem;">
@@ -411,6 +538,7 @@
                             <strong>En attente :</strong> {{ comp.missing_subjects_names|join(', ') }}
                         </div>
                     </div>
+                    {% endif %}
                     {% endif %}
 
                     {% set eleve_dossier = dossiers_notes_par_eleve.get(eleve.id, []) if dossiers_notes_par_eleve else [] %}
@@ -616,7 +744,7 @@
         <h2 class="h4 fw-bold text-dark">Aucune note enregistrée</h2>
         <p class="text-muted mb-3">Aucune évaluation n'a encore été enregistrée pour l'année scolaire <strong>{{ annee_consultee.nom if annee_consultee else '' }}</strong>.</p>
         {% if current_user.role == 'professeur' and form and notes_modifiables %}
-        <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#collapseFormNote">
+        <button type="button" class="btn btn-primary rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAjouterNote">
             <i class="fas fa-plus-circle me-2"></i>Ajouter la première note
         </button>
         {% endif %}
@@ -666,6 +794,12 @@
     </div>
 
 </div>
+
+{% if current_user.role in ('admin', 'super_admin') %}
+    {% include "partials/_modal_palmares_notes.html" %}
+    <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modal_palmares_notes.js') }}"></script>
+{% endif %}
 
 <!-- Contrôleur JavaScript réactif pour la gestion des notes par élève -->
 <script>
@@ -871,10 +1005,12 @@ function initNotesPage() {
     const iconToggleAllMob = document.getElementById('iconToggleAllMob');
     const textToggleAllMob = document.getElementById('textToggleAllMob');
 
+    {% if current_user.role in ('admin', 'super_admin') %}
     // Filtre d'alerte 1-clic Incomplets
     const btnFilterIncomplets = document.getElementById('btnFilterIncomplets');
     const btnFilterIncompletsMob = document.getElementById('btnFilterIncompletsMob');
     let filterIncompletsActive = false;
+    {% endif %}
     let allExpanded = false;
 
     // État courant
@@ -936,6 +1072,7 @@ function initNotesPage() {
     if (btnToggleAll) btnToggleAll.addEventListener('click', toggleAllAccordions);
     if (btnToggleAllMob) btnToggleAllMob.addEventListener('click', toggleAllAccordions);
 
+    {% if current_user.role in ('admin', 'super_admin') %}
     // Basculement Filtre 1-Clic Évaluations Incomplètes
     function toggleIncompletsFilter() {
         filterIncompletsActive = !filterIncompletsActive;
@@ -956,6 +1093,7 @@ function initNotesPage() {
 
     if (btnFilterIncomplets) btnFilterIncomplets.addEventListener('click', toggleIncompletsFilter);
     if (btnFilterIncompletsMob) btnFilterIncompletsMob.addEventListener('click', toggleIncompletsFilter);
+    {% endif %}
 
     // --- 1. Gestion des clics sur les puces de classe ---
     classChips.forEach(chip => {
@@ -1040,8 +1178,6 @@ function initNotesPage() {
             const matieres = (card.dataset.matieres || '').split(';;;').map(normalizeStr);
             const types = (card.dataset.types || '').split(';;;').map(s => s.trim().toLowerCase());
             const periodes = (card.dataset.periodes || '').split(';;;').map(s => s.trim().toLowerCase());
-            const isIncomplet = card.dataset.incomplet === '1';
-
             // Recherche texte
             if (query) {
                 const textMatch = nom.includes(query) ||
@@ -1050,10 +1186,13 @@ function initNotesPage() {
                 if (!textMatch) return false;
             }
 
+            {% if current_user.role in ('admin', 'super_admin') %}
+            const isIncomplet = card.dataset.incomplet === '1';
             // Filtre 1-Clic Incomplets
             if (filterIncompletsActive && !isIncomplet) {
                 return false;
             }
+            {% endif %}
 
             // Filtre niveau
             if (selectedNiv && niveau && niveau !== selectedNiv) {
@@ -1122,7 +1261,7 @@ function initNotesPage() {
 
         // Boutons réinitialiser
         const isFiltered = (searchInput && searchInput.value.trim().length > 0) ||
-                           filterIncompletsActive ||
+                           {% if current_user.role in ('admin', 'super_admin') %}filterIncompletsActive ||{% endif %}
                            activeFiltersCount > 0;
 
         [btnReset, btnResetDrawer].forEach(btn => {
@@ -1136,8 +1275,10 @@ function initNotesPage() {
                 filterStats.innerHTML = activeClasse 
                     ? `Classe <strong>${activeClasse}</strong> : 0 note enregistrée`
                     : `0 dossier élève`;
+            {% if current_user.role in ('admin', 'super_admin') %}
             } else if (filterIncompletsActive) {
                 filterStats.innerHTML = `<span class="badge bg-warning text-dark me-1"><i class="fas fa-exclamation-triangle me-1"></i>Évaluations incomplètes</span> <strong>${count}</strong> élève${count > 1 ? 's' : ''} à relancer (${activeClasse})`;
+            {% endif %}
             } else if (count === totalStudents) {
                 filterStats.innerHTML = `Affichage de <strong>${count}</strong> dossiers élèves (${activeClasse})`;
             } else {
@@ -1171,8 +1312,8 @@ function initNotesPage() {
             card.style.display = visibleIds.has(card.dataset.id) ? 'block' : 'none';
         });
 
-        // Déplier automatiquement si un filtre ciblé est actif (incomplet ou recherche)
-        const shouldAutoExpand = filterIncompletsActive || (searchInput && searchInput.value.trim().length > 0);
+        // Déplier automatiquement si un filtre ciblé est actif (recherche ou filtre dédié)
+        const shouldAutoExpand = {% if current_user.role in ('admin', 'super_admin') %}filterIncompletsActive || {% endif %}(searchInput && searchInput.value.trim().length > 0);
         if (shouldAutoExpand) {
             pageItems.forEach(card => {
                 const collapseEl = card.querySelector('.collapse');
@@ -1230,7 +1371,9 @@ function initNotesPage() {
         if (filterPeriode) filterPeriode.value = '';
         if (filterTypeEval) filterTypeEval.value = '';
         if (sortSelect) sortSelect.value = 'nom-asc';
+        {% if current_user.role in ('admin', 'super_admin') %}
         filterIncompletsActive = false;
+        {% endif %}
         currentPage = 1;
         syncNiveauWithClassChips(false);
         render();
@@ -1303,6 +1446,288 @@ function initNotesPage() {
         }
     }
 }
+
+// Initialisation du Modal Saisie Rapide des Notes par Classe (Professeur)
+(function initModalSaisieClasse() {
+    const modalEl = document.getElementById('modalSaisieNotesClasseRapide');
+    if (!modalEl) return;
+
+    const selectClasse = document.getElementById('modalSaisieClasseSelect');
+    const selectCours = document.getElementById('modalSaisieCoursSelect');
+    const selectPeriode = document.getElementById('modalSaisiePeriodeSelect');
+    const selectType = document.getElementById('modalSaisieTypeSelect');
+    const inputCoeff = document.getElementById('modalSaisieCoeffInput');
+    const containerEleves = document.getElementById('modalSaisieElevesContainer');
+    const loadingEl = document.getElementById('modalSaisieLoading');
+    const videEl = document.getElementById('modalSaisieVide');
+    const badgeCount = document.getElementById('modalSaisieBadgeCount');
+    const alerteEl = document.getElementById('modalSaisieAlerte');
+    const btnSave = document.getElementById('btnModalSaisieEnregistrer');
+    const inputRecherche = document.getElementById('modalSaisieRechercheEleve');
+
+    let listeEleves = [];
+
+    function chargerCoursEtEleves(classeId) {
+        if (!classeId) return;
+        if (loadingEl) loadingEl.style.display = 'block';
+        if (containerEleves) containerEleves.style.display = 'none';
+        if (videEl) videEl.style.display = 'none';
+        if (alerteEl) alerteEl.style.display = 'none';
+
+        // 1. Charger les cours de la classe
+        fetch(`/api/cours_classe/${classeId}`)
+            .then(res => res.json())
+            .then(coursList => {
+                if (!selectCours) return;
+                selectCours.innerHTML = '';
+                if (coursList && coursList.length > 0) {
+                    coursList.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = c.nom;
+                        selectCours.appendChild(opt);
+                    });
+                } else {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.textContent = '--- Aucun cours pour cette classe ---';
+                    selectCours.appendChild(opt);
+                }
+            })
+            .catch(() => {
+                if (selectCours) selectCours.innerHTML = '<option value="">Erreur chargement cours</option>';
+            });
+
+        // 2. Charger les élèves de la classe
+        fetch(`/api/eleves/classe/${classeId}`)
+            .then(res => res.json())
+            .then(data => {
+                listeEleves = data.eleves || [];
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (listeEleves.length === 0) {
+                    if (videEl) videEl.style.display = 'block';
+                    if (containerEleves) containerEleves.style.display = 'none';
+                } else {
+                    renderEleves(listeEleves);
+                    if (containerEleves) containerEleves.style.display = 'block';
+                }
+                updateCount();
+            })
+            .catch(() => {
+                if (loadingEl) loadingEl.style.display = 'none';
+                if (videEl) videEl.style.display = 'block';
+            });
+    }
+
+    function renderEleves(eleves) {
+        if (!containerEleves) return;
+        containerEleves.innerHTML = '';
+        eleves.forEach((e, idx) => {
+            const row = document.createElement('div');
+            row.className = 'modal-eleve-row d-flex align-items-center justify-content-between p-2.5 px-3 border-bottom bg-white';
+            row.setAttribute('data-nom', (e.nom + ' ' + e.prenom).toLowerCase());
+            row.setAttribute('data-matricule', (e.matricule || '').toLowerCase());
+
+            row.innerHTML = `
+                <div class="d-flex align-items-center gap-2 overflow-hidden me-2">
+                    <span class="badge bg-light text-secondary border rounded-pill fw-semibold text-center" style="min-width: 30px; font-size: 0.72rem;">#${idx + 1}</span>
+                    <div class="min-w-0">
+                        <div class="fw-bold text-dark text-truncate" style="font-size: 0.88rem;">${e.nom} ${e.prenom}</div>
+                        <div class="text-muted font-monospace" style="font-size: 0.7rem;">${e.matricule || '-'}</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+                    <div class="input-group input-group-sm rounded-3 overflow-hidden border modal-note-input-group" style="width: 115px;">
+                        <input type="number" class="form-control text-center fw-bold fs-6 modal-note-input shadow-none border-0"
+                               min="0" max="20" step="0.25" placeholder="--" data-eleve-id="${e.id}" autocomplete="off" inputmode="decimal" style="height: 36px;">
+                        <span class="input-group-text bg-light text-muted small fw-bold px-1.5 border-0" style="font-size: 0.74rem;">/20</span>
+                    </div>
+                    <span class="modal-note-check text-success ms-1" style="width: 16px; display: none;"><i class="fas fa-check-circle"></i></span>
+                </div>
+            `;
+            containerEleves.appendChild(row);
+        });
+
+        // Add input listeners
+        const modalInputs = Array.from(containerEleves.querySelectorAll('.modal-note-input'));
+        modalInputs.forEach((inp, idx) => {
+            inp.addEventListener('input', function() {
+                const val = parseFloat(this.value);
+                const parentRow = this.closest('.modal-eleve-row');
+                const checkIcon = parentRow ? parentRow.querySelector('.modal-note-check') : null;
+                const grp = this.closest('.modal-note-input-group');
+
+                if (!isNaN(val) && val >= 0 && val <= 20 && this.value.trim() !== '') {
+                    this.classList.remove('is-invalid');
+                    if (checkIcon) checkIcon.style.display = 'inline-block';
+                    if (grp) {
+                        grp.classList.add('border-success');
+                        grp.style.backgroundColor = '#f0fdf4';
+                    }
+                } else if (this.value.trim() !== '') {
+                    this.classList.add('is-invalid');
+                    if (checkIcon) checkIcon.style.display = 'none';
+                    if (grp) {
+                        grp.classList.remove('border-success');
+                        grp.style.backgroundColor = '';
+                    }
+                } else {
+                    this.classList.remove('is-invalid');
+                    if (checkIcon) checkIcon.style.display = 'none';
+                    if (grp) {
+                        grp.classList.remove('border-success');
+                        grp.style.backgroundColor = '';
+                    }
+                }
+                updateCount();
+            });
+
+            inp.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (modalInputs[idx + 1]) {
+                        modalInputs[idx + 1].focus();
+                        modalInputs[idx + 1].select();
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (modalInputs[idx - 1]) {
+                        modalInputs[idx - 1].focus();
+                        modalInputs[idx - 1].select();
+                    }
+                }
+            });
+        });
+    }
+
+    function updateCount() {
+        if (!containerEleves) return;
+        const modalInputs = containerEleves.querySelectorAll('.modal-note-input');
+        let filled = 0;
+        modalInputs.forEach(i => {
+            const val = parseFloat(i.value);
+            if (!isNaN(val) && val >= 0 && val <= 20 && i.value.trim() !== '') filled++;
+        });
+        if (badgeCount) badgeCount.textContent = `${filled} noté(s)`;
+    }
+
+    if (inputRecherche) {
+        inputRecherche.addEventListener('input', function() {
+            const q = this.value.trim().toLowerCase();
+            if (!containerEleves) return;
+            const rows = containerEleves.querySelectorAll('.modal-eleve-row');
+            rows.forEach(r => {
+                const nom = r.getAttribute('data-nom') || '';
+                const mat = r.getAttribute('data-matricule') || '';
+                if (!q || nom.includes(q) || mat.includes(q)) {
+                    r.style.display = 'flex';
+                } else {
+                    r.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    if (selectClasse) {
+        selectClasse.addEventListener('change', function() {
+            chargerCoursEtEleves(this.value);
+        });
+    }
+
+    modalEl.addEventListener('show.bs.modal', function() {
+        // Sélectionner la classe active de la page s'il y a un chip actif
+        const activeChip = document.querySelector('.class-filter-chip.active');
+        if (activeChip && selectClasse) {
+            const activeClasseId = activeChip.getAttribute('data-classe-id');
+            if (activeClasseId) selectClasse.value = activeClasseId;
+        }
+        if (selectClasse && selectClasse.value) {
+            chargerCoursEtEleves(selectClasse.value);
+        }
+    });
+
+    if (btnSave) {
+        btnSave.addEventListener('click', function() {
+            const classeId = selectClasse.value;
+            const coursId = selectCours.value;
+            if (!coursId) {
+                if (alerteEl) {
+                    alerteEl.textContent = "Veuillez sélectionner un cours/matière.";
+                    alerteEl.style.display = 'block';
+                }
+                return;
+            }
+
+            const notesMap = {};
+            let countSaisies = 0;
+            const modalInputs = containerEleves.querySelectorAll('.modal-note-input');
+            modalInputs.forEach(inp => {
+                const val = inp.value.trim();
+                const eleveId = inp.getAttribute('data-eleve-id');
+                if (val !== '' && eleveId) {
+                    const num = parseFloat(val);
+                    if (!isNaN(num) && num >= 0 && num <= 20) {
+                        notesMap[eleveId] = val;
+                        countSaisies++;
+                    }
+                }
+            });
+
+            if (countSaisies === 0) {
+                if (alerteEl) {
+                    alerteEl.textContent = "Veuillez renseigner au moins une note valide.";
+                    alerteEl.style.display = 'block';
+                }
+                return;
+            }
+
+            btnSave.disabled = true;
+            btnSave.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Enregistrement...';
+            if (alerteEl) alerteEl.style.display = 'none';
+
+            const payload = {
+                classe_id: parseInt(classeId, 10),
+                cours_id: parseInt(coursId, 10),
+                periode: selectPeriode.value,
+                type_evaluation: selectType.value,
+                coefficient: parseFloat(inputCoeff.value) || 1.0,
+                notes: notesMap
+            };
+
+            fetch('/notes/saisie_classe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                btnSave.disabled = false;
+                btnSave.innerHTML = '<i class="fas fa-check me-1"></i>Enregistrer les notes';
+                if (data.success) {
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                    if (modalInstance) modalInstance.hide();
+                    window.location.reload();
+                } else {
+                    if (alerteEl) {
+                        alerteEl.textContent = data.message || "Erreur lors de l'enregistrement.";
+                        alerteEl.style.display = 'block';
+                    }
+                }
+            })
+            .catch(() => {
+                btnSave.disabled = false;
+                btnSave.innerHTML = '<i class="fas fa-check me-1"></i>Enregistrer les notes';
+                if (alerteEl) {
+                    alerteEl.textContent = "Erreur de communication avec le serveur.";
+                    alerteEl.style.display = 'block';
+                }
+            });
+        });
+    }
+})();
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initNotesPage);

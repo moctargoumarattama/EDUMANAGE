@@ -1,0 +1,117 @@
+<div class="point-du-jour-container">
+    <!-- En-tête date & statut -->
+    <div class="d-flex align-items-center justify-content-between p-3 rounded-3 bg-light border mb-3">
+        <div>
+            <div class="fw-bold text-dark fs-6">
+                <i class="far fa-calendar-alt text-primary me-1.5"></i>
+                {{ today.strftime('%d/%m/%Y') }}
+            </div>
+            {% if annee_active %}
+            <small class="text-muted">
+                Année active : <span class="badge bg-primary-subtle text-primary fw-semibold">{{ annee_active.nom }}</span>
+            </small>
+            {% endif %}
+        </div>
+        <span class="badge bg-light text-secondary border rounded-pill px-2.5 py-1 small">
+            <i class="fas fa-bolt text-warning me-1"></i>En direct
+        </span>
+    </div>
+
+    <!-- Carte Absences du jour -->
+    <a href="{{ url_for('main.absences') }}" class="card border-0 shadow-xs rounded-3 text-decoration-none mb-3 p-3 d-flex flex-row align-items-center justify-content-between point-du-jour-kpi-card">
+        <div class="d-flex align-items-center gap-3">
+            <span class="rounded-3 d-inline-flex align-items-center justify-content-center text-white bg-primary flex-shrink-0" style="width: 44px; height: 44px; font-size: 1.15rem;">
+                <i class="fas fa-user-times"></i>
+            </span>
+            <div>
+                <strong class="fs-4 fw-bold text-dark d-block lh-1 mb-1">{{ counters.absences }}</strong>
+                <small class="text-muted fw-semibold">Absence(s) signalée(s) aujourd'hui</small>
+            </div>
+        </div>
+        <span class="badge bg-primary-subtle text-primary rounded-pill px-2.5 py-1.5 fw-semibold small">
+            Gérer <i class="fas fa-arrow-right ms-1"></i>
+        </span>
+    </a>
+
+    <!-- Section 1 : À traiter (Urgences / Incomplets) -->
+    <div class="mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
+                <i class="fas fa-exclamation-triangle text-warning"></i>
+                <span>À traiter en priorité</span>
+            </h6>
+            {% if todo_items %}
+            <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2 py-0.5 small">
+                {{ todo_items|length }} alerte(s)
+            </span>
+            {% endif %}
+        </div>
+
+        <div class="d-flex flex-column gap-2">
+            {% for item in todo_items %}
+            <a href="{{ item.url }}" class="d-flex align-items-center justify-content-between p-2.5 rounded-3 bg-white border text-decoration-none shadow-2xs point-du-jour-item hover-lift">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-warning text-dark rounded-pill fw-bold px-2 py-1">{{ item.count }}</span>
+                    <span class="small fw-semibold text-dark">{{ item.label }}</span>
+                </div>
+                <i class="fas fa-chevron-right text-muted small"></i>
+            </a>
+            {% else %}
+            <div class="p-3 rounded-3 bg-success-subtle text-success border border-success-subtle d-flex align-items-center gap-2">
+                <i class="fas fa-check-circle fa-lg flex-shrink-0"></i>
+                <div class="small">
+                    <strong>Tout est à jour !</strong><br>
+                    Aucune anomalie administrative détectée pour aujourd'hui.
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Section 2 : Activité du jour (Timeline) -->
+    <div>
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-1.5">
+                <i class="fas fa-clock-rotate-left text-primary"></i>
+                <span>Activité récente du jour</span>
+            </h6>
+            {% if events %}
+            <span class="badge bg-light text-secondary border rounded-pill px-2 py-0.5 small">
+                {{ events|length }} événement(s)
+            </span>
+            {% endif %}
+        </div>
+
+        <div class="d-flex flex-column gap-2">
+            {% for event in events %}
+            <a href="{{ event.url }}" class="d-flex align-items-start gap-2.5 p-2.5 rounded-3 bg-white border text-decoration-none shadow-2xs point-du-jour-item hover-lift">
+                {% if event.show_time and event.time %}
+                <span class="badge bg-light text-primary border fw-bold px-2 py-1 mt-0.5" style="font-size: 0.72rem;">
+                    {{ event.time.strftime('%H:%M') }}
+                </span>
+                {% else %}
+                <span class="badge bg-light text-muted border px-2 py-1 mt-0.5" style="font-size: 0.72rem;">
+                    <i class="fas fa-calendar-day"></i>
+                </span>
+                {% endif %}
+                <div class="flex-grow-1 min-w-0">
+                    <div class="d-flex align-items-center justify-content-between gap-2">
+                        <strong class="text-dark small text-truncate">{{ event.display_title }}</strong>
+                        {% if event.meta %}
+                        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2 py-0.5 fw-medium" style="font-size: 0.68rem;">
+                            {{ event.meta }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted d-block text-truncate mt-0.5">{{ event.detail }}</small>
+                </div>
+            </a>
+            {% else %}
+            <div class="p-4 rounded-3 bg-light text-muted text-center small border">
+                <i class="fas fa-inbox fa-2x mb-2 d-block text-secondary opacity-50"></i>
+                Aucune activité enregistrée pour le moment aujourd'hui.
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>

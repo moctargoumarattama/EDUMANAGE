@@ -1,274 +1,336 @@
 {% extends "base.html" %}
-{% block title %}Espace Professeur - KLASORA{% endblock %}
+{% block title %}Mon Espace - Professeur - KLASORA{% endblock %}
 
 {% block content %}
-<section class="page-header teacher-home-header">
-    <div class="page-header-body">
-        <div class="page-title-group">
-            <div class="page-icon">
-                <i class="fas fa-chalkboard-teacher"></i>
-            </div>
-            <div>
-                <h1 class="page-title">Bonjour {{ current_user.prenom or current_user.nom }}</h1>
-                <p class="page-subtitle">
-                    {% if annee_consultee %}{{ annee_consultee.nom }}{% else %}Annee scolaire non configuree{% endif %}
-                </p>
-            </div>
+<div class="container-fluid px-2.5 px-md-4 py-3" style="max-width: 1200px; margin: 0 auto;">
+
+    <!-- En-tête de bienvenue compact & moderne -->
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h1 class="h4 mb-0 fw-bold text-dark d-flex align-items-center gap-1.5">
+                <span>Bonjour, {{ current_user.prenom or current_user.nom }}</span>
+                <span class="fs-5">👋</span>
+            </h1>
+            <p class="text-muted small mb-0" style="font-size: 0.8rem;">
+                {% if annee_consultee %}Année scolaire {{ annee_consultee.nom }}{% else %}Espace pédagogique enseignant{% endif %}
+            </p>
         </div>
-        <span class="badge bg-primary-subtle text-primary">{{ now.strftime('%d/%m/%Y') }}</span>
+        <div class="d-flex align-items-center gap-1.5">
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1.5 rounded-pill fw-semibold small">
+                <i class="fas fa-calendar-day me-1"></i>{{ now.strftime('%d/%m/%Y') }}
+            </span>
+        </div>
     </div>
-</section>
 
-<section class="teacher-home-grid">
-    <article class="teacher-summary-card teacher-today-card">
-        <div class="teacher-section-title">
-            <i class="fas fa-calendar-day text-primary"></i>
-            <h2>Cours d'aujourd'hui</h2>
-        </div>
-
-        {% if cours_aujourdhui %}
-        <div class="teacher-today-list">
-            {% for emploi in cours_aujourdhui[:4] %}
-            <div class="teacher-today-item">
-                <div>
-                    <strong>{{ emploi.cours.nom if emploi.cours else 'Cours' }}</strong>
-                    <span>{{ emploi.classe.nom if emploi.classe else 'Classe non renseignee' }}</span>
-                </div>
-                <span class="teacher-time">{{ emploi.heure_debut.strftime('%H:%M') }} - {{ emploi.heure_fin.strftime('%H:%M') }}</span>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <p class="text-muted mb-0">Aucun cours programme aujourd'hui.</p>
-        {% endif %}
-    </article>
-
-    <article class="teacher-summary-card">
-        <div class="teacher-section-title">
-            <i class="fas fa-forward text-success"></i>
-            <h2>Prochaine classe</h2>
-        </div>
+    <!-- CARTE D'ACTION DU MOMENT (HERO COMPACT) -->
+    <div class="mb-3">
         {% if prochain_cours %}
-        <div class="teacher-next-class">
-            <strong>{{ prochain_cours.classe.nom if prochain_cours.classe else 'Classe' }}</strong>
-            <span>{{ prochain_cours.cours.nom if prochain_cours.cours else 'Cours' }}</span>
-            <span>{{ prochain_cours.heure_debut.strftime('%H:%M') }} - {{ prochain_cours.heure_fin.strftime('%H:%M') }}</span>
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden hero-prochain-cours" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #fff;">
+            <div class="card-body p-3 p-md-3.5">
+                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2.5">
+                    <div class="min-w-0">
+                        <div class="d-flex align-items-center gap-1.5 flex-wrap mb-1">
+                            <span class="badge bg-warning text-dark px-2 py-0.5 rounded-pill fw-bold text-uppercase" style="font-size: 0.68rem; letter-spacing: 0.4px;">
+                                <i class="fas fa-clock me-1"></i>Prochain cours
+                            </span>
+                            <span class="badge bg-white bg-opacity-20 text-white rounded-pill px-2 py-0.5" style="font-size: 0.72rem;">
+                                {{ prochain_cours.heure_debut.strftime('%H:%M') }} - {{ prochain_cours.heure_fin.strftime('%H:%M') }}
+                            </span>
+                            {% if prochain_cours.salle %}
+                            <span class="badge bg-white bg-opacity-20 text-white rounded-pill px-2 py-0.5" style="font-size: 0.72rem;">
+                                <i class="fas fa-door-open me-0.5"></i>{{ prochain_cours.salle }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <h2 class="h5 fw-bolder mb-0.5 text-white text-truncate">
+                            {{ prochain_cours.cours.nom if prochain_cours.cours else 'Cours' }}
+                        </h2>
+                        <p class="text-white-50 mb-0 small">
+                            Classe : <strong class="text-white">{{ prochain_cours.classe.nom if prochain_cours.classe else 'Classe' }}</strong>
+                        </p>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0 flex-nowrap">
+                        {% if prochain_cours.classe and prochain_cours.cours %}
+                        <button type="button" class="btn btn-warning rounded-pill px-3 py-2 fw-bold shadow-sm d-inline-flex align-items-center gap-1.5 flex-fill justify-content-center text-dark text-nowrap"
+                                style="font-size: 0.88rem;"
+                                onclick="ouvrirModalAppelDirect('{{ prochain_cours.classe.id }}', '{{ prochain_cours.classe.nom }}', '{{ prochain_cours.cours.id }}', '{{ prochain_cours.cours.nom }}')">
+                            <i class="fas fa-user-check"></i>
+                            <span>Faire l'appel</span>
+                        </button>
+                        <a href="{{ url_for('main.notes', classe_id=prochain_cours.classe.id, cours_id=prochain_cours.cours.id) }}" class="btn btn-light bg-opacity-25 text-white border-0 rounded-pill px-3 py-2 fw-semibold d-inline-flex align-items-center gap-1 flex-fill justify-content-center text-nowrap" style="background: rgba(255,255,255,0.2); font-size: 0.88rem;">
+                            <i class="fas fa-pen"></i>
+                            <span>Notes</span>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% elif cours_aujourdhui %}
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-3">
+            <div class="d-flex align-items-center gap-2.5">
+                <div class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center flex-shrink-0" style="width: 38px; height: 38px; font-size: 1.1rem;">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="min-w-0">
+                    <h6 class="fw-bold text-dark mb-0">Cours du jour terminés</h6>
+                    <p class="text-muted small mb-0" style="font-size: 0.78rem;">Tous vos cours programmés pour aujourd'hui sont achevés.</p>
+                </div>
+            </div>
         </div>
         {% else %}
-        <p class="text-muted mb-0">Aucune autre classe prevue aujourd'hui.</p>
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-3">
+            <div class="d-flex align-items-center gap-2.5">
+                <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 38px; height: 38px; font-size: 1.1rem;">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <div class="min-w-0">
+                    <h6 class="fw-bold text-dark mb-0">Aucun cours aujourd'hui</h6>
+                    <p class="text-muted small mb-0" style="font-size: 0.78rem;">Pas de créneau programmé ce jour. Consultez vos autres journées ci-dessous.</p>
+                </div>
+            </div>
+        </div>
         {% endif %}
-    </article>
+    </div>
 
-    <article class="teacher-summary-card teacher-counts">
-        <div>
-            <span>{{ total_classes }}</span>
-            <p>Classes assignees</p>
+    <!-- PLANNING DE LA SEMAINE (SÉLECTEUR DE JOUR EN 6 COLONNES VISIBLES) -->
+    <div class="card border-0 shadow-sm rounded-4 bg-white mb-3.5 overflow-hidden">
+        <div class="card-header bg-white border-bottom py-2.5 px-3 px-md-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-calendar-alt text-primary"></i>
+                <h6 class="mb-0 fw-bold text-dark">Emploi du temps de la semaine</h6>
+            </div>
+            <span class="badge bg-light text-muted border rounded-pill px-2.5 py-1 small">
+                {{ emplois|length }} séance{{ 's' if emplois|length > 1 else '' }}
+            </span>
         </div>
-        <div>
-            <span>{{ stats.total_cours }}</span>
-            <p>Cours assignes</p>
-        </div>
-    </article>
 
-    <article class="teacher-summary-card">
-        <div class="teacher-section-title">
-            <i class="fas fa-bolt text-warning"></i>
-            <h2>Actions rapides</h2>
+        <div class="card-body p-2.5 p-md-3.5">
+            {% set jours_semaine = [
+                ('Lundi', 'Lun'),
+                ('Mardi', 'Mar'),
+                ('Mercredi', 'Mer'),
+                ('Jeudi', 'Jeu'),
+                ('Vendredi', 'Ven'),
+                ('Samedi', 'Sam')
+            ] %}
+            {% set active_day = jour_actuel if (jour_actuel in ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']) else 'Lundi' %}
+
+            <!-- Barre de sélection des 6 jours (visible immédiatement sans devinette) -->
+            <div class="calendar-week-grid mb-3" role="tablist">
+                {% for j_full, j_short in jours_semaine %}
+                {% set nb_cours_j = emplois|selectattr('jour', 'equalto', j_full)|list|length %}
+                {% set is_active = (j_full == active_day) %}
+                <button class="calendar-day-tab {% if is_active %}active shadow-sm{% endif %}"
+                        id="tab-{{ j_full|lower }}"
+                        data-bs-toggle="pill"
+                        data-bs-target="#pane-{{ j_full|lower }}"
+                        type="button"
+                        role="tab"
+                        aria-controls="pane-{{ j_full|lower }}"
+                        aria-selected="{{ 'true' if is_active else 'false' }}"
+                        title="{{ j_full }} ({{ nb_cours_j }} cours)">
+                    <span class="day-label-short">{{ j_short }}</span>
+                    <span class="day-label-full d-none d-md-inline">{{ j_full }}</span>
+                    <span class="day-count-badge {% if is_active %}active{% elif nb_cours_j > 0 %}has-classes{% else %}empty{% endif %}">
+                        {{ nb_cours_j }}
+                    </span>
+                </button>
+                {% endfor %}
+            </div>
+
+            <!-- Contenu des cours du jour sélectionné -->
+            <div class="tab-content" id="joursTabsContent">
+                {% for j_full, j_short in jours_semaine %}
+                {% set emplois_jour = emplois|selectattr('jour', 'equalto', j_full)|list %}
+                <div class="tab-pane fade {% if j_full == active_day %}show active{% endif %}" id="pane-{{ j_full|lower }}" role="tabpanel" aria-labelledby="tab-{{ j_full|lower }}">
+                    {% if emplois_jour %}
+                    <div class="row g-2">
+                        {% for item in emplois_jour|sort(attribute='heure_debut') %}
+                        <div class="col-12 col-md-6 col-xl-4">
+                            <div class="card h-100 border border-light-subtle rounded-3 shadow-none p-2.5 bg-light bg-opacity-50 hover-card-schedule">
+                                <div class="d-flex justify-content-between align-items-center gap-2 mb-1.5">
+                                    <span class="badge bg-primary text-white rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.76rem;">
+                                        <i class="fas fa-clock me-1"></i>{{ item.heure_debut.strftime('%H:%M') }} - {{ item.heure_fin.strftime('%H:%M') }}
+                                    </span>
+                                    {% if item.salle %}
+                                    <span class="badge bg-white text-muted border rounded-pill px-2 py-0.5" style="font-size: 0.7rem;">
+                                        <i class="fas fa-door-open me-0.5"></i>{{ item.salle }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <h6 class="fw-bold text-dark mb-0.5 text-truncate" title="{{ item.cours.nom if item.cours else 'Matière' }}">
+                                    {{ item.cours.nom if item.cours else 'Matière' }}
+                                </h6>
+                                <p class="text-muted small mb-2" style="font-size: 0.8rem;">
+                                    Classe : <strong class="text-dark">{{ item.classe.nom if item.classe else 'Sans classe' }}</strong>
+                                </p>
+                                <div class="d-flex gap-1.5 mt-auto pt-1.5 border-top">
+                                    {% if item.classe and item.cours %}
+                                    <a href="{{ url_for('main.faire_appel', classe_id=item.classe.id, cours_id=item.cours.id) }}" class="btn btn-sm btn-outline-warning rounded-pill flex-fill fw-semibold py-1 d-flex align-items-center justify-content-center gap-1" style="font-size: 0.8rem;" title="Faire l'appel">
+                                        <i class="fas fa-user-check"></i>
+                                        <span>Appel</span>
+                                    </a>
+                                    <a href="{{ url_for('main.notes', classe_id=item.classe.id, cours_id=item.cours.id) }}" class="btn btn-sm btn-outline-primary rounded-pill flex-fill fw-semibold py-1 d-flex align-items-center justify-content-center gap-1" style="font-size: 0.8rem;" title="Notes">
+                                        <i class="fas fa-pen"></i>
+                                        <span>Notes</span>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center mb-1.5" style="width: 44px; height: 44px;">
+                            <i class="fas fa-mug-hot text-muted"></i>
+                        </div>
+                        <p class="fw-semibold text-dark mb-0 small">Aucun cours le {{ j_full }}</p>
+                        <p class="text-muted small mb-0" style="font-size: 0.78rem;">Aucun créneau planifié pour cette journée.</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
         </div>
-        <div class="teacher-quick-actions">
-            <a class="btn btn-primary" href="{{ url_for('main.notes') }}">
-                <i class="fas fa-pen me-2"></i>Gerer les evaluations
-            </a>
-            <a class="btn btn-warning" href="{% if appel_classe_id and appel_cours_id %}{{ url_for('main.faire_appel', classe_id=appel_classe_id, cours_id=appel_cours_id) }}{% else %}{{ url_for('main.absences') }}{% endif %}">
-                <i class="fas fa-user-check me-2"></i>Faire l'appel
+    </div>
+
+    <!-- ACCÈS DIRECTS VERS LES 2 AUTRES PÔLES (PAGES 2 & 3 - COMPACT) -->
+    <div class="row g-2.5">
+        <div class="col-12 col-md-6">
+            <a href="{{ url_for('main.mes_enseignements') }}" class="card border-0 shadow-sm rounded-4 text-decoration-none p-2.5 p-md-3 h-100 hover-shadow transition-all bg-white">
+                <div class="card-body p-0 d-flex align-items-center gap-2.5">
+                    <div class="rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px; font-size: 1.2rem;">
+                        <i class="fas fa-chalkboard"></i>
+                    </div>
+                    <div class="min-w-0 flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold text-dark mb-0 text-truncate">Mes Classes &amp; Présences</h6>
+                            <i class="fas fa-chevron-right text-muted small"></i>
+                        </div>
+                        <p class="text-muted small mb-0 text-truncate" style="font-size: 0.78rem;">
+                            {{ total_classes }} classe{{ 's' if total_classes > 1 else '' }} assignée{{ 's' if total_classes > 1 else '' }} &bull; Effectifs &amp; Assiduité
+                        </p>
+                    </div>
+                </div>
             </a>
         </div>
-    </article>
-</section>
+
+        <div class="col-12 col-md-6">
+            <a href="{{ url_for('main.notes') }}" class="card border-0 shadow-sm rounded-4 text-decoration-none p-2.5 p-md-3 h-100 hover-shadow transition-all bg-white">
+                <div class="card-body p-0 d-flex align-items-center gap-2.5">
+                    <div class="rounded-3 bg-success-subtle text-success d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px; font-size: 1.2rem;">
+                        <i class="fas fa-edit"></i>
+                    </div>
+                    <div class="min-w-0 flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold text-dark mb-0 text-truncate">Mes Évaluations &amp; Notes</h6>
+                            <i class="fas fa-chevron-right text-muted small"></i>
+                        </div>
+                        <p class="text-muted small mb-0 text-truncate" style="font-size: 0.78rem;">
+                            {{ stats.total_cours }} matière{{ 's' if stats.total_cours > 1 else '' }} &bull; Saisie par classe ou par élève
+                        </p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+</div>
 
 <style>
-    .teacher-home-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.9fr);
-        gap: 1rem;
-        max-width: 1120px;
-        margin: 0 auto;
-    }
+.transition-all {
+    transition: all 0.2s ease-in-out;
+}
+.hover-shadow:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.06) !important;
+}
+.hover-card-schedule:hover {
+    border-color: #cbd5e1 !important;
+    background: #ffffff !important;
+}
 
-    .teacher-summary-card {
-        background: #fff;
-        border: 1px solid #edf0f5;
-        border-radius: 14px;
-        padding: 1rem;
-        box-shadow: 0 10px 24px rgba(30, 41, 59, 0.08);
-        min-width: 0;
-    }
+/* Grille ultra-compacte des 6 jours sur mobile (Lun, Mar, Mer, Jeu, Ven, Sam) */
+.calendar-week-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 14px;
+}
 
-    .teacher-section-title {
-        display: flex;
-        align-items: center;
-        gap: 0.55rem;
-        margin-bottom: 0.85rem;
-    }
+.calendar-day-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 2px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: #475569;
+    font-weight: 600;
+    transition: all 0.18s ease;
+    cursor: pointer;
+    text-align: center;
+    min-height: 50px;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
 
-    .teacher-section-title h2 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 800;
-        color: #172033;
-    }
+.calendar-day-tab:hover {
+    background: rgba(255, 255, 255, 0.7);
+    color: #1e293b;
+}
 
-    .teacher-today-list {
-        display: grid;
-        gap: 0.6rem;
-    }
+.calendar-day-tab.active {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.35);
+}
 
-    .teacher-today-item {
-        display: flex;
-        justify-content: space-between;
-        gap: 0.75rem;
-        padding: 0.75rem;
-        border-radius: 12px;
-        background: #f8fafc;
-    }
+.day-label-short {
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    line-height: 1.1;
+}
 
-    .teacher-today-item strong,
-    .teacher-next-class strong {
-        display: block;
-        color: #111827;
-    }
+.day-label-full {
+    font-size: 0.86rem;
+    font-weight: 600;
+}
 
-    .teacher-today-item span,
-    .teacher-next-class span {
-        display: block;
-        color: #5b6475;
-        font-size: 0.9rem;
-    }
+.day-count-badge {
+    margin-top: 3px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 999px;
+    line-height: 1.2;
+    min-width: 17px;
+}
 
-    .teacher-time {
-        flex: 0 0 auto;
-        font-weight: 800;
-        color: #3151d3 !important;
-    }
+.calendar-day-tab.active .day-count-badge {
+    background: rgba(255, 255, 255, 0.28) !important;
+    color: #ffffff !important;
+}
 
-    .teacher-next-class {
-        display: grid;
-        gap: 0.25rem;
-    }
+.day-count-badge.has-classes {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
 
-    .teacher-counts {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.75rem;
-    }
-
-    .teacher-counts div {
-        border-radius: 12px;
-        background: #f8fafc;
-        padding: 1rem;
-        text-align: center;
-    }
-
-    .teacher-counts span {
-        display: block;
-        font-size: 1.75rem;
-        font-weight: 900;
-        color: #111827;
-    }
-
-    .teacher-counts p {
-        margin: 0;
-        color: #5b6475;
-        font-weight: 650;
-    }
-
-    .teacher-quick-actions {
-        display: grid;
-        gap: 0.65rem;
-    }
-
-    @media (max-width: 768px) {
-        .teacher-home-header {
-            margin: 0 0 0.45rem !important;
-        }
-
-        .teacher-home-header .page-header-body {
-            padding: 0.45rem 0.65rem;
-            align-items: center;
-            gap: 0.35rem;
-        }
-
-        .teacher-home-header .page-title-group {
-            align-items: center;
-            gap: 0.45rem;
-        }
-
-        .teacher-home-header .page-icon {
-            width: 30px;
-            height: 30px;
-            border-radius: 9px;
-            font-size: 0.85rem;
-        }
-
-        .teacher-home-header .page-title {
-            font-size: 0.95rem;
-            line-height: 1.1;
-            margin-bottom: 0;
-        }
-
-        .teacher-home-header .page-subtitle {
-            font-size: 0.75rem;
-            margin: 0;
-            line-height: 1.05;
-        }
-
-        .teacher-home-header .badge {
-            align-self: flex-start;
-            margin-left: 2.45rem;
-            padding: 0.25rem 0.45rem;
-            font-size: 0.68rem;
-        }
-
-        .teacher-home-grid {
-            grid-template-columns: 1fr;
-            gap: 0.6rem;
-        }
-
-        .teacher-summary-card {
-            padding: 0.85rem;
-            border-radius: 12px;
-        }
-
-        .teacher-counts {
-            gap: 0.55rem;
-        }
-
-        .teacher-counts div {
-            padding: 0.65rem 0.45rem;
-            min-height: 72px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .teacher-counts span {
-            font-size: 1.35rem;
-            line-height: 1;
-            margin-bottom: 0.15rem;
-        }
-
-        .teacher-counts p {
-            font-size: 0.82rem;
-            line-height: 1.2;
-        }
-
-        .teacher-today-item {
-            flex-direction: column;
-        }
-
-        .teacher-quick-actions .btn {
-            min-height: 44px;
-        }
-    }
+.day-count-badge.empty {
+    background: #e2e8f0;
+    color: #94a3b8;
+    opacity: 0.7;
+}
 </style>
+
+{% include 'partials/_modal_faire_appel.html' %}
 {% endblock %}

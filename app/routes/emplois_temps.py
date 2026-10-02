@@ -375,7 +375,12 @@ def api_cours_classe(classe_id):
     if not classe or not annee_consultee or classe.annee_scolaire_id != annee_consultee.id:
         return jsonify([]), 403
 
-    cours = Cours.query.filter_by(classe_id=classe.id, ecole_id=ecole_id).order_by(Cours.nom).all()
+    cours_query = Cours.query.filter_by(classe_id=classe.id, ecole_id=ecole_id)
+    if current_user.role == 'professeur':
+        professeur = getattr(current_user, 'professeur_rel', None)
+        if professeur:
+            cours_query = cours_query.filter_by(professeur_id=professeur.id)
+    cours = cours_query.order_by(Cours.nom).all()
     return jsonify([
         {
             "id": c.id,

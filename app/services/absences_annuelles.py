@@ -1,7 +1,8 @@
 from flask import g, has_request_context
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.models import Absence, AnneeScolaire, Classe, Cours, Eleve, Inscription
+from app.models import Absence, AnneeScolaire, Classe, Cours, Eleve, Inscription, db
 from app.utils_classes import classes_triees_pedagogique
 
 
@@ -327,3 +328,179 @@ def verifier_mutation_absence(ecole_id, annee, user, eleve_id, cours_id, date_ab
             return None, None, None, "Cette absence n'appartient pas à l'année scolaire consultée."
 
     return inscription.eleve, cours, inscription, None
+
+
+def get_palmares_absences_annuel(ecole_id, annee):
+    """Calcule le palmarès d'assiduité annuel :
+    - Top 5 classes les plus touchées (alertes absentéisme)
+    - Top 5 classes les plus assidues (reconnaissance / assiduité exemplaire)
+    - Classe spotlight la plus touchée et classe spotlight la plus assidue
+    - Indicateurs globaux (total absences, NJ, J, taux justification)
+    - Données pour le graphique comparatif Chart.js
+    """
+    empty_result = {
+        "classes_plus_touchees": [],
+        "classes_plus_assidues": [],
+        "classe_plus_absente": None,
+        "classe_plus_assidue": None,
+        "statistiques": {
+            "total_absences": 0,
+            "absences_justifiees": 0,
+            "absences_non_justifiees": 0,
+            "taux_justification": 100.0,
+            "total_classes": 0,
+            "total_eleves": 0,
+        },
+        "chart_data": {
+            "labels": [],
+            "absences": [],
+            "justifiees": [],
+            "non_justifiees": [],
+            "is_max": [],
+        },
+    }
+
+    if not ecole_id or not annee:
+        return empty_result
+
+    # 1. Classes de l'année ordonnées pédagogiquement
+    classes_query = (
+        Classe.query.options(joinedload(Classe.niveau_scolaire))
+        .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
+    )
+    classes = classes_triees_pedagogique(classes_query).all()
+    if not classes:
+        return empty_result
+
+    # 2. Effectifs par classe
+    effectifs_raw = (
+        db.session.query(Inscription.classe_id, func.count(Inscription.id))
+        .filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee.id,
+            Inscription.classe_id.isnot(None),
+        )
+        .group_by(Inscription.classe_id)
+        .all()
+    )
+    effectifs_map = {row[0]: int(row[1]) for row in effectifs_raw}
+
+    # 3. Statistiques d'absences par classe (via Inscription)
+    absences_raw = (
+        db.session.query(
+            Inscription.classe_id,
+            func.count(Absence.id).label("total"),
+            func.sum(case((Absence.justifiee == True, 1), else_=0)).label("justifiees"),
+            func.sum(case((or_(Absence.justifiee == False, Absence.justifiee.is_(None)), 1), else_=0)).label("non_justifiees"),
+        )
+        .join(Absence, Absence.inscription_id == Inscription.id)
+        .filter(
+            Absence.ecole_id == ecole_id,
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee.id,
+        )
+        .group_by(Inscription.classe_id)
+        .all()
+    )
+    abs_stats_map = {
+        row[0]: {
+            "total": int(row[1] or 0),
+            "justifiees": int(row[2] or 0),
+            "non_justifiees": int(row[3] or 0),
+        }
+        for row in absences_raw
+    }
+
+    classes_data = []
+    total_absences_ecole = 0
+    total_absences_justifiees = 0
+    total_absences_non_justifiees = 0
+    total_eleves = sum(effectifs_map.values())
+
+    for cl in classes:
+        effectif = effectifs_map.get(cl.id, 0)
+        c_abs = abs_stats_map.get(cl.id, {"total": 0, "justifiees": 0, "non_justifiees": 0})
+        tot = c_abs["total"]
+        just = c_abs["justifiees"]
+        non_just = c_abs["non_justifiees"]
+
+        total_absences_ecole += tot
+        total_absences_justifiees += just
+        total_absences_non_justifiees += non_just
+
+        taux_absenteisme = round(tot / effectif, 1) if effectif > 0 else 0.0
+
+        classes_data.append({
+            "id": cl.id,
+            "nom": cl.nom,
+            "niveau": getattr(cl, "niveau", "") or (cl.niveau_scolaire.nom if getattr(cl, "niveau_scolaire", None) else ""),
+            "effectif": effectif,
+            "total_absences": tot,
+            "justifiees": just,
+            "non_justifiees": non_just,
+            "taux_absenteisme": taux_absenteisme,
+            "is_max": False,
+        })
+
+    # Classe la plus touchée
+    classes_avec_absences = [c for c in classes_data if c["total_absences"] > 0]
+    classe_plus_absente = None
+    if classes_avec_absences:
+        classe_plus_absente = max(
+            classes_avec_absences,
+            key=lambda c: (c["total_absences"], c["taux_absenteisme"])
+        )
+        for c in classes_data:
+            if c["id"] == classe_plus_absente["id"]:
+                c["is_max"] = True
+                break
+
+    # Classe la plus assidue
+    classes_avec_eleves = [c for c in classes_data if c["effectif"] > 0]
+    classe_plus_assidue = None
+    if classes_avec_eleves:
+        classe_plus_assidue = min(
+            classes_avec_eleves,
+            key=lambda c: (c["total_absences"], c["taux_absenteisme"])
+        )
+
+    # Top 5 des classes les plus touchées (rouge)
+    classes_plus_touchees = sorted(
+        classes_avec_absences,
+        key=lambda c: (c["total_absences"], c["taux_absenteisme"]),
+        reverse=True
+    )[:5]
+
+    # Top 5 des classes les plus assidues (vert)
+    classes_plus_assidues = sorted(
+        classes_avec_eleves,
+        key=lambda c: (c["total_absences"], c["taux_absenteisme"]),
+        reverse=False
+    )[:5]
+
+    statistiques = {
+        "total_absences": total_absences_ecole,
+        "absences_justifiees": total_absences_justifiees,
+        "absences_non_justifiees": total_absences_non_justifiees,
+        "taux_justification": round((total_absences_justifiees / total_absences_ecole) * 100, 1) if total_absences_ecole > 0 else 100.0,
+        "total_classes": len(classes),
+        "total_eleves": total_eleves,
+    }
+
+    chart_data = {
+        "labels": [c["nom"] for c in classes_data],
+        "absences": [c["total_absences"] for c in classes_data],
+        "justifiees": [c["justifiees"] for c in classes_data],
+        "non_justifiees": [c["non_justifiees"] for c in classes_data],
+        "is_max": [c["is_max"] for c in classes_data],
+    }
+
+    return {
+        "classes_plus_touchees": classes_plus_touchees,
+        "classes_plus_assidues": classes_plus_assidues,
+        "classe_plus_absente": classe_plus_absente,
+        "classe_plus_assidue": classe_plus_assidue,
+        "statistiques": statistiques,
+        "chart_data": chart_data,
+    }
+

@@ -7,30 +7,108 @@
     'use strict';
 
     const TOUR_STEPS = [
+        // 1. Navigation latérale gauche
+        {
+            target: '[data-tour="sidebar-nav"]',
+            title: 'Menu de Navigation Latérale',
+            description: 'Accédez en 1 clic à tous les modules métier : Élèves, Professeurs, Classes, Notes, Bulletins, Emplois du temps et Comptabilité.'
+        },
+
+        // 2. Outils essentiels de la barre supérieure (Topbar)
+        {
+            target: '[data-tour="topbar-annee"]',
+            title: 'Année Scolaire Active',
+            description: 'Affiche l\'année en cours. Cliquez sur ce badge pour planifier la prochaine rentrée, gérer les passages ou archiver.'
+        },
+        {
+            target: '[data-tour="topbar-recherche"]',
+            title: 'Recherche Globale',
+            description: 'Retrouvez en quelques secondes n\'importe quel élève, professeur ou cours dans toute la base de données.'
+        },
+        {
+            target: '[data-tour="topbar-pointdujour"]',
+            title: 'Point du jour (Tiroir rapide)',
+            description: 'Ouvre instantanément le volet latéral avec les présences du matin, les alertes à traiter et le fil d\'activité en direct.'
+        },
+        {
+            target: '[data-tour="topbar-alertes"]',
+            title: 'Centre d\'Alertes Scolaires',
+            description: 'Accédez en 1 clic au pop-up de vigilance : élèves n\'ayant jamais payé, retards de scolarité, absentéisme répété et difficultés scolaires avec traitement immédiat.'
+        },
+        {
+            target: '[data-tour="topbar-visite"]',
+            title: 'Bouton Visite Guidée',
+            description: 'Permet de relancer ce guide interactif à n\'importe quel moment pour revoir l\'utilité de chaque bouton de la plateforme.'
+        },
+
+        // 3. Indicateurs clés d'accueil (KPI)
         {
             target: '[data-tour="eleves"]',
-            title: 'Élèves',
-            description: 'Gérez les élèves inscrits dans votre établissement, leurs dossiers, inscriptions et parcours scolaires.'
+            title: 'Élèves Inscrits',
+            description: 'Effectif total de l\'école. Cliquez pour ouvrir le répertoire des élèves, les dossiers individuels et générer les QR codes.'
         },
         {
             target: '[data-tour="professeurs"]',
-            title: 'Professeurs',
-            description: 'Ajoutez les enseignants, gérez leurs profils et suivez leurs affectations.'
-        },
-        {
-            target: '[data-tour="classes"]',
-            title: 'Classes',
-            description: 'Organisez vos élèves et vos professeurs par classe pour l\'année scolaire active.'
+            title: 'Corps Enseignant Actif',
+            description: 'Nombre de professeurs en exercice. Cliquez pour consulter l\'équipe, leurs spécialités et leurs charges de cours.'
         },
         {
             target: '[data-tour="cours"]',
             title: 'Cours & Matières',
-            description: 'Consultez et configurez les matières enseignées et les programmes de formation.'
+            description: 'Volume des matières enseignées. Cliquez pour configurer les programmes de cours par classe et leurs coefficients.'
         },
         {
-            target: '[data-tour="annees"]',
-            title: 'Années scolaires',
-            description: 'Gérez vos années scolaires, planifiez les rentrées et basculez l\'année active en un clic.'
+            target: '[data-tour="paiements"]',
+            title: 'Recouvrement & Impayés',
+            description: 'Suivi des familles avec solde en attente. Cliquez pour voir le détail des échéances financières et relancer les règlements.'
+        },
+
+        // 4. Barre d'Actions Rapides
+        {
+            target: '[data-tour="action-inscrire"]',
+            title: 'Bouton « + Inscrire un élève »',
+            description: 'Ouvre instantanément le formulaire d\'inscription en 1 clic. Le compte d\'accès des parents est généré au même moment !'
+        },
+        {
+            target: '[data-tour="action-encaisser"]',
+            title: 'Bouton « + Encaisser scolarité »',
+            description: 'Enregistrez un versement en quelques secondes et imprimez immédiatement le reçu officiel avec son numéro unique.'
+        },
+        {
+            target: '[data-tour="action-affecter"]',
+            title: 'Bouton « + Affecter un cours »',
+            description: 'Rattachez rapidement une matière, un coefficient et un enseignant à une classe sans quitter votre tableau de bord.'
+        },
+        {
+            target: '[data-tour="action-annee"]',
+            title: 'Bouton « Année scolaire »',
+            description: 'Accédez à la gestion des sessions et lancez l\'assistant de passage de classe pour préparer la nouvelle rentrée.'
+        },
+
+        // 5. Suivi quotidien (Widgets opérationnels)
+        {
+            target: '[data-tour="widget-presences"]',
+            title: 'Suivi des Présences du Jour',
+            description: 'Taux d\'assiduité en direct de l\'établissement. Le bouton « Gérer les absences » permet de faire l\'appel et de justifier les retards.'
+        },
+        {
+            target: '[data-tour="widget-versements"]',
+            title: 'Derniers Versements Enregistrés',
+            description: 'Historique des 5 derniers encaissements en caisse. Le bouton « Voir tout » donne accès à la comptabilité complète.'
+        },
+
+        // 6. Assistant IA interactif
+        {
+            target: '[data-tour="assistant-widget"]',
+            title: 'Assistant IA de Direction',
+            description: 'Votre copilote intelligent disponible à tout moment ! Posez-lui vos questions sur vos élèves ou demandez-lui de vous guider.'
+        },
+
+        // 7. Fallbacks pour mobile (Cartes d'administration mobile)
+        {
+            target: '[data-tour="classes"]',
+            title: 'Classes & Niveaux',
+            description: 'Organisez vos élèves et vos professeurs par classe pour l\'année scolaire active.'
         },
         {
             target: '[data-tour="emplois"]',
@@ -38,14 +116,9 @@
             description: 'Planifiez les créneaux horaires des cours, l\'attribution des salles et la charge horaire.'
         },
         {
-            target: '[data-tour="paiements"]',
-            title: 'Paiements & Scolarité',
-            description: 'Suivez les règlements, les relances et la situation financière de chaque élève.'
-        },
-        {
-            target: '[data-tour="rapports"]',
-            title: 'Rapports & Statistiques',
-            description: 'Consultez les statistiques clés, effectifs et performances de votre établissement.'
+            target: '[data-tour="widget-presences"]',
+            title: 'Assiduité & Présences',
+            description: 'Suivez le taux d\'assiduité en temps réel et accédez au suivi contextuel des absences.'
         }
     ];
 
@@ -78,10 +151,20 @@
         .catch(err => console.error('[KlasoraTour] Erreur enregistrement tour:', err));
     }
 
+    function isElementVisible(el) {
+        if (!el) return false;
+        const style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) {
+            return false;
+        }
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+    }
+
     function findValidSteps() {
         return TOUR_STEPS.filter(step => {
             const el = document.querySelector(step.target);
-            return el && el.offsetParent !== null; // élément visible
+            return isElementVisible(el);
         });
     }
 
@@ -104,10 +187,26 @@
         bootstrap.Collapse.getOrCreateInstance(navbarCollapse, { toggle: false }).hide();
     }
 
+    function handleKeyDown(e) {
+        if (!isTourActive) return;
+        if (e.key === 'Escape') {
+            skipTour();
+        } else if (e.key === 'ArrowRight') {
+            if (currentStepIndex < validSteps.length - 1) {
+                renderStep(currentStepIndex + 1);
+            }
+        } else if (e.key === 'ArrowLeft') {
+            if (currentStepIndex > 0) {
+                renderStep(currentStepIndex - 1);
+            }
+        }
+    }
+
     function createOverlayElements() {
         if (!spotlightEl) {
             spotlightEl = document.createElement('div');
             spotlightEl.className = 'tour-spotlight-box';
+            spotlightEl.style.opacity = '0';
             document.body.appendChild(spotlightEl);
         }
 
@@ -116,6 +215,7 @@
             popoverEl.className = 'tour-popover';
             popoverEl.setAttribute('role', 'dialog');
             popoverEl.setAttribute('aria-modal', 'true');
+            popoverEl.style.opacity = '0';
             document.body.appendChild(popoverEl);
         }
     }
@@ -132,6 +232,7 @@
         isTourActive = false;
         window.removeEventListener('resize', updatePosition);
         window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('keydown', handleKeyDown);
     }
 
     function updatePosition() {
@@ -142,44 +243,64 @@
         if (!targetEl || !spotlightEl || !popoverEl) return;
 
         const rect = targetEl.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+
         const padding = 6;
 
-        // Positionnement du spotlight
-        spotlightEl.style.top = (rect.top - padding) + 'px';
-        spotlightEl.style.left = (rect.left - padding) + 'px';
+        // Adaptation du border-radius au composant ciblé
+        const compStyle = window.getComputedStyle(targetEl);
+        if (compStyle && compStyle.borderRadius && compStyle.borderRadius !== '0px') {
+            spotlightEl.style.borderRadius = compStyle.borderRadius;
+        } else {
+            spotlightEl.style.borderRadius = '14px';
+        }
+
+        // Positionnement du spotlight au millimètre autour du bouton
+        spotlightEl.style.top = Math.max(0, rect.top - padding) + 'px';
+        spotlightEl.style.left = Math.max(0, rect.left - padding) + 'px';
         spotlightEl.style.width = (rect.width + padding * 2) + 'px';
         spotlightEl.style.height = (rect.height + padding * 2) + 'px';
+        spotlightEl.style.opacity = '1';
 
-        // Positionnement de la bulle (popover)
-        const popoverWidth = Math.min(350, window.innerWidth - 32);
-        const popoverHeight = popoverEl.offsetHeight || 180;
+        // Positionnement de la bulle d'explication (popover)
+        const popoverWidth = Math.min(360, window.innerWidth - 32);
+        popoverEl.style.width = popoverWidth + 'px';
+        const popoverHeight = popoverEl.offsetHeight || 190;
         const viewportHeight = window.innerHeight;
         const viewportWidth = window.innerWidth;
 
         let top = 0;
         let left = 0;
 
-        if (viewportWidth < 576) {
-            left = 16;
-            if (rect.bottom + popoverHeight + 20 < viewportHeight) {
+        if (viewportWidth >= 992 && rect.left < 80 && rect.width < 320) {
+            // Cible sur la barre latérale gauche : positionner la bulle à droite de la sidebar
+            left = Math.min(viewportWidth - popoverWidth - 20, rect.right + 20);
+            top = Math.max(20, Math.min(viewportHeight - popoverHeight - 20, rect.top + 40));
+        } else if (viewportWidth < 576) {
+            // Mobile : centré horizontalement
+            left = Math.max(16, Math.round((viewportWidth - popoverWidth) / 2));
+            if (rect.bottom + popoverHeight + 20 <= viewportHeight) {
                 top = rect.bottom + 12;
-            } else if (rect.top - popoverHeight - 20 > 0) {
+            } else if (rect.top - popoverHeight - 12 >= 10) {
                 top = rect.top - popoverHeight - 12;
             } else {
                 top = Math.max(16, viewportHeight - popoverHeight - 16);
             }
         } else {
-            left = Math.max(16, Math.min(viewportWidth - popoverWidth - 16, rect.left + (rect.width / 2) - (popoverWidth / 2)));
-            if (rect.bottom + popoverHeight + 20 < viewportHeight) {
+            // Desktop standard : centré au niveau de la cible
+            left = Math.max(20, Math.min(viewportWidth - popoverWidth - 20, rect.left + (rect.width / 2) - (popoverWidth / 2)));
+            if (rect.bottom + popoverHeight + 20 <= viewportHeight) {
                 top = rect.bottom + 14;
+            } else if (rect.top - popoverHeight - 14 >= 10) {
+                top = rect.top - popoverHeight - 14;
             } else {
-                top = Math.max(16, rect.top - popoverHeight - 14);
+                top = Math.max(20, Math.min(viewportHeight - popoverHeight - 20, rect.top + 20));
             }
         }
 
-        popoverEl.style.top = top + 'px';
-        popoverEl.style.left = left + 'px';
-        popoverEl.style.width = popoverWidth + 'px';
+        popoverEl.style.top = Math.round(top) + 'px';
+        popoverEl.style.left = Math.round(left) + 'px';
+        popoverEl.style.opacity = '1';
     }
 
     function renderStep(index) {
@@ -192,12 +313,12 @@
         const step = validSteps[currentStepIndex];
         const targetEl = document.querySelector(step.target);
 
-        if (!targetEl) {
+        if (!targetEl || !isElementVisible(targetEl)) {
             renderStep(index + 1);
             return;
         }
 
-        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
 
         const isFirst = (currentStepIndex === 0);
         const isLast = (currentStepIndex === validSteps.length - 1);
@@ -235,8 +356,11 @@
         const finishBtn = document.getElementById('tour-finish-btn');
         if (finishBtn) finishBtn.onclick = function () { finishTour(); };
 
-        setTimeout(updatePosition, 120);
-        setTimeout(updatePosition, 320);
+        updatePosition();
+        setTimeout(updatePosition, 80);
+        setTimeout(updatePosition, 200);
+        setTimeout(updatePosition, 380);
+        setTimeout(updatePosition, 600);
     }
 
     function startTour(isManual) {
@@ -259,12 +383,13 @@
 
         window.addEventListener('resize', updatePosition);
         window.addEventListener('scroll', updatePosition, true);
+        window.addEventListener('keydown', handleKeyDown);
 
         renderStep(0);
     }
 
     function skipTour() {
-        if (confirm('Souhaitez-vous passer la visite guidée  Vous pourrez la relancer à tout moment depuis le menu utilisateur.')) {
+        if (confirm('Souhaitez-vous quitter la visite guidée ? Vous pourrez la relancer à tout moment depuis le bouton « Visite guidée ».')) {
             saveTourCompleted();
             cleanupOverlayElements();
         }

@@ -25,184 +25,10 @@ from app.utils_classes import classes_triees_pedagogique
 @login_required
 @role_required('admin', 'professeur', 'parent')
 def alertes():
-    ecole_id = getattr(current_user, 'ecole_id', None)
-    if not ecole_id:
-        flash("Aucune école associée à cet utilisateur.", "danger")
-        return redirect(url_for('main.index'))
-
-    # Ancrage annuel strict : année consultée
-    annee = get_annee_consultee(ecole_id)
-    if not annee:
-        flash("Aucune année scolaire active ou configurée.", "warning")
-        return render_template(
-            'alertes.html',
-            alertes=[],
-            classes=[],
-            classes_alertes=[],
-            stats={
-                "alertes_urgentes": 0,
-                "alertes_importantes": 0,
-                "alertes_info": 0,
-                "alertes_system": 0,
-                "alertes_traitees": 0,
-                "alertes_total": 0,
-                "alertes_actives": 0,
-                "total_paiements": 0,
-                "total_absences": 0,
-                "total_notes": 0,
-                "montant_retard_total": 0,
-                "montant_retard_total_str": "0 FCFA"
-            },
-            annee_consultee=None
-        )
-
-    # Classes de l'école pour l'année consultée
-    classes_query = classes_triees_pedagogique(Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id))
-
-    # Génération des alertes scolaires pour l'année consultée
-    all_alertes = generer_alertes_automatiques(ecole_id=ecole_id, annee=annee)
-
-    # Filtrage selon le rôle
-    if current_user.role == 'professeur':
-        classes = [c for c in classes_query.all() if can_access_class(c)]
-        classes_ids = {c.id for c in classes}
-        all_alertes = [a for a in all_alertes if a.get('classe_id') in classes_ids]
-    elif current_user.role == 'parent':
-        mes_eleves_ids = {e.id for e in Eleve.query.filter_by(parent_id=current_user.id, ecole_id=ecole_id).all()}
-        all_alertes = [a for a in all_alertes if a.get('eleve_id') in mes_eleves_ids]
-        eleves_classes_ids = {a.get('classe_id') for a in all_alertes if a.get('classe_id')}
-        classes = classes_triees_pedagogique(Classe.query.filter(Classe.id.in_(eleves_classes_ids))).all() if eleves_classes_ids else []
-    else:
-        # Admin : toutes les classes de l'année consultée
-        classes = classes_query.all()
-
-    # Suivi des alertes traitées via session
-    alertes_traitees_ids = set(session.get('alertes_traitees', []))
-    for a in all_alertes:
-        a['traitee'] = a['id'] in alertes_traitees_ids
-
-    total_alertes = len(all_alertes)
-    alertes_actives = [a for a in all_alertes if not a['traitee']]
-    alertes_traitees_count = len(all_alertes) - len(alertes_actives)
-    montant_retard = sum(a.get("details", {}).get("montant_total_du", 0) for a in alertes_actives if a.get("source") == "Paiements")
-
-    stats = {
-        "alertes_urgentes": sum(1 for a in alertes_actives if a["type"] == "danger"),
-        "alertes_importantes": sum(1 for a in alertes_actives if a["type"] == "warning"),
-        "alertes_info": sum(1 for a in alertes_actives if a["type"] == "info"),
-        "alertes_system": 0,
-        "alertes_traitees": alertes_traitees_count,
-        "alertes_total": total_alertes,
-        "alertes_actives": len(alertes_actives),
-        "total_paiements": sum(1 for a in alertes_actives if a.get("source") == "Paiements"),
-        "total_absences": sum(1 for a in alertes_actives if a.get("source") == "Absences"),
-        "total_notes": sum(1 for a in alertes_actives if a.get("source") == "Notes"),
-        "montant_retard_total": montant_retard,
-        "montant_retard_total_str": f"{montant_retard:,.0f}".replace(",", " ") + " FCFA"
-    }
-
-    # Structuration des alertes par classe
-    classes_dict = {}
-    for c in classes:
-        classes_dict[c.id] = {
-            'classe': c,
-            'id': c.id,
-            'nom': c.nom,
-            'niveau': getattr(c, 'niveau', '') or '',
-            'salle': getattr(c, 'salle', '') or '',
-            'effectif': getattr(c, 'effectif', 0) or 0,
-            'alertes': [],
-            'nb_actives': 0,
-            'nb_traitees': 0,
-            'nb_paiements': 0,
-            'nb_absences': 0,
-            'nb_notes': 0,
-            'has_danger': False,
-            'has_warning': False,
-        }
-
-    sans_classe_group = {
-        'classe': None,
-        'id': 'sans-classe',
-        'nom': 'Élèves non assignés / Sans classe',
-        'niveau': '',
-        'salle': '',
-        'effectif': 0,
-        'alertes': [],
-        'nb_actives': 0,
-        'nb_traitees': 0,
-        'nb_paiements': 0,
-        'nb_absences': 0,
-        'nb_notes': 0,
-        'has_danger': False,
-        'has_warning': False,
-    }
-
-    for a in all_alertes:
-        cid = a.get('classe_id')
-        grp = classes_dict.get(cid, sans_classe_group)
-        grp['alertes'].append(a)
-        if not a['traitee']:
-            grp['nb_actives'] += 1
-            if a['type'] == 'danger':
-                grp['has_danger'] = True
-            elif a['type'] == 'warning':
-                grp['has_warning'] = True
-            if a.get('source') == 'Paiements':
-                grp['nb_paiements'] += 1
-            elif a.get('source') == 'Absences':
-                grp['nb_absences'] += 1
-            elif a.get('source') == 'Notes':
-                grp['nb_notes'] += 1
-        else:
-            grp['nb_traitees'] += 1
-
-    classes_alertes = [grp for grp in classes_dict.values() if grp['alertes']]
-    if sans_classe_group['alertes']:
-        classes_alertes.append(sans_classe_group)
-
-    # Notifications : uniquement pour une année active et si activé explicitement par configuration
-    if annee.statut not in ('archivee', 'planifiee'):
-        if current_app.config.get('AUTO_NOTIFY_ALERTES_ON_PAGE_LOAD', False):
-            notifier_alertes([a for a in alertes_actives if a["type"] in ["danger", "warning"]])
-
+    """Redirection transparente 302 vers l'accueil avec ouverture automatique du modal d'alertes."""
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax') == '1':
-        return jsonify({
-            'classes_alertes': [
-                {
-                    'id': str(grp['id']),
-                    'nom': grp['nom'],
-                    'niveau': grp['niveau'],
-                    'effectif': grp['effectif'],
-                    'nb_actives': grp['nb_actives'],
-                    'nb_traitees': grp['nb_traitees'],
-                    'nb_paiements': grp['nb_paiements'],
-                    'nb_absences': grp['nb_absences'],
-                    'nb_notes': grp['nb_notes'],
-                    'alertes': [
-                        {
-                            'id': a['id'],
-                            'titre': a.get('titre', ''),
-                            'description': a.get('description', ''),
-                            'type': a.get('type', 'info'),
-                            'source': a.get('source', ''),
-                            'traitee': a.get('traitee', False),
-                            'date': a.get('date').strftime('%d/%m/%Y %H:%M') if isinstance(a.get('date'), datetime) else str(a.get('date', ''))
-                        } for a in grp['alertes']
-                    ]
-                } for grp in classes_alertes
-            ],
-            'stats': stats
-        })
-
-    return render_template(
-        'alertes.html',
-        alertes=all_alertes,
-        classes=classes,
-        classes_alertes=classes_alertes,
-        stats=stats,
-        annee_consultee=annee
-    )
+        return redirect(url_for('main.api_alertes'))
+    return redirect(url_for('main.index', open_alertes=1))
 
 
 @main.route('/api/alertes', methods=['GET'])
@@ -211,13 +37,14 @@ def alertes():
 def api_alertes():
     ecole_id = getattr(current_user, 'ecole_id', None)
     if not ecole_id:
-        return jsonify({'alertes': []})
+        return jsonify({'alertes': [], 'stats': {}})
 
     annee = get_annee_consultee(ecole_id)
     if not annee:
-        return jsonify({'alertes': []})
+        return jsonify({'alertes': [], 'stats': {}})
 
-    alertes = generer_alertes_automatiques(ecole_id=ecole_id, annee=annee, limit=50)
+    limit_arg = request.args.get('limit', type=int)
+    alertes = generer_alertes_automatiques(ecole_id=ecole_id, annee=annee, limit=limit_arg)
 
     # Filtrage selon le rôle
     if current_user.role == 'professeur':
@@ -231,9 +58,58 @@ def api_alertes():
     alertes_traitees_ids = set(session.get('alertes_traitees', []))
     for a in alertes:
         a['traitee'] = a['id'] in alertes_traitees_ids
-        if isinstance(a['date'], datetime):
+        if isinstance(a.get('date'), datetime):
             a['date'] = a['date'].strftime('%d/%m/%Y %H:%M')
-    return jsonify({'alertes': alertes})
+
+    alertes_actives = [a for a in alertes if not a.get('traitee')]
+    stats = {
+        'total': len(alertes),
+        'actives': len(alertes_actives),
+        'traitees': len(alertes) - len(alertes_actives),
+        'paiements': sum(1 for a in alertes_actives if a.get('source') == 'Paiements'),
+        'jamais_paye': sum(1 for a in alertes_actives if a.get('source') == 'Paiements' and a.get('jamais_paye')),
+        'absences': sum(1 for a in alertes_actives if a.get('source') == 'Absences'),
+        'notes': sum(1 for a in alertes_actives if a.get('source') == 'Notes'),
+        'urgentes': sum(1 for a in alertes_actives if a.get('type') == 'danger'),
+    }
+    return jsonify({'alertes': alertes, 'stats': stats})
+
+
+@main.route('/api/alertes/count', methods=['GET'])
+@login_required
+@role_required('admin', 'professeur', 'parent')
+def api_alertes_count():
+    ecole_id = getattr(current_user, 'ecole_id', None)
+    if not ecole_id:
+        return jsonify({'count': 0, 'actives': 0, 'total': 0, 'jamais_paye': 0, 'paiements': 0, 'absences': 0, 'notes': 0, 'urgentes': 0})
+
+    annee = get_annee_consultee(ecole_id)
+    if not annee:
+        return jsonify({'count': 0, 'actives': 0, 'total': 0, 'jamais_paye': 0, 'paiements': 0, 'absences': 0, 'notes': 0, 'urgentes': 0})
+
+    alertes = generer_alertes_automatiques(ecole_id=ecole_id, annee=annee)
+
+    if current_user.role == 'professeur':
+        classes_prof = [c for c in Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id).all() if can_access_class(c)]
+        classes_ids = {c.id for c in classes_prof}
+        alertes = [a for a in alertes if a.get('classe_id') in classes_ids]
+    elif current_user.role == 'parent':
+        mes_eleves_ids = {e.id for e in Eleve.query.filter_by(parent_id=current_user.id, ecole_id=ecole_id).all()}
+        alertes = [a for a in alertes if a.get('eleve_id') in mes_eleves_ids]
+
+    alertes_traitees_ids = set(session.get('alertes_traitees', []))
+    alertes_actives = [a for a in alertes if a['id'] not in alertes_traitees_ids]
+    return jsonify({
+        'count': len(alertes_actives),
+        'actives': len(alertes_actives),
+        'total': len(alertes),
+        'traitees': len(alertes) - len(alertes_actives),
+        'jamais_paye': sum(1 for a in alertes_actives if a.get('source') == 'Paiements' and a.get('jamais_paye')),
+        'paiements': sum(1 for a in alertes_actives if a.get('source') == 'Paiements'),
+        'absences': sum(1 for a in alertes_actives if a.get('source') == 'Absences'),
+        'notes': sum(1 for a in alertes_actives if a.get('source') == 'Notes'),
+        'urgentes': sum(1 for a in alertes_actives if a.get('type') == 'danger'),
+    })
 
 
 @main.route('/api/alertes/<string:alert_id>/read', methods=['POST'])

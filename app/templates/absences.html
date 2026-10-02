@@ -29,6 +29,15 @@
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
+                {% if current_user.role in ('admin', 'super_admin') %}
+                <button type="button" class="btn btn-outline-danger shadow-sm rounded-pill py-1.5 px-3 d-inline-flex align-items-center gap-1.5" data-bs-toggle="modal" data-bs-target="#modalPalmaresAbsences" id="btnOpenPalmaresAbsences" title="Palmarès et alertes d'absentéisme par classe">
+                    <i class="fas fa-chart-pie text-danger"></i>
+                    <span class="fw-semibold">Palmarès &amp; Alertes</span>
+                    {% if palmares_absences and palmares_absences.classe_plus_absente and palmares_absences.classe_plus_absente.total_absences > 0 %}
+                    <span class="badge bg-danger text-white rounded-pill ms-1" style="font-size: 0.68rem;">Top 5</span>
+                    {% endif %}
+                </button>
+                {% endif %}
                 <button type="button" class="btn btn-outline-secondary shadow-sm rounded-pill py-1.5 px-3" id="btnToggleAllClassAbsences" title="Déplier ou replier toutes les classes">
                     <i class="fas fa-chevron-down me-1" id="iconToggleAll"></i><span id="textToggleAll">Tout déplier</span>
                 </button>
@@ -751,6 +760,12 @@
     </div>
 
 </div>
+
+{% if current_user.role in ('admin', 'super_admin') %}
+    {% include "partials/_modal_palmares_absences.html" %}
+    <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/modal_palmares_absences.js') }}"></script>
+{% endif %}
 
 <!-- Contrôleur JavaScript réactif pour la gestion des absences par classe -->
 <script>

@@ -90,7 +90,7 @@ h1, h2, h3, h4, h5, h6 {
     transform: rotate(-15deg);
 }
 
-.nav-link {
+.navbar .nav-link {
     font-weight: 500;
     padding: 0.6rem 1rem !important;
     border-radius: 10px;
@@ -101,7 +101,7 @@ h1, h2, h3, h4, h5, h6 {
     overflow: hidden;
 }
 
-.nav-link::before {
+.navbar .nav-link::before {
     content: '';
     position: absolute;
     top: 0;
@@ -113,11 +113,11 @@ h1, h2, h3, h4, h5, h6 {
     z-index: -1;
 }
 
-.nav-link:hover::before, .nav-link.active::before {
+.navbar .nav-link:hover::before, .navbar .nav-link.active::before {
     left: 0;
 }
 
-.nav-link:hover, .nav-link.active {
+.navbar .nav-link:hover, .navbar .nav-link.active {
     color: white !important;
     transform: translateY(-2px);
 }

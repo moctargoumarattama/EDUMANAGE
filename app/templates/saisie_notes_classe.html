@@ -2,52 +2,47 @@
 {% block title %}Saisie Rapide des Notes par Classe - KLASORA{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-3 px-lg-4 py-4">
+<div class="container-fluid px-2 px-md-4 py-3 py-md-4" style="max-width: 1100px;">
 
     <!-- En-tête de page standardisé KLASORA -->
-    <section class="page-header mb-4">
-        <div class="page-header-body">
-            <div class="page-title-group">
-                <div class="page-icon bg-success text-white">
-                    <i class="fas fa-table-list" aria-hidden="true"></i>
-                </div>
-                <div>
-                    <h1 class="page-title">Saisie Rapide des Notes par Classe</h1>
-                    <p class="page-subtitle d-none d-md-block">
-                        Saisissez les notes de l'ensemble d'une classe pour une évaluation en une seule étape.
-                    </p>
-                </div>
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <div class="d-flex align-items-center gap-2.5">
+            <div class="rounded-3 bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                <i class="fas fa-table-list fa-lg"></i>
             </div>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-
-                <a href="{{ return_url or url_for('main.notes') }}" class="btn btn-outline-secondary shadow-sm">
-                    <i class="fas fa-arrow-left me-2"></i>Retour aux notes
-                </a>
+            <div>
+                <h1 class="h5 fw-bold text-dark mb-0">Saisie Rapide des Notes</h1>
+                <small class="text-muted d-none d-sm-inline" style="font-size: 0.78rem;">Saisie par classe entière en une seule étape</small>
             </div>
         </div>
-    </section>
+        <div>
+            <a href="{{ return_url or url_for('main.notes') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-xs">
+                <i class="fas fa-arrow-left me-1.5"></i>Retour aux notes
+            </a>
+        </div>
+    </div>
 
     <!-- Message de statut d'année scolaire -->
     {% if annee_consultee and annee_consultee.statut == 'archivee' %}
-    <div class="alert alert-warning border-0 shadow-sm rounded-4 mb-4" role="alert">
-        <i class="fas fa-lock me-2"></i>Vous consultez l'année archivée <strong>{{ annee_consultee.nom }}</strong>. La saisie des notes est désactivée (lecture seule historique).
+    <div class="alert alert-warning border-0 shadow-sm rounded-4 mb-3 py-2 px-3 small" role="alert">
+        <i class="fas fa-lock me-1.5"></i>Vous consultez l'année archivée <strong>{{ annee_consultee.nom }}</strong>. La saisie des notes est en lecture seule.
     </div>
     {% elif message_annee %}
-    <div class="alert alert-info border-0 shadow-sm rounded-4 mb-4" role="alert">
-        <i class="fas fa-info-circle me-2"></i>{{ message_annee }}
+    <div class="alert alert-info border-0 shadow-sm rounded-4 mb-3 py-2 px-3 small" role="alert">
+        <i class="fas fa-info-circle me-1.5"></i>{{ message_annee }}
     </div>
     {% endif %}
 
     {% if not classes %}
     <div class="card shadow-sm border-0 rounded-4 text-center py-5">
         <div class="card-body">
-            <div class="avatar-lg bg-light text-muted rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 64px; height: 64px;">
+            <div class="avatar-lg bg-light text-muted rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
                 <i class="fas fa-chalkboard fa-2x"></i>
             </div>
-            <h5 class="fw-bold">Aucune classe disponible</h5>
-            <p class="text-muted">Aucune classe n'est disponible pour vous dans l'année scolaire consultée.</p>
-            <a href="{{ return_url or url_for('main.notes') }}" class="btn btn-primary">
-                <i class="fas fa-arrow-left me-2"></i>Retour
+            <h6 class="fw-bold">Aucune classe disponible</h6>
+            <p class="text-muted small">Aucune classe n'est disponible pour vous dans l'année scolaire consultée.</p>
+            <a href="{{ return_url or url_for('main.notes') }}" class="btn btn-sm btn-primary rounded-pill px-3">
+                <i class="fas fa-arrow-left me-1.5"></i>Retour
             </a>
         </div>
     </div>
@@ -56,19 +51,21 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
         <input type="hidden" name="return_url" value="{{ return_url }}">
 
-        <!-- Paramètres de l'évaluation -->
-        <div class="card shadow-sm border-0 rounded-4 mb-4">
-            <div class="card-header bg-light py-3 px-4">
-                <h5 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
-                    <i class="fas fa-sliders text-primary"></i>Paramètres de l'évaluation
-                </h5>
+        <!-- Paramètres de l'évaluation : Barre compacte et épurée -->
+        <div class="card shadow-sm border-0 rounded-4 mb-3 bg-white overflow-hidden">
+            <div class="card-header bg-light bg-opacity-75 py-2 px-3 px-md-4 border-bottom d-flex justify-content-between align-items-center">
+                <span class="fw-bold text-dark small d-flex align-items-center gap-1.5">
+                    <i class="fas fa-sliders text-primary"></i>
+                    <span>Paramètres de l'évaluation</span>
+                </span>
+                <span class="badge bg-light text-secondary border rounded-pill small" style="font-size: 0.72rem;">Étape 1/2</span>
             </div>
-            <div class="card-body p-4">
-                <div class="row g-3">
+            <div class="card-body p-2.5 p-md-3">
+                <div class="row g-2">
                     <!-- Classe -->
-                    <div class="col-12 col-md-6 col-lg-3">
-                        <label for="selectClasse" class="form-label fw-semibold">Classe <span class="text-danger">*</span></label>
-                        <select name="classe_id" id="selectClasse" class="form-select shadow-sm" required>
+                    <div class="col-12 col-md-6">
+                        <label for="selectClasse" class="form-label small fw-semibold text-muted text-uppercase mb-1" style="font-size: 0.72rem;">Classe <span class="text-danger">*</span></label>
+                        <select name="classe_id" id="selectClasse" class="form-select form-select-sm rounded-3 shadow-none fw-bold text-primary" required>
                             {% for c in classes %}
                             <option value="{{ c.id }}" {% if c.id == selected_classe_id %}selected{% endif %}>
                                 {{ c.nom }}
@@ -78,9 +75,9 @@
                     </div>
 
                     <!-- Cours -->
-                    <div class="col-12 col-md-6 col-lg-3">
-                        <label for="selectCours" class="form-label fw-semibold">Cours / Matière <span class="text-danger">*</span></label>
-                        <select name="cours_id" id="selectCours" class="form-select shadow-sm" required {% if not cours_disponibles %}disabled{% endif %}>
+                    <div class="col-12 col-md-6">
+                        <label for="selectCours" class="form-label small fw-semibold text-muted text-uppercase mb-1" style="font-size: 0.72rem;">Matière / Cours <span class="text-danger">*</span></label>
+                        <select name="cours_id" id="selectCours" class="form-select form-select-sm rounded-3 shadow-none fw-semibold" required {% if not cours_disponibles %}disabled{% endif %}>
                             {% if cours_disponibles %}
                                 {% for cours in cours_disponibles %}
                                 <option value="{{ cours.id }}" {% if cours.id == selected_cours_id %}selected{% endif %}>
@@ -94,18 +91,18 @@
                     </div>
 
                     <!-- Période -->
-                    <div class="col-12 col-md-6 col-lg-2">
-                        <label for="selectPeriode" class="form-label fw-semibold">Période <span class="text-danger">*</span></label>
-                        <select name="periode" id="selectPeriode" class="form-select shadow-sm" required>
+                    <div class="col-4">
+                        <label for="selectPeriode" class="form-label small fw-semibold text-muted text-uppercase mb-1" style="font-size: 0.72rem;">Période <span class="text-danger">*</span></label>
+                        <select name="periode" id="selectPeriode" class="form-select form-select-sm rounded-3 shadow-none" required>
                             <option value="Semestre 1" selected>Semestre 1</option>
                             <option value="Semestre 2">Semestre 2</option>
                         </select>
                     </div>
 
                     <!-- Type d'évaluation -->
-                    <div class="col-12 col-md-6 col-lg-2">
-                        <label for="selectType" class="form-label fw-semibold">Type <span class="text-danger">*</span></label>
-                        <select name="type_evaluation" id="selectType" class="form-select shadow-sm" required>
+                    <div class="col-4">
+                        <label for="selectType" class="form-label small fw-semibold text-muted text-uppercase mb-1" style="font-size: 0.72rem;">Type <span class="text-danger">*</span></label>
+                        <select name="type_evaluation" id="selectType" class="form-select form-select-sm rounded-3 shadow-none" required>
                             <option value="Devoir" selected>Devoir</option>
                             <option value="Interrogation">Interrogation</option>
                             <option value="Composition">Composition</option>
@@ -113,108 +110,119 @@
                     </div>
 
                     <!-- Coefficient -->
-                    <div class="col-12 col-md-6 col-lg-2">
-                        <label for="inputCoefficient" class="form-label fw-semibold">Coefficient <span class="text-danger">*</span></label>
-                        <input type="number" name="coefficient" id="inputCoefficient" class="form-control shadow-sm" value="1.0" min="0.1" step="0.1" required>
+                    <div class="col-4">
+                        <label for="inputCoefficient" class="form-label small fw-semibold text-muted text-uppercase mb-1" style="font-size: 0.72rem;">Coeff <span class="text-danger">*</span></label>
+                        <input type="number" name="coefficient" id="inputCoefficient" class="form-control form-select-sm rounded-3 shadow-none fw-semibold text-center" value="1.0" min="0.1" step="0.1" required>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Grille des élèves -->
-        <div class="card shadow-sm border-0 rounded-4 mb-4">
-            <div class="card-header bg-light py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <!-- Grille des élèves à noter -->
+        <div class="card shadow-sm border-0 rounded-4 mb-3 bg-white overflow-hidden">
+            <div class="card-header bg-white py-2.5 px-3 px-md-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-2">
-                    <i class="fas fa-user-graduate text-success"></i>
-                    <h5 class="mb-0 fw-bold text-dark">
-                        Élèves inscrits ({{ inscriptions|length }})
-                    </h5>
+                    <span class="fw-bold text-dark small d-flex align-items-center gap-1.5">
+                        <i class="fas fa-user-graduate text-success"></i>
+                        <span>Élèves inscrits ({{ inscriptions|length }})</span>
+                    </span>
+                    <span class="badge bg-success-subtle text-success rounded-pill px-2.5 py-1" style="font-size: 0.72rem;">
+                        <span id="compteurNotesHaut">0</span> / {{ inscriptions|length }} saisis
+                    </span>
                 </div>
-                <div class="small text-muted d-none d-md-flex align-items-center gap-2">
-                    <i class="fas fa-keyboard"></i>
-                    <span>Appuyez sur <strong>Entrée</strong> ou <strong>Flèche Bas</strong> pour passer rapidement à l'élève suivant. Laissez vide pour ne pas noter.</span>
-                </div>
-            </div>
-            <div class="card-body p-0">
-                {% if not inscriptions %}
-                <div class="p-5 text-center text-muted">
-                    <i class="fas fa-user-slash fa-3x mb-3 text-secondary opacity-50"></i>
-                    <h6>Aucun élève inscrit dans cette classe pour l'année scolaire active.</h6>
-                </div>
-                {% else %}
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width: 50px;" class="text-center">#</th>
-                                <th>Élève</th>
-                                <th class="d-none d-sm-table-cell">Matricule</th>
-                                <th style="width: 200px;" class="text-center">Note / 20</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for ins in inscriptions %}
-                            {% set eleve = ins.eleve %}
-                            <tr>
-                                <td class="text-center text-muted fw-semibold">{{ loop.index }}</td>
-                                <td>
-                                    <div class="d-flex align-items-center gap-3">
-                                        {% if eleve.photo_url %}
-                                        <img src="{{ eleve.photo_url }}" alt="" class="rounded-circle border" style="width: 40px; height: 40px; object-fit: cover;">
-                                        {% else %}
-                                        <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px;">
-                                            {{ (eleve.prenom[:1] if eleve.prenom else '') ~ (eleve.nom[:1] if eleve.nom else '') }}
-                                        </div>
-                                        {% endif %}
-                                        <div>
-                                            <span class="fw-bold text-dark d-block">{{ eleve.nom }} {{ eleve.prenom }}</span>
-                                            <span class="text-muted small d-sm-none">{{ eleve.matricule or '-' }}</span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="d-none d-sm-table-cell">
-                                    <span class="badge bg-light text-secondary border font-monospace">{{ eleve.matricule or '-' }}</span>
-                                </td>
-                                <td class="text-center">
-                                    <div class="input-group" style="max-width: 150px; margin: 0 auto;">
-                                        <input
-                                            type="number"
-                                            name="note_{{ eleve.id }}"
-                                            class="form-control text-center fw-bold note-input"
-                                            min="0"
-                                            max="20"
-                                            step="0.25"
-                                            placeholder="--"
-                                            data-index="{{ loop.index0 }}"
-                                            autocomplete="off"
-                                            {% if not notes_modifiables %}disabled{% endif %}
-                                        >
-                                        <span class="input-group-text small text-muted">/ 20</span>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <!-- Recherche instantanée d'élève -->
+                {% if inscriptions %}
+                <div class="input-group input-group-sm" style="max-width: 220px;">
+                    <span class="input-group-text bg-light border-end-0 rounded-start-pill ps-2.5"><i class="fas fa-search text-muted small"></i></span>
+                    <input type="text" class="form-control border-start-0 rounded-end-pill" id="inputRechercheEleve" placeholder="Filtrer un élève..." autocomplete="off">
                 </div>
                 {% endif %}
             </div>
-            {% if inscriptions and notes_modifiables %}
-            <div class="card-footer bg-light p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <span class="text-muted small">
-                    <i class="fas fa-info-circle me-1"></i>Les notes vides seront ignorées. Seules les notes renseignées seront créées.
-                </span>
+
+            <div class="card-body p-0">
+                {% if not inscriptions %}
+                <div class="p-4 text-center text-muted">
+                    <i class="fas fa-user-slash fa-2x mb-2 text-secondary opacity-50"></i>
+                    <p class="fw-semibold text-dark mb-0 small">Aucun élève inscrit</p>
+                    <p class="text-muted small mb-0">Aucun élève trouvé dans cette classe pour l'année scolaire active.</p>
+                </div>
+                {% else %}
+                <!-- Liste réactive des élèves (parfaitement adaptée mobile & PC) -->
+                <div class="divide-y" id="listeElevesSaisie">
+                    {% for ins in inscriptions %}
+                    {% set eleve = ins.eleve %}
+                    <div class="eleve-saisie-item d-flex align-items-center justify-content-between p-2.5 px-3 border-bottom {% if loop.last %}border-bottom-0{% endif %} bg-white transition-all" 
+                         data-nom="{{ eleve.nom|lower }} {{ eleve.prenom|lower }}" 
+                         data-matricule="{{ (eleve.matricule or '')|lower }}">
+                        
+                        <!-- Informations élève -->
+                        <div class="d-flex align-items-center gap-2.5 overflow-hidden me-2">
+                            <span class="badge bg-light text-secondary border rounded-pill fw-semibold text-center" style="min-width: 32px; font-size: 0.74rem;">
+                                {{ loop.index }}
+                            </span>
+                            <div class="min-w-0">
+                                <div class="fw-bold text-dark text-truncate" style="font-size: 0.92rem;">
+                                    {{ eleve.nom }} {{ eleve.prenom }}
+                                </div>
+                                <div class="text-muted font-monospace" style="font-size: 0.72rem;">
+                                    {{ eleve.matricule or '-' }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Champ de saisie tactile -->
+                        <div class="d-flex align-items-center gap-1.5 flex-shrink-0">
+                            <div class="input-group input-group-sm rounded-3 overflow-hidden border note-input-group" style="width: 125px;">
+                                <input
+                                    type="number"
+                                    name="note_{{ eleve.id }}"
+                                    class="form-control text-center fw-bold fs-6 note-input shadow-none border-0"
+                                    min="0"
+                                    max="20"
+                                    step="0.25"
+                                    placeholder="--"
+                                    data-index="{{ loop.index0 }}"
+                                    autocomplete="off"
+                                    inputmode="decimal"
+                                    style="height: 38px;"
+                                    {% if not notes_modifiables %}disabled{% endif %}
+                                >
+                                <span class="input-group-text bg-light text-muted small fw-bold px-2 border-0">/ 20</span>
+                            </div>
+                            <span class="note-check-badge text-success ms-1" style="width: 18px; display: none;">
+                                <i class="fas fa-check-circle"></i>
+                            </span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- BARRE FLOTTANTE / STICKY ENREGISTRER (ACCESSIBLE TOUT LE TEMPS SUR MOBILE ET PC) -->
+        {% if inscriptions and notes_modifiables %}
+        <div class="sticky-save-bar border-top shadow-lg py-2.5 px-3 position-sticky bottom-0 rounded-top-4" style="z-index: 1020; backdrop-filter: blur(12px); background-color: rgba(255, 255, 255, 0.95); margin-left: -0.5rem; margin-right: -0.5rem;">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-2">
-                    <a href="{{ url_for('main.notes') }}" class="btn btn-outline-secondary">
+                    <span class="badge bg-success-subtle text-success border border-success border-opacity-25 rounded-pill px-3 py-1.5 fw-semibold" style="font-size: 0.82rem;">
+                        <i class="fas fa-pencil-alt me-1"></i><span id="compteurSticky">0</span> / {{ inscriptions|length }} noté(s)
+                    </span>
+                    <small class="text-muted d-none d-md-inline" style="font-size: 0.75rem;">Les champs vides ne sont pas enregistrés.</small>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{{ return_url or url_for('main.notes') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
                         Annuler
                     </a>
-                    <button type="submit" class="btn btn-success px-4" id="btnSubmitNotes">
-                        <i class="fas fa-check me-2"></i>Enregistrer les notes de la classe
+                    <button type="submit" class="btn btn-sm btn-success rounded-pill px-3.5 py-1.5 fw-bold shadow-sm d-flex align-items-center gap-1.5" id="btnSubmitNotes">
+                        <i class="fas fa-check"></i>
+                        <span>Enregistrer les notes</span>
                     </button>
                 </div>
             </div>
-            {% endif %}
         </div>
+        {% endif %}
+
     </form>
     {% endif %}
 
@@ -237,28 +245,66 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const inputs = Array.from(document.querySelectorAll('.note-input'));
+    const compteurHaut = document.getElementById('compteurNotesHaut');
+    const compteurSticky = document.getElementById('compteurSticky');
 
-    inputs.forEach((input, idx) => {
-        // Navigation au clavier : Entrée et Flèche Bas descendent, Flèche Haut monte
-        input.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' || e.key === 'ArrowDown') {
-                e.preventDefault();
-                const next = inputs[idx + 1];
-                if (next) {
-                    next.focus();
-                    next.select();
+    function updateCompteurs() {
+        let count = 0;
+        inputs.forEach(inp => {
+            const val = inp.value.trim();
+            const num = parseFloat(val);
+            const parentRow = inp.closest('.eleve-saisie-item');
+            const checkBadge = parentRow ? parentRow.querySelector('.note-check-badge') : null;
+            const inputGroup = inp.closest('.note-input-group');
+
+            if (val !== '' && !isNaN(num) && num >= 0 && num <= 20) {
+                count++;
+                if (checkBadge) checkBadge.style.display = 'inline-block';
+                if (inputGroup) {
+                    inputGroup.classList.add('border-success');
+                    inputGroup.style.backgroundColor = '#f0fdf4';
                 }
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                const prev = inputs[idx - 1];
-                if (prev) {
-                    prev.focus();
-                    prev.select();
+            } else {
+                if (checkBadge) checkBadge.style.display = 'none';
+                if (inputGroup) {
+                    inputGroup.classList.remove('border-success');
+                    inputGroup.style.backgroundColor = '';
                 }
             }
         });
 
-        // Validation en direct de l'intervalle [0, 20]
+        if (compteurHaut) compteurHaut.textContent = count;
+        if (compteurSticky) compteurSticky.textContent = count;
+    }
+
+    inputs.forEach((input, idx) => {
+        // Navigation fluide au clavier (Entrée et Flèche Bas descendent, Flèche Haut monte)
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                // Trouver le prochain input visible (si filtré)
+                for (let i = idx + 1; i < inputs.length; i++) {
+                    const row = inputs[i].closest('.eleve-saisie-item');
+                    if (row && row.style.display !== 'none') {
+                        inputs[i].focus();
+                        inputs[i].select();
+                        break;
+                    }
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                for (let i = idx - 1; i >= 0; i--) {
+                    const row = inputs[i].closest('.eleve-saisie-item');
+                    if (row && row.style.display !== 'none') {
+                        inputs[i].focus();
+                        inputs[i].select();
+                        break;
+                    }
+                }
+            }
+        });
+
+        // Validation en direct [0, 20] et mise à jour compteurs
         input.addEventListener('input', function() {
             const val = parseFloat(this.value);
             if (!isNaN(val) && (val < 0 || val > 20)) {
@@ -266,10 +312,32 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 this.classList.remove('is-invalid');
             }
+            updateCompteurs();
         });
     });
 
-    // Focus sur le premier champ de note si présent
+    // Filtre instantané des élèves par nom ou matricule
+    const inputRecherche = document.getElementById('inputRechercheEleve');
+    if (inputRecherche) {
+        inputRecherche.addEventListener('input', function() {
+            const query = this.value.trim().toLowerCase();
+            const items = document.querySelectorAll('.eleve-saisie-item');
+            items.forEach(item => {
+                const nom = item.getAttribute('data-nom') || '';
+                const matricule = item.getAttribute('data-matricule') || '';
+                if (!query || nom.includes(query) || matricule.includes(query)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    // Calcul initial
+    updateCompteurs();
+
+    // Focus sur le premier champ si existant
     if (inputs.length > 0) {
         inputs[0].focus();
     }

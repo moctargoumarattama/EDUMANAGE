@@ -1,48 +1,61 @@
 <div class="modal fade" id="modalAjouterEmploi" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalAjouterEmploiLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title d-flex align-items-center gap-2" id="modalAjouterEmploiLabel">
-                    <i class="fas fa-calendar-plus"></i>
-                    <span>Ajouter un cours à l'emploi du temps</span>
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg modal-fullscreen-md-down">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-white border-bottom py-3 px-3 px-md-4 d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2.5">
+                    <div class="modal-header-icon bg-primary-subtle text-primary">
+                        <i class="fas fa-calendar-plus"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0 d-flex align-items-center gap-2" id="modalAjouterEmploiLabel">
+                            Ajouter un créneau horaire
+                        </h5>
+                        <p class="text-muted small mb-0" style="font-size: 0.8rem;">
+                            Affectation de cours à l'emploi du temps de la classe
+                        </p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
             {% set f_emp = emploi_form or form %}
-            <form method="POST" action="{{ url_for('main.ajouter_emploi') }}" class="needs-validation" id="formAjouterEmploi" novalidate>
+            <form method="POST" action="{{ url_for('main.ajouter_emploi') }}" class="needs-validation d-flex flex-column flex-grow-1" id="formAjouterEmploi" novalidate style="min-height: 0;">
                 {{ f_emp.hidden_tag() if f_emp and f_emp.hidden_tag is defined else '' }}
-                <div class="modal-body p-4">
-                    <div class="form-section mb-4">
-                        <h6 class="fw-bold text-primary mb-3 d-flex align-items-center gap-2">
-                            <i class="fas fa-chalkboard-teacher"></i> Affectation pédagogique
-                        </h6>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold" for="modal_emploi_classe_id">Classe <span class="text-danger">*</span></label>
+                <div class="modal-body p-3 p-md-4">
+                    <!-- SECTION 1 : Affectation pédagogique -->
+                    <div class="modal-section-card">
+                        <div class="modal-section-title text-primary">
+                            <span class="modal-section-icon bg-primary-subtle text-primary">
+                                <i class="fas fa-chalkboard-teacher"></i>
+                            </span>
+                            1. Affectation pédagogique
+                        </div>
+                        <div class="row g-2.5 g-md-3">
+                            <div class="col-12 col-md-4">
+                                <label class="form-label small fw-semibold" for="modal_emploi_classe_id">Classe <span class="text-danger">*</span></label>
                                 {% if f_emp and f_emp.classe_id %}
-                                    {{ f_emp.classe_id(class="form-select", id="modal_emploi_classe_id", required=true) }}
+                                    {{ f_emp.classe_id(class="form-select form-select-sm", id="modal_emploi_classe_id", required=true) }}
                                 {% else %}
-                                    <select name="classe_id" id="modal_emploi_classe_id" class="form-select" required>
+                                    <select name="classe_id" id="modal_emploi_classe_id" class="form-select form-select-sm" required>
                                         <option value="">Sélectionner une classe</option>
                                     </select>
                                 {% endif %}
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold" for="modal_emploi_professeur_id">Professeur <span class="text-danger">*</span></label>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label small fw-semibold" for="modal_emploi_professeur_id">Professeur <span class="text-danger">*</span></label>
                                 {% if f_emp and f_emp.professeur_id %}
-                                    {{ f_emp.professeur_id(class="form-select", id="modal_emploi_professeur_id", required=true) }}
+                                    {{ f_emp.professeur_id(class="form-select form-select-sm", id="modal_emploi_professeur_id", required=true) }}
                                 {% else %}
-                                    <select name="professeur_id" id="modal_emploi_professeur_id" class="form-select" required>
+                                    <select name="professeur_id" id="modal_emploi_professeur_id" class="form-select form-select-sm" required>
                                         <option value="">Sélectionner un professeur</option>
                                     </select>
                                 {% endif %}
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold" for="modal_emploi_cours_id">Matière / cours <span class="text-danger">*</span></label>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label small fw-semibold" for="modal_emploi_cours_id">Matière / cours <span class="text-danger">*</span></label>
                                 {% if f_emp and f_emp.cours_id %}
-                                    {{ f_emp.cours_id(class="form-select", id="modal_emploi_cours_id", required=true) }}
+                                    {{ f_emp.cours_id(class="form-select form-select-sm", id="modal_emploi_cours_id", required=true) }}
                                 {% else %}
-                                    <select name="cours_id" id="modal_emploi_cours_id" class="form-select" required>
+                                    <select name="cours_id" id="modal_emploi_cours_id" class="form-select form-select-sm" required>
                                         <option value="">Sélectionner une matière</option>
                                     </select>
                                 {% endif %}
@@ -50,17 +63,21 @@
                         </div>
                     </div>
 
-                    <div class="form-section">
-                        <h6 class="fw-bold text-primary mb-3 d-flex align-items-center gap-2">
-                            <i class="fas fa-clock"></i> Horaire & Salle
-                        </h6>
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <label class="form-label fw-semibold" for="modal_emploi_jour">Jour <span class="text-danger">*</span></label>
+                    <!-- SECTION 2 : Horaire & Salle -->
+                    <div class="modal-section-card">
+                        <div class="modal-section-title text-primary">
+                            <span class="modal-section-icon bg-primary-subtle text-primary">
+                                <i class="fas fa-clock"></i>
+                            </span>
+                            2. Horaire & Salle
+                        </div>
+                        <div class="row g-2.5 g-md-3">
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small fw-semibold" for="modal_emploi_jour">Jour <span class="text-danger">*</span></label>
                                 {% if f_emp and f_emp.jour %}
-                                    {{ f_emp.jour(class="form-select", id="modal_emploi_jour", required=true) }}
+                                    {{ f_emp.jour(class="form-select form-select-sm", id="modal_emploi_jour", required=true) }}
                                 {% else %}
-                                    <select name="jour" id="modal_emploi_jour" class="form-select" required>
+                                    <select name="jour" id="modal_emploi_jour" class="form-select form-select-sm" required>
                                         <option value="Lundi">Lundi</option>
                                         <option value="Mardi">Mardi</option>
                                         <option value="Mercredi">Mercredi</option>
@@ -70,38 +87,38 @@
                                     </select>
                                 {% endif %}
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label fw-semibold" for="modal_emploi_heure_debut">Début <span class="text-danger">*</span></label>
-                                {% if f_emp and f_emp.heure_debut %}
-                                    {{ f_emp.heure_debut(class="form-control", id="modal_emploi_heure_debut", required=true) }}
-                                {% else %}
-                                    <input type="time" name="heure_debut" id="modal_emploi_heure_debut" class="form-control" required>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label fw-semibold" for="modal_emploi_heure_fin">Fin <span class="text-danger">*</span></label>
-                                {% if f_emp and f_emp.heure_fin %}
-                                    {{ f_emp.heure_fin(class="form-control", id="modal_emploi_heure_fin", required=true) }}
-                                {% else %}
-                                    <input type="time" name="heure_fin" id="modal_emploi_heure_fin" class="form-control" required>
-                                {% endif %}
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label fw-semibold" for="modal_emploi_salle">Salle</label>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small fw-semibold" for="modal_emploi_salle">Salle</label>
                                 {% if f_emp and f_emp.salle %}
-                                    {{ f_emp.salle(class="form-control", id="modal_emploi_salle", placeholder="Ex: B12") }}
+                                    {{ f_emp.salle(class="form-control form-control-sm", id="modal_emploi_salle", placeholder="Ex: B12") }}
                                 {% else %}
-                                    <input type="text" name="salle" id="modal_emploi_salle" class="form-control" placeholder="Ex: B12">
+                                    <input type="text" name="salle" id="modal_emploi_salle" class="form-control form-control-sm" placeholder="Ex: B12">
+                                {% endif %}
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small fw-semibold" for="modal_emploi_heure_debut">Début <span class="text-danger">*</span></label>
+                                {% if f_emp and f_emp.heure_debut %}
+                                    {{ f_emp.heure_debut(class="form-control form-control-sm", id="modal_emploi_heure_debut", required=true) }}
+                                {% else %}
+                                    <input type="time" name="heure_debut" id="modal_emploi_heure_debut" class="form-control form-control-sm" required>
+                                {% endif %}
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small fw-semibold" for="modal_emploi_heure_fin">Fin <span class="text-danger">*</span></label>
+                                {% if f_emp and f_emp.heure_fin %}
+                                    {{ f_emp.heure_fin(class="form-control form-control-sm", id="modal_emploi_heure_fin", required=true) }}
+                                {% else %}
+                                    <input type="time" name="heure_fin" id="modal_emploi_heure_fin" class="form-control form-control-sm" required>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">
+                <div class="modal-footer bg-white border-top py-2.5 px-3 px-md-4">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3 py-2" data-bs-dismiss="modal">
                         <i class="fas fa-times me-1"></i>Annuler
                     </button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4" id="btnSubmitAjouterEmploi" data-original-text="Enregistrer le créneau">
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 py-2" id="btnSubmitAjouterEmploi" data-original-text="Enregistrer le créneau">
                         <span class="submit-spinner spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
                         <span class="submit-text"><i class="fas fa-check me-1"></i>Enregistrer le créneau</span>
                     </button>

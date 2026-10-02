@@ -253,21 +253,23 @@
                                         {{ eleve.prenom[:1] | upper }}{{ eleve.nom[:1] | upper }}
                                     </div>
                                     <div class="student-entry-info">
-                                        <div class="d-flex align-items-center justify-content-between gap-1 flex-wrap">
-                                            <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                                        <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                                            <div class="d-flex align-items-center gap-2 flex-wrap">
                                                 <h3 class="student-entry-name mb-0">{{ eleve.prenom }} {{ eleve.nom }}</h3>
-                                                <span class="badge {% if eleve.genre == 'F' %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} small">
-                                                    {{ 'Fille' if eleve.genre == 'F' else 'Garçon' }}
-                                                </span>
-                                                {% if el_insc and el_insc.statut == 'preinscrit' %}
-                                                <span class="badge border" style="background-color: #f3e8ff; color: #6b21a8; border-color: #d8b4fe !important; font-size: 0.72rem;">
-                                                    <i class="fas fa-clock-rotate-left me-1"></i>Préinscrit (En attente d'acompte)
-                                                </span>
-                                                {% elif el_insc and el_insc.statut == 'inscrit' %}
-                                                <span class="badge bg-success-subtle text-success border border-success-subtle small d-none d-sm-inline-block">Inscrit</span>
-                                                {% elif eleve.statut == 'actif' %}
-                                                <span class="badge bg-success-subtle text-success border border-success-subtle small d-none d-sm-inline-block">Actif</span>
-                                                {% endif %}
+                                                <div class="student-badges-group d-inline-flex align-items-center gap-1.5 flex-wrap">
+                                                    <span class="badge rounded-pill {% if eleve.genre == 'F' %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} px-2.5 py-1" style="font-size: 0.74rem;">
+                                                        {{ 'Fille' if eleve.genre == 'F' else 'Garçon' }}
+                                                    </span>
+                                                    {% if el_insc and el_insc.statut == 'preinscrit' %}
+                                                    <span class="badge rounded-pill border px-2.5 py-1" style="background-color: #f3e8ff; color: #6b21a8; border-color: #d8b4fe !important; font-size: 0.72rem;">
+                                                        <i class="fas fa-clock-rotate-left me-1"></i>Préinscrit
+                                                    </span>
+                                                    {% elif el_insc and el_insc.statut == 'inscrit' %}
+                                                    <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2.5 py-1 small d-none d-sm-inline-block" style="font-size: 0.74rem;">Inscrit</span>
+                                                    {% elif eleve.statut == 'actif' %}
+                                                    <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2.5 py-1 small d-none d-sm-inline-block" style="font-size: 0.74rem;">Actif</span>
+                                                    {% endif %}
+                                                </div>
                                             </div>
 
                                             <!-- Menu d'action mobile (3 points verticaux) -->

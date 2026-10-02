@@ -10,9 +10,6 @@
             <p class="text-muted mb-0">Gestion des comptes de votre école.</p>
         </div>
         <div class="d-flex gap-2 flex-wrap">
-            <a href="{{ url_for('main.rapports') }}" class="btn btn-outline-primary">
-                <i class="fas fa-chart-bar me-2"></i>Rapport global
-            </a>
             {% if can_create_admin %}
             <a href="{{ url_for('main.creer_utilisateur') }}" class="btn btn-primary">
                 <i class="fas fa-plus me-2"></i>Ajouter

@@ -22,6 +22,7 @@ from .common import (
     jsonify,
     literal,
     login_required,
+    redirect,
     render_template,
     request,
     role_required,
@@ -249,21 +250,8 @@ def _get_rapports_annuels_cached(ecole_id, annee_consultee):
 @role_required('admin')
 @tenant_required
 def rapports():
-    ecole_id = g.ecole_id
-    annee_consultee = get_annee_consultee(ecole_id)
-    donnees = _get_rapports_annuels_cached(ecole_id, annee_consultee)
-    return render_template(
-        'rapports.html',
-        classes=donnees["classes"],
-        classes_data=donnees["classes_data"],
-        classe_plus_absente=donnees["classe_plus_absente"],
-        classe_plus_assidue=donnees["classe_plus_assidue"],
-        classe_meilleure_moyenne=donnees["classe_meilleure_moyenne"],
-        statistiques=donnees["statistiques"],
-        chart_data=donnees["chart_data"],
-        annee_consultee=annee_consultee,
-        role=current_user.role
-    )
+    """Analytique contextuelle : Redirection vers le suivi et palmarès contextuel."""
+    return redirect(url_for('main.absences'))
 
 
 def _rapport_export_rows(donnees):
@@ -505,15 +493,17 @@ def recherche():
         type_recherche = type_recherche if type_recherche in types_plateforme else 'all'
 
         if not terme:
-            return render_template(
-                'recherche.html',
-                results=None,
-                pagination=None,
-                classes_recherche=[],
-                type_recherche=type_recherche,
-                classe_id=None,
-                super_admin_search=True,
-            )
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax'):
+                return render_template(
+                    'partials/_recherche_results.html',
+                    results=None,
+                    pagination=None,
+                    classes_recherche=[],
+                    type_recherche=type_recherche,
+                    classe_id=None,
+                    super_admin_search=True,
+                )
+            return redirect(url_for('main.index', open_search=1))
 
         like = f"%{terme}%"
         results = {'ecoles': [], 'utilisateurs': [], 'demandes': [], 'logs': [], 'total': 0}
@@ -639,7 +629,7 @@ def recherche():
 
         results['total'] = sum(len(results[key]) for key in ('ecoles', 'utilisateurs', 'demandes', 'logs'))
         return render_template(
-            'recherche.html',
+            'partials/_recherche_results.html',
             results=results,
             terme=terme,
             pagination=None,
@@ -681,14 +671,17 @@ def recherche():
         classe_id = None
 
     if not terme:
-        return render_template(
-            'recherche.html',
-            results=None,
-            pagination=None,
-            classes_recherche=classes_recherche,
-            type_recherche=type_recherche,
-            classe_id=classe_id,
-        )
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('ajax'):
+            return render_template(
+                'partials/_recherche_results.html',
+                results=None,
+                pagination=None,
+                classes_recherche=classes_recherche,
+                type_recherche=type_recherche,
+                classe_id=classe_id,
+                super_admin_search=False,
+            )
+        return redirect(url_for('main.index', open_search=1))
 
     results = {'eleves': [], 'professeurs': [], 'cours': [], 'total': 0}
     pagination = None
@@ -844,11 +837,12 @@ def recherche():
         results['total'] += len(results['cours'])
 
     return render_template(
-        'recherche.html',
+        'partials/_recherche_results.html',
         results=results,
         terme=terme,
         pagination=pagination,
         classes_recherche=classes_recherche,
         type_recherche=type_recherche,
         classe_id=classe_id,
+        super_admin_search=False,
     )

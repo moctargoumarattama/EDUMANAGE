@@ -13,7 +13,7 @@
     </div>
 
     <!-- Navigation latérale en 1-clic -->
-    <div class="sidebar-nav">
+    <div class="sidebar-nav" data-tour="sidebar-nav">
         {% if current_user.role == 'super_admin' %}
             <div class="nav-section-label">Supervision Globale</div>
             <ul class="nav-list">
@@ -30,7 +30,7 @@
                     </a>
                 </li>
                 <li>
-                    <a href="{{ url_for('main.ajouter_ecole') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.ajouter_ecole' }}">
+                    <a href="#modalAjouterEcole" class="nav-link-item" data-bs-toggle="modal" data-bs-target="#modalAjouterEcole">
                         <i class="fas fa-plus-circle nav-icon"></i>
                         <span>Ajouter une école</span>
                     </a>
@@ -125,21 +125,9 @@
                     </a>
                 </li>
                 <li>
-                    <a href="{{ url_for('main.point_du_jour') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.point_du_jour' }}">
-                        <i class="fas fa-clipboard-check nav-icon"></i>
-                        <span>Point du jour</span>
-                    </a>
-                </li>
-                <li>
                     <a href="{{ url_for('main.absences') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.absences' }}">
                         <i class="fas fa-calendar-times nav-icon"></i>
                         <span>Absences</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="{{ url_for('main.alertes') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.alertes' }}">
-                        <i class="fas fa-bell nav-icon"></i>
-                        <span>Alertes</span>
                     </a>
                 </li>
             </ul>
@@ -152,10 +140,32 @@
                         <span>Paiements & Frais</span>
                     </a>
                 </li>
+            </ul>
+
+            <div class="nav-section-label">Configuration & École</div>
+            <ul class="nav-list mb-3">
                 <li>
-                    <a href="{{ url_for('main.rapports') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.rapports' }}">
-                        <i class="fas fa-chart-bar nav-icon"></i>
-                        <span>Rapports & Stats</span>
+                    <a href="{{ url_for('main.gestion_utilisateurs') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.gestion_utilisateurs' }}">
+                        <i class="fas fa-users-cog nav-icon"></i>
+                        <span>Comptes utilisateurs</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.profil_ecole') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.profil_ecole' }}">
+                        <i class="fas fa-school nav-icon"></i>
+                        <span>Identité établissement</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.whatsapp_connect') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.whatsapp_connect' }}">
+                        <i class="fab fa-whatsapp nav-icon text-success"></i>
+                        <span>Connexion WhatsApp</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('main.sync_hors_ligne') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.sync_hors_ligne' }}">
+                        <i class="fas fa-sync-alt nav-icon"></i>
+                        <span>Sync hors-ligne</span>
                     </a>
                 </li>
             </ul>
@@ -194,9 +204,6 @@
                     {% endif %}
                 </span>
             </div>
-            <a href="{{ url_for('main.logout') }}" class="logout-btn" title="Déconnexion" onclick="if(window.klasoraPwaCleanOnLogout){window.klasoraPwaCleanOnLogout();}">
-                <i class="fas fa-sign-out-alt"></i>
-            </a>
         </div>
     </div>
 </aside>

@@ -59,7 +59,7 @@
                                 <h5 class="mb-0">
                                     <i class="fas fa-school me-2 text-primary"></i> Gestion des Écoles
                                 </h5>
-                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#ajouterEcoleModal">
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAjouterEcole">
                                     <i class="fas fa-plus me-1"></i> Nouvelle École
                                 </button>
                             </div>
@@ -427,9 +427,9 @@
             <h5 class="mb-0">
                 <i class="fas fa-chart-bar me-2 text-primary"></i> Rapports et Statistiques
             </h5>
-            <!-- Bouton pour accéder aux rapports complets -->
-            <a href="{{ url_for('main.rapports') }}" class="btn btn-success">
-                <i class="fas fa-chart-bar me-1"></i> Voir les Rapports
+            <!-- Bouton pour accéder aux absences et palmarès -->
+            <a href="{{ url_for('main.absences') }}" class="btn btn-primary">
+                <i class="fas fa-chart-pie me-1"></i> Suivi &amp; Palmarès
             </a>
         </div>
         <div class="card-body">

@@ -2,211 +2,203 @@
 {% block title %}Faire l'appel - KLASORA{% endblock %}
 
 {% block content %}
-<section class="page-header">
-    <div class="page-header-body">
-        <div class="page-title-group">
-            <div class="page-icon">
-                <i class="fas fa-user-check"></i>
+<div class="container-fluid px-2 px-md-4 py-3 py-md-4" style="max-width: 900px;">
+
+    <!-- En-tête de page standardisé KLASORA -->
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <div class="d-flex align-items-center gap-2.5">
+            <div class="rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                <i class="fas fa-user-check fa-lg"></i>
             </div>
             <div>
-                <h1 class="page-title">Faire l'appel</h1>
-                <p class="page-subtitle">{{ classe.nom }} - {{ cours.nom }} - {{ date_appel.strftime('%d/%m/%Y') }}</p>
+                <h1 class="h5 fw-bold text-dark mb-0">Faire l'appel</h1>
+                <small class="text-muted" style="font-size: 0.78rem;">
+                    <strong>{{ classe.nom }}</strong> &bull; {{ cours.nom }} &bull; {{ date_appel.strftime('%d/%m/%Y') }}
+                </small>
             </div>
         </div>
-        <a class="btn btn-outline-secondary" href="{{ url_for('main.absences') }}">
-            <i class="fas fa-arrow-left me-2"></i>Absences
-        </a>
+        <div>
+            <a class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-xs" href="{{ request.args.get('return_url') or url_for('main.mes_enseignements') }}">
+                <i class="fas fa-arrow-left me-1.5"></i>Retour
+            </a>
+        </div>
     </div>
-</section>
 
-{% if message_annee %}
-<div class="alert alert-warning">
-    <i class="fas fa-lock me-2"></i>{{ message_annee }}
-</div>
-{% endif %}
-
-<form method="POST" class="appel-shell" id="appelForm">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="classe_id" value="{{ classe.id }}">
-    {% if cours_disponibles|length <= 1 %}
-    <input type="hidden" name="cours_id" value="{{ cours.id }}">
+    <!-- Message de statut d'année scolaire -->
+    {% if message_annee %}
+    <div class="alert alert-warning border-0 shadow-sm rounded-4 mb-3 py-2 px-3 small" role="alert">
+        <i class="fas fa-lock me-1.5"></i>{{ message_annee }}
+    </div>
     {% endif %}
 
-    <div class="appel-summary">
-        <div>
-            <span>Effectif</span>
-            <strong id="appelEffectif">{{ effectif }}</strong>
-        </div>
-        <div>
-            <span>Absents</span>
-            <strong id="appelAbsents">{{ absents_count }}</strong>
-        </div>
-        <div>
-            <span>Presents</span>
-            <strong id="appelPresents">{{ presents_count }}</strong>
-        </div>
-    </div>
-
-    <div class="appel-toolbar">
-        <label>
-            Date
-            <input class="form-control" type="date" name="date_appel" value="{{ date_appel.isoformat() }}" data-klasora-filter-submit data-klasora-filter-method="get">
-        </label>
-        {% if cours_disponibles|length > 1 %}
-        <label>
-            Cours
-            <select class="form-select" name="cours_id" data-klasora-filter-submit data-klasora-filter-method="get">
-                {% for c in cours_disponibles %}
-                <option value="{{ c.id }}" {% if c.id == cours.id %}selected{% endif %}>{{ c.nom }}</option>
-                {% endfor %}
-            </select>
-        </label>
+    <form method="POST" id="appelForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="classe_id" value="{{ classe.id }}">
+        {% if cours_disponibles|length <= 1 %}
+        <input type="hidden" name="cours_id" value="{{ cours.id }}">
         {% endif %}
-        <button type="submit" formmethod="get" class="visually-hidden">Afficher</button>
-    </div>
 
-    <div class="appel-list">
-        {% for ins in inscriptions %}
-        {% set is_absent = ins.id in absences_par_inscription %}
-        <label class="appel-student-card">
-            <input class="form-check-input appel-absent-check" type="checkbox" name="absent_inscription_ids" value="{{ ins.id }}" {% if is_absent %}checked{% endif %} {% if not can_mutate %}disabled{% endif %}>
-            <span>
-                <strong>{{ ins.eleve.prenom }} {{ ins.eleve.nom }}</strong>
-                <small>{{ classe.nom }}</small>
-            </span>
-            <em class="appel-status">{{ 'Absent' if is_absent else 'Present calcule' }}</em>
-        </label>
-        {% else %}
-        <div class="empty-state py-5">
-            <i class="fas fa-user-slash text-muted fa-3x mb-3"></i>
-            <h2 class="empty-state-title">Aucun eleve inscrit</h2>
-            <p class="empty-state-text">Cette classe ne contient aucun eleve inscrit pour l'annee consultee.</p>
+        <!-- BANDEAU RÉSUMÉ COMPACT (TOUJOURS EN 3 COLONNES SUR MOBILE & PC) -->
+        <div class="row g-2 mb-3">
+            <div class="col-4">
+                <div class="p-2.5 text-center bg-white border rounded-4 shadow-sm">
+                    <span class="text-muted fw-bold d-block text-uppercase" style="font-size: 0.68rem; letter-spacing: 0.5px;">Effectif</span>
+                    <strong class="text-dark fs-4 lh-1" id="appelEffectif">{{ effectif }}</strong>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="p-2.5 text-center bg-white border border-danger-subtle rounded-4 shadow-sm">
+                    <span class="text-danger fw-bold d-block text-uppercase" style="font-size: 0.68rem; letter-spacing: 0.5px;">Absents</span>
+                    <strong class="text-danger fs-4 lh-1" id="appelAbsents">{{ absents_count }}</strong>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="p-2.5 text-center bg-white border border-success-subtle rounded-4 shadow-sm">
+                    <span class="text-success fw-bold d-block text-uppercase" style="font-size: 0.68rem; letter-spacing: 0.5px;">Présents</span>
+                    <strong class="text-success fs-4 lh-1" id="appelPresents">{{ presents_count }}</strong>
+                </div>
+            </div>
         </div>
-        {% endfor %}
-    </div>
 
-    {% if inscriptions and can_mutate %}
-    <div class="appel-actions">
-        <button type="button" class="btn btn-outline-success" id="btnAucunAbsent">
-            <i class="fas fa-check me-2"></i>Aucun absent aujourd'hui
-        </button>
-        <button type="submit" class="btn btn-primary">
-            <i class="fas fa-save me-2"></i>Enregistrer les absences
-        </button>
-    </div>
-    {% endif %}
-</form>
+        <!-- BARRE DE CONTRÔLE : DATE, COURS & RECHERCHE INSTANTANÉE -->
+        <div class="card shadow-sm border-0 rounded-4 mb-3 bg-white">
+            <div class="card-body p-2.5 p-md-3">
+                <div class="row g-2 align-items-center">
+                    <!-- Date -->
+                    <div class="col-12 {% if cours_disponibles|length > 1 %}col-sm-6 col-md-4{% else %}col-sm-6{% endif %}">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="far fa-calendar-alt"></i></span>
+                            <input class="form-control border-start-0 fw-semibold" type="date" name="date_appel" value="{{ date_appel.isoformat() }}" data-klasora-filter-submit data-klasora-filter-method="get">
+                        </div>
+                    </div>
+
+                    <!-- Cours (si multiples) -->
+                    {% if cours_disponibles|length > 1 %}
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="fas fa-book-open"></i></span>
+                            <select class="form-select border-start-0 fw-semibold" name="cours_id" data-klasora-filter-submit data-klasora-filter-method="get">
+                                {% for c in cours_disponibles %}
+                                <option value="{{ c.id }}" {% if c.id == cours.id %}selected{% endif %}>{{ c.nom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Filtre de recherche élève -->
+                    <div class="col-12 {% if cours_disponibles|length > 1 %}col-md-4{% else %}col-sm-6{% endif %}">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light text-muted border-end-0 rounded-start-pill"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control border-start-0 rounded-end-pill" id="inputFiltreAppel" placeholder="Trouver un élève..." autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LISTE TACTILE DES ÉLÈVES -->
+        <div class="card shadow-sm border-0 rounded-4 mb-3 bg-white overflow-hidden">
+            <div class="card-header bg-white py-2.5 px-3 px-md-4 border-bottom d-flex justify-content-between align-items-center">
+                <span class="small fw-bold text-dark d-flex align-items-center gap-1.5">
+                    <i class="fas fa-users text-primary"></i>
+                    <span>Liste d'appel ({{ inscriptions|length }})</span>
+                </span>
+                <span class="text-muted small d-none d-sm-inline" style="font-size: 0.74rem;">
+                    <i class="fas fa-hand-pointer me-1"></i>Touchez une ligne pour basculer Absent / Présent
+                </span>
+            </div>
+
+            <div class="card-body p-0">
+                {% if not inscriptions %}
+                <div class="p-5 text-center text-muted">
+                    <i class="fas fa-user-slash fa-2x mb-2 text-secondary opacity-50"></i>
+                    <h6 class="fw-bold text-dark mb-1">Aucun élève inscrit</h6>
+                    <p class="text-muted small mb-0">Cette classe ne contient aucun élève inscrit pour l'année scolaire consultée.</p>
+                </div>
+                {% else %}
+                <div class="divide-y" id="listeElevesAppel">
+                    {% for ins in inscriptions %}
+                    {% set is_absent = ins.id in absences_par_inscription %}
+                    <div class="eleve-appel-row d-flex align-items-center justify-content-between p-2.5 px-3 border-bottom {% if loop.last %}border-bottom-0{% endif %} bg-white transition-all user-select-none {% if is_absent %}is-absent-row bg-danger bg-opacity-10{% endif %}"
+                         style="cursor: pointer; min-height: 54px;"
+                         data-nom="{{ ins.eleve.prenom|lower }} {{ ins.eleve.nom|lower }}"
+                         data-matricule="{{ (ins.eleve.matricule or '')|lower }}">
+
+                        <!-- Checkbox caché mais fonctionnel pour le formulaire -->
+                        <input class="visually-hidden appel-absent-check" type="checkbox" name="absent_inscription_ids" value="{{ ins.id }}" {% if is_absent %}checked{% endif %} {% if not can_mutate %}disabled{% endif %}>
+
+                        <!-- Informations de l'élève -->
+                        <div class="d-flex align-items-center gap-2.5 overflow-hidden me-2">
+                            <span class="badge bg-light text-secondary border rounded-pill fw-semibold text-center" style="min-width: 32px; font-size: 0.74rem;">
+                                {{ loop.index }}
+                            </span>
+                            <div class="min-w-0">
+                                <div class="fw-bold text-dark text-truncate" style="font-size: 0.92rem;">
+                                    {{ ins.eleve.prenom }} {{ ins.eleve.nom }}
+                                </div>
+                                <div class="text-muted small font-monospace" style="font-size: 0.72rem;">
+                                    {{ ins.eleve.matricule or classe.nom }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Badge interactif de statut (Présent / Absent) -->
+                        <div class="flex-shrink-0">
+                            <span class="badge-status-present badge bg-success-subtle text-success border border-success border-opacity-25 rounded-pill px-3 py-1.5 fw-bold transition-all" style="font-size: 0.78rem; {% if is_absent %}display: none;{% endif %}">
+                                <i class="fas fa-check me-1"></i>Présent
+                            </span>
+                            <span class="badge-status-absent badge bg-danger text-white rounded-pill px-3 py-1.5 fw-bold shadow-xs transition-all" style="font-size: 0.78rem; {% if not is_absent %}display: none;{% endif %}">
+                                <i class="fas fa-times me-1"></i>Absent
+                            </span>
+                        </div>
+
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- BARRE D'ACTION FLOTTANTE (STICKY SAVE BAR) -->
+        {% if inscriptions and can_mutate %}
+        <div class="sticky-appel-bar border-top shadow-lg py-2.5 px-3 position-sticky bottom-0 rounded-top-4" style="z-index: 1020; backdrop-filter: blur(12px); background-color: rgba(255, 255, 255, 0.95); margin-left: -0.5rem; margin-right: -0.5rem;">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-1.5">
+                    <span class="badge bg-danger-subtle text-danger rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.78rem;">
+                        <span id="stickyAbsentsCount">{{ absents_count }}</span> absent(s)
+                    </span>
+                    <span class="badge bg-success-subtle text-success rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.78rem;">
+                        <span id="stickyPresentsCount">{{ presents_count }}</span> présent(s)
+                    </span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 fw-semibold" id="btnAucunAbsent">
+                        <i class="fas fa-check-double me-1"></i>Tous présents
+                    </button>
+                    <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3.5 py-1.5 fw-bold shadow-sm d-flex align-items-center gap-1.5">
+                        <i class="fas fa-save"></i>
+                        <span>Enregistrer l'appel</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </form>
+</div>
 
 <style>
-    .appel-shell {
-        max-width: 980px;
-        margin: 0 auto;
-        display: grid;
-        gap: 1rem;
-    }
-
-    .appel-summary {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 0.75rem;
-    }
-
-    .appel-summary div,
-    .appel-toolbar,
-    .appel-student-card {
-        background: #fff;
-        border: 1px solid #edf0f5;
-        border-radius: 14px;
-        box-shadow: 0 10px 24px rgba(30, 41, 59, 0.08);
-    }
-
-    .appel-summary div {
-        padding: 1rem;
-        text-align: center;
-    }
-
-    .appel-summary span {
-        display: block;
-        color: #5b6475;
-        font-weight: 700;
-    }
-
-    .appel-summary strong {
-        display: block;
-        font-size: 1.8rem;
-        color: #111827;
-        line-height: 1.1;
-    }
-
-    .appel-toolbar {
-        display: flex;
-        gap: 1rem;
-        padding: 1rem;
-        align-items: end;
-        flex-wrap: wrap;
-    }
-
-    .appel-toolbar label {
-        flex: 1 1 220px;
-        color: #34415c;
-        font-weight: 700;
-    }
-
-    .appel-list {
-        display: grid;
-        gap: 0.65rem;
-    }
-
-    .appel-student-card {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.85rem 1rem;
-        cursor: pointer;
-    }
-
-    .appel-student-card strong {
-        display: block;
-        color: #111827;
-    }
-
-    .appel-student-card small {
-        color: #5b6475;
-    }
-
-    .appel-status {
-        font-style: normal;
-        color: #5b6475;
-        font-weight: 700;
-        font-size: 0.85rem;
-    }
-
-    .appel-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-    }
-
-    @media (max-width: 576px) {
-        .appel-summary {
-            grid-template-columns: 1fr;
-        }
-
-        .appel-student-card {
-            grid-template-columns: auto minmax(0, 1fr);
-        }
-
-        .appel-status {
-            grid-column: 2;
-        }
-
-        .appel-actions .btn {
-            width: 100%;
-            min-height: 44px;
-        }
-    }
+.transition-all {
+    transition: all 0.2s ease-in-out;
+}
+.eleve-appel-row:hover {
+    background-color: #f8fafc;
+}
+.eleve-appel-row.is-absent-row {
+    background-color: #fff1f2 !important;
+    border-left: 3px solid #ef4444;
+}
 </style>
 
 <script>
@@ -214,28 +206,79 @@ document.addEventListener('DOMContentLoaded', function () {
     const effectif = parseInt(document.getElementById('appelEffectif')?.textContent || '0', 10);
     const absentEl = document.getElementById('appelAbsents');
     const presentEl = document.getElementById('appelPresents');
-    const checks = Array.from(document.querySelectorAll('.appel-absent-check'));
+    const stickyAbsentsEl = document.getElementById('stickyAbsentsCount');
+    const stickyPresentsEl = document.getElementById('stickyPresentsCount');
+    const rows = Array.from(document.querySelectorAll('.eleve-appel-row'));
     const noneBtn = document.getElementById('btnAucunAbsent');
+    const inputFiltre = document.getElementById('inputFiltreAppel');
 
     function refreshCounts() {
-        const absents = checks.filter((check) => check.checked).length;
+        let absents = 0;
+        rows.forEach(row => {
+            const check = row.querySelector('.appel-absent-check');
+            const badgePres = row.querySelector('.badge-status-present');
+            const badgeAbs = row.querySelector('.badge-status-absent');
+
+            if (check && check.checked) {
+                absents++;
+                row.classList.add('is-absent-row');
+                if (badgePres) badgePres.style.display = 'none';
+                if (badgeAbs) badgeAbs.style.display = 'inline-block';
+            } else {
+                row.classList.remove('is-absent-row');
+                if (badgePres) badgePres.style.display = 'inline-block';
+                if (badgeAbs) badgeAbs.style.display = 'none';
+            }
+        });
+
+        const presents = Math.max(effectif - absents, 0);
+
         if (absentEl) absentEl.textContent = absents;
-        if (presentEl) presentEl.textContent = Math.max(effectif - absents, 0);
-        checks.forEach((check) => {
-            const card = check.closest('.appel-student-card');
-            const status = card ? card.querySelector('.appel-status') : null;
-            if (status) status.textContent = check.checked ? 'Absent' : 'Present calcule';
+        if (presentEl) presentEl.textContent = presents;
+        if (stickyAbsentsEl) stickyAbsentsEl.textContent = absents;
+        if (stickyPresentsEl) stickyPresentsEl.textContent = presents;
+    }
+
+    // Toggle 1-clic sur toute la rangée
+    rows.forEach(row => {
+        row.addEventListener('click', function(e) {
+            // Éviter double déclenchement si on clique sur un lien ou input directement
+            const check = row.querySelector('.appel-absent-check');
+            if (check && !check.disabled) {
+                check.checked = !check.checked;
+                refreshCounts();
+            }
+        });
+    });
+
+    // Bouton rapide : Tous présents
+    if (noneBtn) {
+        noneBtn.addEventListener('click', function () {
+            rows.forEach(row => {
+                const check = row.querySelector('.appel-absent-check');
+                if (check) check.checked = false;
+            });
+            refreshCounts();
         });
     }
 
-    checks.forEach((check) => check.addEventListener('change', refreshCounts));
-    if (noneBtn) {
-        noneBtn.addEventListener('click', function () {
-            checks.forEach((check) => { check.checked = false; });
-            refreshCounts();
-            document.getElementById('appelForm').submit();
+    // Filtre instantané d'élèves
+    if (inputFiltre) {
+        inputFiltre.addEventListener('input', function() {
+            const q = this.value.trim().toLowerCase();
+            rows.forEach(row => {
+                const nom = row.getAttribute('data-nom') || '';
+                const matricule = row.getAttribute('data-matricule') || '';
+                if (!q || nom.includes(q) || matricule.includes(q)) {
+                    row.style.display = 'flex';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         });
     }
+
+    refreshCounts();
 });
 </script>
 {% endblock %}

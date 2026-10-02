@@ -189,7 +189,8 @@ def professeur_dashboard():
         total_classes=len(classe_ids),
         annee_consultee=annee_consultee,
         now=now,
-        aujourdhui=jours
+        aujourdhui=jours,
+        jour_actuel=jour_actuel
     )
 
 
@@ -197,19 +198,8 @@ def professeur_dashboard():
 @login_required
 @role_required('professeur')
 def professeur_home():
-    """Page d'accueil du professeur avec emploi du temps"""
-    professeur = Professeur.query.filter_by(utilisateur_id=current_user.id).first()
-
-    if not professeur:
-        flash("Profil professeur non trouvé", "danger")
-        return redirect(url_for('main.logout'))
-
-    from app.utils import get_annee_consultee
-    from app.services.emploi_temps_annuel import get_creneaux_annee
-    annee_consultee = get_annee_consultee(current_user.ecole_id)
-    emplois = get_creneaux_annee(current_user.ecole_id, annee_consultee, professeur_id=professeur.id) if annee_consultee else []
-
-    return render_template('professeur_home.html', emplois=emplois)
+    """Redirection canonique vers le tableau de bord unifié du professeur"""
+    return redirect(url_for('main.professeur_dashboard'))
 
 
 @main.route('/onboarding', methods=['GET', 'POST'])

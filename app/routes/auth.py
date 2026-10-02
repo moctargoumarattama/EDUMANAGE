@@ -28,6 +28,17 @@ from .common import (
     url_for,
 )
 from flask import jsonify
+from app.models import (
+    Absence,
+    Classe,
+    Cours,
+    DemandePresentation,
+    Inscription,
+    Log,
+    Paiement,
+    Professeur,
+    SupportTicket,
+)
 from app.utils import sanitize_internal_url
 from app.services.phone_numbers import cles_telephone_equivalentes, normaliser_telephone_international
 
@@ -117,10 +128,12 @@ def index():
     # -----------------------------
     if current_user.role == 'super_admin':
         try:
-            from app.admin.scripts import get_system_stats
+            from app.admin.scripts import get_system_stats, get_maintenance_status
             sys_stats = get_system_stats()
+            maint_status = get_maintenance_status()
         except Exception:
             sys_stats = {}
+            maint_status = {'active': False}
 
         from datetime import timedelta
         active_24h_cutoff = datetime.utcnow() - timedelta(hours=24)
@@ -134,8 +147,39 @@ def index():
             .count()
         )
 
+        from app.services.school_lifecycle import is_school_disabled
+
+        ecoles = Ecole.query.order_by(Ecole.id.desc()).all()
+        total_eleves = 0
+        for ecole in ecoles:
+            ecole.nb_eleves = Eleve.query.filter_by(ecole_id=ecole.id).count()
+            ecole.nb_classes = Classe.query.filter_by(ecole_id=ecole.id).count()
+            ecole.nb_profs = Professeur.query.filter_by(ecole_id=ecole.id).count()
+            total_eleves += ecole.nb_eleves
+            admin_user = Utilisateur.query.filter_by(ecole_id=ecole.id, role='admin').first()
+            ecole.admin_user = admin_user
+            if not ecole.email and admin_user and admin_user.email:
+                ecole.email = admin_user.email
+
+        ecoles_actives_count = sum(1 for e in ecoles if e.statut in ('actif', 'active') and not is_school_disabled(e))
+        ecoles_bloquees_count = sum(1 for e in ecoles if is_school_disabled(e) or e.statut in ('bloque', 'suspendu', 'inactive'))
+
+        # Demandes de présentation / Démo récentes
+        demandes_recentes = DemandePresentation.query.order_by(DemandePresentation.created_at.desc()).limit(5).all() if DemandePresentation else []
+        nouvelles_demandes_count = DemandePresentation.query.filter_by(statut='nouvelle').count() if DemandePresentation else 0
+
+        # Derniers journaux système
+        derniers_logs = Log.query.order_by(Log.timestamp.desc()).limit(5).all() if Log else []
+
+        # Tickets de support en attente
+        tickets_ouverts = SupportTicket.query.filter(SupportTicket.statut.in_(['nouveau', 'en_cours'])).order_by(SupportTicket.created_at.desc()).limit(5).all() if SupportTicket else []
+        nouveau_tickets_count = SupportTicket.query.filter_by(statut='nouveau').count() if SupportTicket else 0
+
         stats = {
-            'total_ecoles': Ecole.query.count(),
+            'total_ecoles': len(ecoles),
+            'ecoles_actives': ecoles_actives_count,
+            'ecoles_bloquees': ecoles_bloquees_count,
+            'total_eleves': total_eleves,
             'active_24h': active_24h_count,
             'disk_usage': sys_stats.get('disk_usage', 'N/A'),
             'db_backend': sys_stats.get('db_backend', 'Base'),
@@ -143,14 +187,26 @@ def index():
             'last_backup': sys_stats.get('last_backup'),
             'table_count': sys_stats.get('table_count', 'N/A'),
         }
-        annee_planifiee = None
-        etat_planifiee = None
+
+        mdp_auto = session.pop('_mdp_auto_ecole', None)
+        mdp_auto_email = session.pop('_mdp_auto_email', None)
+        mdp_auto_nom = session.pop('_mdp_auto_nom', None)
 
         return render_template(
             'index.html',
             stats=stats,
-            annee_planifiee=annee_planifiee,
-            etat_planifiee=etat_planifiee
+            ecoles=ecoles,
+            maint_status=maint_status,
+            demandes_recentes=demandes_recentes,
+            nouvelles_demandes_count=nouvelles_demandes_count,
+            derniers_logs=derniers_logs,
+            tickets_ouverts=tickets_ouverts,
+            nouveau_tickets_count=nouveau_tickets_count,
+            mdp_auto=mdp_auto,
+            mdp_auto_email=mdp_auto_email,
+            mdp_auto_nom=mdp_auto_nom,
+            annee_planifiee=None,
+            etat_planifiee=None
         )
 
     elif current_user.role == 'admin':
@@ -200,7 +256,6 @@ def index():
         from datetime import date
         from sqlalchemy.orm import joinedload
         from app.forms import EleveForm, PaiementForm, AjouterEmploiForm
-        from app.models import Absence, Paiement, Classe, Professeur, Cours, Inscription
         from app.services.classes_annuelles import get_classes_ouvertes_annee
         from app.utils_classes import classes_triees_pedagogique
 

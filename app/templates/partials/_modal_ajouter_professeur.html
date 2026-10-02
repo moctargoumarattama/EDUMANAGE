@@ -1,99 +1,114 @@
 <div class="modal fade" id="modalAjouterProfesseur" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalAjouterProfesseurLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title d-flex align-items-center gap-2" id="modalAjouterProfesseurLabel">
-                    <i class="fas fa-chalkboard-teacher"></i>
-                    <span>Ajouter un professeur</span>
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg modal-fullscreen-md-down">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-white border-bottom py-3 px-3 px-md-4 d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2.5">
+                    <div class="modal-header-icon bg-success-subtle text-success">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0 d-flex align-items-center gap-2" id="modalAjouterProfesseurLabel">
+                            Ajouter un professeur
+                        </h5>
+                        <p class="text-muted small mb-0" style="font-size: 0.8rem;">
+                            Enregistrement complet du corps enseignant — Accès et matières
+                        </p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
             {% set f_prof = professeur_form or form %}
-            <form method="POST" action="{{ url_for('main.ajouter_professeur') }}" class="needs-validation" id="formAjouterProfesseur" novalidate>
+            <form method="POST" action="{{ url_for('main.ajouter_professeur') }}" class="needs-validation d-flex flex-column flex-grow-1" id="formAjouterProfesseur" novalidate style="min-height: 0;">
                 {{ f_prof.hidden_tag() if f_prof and f_prof.hidden_tag is defined else '' }}
-                <div class="modal-body p-4">
-                    <!-- Informations personnelles -->
-                    <div class="form-section mb-4">
-                        <h6 class="fw-bold text-success mb-3 d-flex align-items-center gap-2">
-                            <i class="fas fa-user-tie"></i> Informations personnelles
-                        </h6>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold" for="modal_prof_nom">Nom <span class="text-danger">*</span></label>
+                <div class="modal-body p-3 p-md-4">
+                    <!-- SECTION 1 : Informations personnelles -->
+                    <div class="modal-section-card">
+                        <div class="modal-section-title text-success">
+                            <span class="modal-section-icon bg-success-subtle text-success">
+                                <i class="fas fa-user-tie"></i>
+                            </span>
+                            1. Informations personnelles
+                        </div>
+                        <div class="row g-2.5 g-md-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small fw-semibold" for="modal_prof_nom">Nom <span class="text-danger">*</span></label>
                                 {% if f_prof and f_prof.nom %}
-                                    {{ f_prof.nom(class="form-control", id="modal_prof_nom", placeholder="Nom du professeur", required=true) }}
+                                    {{ f_prof.nom(class="form-control form-control-sm", id="modal_prof_nom", placeholder="Nom du professeur", required=true) }}
                                 {% else %}
-                                    <input type="text" name="nom" id="modal_prof_nom" class="form-control" placeholder="Nom du professeur" required>
+                                    <input type="text" name="nom" id="modal_prof_nom" class="form-control form-control-sm" placeholder="Nom du professeur" required>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold" for="modal_prof_prenom">Prénom <span class="text-danger">*</span></label>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small fw-semibold" for="modal_prof_prenom">Prénom <span class="text-danger">*</span></label>
                                 {% if f_prof and f_prof.prenom %}
-                                    {{ f_prof.prenom(class="form-control", id="modal_prof_prenom", placeholder="Prénom du professeur", required=true) }}
+                                    {{ f_prof.prenom(class="form-control form-control-sm", id="modal_prof_prenom", placeholder="Prénom du professeur", required=true) }}
                                 {% else %}
-                                    <input type="text" name="prenom" id="modal_prof_prenom" class="form-control" placeholder="Prénom du professeur" required>
+                                    <input type="text" name="prenom" id="modal_prof_prenom" class="form-control form-control-sm" placeholder="Prénom du professeur" required>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold" for="modal_prof_date_naissance">Date de naissance</label>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small fw-semibold" for="modal_prof_date_naissance">Date de naissance</label>
                                 {% if f_prof and f_prof.date_naissance %}
-                                    {{ f_prof.date_naissance(class="form-control", id="modal_prof_date_naissance") }}
+                                    {{ f_prof.date_naissance(class="form-control form-control-sm", id="modal_prof_date_naissance") }}
                                 {% else %}
-                                    <input type="date" name="date_naissance" id="modal_prof_date_naissance" class="form-control">
+                                    <input type="date" name="date_naissance" id="modal_prof_date_naissance" class="form-control form-control-sm">
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold" for="modal_prof_telephone">Téléphone <span class="text-danger">*</span></label>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small fw-semibold" for="modal_prof_telephone">Téléphone <span class="text-danger">*</span></label>
                                 {% if f_prof and f_prof.telephone %}
-                                    {{ f_prof.telephone(class="form-control", id="modal_prof_telephone", placeholder="Ex: 90 12 34 56 ou +227...", required=true) }}
+                                    {{ f_prof.telephone(class="form-control form-control-sm", id="modal_prof_telephone", placeholder="Ex: 90 12 34 56 ou +227...", required=true) }}
                                 {% else %}
-                                    <input type="tel" name="telephone" id="modal_prof_telephone" class="form-control" placeholder="Ex: 90 12 34 56 ou +227..." required>
+                                    <input type="tel" name="telephone" id="modal_prof_telephone" class="form-control form-control-sm" placeholder="Ex: 90 12 34 56 ou +227..." required>
                                 {% endif %}
                             </div>
                             <div class="col-12">
-                                <label class="form-label fw-semibold" for="modal_prof_adresse">Adresse</label>
+                                <label class="form-label small fw-semibold" for="modal_prof_adresse">Adresse du domicile</label>
                                 {% if f_prof and f_prof.adresse %}
-                                    {{ f_prof.adresse(class="form-control", id="modal_prof_adresse", rows="2", placeholder="Adresse résidentielle du professeur") }}
+                                    {{ f_prof.adresse(class="form-control form-control-sm", id="modal_prof_adresse", rows="2", placeholder="Adresse résidentielle du professeur...") }}
                                 {% else %}
-                                    <textarea name="adresse" id="modal_prof_adresse" class="form-control" rows="2" placeholder="Adresse résidentielle du professeur"></textarea>
+                                    <textarea name="adresse" id="modal_prof_adresse" class="form-control form-control-sm" rows="2" placeholder="Adresse résidentielle du professeur..."></textarea>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
 
-                    <!-- Informations professionnelles -->
-                    <div class="form-section">
-                        <h6 class="fw-bold text-success mb-3 d-flex align-items-center gap-2">
-                            <i class="fas fa-book-open"></i> Informations professionnelles
-                        </h6>
+                    <!-- SECTION 2 : Informations professionnelles -->
+                    <div class="modal-section-card">
+                        <div class="modal-section-title text-success">
+                            <span class="modal-section-icon bg-success-subtle text-success">
+                                <i class="fas fa-book-open"></i>
+                            </span>
+                            2. Informations professionnelles
+                        </div>
                         <input type="hidden" name="specialite" value="Non renseignée">
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <label class="form-label fw-semibold" for="modal_prof_matieres">Matières enseignées <span class="text-danger">*</span></label>
+                        <div class="row g-2.5 g-md-3">
+                            <div class="col-12 col-md-7">
+                                <label class="form-label small fw-semibold" for="modal_prof_matieres">Matières enseignées <span class="text-danger">*</span></label>
                                 {% if f_prof and f_prof.matieres_enseignees %}
-                                    {{ f_prof.matieres_enseignees(class="form-control", id="modal_prof_matieres", placeholder="Ex: Mathématiques, Physique-Chimie", required=true) }}
+                                    {{ f_prof.matieres_enseignees(class="form-control form-control-sm", id="modal_prof_matieres", placeholder="Ex: Mathématiques, Physique-Chimie", required=true) }}
                                 {% else %}
-                                    <input type="text" name="matieres_enseignees" id="modal_prof_matieres" class="form-control" placeholder="Ex: Mathématiques, Physique-Chimie" required>
+                                    <input type="text" name="matieres_enseignees" id="modal_prof_matieres" class="form-control form-control-sm" placeholder="Ex: Mathématiques, Physique-Chimie" required>
                                 {% endif %}
-                                <div class="form-text small">Séparez plusieurs matières par une virgule.</div>
+                                <div class="form-text small text-muted">Séparez plusieurs matières par une virgule.</div>
                             </div>
-                            <div class="col-12">
-                                <label class="form-label fw-semibold" for="modal_prof_code">Mot de passe / Code d'accès</label>
+                            <div class="col-12 col-md-5">
+                                <label class="form-label small fw-semibold" for="modal_prof_code">Mot de passe / Code d'accès</label>
                                 {% if f_prof and f_prof.code_prof %}
-                                    {{ f_prof.code_prof(class="form-control", id="modal_prof_code", placeholder="8 chiffres (laisser vide pour générer automatiquement)") }}
+                                    {{ f_prof.code_prof(class="form-control form-control-sm", id="modal_prof_code", placeholder="8 chiffres (vide = auto)") }}
                                 {% else %}
-                                    <input type="text" name="code_prof" id="modal_prof_code" class="form-control" placeholder="8 chiffres (laisser vide pour générer automatiquement)">
+                                    <input type="text" name="code_prof" id="modal_prof_code" class="form-control form-control-sm" placeholder="8 chiffres (vide = auto)">
                                 {% endif %}
-                                <div class="form-text small">Exactement 8 chiffres si renseigné. Laissez vide pour une génération automatique sécurisée.</div>
+                                <div class="form-text small text-muted">Laissez vide pour une génération automatique sécurisée.</div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">
+                <div class="modal-footer bg-white border-top py-2.5 px-3 px-md-4">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3 py-2" data-bs-dismiss="modal">
                         <i class="fas fa-times me-1"></i>Annuler
                     </button>
-                    <button type="submit" class="btn btn-success rounded-pill px-4" id="btnSubmitAjouterProfesseur" data-original-text="Ajouter le professeur">
+                    <button type="submit" class="btn btn-success rounded-pill px-4 py-2" id="btnSubmitAjouterProfesseur" data-original-text="Ajouter le professeur">
                         <span class="submit-spinner spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
                         <span class="submit-text"><i class="fas fa-plus-circle me-1"></i>Ajouter le professeur</span>
                     </button>

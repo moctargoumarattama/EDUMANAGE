@@ -193,6 +193,9 @@ def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
                     'valeur_cle': f"{moyenne}/20",
                     'notifie': False,
                     'historique': is_archivee,
+                    'jamais_paye': False,
+                    'montant_du': 0,
+                    'total_paye': 0,
                 })
 
         # 2. Alertes Absences (Absences répétées non justifiées de l'année consultée)
@@ -220,22 +223,33 @@ def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
                 'valeur_cle': f"{total_absences} absence(s)",
                 'notifie': False,
                 'historique': is_archivee,
+                'jamais_paye': False,
+                'montant_du': 0,
+                'total_paye': 0,
             })
 
-        # 3. Alertes Paiements (Retards de scolarité de l'année consultée)
+        # 3. Alertes Paiements (Retards de scolarité & élèves n'ayant jamais payé)
         frais_annuels = float(ins.frais_annuels if ins.frais_annuels is not None else (eleve.frais_annuels or 150000.0))
         paiements_valides = [p for p in ins.paiements if p.statut not in ('rejete', 'annule')]
         total_paye = sum(float(p.montant or 0) for p in paiements_valides)
         mois_payes = [p.mois for p in paiements_valides if p.mois]
+        jamais_paye = (len(paiements_valides) == 0 or total_paye == 0)
 
         if is_archivee:
             if total_paye < frais_annuels:
                 montant_du = round(frais_annuels - total_paye)
+                titre = "Aucun paiement effectué (Jamais payé)" if jamais_paye else "Retard de paiement de scolarité"
+                message = (
+                    f"{eleve.prenom} {eleve.nom} ({classe_nom}) n'a effectué aucun versement (0 FCFA versé sur {frais_annuels:,.0f} FCFA)."
+                    if jamais_paye else
+                    f"{eleve.prenom} {eleve.nom} ({classe_nom}) a un impayé de scolarité ({montant_du:,.0f} FCFA)."
+                )
+                valeur_cle = f"0 F versé ({montant_du:,.0f} F)" if jamais_paye else f"{montant_du:,.0f} F"
                 alertes.append({
                     'id': f'paiement-{ins.id}',
-                    'type': 'warning',
-                    'titre': 'Retard de paiement de scolarité',
-                    'message': f"{eleve.prenom} {eleve.nom} ({classe_nom}) a un impayé de scolarité ({montant_du:,.0f} FCFA).",
+                    'type': 'danger' if jamais_paye else 'warning',
+                    'titre': titre,
+                    'message': message,
                     'date': maintenant,
                     'source': 'Paiements',
                     'lien': _safe_url_eleve(eleve.id),
@@ -246,12 +260,19 @@ def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
                     'classe_nom': classe_nom,
                     'contact_parent': eleve.contact_parent or eleve.telephone or '',
                     'email_parent': eleve.email_parent or eleve.email or '',
-                    'priorite': 2,
-                    'valeur_cle': f"{montant_du:,.0f} F",
+                    'priorite': 3 if jamais_paye else 2,
+                    'valeur_cle': valeur_cle,
+                    'jamais_paye': jamais_paye,
+                    'total_paye': total_paye,
+                    'frais_annuels': frais_annuels,
+                    'montant_du': montant_du,
                     'details': {
                         'mois_manquants': [],
                         'nombre_mois_manquants': 1,
-                        'montant_total_du': montant_du
+                        'montant_total_du': montant_du,
+                        'total_paye': total_paye,
+                        'frais_annuels': frais_annuels,
+                        'jamais_paye': jamais_paye,
                     },
                     'notifie': False,
                     'historique': True,
@@ -267,28 +288,44 @@ def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
                 frais_mensuels = frais_annuels / len(timeline)
                 montant_du = round(min(frais_annuels - total_paye, frais_mensuels * len(mois_manquants)))
                 if montant_du > 0:
-                    if len(mois_manquants) >= 3:
+                    if jamais_paye:
                         type_alerte = 'danger'
                         priorite = 3
-                    elif len(mois_manquants) == 2:
-                        type_alerte = 'warning'
-                        priorite = 2
+                        titre = "Aucun paiement effectué (Jamais payé)"
+                        if len(mois_manquants) == 1:
+                            mois_texte = f"le mois de {mois_manquants[0]}"
+                        elif len(mois_manquants) <= 3:
+                            mois_texte = f"les mois de {', '.join(mois_manquants)}"
+                        else:
+                            mois_texte = f"{len(mois_manquants)} mois ({mois_manquants[0]} à {mois_manquants[-1]})"
+                        message = f"{eleve.prenom} {eleve.nom} ({classe_nom}) n'a effectué aucun versement (0 FCFA versé sur {frais_annuels:,.0f} FCFA, retard sur {mois_texte})."
+                        valeur_cle = f"0 F versé ({montant_du:,.0f} F)"
                     else:
-                        type_alerte = 'info'
-                        priorite = 1
+                        if len(mois_manquants) >= 3:
+                            type_alerte = 'danger'
+                            priorite = 3
+                        elif len(mois_manquants) == 2:
+                            type_alerte = 'warning'
+                            priorite = 2
+                        else:
+                            type_alerte = 'info'
+                            priorite = 1
 
-                    if len(mois_manquants) == 1:
-                        mois_texte = f"le mois de {mois_manquants[0]}"
-                    elif len(mois_manquants) <= 3:
-                        mois_texte = f"les mois de {', '.join(mois_manquants)}"
-                    else:
-                        mois_texte = f"{len(mois_manquants)} mois ({mois_manquants[0]} à {mois_manquants[-1]})"
+                        titre = 'Retard de paiement de scolarité'
+                        if len(mois_manquants) == 1:
+                            mois_texte = f"le mois de {mois_manquants[0]}"
+                        elif len(mois_manquants) <= 3:
+                            mois_texte = f"les mois de {', '.join(mois_manquants)}"
+                        else:
+                            mois_texte = f"{len(mois_manquants)} mois ({mois_manquants[0]} à {mois_manquants[-1]})"
+                        message = f"{eleve.prenom} {eleve.nom} ({classe_nom}) a un retard de scolarité pour {mois_texte} ({montant_du:,.0f} FCFA)."
+                        valeur_cle = f"{len(mois_manquants)} mois ({montant_du:,.0f} F)"
 
                     alertes.append({
                         'id': f'paiement-{ins.id}',
                         'type': type_alerte,
-                        'titre': 'Retard de paiement de scolarité',
-                        'message': f"{eleve.prenom} {eleve.nom} ({classe_nom}) a un retard de scolarité pour {mois_texte} ({montant_du:,.0f} FCFA).",
+                        'titre': titre,
+                        'message': message,
                         'date': maintenant,
                         'source': 'Paiements',
                         'lien': _safe_url_eleve(eleve.id),
@@ -300,16 +337,37 @@ def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
                         'contact_parent': eleve.contact_parent or eleve.telephone or '',
                         'email_parent': eleve.email_parent or eleve.email or '',
                         'priorite': priorite,
-                        'valeur_cle': f"{len(mois_manquants)} mois ({montant_du:,.0f} F)",
+                        'valeur_cle': valeur_cle,
+                        'jamais_paye': jamais_paye,
+                        'total_paye': total_paye,
+                        'frais_annuels': frais_annuels,
+                        'montant_du': montant_du,
                         'details': {
                             'mois_manquants': mois_manquants,
                             'nombre_mois_manquants': len(mois_manquants),
-                            'montant_total_du': montant_du
+                            'montant_total_du': montant_du,
+                            'total_paye': total_paye,
+                            'frais_annuels': frais_annuels,
+                            'jamais_paye': jamais_paye,
                         },
                         'notifie': False,
                         'historique': False,
                     })
 
+    # Dédoublonnage strict : aucune alerte en double par ID et au plus 1 alerte par (eleve_id, source)
+    alertes_uniques = []
+    seen_ids = set()
+    seen_eleve_sources = set()
+    for a in alertes:
+        aid = a['id']
+        eleve_source_key = (a['eleve_id'], a['source'])
+        if aid in seen_ids or eleve_source_key in seen_eleve_sources:
+            continue
+        seen_ids.add(aid)
+        seen_eleve_sources.add(eleve_source_key)
+        alertes_uniques.append(a)
+
+    alertes = alertes_uniques
     alertes.sort(key=lambda x: (-x['priorite'], x['date']))
 
     if limit:

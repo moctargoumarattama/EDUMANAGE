@@ -34,12 +34,10 @@ class TestAuditAlertesPhase4(unittest.TestCase):
         self.app_context.pop()
 
     def test_alertes_html_mailto_format(self):
-        """Vérifie que l'URI mailto dans alertes.html contient bien le délimiteur '?' avant 'subject='."""
-        with open('app/templates/alertes.html', 'r', encoding='utf-8') as f:
+        """Vérifie que l'accès aux alertes a été déporté sur le modal ou la redirection open_alertes=1."""
+        with open('app/routes/alertes.py', 'r', encoding='utf-8') as f:
             content = f.read()
-
-        self.assertIn('mailto:{{ alerte.email_parent }}?subject=', content)
-        self.assertNotIn('mailto:{{ alerte.email_parent }}subject=', content)
+        self.assertIn("open_alertes=1", content)
 
     def test_generer_alertes_options_uses_selectinload(self):
         """Vérifie que generer_alertes_automatiques emploie selectinload pour les collections 1-N."""
@@ -112,16 +110,19 @@ class TestAuditAlertesPhase4(unittest.TestCase):
                 self.assertIn('nouvelle_alerte_test', stored)
 
     def test_alertes_html_iife_and_no_inline_onclick(self):
-        """Vérifie l'encapsulation IIFE et l'absence totale d'attributs onclick inline dans alertes.html."""
-        with open('app/templates/alertes.html', 'r', encoding='utf-8') as f:
-            content = f.read()
+        """Vérifie l'encapsulation IIFE et l'absence totale d'attributs onclick inline dans le composant modal d'alertes."""
+        with open('app/templates/partials/_modal_centre_alertes.html', 'r', encoding='utf-8') as f:
+            modal_content = f.read()
+        self.assertNotIn("onclick=", modal_content)
 
-        self.assertIn("(function() {", content)
-        self.assertIn("'use strict';", content)
-        self.assertIn("})();", content)
-        self.assertNotIn("onclick=", content)
-        self.assertIn('data-action="toggle-alerte"', content)
-        self.assertIn('data-alerte-id=', content)
+        with open('app/static/js/modal_centre_alertes.js', 'r', encoding='utf-8') as f:
+            js_content = f.read()
+        self.assertIn("(function() {", js_content)
+        self.assertIn("'use strict';", js_content)
+        self.assertIn("})();", js_content)
+        self.assertNotIn("onclick=", js_content)
+        self.assertIn('data-action="toggle-alert"', js_content)
+        self.assertIn('data-alert-id=', js_content)
 
     def test_rapports_cache_code_mort_removed(self):
         """Vérifie que le cache orphelin au niveau module _rapports_cache a été supprimé."""

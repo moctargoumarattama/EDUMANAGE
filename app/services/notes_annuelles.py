@@ -16,6 +16,7 @@ Règles canoniques :
 import json
 from datetime import datetime
 from flask import current_app
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import joinedload, selectinload
 from app import db
 from app.models import (
@@ -1097,3 +1098,189 @@ def saisir_notes_classe(
             current_app.logger.warning(f"Erreur journalisation saisie classe: {log_err}")
 
     return len(created_notes), None
+
+
+def get_palmares_notes_annuel(ecole_id, annee):
+    """Calcule le palmarès académique annuel par classe :
+    - Top 5 des classes ayant les meilleures moyennes (Excellence académique)
+    - Top 5 des classes ayant les moyennes les plus faibles (Suivi pédagogique / Alerte)
+    - Classe spotlight meilleure moyenne et classe spotlight alerte pédagogique
+    - Statistiques globales d'établissement (moyenne générale, taux de réussite, total notes)
+    - Données pour le graphique comparatif Chart.js (moyennes, seuil 10/20)
+    """
+    empty_result = {
+        "classes_meilleures": [],
+        "classes_faibles": [],
+        "classe_meilleure": None,
+        "classe_plus_faible": None,
+        "statistiques": {
+            "moyenne_generale": None,
+            "taux_reussite": None,
+            "total_notes": 0,
+            "total_classes_evaluees": 0,
+            "total_classes": 0,
+        },
+        "chart_data": {
+            "labels": [],
+            "moyennes": [],
+            "taux_reussite": [],
+            "couleurs": [],
+        },
+    }
+
+    if not ecole_id or not annee:
+        return empty_result
+
+    # 1. Classes ordonnées pédagogiquement
+    classes_query = (
+        Classe.query.options(joinedload(Classe.niveau_scolaire))
+        .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id)
+    )
+    classes = classes_triees_pedagogique(classes_query).all()
+    if not classes:
+        return empty_result
+
+    # 2. Effectifs par classe
+    effectifs_raw = (
+        db.session.query(Inscription.classe_id, func.count(Inscription.id))
+        .filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee.id,
+            Inscription.classe_id.isnot(None),
+        )
+        .group_by(Inscription.classe_id)
+        .all()
+    )
+    effectifs_map = {row[0]: int(row[1]) for row in effectifs_raw}
+
+    # 3. Agrégation SQL des notes par classe (pondérées par coefficients)
+    coef = func.coalesce(Note.coefficient, 1.0)
+    notes_raw = (
+        db.session.query(
+            Inscription.classe_id,
+            func.count(Note.id).label("nb_notes"),
+            (func.sum(Note.valeur * coef) / func.sum(coef)).label("moyenne_ponderee"),
+            (func.sum(case((Note.valeur >= 10.0, 1), else_=0)) * 100.0 / func.count(Note.id)).label("taux_reussite"),
+            func.min(Note.valeur).label("min_note"),
+            func.max(Note.valeur).label("max_note"),
+        )
+        .join(Note, Note.inscription_id == Inscription.id)
+        .filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.annee_scolaire_id == annee.id,
+            Note.ecole_id == ecole_id,
+        )
+        .group_by(Inscription.classe_id)
+        .all()
+    )
+
+    notes_stats_map = {
+        row[0]: {
+            "nb_notes": int(row[1] or 0),
+            "moyenne": round(float(row[2]), 2) if row[2] is not None else None,
+            "taux_reussite": round(float(row[3]), 1) if row[3] is not None else 0.0,
+            "min_note": round(float(row[4]), 1) if row[4] is not None else None,
+            "max_note": round(float(row[5]), 1) if row[5] is not None else None,
+        }
+        for row in notes_raw
+    }
+
+    classes_data = []
+    classes_evaluees = []
+
+    for cl in classes:
+        effectif = effectifs_map.get(cl.id, 0)
+        c_stats = notes_stats_map.get(cl.id, {
+            "nb_notes": 0,
+            "moyenne": None,
+            "taux_reussite": 0.0,
+            "min_note": None,
+            "max_note": None,
+        })
+
+        item = {
+            "id": cl.id,
+            "nom": cl.nom,
+            "niveau": getattr(cl, "niveau", "") or (cl.niveau_scolaire.nom if getattr(cl, "niveau_scolaire", None) else ""),
+            "effectif": effectif,
+            "nb_notes": c_stats["nb_notes"],
+            "moyenne": c_stats["moyenne"],
+            "taux_reussite": c_stats["taux_reussite"],
+            "min_note": c_stats["min_note"],
+            "max_note": c_stats["max_note"],
+        }
+        classes_data.append(item)
+        if item["moyenne"] is not None and item["nb_notes"] > 0:
+            classes_evaluees.append(item)
+
+    # Top 5 des meilleures moyennes (Excellence)
+    classes_meilleures = sorted(
+        classes_evaluees,
+        key=lambda c: (c["moyenne"], c["taux_reussite"]),
+        reverse=True
+    )[:5]
+
+    # Top 5 des moyennes les plus faibles (Suivi pédagogique / Alerte)
+    classes_faibles = sorted(
+        classes_evaluees,
+        key=lambda c: (c["moyenne"], c["taux_reussite"]),
+        reverse=False
+    )[:5]
+
+    # Spotlights
+    classe_meilleure = classes_meilleures[0] if classes_meilleures else None
+    classe_plus_faible = classes_faibles[0] if classes_faibles else None
+
+    # Stats globales établissement
+    total_notes_ecole = sum(c["nb_notes"] for c in classes_data)
+    moyenne_globale = (
+        round(sum(c["moyenne"] * c["nb_notes"] for c in classes_evaluees) / total_notes_ecole, 2)
+        if total_notes_ecole > 0 and classes_evaluees
+        else None
+    )
+    taux_reussite_global = (
+        round(sum(c["taux_reussite"] * c["nb_notes"] for c in classes_evaluees) / total_notes_ecole, 1)
+        if total_notes_ecole > 0 and classes_evaluees
+        else None
+    )
+
+    # Couleurs du graphique
+    couleurs_barres = []
+    for c in classes_data:
+        m = c["moyenne"]
+        if m is None:
+            couleurs_barres.append("rgba(203, 213, 225, 0.6)")
+        elif m >= 12.0:
+            couleurs_barres.append("rgba(16, 185, 129, 0.85)")  # Vert
+        elif m >= 10.0:
+            couleurs_barres.append("rgba(99, 102, 241, 0.8)")   # Indigo
+        elif m >= 8.0:
+            couleurs_barres.append("rgba(245, 158, 11, 0.85)")  # Ambre
+        else:
+            couleurs_barres.append("rgba(239, 68, 68, 0.85)")   # Rouge
+
+    chart_data = {
+        "labels": [c["nom"] for c in classes_data],
+        "moyennes": [c["moyenne"] if c["moyenne"] is not None else 0.0 for c in classes_data],
+        "taux_reussite": [c["taux_reussite"] for c in classes_data],
+        "nb_notes": [c["nb_notes"] for c in classes_data],
+        "couleurs": couleurs_barres,
+    }
+
+    statistiques = {
+        "moyenne_generale": moyenne_globale,
+        "taux_reussite": taux_reussite_global,
+        "total_notes": total_notes_ecole,
+        "total_classes_evaluees": len(classes_evaluees),
+        "total_classes": len(classes),
+    }
+
+    return {
+        "classes_meilleures": classes_meilleures,
+        "classes_faibles": classes_faibles,
+        "classe_meilleure": classe_meilleure,
+        "classe_plus_faible": classe_plus_faible,
+        "statistiques": statistiques,
+        "chart_data": chart_data,
+    }
+

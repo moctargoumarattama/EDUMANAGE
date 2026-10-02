@@ -39,6 +39,7 @@ from app.services.notes_annuelles import (
     saisir_notes_classe as service_saisir_notes_classe,
     statut_annee_notes,
     supprimer_note as service_supprimer_note,
+    get_palmares_notes_annuel,
 )
 
 
@@ -239,54 +240,53 @@ def notes():
     }
 
     # Calcul de la complétude pédagogique par élève pour l'année et la période consultées
-    periode_cible = periode if periode else None
-    if not periode_cible and annee_consultee and ecole_id:
-        from app.models import PeriodeBulletin
-        p_active = PeriodeBulletin.query.filter_by(
-            ecole_id=ecole_id,
-            annee_id=annee_consultee.id,
-            periode_active=True
-        ).first()
-        if p_active:
-            periode_cible = p_active.nom
-
-    # Notes nécessaires au calcul de complétude pédagogique
-    # Pour le professeur ou si des filtres spécifiques (période/type/recherche) sont actifs,
-    # on charge les notes des inscriptions visibles de la classe pour garantir un calcul d'exhaustivité exact.
-    inscr_ids_visibles = [ins.id for ins in inscriptions if ins.id]
-    if current_user.role == 'professeur' or (periode_id or type_eval or search):
-        notes_completude = (
-            Note.query.filter(
-                Note.ecole_id == ecole_id,
-                Note.annee_id == annee_consultee.id,
-                Note.inscription_id.in_(inscr_ids_visibles),
-            ).all()
-            if (inscr_ids_visibles and annee_consultee) else []
-        )
-    else:
-        notes_completude = notes_filtrees
-
-    notes_par_inscription = defaultdict(list)
-    for n in notes_completude:
-        if n.inscription_id:
-            notes_par_inscription[n.inscription_id].append(n)
-
-    # Pré-chargement des cours attendus par classe pour la complétude
-    classe_ids_ins = {ins.classe_id for ins in inscriptions if ins.classe_id}
-    if classe_ids_ins and annee_consultee:
-        if not hasattr(g, '_cours_attendus_cache'):
-            g._cours_attendus_cache = {}
-        missing_cids = [cid for cid in classe_ids_ins if (ecole_id, cid, annee_consultee.id) not in g._cours_attendus_cache]
-        if missing_cids:
-            all_c = Cours.query.filter(Cours.ecole_id == ecole_id, Cours.classe_id.in_(missing_cids)).order_by(Cours.nom.asc()).all()
-            c_by_class = defaultdict(list)
-            for crs in all_c:
-                c_by_class[crs.classe_id].append(crs)
-            for cid in missing_cids:
-                g._cours_attendus_cache[(ecole_id, cid, annee_consultee.id)] = c_by_class[cid]
-
+    # STRICTEMENT réservé aux rôles administratifs (audit global de l'établissement).
+    # Pour les professeurs, zéro fuite de données d'autres matières et gain immédiat de performance.
     completude_par_eleve = {}
-    if annee_consultee and ecole_id:
+    if current_user.role in ('admin', 'super_admin') and annee_consultee and ecole_id:
+        periode_cible = periode if periode else None
+        if not periode_cible:
+            from app.models import PeriodeBulletin
+            p_active = PeriodeBulletin.query.filter_by(
+                ecole_id=ecole_id,
+                annee_id=annee_consultee.id,
+                periode_active=True
+            ).first()
+            if p_active:
+                periode_cible = p_active.nom
+
+        inscr_ids_visibles = [ins.id for ins in inscriptions if ins.id]
+        if periode_id or type_eval or search:
+            notes_completude = (
+                Note.query.filter(
+                    Note.ecole_id == ecole_id,
+                    Note.annee_id == annee_consultee.id,
+                    Note.inscription_id.in_(inscr_ids_visibles),
+                ).all()
+                if (inscr_ids_visibles and annee_consultee) else []
+            )
+        else:
+            notes_completude = notes_filtrees
+
+        notes_par_inscription = defaultdict(list)
+        for n in notes_completude:
+            if n.inscription_id:
+                notes_par_inscription[n.inscription_id].append(n)
+
+        # Pré-chargement des cours attendus par classe pour la complétude
+        classe_ids_ins = {ins.classe_id for ins in inscriptions if ins.classe_id}
+        if classe_ids_ins:
+            if not hasattr(g, '_cours_attendus_cache'):
+                g._cours_attendus_cache = {}
+            missing_cids = [cid for cid in classe_ids_ins if (ecole_id, cid, annee_consultee.id) not in g._cours_attendus_cache]
+            if missing_cids:
+                all_c = Cours.query.filter(Cours.ecole_id == ecole_id, Cours.classe_id.in_(missing_cids)).order_by(Cours.nom.asc()).all()
+                c_by_class = defaultdict(list)
+                for crs in all_c:
+                    c_by_class[crs.classe_id].append(crs)
+                for cid in missing_cids:
+                    g._cours_attendus_cache[(ecole_id, cid, annee_consultee.id)] = c_by_class[cid]
+
         for ins in inscriptions:
             if ins.eleve_id:
                 ins_notes = notes_par_inscription.get(ins.id, [])
@@ -304,6 +304,10 @@ def notes():
         matched_cl = next((cl for cl in classes_list if cl.id == classe_id), None)
         if matched_cl:
             selected_classe_nom = matched_cl.nom
+
+    palmares_notes = None
+    if current_user.role in ('admin', 'super_admin'):
+        palmares_notes = get_palmares_notes_annuel(ecole_id, annee_consultee)
 
     return render_template(
         'notes.html',
@@ -333,7 +337,18 @@ def notes():
         message_annee=message_annee,
         notes_modifiables=peut_modifier,
         return_url=context_url,
+        palmares_notes=palmares_notes,
     )
+
+
+@main.route('/api/notes/palmares')
+@login_required
+@role_required('admin', 'super_admin')
+@tenant_required
+def api_notes_palmares():
+    ecole_id = g.ecole_id
+    annee_consultee = get_annee_consultee(ecole_id)
+    return jsonify(get_palmares_notes_annuel(ecole_id, annee_consultee))
 
 
 @main.route('/notes/export_excel')
@@ -394,27 +409,44 @@ def saisie_notes_classe():
     peut_modifier = notes_modifiables(annee_consultee, current_user)
 
     if request.method == 'POST':
+        is_ajax = (
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or request.is_json
+            or 'application/json' in request.headers.get('Accept', '')
+        )
+
         if not peut_modifier:
+            msg = "Action non autorisée pour cette année scolaire."
             if annee_consultee and annee_consultee.statut == 'archivee':
-                flash(MESSAGE_ANNEE_ARCHIVEE, "warning")
+                msg = MESSAGE_ANNEE_ARCHIVEE
             elif annee_consultee and annee_consultee.statut == 'planifiee':
-                flash(MESSAGE_ANNEE_PLANIFIEE, "warning")
-            else:
-                flash("Action non autorisée pour cette année scolaire.", "danger")
+                msg = MESSAGE_ANNEE_PLANIFIEE
+            if is_ajax:
+                return jsonify({'success': False, 'message': msg}), 403
+            flash(msg, "warning")
             return redirect(context_url)
 
-        classe_id = request.form.get('classe_id', type=int)
-        cours_id = request.form.get('cours_id', type=int)
-        periode = request.form.get('periode', 'Semestre 1')
-        type_evaluation = request.form.get('type_evaluation', 'Devoir')
-        coefficient = request.form.get('coefficient', 1.0, type=float)
+        if request.is_json:
+            data = request.get_json() or {}
+            classe_id = data.get('classe_id')
+            cours_id = data.get('cours_id')
+            periode = data.get('periode', 'Semestre 1')
+            type_evaluation = data.get('type_evaluation', 'Devoir')
+            coefficient = float(data.get('coefficient', 1.0))
+            notes_dict = data.get('notes', {})
+        else:
+            classe_id = request.form.get('classe_id', type=int)
+            cours_id = request.form.get('cours_id', type=int)
+            periode = request.form.get('periode', 'Semestre 1')
+            type_evaluation = request.form.get('type_evaluation', 'Devoir')
+            coefficient = request.form.get('coefficient', 1.0, type=float)
 
-        notes_dict = {}
-        for key, val in request.form.items():
-            if key.startswith('note_'):
-                eleve_id_raw = key[5:]
-                if eleve_id_raw.isdigit():
-                    notes_dict[int(eleve_id_raw)] = val
+            notes_dict = {}
+            for key, val in request.form.items():
+                if key.startswith('note_'):
+                    eleve_id_raw = key[5:]
+                    if eleve_id_raw.isdigit():
+                        notes_dict[int(eleve_id_raw)] = val
 
         nb_notes, err = service_saisir_notes_classe(
             ecole_id=ecole_id,
@@ -430,10 +462,15 @@ def saisie_notes_classe():
         )
 
         if err:
+            if is_ajax:
+                return jsonify({'success': False, 'message': err}), 400
             flash(err, "danger")
             return redirect(url_for('main.saisie_notes_classe', classe_id=classe_id, cours_id=cours_id, return_url=context_url))
         else:
-            flash(f"{nb_notes} note(s) enregistrée(s) avec succès pour la classe.", "success")
+            msg = f"{nb_notes} note(s) enregistrée(s) avec succès pour la classe."
+            if is_ajax:
+                return jsonify({'success': True, 'nb_notes': nb_notes, 'message': msg})
+            flash(msg, "success")
             return redirect(context_url)
 
     # GET: Préparation de la grille

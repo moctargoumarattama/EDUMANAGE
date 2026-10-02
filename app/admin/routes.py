@@ -494,19 +494,37 @@ def support_ticket_update_statut(ticket_id):
 def demandes_presentation():
     """
     Page réservée au Super Admin pour consulter et gérer les demandes de présentation
-    soumises depuis le formulaire vitrine publique KLASORA.
+    soumises depuis le formulaire vitrine publique KLASORA, avec pagination et recherche.
     """
     from app.models import DemandePresentation
 
     statut_filter = request.args.get('statut', 'tous')
+    search = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = 15
 
     query = DemandePresentation.query
     if statut_filter and statut_filter != 'tous':
         query = query.filter_by(statut=statut_filter)
 
-    demandes = query.order_by(DemandePresentation.created_at.desc()).all()
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            db.or_(
+                DemandePresentation.nom_ecole.ilike(search_pattern),
+                DemandePresentation.ville.ilike(search_pattern),
+                DemandePresentation.telephone.ilike(search_pattern),
+                DemandePresentation.email.ilike(search_pattern),
+                DemandePresentation.message.ilike(search_pattern)
+            )
+        )
 
-    # Statistiques
+    pagination = query.order_by(DemandePresentation.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    demandes = pagination.items
+
+    # Statistiques globales
     total_demandes = DemandePresentation.query.count()
     nouvelles_count = DemandePresentation.query.filter_by(statut='nouvelle').count()
     contactees_count = DemandePresentation.query.filter_by(statut='contactee').count()
@@ -516,6 +534,9 @@ def demandes_presentation():
     return render_template(
         'admin/demandes_presentation.html',
         demandes=demandes,
+        pagination=pagination,
+        page=page,
+        search=search,
         statut_filter=statut_filter,
         total_demandes=total_demandes,
         nouvelles_count=nouvelles_count,

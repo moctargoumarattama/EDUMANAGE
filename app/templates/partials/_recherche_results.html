@@ -1,0 +1,310 @@
+{% set is_super_search = super_admin_search|default(false) %}
+
+{% if results and results.total > 0 %}
+    <!-- En-tête des résultats trouvés -->
+    <div class="d-flex align-items-center justify-content-between mb-3 px-1">
+        <span class="small text-muted fw-semibold">
+            <i class="fas fa-check-circle text-success me-1"></i>
+            {{ results.total }} résultat{{ 's' if results.total > 1 else '' }} trouvé{{ 's' if results.total > 1 else '' }}
+        </span>
+        {% if terme %}
+        <span class="badge bg-light text-dark border px-2.5 py-1 small">
+            Mot-clé : <strong>{{ terme }}</strong>
+        </span>
+        {% endif %}
+    </div>
+
+    <!-- ========================================== -->
+    <!-- RÉSULTATS SUPER ADMIN                      -->
+    <!-- ========================================== -->
+    {% if is_super_search %}
+        {% if results.ecoles %}
+        <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-2 px-1">
+                <span class="badge bg-primary text-white rounded-pill px-2.5 py-1">
+                    <i class="fas fa-school me-1"></i> Écoles ({{ results.ecoles|length }})
+                </span>
+            </div>
+            <div class="d-flex flex-column gap-2">
+                {% for ecole in results.ecoles %}
+                <div class="p-3 bg-white rounded-3 border shadow-2xs d-flex align-items-center justify-content-between gap-3 hover-shadow transition-all">
+                    <div class="d-flex align-items-center gap-3 min-w-0">
+                        <div class="rounded-3 bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; font-size: 1.1rem;">
+                            <i class="fas fa-school"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h6 class="fw-bold text-dark mb-0 text-truncate">{{ ecole.nom }}</h6>
+                            <small class="text-muted d-block text-truncate">{{ ecole.ville or 'Établissement' }}{% if ecole.directeur %} · Dir : {{ ecole.directeur }}{% endif %}</small>
+                        </div>
+                    </div>
+                    <a href="{{ ecole.url }}" class="btn btn-sm btn-primary rounded-pill px-3 flex-shrink-0">
+                        Ouvrir <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if results.utilisateurs %}
+        <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-2 px-1">
+                <span class="badge text-white rounded-pill px-2.5 py-1" style="background: #0f766e;">
+                    <i class="fas fa-users me-1"></i> Comptes utilisateurs ({{ results.utilisateurs|length }})
+                </span>
+            </div>
+            <div class="d-flex flex-column gap-2">
+                {% for user in results.utilisateurs %}
+                <div class="p-3 bg-white rounded-3 border shadow-2xs d-flex align-items-center justify-content-between gap-3 hover-shadow transition-all">
+                    <div class="d-flex align-items-center gap-3 min-w-0">
+                        <div class="rounded-3 text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; font-size: 1.1rem; background: #0f766e;">
+                            <i class="fas fa-user-shield"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h6 class="fw-bold text-dark mb-0 text-truncate">{{ user.nom }}</h6>
+                            <small class="text-muted d-block text-truncate">{{ user.role | capitalize }} · {{ user.ecole }}</small>
+                            {% if user.email %}<small class="text-muted d-block text-truncate">{{ user.email }}</small>{% endif %}
+                        </div>
+                    </div>
+                    <a href="{{ user.url }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 flex-shrink-0">
+                        Gérer <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if results.demandes %}
+        <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-2 px-1">
+                <span class="badge text-white rounded-pill px-2.5 py-1" style="background: #7c3aed;">
+                    <i class="fas fa-handshake me-1"></i> Demandes de démo ({{ results.demandes|length }})
+                </span>
+            </div>
+            <div class="d-flex flex-column gap-2">
+                {% for demande in results.demandes %}
+                <div class="p-3 bg-white rounded-3 border shadow-2xs d-flex align-items-center justify-content-between gap-3 hover-shadow transition-all">
+                    <div class="d-flex align-items-center gap-3 min-w-0">
+                        <div class="rounded-3 text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; font-size: 1.1rem; background: #7c3aed;">
+                            <i class="fas fa-handshake"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h6 class="fw-bold text-dark mb-0 text-truncate">{{ demande.nom }}</h6>
+                            <small class="text-muted d-block text-truncate">{{ demande.ville or demande.contact }} · {{ demande.date }}</small>
+                        </div>
+                    </div>
+                    <a href="{{ demande.url }}" class="btn btn-sm btn-outline-primary rounded-pill px-3 flex-shrink-0">
+                        Consulter <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if results.logs %}
+        <div class="mb-3">
+            <div class="d-flex align-items-center gap-2 mb-2 px-1">
+                <span class="badge text-white rounded-pill px-2.5 py-1" style="background: #d97706;">
+                    <i class="fas fa-file-alt me-1"></i> Événements système ({{ results.logs|length }})
+                </span>
+            </div>
+            <div class="d-flex flex-column gap-2">
+                {% for log in results.logs %}
+                <div class="p-3 bg-white rounded-3 border shadow-2xs d-flex align-items-center justify-content-between gap-3 hover-shadow transition-all">
+                    <div class="d-flex align-items-center gap-3 min-w-0">
+                        <div class="rounded-3 text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; font-size: 1.1rem; background: #d97706;">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h6 class="fw-bold text-dark mb-0 text-truncate">{{ log.action }}</h6>
+                            <small class="text-muted d-block text-truncate">{{ log.module }} · {{ log.date }}</small>
+                            {% if log.details %}<small class="text-muted d-block text-truncate">{{ log.details }}</small>{% endif %}
+                        </div>
+                    </div>
+                    <a href="{{ log.url }}" class="btn btn-sm btn-outline-warning rounded-pill px-3 flex-shrink-0">
+                        Logs
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    {% endif %}
+
+    <!-- ========================================== -->
+    <!-- RÉSULTATS ÉTABLISSEMENT                     -->
+    <!-- ========================================== -->
+    {% if not is_super_search %}
+        <!-- Section Élèves -->
+        {% if results.eleves %}
+        <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-2 px-1">
+                <span class="badge bg-primary text-white rounded-pill px-2.5 py-1">
+                    <i class="fas fa-user-graduate me-1"></i> Élèves ({{ results.eleves|length }})
+                </span>
+            </div>
+            <div class="d-flex flex-column gap-3">
+                {% for eleve in results.eleves %}
+                <div class="p-3 bg-white rounded-3 border shadow-2xs hover-shadow transition-all">
+                    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                        <div class="d-flex align-items-center gap-3 min-w-0">
+                            <div class="rounded-3 bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px; font-size: 1.15rem; background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;">
+                                <i class="fas fa-user-graduate"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h6 class="fw-bold text-dark mb-0 text-truncate">{{ eleve.prenom }} {{ eleve.nom }}</h6>
+                                <div class="d-flex align-items-center gap-2 mt-0.5 flex-wrap">
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2 py-0.5 small fw-semibold">
+                                        {{ eleve.classe or 'Sans classe' }}
+                                    </span>
+                                    {% if eleve.matricule or eleve.code_parent %}
+                                    <span class="text-muted small">
+                                        Matr: <strong>{{ eleve.matricule or eleve.code_parent }}</strong>
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-sm btn-primary rounded-pill px-3 py-1.5 fw-semibold d-inline-flex align-items-center gap-1.5 flex-shrink-0">
+                            <span>Voir le dossier</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+
+                    <!-- Historique scolaire & Bulletins -->
+                    {% if eleve.historique %}
+                    <div class="mt-3 pt-2.5 border-top">
+                        <div class="small fw-semibold text-muted mb-2 d-flex align-items-center gap-1.5">
+                            <i class="fas fa-history text-secondary"></i>
+                            <span>Historique & Bulletins :</span>
+                        </div>
+                        <div class="d-flex flex-column gap-2">
+                            {% for parcours in eleve.historique %}
+                            <div class="p-2 rounded-2 bg-light border d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <span class="badge bg-primary-subtle text-primary fw-bold">{{ parcours.annee }}</span>
+                                    <span class="fw-semibold text-dark small">{{ parcours.classe }}</span>
+                                    <span class="badge bg-secondary-subtle text-secondary small">{{ parcours.statut }}</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                                    {% if parcours.annee_id %}
+                                    <a class="btn btn-xs btn-outline-primary rounded-pill py-0.5 px-2.5" style="font-size: 0.75rem;" href="{{ url_for('main.voir_eleve', eleve_id=eleve.id, annee_id=parcours.annee_id) }}" title="Consulter les notes et le dossier de cette année">
+                                        <i class="fas fa-eye me-1"></i>Notes {{ parcours.annee }}
+                                    </a>
+                                    {% endif %}
+                                    {% if parcours.bulletins %}
+                                        {% for bulletin in parcours.bulletins %}
+                                        <a class="btn btn-xs btn-outline-secondary rounded-pill py-0.5 px-2.5" style="font-size: 0.72rem;" href="{{ url_for('main.bulletin_eleve', id=bulletin.id) }}">
+                                            <i class="fas fa-file-alt me-1"></i> Bulletin {{ bulletin.periode }}
+                                        </a>
+                                        {% endfor %}
+                                    {% elif parcours.inscription_id %}
+                                        <a class="btn btn-xs btn-outline-secondary rounded-pill py-0.5 px-2.5" style="font-size: 0.72rem;" href="{{ url_for('main.bulletin_eleve', inscription_id=parcours.inscription_id) }}">
+                                            <i class="fas fa-file-alt me-1"></i> Bulletin officiel
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Section Professeurs -->
+        {% if results.professeurs %}
+        <div class="mb-4">
+            <div class="d-flex align-items-center gap-2 mb-2 px-1">
+                <span class="badge text-white rounded-pill px-2.5 py-1" style="background: #db2777;">
+                    <i class="fas fa-chalkboard-teacher me-1"></i> Professeurs ({{ results.professeurs|length }})
+                </span>
+            </div>
+            <div class="d-flex flex-column gap-2">
+                {% for prof in results.professeurs %}
+                <div class="p-3 bg-white rounded-3 border shadow-2xs d-flex align-items-center justify-content-between gap-3 hover-shadow transition-all">
+                    <div class="d-flex align-items-center gap-3 min-w-0">
+                        <div class="rounded-3 text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; font-size: 1.1rem; background: linear-gradient(135deg, #db2777, #be185d);">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h6 class="fw-bold text-dark mb-0 text-truncate">{{ prof.prenom }} {{ prof.nom }}</h6>
+                            <small class="text-muted d-block text-truncate">{{ prof.specialite or 'Enseignant' }}</small>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('main.professeur_details', id=prof.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1.5 flex-shrink-0 fw-semibold">
+                        Consulter <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Section Cours -->
+        {% if results.cours %}
+        <div class="mb-3">
+            <div class="d-flex align-items-center gap-2 mb-2 px-1">
+                <span class="badge text-white rounded-pill px-2.5 py-1" style="background: #0284c7;">
+                    <i class="fas fa-book me-1"></i> Cours ({{ results.cours|length }})
+                </span>
+            </div>
+            <div class="d-flex flex-column gap-2">
+                {% for cours in results.cours %}
+                <div class="p-3 bg-white rounded-3 border shadow-2xs d-flex align-items-center justify-content-between gap-3 hover-shadow transition-all">
+                    <div class="d-flex align-items-center gap-3 min-w-0">
+                        <div class="rounded-3 text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 42px; height: 42px; font-size: 1.1rem; background: linear-gradient(135deg, #0284c7, #0369a1);">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <h6 class="fw-bold text-dark mb-0 text-truncate">{{ cours.nom }}</h6>
+                            <small class="text-muted d-block text-truncate">
+                                {% if cours.classe %}<span class="badge bg-light text-dark border me-1">{{ cours.classe.nom if cours.classe.nom is defined else cours.classe }}</span>{% endif %}
+                                {% if cours.professeur %}Prof : {{ cours.professeur }}{% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('main.cours_details', id=cours.id) }}" class="btn btn-sm btn-outline-info rounded-pill px-3 py-1.5 flex-shrink-0 fw-semibold">
+                        Consulter <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    {% endif %}
+
+{% elif results and results.total == 0 %}
+    <!-- Aucun résultat -->
+    <div class="text-center py-5 px-3 bg-light rounded-3 border">
+        <div class="rounded-circle bg-white border d-inline-flex align-items-center justify-content-center mb-3 shadow-2xs" style="width: 64px; height: 64px;">
+            <i class="fas fa-search fa-2x text-muted"></i>
+        </div>
+        <h6 class="fw-bold text-dark mb-1">Aucun résultat trouvé</h6>
+        <p class="text-muted small mb-3 max-w-sm mx-auto">
+            Aucun élément ne correspond à "<strong>{{ terme }}</strong>". Vérifiez l'orthographe du nom ou essayez avec moins de lettres.
+        </p>
+    </div>
+
+{% else %}
+    <!-- État initial d'attente (vide) -->
+    <div class="text-center py-5 px-3">
+        <div class="rounded-circle bg-primary-subtle text-primary d-inline-flex align-items-center justify-content-center mb-3 shadow-2xs" style="width: 64px; height: 64px;">
+            <i class="fas fa-search fa-2x"></i>
+        </div>
+        <h6 class="fw-bold text-dark mb-1">Que recherchez-vous ?</h6>
+        <p class="text-muted small mb-0 max-w-sm mx-auto">
+            {% if is_super_search %}
+                Saisissez le nom d'une école, d'un compte, d'une demande ou d'un journal système.
+            {% else %}
+                Tapez simplement le nom ou prénom d'un élève, son matricule, ou le nom d'un professeur : la recherche s'actualise toute seule.
+            {% endif %}
+        </p>
+    </div>
+{% endif %}
+

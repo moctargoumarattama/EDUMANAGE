@@ -1,0 +1,118 @@
+<!-- ==========================================================================
+     MODAL POPUP : RECHERCHE GLOBALE INSTANTANÉE (SPOTLIGHT)
+     Accessible depuis la barre supérieure sur PC et la navigation mobile
+     ========================================================================== -->
+<div class="modal fade" id="modalRechercheGlobale" tabindex="-1" aria-labelledby="modalRechercheGlobaleLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 1.25rem; overflow: hidden;">
+            
+            <!-- EN-TÊTE DU MODAL : CHAMP DE SAISIE PRINCIPAL -->
+            <div class="modal-header border-bottom bg-light px-3 py-3 d-flex flex-column gap-2 align-items-stretch">
+                <div class="d-flex align-items-center justify-content-between w-100 gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary text-white rounded-pill px-2.5 py-1">
+                            <i class="fas fa-search me-1"></i> Recherche
+                        </span>
+                        <h6 class="modal-title fw-bold text-dark mb-0 fs-6" id="modalRechercheGlobaleLabel">
+                            Recherche Globale Instantanée
+                        </h6>
+                    </div>
+                    <!-- Bouton Fermer bien visible -->
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1.5" data-bs-dismiss="modal" aria-label="Fermer">
+                        <i class="fas fa-times"></i>
+                        <span class="small fw-semibold">Fermer</span>
+                    </button>
+                </div>
+
+                <!-- Barre de saisie centrale dans le modal -->
+                <div class="position-relative w-100 mt-1">
+                    <i class="fas fa-search position-absolute top-50 translate-middle-y text-primary fs-5 ms-3 pointer-events-none" id="modalSearchIcon"></i>
+                    
+                    <input type="text" 
+                           id="globalModalSearchInput" 
+                           class="form-control form-control-lg border-2 border-primary-subtle shadow-sm ps-5 pe-5 py-2.5 rounded-pill fs-6" 
+                           placeholder="{% if current_user.is_authenticated and current_user.role == 'super_admin' %}Tapez le nom d'une école, d'un compte, d'un email...{% else %}Tapez le nom d'un élève, prénom, matricule ou cours...{% endif %}" 
+                           autocomplete="off"
+                           aria-label="Recherche">
+
+                    <!-- Bouton Effacer le texte -->
+                    <button type="button" 
+                            id="modalSearchClearBtn" 
+                            class="btn btn-sm position-absolute top-50 translate-middle-y end-0 me-2 text-muted rounded-circle d-none" 
+                            style="width: 32px; height: 32px; padding: 0;"
+                            title="Effacer le texte">
+                        <i class="fas fa-times-circle fs-5"></i>
+                    </button>
+                </div>
+
+                <!-- Filtres par catégorie sous la barre -->
+                <div class="d-flex align-items-center flex-wrap gap-1.5 pt-1 w-100" id="modalSearchFilters">
+                    <span class="text-muted small fw-semibold me-1">
+                        <i class="fas fa-filter me-1"></i>Filtrer :
+                    </span>
+                    <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1 modal-filter-btn active" data-type="all">
+                        <i class="fas fa-th-large me-1"></i> Tous
+                    </button>
+
+                    {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 modal-filter-btn" data-type="ecoles">
+                        <i class="fas fa-school me-1"></i> Écoles
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 modal-filter-btn" data-type="utilisateurs">
+                        <i class="fas fa-users me-1"></i> Comptes
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 modal-filter-btn" data-type="demandes">
+                        <i class="fas fa-handshake me-1"></i> Demandes
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 modal-filter-btn" data-type="logs">
+                        <i class="fas fa-file-alt me-1"></i> Logs
+                    </button>
+                    {% else %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 modal-filter-btn" data-type="eleves">
+                        <i class="fas fa-user-graduate me-1"></i> Élèves
+                    </button>
+                    {% if current_user.role == 'admin' %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 modal-filter-btn" data-type="professeurs">
+                        <i class="fas fa-chalkboard-teacher me-1"></i> Professeurs
+                    </button>
+                    {% endif %}
+                    {% if current_user.role in ['admin', 'professeur'] %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 modal-filter-btn" data-type="cours">
+                        <i class="fas fa-book me-1"></i> Cours
+                    </button>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- CORPS DU MODAL : RÉSULTATS DYNAMIQUES -->
+            <div class="modal-body p-3 p-md-4" style="min-height: 280px; max-height: 60vh;">
+                <!-- Indicateur de chargement en direct -->
+                <div id="modalSearchLoading" class="text-center py-4 d-none">
+                    <div class="spinner-border text-primary" role="status" style="width: 2.2rem; height: 2.2rem;">
+                        <span class="visually-hidden">Recherche en cours...</span>
+                    </div>
+                    <div class="text-muted small mt-2 fw-semibold">Recherche en cours...</div>
+                </div>
+
+                <!-- Zone de contenu des résultats -->
+                <div id="modalSearchResults">
+                    {% include 'partials/_recherche_results.html' %}
+                </div>
+            </div>
+
+            <!-- PIED DU MODAL -->
+            <div class="modal-footer bg-light border-top px-3 py-2 d-flex align-items-center justify-content-between">
+                <span class="small text-muted d-none d-sm-inline">
+                    <i class="fas fa-bolt text-warning me-1"></i>
+                    Résultats actualisés automatiquement dès la frappe
+                </span>
+                <button type="button" class="btn btn-secondary rounded-pill px-4 py-1.5 ms-auto fw-semibold" data-bs-dismiss="modal">
+                    Fermer la recherche
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+

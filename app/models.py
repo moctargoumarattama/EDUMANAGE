@@ -656,6 +656,10 @@ class Eleve(db.Model):
         total_coeff = sum(n.coefficient for n in self.notes)
         return round(total_pondere / total_coeff, 2) if total_coeff > 0 else 0
 
+    @property
+    def matricule(self):
+        return self.code_parent or (f"ELV-{self.id}" if self.id else "")
+
     def __repr__(self):
         return f'<Élève {self.prenom} {self.nom}>'
 

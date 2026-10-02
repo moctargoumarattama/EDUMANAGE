@@ -9,6 +9,7 @@ from .common import (
     Cours,
     DeleteForm,
     Absence,
+    Eleve,
     Inscription,
     Professeur,
     ProfesseurForm,
@@ -814,17 +815,30 @@ def mes_enseignements():
             "absences_count": absences_counts.get(classe.id, 0),
         })
 
-    cours_data = []
-    for cours in cours_prof:
-        cours_data.append({
-            "cours": cours,
-            "effectif": effectifs.get(cours.classe_id, 0),
-            "notes_count": len(cours.notes) if getattr(cours, "notes", None) is not None else 0,
-        })
+    recent_absences = []
+    if cours_prof and annee_consultee:
+        prof_cours_ids = [c.id for c in cours_prof]
+        recent_absences = (
+            Absence.query
+            .join(Cours, Absence.cours_id == Cours.id)
+            .join(Eleve, Absence.eleve_id == Eleve.id)
+            .options(
+                joinedload(Absence.eleve),
+                joinedload(Absence.cours).joinedload(Cours.classe),
+            )
+            .filter(
+                Absence.ecole_id == ecole_id,
+                Absence.cours_id.in_(prof_cours_ids),
+            )
+            .order_by(Absence.date_absence.desc(), Absence.id.desc())
+            .limit(30)
+            .all()
+        )
 
     return render_template(
         "mes_enseignements.html",
         classes_data=classes_data,
-        cours_data=cours_data,
+        cours_data=cours_prof,
+        recent_absences=recent_absences,
         annee_consultee=annee_consultee,
     )

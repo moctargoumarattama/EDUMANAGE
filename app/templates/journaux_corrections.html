@@ -206,7 +206,8 @@
                 <!-- Contenu de l'école (Événements critiques de cette école) -->
                 <div id="ecole-content-{{ grp.ecole.id }}">
                     {% if grp.corrections %}
-                        <div class="table-responsive">
+                        <!-- 🖥️ Vue PC Tableau -->
+                        <div class="table-responsive d-none d-md-block">
                             <table class="table table-hover align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
@@ -271,6 +272,40 @@
                                     {% endfor %}
                                 </tbody>
                             </table>
+                        </div>
+
+                        <!-- 📱 Vue Mobile (Cartes tactiles sans scroll horizontal) -->
+                        <div class="d-md-none p-3">
+                            <div class="d-flex flex-column gap-2.5">
+                                {% for c in grp.corrections %}
+                                    <div class="p-3 bg-light rounded-3 border">
+                                        <div class="d-flex justify-content-between align-items-center mb-1.5">
+                                            {% if c.niveau == 'critique' %}
+                                                <span class="badge bg-danger"><i class="fas fa-skull-crossbones me-1"></i>CRITIQUE</span>
+                                            {% elif c.niveau == 'warning' %}
+                                                <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle me-1"></i>WARNING</span>
+                                            {% else %}
+                                                <span class="badge bg-info">{{ c.niveau | upper }}</span>
+                                            {% endif %}
+                                            <small class="text-muted"><i class="far fa-clock me-1"></i>{{ c.date.strftime('%d/%m %H:%M') if c.date else '' }}</small>
+                                        </div>
+                                        <div class="fw-bold text-dark small mb-1">{{ c.action }}</div>
+                                        <p class="small text-muted mb-2">{{ c.description }}</p>
+                                        {% if c.ancienne_valeur or c.nouvelle_valeur %}
+                                            <div class="p-2 rounded bg-white border small font-monospace mb-2">
+                                                <div class="text-danger small"><i class="fas fa-minus-circle me-1"></i>Avant: {{ c.ancienne_valeur or '—' }}</div>
+                                                <div class="text-success small"><i class="fas fa-plus-circle me-1"></i>Après: {{ c.nouvelle_valeur or '—' }}</div>
+                                            </div>
+                                        {% endif %}
+                                        <div class="d-flex align-items-center justify-content-between text-muted small pt-1 border-top">
+                                            <span><i class="fas fa-user-shield me-1 text-primary"></i>{{ c.user.nom if c.user else 'Système' }}</span>
+                                            {% if c.cible_type %}
+                                                <span class="badge bg-white text-secondary border font-monospace">{{ c.cible_type }} #{{ c.cible_id }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
                         </div>
                     {% else %}
                         <div class="p-4 text-center text-muted">

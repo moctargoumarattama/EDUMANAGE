@@ -78,12 +78,12 @@
                             </li>
 
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint in ('main.gestion_ecoles', 'main.ajouter_ecole') }}" href="#" role="button" data-bs-toggle="dropdown">
+                                <a class="nav-link dropdown-toggle {{ 'active' if request.endpoint == 'main.gestion_ecoles' }}" href="#" role="button" data-bs-toggle="dropdown">
                                     <i class="fas fa-school me-1"></i>Écoles
                                 </a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" href="{{ url_for('main.gestion_ecoles') }}"><i class="fas fa-cog me-2"></i>Gérer les écoles</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('main.ajouter_ecole') }}"><i class="fas fa-plus me-2"></i>Ajouter une école</a></li>
+                                    <li><a class="dropdown-item" href="#modalAjouterEcole" data-bs-toggle="modal" data-bs-target="#modalAjouterEcole"><i class="fas fa-plus me-2"></i>Ajouter une école</a></li>
                                 </ul>
                             </li>
 
@@ -158,11 +158,10 @@
                                     <i class="fas fa-briefcase me-1"></i>Suivi
                                 </a>
                                 <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="{{ url_for('main.point_du_jour') }}"><i class="fas fa-clipboard-check me-2"></i>Point du jour</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('main.point_du_jour') }}" data-bs-toggle="offcanvas" data-bs-target="#offcanvasPointDuJour" role="button"><i class="fas fa-clipboard-check me-2"></i>Point du jour</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.paiements') }}"><i class="fas fa-money-bill-wave me-2"></i>Paiements</a></li>
                                     <li><a class="dropdown-item" href="{{ url_for('main.bulletins') }}"><i class="fas fa-file-pdf me-2"></i>Bulletins</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('main.alertes') }}"><i class="fas fa-bell me-2"></i>Alertes</a></li>
-                                    <li class="d-none d-lg-block"><a class="dropdown-item" href="{{ url_for('main.rapports') }}"><i class="fas fa-chart-bar me-2"></i>Rapport global</a></li>
+                                    <li><a class="dropdown-item" href="{{ url_for('main.alertes') }}" data-bs-toggle="modal" data-bs-target="#modalCentreAlertes" role="button"><i class="fas fa-bell me-2"></i>Alertes</a></li>
                                 </ul>
                             </li>
 
@@ -202,31 +201,21 @@
                             </li>
 
 
-                        <!-- 🔹 PROFESSEUR/ENSEIGNANT : Accès à ses classes et cours -->
+                        <!-- 🔹 PROFESSEUR : 3 Pôles Clairs (Mon Espace, Mes Classes & Présences, Mes Évaluations) -->
                         {% elif current_user.role == 'professeur' %}
                             <li class="nav-item">
-                                <a class="nav-link {{ 'active' if request.endpoint == 'main.professeur_dashboard' }}" href="{{ url_for('main.professeur_dashboard') }}">
-                                    <i class="fas fa-home me-1"></i>Accueil
+                                <a class="nav-link {{ 'active' if request.endpoint in ('main.professeur_dashboard', 'main.professeur_home') }}" href="{{ url_for('main.professeur_dashboard') }}">
+                                    <i class="fas fa-calendar-day me-1"></i>Mon Espace
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link {{ 'active' if request.endpoint == 'main.mes_enseignements' }}" href="{{ url_for('main.mes_enseignements') }}">
-                                    <i class="fas fa-layer-group me-1"></i>Mes enseignements
+                                    <i class="fas fa-chalkboard me-1"></i>Mes Classes &amp; Présences
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('main.notes') }}">
-                                    <i class="fas fa-edit me-1"></i>Évaluations
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('main.absences') }}">
-                                    <i class="fas fa-calendar-times me-1"></i>Absences
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('main.professeur_home') }}">
-                                    <i class="fas fa-calendar-alt me-1"></i>Emploi du temps
+                                <a class="nav-link {{ 'active' if request.endpoint in ('main.notes', 'main.saisie_notes_classe') }}" href="{{ url_for('main.notes') }}">
+                                    <i class="fas fa-edit me-1"></i>Mes Évaluations
                                 </a>
                             </li>
 
@@ -248,9 +237,9 @@
                     <!-- Bouton de recherche - Visible pour admin, enseignant, professeur -->
                     {% if current_user.is_authenticated and current_user.role in ['admin', 'super_admin', 'professeur'] %}
                     <li class="nav-item me-2 d-flex align-items-center">
-                        <a href="{{ url_for('main.recherche') }}" class="btn btn-outline-light btn-sm rounded-circle" title="Recherche">
+                        <button type="button" class="btn btn-outline-light btn-sm rounded-circle" data-bs-toggle="modal" data-bs-target="#modalRechercheGlobale" title="Recherche instantanée" aria-label="Recherche">
                             <i class="fas fa-search"></i>
-                        </a>
+                        </button>
                     </li>
                     {% endif %}
 
@@ -536,7 +525,7 @@
 
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
 
     <!-- Custom JavaScript -->
     <script>
@@ -716,6 +705,18 @@
     {% if current_user.is_authenticated and current_user.role in ['admin', 'directeur', 'super_admin'] %}
     {% include 'components/assistant_widget.html' %}
     {% endif %}
+    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+    {% include 'partials/_offcanvas_point_du_jour.html' %}
+    {% endif %}
+    {% if current_user.is_authenticated and current_user.role in ['admin', 'professeur', 'parent'] %}
+    {% include 'partials/_modal_centre_alertes.html' %}
+    {% endif %}
+    {% if current_user.is_authenticated %}
+    {% include 'partials/_modal_recherche_globale.html' %}
+    {% endif %}
+    {% if current_user.is_authenticated and current_user.role == 'super_admin' %}
+    {% include 'partials/_modal_ajouter_ecole.html' %}
+    {% endif %}
 
     <!-- Scripts frontend communs (chargement différé sans blocage du rendu) -->
     <script defer src="{{ url_for('static', filename='js/main.js', v='15-touch-perf') }}"></script>
@@ -725,8 +726,15 @@
     <script defer src="{{ url_for('static', filename='js/offline-forms.js', v='14') }}"></script>
     <script defer src="{{ url_for('static', filename='js/klasora-ui.js', v='14') }}"></script>
     <script defer src="{{ url_for('static', filename='js/live-filters.js', v='14') }}"></script>
+    {% if current_user.is_authenticated %}
+    <script defer src="{{ url_for('static', filename='js/global_search_modal.js', v='1') }}"></script>
+    {% endif %}
+    {% if current_user.is_authenticated and current_user.role in ['admin', 'professeur', 'parent'] %}
+    <script defer src="{{ url_for('static', filename='js/modal_centre_alertes.js', v='1') }}"></script>
+    {% endif %}
     {% if current_user.is_authenticated and current_user.role == 'admin' %}
     <script defer src="{{ url_for('static', filename='js/onboarding.js', v='14-tour2') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/point_du_jour_drawer.js', v='1') }}"></script>
     {% endif %}
 
     <!-- Scripts spécifiques aux pages -->

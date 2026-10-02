@@ -1,0 +1,48 @@
+{% if current_user.is_authenticated and current_user.role == 'admin' %}
+<!-- Languette discrète latérale sur le bord droit (PC uniquement) -->
+<button type="button" 
+        class="point-du-jour-tab-trigger d-none d-xl-inline-flex" 
+        data-bs-toggle="offcanvas" 
+        data-bs-target="#offcanvasPointDuJour" 
+        aria-controls="offcanvasPointDuJour"
+        title="Point du jour (Tiroir rapide)">
+    <i class="fas fa-clipboard-check"></i>
+    <span>Point du jour</span>
+</button>
+
+<!-- Tiroir latéral coulissant (Offcanvas Drawer) : Point du jour -->
+<div class="offcanvas offcanvas-end point-du-jour-drawer shadow-lg" 
+     tabindex="-1" 
+     id="offcanvasPointDuJour" 
+     aria-labelledby="offcanvasPointDuJourLabel"
+     data-bs-backdrop="true"
+     data-bs-scroll="false">
+    <div class="offcanvas-header border-bottom bg-light py-3 px-3.5">
+        <div class="d-flex align-items-center gap-2.5">
+            <span class="rounded-circle d-inline-flex align-items-center justify-content-center text-primary bg-primary bg-opacity-10 flex-shrink-0" style="width: 38px; height: 38px; font-size: 1.1rem;">
+                <i class="fas fa-clipboard-check"></i>
+            </span>
+            <div>
+                <h5 class="offcanvas-title fw-bold mb-0 text-dark" id="offcanvasPointDuJourLabel">Point du jour</h5>
+                <small class="text-muted" style="font-size: 0.78rem;">Synthèse quotidienne & alertes</small>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-light border rounded-pill px-2.5 py-1 d-flex align-items-center gap-1.5 shadow-2xs" id="btnRefreshPointDuJour" title="Rafraîchir les données en direct">
+                <i class="fas fa-sync-alt text-primary" id="iconRefreshPointDuJour" style="font-size: 0.75rem;"></i>
+                <span class="small fw-semibold text-secondary d-none d-sm-inline">Actualiser</span>
+            </button>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fermer"></button>
+        </div>
+    </div>
+    <div class="offcanvas-body p-3 p-md-3.5" id="pointDuJourContentArea">
+        <!-- État initial : Spinner de chargement -->
+        <div class="d-flex flex-column align-items-center justify-content-center py-5 text-muted" id="pointDuJourLoader">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 2.2rem; height: 2.2rem;">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+            <p class="small fw-semibold mb-0">Chargement de votre point du jour...</p>
+        </div>
+    </div>
+</div>
+{% endif %}

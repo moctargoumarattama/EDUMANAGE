@@ -14,7 +14,9 @@ from .common import (
     Paiement,
     current_user,
     login_required,
+    redirect,
     render_template,
+    request,
     role_required,
     url_for,
 )
@@ -25,6 +27,10 @@ from app.services.annees_scolaires import get_annee_active
 @login_required
 @role_required("admin")
 def point_du_jour():
+    # Si accès direct par URL : redirection immédiate vers l'accueil avec ouverture automatique du tiroir
+    if not (request.args.get("fragment") == "1" or request.headers.get("X-Requested-With") == "XMLHttpRequest"):
+        return redirect(url_for("main.index", open_point_du_jour="1"))
+
     ecole_id = current_user.ecole_id
     today = date.today()
     start = datetime.combine(today, time.min)
@@ -127,7 +133,7 @@ def point_du_jour():
             event["display_title"] = f"{event['count']} {event['title'].lower()}"
 
     return render_template(
-        "point_du_jour.html",
+        "partials/_point_du_jour_content.html",
         today=today,
         annee_active=annee_active,
         counters={"absences": absences_today},

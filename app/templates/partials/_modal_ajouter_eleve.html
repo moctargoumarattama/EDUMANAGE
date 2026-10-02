@@ -1,85 +1,93 @@
 <div class="modal fade" id="modalAjouterEleve" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="modalAjouterEleveLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title d-flex align-items-center gap-2" id="modalAjouterEleveLabel">
-                    <i class="fas fa-user-graduate"></i>
-                    <span>Inscrire un élève</span>
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl modal-fullscreen-md-down">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-white border-bottom py-3 px-3 px-md-4 d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2.5">
+                    <div class="modal-header-icon bg-primary-subtle text-primary">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0 d-flex align-items-center gap-2" id="modalAjouterEleveLabel">
+                            Inscrire un élève
+                        </h5>
+                        <p class="text-muted small mb-0" style="font-size: 0.8rem;">
+                            Fiche d'inscription scolaire complète — Enregistrement en 1 étape
+                        </p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
             {% set f_eleve = eleve_form or form %}
-            <form method="POST" action="{{ url_for('main.ajouter_eleve') }}" class="needs-validation" id="formAjouterEleve" novalidate>
+            <form method="POST" action="{{ url_for('main.ajouter_eleve') }}" class="needs-validation d-flex flex-column flex-grow-1" id="formAjouterEleve" novalidate style="min-height: 0;">
                 {{ f_eleve.hidden_tag() if f_eleve and f_eleve.hidden_tag is defined else '' }}
-                <div class="modal-body p-4">
+                <div class="modal-body p-3 p-md-4">
                     <!-- SECTION 1 : Informations personnelles -->
-                    <div class="form-section mb-4">
-                        <h6 class="fw-bold text-primary mb-3 d-flex align-items-center gap-2">
-                            <i class="fas fa-user"></i> 1. Informations personnelles
-                        </h6>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold" for="modal_eleve_nom">Nom de l'élève <span class="text-danger">*</span></label>
+                    <div class="modal-section-card">
+                        <div class="modal-section-title text-primary">
+                            <span class="modal-section-icon bg-primary-subtle text-primary">
+                                <i class="fas fa-user"></i>
+                            </span>
+                            1. Informations personnelles de l'élève
+                        </div>
+                        <div class="row g-2.5 g-md-3">
+                            <div class="col-12 col-md-4">
+                                <label class="form-label small fw-semibold" for="modal_eleve_nom">Nom de famille <span class="text-danger">*</span></label>
                                 {% if f_eleve and f_eleve.nom %}
-                                    {{ f_eleve.nom(class="form-control", id="modal_eleve_nom", placeholder="Nom de famille", required=true) }}
+                                    {{ f_eleve.nom(class="form-control form-control-sm", id="modal_eleve_nom", placeholder="Nom de famille", required=true) }}
                                 {% else %}
-                                    <input type="text" name="nom" id="modal_eleve_nom" class="form-control" placeholder="Nom de famille" required>
+                                    <input type="text" name="nom" id="modal_eleve_nom" class="form-control form-control-sm" placeholder="Nom de famille" required>
                                 {% endif %}
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold" for="modal_eleve_prenom">Prénom de l'élève <span class="text-danger">*</span></label>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label small fw-semibold" for="modal_eleve_prenom">Prénom(s) <span class="text-danger">*</span></label>
                                 {% if f_eleve and f_eleve.prenom %}
-                                    {{ f_eleve.prenom(class="form-control", id="modal_eleve_prenom", placeholder="Prénom", required=true) }}
+                                    {{ f_eleve.prenom(class="form-control form-control-sm", id="modal_eleve_prenom", placeholder="Prénom de l'élève", required=true) }}
                                 {% else %}
-                                    <input type="text" name="prenom" id="modal_eleve_prenom" class="form-control" placeholder="Prénom" required>
+                                    <input type="text" name="prenom" id="modal_eleve_prenom" class="form-control form-control-sm" placeholder="Prénom de l'élève" required>
                                 {% endif %}
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold" for="modal_eleve_genre">Genre / Sexe <span class="text-danger">*</span></label>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label small fw-semibold" for="modal_eleve_genre">Genre / Sexe <span class="text-danger">*</span></label>
                                 {% if f_eleve and f_eleve.genre %}
-                                    {{ f_eleve.genre(class="form-select", id="modal_eleve_genre", required=true) }}
+                                    {{ f_eleve.genre(class="form-select form-select-sm", id="modal_eleve_genre", required=true) }}
                                 {% else %}
-                                    <select name="genre" id="modal_eleve_genre" class="form-select" required>
-                                        <option value="M">Garçon</option>
-                                        <option value="F">Fille</option>
+                                    <select name="genre" id="modal_eleve_genre" class="form-select form-select-sm" required>
+                                        <option value="M">Garçon (M)</option>
+                                        <option value="F">Fille (F)</option>
                                     </select>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold" for="modal_eleve_date_naissance">Date de naissance <span class="text-danger">*</span></label>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small fw-semibold" for="modal_eleve_date_naissance">Date de naissance <span class="text-danger">*</span></label>
                                 {% if f_eleve and f_eleve.date_naissance %}
-                                    {{ f_eleve.date_naissance(class="form-control", id="modal_eleve_date_naissance", type="date", required=true) }}
+                                    {{ f_eleve.date_naissance(class="form-control form-control-sm", id="modal_eleve_date_naissance", type="date", required=true) }}
                                 {% else %}
-                                    <input type="date" name="date_naissance" id="modal_eleve_date_naissance" class="form-control" required>
+                                    <input type="date" name="date_naissance" id="modal_eleve_date_naissance" class="form-control form-control-sm" required>
                                 {% endif %}
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold" for="modal_eleve_lieu_naissance">Lieu de naissance</label>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small fw-semibold" for="modal_eleve_lieu_naissance">Lieu de naissance</label>
                                 {% if f_eleve and f_eleve.lieu_naissance %}
-                                    {{ f_eleve.lieu_naissance(class="form-control", id="modal_eleve_lieu_naissance", placeholder="Ex: Niamey, Maradi...") }}
+                                    {{ f_eleve.lieu_naissance(class="form-control form-control-sm", id="modal_eleve_lieu_naissance", placeholder="Ex: Niamey, Maradi, Zinder...") }}
                                 {% else %}
-                                    <input type="text" name="lieu_naissance" id="modal_eleve_lieu_naissance" class="form-control" placeholder="Ex: Niamey, Maradi...">
+                                    <input type="text" name="lieu_naissance" id="modal_eleve_lieu_naissance" class="form-control form-control-sm" placeholder="Ex: Niamey, Maradi, Zinder...">
                                 {% endif %}
                             </div>
                         </div>
                     </div>
 
-                    <!-- SECTION 2 : Inscription & Scolarité -->
-                    <div class="form-section mb-4">
-                        <h6 class="fw-bold text-primary mb-3 d-flex align-items-center gap-2">
-                            <i class="fas fa-school"></i> 2. Inscription & Scolarité
-                        </h6>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Année scolaire</label>
-                                <div class="form-control bg-light d-flex align-items-center justify-content-between">
-                                    <span>{{ annee_consultee.nom if annee_consultee else (annee_active.nom if annee_active else 'Année en cours') }}</span>
-                                    <span class="badge bg-success small">Active</span>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold" for="modal_eleve_classe_id">Classe d'affectation <span class="text-danger">*</span></label>
-                                <select class="form-select" name="classe_id" id="modal_eleve_classe_id" required>
+                    <!-- SECTION 2 : Inscription & Scolarité (Année scolaire supprimée pour libérer l'espace) -->
+                    <div class="modal-section-card">
+                        <div class="modal-section-title text-primary">
+                            <span class="modal-section-icon bg-primary-subtle text-primary">
+                                <i class="fas fa-school"></i>
+                            </span>
+                            2. Inscription & Scolarité
+                        </div>
+                        <div class="row g-2.5 g-md-3">
+                            <div class="col-12 col-md-7">
+                                <label class="form-label small fw-semibold" for="modal_eleve_classe_id">Classe d'affectation <span class="text-danger">*</span></label>
+                                <select class="form-select form-select-sm" name="classe_id" id="modal_eleve_classe_id" required>
                                     {% if f_eleve and f_eleve.classe_id and f_eleve.classe_id.choices %}
                                         <option value="" disabled {% if not f_eleve.classe_id.data %}selected{% endif %}>-- Sélectionner obligatoirement une classe --</option>
                                         {% for id, nom in f_eleve.classe_id.choices %}
@@ -96,83 +104,88 @@
                                 </select>
                                 <div class="invalid-feedback">Veuillez obligatoirement sélectionner une classe.</div>
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold" for="modal_eleve_frais">Frais annuels de scolarité (FCFA)</label>
+                            <div class="col-12 col-md-5">
+                                <label class="form-label small fw-semibold" for="modal_eleve_frais">Frais annuels de scolarité (FCFA)</label>
                                 {% if f_eleve and f_eleve.frais_annuels %}
-                                    {{ f_eleve.frais_annuels(class="form-control", id="modal_eleve_frais", placeholder="150000") }}
+                                    {{ f_eleve.frais_annuels(class="form-control form-control-sm", id="modal_eleve_frais", placeholder="150000") }}
                                 {% else %}
-                                    <input type="number" name="frais_annuels" id="modal_eleve_frais" class="form-control" value="150000" placeholder="150000">
+                                    <input type="number" name="frais_annuels" id="modal_eleve_frais" class="form-control form-control-sm" value="150000" placeholder="150000">
                                 {% endif %}
                             </div>
                         </div>
                     </div>
 
                     <!-- SECTION 3 : Parent / Tuteur -->
-                    <div class="form-section mb-4">
-                        <h6 class="fw-bold text-primary mb-3 d-flex align-items-center gap-2">
-                            <i class="fas fa-user-friends"></i> 3. Parent / Tuteur
-                        </h6>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold" for="modal_eleve_parent_id">Rattachement à un parent</label>
-                            <select class="form-select" name="parent_id" id="modal_eleve_parent_id">
+                    <div class="modal-section-card">
+                        <div class="modal-section-title text-primary">
+                            <span class="modal-section-icon bg-primary-subtle text-primary">
+                                <i class="fas fa-user-friends"></i>
+                            </span>
+                            3. Responsable légal / Tuteur
+                        </div>
+                        <div class="mb-2.5">
+                            <label class="form-label small fw-semibold" for="modal_eleve_parent_id">Rattachement à un parent existant</label>
+                            <select class="form-select form-select-sm" name="parent_id" id="modal_eleve_parent_id">
                                 {% if f_eleve and f_eleve.parent_id and f_eleve.parent_id.choices %}
                                     {% for id, label in f_eleve.parent_id.choices %}
                                     <option value="{{ id }}" {% if f_eleve.parent_id.data == id %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 {% else %}
-                                    <option value="0" selected>--- Aucun parent / Nouveau tuteur ---</option>
+                                    <option value="0" selected>--- Aucun parent existant / Nouveau tuteur ---</option>
                                 {% endif %}
                             </select>
                         </div>
 
                         <!-- Champs pour nouveau parent si parent_id == 0 -->
-                        <div id="modal_nouveau_parent_wrapper" class="p-3 bg-light rounded-3 border">
-                            <div class="row g-3">
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold" for="modal_parent_nom">Nom complet du tuteur</label>
-                                    <input type="text" name="parent_nom" id="modal_parent_nom" class="form-control" placeholder="Nom et prénom du tuteur">
+                        <div id="modal_nouveau_parent_wrapper" class="p-2.5 p-md-3 bg-light rounded-3 border">
+                            <div class="row g-2.5 g-md-3">
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small fw-semibold" for="modal_parent_nom">Nom complet du tuteur</label>
+                                    <input type="text" name="parent_nom" id="modal_parent_nom" class="form-control form-control-sm" placeholder="Nom et prénom du tuteur">
                                 </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold" for="modal_parent_telephone">Numéro WhatsApp / Téléphone <span class="text-danger">*</span></label>
-                                    <input type="tel" name="parent_telephone" id="modal_parent_telephone" class="form-control" inputmode="tel" autocomplete="tel" placeholder="Ex: 90 12 34 56 ou +227 90 12 34 56" required>
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small fw-semibold" for="modal_parent_telephone">Numéro WhatsApp / Tél <span class="text-danger">*</span></label>
+                                    <input type="tel" name="parent_telephone" id="modal_parent_telephone" class="form-control form-control-sm" inputmode="tel" autocomplete="tel" placeholder="Ex: 90 12 34 56 ou +227..." required>
                                     <div class="invalid-feedback">Le numéro de téléphone du tuteur est requis.</div>
                                 </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fw-semibold" for="modal_code_parent">Code parent (accès)</label>
-                                    <input type="text" name="code_parent" id="modal_code_parent" class="form-control" placeholder="8 chiffres (laisser vide pour générer)">
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small fw-semibold" for="modal_code_parent">Code parent (accès)</label>
+                                    <input type="text" name="code_parent" id="modal_code_parent" class="form-control form-control-sm" placeholder="8 chiffres (vide = auto)">
                                 </div>
                             </div>
-                            <div class="form-text small mt-2 text-muted">
-                                <i class="fab fa-whatsapp text-success me-1"></i>Le numéro du tuteur est utilisé pour les alertes WhatsApp et l'accès parent en ligne.
+                            <div class="form-text small mt-2 text-muted d-flex align-items-center gap-1.5">
+                                <i class="fab fa-whatsapp text-success"></i>
+                                <span>Reçoit automatiquement les alertes de scolarité, devoirs et absences.</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- SECTION 4 : Coordonnées -->
-                    <div class="form-section">
-                        <h6 class="fw-bold text-primary mb-3 d-flex align-items-center gap-2">
-                            <i class="fas fa-map-marker-alt"></i> 4. Coordonnées résidentielles
-                        </h6>
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <label class="form-label fw-semibold" for="modal_eleve_adresse">Adresse du domicile</label>
-                                {% if f_eleve and f_eleve.adresse %}
-                                    {{ f_eleve.adresse(class="form-control", id="modal_eleve_adresse", rows="2", placeholder="Quartier, rue ou indications géographiques...") }}
-                                {% else %}
-                                    <textarea name="adresse" id="modal_eleve_adresse" class="form-control" rows="2" placeholder="Quartier, rue ou indications géographiques..."></textarea>
-                                {% endif %}
-                            </div>
+                    <div class="modal-section-card">
+                        <div class="modal-section-title text-primary">
+                            <span class="modal-section-icon bg-primary-subtle text-primary">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </span>
+                            4. Coordonnées résidentielles
+                        </div>
+                        <div>
+                            <label class="form-label small fw-semibold" for="modal_eleve_adresse">Adresse du domicile</label>
+                            {% if f_eleve and f_eleve.adresse %}
+                                {{ f_eleve.adresse(class="form-control form-control-sm", id="modal_eleve_adresse", rows="2", placeholder="Quartier, rue ou repères géographiques...") }}
+                            {% else %}
+                                <textarea name="adresse" id="modal_eleve_adresse" class="form-control form-control-sm" rows="2" placeholder="Quartier, rue ou repères géographiques..."></textarea>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
 
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">
+                <div class="modal-footer bg-white border-top py-2.5 px-3 px-md-4">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-3 py-2" data-bs-dismiss="modal">
                         <i class="fas fa-times me-1"></i>Annuler
                     </button>
-                    <button type="submit" class="btn btn-primary rounded-pill px-4" id="btnSubmitAjouterEleve" data-original-text="Inscrire l'élève">
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 py-2" id="btnSubmitAjouterEleve" data-original-text="Inscrire l'élève">
                         <span class="submit-spinner spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
-                        <span class="submit-text"><i class="fas fa-plus-circle me-1"></i>Inscrire l'élève</span>
+                        <span class="submit-text"><i class="fas fa-user-plus me-1"></i>Inscrire l'élève</span>
                     </button>
                 </div>
             </form>
@@ -232,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const spinner = submitBtn.querySelector('.submit-spinner');
             if (spinner) spinner.classList.add('d-none');
             const textSpan = submitBtn.querySelector('.submit-text');
-            if (textSpan) textSpan.innerHTML = '<i class="fas fa-plus-circle me-1"></i>Inscrire l\'élève';
+            if (textSpan) textSpan.innerHTML = '<i class="fas fa-user-plus me-1"></i>Inscrire l\'élève';
         }
     });
 

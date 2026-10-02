@@ -8,6 +8,7 @@ from .common import (
     AnneeScolaire,
     can_access_eleve,
     Classe,
+    Cours,
     Eleve,
     EleveForm,
     Inscription,
@@ -712,6 +713,11 @@ def api_eleves_par_classe(classe_id):
                     professeur_classes.c.professeur_id == professeur_id,
                     professeur_classes.c.classe_id == classe.id
                 ).first()
+                or Cours.query.filter_by(
+                    professeur_id=professeur_id,
+                    classe_id=classe.id,
+                    ecole_id=ecole_id
+                ).first()
             )
         )
         if not is_assigned:
@@ -731,8 +737,10 @@ def api_eleves_par_classe(classe_id):
     return jsonify({'eleves': [
         {
             'id': inscription.eleve.id,
+            'matricule': inscription.eleve.matricule or '',
             'nom': inscription.eleve.nom,
             'prenom': inscription.eleve.prenom,
+            'genre': inscription.eleve.genre or '',
             'telephone': inscription.eleve.contact_parent or '-',
             'classe': inscription.classe.nom if inscription.classe else "Sans classe",
             'parent': f"{inscription.eleve.parent.prenom} {inscription.eleve.parent.nom}" if inscription.eleve.parent else "Non assigné"

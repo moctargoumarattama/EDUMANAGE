@@ -1,0 +1,305 @@
+<!-- =================================================================== -->
+<!-- MODAL ANALYTIQUE CONTEXTUELLE : PALMARÈS ACADÉMIQUE & PERFORMANCES -->
+<!-- KLASORA - In-Context Analytics Notes par Classe                    -->
+<!-- =================================================================== -->
+<div class="modal fade" id="modalPalmaresNotes" tabindex="-1" aria-labelledby="modalPalmaresNotesLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+
+            <!-- En-tête du Modal -->
+            <div class="modal-header border-bottom bg-white px-3 px-md-4 py-3 align-items-center">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-3 p-2.5 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px;">
+                        <i class="fas fa-trophy fa-lg text-warning"></i>
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <h2 class="modal-title h5 fw-bold text-gray-900 mb-0" id="modalPalmaresNotesLabel">
+                                Palmarès Académique &amp; Performances
+                            </h2>
+                            {% if annee_consultee %}
+                            <span class="badge bg-light text-dark border small">
+                                <i class="fas fa-calendar-alt me-1 text-primary"></i>{{ annee_consultee.nom }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <p class="text-muted small mb-0 mt-0.5">
+                            Analytique contextuelle des moyennes par classe pour valoriser l'excellence et déclencher un suivi pédagogique ciblé.
+                        </p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+
+            <!-- Corps du Modal -->
+            <div class="modal-body p-3 p-md-4 bg-light bg-opacity-50">
+                {% if palmares_notes %}
+                {% set stats = palmares_notes.statistiques %}
+
+                <!-- 1. Mini-KPIs en haut du modal -->
+                <div class="row g-2 g-md-3 mb-3 mb-md-4">
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-xs rounded-4 p-2.5 p-md-3 bg-white h-100">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="rounded-3 p-2 bg-primary bg-opacity-10 text-primary fs-5 flex-shrink-0">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="h5 fw-extrabold text-gray-900 mb-0">
+                                        {{ ("%.2f"|format(stats.moyenne_generale)) if stats.moyenne_generale is not none else '—' }}<span class="fs-6 fw-normal text-muted">/20</span>
+                                    </div>
+                                    <div class="text-muted small text-truncate" style="font-size: 0.72rem;">
+                                        Moyenne Globale ({{ stats.total_notes }} notes)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-xs rounded-4 p-2.5 p-md-3 bg-white h-100">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="rounded-3 p-2 bg-success bg-opacity-10 text-success fs-5 flex-shrink-0">
+                                    <i class="fas fa-percentage"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="h5 fw-extrabold text-gray-900 mb-0">
+                                        {{ ("%.1f"|format(stats.taux_reussite)) if stats.taux_reussite is not none else '—' }}%
+                                    </div>
+                                    <div class="text-muted small text-truncate" style="font-size: 0.72rem;">
+                                        Taux de Réussite (≥ 10/20)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-xs rounded-4 p-2.5 p-md-3 bg-white h-100">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="rounded-3 p-2 bg-warning bg-opacity-10 text-warning fs-5 flex-shrink-0">
+                                    <i class="fas fa-medal"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="h6 fw-bold text-gray-900 mb-0 text-truncate">
+                                        {{ palmares_notes.classe_meilleure.nom if palmares_notes.classe_meilleure else 'Aucune' }}
+                                    </div>
+                                    <div class="text-muted small text-truncate" style="font-size: 0.72rem;">
+                                        {% if palmares_notes.classe_meilleure and palmares_notes.classe_meilleure.moyenne is not none %}
+                                            Meilleure moyenne ({{ "%.2f"|format(palmares_notes.classe_meilleure.moyenne) }}/20)
+                                        {% else %}
+                                            En attente
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-xs rounded-4 p-2.5 p-md-3 bg-white h-100">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="rounded-3 p-2 bg-info bg-opacity-10 text-info fs-5 flex-shrink-0">
+                                    <i class="fas fa-compass"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="h6 fw-bold text-gray-900 mb-0 text-truncate">
+                                        {{ palmares_notes.classe_plus_faible.nom if palmares_notes.classe_plus_faible else 'Aucune' }}
+                                    </div>
+                                    <div class="text-muted small text-truncate" style="font-size: 0.72rem;">
+                                        {% if palmares_notes.classe_plus_faible and palmares_notes.classe_plus_faible.moyenne is not none %}
+                                            À accompagner ({{ "%.2f"|format(palmares_notes.classe_plus_faible.moyenne) }}/20)
+                                        {% else %}
+                                            En attente
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Section Podium & Palmarès (Top 5 Meilleures vs Top 5 Faibles) -->
+                <div class="row g-3 mb-3 mb-md-4">
+
+                    <!-- Colonne 1 : 🏆 Top 5 des meilleures moyennes (Excellence) -->
+                    <div class="col-12 col-lg-6">
+                        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white overflow-hidden">
+                            <div class="card-header bg-success bg-opacity-10 border-0 py-2.5 px-3 px-md-4 d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center" style="width: 26px; height: 26px; font-size: 0.75rem;">
+                                        <i class="fas fa-trophy"></i>
+                                    </span>
+                                    <span class="fw-bold text-success small text-uppercase tracking-wider">
+                                        Top 5 - Meilleures Moyennes
+                                    </span>
+                                </div>
+                                <span class="badge bg-success rounded-pill px-2.5 py-1 small fw-semibold">
+                                    Excellence Académique
+                                </span>
+                            </div>
+
+                            <div class="card-body p-2 p-md-3">
+                                {% if palmares_notes.classes_meilleures %}
+                                <div class="d-flex flex-column gap-2">
+                                    {% for c in palmares_notes.classes_meilleures %}
+                                    <div class="p-2.5 rounded-3 border border-success-subtle bg-success bg-opacity-10 d-flex align-items-center justify-content-between gap-2 transition-all hover-shadow-xs">
+                                        <div class="d-flex align-items-center gap-2.5 min-w-0">
+                                            <span class="badge rounded-circle bg-success text-white fw-bold d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px; font-size: 0.8rem;">
+                                                #{{ loop.index }}
+                                            </span>
+                                            <div class="min-w-0">
+                                                <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                                                    <span class="fw-bold text-gray-900 small text-truncate">{{ c.nom }}</span>
+                                                    {% if c.niveau %}
+                                                    <span class="badge bg-white text-secondary border small" style="font-size: 0.68rem;">{{ c.niveau }}</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="text-muted small mt-0.5" style="font-size: 0.72rem;">
+                                                    <span class="text-success fw-semibold">Taux réussite : {{ c.taux_reussite }}%</span> &bull; 
+                                                    <span>{{ c.nb_notes }} note{{ 's' if c.nb_notes > 1 else '' }}</span> &bull; 
+                                                    <span>{{ c.effectif }} él.</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                            <span class="fs-6 fw-extrabold text-success text-nowrap">
+                                                {{ "%.2f"|format(c.moyenne) }}/20
+                                            </span>
+                                            <a href="{{ url_for('main.notes', classe_id=c.id) }}" class="btn btn-sm btn-outline-success rounded-pill px-2.5 py-1 text-nowrap" style="font-size: 0.75rem;" title="Voir les notes de cette classe">
+                                                <i class="fas fa-eye me-1"></i>Voir
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="text-center py-4 text-muted small">
+                                    <i class="fas fa-info-circle fa-2x mb-2 text-primary opacity-50"></i>
+                                    <p class="mb-0">Aucune évaluation saisie pour le moment.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Colonne 2 : ⚠️ Top 5 des moyennes les plus faibles (Suivi pédagogique) -->
+                    <div class="col-12 col-lg-6">
+                        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white overflow-hidden">
+                            <div class="card-header bg-warning bg-opacity-10 border-0 py-2.5 px-3 px-md-4 d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="rounded-circle bg-warning text-dark d-inline-flex align-items-center justify-content-center" style="width: 26px; height: 26px; font-size: 0.75rem;">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    </span>
+                                    <span class="fw-bold text-dark small text-uppercase tracking-wider">
+                                        Top 5 - Suivi Pédagogique
+                                    </span>
+                                </div>
+                                <span class="badge bg-warning text-dark rounded-pill px-2.5 py-1 small fw-semibold">
+                                    À Accompagner
+                                </span>
+                            </div>
+
+                            <div class="card-body p-2 p-md-3">
+                                {% if palmares_notes.classes_faibles %}
+                                <div class="d-flex flex-column gap-2">
+                                    {% for c in palmares_notes.classes_faibles %}
+                                    <div class="p-2.5 rounded-3 border border-warning-subtle bg-warning bg-opacity-10 d-flex align-items-center justify-content-between gap-2 transition-all hover-shadow-xs">
+                                        <div class="d-flex align-items-center gap-2.5 min-w-0">
+                                            <span class="badge rounded-circle bg-warning text-dark fw-bold d-inline-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px; font-size: 0.8rem;">
+                                                #{{ loop.index }}
+                                            </span>
+                                            <div class="min-w-0">
+                                                <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                                                    <span class="fw-bold text-gray-900 small text-truncate">{{ c.nom }}</span>
+                                                    {% if c.niveau %}
+                                                    <span class="badge bg-white text-secondary border small" style="font-size: 0.68rem;">{{ c.niveau }}</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="text-muted small mt-0.5" style="font-size: 0.72rem;">
+                                                    <span class="{% if c.taux_reussite < 50 %}text-danger fw-bold{% else %}text-muted{% endif %}">Taux réussite : {{ c.taux_reussite }}%</span> &bull; 
+                                                    <span>{{ c.nb_notes }} note{{ 's' if c.nb_notes > 1 else '' }}</span> &bull; 
+                                                    <span>{{ c.effectif }} él.</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                            <span class="fs-6 fw-extrabold {% if c.moyenne < 10 %}text-danger{% else %}text-gray-800{% endif %} text-nowrap">
+                                                {{ "%.2f"|format(c.moyenne) }}/20
+                                            </span>
+                                            <a href="{{ url_for('main.notes', classe_id=c.id) }}" class="btn btn-sm btn-outline-warning rounded-pill px-2.5 py-1 text-nowrap" style="font-size: 0.75rem;" title="Voir les notes de cette classe">
+                                                <i class="fas fa-eye me-1"></i>Voir
+                                            </a>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="text-center py-4 text-muted small">
+                                    Aucune classe disponible.
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- 3. Graphique Comparatif Interactif Chart.js -->
+                <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
+                    <div class="card-header bg-white border-bottom py-2.5 px-3 px-md-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-chart-line text-primary"></i>
+                            <span class="fw-bold text-gray-800 small">Moyenne Académique par Classe (Seuil 10/20)</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 small" style="font-size: 0.72rem;">
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">
+                                <i class="fas fa-square text-success me-1"></i>≥ 12/20 (Bien)
+                            </span>
+                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle">
+                                <i class="fas fa-square text-primary me-1"></i>10 - 12/20
+                            </span>
+                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle">
+                                <i class="fas fa-square text-danger me-1"></i>&lt; 10/20 (Alerte)
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body p-2 p-md-3">
+                        <div style="position: relative; height: 260px;">
+                            <canvas id="chartPalmaresNotes"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-info-circle fa-2x mb-2 text-primary"></i>
+                    <p class="mb-0">Les données de notes sont en cours de chargement...</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Pied de Modal -->
+            <div class="modal-footer bg-white border-top px-3 px-md-4 py-2.5 d-flex align-items-center justify-content-between">
+                <div>
+                    <a href="{{ url_for('main.export_notes_excel') }}" class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-xs">
+                        <i class="fas fa-file-excel me-1.5"></i>Exporter Excel
+                    </a>
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary rounded-pill px-4" data-bs-dismiss="modal">
+                    Fermer
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Données JSON pour le graphique -->
+{% if palmares_notes and palmares_notes.chart_data %}
+<script type="application/json" id="palmaresNotesChartDataJson">
+{{ palmares_notes.chart_data | tojson }}
+</script>
+{% endif %}
