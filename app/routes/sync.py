@@ -1,6 +1,7 @@
 import hashlib
 import json
 import uuid
+import math
 from datetime import date, datetime
 
 from flask_wtf.csrf import generate_csrf
@@ -14,6 +15,7 @@ from .common import (
     Eleve,
     Inscription,
     Note,
+    PeriodeBulletin,
     SyncOperationLog,
     can_access_eleve,
     current_app,
@@ -27,6 +29,7 @@ from .common import (
     send_from_directory,
 )
 from app.services.annees_scolaires import get_annee_consultee
+from app.services.notes_annuelles import erreur_verrou_notes
 from app.utils_classes import classes_triees_pedagogique
 from app.services.absences_annuelles import (
     resolve_annee_absence,
@@ -96,15 +99,17 @@ def _process_note_item(item, client_op_id):
 
     try:
         valeur = float(item.get('valeur'))
-        if valeur < 0 or valeur > 20:
+        if not math.isfinite(valeur) or valeur < 0 or valeur > 20:
             return {'client_op_id': client_op_id, 'status': 'error', 'message': 'La note doit être comprise entre 0 et 20'}
     except (ValueError, TypeError):
         return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Valeur de note invalide'}
 
     try:
-        coef = float(item.get('coefficient', 1.0) or 1.0)
+        coef = float(item.get('coefficient', 1.0))
+        if not math.isfinite(coef) or coef <= 0:
+            return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Coefficient invalide'}
     except (ValueError, TypeError):
-        coef = 1.0
+        return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Coefficient invalide'}
 
     date_eval_raw = item.get('date_evaluation')
     if isinstance(date_eval_raw, str):
@@ -154,6 +159,9 @@ def _process_note_item(item, client_op_id):
     type_eval = str(item.get('type_evaluation') or 'Devoir')
     periode = str(item.get('periode') or '')
 
+    if not inscription or not inscription.annee_scolaire or inscription.annee_scolaire.statut != 'active':
+        return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Les notes exigent une année scolaire active'}
+
     note_id = item.get('note_id') or item.get('id')
     existing_note = None
     if note_id:
@@ -170,6 +178,22 @@ def _process_note_item(item, client_op_id):
             type_evaluation=type_eval,
             ecole_id=eleve.ecole_id
         ).first()
+
+    if existing_note and (existing_note.eleve_id != eleve.id or existing_note.cours_id != cours.id):
+        return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Cette note ne correspond pas à l’élève et au cours indiqués'}
+
+    if not periode and not existing_note and PeriodeBulletin.query.filter_by(
+        ecole_id=eleve.ecole_id, annee_id=inscription.annee_scolaire_id, publie=True
+    ).first():
+        return {'client_op_id': client_op_id, 'status': 'conflict', 'reason': 'period_required',
+                'message': 'La période est obligatoire lorsqu’un bulletin est publié'}
+
+    periode_cible = existing_note.periode if existing_note else periode
+    if existing_note and periode and periode != existing_note.periode:
+        return {'client_op_id': client_op_id, 'status': 'conflict', 'reason': 'period_conflict', 'message': 'La période de la note existante est différente'}
+    verrou = erreur_verrou_notes(eleve.ecole_id, inscription.annee_scolaire_id, periode_cible, inscription)
+    if verrou:
+        return {'client_op_id': client_op_id, 'status': 'conflict', 'reason': 'period_locked', 'message': verrou, 'entity_id': existing_note.id if existing_note else None}
 
     is_admin = (current_user.role == 'admin')
     is_force = (item.get('force') is True)
@@ -226,8 +250,8 @@ def _process_note_item(item, client_op_id):
                 'forced': True
             }
 
-        # 2. Valeur identique -> already_processed (idempotent)
-        if abs(existing_note.valeur - valeur) < 0.001:
+        # L'idempotence exige que la note ET son coefficient soient inchangés.
+        if abs(existing_note.valeur - valeur) < 0.001 and abs((existing_note.coefficient or 1.0) - coef) < 0.001:
             log = SyncOperationLog(
                 client_op_id=client_op_id,
                 ecole_id=current_user.ecole_id,

@@ -26,6 +26,8 @@ from app.models import (
     Eleve,
     Inscription,
     Note,
+    Bulletin,
+    PeriodeBulletin,
     Professeur,
 )
 from app.utils_classes import classes_triees_pedagogique
@@ -43,6 +45,34 @@ TYPE_INTERROGATION = "Interrogation"
 TYPE_COMPOSITION = "Composition"
 TYPES_CONTROLE_CONTINU = {TYPE_DEVOIR, TYPE_INTERROGATION}
 TYPES_EVALUATION = [TYPE_DEVOIR, TYPE_INTERROGATION, TYPE_COMPOSITION]
+
+
+def est_evaluation_sommative(type_evaluation):
+    return str(type_evaluation or "").strip().casefold() in {"composition", "examen"}
+
+
+def erreur_verrou_notes(ecole_id, annee_id, periode, inscription=None):
+    """Source commune du verrou de période et du bulletin individuel."""
+    periode_publiee = PeriodeBulletin.query.filter_by(
+        ecole_id=ecole_id, annee_id=annee_id, nom=periode, publie=True
+    ).first()
+    bulletins = []
+    if inscription is not None:
+        bulletins = Bulletin.query.filter(
+            Bulletin.ecole_id == ecole_id, Bulletin.annee_scolaire_id == annee_id,
+            Bulletin.periode == periode,
+            or_(Bulletin.inscription_id == inscription.id, Bulletin.eleve_id == inscription.eleve_id),
+        ).all()
+    verrouille = any(
+        bool(getattr(bulletin, "verrouille", False))
+        or str(bulletin.statut or "").strip().casefold() in {"publie", "publié", "archive", "archivé", "archivee", "archivée", "verrouille", "verrouillé"}
+        for bulletin in bulletins
+    )
+    if periode_publiee or verrouille:
+        eleve = inscription.eleve if inscription is not None else None
+        nom = f"{eleve.prenom or ''} {eleve.nom or ''}".strip() if eleve else "cet élève"
+        return f"Action interdite : Le bulletin de {nom} pour {periode} est clôturé/publié."
+    return None
 
 
 def _is_admin_like(user):
@@ -483,7 +513,7 @@ def calculer_moyennes_eleve_annee(inscription_id, ecole_id, annee_id=None, perio
         cours_coef = cours.coefficient if (cours and cours.coefficient) else 1.0
 
         controles = [n for n in c_notes if n.type_evaluation in TYPES_CONTROLE_CONTINU]
-        comp = next((n for n in c_notes if n.type_evaluation == TYPE_COMPOSITION), None)
+        comp = next((n for n in c_notes if est_evaluation_sommative(n.type_evaluation)), None)
 
         moy_controles = calculer_moyenne_controles(controles)
         note_comp = comp.valeur if comp else None
@@ -572,17 +602,11 @@ def valider_mutation_note(
         )
 
     # Verrouillage Bulletin Publié (Requirement 18, 21)
-    from app.models import PeriodeBulletin
-    periode_publiee = PeriodeBulletin.query.filter_by(
-        ecole_id=ecole_id,
-        annee_id=annee.id,
-        nom=target_periode,
-        publie=True
-    ).first()
-    if periode_publiee:
+    verrou = erreur_verrou_notes(ecole_id, annee.id, target_periode)
+    if verrou:
         return (
             False,
-            f"Le bulletin pour {target_periode} est actuellement publié. Les notes sont verrouillées. Une réouverture administrative est nécessaire.",
+            verrou,
             None,
             None,
             None,
@@ -635,13 +659,17 @@ def valider_mutation_note(
             None,
         )
 
+    verrou = erreur_verrou_notes(ecole_id, annee.id, target_periode, inscription)
+    if verrou:
+        return False, verrou, None, None, None
+
     # Règle Composition : au plus une composition par élève / matière / semestre
     if target_type == TYPE_COMPOSITION:
         comp_query = Note.query.filter(
             Note.inscription_id == inscription.id,
             Note.cours_id == cours.id,
             Note.periode == target_periode,
-            Note.type_evaluation == TYPE_COMPOSITION,
+            func.lower(func.trim(Note.type_evaluation)).in_(("composition", "examen")),
             Note.ecole_id == ecole_id,
         )
         if note_id:
@@ -765,6 +793,17 @@ def modifier_note(
     if not note:
         return None, "Note introuvable."
 
+    if (note.annee_id and note.annee_id != annee.id) or (
+        note.inscription and note.inscription.annee_scolaire_id != annee.id
+    ):
+        return None, "Cette note appartient à une autre année scolaire."
+    source_inscription = note.inscription or Inscription.query.filter_by(
+        ecole_id=ecole_id, annee_scolaire_id=annee.id, eleve_id=note.eleve_id
+    ).first()
+    verrou_source = erreur_verrou_notes(ecole_id, annee.id, note.periode, source_inscription)
+    if verrou_source:
+        return None, verrou_source
+
     target_eleve_id = eleve_id or note.eleve_id
     target_cours_id = cours_id or note.cours_id
     target_type = type_evaluation or note.type_evaluation or TYPE_DEVOIR
@@ -859,16 +898,17 @@ def supprimer_note(ecole_id, annee, user, note_id):
     if not note:
         return False, "Note introuvable."
 
-    from app.models import PeriodeBulletin
-    if note.periode:
-        periode_publiee = PeriodeBulletin.query.filter_by(
-            ecole_id=ecole_id,
-            annee_id=annee.id,
-            nom=note.periode,
-            publie=True
-        ).first()
-        if periode_publiee:
-            return False, f"Le bulletin pour {note.periode} est actuellement publié. Les notes sont verrouillées."
+    if (note.annee_id and note.annee_id != annee.id) or (
+        note.inscription and note.inscription.annee_scolaire_id != annee.id
+    ):
+        return False, "Cette note appartient à une autre année scolaire."
+
+    inscription = note.inscription or Inscription.query.filter_by(
+        ecole_id=ecole_id, annee_scolaire_id=annee.id, eleve_id=note.eleve_id
+    ).first()
+    verrou = erreur_verrou_notes(ecole_id, annee.id, note.periode, inscription)
+    if verrou:
+        return False, verrou
 
     role = getattr(user, "role", None)
     if role == "professeur":
@@ -1029,6 +1069,13 @@ def saisir_notes_classe(
     if not notes_to_create:
         return 0, "Aucune note n'a été saisie."
 
+    # Prévalidation de tout le lot : aucune note ne doit être mutée si un seul
+    # bulletin du lot est clos, même quand la composition existe déjà.
+    for ins, _ in notes_to_create:
+        verrou = erreur_verrou_notes(ecole_id, annee.id, per, ins)
+        if verrou:
+            return 0, verrou
+
     is_admin = role in {"admin", "super_admin"}
     date_eval = date_evaluation or datetime.utcnow()
 
@@ -1037,16 +1084,17 @@ def saisir_notes_classe(
         for ins, val_float in notes_to_create:
             # Gestion stricte de la composition unique : mise à jour sans doublon
             if type_eval == TYPE_COMPOSITION:
-                comp_existante = Note.query.filter_by(
-                    inscription_id=ins.id,
-                    cours_id=cours.id,
-                    periode=per,
-                    type_evaluation=TYPE_COMPOSITION,
-                    ecole_id=ecole_id,
+                comp_existante = Note.query.filter(
+                    Note.inscription_id == ins.id,
+                    Note.cours_id == cours.id,
+                    Note.periode == per,
+                    Note.ecole_id == ecole_id,
+                    func.lower(func.trim(Note.type_evaluation)).in_(("composition", "examen")),
                 ).first()
                 if comp_existante:
                     comp_existante.valeur = val_float
                     comp_existante.coefficient = coef_num
+                    comp_existante.type_evaluation = TYPE_COMPOSITION
                     comp_existante.date_evaluation = date_eval
                     comp_existante.sync_version = (comp_existante.sync_version or 1) + 1
                     comp_existante.last_by_admin = is_admin
@@ -1157,20 +1205,23 @@ def get_palmares_notes_annuel(ecole_id, annee):
     coef = func.coalesce(Note.coefficient, 1.0)
     notes_raw = (
         db.session.query(
-            Inscription.classe_id,
+            Cours.classe_id,
             func.count(Note.id).label("nb_notes"),
             (func.sum(Note.valeur * coef) / func.sum(coef)).label("moyenne_ponderee"),
             (func.sum(case((Note.valeur >= 10.0, 1), else_=0)) * 100.0 / func.count(Note.id)).label("taux_reussite"),
             func.min(Note.valeur).label("min_note"),
             func.max(Note.valeur).label("max_note"),
         )
+        .select_from(Inscription)
         .join(Note, Note.inscription_id == Inscription.id)
+        .join(Cours, Note.cours_id == Cours.id)
         .filter(
             Inscription.ecole_id == ecole_id,
             Inscription.annee_scolaire_id == annee.id,
             Note.ecole_id == ecole_id,
+            Cours.ecole_id == ecole_id,
         )
-        .group_by(Inscription.classe_id)
+        .group_by(Cours.classe_id)
         .all()
     )
 

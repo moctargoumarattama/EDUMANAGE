@@ -849,10 +849,13 @@
                                                         id="decision_{{ el.id }}" 
                                                         class="form-select form-select-sm decision-select rounded-pill"
                                                         data-eleve-id="{{ el.id }}"
-                                                        data-suggestion="{{ el_item.suggestion }}"
+                                                        data-suggestion="{{ el_item.suggestion or '' }}"
                                                         data-classe-passage="{{ el_item.classe_suggeree_passage_id or '' }}"
                                                         data-classe-redoublement="{{ el_item.classe_suggeree_redoublement_id or '' }}"
                                                         onchange="onDecisionChange(this)">
+                                                    {% if not insc_c and el_item.suggestion is none and insc_s.decision_fin_annee not in ('sortie', 'transfert', 'diplome') %}
+                                                    <option value="" selected>Choisir une décision</option>
+                                                    {% endif %}
                                                     <option value="passage" {% if (insc_c and insc_s.decision_fin_annee != 'redoublement') or (not insc_c and el_item.suggestion == 'passage') %}selected{% endif %}>Passage</option>
                                                     <option value="redoublement" {% if (insc_c and insc_s.decision_fin_annee == 'redoublement') or (not insc_c and el_item.suggestion == 'redoublement') %}selected{% endif %}>Redoublement</option>
                                                     <option value="sortie" {% if insc_s.decision_fin_annee in ('sortie', 'transfert', 'diplome') or insc_s.statut in ('transfere', 'sorti', 'diplome') %}selected{% endif %}>Sortie / Autre</option>
@@ -1158,7 +1161,8 @@ function preCocherDecisionsClasse(evt) {
     const selects = document.querySelectorAll('.decision-select');
     let count = 0;
     selects.forEach(function(sel) {
-        const sugg = sel.getAttribute('data-suggestion') || 'passage';
+        const sugg = sel.getAttribute('data-suggestion');
+        if (!sugg) return;
         sel.value = sugg;
         onDecisionChange(sel);
         sel.classList.add('border-primary', 'bg-light');

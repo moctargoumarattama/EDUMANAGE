@@ -226,7 +226,7 @@ class TestQuickWinsPassageAnnee(unittest.TestCase):
         self.assertEqual(moyennes[self.eleve_redoublant.id], 8.75)
 
     def test_get_moyennes_annuelles_eleves_avec_notes_fallback(self):
-        """Vérifie le calcul pondéré des moyennes via les Notes brutes en absence de Bulletins."""
+        """Vérifie la formule semestrielle officielle en absence de bulletins."""
         cours = Cours(
             ecole_id=self.ecole.id,
             classe_id=self.classe_source.id,
@@ -236,7 +236,7 @@ class TestQuickWinsPassageAnnee(unittest.TestCase):
         db.session.add(cours)
         db.session.commit()
 
-        # Pour eleve_admis : 14/20 (coeff 1) + 16/20 (coeff 2) -> (14*1 + 16*2)/3 = 46/3 = 15.33
+        # Un cours sur deux semestres : moyenne annuelle (14 + 16) / 2 = 15.
         n1 = Note(
             ecole_id=self.ecole.id,
             eleve_id=self.eleve_admis.id,
@@ -244,6 +244,8 @@ class TestQuickWinsPassageAnnee(unittest.TestCase):
             annee_id=self.annee_source.id,
             valeur=14.0,
             coefficient=1.0,
+            periode="Semestre 1",
+            type_evaluation="Devoir",
         )
         n2 = Note(
             ecole_id=self.ecole.id,
@@ -252,8 +254,10 @@ class TestQuickWinsPassageAnnee(unittest.TestCase):
             annee_id=self.annee_source.id,
             valeur=16.0,
             coefficient=2.0,
+            periode="Semestre 2",
+            type_evaluation="Devoir",
         )
-        # Pour eleve_redoublant : 6/20 (coeff 1) + 8/20 (coeff 2) -> (6*1 + 8*2)/3 = 22/3 = 7.33
+        # Même règle pour l'autre élève : (6 + 8) / 2 = 7.
         n3 = Note(
             ecole_id=self.ecole.id,
             eleve_id=self.eleve_redoublant.id,
@@ -261,6 +265,8 @@ class TestQuickWinsPassageAnnee(unittest.TestCase):
             annee_id=self.annee_source.id,
             valeur=6.0,
             coefficient=1.0,
+            periode="Semestre 1",
+            type_evaluation="Devoir",
         )
         n4 = Note(
             ecole_id=self.ecole.id,
@@ -269,17 +275,19 @@ class TestQuickWinsPassageAnnee(unittest.TestCase):
             annee_id=self.annee_source.id,
             valeur=8.0,
             coefficient=2.0,
+            periode="Semestre 2",
+            type_evaluation="Devoir",
         )
         db.session.add_all([n1, n2, n3, n4])
         db.session.commit()
 
         moyennes = get_moyennes_annuelles_eleves(self.ecole.id, self.annee_source.id)
-        self.assertAlmostEqual(moyennes[self.eleve_admis.id], 15.33, places=2)
-        self.assertAlmostEqual(moyennes[self.eleve_redoublant.id], 7.33, places=2)
+        self.assertAlmostEqual(moyennes[self.eleve_admis.id], 15.0, places=2)
+        self.assertAlmostEqual(moyennes[self.eleve_redoublant.id], 7.0, places=2)
 
         moyennes = get_moyennes_annuelles_eleves(self.ecole.id, self.annee_source.id)
-        self.assertAlmostEqual(moyennes[self.eleve_admis.id], 15.33, places=2)
-        self.assertAlmostEqual(moyennes[self.eleve_redoublant.id], 7.33, places=2)
+        self.assertAlmostEqual(moyennes[self.eleve_admis.id], 15.0, places=2)
+        self.assertAlmostEqual(moyennes[self.eleve_redoublant.id], 7.0, places=2)
 
     def test_preparer_activation_indicateurs_cartes(self):
         """Vérifie le calcul des indicateurs admis, redoublants et nouveaux pour l'écran d'activation."""

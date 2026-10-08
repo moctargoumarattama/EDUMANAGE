@@ -33,7 +33,7 @@ Ce module ne définit aucune route Flask.
 from datetime import datetime
 
 from app import db
-from app.models import AnneeScolaire, Bulletin, Classe, Eleve, Inscription, Note
+from app.models import AnneeScolaire, Bulletin, Classe, Cours, Eleve, Inscription, Note
 from sqlalchemy import func
 from app.utils_classes import classes_triees_pedagogique
 from app.services.classes_annuelles import classe_est_ouverte
@@ -948,14 +948,10 @@ def executer_passage_masse(
 
 def get_moyennes_annuelles_eleves(ecole_id, annee_id):
     """
-    Récupère en requêtes SQL groupées hautement optimisées (zéro N+1) la moyenne
-    annuelle de chaque élève pour éclairer les décisions de passage.
-
-    Stratégie sans N+1 :
-    1. Si des Bulletins existent pour l'élève dans l'année scolaire,
-       calcule la moyenne globale de ses bulletins validés.
-    2. Pour les élèves sans bulletin validé, calcule en requête groupée la moyenne pondérée
-       directement depuis la table Note (valeur * coefficient / total_coefficients).
+    Moyenne des deux semestres selon les mêmes règles que les bulletins.
+    Sans bulletin, les notes sont regroupées par matière puis pondérées avec le
+    coefficient officiel du cours. Un semestre manquant ne produit pas de
+    décision annuelle automatique.
 
     Retourne : dict {eleve_id: float_arrondi_2_decimales}
     """
@@ -985,27 +981,54 @@ def get_moyennes_annuelles_eleves(ecole_id, annee_id):
             except (ValueError, TypeError):
                 pass
 
-    # 2. Requête groupée de secours sur les notes pour les élèves sans bulletin
-    note_rows = (
-        db.session.query(
-            Note.eleve_id,
-            func.sum(Note.valeur * func.coalesce(Note.coefficient, 1.0))
-            / func.nullif(func.sum(func.coalesce(Note.coefficient, 1.0)), 0)
-        )
-        .filter(
-            Note.ecole_id == ecole_id,
-            Note.annee_id == annee_id,
-            Note.valeur.isnot(None)
-        )
-        .group_by(Note.eleve_id)
-        .all()
+    from collections import defaultdict
+    from app.services.evaluations import calculer_moyenne_matiere
+    from app.services.notes_annuelles import (
+        PERIODES_SEMESTRES, calculer_moyenne_generale_semestre, calculer_moyenne_annuelle,
     )
-    for eleve_id, moy in note_rows:
-        if eleve_id not in moyennes and moy is not None:
-            try:
-                moyennes[eleve_id] = round(float(moy), 2)
-            except (ValueError, TypeError):
-                pass
+
+    inscriptions = Inscription.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_id).all()
+    sans_bulletin = {i.eleve_id: i for i in inscriptions if i.eleve_id not in moyennes}
+    if not sans_bulletin:
+        return moyennes
+
+    notes = Note.query.filter(
+        Note.ecole_id == ecole_id, Note.annee_id == annee_id,
+        Note.eleve_id.in_(sans_bulletin), Note.valeur.isnot(None),
+        Note.periode.in_(PERIODES_SEMESTRES),
+    ).all()
+    cours_ids = {n.cours_id for n in notes}
+    cours_map = {c.id: c for c in Cours.query.filter(
+        Cours.ecole_id == ecole_id, Cours.id.in_(cours_ids)
+    ).all()} if cours_ids else {}
+    par_eleve = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    for note in notes:
+        inscription = sans_bulletin[note.eleve_id]
+        cours = cours_map.get(note.cours_id)
+        if not cours or not cours.classe or cours.classe.annee_scolaire_id != annee_id:
+            continue
+        # Les anciennes notes sans inscription sont recevables uniquement dans
+        # la classe actuelle. Les notes liées gardent leur classe historique.
+        if note.inscription_id not in (None, inscription.id):
+            continue
+        if note.inscription_id is None and cours.classe_id != inscription.classe_id:
+            continue
+        par_eleve[note.eleve_id][note.periode][cours.id].append(note)
+
+    for eleve_id, par_periode in par_eleve.items():
+        semestres = {}
+        for periode in PERIODES_SEMESTRES:
+            matieres = []
+            for cours_id, notes_matiere in par_periode.get(periode, {}).items():
+                moyenne = calculer_moyenne_matiere(notes_matiere)
+                if moyenne is not None:
+                    cours = cours_map[cours_id]
+                    coef = cours.coefficient if cours.coefficient and cours.coefficient > 0 else 1.0
+                    matieres.append((moyenne, coef))
+            semestres[periode] = calculer_moyenne_generale_semestre(matieres)
+        annuelle = calculer_moyenne_annuelle(*(semestres[p] for p in PERIODES_SEMESTRES))
+        if annuelle is not None:
+            moyennes[eleve_id] = annuelle
 
     return moyennes
 

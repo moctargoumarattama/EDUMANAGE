@@ -144,6 +144,8 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
         return None, "Inscription introuvable ou non autorisée."
 
     target_periode = periode or SEMESTRE_1
+    from app.services.inscriptions_annuelles import classe_effective_pour_periode
+    classe_periode_id = classe_effective_pour_periode(inscription, target_periode)
 
     if periode_publiee is None:
         p_obj = PeriodeBulletin.query.filter_by(
@@ -159,8 +161,8 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
         Note.ecole_id == ecole_id,
         Note.periode == target_periode
     )
-    if inscription.classe_id:
-        q = q.join(Cours, Note.cours_id == Cours.id).filter(Cours.classe_id == inscription.classe_id)
+    if classe_periode_id:
+        q = q.join(Cours, Note.cours_id == Cours.id).filter(Cours.classe_id == classe_periode_id)
 
     notes = q.order_by(Note.cours_id, Note.date_evaluation.desc()).all()
 
@@ -174,7 +176,7 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
             notes_par_cours_id[n.cours_id].append(n)
 
     from app.services.evaluations import get_cours_attendus_classe, calculer_moyenne_matiere
-    cours_attendus = get_cours_attendus_classe(ecole_id, inscription.classe_id, annee.id) if inscription.classe_id else []
+    cours_attendus = get_cours_attendus_classe(ecole_id, classe_periode_id, annee.id) if classe_periode_id else []
 
     disciplines = []
     moyennes_par_cours = {}
@@ -197,7 +199,8 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
 
         if c_notes:
             controles = [n for n in c_notes if n.type_evaluation in TYPES_CONTROLE_CONTINU]
-            comp = next((n for n in c_notes if n.type_evaluation == TYPE_COMPOSITION), None)
+            from app.services.notes_annuelles import est_evaluation_sommative
+            comp = next((n for n in c_notes if est_evaluation_sommative(n.type_evaluation)), None)
 
             moy_controles = calculer_moyenne_controles(controles) if controles else None
             note_comp = comp.valeur if comp else None
@@ -322,7 +325,7 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
     # Calcul du rang et des statistiques de classe pour le semestre via service centralisé
     stats_classe_raw = calculer_stats_et_classements_classe(
         ecole_id,
-        inscription.classe_id,
+        classe_periode_id,
         inscription.annee_scolaire_id,
         periode=target_periode,
         periode_publiee=periode_publiee
@@ -345,7 +348,7 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
     data = {
         'inscription': inscription,
         'eleve': inscription.eleve,
-        'classe': inscription.classe,
+        'classe': db.session.get(Classe, classe_periode_id) if classe_periode_id else None,
         'annee_scolaire': inscription.annee_scolaire,
         'periode': target_periode,
         'notes': notes,
@@ -412,9 +415,21 @@ def generer_ou_recuperer_bulletin(ecole_id, annee, user, inscription_id, periode
 
     periode_nom = periode or SEMESTRE_1
 
-    # Vérification année planifiée
     if annee.statut == "planifiee":
         return None, MESSAGE_ANNEE_PLANIFIEE
+
+    bulletin_existant = Bulletin.query.filter_by(
+        inscription_id=inscription.id, periode=periode_nom
+    ).first()
+    periode_close = PeriodeBulletin.query.filter_by(
+        ecole_id=ecole_id, annee_id=annee.id, nom=periode_nom, publie=True
+    ).first()
+    if bulletin_existant and (
+        periode_close or str(bulletin_existant.statut or '').casefold() in
+        {'publie', 'publié', 'archive', 'archivé', 'archivee', 'archivée', 'verrouille', 'verrouillé'}
+        or bool(getattr(bulletin_existant, 'verrouille', False))
+    ):
+        return bulletin_existant, None
 
     # Année archivée : lecture seule stricte
     if annee.statut == "archivee":
@@ -434,7 +449,7 @@ def generer_ou_recuperer_bulletin(ecole_id, annee, user, inscription_id, periode
             inscription_id=inscription.id,
             eleve_id=inscription.eleve_id,
             ecole_id=ecole_id,
-            classe_id=inscription.classe_id,
+            classe_id=data['classe'].id if data['classe'] else inscription.classe_id,
             annee_scolaire_id=inscription.annee_scolaire_id,
             periode=periode_nom,
             moyenne_generale=data['moyenne_generale'],
@@ -461,7 +476,7 @@ def generer_ou_recuperer_bulletin(ecole_id, annee, user, inscription_id, periode
             inscription_id=inscription.id,
             eleve_id=inscription.eleve_id,
             ecole_id=ecole_id,
-            classe_id=inscription.classe_id,
+            classe_id=data['classe'].id if data['classe'] else inscription.classe_id,
             annee_scolaire_id=inscription.annee_scolaire_id,
             periode=periode_nom,
             moyenne_generale=data['moyenne_generale'],

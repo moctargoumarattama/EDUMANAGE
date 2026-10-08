@@ -151,7 +151,13 @@ class TestElevesInplaceModal(unittest.TestCase):
             ecole_id=self.ecole.id,
             coefficient=2,
         )
-        db.session.add(self.cours_math)
+        self.cours_math_b = Cours(
+            nom="Mathématiques",
+            classe_id=self.classe_b.id,
+            ecole_id=self.ecole.id,
+            coefficient=2,
+        )
+        db.session.add_all([self.cours_math, self.cours_math_b])
         db.session.flush()
 
         self.note = Note(
@@ -228,6 +234,27 @@ class TestElevesInplaceModal(unittest.TestCase):
         db.session.refresh(self.parent)
         self.assertIsNone(self.parent.email)
         self.assertEqual(eleve_db.frais_annuels, 175000.0)
+        db.session.refresh(self.note)
+        self.assertEqual(self.note.cours_id, self.cours_math_b.id)
+
+    def test_02b_transfert_refuse_ne_modifie_pas_le_profil(self):
+        self._login_admin()
+        classe_sans_cours = Classe(
+            nom="CP-C", annee_scolaire_id=self.annee_active.id,
+            ecole_id=self.ecole.id, niveau_id=self.niveau_cp.id, statut="ouverte",
+        )
+        db.session.add(classe_sans_cours)
+        db.session.commit()
+
+        resp = self.client.post(f'/api/eleves/{self.eleve.id}/modifier', json={
+            "nom": "Nom temporaire", "prenom": self.eleve.prenom,
+            "genre": self.eleve.genre, "date_naissance": "2018-05-12",
+            "classe_id": classe_sans_cours.id,
+        })
+        self.assertEqual(resp.status_code, 400)
+        db.session.refresh(self.eleve)
+        self.assertEqual(self.eleve.nom, "Abdoulaye")
+        self.assertEqual(self.eleve.inscriptions[0].classe_id, self.classe_a.id)
 
     def test_03_api_modifier_eleve_validation_errors(self):
         """Vérifie le rejet des entrées invalides"""

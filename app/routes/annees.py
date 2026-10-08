@@ -1602,7 +1602,7 @@ def onboarding_rentree(cible_id):
                 el = insc_s.eleve
                 insc_c = inscriptions_cible_map.get(el.id)
                 moy = moyennes_eleves.get(el.id)
-                sugg = "passage" if (moy is not None and moy >= 10.0) else ("redoublement" if moy is not None else "passage")
+                sugg = "passage" if (moy is not None and moy >= 10.0) else ("redoublement" if moy is not None else None)
 
                 est_t = False
                 detail_statut = "En attente"

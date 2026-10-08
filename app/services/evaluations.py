@@ -83,8 +83,9 @@ def calculer_moyenne_matiere(notes_matiere):
     if not valid_notes:
         return None
 
+    from app.services.notes_annuelles import est_evaluation_sommative
     controles = [n for n in valid_notes if getattr(n, "type_evaluation", None) in TYPES_CONTROLE_CONTINU]
-    comp = next((n for n in valid_notes if getattr(n, "type_evaluation", None) == TYPE_COMPOSITION), None)
+    comp = next((n for n in valid_notes if est_evaluation_sommative(getattr(n, "type_evaluation", None))), None)
 
     moy_ctrl = calculer_moyenne_controles(controles)
     n_comp = comp.valeur if comp else None
@@ -211,7 +212,8 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
             "missing_subjects_names": [],
         }
 
-    classe_id = inscription.classe_id
+    from app.services.inscriptions_annuelles import classe_effective_pour_periode
+    classe_id = classe_effective_pour_periode(inscription, periode)
     if cours_attendus is None:
         cours_attendus = get_cours_attendus_classe(ecole_id, classe_id, annee_id)
     expected_subjects = len(cours_attendus)
@@ -520,11 +522,10 @@ def calculer_stats_et_classements_classe(ecole_id, classe_id, annee_id, periode=
             else:
                 non_evalues.append((ins, ev))
     else:
-        inscriptions = (
-            Inscription.query.options(joinedload(Inscription.eleve))
-            .filter_by(ecole_id=ecole_id, classe_id=classe_id, annee_scolaire_id=annee_id)
-            .all()
-        )
+        from app.services.inscriptions_annuelles import classe_effective_pour_periode
+        inscriptions = [ins for ins in Inscription.query.options(joinedload(Inscription.eleve))
+            .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_id).all()
+            if classe_effective_pour_periode(ins, periode) == classe_id]
         effectif_total = len(inscriptions)
         if effectif_total == 0:
             return {

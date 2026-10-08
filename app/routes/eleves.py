@@ -1091,6 +1091,7 @@ def api_modifier_eleve(eleve_id):
         classe_id=classe.id,
     )
     if inscription_error:
+        db.session.rollback()
         return jsonify({'success': False, 'error': inscription_error}), 400
 
     db.session.commit()
@@ -1818,6 +1819,7 @@ def modifier_eleve(eleve_id):
             classe_id=classe.id,
         )
         if inscription_error:
+            db.session.rollback()
             flash(inscription_error, "danger")
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
 

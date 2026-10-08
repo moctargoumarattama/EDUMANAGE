@@ -1,7 +1,8 @@
 from datetime import datetime
+from sqlalchemy import and_, or_
 
 from app import db
-from app.models import AnneeScolaire, Classe, Eleve, Inscription
+from app.models import AnneeScolaire, Bulletin, Classe, Cours, Eleve, Inscription, Note, PeriodeBulletin
 from app.services.classes_annuelles import classe_est_ouverte
 
 
@@ -62,6 +63,41 @@ def _validate_inscription_context(ecole_id, eleve_id, annee_scolaire_id, classe_
 
 def _sync_classe_active(eleve, annee, classe):
     pass
+
+
+def classe_effective_pour_periode(inscription, periode):
+    """Classe historique d'une période close, sinon classe active de l'inscription."""
+    if not inscription or not periode:
+        return inscription.classe_id if inscription else None
+    bulletin = Bulletin.query.filter_by(
+        ecole_id=inscription.ecole_id, annee_scolaire_id=inscription.annee_scolaire_id,
+        inscription_id=inscription.id, periode=periode
+    ).first()
+    if bulletin is None:
+        bulletin = Bulletin.query.filter_by(
+            ecole_id=inscription.ecole_id, annee_scolaire_id=inscription.annee_scolaire_id,
+            eleve_id=inscription.eleve_id, periode=periode
+        ).first()
+    # Un bulletin garde la classe dans laquelle il a été établi, même si la
+    # période est rouverte par la suite.
+    if bulletin and bulletin.classe_id:
+        return bulletin.classe_id
+    periode_publiee = PeriodeBulletin.query.filter_by(
+        ecole_id=inscription.ecole_id, annee_id=inscription.annee_scolaire_id,
+        nom=periode, publie=True
+    ).first()
+    if periode_publiee:
+        classe_ids = {row[0] for row in db.session.query(Cours.classe_id).join(
+            Note, Note.cours_id == Cours.id
+        ).filter(
+            or_(Note.inscription_id == inscription.id,
+                and_(Note.inscription_id.is_(None), Note.eleve_id == inscription.eleve_id,
+                     Note.annee_id == inscription.annee_scolaire_id)),
+            Note.periode == periode, Note.ecole_id == inscription.ecole_id,
+        ).distinct().all()}
+        if len(classe_ids) == 1:
+            return next(iter(classe_ids))
+    return inscription.classe_id
 
 
 def creer_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id, statut=None, sync_active=True, frais_annuels=None, allow_archived=False):
@@ -131,10 +167,66 @@ def modifier_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_
     if statut is not None:
         if statut not in STATUTS_INSCRIPTION:
             return None, "Statut d'inscription invalide."
+    if inscription.classe_id != classe.id:
+        anciennes_notes = Note.query.join(Cours, Note.cours_id == Cours.id).filter(
+            Note.ecole_id == ecole_id, Note.annee_id == annee.id,
+            Note.eleve_id == eleve.id,
+            or_(Note.inscription_id == inscription.id,
+                and_(Note.inscription_id.is_(None), Cours.classe_id == inscription.classe_id)),
+        ).all()
+        periodes_publiees = {p.nom for p in PeriodeBulletin.query.filter_by(
+            ecole_id=ecole_id, annee_id=annee.id, publie=True
+        ).all()}
+        bulletins = Bulletin.query.filter_by(
+            ecole_id=ecole_id, annee_scolaire_id=annee.id, eleve_id=eleve.id
+        ).all()
+        periodes_closes = periodes_publiees | {
+            b.periode for b in bulletins if str(b.statut or '').casefold() in
+            {'publie', 'publié', 'archive', 'archivé', 'archivee', 'archivée', 'verrouille', 'verrouillé'}
+            or bool(getattr(b, 'verrouille', False))
+        }
+        if any(b.periode not in periodes_closes for b in bulletins):
+            return None, "Transfert impossible : un bulletin provisoire doit être régénéré avant le changement de classe."
+        cours_cibles = Cours.query.filter_by(ecole_id=ecole_id, classe_id=classe.id).all()
+        par_nom = {}
+        for cours in cours_cibles:
+            par_nom.setdefault(cours.nom.strip().casefold(), []).append(cours)
+        cours_inscription_cible = None
+        if inscription.cours_id:
+            cours_inscription = db.session.get(Cours, inscription.cours_id)
+            if cours_inscription and cours_inscription.classe_id == inscription.classe_id:
+                candidats = par_nom.get(cours_inscription.nom.strip().casefold(), [])
+                if len(candidats) != 1:
+                    return None, "Transfert impossible : le cours de l'inscription n'a pas d'équivalent unique dans la classe d'arrivée."
+                cours_inscription_cible = candidats[0].id
+        reaffectations = []
+        for note in anciennes_notes:
+            if note.periode in periodes_closes:
+                continue
+            ancien_cours = note.cours
+            candidats = par_nom.get(ancien_cours.nom.strip().casefold(), []) if ancien_cours else []
+            if len(candidats) != 1:
+                return None, f"Transfert impossible : cours correspondant introuvable ou ambigu pour {ancien_cours.nom if ancien_cours else 'une note'}."
+            doublon = Note.query.filter_by(
+                ecole_id=ecole_id, eleve_id=eleve.id, cours_id=candidats[0].id,
+                periode=note.periode, type_evaluation=note.type_evaluation,
+                date_evaluation=note.date_evaluation,
+            ).filter(Note.id != note.id).first()
+            if doublon:
+                return None, "Transfert impossible : une évaluation équivalente existe déjà dans la classe d'arrivée."
+            reaffectations.append((note, candidats[0].id))
+        for note, cours_cible_id in reaffectations:
+            note.cours_id = cours_cible_id
+            note.inscription_id = inscription.id
+            note.sync_version = (note.sync_version or 1) + 1
+            note.updated_at = datetime.utcnow()
+        if cours_inscription_cible is not None:
+            inscription.cours_id = cours_inscription_cible
+    inscription.classe_id = classe.id
+    if statut is not None:
         inscription.statut = statut
     if frais_annuels is not None:
         inscription.frais_annuels = frais_annuels
-    inscription.classe_id = classe.id
     inscription.updated_at = datetime.utcnow()
     if sync_active:
         _sync_classe_active(eleve, annee, classe)
