@@ -26,23 +26,88 @@ def _get_bornes_mois(annee, mois):
     return debut_mois, fin_mois
 
 
+def _generer_mois_annee_scolaire(annee_scolaire):
+    """Génère la liste ordonnée des mois de l'année scolaire active pour la paie."""
+    if not annee_scolaire or not annee_scolaire.date_debut or not annee_scolaire.date_fin:
+        auj = date.today()
+        return [{
+            "valeur": f"{auj.year}-{auj.month:02d}",
+            "nom": f"{NOMS_MOIS_FR[auj.month - 1]} {auj.year}",
+            "mois": auj.month,
+            "annee": auj.year
+        }]
+
+    cur = date(annee_scolaire.date_debut.year, annee_scolaire.date_debut.month, 1)
+    fin = date(annee_scolaire.date_fin.year, annee_scolaire.date_fin.month, 1)
+
+    mois_list = []
+    while cur <= fin:
+        nom_mois = NOMS_MOIS_FR[cur.month - 1]
+        mois_list.append({
+            "valeur": f"{cur.year}-{cur.month:02d}",
+            "nom": f"{nom_mois} {cur.year}",
+            "mois": cur.month,
+            "annee": cur.year
+        })
+        if cur.month == 12:
+            cur = date(cur.year + 1, 1, 1)
+        else:
+            cur = date(cur.year, cur.month + 1, 1)
+
+    return mois_list
+
+
 @paie_personnel_bp.route('/', methods=['GET'])
 @login_required
 @role_required('admin', 'super_admin')
 @tenant_required
 def index():
-    """Écran principal de gestion de la paie pour l'administration."""
+    """Écran principal de gestion de la paie pour l'administration rattaché à l'année scolaire active."""
     ecole_id = g.ecole_id
     annee_active = get_annee_consultee(ecole_id) or get_annee_active(ecole_id)
 
-    aujourdhui = date.today()
-    mois = request.args.get('mois', default=aujourdhui.month, type=int)
-    annee = request.args.get('annee', default=aujourdhui.year, type=int)
+    if not annee_active:
+        flash("Aucune année scolaire active. Veuillez d'abord configurer une année scolaire.", "warning")
+        return redirect(url_for('main.gestion_annees'))
 
-    if mois < 1 or mois > 12:
-        mois = aujourdhui.month
-    if annee < 2000 or annee > 2100:
-        annee = aujourdhui.year
+    mois_annee_options = _generer_mois_annee_scolaire(annee_active)
+
+    # Récupérer la période sélectionnée (soit ?periode=YYYY-MM soit ?mois=M&annee=Y)
+    periode_param = request.args.get('periode', '').strip()
+    mois_param = request.args.get('mois', type=int)
+    annee_param = request.args.get('annee', type=int)
+
+    mois = None
+    annee = None
+
+    if periode_param and '-' in periode_param:
+        try:
+            parts = periode_param.split('-')
+            annee = int(parts[0])
+            mois = int(parts[1])
+        except (ValueError, IndexError):
+            pass
+    elif mois_param and annee_param:
+        mois = mois_param
+        annee = annee_param
+
+    # Vérifier si (mois, annee) est bien dans la liste des mois de l'année scolaire active
+    periode_valide = any(opt['mois'] == mois and opt['annee'] == annee for opt in mois_annee_options)
+
+    if not periode_valide:
+        # Par défaut : date du jour si elle est dans l'année active
+        aujourdhui = date.today()
+        opt_aujourdhui = next((opt for opt in mois_annee_options if opt['mois'] == aujourdhui.month and opt['annee'] == aujourdhui.year), None)
+        if opt_aujourdhui:
+            mois = opt_aujourdhui['mois']
+            annee = opt_aujourdhui['annee']
+        else:
+            # Sinon, premier mois de l'année scolaire active
+            premier_opt = mois_annee_options[0]
+            mois = premier_opt['mois']
+            annee = premier_opt['annee']
+
+    periode_selectionnee_valeur = f"{annee}-{mois:02d}"
 
     # Charger tous les professeurs de l'école
     professeurs = (
@@ -52,12 +117,27 @@ def index():
         .all()
     )
 
-    # Charger les fiches de paie existantes pour ce mois et cette année
+    # Charger les fiches de paie existantes pour ce mois, cette année et cette année scolaire
     fiches = (
         FichePaiePersonnel.query
-        .filter_by(ecole_id=ecole_id, mois=mois, annee=annee)
+        .filter(
+            FichePaiePersonnel.ecole_id == ecole_id,
+            (FichePaiePersonnel.annee_scolaire_id == annee_active.id) | (FichePaiePersonnel.annee_scolaire_id.is_(None)),
+            FichePaiePersonnel.mois == mois,
+            FichePaiePersonnel.annee == annee
+        )
         .all()
     )
+
+    # Rattacher automatiquement les anciennes fiches sans annee_scolaire_id
+    a_commiter = False
+    for f in fiches:
+        if not f.annee_scolaire_id:
+            f.annee_scolaire_id = annee_active.id
+            a_commiter = True
+    if a_commiter:
+        db.session.commit()
+
     fiches_par_prof = {f.professeur_id: f for f in fiches}
 
     # Liste des lignes à afficher (fiche existante ou enseignant prêt à être calculé)
@@ -115,6 +195,8 @@ def index():
     return render_template(
         'paie_personnel.html',
         annee_active=annee_active,
+        mois_annee_options=mois_annee_options,
+        periode_selectionnee_valeur=periode_selectionnee_valeur,
         mois_selectionne=mois,
         annee_selectionnee=annee,
         nom_mois_selectionne=nom_mois_selectionne,
@@ -134,9 +216,11 @@ def index():
 @role_required('admin', 'super_admin')
 @tenant_required
 def calculer_mois():
-    """Calcule et génère/actualise les fiches de paie de tous les professeurs pour le mois donné."""
+    """Calcule et génère/actualise les fiches de paie de tous les professeurs pour le mois donné rattaché à l'année active."""
     ecole_id = g.ecole_id
     annee_active = get_annee_consultee(ecole_id) or get_annee_active(ecole_id)
+    if not annee_active:
+        return jsonify({"success": False, "error": "Aucune année scolaire active configurée."}), 400
 
     data = request.get_json() or {}
     mois = int(data.get('mois') or date.today().month)
@@ -153,11 +237,12 @@ def calculer_mois():
     if not professeurs:
         return jsonify({"success": False, "error": "Aucun professeur trouvé pour cet établissement."}), 404
 
-    # Charger les pointages du mois pour cette école
+    # Charger les pointages du mois pour cette école ET pour l'année scolaire active
     pointages_mois = (
         PointagePersonnel.query
         .filter(
             PointagePersonnel.ecole_id == ecole_id,
+            PointagePersonnel.annee_scolaire_id == annee_active.id,
             PointagePersonnel.date_pointage >= debut_mois,
             PointagePersonnel.date_pointage <= fin_mois
         )
@@ -177,12 +262,13 @@ def calculer_mois():
         absences_injustifiees = sum(1 for p in profs_pointages if p.statut == 'absent_injustifie')
         absences_justifiees = sum(1 for p in profs_pointages if p.statut == 'absent_justifie')
 
-        # Trouver ou créer la fiche de paie
-        fiche = FichePaiePersonnel.query.filter_by(
-            professeur_id=prof.id,
-            ecole_id=ecole_id,
-            mois=mois,
-            annee=annee
+        # Trouver ou créer la fiche de paie rattachée à l'année scolaire active
+        fiche = FichePaiePersonnel.query.filter(
+            FichePaiePersonnel.professeur_id == prof.id,
+            FichePaiePersonnel.ecole_id == ecole_id,
+            (FichePaiePersonnel.annee_scolaire_id == annee_active.id) | (FichePaiePersonnel.annee_scolaire_id.is_(None)),
+            FichePaiePersonnel.mois == mois,
+            FichePaiePersonnel.annee == annee
         ).first()
 
         type_rem = prof.type_remuneration or 'fixe'
@@ -193,7 +279,7 @@ def calculer_mois():
             fiche = FichePaiePersonnel(
                 professeur_id=prof.id,
                 ecole_id=ecole_id,
-                annee_scolaire_id=annee_active.id if annee_active else None,
+                annee_scolaire_id=annee_active.id,
                 mois=mois,
                 annee=annee,
                 periode_nom=periode_nom,
@@ -215,6 +301,7 @@ def calculer_mois():
             db.session.add(fiche)
         else:
             # Mise à jour des données de travail
+            fiche.annee_scolaire_id = annee_active.id
             fiche.type_remuneration = type_rem
             fiche.salaire_base = salaire_base
             fiche.taux_horaire = taux_horaire
@@ -417,12 +504,19 @@ def mes_fiches():
     if not prof:
         return jsonify({"success": False, "error": "Profil professeur introuvable."}), 404
 
-    fiches = (
-        FichePaiePersonnel.query
-        .filter_by(professeur_id=prof.id, ecole_id=g.ecole_id)
-        .order_by(FichePaiePersonnel.annee.desc(), FichePaiePersonnel.mois.desc())
-        .all()
+    ecole_id = g.ecole_id
+    annee_active = get_annee_consultee(ecole_id) or get_annee_active(ecole_id)
+
+    query = FichePaiePersonnel.query.filter(
+        FichePaiePersonnel.professeur_id == prof.id,
+        FichePaiePersonnel.ecole_id == ecole_id
     )
+    if annee_active:
+        query = query.filter(
+            (FichePaiePersonnel.annee_scolaire_id == annee_active.id) | (FichePaiePersonnel.annee_scolaire_id.is_(None))
+        )
+
+    fiches = query.order_by(FichePaiePersonnel.annee.desc(), FichePaiePersonnel.mois.desc()).all()
 
     data = [
         {

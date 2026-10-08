@@ -196,15 +196,15 @@ def professeur_dashboard():
 
     # Fiches de paie et rémunération pour le professeur (Consultation directe en modal popup)
     from app.models import FichePaiePersonnel
-    fiches_paie_prof = (
-        FichePaiePersonnel.query
-        .filter(
-            FichePaiePersonnel.professeur_id == professeur.id,
-            FichePaiePersonnel.ecole_id == current_user.ecole_id
-        )
-        .order_by(FichePaiePersonnel.annee.desc(), FichePaiePersonnel.mois.desc())
-        .all()
+    query_fiches = FichePaiePersonnel.query.filter(
+        FichePaiePersonnel.professeur_id == professeur.id,
+        FichePaiePersonnel.ecole_id == current_user.ecole_id
     )
+    if annee_consultee:
+        query_fiches = query_fiches.filter(
+            (FichePaiePersonnel.annee_scolaire_id == annee_consultee.id) | (FichePaiePersonnel.annee_scolaire_id.is_(None))
+        )
+    fiches_paie_prof = query_fiches.order_by(FichePaiePersonnel.annee.desc(), FichePaiePersonnel.mois.desc()).all()
     fiche_paie_courante = fiches_paie_prof[0] if fiches_paie_prof else None
 
     return render_template(
@@ -239,16 +239,21 @@ def professeur_dashboard():
 def professeur_mes_fiches_paie():
     """Route API pour l'historique des fiches de paie du professeur."""
     from app.models import Professeur, FichePaiePersonnel
+    from app.services.annees_scolaires import get_annee_consultee
     prof = Professeur.query.filter_by(utilisateur_id=current_user.id).first()
     if not prof:
         return jsonify({"success": False, "error": "Profil professeur introuvable."}), 404
 
-    fiches = (
-        FichePaiePersonnel.query
-        .filter_by(professeur_id=prof.id, ecole_id=current_user.ecole_id)
-        .order_by(FichePaiePersonnel.annee.desc(), FichePaiePersonnel.mois.desc())
-        .all()
+    annee_consultee = get_annee_consultee(current_user.ecole_id)
+    query_fiches = FichePaiePersonnel.query.filter(
+        FichePaiePersonnel.professeur_id == prof.id,
+        FichePaiePersonnel.ecole_id == current_user.ecole_id
     )
+    if annee_consultee:
+        query_fiches = query_fiches.filter(
+            (FichePaiePersonnel.annee_scolaire_id == annee_consultee.id) | (FichePaiePersonnel.annee_scolaire_id.is_(None))
+        )
+    fiches = query_fiches.order_by(FichePaiePersonnel.annee.desc(), FichePaiePersonnel.mois.desc()).all()
 
     data = [
         {

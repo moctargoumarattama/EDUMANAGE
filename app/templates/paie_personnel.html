@@ -24,18 +24,14 @@
 
         <!-- Sélecteur de période & Actions rapides -->
         <div class="d-flex flex-wrap align-items-center gap-2">
-            <!-- Sélecteur Mois & Année -->
-            <form method="get" action="{{ url_for('paie_personnel.index') }}" class="d-flex align-items-center gap-1.5 bg-white p-1 rounded-pill border shadow-xs">
-                <select name="mois" class="form-select form-select-sm border-0 fw-bold bg-transparent" style="width: 130px;" onchange="this.form.submit()">
-                    {% for m in range(1, 13) %}
-                    <option value="{{ m }}" {% if m == mois_selectionne %}selected{% endif %}>
-                        {{ noms_mois[m - 1] }}
+            <!-- Sélecteur Période rattaché à l'année scolaire active -->
+            <form method="get" action="{{ url_for('paie_personnel.index') }}" class="d-flex align-items-center bg-white px-2.5 py-1 rounded-pill border shadow-xs" id="formSelecteurPeriode">
+                <i class="fas fa-calendar-alt text-primary me-2 ms-1"></i>
+                <select name="periode" class="form-select form-select-sm border-0 fw-bold bg-transparent p-0 pe-4" style="min-width: 165px; cursor: pointer;" onchange="this.form.submit()">
+                    {% for opt in mois_annee_options %}
+                    <option value="{{ opt.valeur }}" {% if opt.valeur == periode_selectionnee_valeur %}selected{% endif %}>
+                        {{ opt.nom }}
                     </option>
-                    {% endfor %}
-                </select>
-                <select name="annee" class="form-select form-select-sm border-0 fw-bold bg-transparent" style="width: 90px;" onchange="this.form.submit()">
-                    {% for y in range(annee_selectionnee - 2, annee_selectionnee + 3) %}
-                    <option value="{{ y }}" {% if y == annee_selectionnee %}selected{% endif %}>{{ y }}</option>
                     {% endfor %}
                 </select>
             </form>
@@ -100,7 +96,7 @@
             <h5 class="fw-bold text-dark mb-0">
                 <i class="fas fa-list-alt text-primary me-2"></i>État des salaires - {{ nom_mois_selectionne }} {{ annee_selectionnee }}
             </h5>
-            <small class="text-muted">Basé sur les pointages enregistrés pour ce mois</small>
+            <small class="text-muted">Année scolaire <strong>{{ annee_active.nom if annee_active else '' }}</strong> • Basé sur les pointages enregistrés</small>
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0" id="tablePaiePersonnel">

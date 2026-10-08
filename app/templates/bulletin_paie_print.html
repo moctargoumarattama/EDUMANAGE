@@ -135,7 +135,7 @@
             <h5 class="fw-bold text-dark text-uppercase mb-0" style="letter-spacing: 1px;">
                 BULLETIN DE PAIE DU PERSONNEL
             </h5>
-            <small class="text-muted fw-semibold">Période : {{ fiche.periode_nom }}</small>
+            <small class="text-muted fw-semibold">Période : {{ fiche.periode_nom }}{% if fiche.annee_scolaire %} • Année scolaire : {{ fiche.annee_scolaire.nom }}{% endif %}</small>
         </div>
 
         <!-- Informations Enseignant & Contrat -->

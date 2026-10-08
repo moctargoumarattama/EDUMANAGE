@@ -11,7 +11,7 @@
                     </div>
                     <div>
                         <h5 class="modal-title fw-bold text-dark mb-0" id="modalPaieProfesseurLabel">Mes Bulletins &amp; Rémunérations</h5>
-                        <p class="text-muted small mb-0">Historique des salaires, heures validées et quittances officielles</p>
+                        <p class="text-muted small mb-0">Historique des salaires, heures validées et quittances officielles{% if annee_consultee %} ({{ annee_consultee.nom }}){% endif %}</p>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>

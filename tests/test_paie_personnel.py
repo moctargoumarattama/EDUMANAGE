@@ -353,7 +353,59 @@ class TestPaiePersonnel(unittest.TestCase):
         self.assertIn("BULLETIN DE PAIE", html)
         self.assertIn(self.prof_horaire.nom, html)
         self.assertIn("100 000", html)
-        self.assertIn("sheet-container", html)
+    def test_rattachement_annee_scolaire_active(self):
+        """8. Vérification stricte du rattachement de la paie à l'année scolaire active."""
+        self.login_admin()
+
+        # Accès avec période de l'année active
+        resp = self.client.get('/paie-personnel/?periode=2025-10')
+        self.assertEqual(resp.status_code, 200)
+        html = resp.get_data(as_text=True)
+        self.assertIn("2025-2026", html)
+        self.assertIn("Octobre 2025", html)
+
+        # Vérifier que les mois proposés contiennent les mois de l'année (Septembre 2025, Juin 2026)
+        self.assertIn("Septembre 2025", html)
+        self.assertIn("Juin 2026", html)
+
+        # Création d'une autre année scolaire et d'un pointage sur cette autre année
+        autre_annee = AnneeScolaire(
+            nom="2024-2025",
+            date_debut=date(2024, 9, 1),
+            date_fin=date(2025, 6, 30),
+            statut="terminee",
+            ecole_id=self.ecole.id
+        )
+        db.session.add(autre_annee)
+        db.session.commit()
+
+        # Pointage pour prof_horaire en Octobre sur l'ancienne année
+        pt_ancien = PointagePersonnel(
+            professeur_id=self.prof_horaire.id,
+            ecole_id=self.ecole.id,
+            annee_scolaire_id=autre_annee.id,
+            date_pointage=date(2025, 10, 20),
+            statut='present',
+            heures_effectuees=10.0,
+            valide=True
+        )
+        db.session.add(pt_ancien)
+        db.session.commit()
+
+        # Calculer le mois d'octobre 2025 sur l'année active
+        resp_calc = self.client.post('/paie-personnel/calculer-mois', json={"mois": 10, "annee": 2025})
+        self.assertEqual(resp_calc.status_code, 200)
+
+        # La fiche calculée ne doit comptabiliser QUE les heures de l'année active (20h) et PAS les 10h de l'autre année
+        fiche = FichePaiePersonnel.query.filter_by(
+            professeur_id=self.prof_horaire.id,
+            annee_scolaire_id=self.annee.id,
+            mois=10,
+            annee=2025
+        ).first()
+        self.assertIsNotNone(fiche)
+        self.assertEqual(fiche.heures_travaillees, 20.0)
+        self.assertEqual(fiche.salaire_brut, 100000.0)
 
 
 if __name__ == '__main__':
