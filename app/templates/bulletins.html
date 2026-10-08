@@ -238,7 +238,7 @@
                     </div>
                 </div>
 
-                {% if current_user.role in ['admin', 'directeur'] %}
+                {% if current_user.role in ['admin', 'directeur'] and bulletins_modifiables %}
                 <div class="col-12 col-md-4 col-lg-3 text-start text-md-end">
                     {% if not periode_publiee %}
                     <button type="button" 
@@ -1019,7 +1019,7 @@
         </div>
     </div>
 
-{% if current_user.role in ['admin', 'directeur'] and periode_active %}
+{% if current_user.role in ['admin', 'directeur'] and periode_active and bulletins_modifiables %}
 <!-- Modale de Confirmation de Clôture de Période -->
 <div class="modal fade" id="modalCloturerPeriode" tabindex="-1" aria-labelledby="modalCloturerLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -1095,7 +1095,7 @@
                             </div>
                         </div>
                         <p class="small text-muted mb-2">
-                            Les matières sans note afficheront la mention neutre <em>« Non évalué »</em> sur le bulletin et leur coefficient sera neutralisé pour que la moyenne reflète fidèlement le travail réellement évalué.
+                            La publication est bloquée tant que les matières attendues ne sont pas évaluées. Complétez les notes avant de clôturer la période.
                         </p>
                         <div class="accordion accordion-flush" id="accordionIncomplets">
                             <div class="accordion-item bg-transparent border-0">
@@ -1132,14 +1132,14 @@
                         <ul class="mb-0 ps-3">
                             <li>Les moyennes sont scellées et les rangs officiels (#1, #2...) sont validés.</li>
                             <li>Les bulletins de notes deviennent officiels et téléchargeables.</li>
-                            <li>Vous pourrez rouvrir la saisie à tout moment en cas de besoin de correction.</li>
+                            <li>La saisie peut être rouverte tant que les bulletins ne sont pas archivés.</li>
                         </ul>
                     </div>
                 </div>
                 <div class="modal-footer border-0 bg-light py-2.5 px-4 d-flex justify-content-end gap-2">
                     <button type="button" class="btn btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-success fw-bold rounded-pill px-4 shadow-sm">
-                        <i class="fas fa-lock me-1"></i>{% if total_eleves_incomplets is defined and total_eleves_incomplets > 0 %}Clôturer quand même et valider les bulletins{% else %}Confirmer la clôture{% endif %}
+                    <button type="submit" class="btn btn-success fw-bold rounded-pill px-4 shadow-sm" {% if total_eleves_incomplets is defined and total_eleves_incomplets > 0 %}disabled{% endif %}>
+                        <i class="fas fa-lock me-1"></i>Confirmer la clôture
                     </button>
                 </div>
             </form>

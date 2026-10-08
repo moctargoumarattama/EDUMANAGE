@@ -101,7 +101,7 @@ def _notifier_whatsapp_absence(absence, ecole=None, eleve=None, cours=None):
 
 @main.route('/absences', methods=['GET', 'POST'])
 @login_required
-@role_required('admin', 'professeur')
+@role_required('admin', 'super_admin', 'professeur')
 @tenant_required
 def absences():
     if request.method == 'POST':
@@ -411,7 +411,7 @@ def export_absences_excel():
 
 @main.route('/absences/edit/<int:absence_id>', methods=['GET', 'POST'])
 @login_required
-@role_required('admin', 'professeur')
+@role_required('admin', 'super_admin', 'professeur')
 @tenant_required
 def edit_absence(absence_id):
     absence = Absence.query.get_or_404(absence_id)
@@ -430,6 +430,8 @@ def edit_absence(absence_id):
         absence=absence,
     )
     if access_error:
+        if current_user.role == 'professeur':
+            abort(403)
         flash(access_error, "warning")
         return redirect(url_for('main.absences'))
 
@@ -449,6 +451,8 @@ def edit_absence(absence_id):
             absence=absence,
         )
         if error:
+            if current_user.role == 'professeur':
+                abort(403)
             flash(error, "danger")
             return redirect(url_for('main.absences'))
 
@@ -467,7 +471,7 @@ def edit_absence(absence_id):
 
 @main.route('/absences/delete/<int:absence_id>', methods=['POST'])
 @login_required
-@role_required('admin', 'professeur')
+@role_required('admin', 'super_admin', 'professeur')
 @tenant_required
 def delete_absence(absence_id):
     absence = Absence.query.get_or_404(absence_id)
@@ -483,6 +487,8 @@ def delete_absence(absence_id):
         absence=absence,
     )
     if access_error:
+        if current_user.role == 'professeur':
+            abort(403)
         flash(access_error, "warning")
         return redirect(url_for('main.absences'))
 

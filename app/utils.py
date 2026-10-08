@@ -457,7 +457,7 @@ def creer_ou_activer_annee_scolaire(ecole_id: int, nom: str, date_debut, date_fi
 # 👥 GESTION PARENTS ET ÉLÈVES
 # ====================================================================
 
-def bulletins_accessible_pour_parent(eleve_id: int = None) -> bool:
+def bulletins_accessible_pour_parent(eleve_id: int = None, annee_id=None, periode_nom=None) -> bool:
     """
     Vérifie si les bulletins sont accessibles pour un parent.
     
@@ -467,7 +467,7 @@ def bulletins_accessible_pour_parent(eleve_id: int = None) -> bool:
     Returns:
         bool: True si bulletins accessibles
     """
-    from app.models import PeriodeBulletin
+    from app.models import PeriodeBulletin, Inscription
     
     if not current_user.is_authenticated or current_user.role != 'parent':
         return False
@@ -476,21 +476,32 @@ def bulletins_accessible_pour_parent(eleve_id: int = None) -> bool:
     if not ecole_id:
         return False
     
-    # Vérifier qu'une période est publiée
-    periode_publiee = PeriodeBulletin.query.filter_by(
-        ecole_id=ecole_id,
-        publie=True
-    ).first()
-    
-    if not periode_publiee:
+    if annee_id is None:
+        from app.services.annees_scolaires import get_annee_consultee
+        annee = get_annee_consultee(ecole_id)
+        annee_id = annee.id if annee else None
+    if not annee_id:
         return False
-    
-    # Si élève spécifié, vérifier l'accès via la fonction centralisée
+
     if eleve_id:
         from app.authorization import check_parent_access
-        return check_parent_access(eleve_id)
-    
-    return True
+        if not check_parent_access(eleve_id):
+            return False
+        inscription = Inscription.query.filter_by(
+            ecole_id=ecole_id, eleve_id=eleve_id, annee_scolaire_id=annee_id
+        ).first()
+        if not inscription:
+            return False
+        if periode_nom:
+            from app.services.bulletins_annuels import periode_publiee_pour_inscription
+            return periode_publiee_pour_inscription(inscription, periode_nom)
+
+    query = PeriodeBulletin.query.filter_by(
+        ecole_id=ecole_id, annee_id=annee_id, publie=True
+    )
+    if periode_nom:
+        query = query.filter_by(nom=periode_nom)
+    return query.first() is not None
 
 
 

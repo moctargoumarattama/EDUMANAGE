@@ -19,9 +19,9 @@
                 <a href="{{ url_for('main.bulletins') }}" class="btn btn-outline-primary">
                     <i class="fas fa-file-alt me-2"></i>Bulletins
                 </a>
-                <a href="{{ url_for('main.creer_periode') }}" class="btn btn-primary">
+                {% if annee_consultee and annee_consultee.statut != 'archivee' %}<a href="{{ url_for('main.creer_periode') }}" class="btn btn-primary">
                     <i class="fas fa-plus me-2"></i>Ajouter
-                </a>
+                </a>{% endif %}
             </div>
         </div>
     </div>
@@ -68,17 +68,19 @@
                             </td>
                             <td class="text-end">
                                 <div class="action-buttons justify-content-end">
-                                    <a href="{{ url_for('main.toggle_periode', id=periode.id) }}"
-                                       class="btn btn-sm {% if periode.publie %}btn-outline-warning{% else %}btn-outline-success{% endif %} js-confirm-link"
-                                       data-confirm="{% if periode.publie %}Dépublier cette période {% else %}Publier cette période {% endif %}">
+                                    {% if periodes_modifiables.get(periode.id, false) %}
+                                    <form method="POST" action="{{ url_for('main.toggle_periode', id=periode.id) }}">
+                                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                      <button type="submit" class="btn btn-sm {% if periode.publie %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
                                         {% if periode.publie %}Dépublier{% else %}Publier{% endif %}
-                                    </a>
+                                      </button>
+                                    </form>
                                     {% if not periode.periode_active %}
-                                    <a href="{{ url_for('main.activer_periode', id=periode.id) }}"
-                                       class="btn btn-sm btn-outline-primary js-confirm-link"
-                                       data-confirm="Définir cette période comme active ">
-                                        Activer
-                                    </a>
+                                    <form method="POST" action="{{ url_for('main.activer_periode', id=periode.id) }}">
+                                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                      <button type="submit" class="btn btn-sm btn-outline-primary">Activer</button>
+                                    </form>
+                                    {% endif %}
                                     {% endif %}
                                 </div>
                             </td>
@@ -108,17 +110,17 @@
                 {% endif %}
             </div>
             <div class="period-card-actions">
-                <a href="{{ url_for('main.toggle_periode', id=periode.id) }}"
-                   class="btn btn-sm {% if periode.publie %}btn-outline-warning{% else %}btn-outline-success{% endif %} js-confirm-link"
-                   data-confirm="{% if periode.publie %}Dépublier cette période {% else %}Publier cette période {% endif %}">
-                    {% if periode.publie %}Dépublier{% else %}Publier{% endif %}
-                </a>
+                {% if periodes_modifiables.get(periode.id, false) %}
+                <form method="POST" action="{{ url_for('main.toggle_periode', id=periode.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm {% if periode.publie %}btn-outline-warning{% else %}btn-outline-success{% endif %}">{% if periode.publie %}Dépublier{% else %}Publier{% endif %}</button>
+                </form>
                 {% if not periode.periode_active %}
-                <a href="{{ url_for('main.activer_periode', id=periode.id) }}"
-                   class="btn btn-sm btn-outline-primary js-confirm-link"
-                   data-confirm="Définir cette période comme active ">
-                    Activer
-                </a>
+                <form method="POST" action="{{ url_for('main.activer_periode', id=periode.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Activer</button>
+                </form>
+                {% endif %}
                 {% endif %}
             </div>
         </article>
@@ -129,9 +131,9 @@
         <div class="empty-state-icon"><i class="fas fa-calendar-times"></i></div>
         <h2 class="empty-state-title">Aucune période</h2>
         <p class="empty-state-text">Ajoutez une période pour publier les bulletins.</p>
-        <a href="{{ url_for('main.creer_periode') }}" class="btn btn-primary">
+        {% if annee_consultee and annee_consultee.statut != 'archivee' %}<a href="{{ url_for('main.creer_periode') }}" class="btn btn-primary">
             <i class="fas fa-plus me-2"></i>Ajouter
-        </a>
+        </a>{% endif %}
     </div>
     {% endif %}
 </div>

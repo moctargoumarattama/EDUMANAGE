@@ -16,6 +16,7 @@ Règles fondamentales :
 from datetime import datetime
 from collections import defaultdict
 from flask import current_app
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from app import db
 from app.models import (
@@ -61,6 +62,104 @@ def statut_annee_bulletins(annee):
 def bulletins_modifiables(annee):
     """Indique si les bulletins de l'année peuvent être modifiés ou générés."""
     return bool(annee and annee.statut == "active")
+
+
+STATUTS_BULLETIN_SCELLES = {
+    'archive', 'archivé', 'archivee', 'archivée', 'verrouille', 'verrouillé'
+}
+
+
+def bulletin_est_archive(bulletin):
+    """Détermine l'immutabilité depuis le bulletin et son année réelle."""
+    if not bulletin:
+        return False
+    statut = str(bulletin.statut or '').strip().casefold()
+    inscription = bulletin.inscription
+    annee = inscription.annee_scolaire if inscription else bulletin.annee_scolaire
+    return statut in STATUTS_BULLETIN_SCELLES or bool(annee and annee.statut == 'archivee')
+
+
+def periode_publiee_pour_inscription(inscription, periode_nom):
+    """Contrôle la publication du semestre exact de l'inscription."""
+    if not inscription or not periode_nom:
+        return False
+    periode = PeriodeBulletin.query.filter_by(
+        ecole_id=inscription.ecole_id,
+        annee_id=inscription.annee_scolaire_id,
+        nom=periode_nom,
+        publie=True,
+    ).first()
+    if not periode:
+        return False
+    bulletin = Bulletin.query.filter_by(
+        ecole_id=inscription.ecole_id,
+        inscription_id=inscription.id,
+        periode=periode_nom,
+    ).first()
+    if inscription.annee_scolaire and inscription.annee_scolaire.statut == 'archivee' and not bulletin:
+        return False
+    return not bulletin or str(bulletin.statut or '').strip().casefold() not in {
+        'brouillon', 'en_cours', 'provisoire'
+    }
+
+
+def verifier_publication_periode(periode):
+    """Refuse une publication sans notes ou avec des évaluations incomplètes."""
+    autorise, erreur = verifier_modification_periode(periode)
+    if not autorise:
+        return False, erreur
+
+    classes = Classe.query.filter_by(
+        ecole_id=periode.ecole_id, annee_scolaire_id=periode.annee_id
+    ).all()
+    classes_avec_eleves = 0
+    for classe in classes:
+        inscriptions = Inscription.query.filter_by(
+            ecole_id=periode.ecole_id, annee_scolaire_id=periode.annee_id,
+            classe_id=classe.id,
+        ).with_entities(Inscription.id).all()
+        if not inscriptions:
+            continue
+        classes_avec_eleves += 1
+        ids = [row.id for row in inscriptions]
+        notes_count = Note.query.join(Cours, Note.cours_id == Cours.id).filter(
+            Note.ecole_id == periode.ecole_id,
+            Note.inscription_id.in_(ids),
+            Note.periode == periode.nom,
+            Note.valeur.isnot(None),
+            Cours.classe_id == classe.id,
+        ).count()
+        if notes_count == 0:
+            return False, f"Impossible de publier : aucune note n'est saisie pour la classe {classe.nom} sur cette période."
+    if not classes_avec_eleves:
+        return False, "Impossible de publier : aucun élève inscrit dans cette année."
+
+    from app.services.evaluations import verifier_eligibilite_publication_periode
+    avis = verifier_eligibilite_publication_periode(
+        periode.ecole_id, periode.annee_id, periode.nom
+    )
+    if not avis['eligible']:
+        return False, avis['message_resume']
+    return True, None
+
+
+def verifier_modification_periode(periode):
+    """Empêche la mutation d'une année ou d'un bulletin déjà archivé."""
+    if not periode or not periode.annee or periode.annee.statut != 'active':
+        return False, "Une période d'une année archivée ou planifiée est en lecture seule."
+    bulletins = Bulletin.query.outerjoin(
+        Inscription, Bulletin.inscription_id == Inscription.id
+    ).filter(
+        Bulletin.ecole_id == periode.ecole_id,
+        Bulletin.periode == periode.nom,
+        or_(
+            Bulletin.annee_scolaire_id == periode.annee_id,
+            Inscription.annee_scolaire_id == periode.annee_id,
+        ),
+    ).all()
+    if any(bulletin_est_archive(bulletin) for bulletin in bulletins):
+        return False, "Un bulletin de cette période est archivé : modification interdite."
+    return True, None
 
 
 def get_inscriptions_bulletins(ecole_id, annee, user):
@@ -403,7 +502,7 @@ def generer_ou_recuperer_bulletin(ecole_id, annee, user, inscription_id, periode
     """
     Génère ou récupère un enregistrement Bulletin persistant pour une inscription et période.
     - Année active : création / recalcul autorisé et persisté.
-    - Année archivée : renvoie le bulletin existant figé ou calcul en lecture seule sans mutation.
+    - Année archivée : renvoie uniquement le bulletin existant figé.
     - Année planifiée : génération interdite.
     """
     if not annee:
@@ -412,6 +511,8 @@ def generer_ou_recuperer_bulletin(ecole_id, annee, user, inscription_id, periode
     inscription = Inscription.query.filter_by(id=inscription_id, ecole_id=ecole_id).first()
     if not inscription:
         return None, "Inscription introuvable ou non autorisée."
+    if inscription.annee_scolaire_id != annee.id:
+        return None, "L'inscription n'appartient pas à l'année scolaire demandée."
 
     periode_nom = periode or SEMESTRE_1
 
@@ -419,7 +520,7 @@ def generer_ou_recuperer_bulletin(ecole_id, annee, user, inscription_id, periode
         return None, MESSAGE_ANNEE_PLANIFIEE
 
     bulletin_existant = Bulletin.query.filter_by(
-        inscription_id=inscription.id, periode=periode_nom
+        ecole_id=ecole_id, inscription_id=inscription.id, periode=periode_nom
     ).first()
     periode_close = PeriodeBulletin.query.filter_by(
         ecole_id=ecole_id, annee_id=annee.id, nom=periode_nom, publie=True
@@ -434,32 +535,13 @@ def generer_ou_recuperer_bulletin(ecole_id, annee, user, inscription_id, periode
     # Année archivée : lecture seule stricte
     if annee.statut == "archivee":
         bulletin_existant = Bulletin.query.filter_by(
-            inscription_id=inscription.id,
+            ecole_id=ecole_id, inscription_id=inscription.id,
             periode=periode_nom
         ).first()
         if bulletin_existant:
             return bulletin_existant, None
 
-        # Si aucun bulletin figé n'a été préalablement persisté, calculer un instantané virtuel non modifiable
-        data, err = calculer_bulletin_data(ecole_id, annee, inscription, periode=periode_nom)
-        if err:
-            return None, err
-
-        bulletin_virtuel = Bulletin(
-            inscription_id=inscription.id,
-            eleve_id=inscription.eleve_id,
-            ecole_id=ecole_id,
-            classe_id=data['classe'].id if data['classe'] else inscription.classe_id,
-            annee_scolaire_id=inscription.annee_scolaire_id,
-            periode=periode_nom,
-            moyenne_generale=data['moyenne_generale'],
-            rang=data['rang'],
-            rang_total=data['rang_total'],
-            appreciation_generale=appreciation_generale or data['appreciation'],
-            statut='valide',
-            created_at=datetime.utcnow()
-        )
-        return bulletin_virtuel, None
+        return None, "Bulletin archivé introuvable : recalcul interdit."
 
     # Année active : calcul et persistance
     data, err = calculer_bulletin_data(ecole_id, annee, inscription, periode=periode_nom)
@@ -467,7 +549,7 @@ def generer_ou_recuperer_bulletin(ecole_id, annee, user, inscription_id, periode
         return None, err
 
     bulletin = Bulletin.query.filter_by(
-        inscription_id=inscription.id,
+        ecole_id=ecole_id, inscription_id=inscription.id,
         periode=periode_nom
     ).first()
 
@@ -509,6 +591,19 @@ def modifier_appreciation_bulletin(ecole_id, annee, user, bulletin_id, nouvelle_
     bulletin = Bulletin.query.filter_by(id=bulletin_id, ecole_id=ecole_id).first()
     if not bulletin:
         return None, "Bulletin introuvable."
+    annee_bulletin_id = bulletin.inscription.annee_scolaire_id if bulletin.inscription else bulletin.annee_scolaire_id
+    if bulletin_est_archive(bulletin) or annee_bulletin_id != annee.id:
+        return None, "Bulletin archivé ou d'une autre année : modification interdite."
+    if user.role == 'professeur':
+        professeur = getattr(user, 'professeur_rel', None)
+        classe_id = bulletin.inscription.classe_id if bulletin.inscription else bulletin.classe_id
+        if not professeur or not classe_id or not (
+            professeur.classes_assignees.filter_by(id=classe_id, ecole_id=ecole_id).first()
+            or Cours.query.filter_by(
+                ecole_id=ecole_id, classe_id=classe_id, professeur_id=professeur.id
+            ).first()
+        ):
+            return None, "Ce bulletin n'appartient pas à une classe autorisée pour ce professeur."
 
     bulletin.appreciation_generale = (nouvelle_appreciation or '').strip()
     bulletin.updated_at = datetime.utcnow()
@@ -528,6 +623,9 @@ def supprimer_bulletin(ecole_id, annee, user, bulletin_id):
     bulletin = Bulletin.query.filter_by(id=bulletin_id, ecole_id=ecole_id).first()
     if not bulletin:
         return False, "Bulletin introuvable."
+    annee_bulletin_id = bulletin.inscription.annee_scolaire_id if bulletin.inscription else bulletin.annee_scolaire_id
+    if bulletin_est_archive(bulletin) or annee_bulletin_id != annee.id:
+        return False, "Bulletin archivé ou d'une autre année : suppression interdite."
 
     db.session.delete(bulletin)
     db.session.commit()

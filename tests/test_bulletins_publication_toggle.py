@@ -296,7 +296,7 @@ class BulletinsPublicationToggleTestCase(unittest.TestCase):
             ecole_id=self.ecole_a.id,
             classe_id=self.classe.id,
         )
-        # Élève 2 : seulement noté en Français (14.0) -> partiel
+        # Élève 2 : noté dans les deux matières (14.0)
         eleve2 = Eleve(nom="Diallo", prenom="Awa", date_naissance=date(2013, 5, 20), ecole_id=self.ecole_a.id)
         # Élève 3 : noté en Maths (8.0) et Français (8.0) -> faible
         eleve3 = Eleve(nom="Traore", prenom="Moussa", date_naissance=date(2013, 8, 10), ecole_id=self.ecole_a.id)
@@ -310,12 +310,13 @@ class BulletinsPublicationToggleTestCase(unittest.TestCase):
 
         # Ins1 a déjà Maths 17.0, ajoutons lui Français 15.0 -> Moyenne (17*2 + 15*2)/4 = 16.0 (Excellent)
         n1_bis = Note(valeur=15.0, coefficient=1.0, type_evaluation="Devoir", periode="Semestre 1", inscription_id=self.ins.id, eleve_id=self.eleve.id, cours_id=cours2.id, ecole_id=self.ecole_a.id, annee_id=self.annee_a.id)
-        # Ins2 a seulement Français 14.0 (partiel) -> Moyenne 14.0 (Très bien)
+        # Ins2 a Français et Maths à 14.0 -> Moyenne 14.0 (Très bien)
         n2 = Note(valeur=14.0, coefficient=1.0, type_evaluation="Devoir", periode="Semestre 1", inscription_id=ins2.id, eleve_id=eleve2.id, cours_id=cours2.id, ecole_id=self.ecole_a.id, annee_id=self.annee_a.id)
+        n2_math = Note(valeur=14.0, coefficient=1.0, type_evaluation="Devoir", periode="Semestre 1", inscription_id=ins2.id, eleve_id=eleve2.id, cours_id=self.cours.id, ecole_id=self.ecole_a.id, annee_id=self.annee_a.id)
         # Ins3 a Maths 8.0 et Français 8.0 -> Moyenne 8.0 (Insuffisant)
         n3_a = Note(valeur=8.0, coefficient=1.0, type_evaluation="Devoir", periode="Semestre 1", inscription_id=ins3.id, eleve_id=eleve3.id, cours_id=self.cours.id, ecole_id=self.ecole_a.id, annee_id=self.annee_a.id)
         n3_b = Note(valeur=8.0, coefficient=1.0, type_evaluation="Devoir", periode="Semestre 1", inscription_id=ins3.id, eleve_id=eleve3.id, cours_id=cours2.id, ecole_id=self.ecole_a.id, annee_id=self.annee_a.id)
-        db.session.add_all([n1_bis, n2, n3_a, n3_b])
+        db.session.add_all([n1_bis, n2, n2_math, n3_a, n3_b])
         db.session.commit()
 
         # 1. Avant clôture : période non publiée -> calculs en temps réel au fil de l'eau
@@ -373,8 +374,10 @@ class BulletinsPublicationToggleTestCase(unittest.TestCase):
         # Période initialement non publiée
         self.assertFalse(self.periode_a.publie)
         
-        # Appel direct GET sur la route historique
-        resp = self.client.get(f"/toggle_periode/{self.periode_a.id}")
+        # La mutation historique exige désormais POST.
+        resp_get = self.client.get(f"/toggle_periode/{self.periode_a.id}")
+        self.assertEqual(resp_get.status_code, 405)
+        resp = self.client.post(f"/toggle_periode/{self.periode_a.id}")
         self.assertEqual(resp.status_code, 302)
         
         # Vérification : Période publiée immédiatement

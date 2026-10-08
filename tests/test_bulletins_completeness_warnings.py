@@ -3,7 +3,7 @@ Tests unitaires et d'intégration pour la complétude intelligente des bulletins
 - Alertes visuelles et infobulles sur matières manquantes (soft warnings)
 - Synthèse d'incomplétude dans la modale de clôture (#modalCloturerPeriode)
 - Neutralisation des matières non évaluées sur le bulletin PDF sans jamais bloquer l'impression
-- Succès de la clôture même en présence d'élèves incomplets
+- Blocage de la clôture en présence d'élèves incomplets
 """
 import unittest
 from datetime import date
@@ -165,7 +165,7 @@ class BulletinsCompletenessWarningsTestCase(unittest.TestCase):
     def test_student_with_missing_subjects_context_and_soft_warnings(self):
         """
         Vérifie que l'élève avec des matières manquantes reçoit les alertes visuelles,
-        l'infobulle Bootstrap descriptive et alimente la modale de clôture sans blocage.
+        l'infobulle Bootstrap descriptive et le blocage de clôture.
         """
         self._login(self.admin)
         resp = self.client.get(f"/bulletins?classe_id={self.classe.id}&periode_id={self.periode.id}")
@@ -184,7 +184,7 @@ class BulletinsCompletenessWarningsTestCase(unittest.TestCase):
         self.assertIn("modalCloturerPeriode", html)
         self.assertIn("Attention : 1 élève", html)
         self.assertIn("Jean Kouassi", html)
-        self.assertIn("Clôturer quand même et valider les bulletins", html)
+        self.assertIn("La publication est bloquée", html)
 
     def test_pdf_data_neutralizes_missing_subjects_coefficients(self):
         """
@@ -244,9 +244,9 @@ class BulletinsCompletenessWarningsTestCase(unittest.TestCase):
         self.assertEqual(resp_bulk.mimetype, "application/pdf")
         self.assertTrue(len(resp_bulk.data) > 1000)
 
-    def test_cloture_succeeds_even_with_incomplete_students(self):
+    def test_cloture_refusee_avec_eleves_incomplets(self):
         """
-        Vérifie que la clôture officielle réussit sans blocage même si un ou plusieurs élèves sont incomplets.
+        Vérifie que la clôture officielle refuse un dossier pédagogique incomplet.
         """
         self._login(self.admin)
         url_toggle = f"/bulletins/periodes/{self.periode.id}/toggle-publication"
@@ -257,15 +257,13 @@ class BulletinsCompletenessWarningsTestCase(unittest.TestCase):
 
         # Vérifier en BDD
         p_reloaded = db.session.get(PeriodeBulletin, self.periode.id)
-        self.assertTrue(p_reloaded.publie)
+        self.assertFalse(p_reloaded.publie)
 
-        # Vérifier le rechargement de la page officielle
+        # Le rechargement reste en mode provisoire.
         resp_page = self.client.get(resp.headers.get("Location", ""))
         self.assertEqual(resp_page.status_code, 200)
         html = resp_page.get_data(as_text=True)
-        self.assertIn("Période clôturée (Officielle)", html)
-        self.assertIn("#1", html)
-        self.assertIn("#2", html)
+        self.assertIn("Saisie en cours (Notes provisoires)", html)
 
 
 if __name__ == "__main__":

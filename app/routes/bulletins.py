@@ -1,5 +1,5 @@
 from collections import defaultdict
-from flask import g, jsonify, request
+from flask import abort, g, jsonify, request
 from sqlalchemy import or_
 from app.authorization import tenant_required
 from . import main
@@ -41,6 +41,10 @@ from app.services.bulletins_annuels import (
     calculer_bulletin_data,
     modifier_appreciation_bulletin,
     supprimer_bulletin,
+    bulletin_est_archive,
+    periode_publiee_pour_inscription,
+    verifier_publication_periode,
+    verifier_modification_periode,
     MESSAGE_ANNEE_PLANIFIEE,
 )
 from app.services.evaluations import (
@@ -167,29 +171,23 @@ def bulletin_eleve(id=None, inscription_id=None):
             flash("Accès non autorisé à cet élève.", "danger")
             return redirect(url_for('main.parent_dashboard'))
 
-        # Si année active, vérifier si les bulletins sont publiés
-        if annee.statut == 'active' and not bulletins_accessible_pour_parent(eleve.id):
-            flash("Les bulletins ne sont pas encore disponibles. Ils seront publiés prochainement.", "info")
-            return redirect(url_for('main.parent_dashboard'))
-        # Pour une année archivée, le parent peut toujours télécharger l'historique
-
     # Sécurité professeur
     if current_user.role == 'professeur':
         professeur = getattr(current_user, 'professeur_rel', None)
-        if professeur:
-            classes_prof = [c.id for c in professeur.classes_assignees.filter_by(ecole_id=ecole_id).all()]
-            classes_cours = [
-                c.id for c in Classe.query.join(Cours)
-                .filter(
-                    Cours.professeur_id == professeur.id,
-                    Cours.ecole_id == ecole_id,
-                    Classe.annee_scolaire_id == annee.id
-                ).all()
-            ]
-            allowed_classes = set(classes_prof + classes_cours)
-            if inscription.classe_id not in allowed_classes and not can_access_eleve(eleve):
-                flash("Vous n'avez pas accès aux bulletins de cet élève.", "danger")
-                return redirect(url_for('main.bulletins'))
+        if not professeur:
+            abort(403)
+        classes_prof = [c.id for c in professeur.classes_assignees.filter_by(ecole_id=ecole_id).all()]
+        classes_cours = [
+            c.id for c in Classe.query.join(Cours)
+            .filter(
+                Cours.professeur_id == professeur.id,
+                Cours.ecole_id == ecole_id,
+                Classe.annee_scolaire_id == annee.id
+            ).all()
+        ]
+        allowed_classes = set(classes_prof + classes_cours)
+        if inscription.classe_id not in allowed_classes and not can_access_eleve(eleve, annee.id):
+            abort(403)
 
     # Statut de l'année scolaire : Année planifiée interdite
     if annee.statut == 'planifiee':
@@ -206,14 +204,19 @@ def bulletin_eleve(id=None, inscription_id=None):
 
     p_obj = PeriodeBulletin.query.filter_by(ecole_id=ecole_id, annee_id=annee.id, nom=periode_demandee).first()
     if not p_obj:
-        p_obj = PeriodeBulletin(
-            nom=periode_demandee,
-            ecole_id=ecole_id,
-            annee_id=annee.id,
-            publie=False
-        )
-        db.session.add(p_obj)
-        db.session.commit()
+        if current_user.role == 'parent':
+            abort(403)
+        flash("Période de bulletin introuvable pour cette année.", "warning")
+        return redirect(url_for('main.bulletins'))
+    if current_user.role == 'parent' and not periode_publiee_pour_inscription(inscription, p_obj.nom):
+        abort(403)
+    bulletin_fige = Bulletin.query.filter_by(
+        ecole_id=ecole_id, inscription_id=inscription.id, periode=p_obj.nom
+    ).first()
+    archive_immuable = annee.statut == 'archivee' or bulletin_est_archive(bulletin_fige)
+    if archive_immuable and not bulletin_fige:
+        flash("Bulletin archivé introuvable : recalcul interdit.", "warning")
+        return redirect(url_for('main.bulletins'))
     periode_est_publiee = bool(p_obj and p_obj.publie)
 
     # Calcul des données du bulletin strictement depuis Inscription et ses Notes
@@ -221,6 +224,11 @@ def bulletin_eleve(id=None, inscription_id=None):
     if err:
         flash(f"Erreur lors du calcul du bulletin : {err}", "danger")
         return redirect(url_for('main.bulletins'))
+    if archive_immuable and bulletin_fige:
+        data['moyenne_generale'] = bulletin_fige.moyenne_generale
+        data['rang'] = bulletin_fige.rang
+        data['rang_total'] = bulletin_fige.rang_total
+        data['appreciation'] = bulletin_fige.appreciation_generale
 
     ecole = eleve.ecole
     classe_nom = inscription.classe.nom if inscription.classe else "Sans classe"
@@ -301,11 +309,6 @@ def bulletins():
             bulletins_modifiables=False,
             statut_warning="Aucune année scolaire configurée."
         )
-
-    # 🔒 Vérifier l'accès pour les parents (uniquement si année active)
-    if current_user.role == 'parent' and annee.statut == 'active' and not bulletins_accessible_pour_parent():
-        flash("Les bulletins ne sont pas encore disponibles. Ils seront publiés prochainement.", "info")
-        return redirect(url_for('main.parent_dashboard'))
 
     statut_warning = statut_annee_bulletins(annee)
     est_modifiable = bulletins_modifiables(annee)
@@ -396,6 +399,19 @@ def bulletins():
 
     periode_nom = periode_active.nom if periode_active else "Semestre 1"
     periode_publiee = bool(periode_active and periode_active.publie)
+    if periode_active and est_modifiable:
+        est_modifiable = verifier_modification_periode(periode_active)[0]
+    if current_user.role == 'parent':
+        if not periode_active or not bulletins_accessible_pour_parent(
+            annee_id=annee.id, periode_nom=periode_nom
+        ):
+            flash("Ce bulletin n'a pas encore été validé et publié par l'établissement.", "info")
+            return redirect(url_for('main.parent_dashboard'))
+        inscriptions = [
+            ins for ins in inscriptions
+            if periode_publiee_pour_inscription(ins, periode_nom)
+        ]
+        inscr_ids = [ins.id for ins in inscriptions]
 
     # Détection intelligente de la période suivante pour le workflow "zéro erreur"
     periode_suivante = None
@@ -417,13 +433,17 @@ def bulletins():
     mention_filtre = (request.args.get('mention') or '').strip().lower()
     statut_bulletin = (request.args.get('statut_bulletin') or request.args.get('generation') or '').strip().lower()
 
-    # Bulletins existants en DB pour cette école et année
+    # Bulletins de la période consultée uniquement.
     bulletins_existants = {
-        b.inscription_id: b for b in Bulletin.query.filter_by(
-            ecole_id=ecole_id,
-            annee_scolaire_id=annee.id
+        b.inscription_id: b for b in Bulletin.query.filter(
+            Bulletin.ecole_id == ecole_id,
+            Bulletin.inscription_id.in_(inscr_ids),
+            Bulletin.periode == periode_nom,
         ).all()
-    }
+    } if inscr_ids else {}
+    if annee.statut == 'archivee':
+        inscriptions = [ins for ins in inscriptions if ins.id in bulletins_existants]
+        inscr_ids = [ins.id for ins in inscriptions]
 
     # Récupération optimisée des notes liées à ces inscriptions restreintes aux cours officiels
     notes_query = (
@@ -476,6 +496,10 @@ def bulletins():
 
         status = eval_info["status"]
         moyenne = eval_info["average"]
+        bulletin_fige = bulletins_existants.get(ins.id)
+        if bulletin_fige and (annee.statut == 'archivee' or bulletin_est_archive(bulletin_fige)):
+            moyenne = bulletin_fige.moyenne_generale
+            eval_info['average'] = moyenne
 
         if periode_publiee and moyenne is not None:
             status = STATUS_COMPLETE
@@ -591,7 +615,12 @@ def bulletins():
 
         for rk, it in enumerate(c_evalues, 1):
             if periode_publiee:
-                it['rang_classe'] = rk
+                bulletin_fige = bulletins_existants.get(it['inscription'].id)
+                if bulletin_fige and (annee.statut == 'archivee' or bulletin_est_archive(bulletin_fige)):
+                    it['rang_classe'] = bulletin_fige.rang
+                    it['rang_classe_total'] = bulletin_fige.rang_total
+                else:
+                    it['rang_classe'] = rk
                 it['status'] = STATUS_COMPLETE
                 it['is_provisoire'] = False
                 it['is_official'] = True
@@ -601,7 +630,9 @@ def bulletins():
                 it['rang_classe'] = rk
                 it['is_provisoire'] = True
                 it['is_official'] = False
-            it['rang_classe_total'] = len(c_evalues)
+            if not (periode_publiee and bulletin_fige and
+                    (annee.statut == 'archivee' or bulletin_est_archive(bulletin_fige))):
+                it['rang_classe_total'] = len(c_evalues)
 
         if c_evalues:
             moyennes_vals = [it['moyenne_raw'] for it in c_evalues]
@@ -720,7 +751,7 @@ def bulletins():
         total_eleves=len(inscriptions),
         total_eleves_incomplets=total_eleves_incomplets,
         tous_eleves_incomplets=tous_eleves_incomplets,
-        bulletins_accessibles=bulletins_accessible_pour_parent() or (annee and annee.statut == 'archivee'),
+        bulletins_accessibles=(periode_publiee if current_user.role == 'parent' else True),
         annee_consultee=annee,
         bulletins_modifiables=est_modifiable,
         statut_warning=statut_warning,
@@ -741,6 +772,9 @@ def route_supprimer_bulletin(id):
     """Supprime un bulletin persistant (interdit sur année archivée ou planifiée)."""
     ecole_id = g.ecole_id
     annee = get_annee_consultee(ecole_id)
+    bulletin_cible = Bulletin.query.filter_by(id=id, ecole_id=ecole_id).first()
+    if bulletin_cible and bulletin_est_archive(bulletin_cible):
+        abort(403)
     succes, err = supprimer_bulletin(ecole_id, annee, current_user, id)
     if not succes:
         flash(err or "Impossible de supprimer ce bulletin.", "danger")
@@ -758,6 +792,9 @@ def route_modifier_appreciation(id):
     """Modifie l'appréciation générale d'un bulletin (interdit sur année archivée)."""
     ecole_id = g.ecole_id
     annee = get_annee_consultee(ecole_id)
+    bulletin_cible = Bulletin.query.filter_by(id=id, ecole_id=ecole_id).first()
+    if bulletin_cible and bulletin_est_archive(bulletin_cible):
+        abort(403)
     nouvelle_appreciation = request.form.get('appreciation', '')
     bulletin_mod, err = modifier_appreciation_bulletin(ecole_id, annee, current_user, id, nouvelle_appreciation)
     if err:
@@ -778,6 +815,14 @@ def toggle_publication_periode(periode_id):
     """
     ecole_id = g.ecole_id
     periode = PeriodeBulletin.query.filter_by(id=periode_id, ecole_id=ecole_id).first_or_404()
+    autorise, erreur = verifier_modification_periode(periode)
+    if not autorise:
+        abort(403, description=erreur)
+    if not periode.publie:
+        eligible, erreur = verifier_publication_periode(periode)
+        if not eligible:
+            flash(erreur, "danger")
+            return redirect(url_for('main.bulletins', periode_id=periode.id))
 
     redirect_args = {}
     classe_id = request.form.get('classe_id', type=int) or request.args.get('classe_id', type=int)
@@ -867,6 +912,9 @@ def activer_directement_periode(periode_id):
     """
     ecole_id = g.ecole_id
     periode = PeriodeBulletin.query.filter_by(id=periode_id, ecole_id=ecole_id).first_or_404()
+    autorise, erreur = verifier_modification_periode(periode)
+    if not autorise:
+        abort(403, description=erreur)
 
     # Désactiver les autres périodes actives de la même année pour cette école
     PeriodeBulletin.query.filter_by(
@@ -1005,7 +1053,7 @@ def export_pdf_groupe_classe(classe_id):
         Note.periode == periode_nom
     ).count()
 
-    if notes_count == 0:
+    if notes_count == 0 and annee.statut != 'archivee':
         flash(f"Aucune note n'a encore été saisie pour la classe {classe.nom} sur la période {periode_nom}.", "warning")
         return redirect(url_for('main.bulletins', classe_id=classe.id, periode_id=periode_obj.id))
 
@@ -1015,6 +1063,13 @@ def export_pdf_groupe_classe(classe_id):
         eleve = ins.eleve
         if not eleve:
             continue
+        bulletin_fige = Bulletin.query.filter_by(
+            ecole_id=ecole_id, inscription_id=ins.id, periode=periode_nom
+        ).first()
+        archive_immuable = annee.statut == 'archivee' or bulletin_est_archive(bulletin_fige)
+        if archive_immuable and not bulletin_fige:
+            flash("Bulletin archivé introuvable : export groupé incomplet interdit.", "warning")
+            return redirect(url_for('main.bulletins', classe_id=classe.id, periode_id=periode_obj.id))
         data, err = calculer_bulletin_data(
             ecole_id,
             annee,
@@ -1024,6 +1079,11 @@ def export_pdf_groupe_classe(classe_id):
         )
         if err or not data:
             continue
+        if archive_immuable:
+            data['moyenne_generale'] = bulletin_fige.moyenne_generale
+            data['rang'] = bulletin_fige.rang
+            data['rang_total'] = bulletin_fige.rang_total
+            data['appreciation'] = bulletin_fige.appreciation_generale
 
         eleves_data.append({
             'inscription': ins,
@@ -1127,13 +1187,21 @@ def export_pdf_groupe_classe(classe_id):
         return redirect(url_for('main.bulletins', classe_id=classe.id, periode_id=periode_obj.id))
 
 
-@main.route('/toggle_periode/<int:id>', methods=['GET', 'POST'])
+@main.route('/toggle_periode/<int:id>', methods=['POST'])
 @login_required
 @role_required('admin')
 @tenant_required
 def toggle_periode(id):
     ecole_id = g.ecole_id
     periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=ecole_id).first_or_404()
+    autorise, erreur = verifier_modification_periode(periode)
+    if not autorise:
+        abort(403, description=erreur)
+    if not periode.publie:
+        eligible, erreur = verifier_publication_periode(periode)
+        if not eligible:
+            flash(erreur, "danger")
+            return redirect(url_for('main.gestion_periodes'))
 
     # Bascule directe sans écran intermédiaire
     if not periode.publie:
@@ -1181,7 +1249,7 @@ def toggle_periode(id):
     return redirect(request.referrer or url_for('main.gestion_periodes'))
 
 
-@main.route('/reouvrir_periode/<int:id>', methods=['GET', 'POST'])
+@main.route('/reouvrir_periode/<int:id>', methods=['POST'])
 @login_required
 @role_required('admin')
 @tenant_required
@@ -1189,6 +1257,9 @@ def reouvrir_periode(id):
     """Réouverture administrative explicite d'un bulletin / semestre."""
     ecole_id = g.ecole_id
     periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=ecole_id).first_or_404()
+    autorise, erreur = verifier_modification_periode(periode)
+    if not autorise:
+        abort(403, description=erreur)
     periode.publie = False
 
     journal = JournalCorrection(
@@ -1218,24 +1289,28 @@ def gestion_periodes():
     if annee:
         query = query.filter_by(annee_id=annee.id)
     periodes = query.all()
-    return render_template("gestion_periodes.html", periodes=periodes, annee_consultee=annee)
+    periodes_modifiables = {
+        periode.id: verifier_modification_periode(periode)[0]
+        for periode in periodes
+    }
+    return render_template(
+        "gestion_periodes.html", periodes=periodes,
+        annee_consultee=annee, periodes_modifiables=periodes_modifiables,
+    )
 
 
-@main.route('/activer_periode/<int:id>')
+@main.route('/activer_periode/<int:id>', methods=['POST'])
 @login_required
 @role_required('admin')
 @tenant_required
 def activer_periode(id):
     """Rendre une période active (période de travail) sans forcer sa publication officielle."""
     ecole_id = g.ecole_id
-    annee = get_annee_consultee(ecole_id)
-    filter_kwargs = {'ecole_id': ecole_id}
-    if annee:
-        filter_kwargs['annee_id'] = annee.id
-
-    PeriodeBulletin.query.filter_by(**filter_kwargs).update({'periode_active': False})
-    
     periode = PeriodeBulletin.query.filter_by(id=id, ecole_id=ecole_id).first_or_404()
+    autorise, erreur = verifier_modification_periode(periode)
+    if not autorise:
+        abort(403, description=erreur)
+    PeriodeBulletin.query.filter_by(ecole_id=ecole_id, annee_id=periode.annee_id).update({'periode_active': False})
     periode.periode_active = True
     # IMPORTANT : Ne force PAS periode.publie = True (activation != publication)
     
@@ -1261,6 +1336,8 @@ def creer_periode():
         if not annee:
             flash("Année scolaire invalide pour cette école.", "danger")
             return redirect(url_for('main.creer_periode'))
+        if annee.statut == 'archivee':
+            abort(403, description="Une année archivée est en lecture seule.")
         
         nouvelle_periode = PeriodeBulletin(
             nom=nom,

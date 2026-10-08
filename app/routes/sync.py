@@ -411,7 +411,10 @@ def _process_absence_item(item, client_op_id):
         date_abs,
     )
     if annual_error:
-        return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': annual_error}
+        return {
+            'client_op_id': client_op_id, 'status': 'forbidden',
+            'reason': 'CONFLIT_DROITS', 'message': annual_error,
+        }
 
     motif = item.get('motif') or ''
     justifiee = bool(item.get('justifiee', False))
@@ -423,6 +426,12 @@ def _process_absence_item(item, client_op_id):
             existing_absence = Absence.query.filter_by(id=int(absence_id), ecole_id=eleve.ecole_id).first()
         except (ValueError, TypeError):
             pass
+        if not existing_absence:
+            return {
+                'client_op_id': client_op_id, 'status': 'forbidden',
+                'reason': 'CONFLIT_DROITS',
+                'message': "Absence introuvable ou non autorisée."
+            }
 
     if not existing_absence:
         existing_absence = Absence.query.filter_by(
@@ -433,6 +442,28 @@ def _process_absence_item(item, client_op_id):
         ).first()
 
     if existing_absence:
+        # Les droits doivent porter sur l'absence réelle, pas seulement sur les
+        # identifiants déclarés par le client hors ligne.
+        if (existing_absence.eleve_id != eleve.id
+                or existing_absence.cours_id != (cours.id if cours else None)
+                or (existing_absence.inscription_id is not None
+                    and existing_absence.inscription_id != _inscription.id)
+                or existing_absence.date_absence != date_abs):
+            return {
+                'client_op_id': client_op_id, 'status': 'forbidden',
+                'reason': 'CONFLIT_DROITS',
+                'message': "CONFLIT_DROITS : cette absence ne correspond pas à l'appel autorisé."
+            }
+        _eleve_reel, _cours_reel, _inscription_reelle, access_error = verifier_mutation_absence(
+            current_user.ecole_id, annee_consultee, current_user,
+            existing_absence.eleve_id, existing_absence.cours_id,
+            existing_absence.date_absence, absence=existing_absence,
+        )
+        if access_error:
+            return {
+                'client_op_id': client_op_id, 'status': 'forbidden',
+                'reason': 'CONFLIT_DROITS', 'message': access_error,
+            }
         existing_annee = resolve_annee_absence(existing_absence)
         if not existing_annee or existing_annee.id != annee_consultee.id:
             return {
@@ -1167,8 +1198,13 @@ def api_sync():
             response_data['errors'] = errors
             response_data['message'] = f'{processed_count} synchronisé(s), {len(errors)} anomalie(s)'
 
+        droits_refuses = len(results) == 1 and results[0].get('reason') == 'CONFLIT_DROITS'
+        if droits_refuses:
+            response_data['success'] = False
         response = jsonify(response_data)
         response.headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate'
+        if droits_refuses:
+            return response, 403
         return response, 200
 
     except Exception as e:

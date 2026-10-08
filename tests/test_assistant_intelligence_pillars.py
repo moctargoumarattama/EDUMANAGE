@@ -130,12 +130,14 @@ def intelligence_app_and_client():
         p1 = Paiement(
             eleve_id=fatou.id, montant=100000,
             date_paiement=dt.datetime.now(), mode_paiement="Espèces",
-            mois="Septembre", reference="REC-001", ecole_id=ecole.id
+            mois="Septembre", reference="REC-001", ecole_id=ecole.id,
+            inscription_id=i_fatou.id,
         )
         p2 = Paiement(
             eleve_id=h1.id, montant=200000,
             date_paiement=dt.datetime.now(), mode_paiement="Virement",
-            mois="Septembre", reference="REC-002", ecole_id=ecole.id
+            mois="Septembre", reference="REC-002", ecole_id=ecole.id,
+            inscription_id=i_h1.id,
         )
         db.session.add_all([p1, p2])
         db.session.commit()

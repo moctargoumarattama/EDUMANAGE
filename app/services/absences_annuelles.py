@@ -66,7 +66,7 @@ def statut_annee_absences(annee):
 
 
 def absences_modifiables(annee, user):
-    return bool(annee and annee.statut == "active" and getattr(user, "role", None) in {"admin", "professeur"})
+    return bool(annee and annee.statut == "active" and getattr(user, "role", None) in {"admin", "super_admin", "professeur"})
 
 
 def get_inscription_eleve_annee(ecole_id, eleve_id, annee_id):
@@ -314,15 +314,19 @@ def verifier_mutation_absence(ecole_id, annee, user, eleve_id, cours_id, date_ab
         professeur = _professeur(user)
         if not professeur:
             return None, None, None, "Profil professeur introuvable."
-        if cours:
-            if cours.professeur_id != professeur.id:
-                return None, None, None, "Cours non autorisé pour ce professeur."
-        elif inscription.classe_id not in _professeur_classe_ids(user, annee.id):
-            return None, None, None, "Élève non autorisé pour ce professeur."
-    elif role != "admin":
+        if not cours or cours.professeur_id != professeur.id:
+            return None, None, None, "Cours non autorisé pour ce professeur."
+    elif role not in {"admin", "super_admin"}:
         return None, None, None, "Rôle non autorisé."
 
     if absence:
+        if (absence.ecole_id != ecole_id or absence.eleve_id != inscription.eleve_id
+                or (absence.inscription_id is not None and absence.inscription_id != inscription.id)):
+            return None, None, None, "Cette absence ne correspond pas à l'inscription autorisée."
+        if role == "professeur":
+            cours_origine = Cours.query.filter_by(id=absence.cours_id, ecole_id=ecole_id).first()
+            if not cours_origine or cours_origine.professeur_id != professeur.id:
+                return None, None, None, "CONFLIT_DROITS : appel d'un autre professeur."
         annee_absence = resolve_annee_absence(absence)
         if not annee_absence or annee_absence.id != annee.id:
             return None, None, None, "Cette absence n'appartient pas à l'année scolaire consultée."
