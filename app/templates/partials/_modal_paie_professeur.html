@@ -1,0 +1,171 @@
+<!-- Modal Popup Rémunération & Bulletins de Paie Professeur (Sans nouvelle page) -->
+<div class="modal fade" id="modalPaieProfesseur" tabindex="-1" aria-labelledby="modalPaieProfesseurLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            
+            <!-- En-tête de la modale -->
+            <div class="modal-header border-0 pb-0 pt-3 px-3 px-md-4">
+                <div class="d-flex align-items-center gap-2.5">
+                    <div class="rounded-3 bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                        <i class="fas fa-file-invoice-dollar fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="modalPaieProfesseurLabel">Mes Bulletins &amp; Rémunérations</h5>
+                        <p class="text-muted small mb-0">Historique des salaires, heures validées et quittances officielles</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+
+            <div class="modal-body p-3 p-md-4">
+                
+                {% if fiche_paie_courante %}
+                <!-- CARTE DU MOIS LE PLUS RÉCENT / COURANT -->
+                <div class="card border-0 shadow-xs rounded-4 bg-light p-3.5 mb-3.5 border">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2.5">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary text-white rounded-pill px-2.5 py-1 fw-bold text-uppercase" style="font-size: 0.72rem;">
+                                {{ fiche_paie_courante.periode_nom }}
+                            </span>
+                            <small class="text-muted">Dernière fiche émise</small>
+                        </div>
+                        <div>
+                            {% if fiche_paie_courante.statut_paiement == 'paye' %}
+                            <span class="badge bg-success text-white rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.75rem;">
+                                <i class="fas fa-check-circle me-1"></i>Payé en totalité
+                            </span>
+                            {% elif fiche_paie_courante.statut_paiement == 'partiel' %}
+                            <span class="badge bg-warning text-dark rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.75rem;">
+                                <i class="fas fa-adjust me-1"></i>Règlement partiel
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary text-white rounded-pill px-2.5 py-1 fw-semibold" style="font-size: 0.75rem;">
+                                <i class="fas fa-clock me-1"></i>En attente de règlement
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6 col-md-4">
+                            <div class="bg-white p-2.5 rounded-3 border">
+                                <span class="text-muted small d-block" style="font-size: 0.76rem;">Volume validé</span>
+                                <strong class="text-dark fs-6 font-monospace">{{ "%.1f"|format(fiche_paie_courante.heures_travaillees or 0.0) }} h</strong>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <div class="bg-white p-2.5 rounded-3 border">
+                                <span class="text-muted small d-block" style="font-size: 0.76rem;">Rémunération brute</span>
+                                <strong class="text-dark fs-6 font-monospace">{{ "{:,.0f}".format(fiche_paie_courante.salaire_brut or 0).replace(',', ' ') }} <small class="fw-normal text-muted" style="font-size: 0.7rem;">FCFA</small></strong>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="bg-white p-2.5 rounded-3 border">
+                                <span class="text-muted small d-block" style="font-size: 0.76rem;">Net à percevoir</span>
+                                <strong class="text-primary fs-5 font-monospace">{{ "{:,.0f}".format(fiche_paie_courante.net_a_payer or 0).replace(',', ' ') }} <small class="fw-normal text-muted" style="font-size: 0.7rem;">FCFA</small></strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-1 border-top">
+                        <div class="small text-muted">
+                            {% if fiche_paie_courante.montant_paye and fiche_paie_courante.montant_paye > 0 %}
+                            Versé : <strong class="text-success">{{ "{:,.0f}".format(fiche_paie_courante.montant_paye).replace(',', ' ') }} FCFA</strong>
+                            {% if fiche_paie_courante.reste_a_payer and fiche_paie_courante.reste_a_payer > 0 %}
+                            • Reste : <strong class="text-danger">{{ "{:,.0f}".format(fiche_paie_courante.reste_a_payer).replace(',', ' ') }} FCFA</strong>
+                            {% endif %}
+                            {% else %}
+                            En attente de validation financière par la comptabilité
+                            {% endif %}
+                        </div>
+                        <a href="{{ url_for('paie_personnel.print_bulletin', fiche_id=fiche_paie_courante.id) }}" target="_blank" class="btn btn-sm btn-primary rounded-pill px-3 py-1.5 fw-bold d-inline-flex align-items-center gap-1.5 shadow-xs">
+                            <i class="fas fa-print"></i>
+                            <span>Télécharger le bulletin A4</span>
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- HISTORIQUE COMPLET DES BULLETINS -->
+                <h6 class="fw-bold text-dark mb-2.5 d-flex align-items-center justify-content-between" style="font-size: 0.92rem;">
+                    <span><i class="fas fa-history text-primary me-1.5"></i>Historique des fiches de paie</span>
+                    {% if fiches_paie_prof and fiches_paie_prof|length > 0 %}
+                    <span class="badge bg-light text-muted border rounded-pill px-2 py-0.5" style="font-size: 0.72rem;">
+                        {{ fiches_paie_prof|length }} fiche(s)
+                    </span>
+                    {% endif %}
+                </h6>
+
+                {% if fiches_paie_prof and fiches_paie_prof|length > 0 %}
+                <div class="table-responsive rounded-3 border">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 0.86rem;">
+                        <thead class="table-light text-muted small text-uppercase fw-semibold">
+                            <tr>
+                                <th class="ps-3 py-2">Période</th>
+                                <th class="py-2 text-center">Heures</th>
+                                <th class="py-2 text-end">Net (FCFA)</th>
+                                <th class="py-2 text-center">Statut</th>
+                                <th class="pe-3 py-2 text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for f in fiches_paie_prof %}
+                            <tr>
+                                <td class="ps-3 py-2.5 fw-semibold text-dark">
+                                    <i class="far fa-calendar-alt text-muted me-1.5"></i>{{ f.periode_nom }}
+                                </td>
+                                <td class="py-2.5 text-center font-monospace">
+                                    {{ "%.1f"|format(f.heures_travaillees or 0.0) }} h
+                                </td>
+                                <td class="py-2.5 text-end font-monospace fw-bold text-dark">
+                                    {{ "{:,.0f}".format(f.net_a_payer or 0).replace(',', ' ') }}
+                                </td>
+                                <td class="py-2.5 text-center">
+                                    {% if f.statut_paiement == 'paye' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.72rem;">
+                                        Payé
+                                    </span>
+                                    {% elif f.statut_paiement == 'partiel' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.72rem;">
+                                        Partiel
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2.5 py-1" style="font-size: 0.72rem;">
+                                        En attente
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="pe-3 py-2.5 text-end">
+                                    <a href="{{ url_for('paie_personnel.print_bulletin', fiche_id=f.id) }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1 shadow-xs" title="Imprimer ou télécharger">
+                                        <i class="fas fa-file-download"></i>
+                                        <span class="d-none d-sm-inline">Reçu A4</span>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <!-- État vide élégant -->
+                <div class="card border-0 rounded-4 p-4 text-center text-muted bg-light border">
+                    <div class="rounded-circle bg-white border d-flex align-items-center justify-content-center mx-auto mb-2.5" style="width: 52px; height: 52px;">
+                        <i class="fas fa-file-invoice text-secondary fs-4 opacity-50"></i>
+                    </div>
+                    <h6 class="fw-bold text-dark mb-1">Aucun bulletin émis pour le moment</h6>
+                    <p class="text-muted small mb-0" style="max-width: 420px; margin: 0 auto; font-size: 0.8rem;">
+                        Vos fiches de paie et quittances apparaîtront automatiquement ici dès leur validation et clôture par la direction de l'établissement.
+                    </p>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <div class="modal-footer border-0 pt-0 pb-3 px-3 px-md-4">
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Fermer</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+

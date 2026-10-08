@@ -1,0 +1,975 @@
+{% extends "base.html" %}
+
+{% block title %}Pointage du Personnel - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-4 py-3">
+
+    <!-- En-tête de page -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2.5 mb-3">
+        <div class="d-flex align-items-center gap-2.5">
+            <div class="rounded-4 bg-primary-subtle text-primary d-flex align-items-center justify-content-center shadow-xs flex-shrink-0" style="width: 44px; height: 44px;">
+                <i class="fas fa-user-check fs-5"></i>
+            </div>
+            <div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <h1 class="h4 mb-0 fw-bold text-dark">Pointage du Personnel</h1>
+                    <span class="badge bg-primary text-white rounded-pill px-2.5 py-1 font-monospace" style="font-size: 0.75rem;">
+                        <i class="fas fa-graduation-cap me-1"></i>{{ annee_active.nom }}
+                    </span>
+                </div>
+                <p class="text-muted small mb-0">Contrôle quotidien de présence et suivi des heures de travail</p>
+            </div>
+        </div>
+
+        <!-- Badges KPI du jour -->
+        <div class="d-flex flex-wrap align-items-center gap-1.5" id="kpiBarJour">
+            <span class="badge bg-light text-dark border px-2.5 py-1.5 rounded-pill" title="Total enseignants">
+                <i class="fas fa-users text-muted me-1"></i>Total : <strong id="kpiTotal">{{ total_profs }}</strong>
+            </span>
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 rounded-pill" title="Présents">
+                <i class="fas fa-check-circle me-1"></i>Présents : <strong id="kpiPresents">{{ presents_count }}</strong>
+            </span>
+            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2.5 py-1.5 rounded-pill" title="En retard">
+                <i class="fas fa-clock me-1"></i>Retards : <strong id="kpiRetards">{{ retards_count }}</strong>
+            </span>
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1.5 rounded-pill" title="Absences injustifiées">
+                <i class="fas fa-times-circle me-1"></i>Injustifiés : <strong id="kpiInjustifies">{{ absents_injustifies_count }}</strong>
+            </span>
+            {% if non_pointes_count > 0 %}
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1.5 rounded-pill" title="Non encore pointés">
+                <i class="fas fa-hourglass-start me-1"></i>Non pointés : <strong id="kpiNonPointes">{{ non_pointes_count }}</strong>
+            </span>
+            {% endif %}
+            {% if journee_validee %}
+            <span class="badge bg-primary text-white px-2.5 py-1.5 rounded-pill shadow-xs">
+                <i class="fas fa-lock me-1"></i>Scellée
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Navigation par Onglets Modernes -->
+    <ul class="nav nav-pills nav-fill bg-white p-1 rounded-4 shadow-sm border mb-3" id="pointageTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold py-2 rounded-3 d-flex align-items-center justify-content-center gap-2" id="tab-saisie-btn" data-bs-toggle="pill" data-bs-target="#tab-saisie" type="button" role="tab">
+                <i class="fas fa-calendar-day"></i>
+                <span>Saisie du jour</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold py-2 rounded-3 d-flex align-items-center justify-content-center gap-2 position-relative" id="tab-valider-btn" data-bs-toggle="pill" data-bs-target="#tab-valider" type="button" role="tab">
+                <i class="fas fa-clipboard-check"></i>
+                <span>Journées à valider</span>
+                {% if journees_a_valider|length > 0 %}
+                <span class="badge bg-danger rounded-pill ms-1" style="font-size: 0.7rem;">{{ journees_a_valider|length }}</span>
+                {% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold py-2 rounded-3 d-flex align-items-center justify-content-center gap-2" id="tab-rapport-btn" data-bs-toggle="pill" data-bs-target="#tab-rapport" type="button" role="tab" onclick="chargerRapportMensuel()">
+                <i class="fas fa-chart-pie"></i>
+                <span>Rapport mensuel</span>
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="pointageTabsContent">
+
+        <!-- =================================================================== -->
+        <!-- ONGLET 1 : Saisie du jour -->
+        <!-- =================================================================== -->
+        <div class="tab-pane fade show active" id="tab-saisie" role="tabpanel">
+
+            <!-- Barre d'action supérieure -->
+            <div class="card border-0 shadow-sm rounded-4 mb-3">
+                <div class="card-body p-2.5 p-md-3">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2.5">
+                        
+                        <!-- Sélecteur de date interactif -->
+                        <div class="d-flex align-items-center gap-1.5 flex-wrap">
+                            <a href="{{ url_for('pointage_personnel.index', date=date_hier) }}" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5" title="Jour précédent">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                            <div class="input-group input-group-sm" style="max-width: 175px;">
+                                <span class="input-group-text bg-light border-end-0"><i class="fas fa-calendar-alt text-muted"></i></span>
+                                <input type="date" id="datePointagePicker" class="form-control form-control-sm border-start-0 fw-bold" value="{{ date_str }}" onchange="changerDate(this.value)">
+                            </div>
+                            <a href="{{ url_for('pointage_personnel.index', date=date_demain) }}" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5" title="Jour suivant">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                            {% if date_str != date_aujourdhui %}
+                            <a href="{{ url_for('pointage_personnel.index', date=date_aujourdhui) }}" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold">
+                                Aujourd'hui
+                            </a>
+                            {% endif %}
+                        </div>
+
+                        <!-- Actions rapides -->
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <!-- Définir un horaire commun -->
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1.5" data-bs-toggle="modal" data-bs-target="#modalHoraireCommun">
+                                <i class="far fa-clock text-primary"></i>
+                                <span>Horaire commun</span>
+                            </button>
+
+                            <!-- Bouton vert : Tout marquer présent (AJAX) -->
+                            <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-bold d-flex align-items-center gap-1.5 shadow-sm" id="btnMarquerTousPresents" onclick="marquerTousPresents()">
+                                <i class="fas fa-check-double"></i>
+                                <span>Tout marquer présent</span>
+                            </button>
+
+                            <!-- Bouton bleu : Valider la journée -->
+                            <form method="post" action="{{ url_for('pointage_personnel.valider_journee') }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir sceller et valider les pointages de cette journée ?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="date" value="{{ date_str }}">
+                                <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold d-flex align-items-center gap-1.5" {% if journee_validee %}disabled title="Journée déjà scellée"{% endif %}>
+                                    <i class="fas fa-lock"></i>
+                                    <span>{% if journee_validee %}Journée scellée{% else %}Valider la journée{% endif %}</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =================================================================== -->
+            <!-- VUE DESKTOP (TABLEAU CLAIR ET PROPRE SANS CLOCK OVERLAP) -->
+            <!-- =================================================================== -->
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 d-none d-md-block">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="tablePointageJour">
+                        <thead class="table-light text-muted small text-uppercase fw-bold" style="font-size: 0.75rem; letter-spacing: 0.5px;">
+                            <tr>
+                                <th class="ps-3 py-3" style="min-width: 200px;">Enseignant</th>
+                                <th class="py-3 text-center" style="width: 170px;">Créneau horaire</th>
+                                <th class="py-3 text-center" style="width: 100px;">Retard</th>
+                                <th class="py-3 text-center" style="min-width: 320px;">Statut (1-Clic)</th>
+                                <th class="py-3 text-center" style="width: 90px;">Heures</th>
+                                <th class="pe-3 py-3" style="min-width: 160px;">Observation / Motif</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ligne in lignes_pointage %}
+                            {% set prof = ligne.professeur %}
+                            <tr id="row-prof-{{ prof.id }}" class="pointage-row {% if ligne.statut == 'present' %}row-present{% elif ligne.statut == 'retard' %}row-retard{% elif ligne.statut == 'absent_justifie' %}row-justifie{% elif ligne.statut == 'absent_injustifie' %}row-injustifie{% endif %}" data-prof-id="{{ prof.id }}">
+                                
+                                <!-- Colonne 1 : Avatar + Nom + Spécialité -->
+                                <td class="ps-3 py-2.5">
+                                    <div class="d-flex align-items-center gap-2.5">
+                                        <div class="avatar-initials rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width: 38px; height: 38px; font-size: 0.85rem;">
+                                            {{ (prof.prenom[0] if prof.prenom else 'P') ~ (prof.nom[0] if prof.nom else '') }}
+                                        </div>
+                                        <div class="min-w-0">
+                                            <h6 class="mb-0 fw-semibold text-dark text-truncate" style="font-size: 0.92rem;">
+                                                {{ prof.prenom }} {{ prof.nom }}
+                                            </h6>
+                                            <span class="text-muted small text-truncate d-block" style="font-size: 0.78rem;">
+                                                {{ prof.specialite or prof.matieres_enseignees or 'Enseignant' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- Colonne 2 : Créneau propre en pill sans icône d'horloge native qui coupe le texte -->
+                                <td class="py-2.5 text-center">
+                                    <div class="creneau-pill d-inline-flex align-items-center bg-light border rounded-pill px-2.5 py-1">
+                                        <i class="far fa-clock text-muted me-1.5" style="font-size: 0.75rem;"></i>
+                                        <input type="text" maxlength="5" class="border-0 bg-transparent text-center font-monospace fw-bold creneau-debut" style="width: 44px; font-size: 0.82rem; outline: none;" value="{{ ligne.creneau_debut }}" placeholder="08:00" onchange="declencherRecalculLigne({{ prof.id }})">
+                                        <span class="text-muted small px-1">-</span>
+                                        <input type="text" maxlength="5" class="border-0 bg-transparent text-center font-monospace fw-bold creneau-fin" style="width: 44px; font-size: 0.82rem; outline: none;" value="{{ ligne.creneau_fin }}" placeholder="16:00" onchange="declencherRecalculLigne({{ prof.id }})">
+                                    </div>
+                                </td>
+
+                                <!-- Colonne 3 : Retard en minutes -->
+                                <td class="py-2.5 text-center">
+                                    <div class="input-group input-group-sm justify-content-center mx-auto" style="max-width: 86px;">
+                                        <input type="number" min="0" max="480" step="5" class="form-control form-control-sm input-retard text-center px-1 py-1 fw-bold {% if ligne.statut != 'retard' %}opacity-50{% endif %}" value="{{ ligne.retard_minutes }}" {% if ligne.statut != 'retard' %}disabled{% endif %} onchange="declencherRecalculLigne({{ prof.id }})">
+                                        <span class="input-group-text px-1.5 bg-light text-muted small" style="font-size: 0.7rem;">m</span>
+                                    </div>
+                                </td>
+
+                                <!-- Colonne 4 : Sélecteur de statut tactile à 4 boutons badges -->
+                                <td class="py-2.5 text-center">
+                                    <div class="btn-group btn-group-sm w-100 status-btn-group shadow-xs rounded-pill p-0.5 bg-light" role="group">
+                                        
+                                        <!-- Présent (Vert) -->
+                                        <button type="button" class="btn btn-statut rounded-pill px-2.5 py-1 fw-semibold {% if ligne.statut == 'present' %}btn-success text-white shadow-xs{% else %}btn-light text-muted{% endif %}" onclick="changerStatutProf({{ prof.id }}, 'present')">
+                                            <i class="fas fa-check me-1"></i>Présent
+                                        </button>
+
+                                        <!-- Retard (Orange) -->
+                                        <button type="button" class="btn btn-statut rounded-pill px-2.5 py-1 fw-semibold {% if ligne.statut == 'retard' %}btn-warning text-dark shadow-xs{% else %}btn-light text-muted{% endif %}" onclick="changerStatutProf({{ prof.id }}, 'retard')">
+                                            <i class="fas fa-clock me-1"></i>Retard
+                                        </button>
+
+                                        <!-- Absence Justifiée (Bleu) -->
+                                        <button type="button" class="btn btn-statut rounded-pill px-2.5 py-1 fw-semibold {% if ligne.statut == 'absent_justifie' %}btn-info text-white shadow-xs{% else %}btn-light text-muted{% endif %}" onclick="changerStatutProf({{ prof.id }}, 'absent_justifie')">
+                                            <i class="fas fa-file-alt me-1"></i>Justifié
+                                        </button>
+
+                                        <!-- Absence Injustifiée (Rouge) -->
+                                        <button type="button" class="btn btn-statut rounded-pill px-2.5 py-1 fw-semibold {% if ligne.statut == 'absent_injustifie' %}btn-danger text-white shadow-xs{% else %}btn-light text-muted{% endif %}" onclick="changerStatutProf({{ prof.id }}, 'absent_injustifie')">
+                                            <i class="fas fa-times me-1"></i>Injustifié
+                                        </button>
+                                    </div>
+                                </td>
+
+                                <!-- Colonne 5 : Heures comptabilisées -->
+                                <td class="py-2.5 text-center">
+                                    <span class="badge badge-heures rounded-pill px-2.5 py-1.5 fw-bold {% if ligne.heures_effectuees > 0 %}bg-primary-subtle text-primary border border-primary-subtle{% else %}bg-secondary-subtle text-secondary border border-secondary-subtle{% endif %}" style="font-size: 0.85rem;">
+                                        {{ "%.1f"|format(ligne.heures_effectuees) }} h
+                                    </span>
+                                </td>
+
+                                <!-- Colonne 6 : Motif / Justification -->
+                                <td class="pe-3 py-2.5">
+                                    <input type="text" class="form-control form-control-sm input-motif rounded-pill px-2.5 py-1" placeholder="Note / observation..." value="{{ ligne.motif }}" onblur="declencherRecalculLigne({{ prof.id }})">
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="fas fa-chalkboard-teacher fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                                    Aucun enseignant actif trouvé dans cet établissement.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- =================================================================== -->
+            <!-- VUE MOBILE : CARTES TACTILES ERGONOMIQUES (1 ÉCRAN PAR PROF) -->
+            <!-- =================================================================== -->
+            <div class="d-md-none mb-4" id="cardsPointageMobile">
+                {% for ligne in lignes_pointage %}
+                {% set prof = ligne.professeur %}
+                <div class="card border-0 shadow-sm rounded-4 mb-2.5 pointage-card {% if ligne.statut == 'present' %}card-present{% elif ligne.statut == 'retard' %}card-retard{% elif ligne.statut == 'absent_justifie' %}card-justifie{% elif ligne.statut == 'absent_injustifie' %}card-injustifie{% endif %}" id="card-prof-{{ prof.id }}" data-prof-id="{{ prof.id }}">
+                    <div class="card-body p-3">
+                        
+                        <!-- Ligne 1 : Enseignant & Badge Heures -->
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div class="d-flex align-items-center gap-2 min-w-0">
+                                <div class="avatar-initials rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width: 36px; height: 36px; font-size: 0.82rem;">
+                                    {{ (prof.prenom[0] if prof.prenom else 'P') ~ (prof.nom[0] if prof.nom else '') }}
+                                </div>
+                                <div class="min-w-0">
+                                    <h6 class="mb-0 fw-bold text-dark text-truncate" style="font-size: 0.92rem;">
+                                        {{ prof.prenom }} {{ prof.nom }}
+                                    </h6>
+                                    <small class="text-muted text-truncate d-block" style="font-size: 0.74rem;">
+                                        {{ prof.specialite or prof.matieres_enseignees or 'Enseignant' }}
+                                    </small>
+                                </div>
+                            </div>
+                            <span class="badge badge-heures rounded-pill px-2.5 py-1.5 fw-bold flex-shrink-0 {% if ligne.heures_effectuees > 0 %}bg-primary-subtle text-primary border border-primary-subtle{% else %}bg-secondary-subtle text-secondary border border-secondary-subtle{% endif %}" style="font-size: 0.82rem;">
+                                {{ "%.1f"|format(ligne.heures_effectuees) }} h
+                            </span>
+                        </div>
+
+                        <!-- Ligne 2 : Créneau & Retard intégrés -->
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-2.5 bg-light p-2 rounded-3">
+                            <div class="d-flex align-items-center gap-1">
+                                <i class="far fa-clock text-muted me-1" style="font-size: 0.75rem;"></i>
+                                <input type="text" maxlength="5" class="border-0 bg-transparent text-center font-monospace fw-bold creneau-debut" style="width: 44px; font-size: 0.82rem; outline: none;" value="{{ ligne.creneau_debut }}" placeholder="08:00" onchange="declencherRecalculLigne({{ prof.id }})">
+                                <span class="text-muted small">-</span>
+                                <input type="text" maxlength="5" class="border-0 bg-transparent text-center font-monospace fw-bold creneau-fin" style="width: 44px; font-size: 0.82rem; outline: none;" value="{{ ligne.creneau_fin }}" placeholder="16:00" onchange="declencherRecalculLigne({{ prof.id }})">
+                            </div>
+                            <div class="d-flex align-items-center gap-1">
+                                <small class="text-muted" style="font-size: 0.72rem;">Retard :</small>
+                                <div class="input-group input-group-sm" style="width: 72px;">
+                                    <input type="number" min="0" max="480" step="5" class="form-control form-control-sm text-center fw-bold input-retard p-0 {% if ligne.statut != 'retard' %}opacity-50{% endif %}" value="{{ ligne.retard_minutes }}" {% if ligne.statut != 'retard' %}disabled{% endif %} onchange="declencherRecalculLigne({{ prof.id }})">
+                                    <span class="input-group-text px-1 text-muted" style="font-size: 0.65rem;">m</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Ligne 3 : Boutons de statut 1-Clic grands et confortables -->
+                        <div class="row g-1.5 mb-2 status-mobile-grid">
+                            <div class="col-3">
+                                <button type="button" class="btn btn-sm w-100 py-2 rounded-3 fw-bold btn-statut btn-statut-present {% if ligne.statut == 'present' %}btn-success text-white shadow-xs{% else %}btn-light text-muted border{% endif %}" onclick="changerStatutProf({{ prof.id }}, 'present')">
+                                    <i class="fas fa-check d-block mb-1"></i>
+                                    <span style="font-size: 0.72rem;">Présent</span>
+                                </button>
+                            </div>
+                            <div class="col-3">
+                                <button type="button" class="btn btn-sm w-100 py-2 rounded-3 fw-bold btn-statut btn-statut-retard {% if ligne.statut == 'retard' %}btn-warning text-dark shadow-xs{% else %}btn-light text-muted border{% endif %}" onclick="changerStatutProf({{ prof.id }}, 'retard')">
+                                    <i class="fas fa-clock d-block mb-1"></i>
+                                    <span style="font-size: 0.72rem;">Retard</span>
+                                </button>
+                            </div>
+                            <div class="col-3">
+                                <button type="button" class="btn btn-sm w-100 py-2 rounded-3 fw-bold btn-statut btn-statut-justifie {% if ligne.statut == 'absent_justifie' %}btn-info text-white shadow-xs{% else %}btn-light text-muted border{% endif %}" onclick="changerStatutProf({{ prof.id }}, 'absent_justifie')">
+                                    <i class="fas fa-file-alt d-block mb-1"></i>
+                                    <span style="font-size: 0.72rem;">Justifié</span>
+                                </button>
+                            </div>
+                            <div class="col-3">
+                                <button type="button" class="btn btn-sm w-100 py-2 rounded-3 fw-bold btn-statut btn-statut-injustifie {% if ligne.statut == 'absent_injustifie' %}btn-danger text-white shadow-xs{% else %}btn-light text-muted border{% endif %}" onclick="changerStatutProf({{ prof.id }}, 'absent_injustifie')">
+                                    <i class="fas fa-times d-block mb-1"></i>
+                                    <span style="font-size: 0.72rem;">Injustifié</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Ligne 4 : Observation / Motif -->
+                        <input type="text" class="form-control form-control-sm rounded-pill px-3 py-1 input-motif text-muted" placeholder="Observation / note..." value="{{ ligne.motif }}" onblur="declencherRecalculLigne({{ prof.id }})" style="font-size: 0.8rem;">
+
+                    </div>
+                </div>
+                {% else %}
+                <div class="card border-0 shadow-sm rounded-4 p-4 text-center text-muted">
+                    <i class="fas fa-chalkboard-teacher fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                    Aucun enseignant actif trouvé.
+                </div>
+                {% endfor %}
+            </div>
+
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- ONGLET 2 : Journées à valider -->
+        <!-- =================================================================== -->
+        <div class="tab-pane fade" id="tab-valider" role="tabpanel">
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-white border-0 pt-3 pb-2 px-3 px-md-4">
+                    <h5 class="fw-bold text-dark mb-1">
+                        <i class="fas fa-history text-primary me-2"></i>Journées antérieures non scellées
+                    </h5>
+                    <p class="text-muted small mb-0">
+                        Liste des dates récentes ayant des pointages enregistrés qui n'ont pas encore été validés définitivement.
+                    </p>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light text-muted small text-uppercase fw-bold">
+                                <tr>
+                                    <th class="ps-3 py-3">Date</th>
+                                    <th class="py-3 text-center">Pointages effectués</th>
+                                    <th class="py-3 text-center">Non scellés</th>
+                                    <th class="py-3 text-center">Statut</th>
+                                    <th class="pe-3 py-3 text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for j in journees_a_valider %}
+                                <tr>
+                                    <td class="ps-3 py-3 fw-bold text-dark">
+                                        <i class="fas fa-calendar-alt text-muted me-2"></i>{{ j.date_formatee }}
+                                    </td>
+                                    <td class="text-center py-3">
+                                        <span class="badge bg-light text-dark border">{{ j.total_pointes }} pointé(s)</span>
+                                    </td>
+                                    <td class="text-center py-3">
+                                        <span class="badge bg-warning-subtle text-warning-emphasis">{{ j.restants_a_sceller }} à sceller</span>
+                                    </td>
+                                    <td class="text-center py-3">
+                                        <span class="badge bg-secondary-subtle text-secondary">En attente</span>
+                                    </td>
+                                    <td class="pe-3 py-3 text-end">
+                                        <div class="d-inline-flex gap-2">
+                                            <a href="{{ url_for('pointage_personnel.index', date=j.date_str) }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                                <i class="fas fa-folder-open me-1"></i>Ouvrir
+                                            </a>
+                                            <form method="post" action="{{ url_for('pointage_personnel.valider_journee') }}" class="d-inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="hidden" name="date" value="{{ j.date_str }}">
+                                                <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 shadow-xs">
+                                                    <i class="fas fa-lock me-1"></i>Valider
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-muted">
+                                        <i class="fas fa-shield-check fs-1 text-success opacity-50 d-block mb-2"></i>
+                                        Toutes les journées antérieures sont validées et à jour !
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- =================================================================== -->
+        <!-- ONGLET 3 : Rapport mensuel (rattaché à l'année scolaire active) -->
+        <!-- =================================================================== -->
+        <div class="tab-pane fade" id="tab-rapport" role="tabpanel">
+            
+            <!-- Sélecteur de période de l'année scolaire active -->
+            <div class="card border-0 shadow-sm rounded-4 mb-3">
+                <div class="card-body p-3">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <label class="form-label small fw-bold text-muted mb-0">Mois ({{ annee_active.nom }}) :</label>
+                            <select id="selectRapportPeriode" class="form-select form-select-sm fw-bold" style="min-width: 180px; max-width: 240px;" onchange="chargerRapportMensuel()">
+                                {% for opt in mois_annee_options %}
+                                <option value="{{ opt.valeur }}" data-mois="{{ opt.mois }}" data-annee="{{ opt.annee }}" {% if opt.valeur == mois_selectionne_valeur %}selected{% endif %}>
+                                    {{ opt.nom }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="chargerRapportMensuel()">
+                            <i class="fas fa-sync-alt me-1.5"></i>Actualiser
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4 Cartes KPI du rapport mensuel -->
+            <div class="row g-2.5 mb-3">
+                <div class="col-6 col-lg-3">
+                    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+                        <span class="text-muted small fw-semibold">Total Heures Effectuées</span>
+                        <h3 class="fw-bold text-primary mb-0 mt-1" id="kpiMoisHeures">0.0 h</h3>
+                        <small class="text-muted" style="font-size: 0.75rem;">Volume horaire total</small>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+                        <span class="text-muted small fw-semibold">Taux de Présence</span>
+                        <h3 class="fw-bold text-success mb-0 mt-1" id="kpiMoisPresence">100 %</h3>
+                        <small class="text-muted" style="font-size: 0.75rem;">Assiduité globale</small>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+                        <span class="text-muted small fw-semibold">Retards Cumulés</span>
+                        <h3 class="fw-bold text-warning-emphasis mb-0 mt-1" id="kpiMoisRetards">0 min</h3>
+                        <small class="text-muted" style="font-size: 0.75rem;">Total minutes de retard</small>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+                        <span class="text-muted small fw-semibold">Absences Injustifiées</span>
+                        <h3 class="fw-bold text-danger mb-0 mt-1" id="kpiMoisAbsences">0</h3>
+                        <small class="text-muted" style="font-size: 0.75rem;">Sans justification</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tableau synthétique par enseignant (sans type contrat) -->
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+                <div class="card-header bg-white border-0 pt-3 pb-2 px-3 px-md-4">
+                    <h5 class="fw-bold text-dark mb-0">Synthèse mensuelle par enseignant</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="tableRapportMensuel">
+                        <thead class="table-light text-muted small text-uppercase fw-bold">
+                            <tr>
+                                <th class="ps-3 py-3">Enseignant</th>
+                                <th class="py-3 text-center">Jours travaillés</th>
+                                <th class="py-3 text-center">Heures totales</th>
+                                <th class="py-3 text-center">Retards cumulés</th>
+                                <th class="py-3 text-center">Absences injustifiées</th>
+                                <th class="pe-3 py-3 text-center">Absences justifiées</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyRapportMensuel">
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">
+                                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                    Chargement du rapport mensuel...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Modal Horaire Commun -->
+<div class="modal fade" id="modalHoraireCommun" tabindex="-1" aria-labelledby="modalHoraireCommunLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0 pt-3 px-3">
+                <h6 class="modal-title fw-bold text-dark" id="modalHoraireCommunLabel">
+                    <i class="far fa-clock text-primary me-1.5"></i>Horaire commun du jour
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body p-3">
+                <p class="text-muted small mb-3">Appliquer ce créneau à tous les enseignants du tableau :</p>
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <label class="form-label small text-muted mb-1">Début</label>
+                        <input type="text" maxlength="5" id="modalHoraireDebut" class="form-control form-control-sm text-center fw-bold font-monospace" value="08:00" placeholder="08:00">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small text-muted mb-1">Fin</label>
+                        <input type="text" maxlength="5" id="modalHoraireFin" class="form-control form-control-sm text-center fw-bold font-monospace" value="16:00" placeholder="16:00">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 pb-3 px-3 d-flex justify-content-between">
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold" onclick="appliquerHoraireCommun()">Appliquer à tous</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container pour notifications fluides -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1090">
+    <div id="pointageToast" class="toast align-items-center text-white bg-dark border-0 rounded-4 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body py-2.5 px-3 d-flex align-items-center gap-2" id="pointageToastText">
+                <i class="fas fa-check-circle text-success fs-6"></i>
+                <span>Action enregistrée.</span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<style>
+.pointage-row {
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.row-present, .card-present {
+    background-color: rgba(22, 163, 74, 0.04) !important;
+    border-left: 3px solid #16a34a !important;
+}
+.row-retard, .card-retard {
+    background-color: rgba(217, 119, 6, 0.04) !important;
+    border-left: 3px solid #d97706 !important;
+}
+.row-justifie, .card-justifie {
+    background-color: rgba(14, 165, 233, 0.04) !important;
+    border-left: 3px solid #0ea5e9 !important;
+}
+.row-injustifie, .card-injustifie {
+    background-color: rgba(220, 38, 38, 0.04) !important;
+    border-left: 3px solid #dc2626 !important;
+}
+.status-btn-group .btn-statut {
+    font-size: 0.78rem;
+    transition: all 0.15s ease-in-out;
+}
+.status-btn-group .btn-statut:hover {
+    transform: translateY(-1px);
+}
+.creneau-pill {
+    transition: border-color 0.15s ease;
+}
+.creneau-pill:focus-within {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+.saved-pulse {
+    animation: pulseBorder 0.6s ease-out;
+}
+@keyframes pulseBorder {
+    0% { background-color: rgba(34, 197, 94, 0.25) !important; }
+    100% { background-color: inherit; }
+}
+</style>
+
+<script>
+const DATE_COURANTE = "{{ date_str }}";
+
+function afficherToast(message, type = 'success') {
+    const toastEl = document.getElementById('pointageToast');
+    const toastText = document.getElementById('pointageToastText');
+    if (!toastEl || !toastText) return;
+
+    const icon = type === 'success' 
+        ? '<i class="fas fa-check-circle text-success fs-6"></i>' 
+        : '<i class="fas fa-exclamation-triangle text-warning fs-6"></i>';
+    toastText.innerHTML = `${icon} <span>${message}</span>`;
+    
+    const bsToast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2500 });
+    bsToast.show();
+}
+
+function changerDate(nouvelleDate) {
+    if (nouvelleDate) {
+        window.location.href = `{{ url_for('pointage_personnel.index') }}?date=${nouvelleDate}`;
+    }
+}
+
+// -------------------------------------------------------------
+// Action AJAX : Marquer tous les professeurs présents
+// -------------------------------------------------------------
+function marquerTousPresents() {
+    const btn = document.getElementById('btnMarquerTousPresents');
+    if (btn) btn.disabled = true;
+
+    fetch("{{ url_for('pointage_personnel.marquer_tous_presents') }}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+            "X-CSRFToken": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({
+            date: DATE_COURANTE,
+            creneau_debut: "08:00",
+            creneau_fin: "16:00"
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            afficherToast(data.message || "Tous les professeurs ont été marqués présents !");
+            
+            // Mise à jour vue desktop
+            document.querySelectorAll('.pointage-row').forEach(row => {
+                row.className = 'pointage-row row-present saved-pulse';
+                const allBtns = row.querySelectorAll('.btn-statut');
+                allBtns.forEach(b => {
+                    b.className = 'btn btn-statut rounded-pill px-2.5 py-1 fw-semibold btn-light text-muted';
+                });
+                const btnPresent = row.querySelector("button[onclick*='present']");
+                if (btnPresent) {
+                    btnPresent.className = 'btn btn-statut rounded-pill px-2.5 py-1 fw-semibold btn-success text-white shadow-xs';
+                }
+                const inputRetard = row.querySelector('.input-retard');
+                if (inputRetard) {
+                    inputRetard.value = 0;
+                    inputRetard.disabled = true;
+                    inputRetard.classList.add('opacity-50');
+                }
+                const badgeH = row.querySelector('.badge-heures');
+                if (badgeH) {
+                    badgeH.textContent = `${(data.heures_effectuees || 8.0).toFixed(1)} h`;
+                    badgeH.className = 'badge badge-heures rounded-pill px-2.5 py-1.5 fw-bold bg-primary-subtle text-primary border border-primary-subtle';
+                }
+            });
+
+            // Mise à jour vue mobile
+            document.querySelectorAll('.pointage-card').forEach(card => {
+                card.className = 'card border-0 shadow-sm rounded-4 mb-2.5 pointage-card card-present saved-pulse';
+                const allBtns = card.querySelectorAll('.btn-statut');
+                allBtns.forEach(b => {
+                    b.className = 'btn btn-sm w-100 py-2 rounded-3 fw-bold btn-statut btn-light text-muted border';
+                });
+                const btnPresent = card.querySelector('.btn-statut-present');
+                if (btnPresent) {
+                    btnPresent.className = 'btn btn-sm w-100 py-2 rounded-3 fw-bold btn-statut btn-statut-present btn-success text-white shadow-xs';
+                }
+                const inputRetard = card.querySelector('.input-retard');
+                if (inputRetard) {
+                    inputRetard.value = 0;
+                    inputRetard.disabled = true;
+                    inputRetard.classList.add('opacity-50');
+                }
+                const badgeH = card.querySelector('.badge-heures');
+                if (badgeH) {
+                    badgeH.textContent = `${(data.heures_effectuees || 8.0).toFixed(1)} h`;
+                    badgeH.className = 'badge badge-heures rounded-pill px-2.5 py-1.5 fw-bold bg-primary-subtle text-primary border border-primary-subtle';
+                }
+            });
+
+            actualiserCompteursKPI();
+        } else {
+            alert(data.error || "Erreur lors de l'enregistrement.");
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Erreur réseau lors de l'enregistrement de masse.");
+    })
+    .finally(() => {
+        if (btn) btn.disabled = false;
+    });
+}
+
+// -------------------------------------------------------------
+// Enregistrement d'une ligne individuelle en AJAX
+// -------------------------------------------------------------
+function changerStatutProf(profId, nouveauStatut) {
+    const row = document.getElementById(`row-prof-${profId}`);
+    const card = document.getElementById(`card-prof-${profId}`);
+
+    // Gérer l'activation du champ retard
+    [row, card].forEach(container => {
+        if (!container) return;
+        const inputRetard = container.querySelector('.input-retard');
+        if (inputRetard) {
+            if (nouveauStatut === 'retard') {
+                inputRetard.disabled = false;
+                inputRetard.classList.remove('opacity-50');
+                if (parseInt(inputRetard.value || 0) <= 0) {
+                    inputRetard.value = 15;
+                }
+            } else {
+                inputRetard.disabled = true;
+                inputRetard.classList.add('opacity-50');
+                inputRetard.value = 0;
+            }
+        }
+    });
+
+    sauvegarderLignePointage(profId, nouveauStatut);
+}
+
+function declencherRecalculLigne(profId) {
+    const row = document.getElementById(`row-prof-${profId}`);
+    const card = document.getElementById(`card-prof-${profId}`);
+    const target = row || card;
+    if (!target) return;
+    
+    // Détecter le statut actuellement actif
+    let statutActif = 'present';
+    if (target.classList.contains('row-retard') || target.classList.contains('card-retard')) statutActif = 'retard';
+    else if (target.classList.contains('row-justifie') || target.classList.contains('card-justifie')) statutActif = 'absent_justifie';
+    else if (target.classList.contains('row-injustifie') || target.classList.contains('card-injustifie')) statutActif = 'absent_injustifie';
+
+    sauvegarderLignePointage(profId, statutActif);
+}
+
+function sauvegarderLignePointage(profId, statut) {
+    const row = document.getElementById(`row-prof-${profId}`);
+    const card = document.getElementById(`card-prof-${profId}`);
+    const container = row || card;
+    if (!container) return;
+
+    const creneauDebut = container.querySelector('.creneau-debut')?.value || '08:00';
+    const creneauFin = container.querySelector('.creneau-fin')?.value || '16:00';
+    const retardMin = parseInt(container.querySelector('.input-retard')?.value || 0);
+    const motif = container.querySelector('.input-motif')?.value || '';
+
+    fetch("{{ url_for('pointage_personnel.sauvegarder_ligne') }}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+            "X-CSRFToken": "{{ csrf_token() }}"
+        },
+        body: JSON.stringify({
+            professeur_id: profId,
+            date: DATE_COURANTE,
+            statut: statut,
+            retard_minutes: retardMin,
+            creneau_debut: creneauDebut,
+            creneau_fin: creneauFin,
+            motif: motif
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            // Synchroniser vue Desktop
+            if (row) {
+                const allBtns = row.querySelectorAll('.btn-statut');
+                allBtns.forEach(b => {
+                    b.className = 'btn btn-statut rounded-pill px-2.5 py-1 fw-semibold btn-light text-muted';
+                });
+
+                if (statut === 'present') {
+                    row.querySelector("button[onclick*='present']").className = 'btn btn-statut rounded-pill px-2.5 py-1 fw-semibold btn-success text-white shadow-xs';
+                    row.className = 'pointage-row row-present saved-pulse';
+                } else if (statut === 'retard') {
+                    row.querySelector("button[onclick*='retard']").className = 'btn btn-statut rounded-pill px-2.5 py-1 fw-semibold btn-warning text-dark shadow-xs';
+                    row.className = 'pointage-row row-retard saved-pulse';
+                } else if (statut === 'absent_justifie') {
+                    row.querySelector("button[onclick*='absent_justifie']").className = 'btn btn-statut rounded-pill px-2.5 py-1 fw-semibold btn-info text-white shadow-xs';
+                    row.className = 'pointage-row row-justifie saved-pulse';
+                } else if (statut === 'absent_injustifie') {
+                    row.querySelector("button[onclick*='absent_injustifie']").className = 'btn btn-statut rounded-pill px-2.5 py-1 fw-semibold btn-danger text-white shadow-xs';
+                    row.className = 'pointage-row row-injustifie saved-pulse';
+                }
+
+                const badgeH = row.querySelector('.badge-heures');
+                if (badgeH) {
+                    const h = parseFloat(data.heures_effectuees || 0.0);
+                    badgeH.textContent = `${h.toFixed(1)} h`;
+                    badgeH.className = h > 0 
+                        ? 'badge badge-heures rounded-pill px-2.5 py-1.5 fw-bold bg-primary-subtle text-primary border border-primary-subtle'
+                        : 'badge badge-heures rounded-pill px-2.5 py-1.5 fw-bold bg-secondary-subtle text-secondary border border-secondary-subtle';
+                }
+            }
+
+            // Synchroniser vue Mobile
+            if (card) {
+                const allBtnsMobile = card.querySelectorAll('.btn-statut');
+                allBtnsMobile.forEach(b => {
+                    b.className = 'btn btn-sm w-100 py-2 rounded-3 fw-bold btn-statut btn-light text-muted border';
+                });
+
+                if (statut === 'present') {
+                    card.querySelector('.btn-statut-present').className = 'btn btn-sm w-100 py-2 rounded-3 fw-bold btn-statut btn-statut-present btn-success text-white shadow-xs';
+                    card.className = 'card border-0 shadow-sm rounded-4 mb-2.5 pointage-card card-present saved-pulse';
+                } else if (statut === 'retard') {
+                    card.querySelector('.btn-statut-retard').className = 'btn btn-sm w-100 py-2 rounded-3 fw-bold btn-statut btn-statut-retard btn-warning text-dark shadow-xs';
+                    card.className = 'card border-0 shadow-sm rounded-4 mb-2.5 pointage-card card-retard saved-pulse';
+                } else if (statut === 'absent_justifie') {
+                    card.querySelector('.btn-statut-justifie').className = 'btn btn-sm w-100 py-2 rounded-3 fw-bold btn-statut btn-statut-justifie btn-info text-white shadow-xs';
+                    card.className = 'card border-0 shadow-sm rounded-4 mb-2.5 pointage-card card-justifie saved-pulse';
+                } else if (statut === 'absent_injustifie') {
+                    card.querySelector('.btn-statut-injustifie').className = 'btn btn-sm w-100 py-2 rounded-3 fw-bold btn-statut btn-statut-injustifie btn-danger text-white shadow-xs';
+                    card.className = 'card border-0 shadow-sm rounded-4 mb-2.5 pointage-card card-injustifie saved-pulse';
+                }
+
+                const badgeHMobile = card.querySelector('.badge-heures');
+                if (badgeHMobile) {
+                    const h = parseFloat(data.heures_effectuees || 0.0);
+                    badgeHMobile.textContent = `${h.toFixed(1)} h`;
+                    badgeHMobile.className = h > 0 
+                        ? 'badge badge-heures rounded-pill px-2.5 py-1.5 fw-bold bg-primary-subtle text-primary border border-primary-subtle'
+                        : 'badge badge-heures rounded-pill px-2.5 py-1.5 fw-bold bg-secondary-subtle text-secondary border border-secondary-subtle';
+                }
+            }
+
+            afficherToast(data.message || "Pointage enregistré");
+            actualiserCompteursKPI();
+        } else {
+            alert(data.error || "Erreur de pointage.");
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Erreur de connexion.");
+    });
+}
+
+function actualiserCompteursKPI() {
+    let presents = 0, retards = 0, injustifies = 0, nonPointes = 0;
+    // Compter via desktop si disponible, sinon mobile
+    const items = document.querySelectorAll('.pointage-row');
+    const sourceList = items.length > 0 ? items : document.querySelectorAll('.pointage-card');
+    
+    sourceList.forEach(r => {
+        if (r.classList.contains('row-present') || r.classList.contains('card-present')) presents++;
+        else if (r.classList.contains('row-retard') || r.classList.contains('card-retard')) retards++;
+        else if (r.classList.contains('row-injustifie') || r.classList.contains('card-injustifie')) injustifies++;
+        else if (r.classList.contains('row-justifie') || r.classList.contains('card-justifie')) { /* justifié */ }
+        else nonPointes++;
+    });
+
+    const elP = document.getElementById('kpiPresents');
+    const elR = document.getElementById('kpiRetards');
+    const elI = document.getElementById('kpiInjustifies');
+    const elN = document.getElementById('kpiNonPointes');
+    if (elP) elP.textContent = presents;
+    if (elR) elR.textContent = retards;
+    if (elI) elI.textContent = injustifies;
+    if (elN) elN.textContent = nonPointes;
+}
+
+// -------------------------------------------------------------
+// Appliquer un horaire commun à tout le tableau
+// -------------------------------------------------------------
+function appliquerHoraireCommun() {
+    const debut = document.getElementById('modalHoraireDebut')?.value || '08:00';
+    const fin = document.getElementById('modalHoraireFin')?.value || '16:00';
+
+    document.querySelectorAll('.creneau-debut').forEach(inp => inp.value = debut);
+    document.querySelectorAll('.creneau-fin').forEach(inp => inp.value = fin);
+
+    // Déclencher pour chaque enseignant unique
+    const profIds = new Set();
+    document.querySelectorAll('[data-prof-id]').forEach(el => profIds.add(el.getAttribute('data-prof-id')));
+    profIds.forEach(id => declencherRecalculLigne(id));
+
+    const modalEl = document.getElementById('modalHoraireCommun');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+    afficherToast(`Horaire ${debut} - ${fin} appliqué à tous.`);
+}
+
+// -------------------------------------------------------------
+// Chargement AJAX du Rapport Mensuel (Onglet 3)
+// -------------------------------------------------------------
+function chargerRapportMensuel() {
+    const selectPeriode = document.getElementById('selectRapportPeriode');
+    const periodeVal = selectPeriode?.value || '{{ mois_selectionne_valeur }}';
+    const tbody = document.getElementById('tbodyRapportMensuel');
+
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-4 text-muted">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                    Chargement du rapport mensuel...
+                </td>
+            </tr>
+        `;
+    }
+
+    fetch(`{{ url_for('pointage_personnel.rapport_mensuel') }}?periode=${periodeVal}`, {
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) throw new Error("Erreur de rapport");
+
+        // KPI
+        document.getElementById('kpiMoisHeures').textContent = `${(data.kpis.total_heures || 0).toFixed(1)} h`;
+        document.getElementById('kpiMoisPresence').textContent = `${data.kpis.taux_presence || 100}%`;
+        document.getElementById('kpiMoisRetards').textContent = `${data.kpis.total_retards_minutes || 0} min`;
+        document.getElementById('kpiMoisAbsences').textContent = `${data.kpis.total_absences_injustifiees || 0}`;
+
+        // Tableau
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (!data.professeurs || data.professeurs.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">
+                        Aucun enseignant trouvé pour cette période.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        data.professeurs.forEach(p => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="ps-3 py-2.5">
+                    <div class="fw-semibold text-dark">${p.nom_complet}</div>
+                    <span class="text-muted small">${p.specialite}</span>
+                </td>
+                <td class="text-center py-2.5 fw-bold text-dark">
+                    ${p.jours_travailles} j
+                </td>
+                <td class="text-center py-2.5">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 fw-bold">
+                        ${p.heures_totales.toFixed(1)} h
+                    </span>
+                </td>
+                <td class="text-center py-2.5 ${p.retards_minutes > 0 ? 'text-warning-emphasis fw-bold' : 'text-muted'}">
+                    ${p.retards_minutes} min
+                </td>
+                <td class="text-center py-2.5 ${p.absences_injustifiees > 0 ? 'text-danger fw-bold' : 'text-muted'}">
+                    ${p.absences_injustifiees}
+                </td>
+                <td class="pe-3 text-center py-2.5 ${p.absences_justifiees > 0 ? 'text-info fw-bold' : 'text-muted'}">
+                    ${p.absences_justifiees}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    })
+    .catch(err => {
+        console.error(err);
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-danger">
+                        Impossible de charger le rapport mensuel.
+                    </td>
+                </tr>
+            `;
+        }
+    });
+}
+</script>
+{% endblock %}

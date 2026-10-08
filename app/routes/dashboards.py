@@ -17,6 +17,7 @@ from .common import (
     role_required,
     url_for,
 )
+from flask import jsonify
 
 
 @main.route('/dashboard')
@@ -175,6 +176,37 @@ def professeur_dashboard():
     appel_classe_id = getattr(appel_cible, "classe_id", None)
     appel_cours_id = getattr(appel_cible, "cours_id", None) or getattr(appel_cible, "id", None)
 
+    # Pointages et assiduité du mois pour le professeur (Consultation directe en modal popup)
+    from datetime import date
+    from app.models import PointagePersonnel
+    debut_mois = date(now.year, now.month, 1)
+    pointages_mois = (
+        PointagePersonnel.query
+        .filter(
+            PointagePersonnel.professeur_id == professeur.id,
+            PointagePersonnel.date_pointage >= debut_mois
+        )
+        .order_by(PointagePersonnel.date_pointage.desc())
+        .all()
+    )
+    pointage_heures_total = sum(p.heures_effectuees for p in pointages_mois)
+    pointage_jours_presents = sum(1 for p in pointages_mois if p.statut in ('present', 'retard'))
+    pointage_retards_min = sum(p.retard_minutes for p in pointages_mois if p.statut == 'retard')
+    pointage_absences_total = sum(1 for p in pointages_mois if p.statut in ('absent_justifie', 'absent_injustifie'))
+
+    # Fiches de paie et rémunération pour le professeur (Consultation directe en modal popup)
+    from app.models import FichePaiePersonnel
+    fiches_paie_prof = (
+        FichePaiePersonnel.query
+        .filter(
+            FichePaiePersonnel.professeur_id == professeur.id,
+            FichePaiePersonnel.ecole_id == current_user.ecole_id
+        )
+        .order_by(FichePaiePersonnel.annee.desc(), FichePaiePersonnel.mois.desc())
+        .all()
+    )
+    fiche_paie_courante = fiches_paie_prof[0] if fiches_paie_prof else None
+
     return render_template(
         'professeur_dashboard.html',
         stats=stats,
@@ -190,8 +222,53 @@ def professeur_dashboard():
         annee_consultee=annee_consultee,
         now=now,
         aujourdhui=jours,
-        jour_actuel=jour_actuel
+        jour_actuel=jour_actuel,
+        pointages_mois=pointages_mois,
+        pointage_heures_total=round(pointage_heures_total, 1),
+        pointage_jours_presents=pointage_jours_presents,
+        pointage_retards_min=pointage_retards_min,
+        pointage_absences_total=pointage_absences_total,
+        fiches_paie_prof=fiches_paie_prof,
+        fiche_paie_courante=fiche_paie_courante
     )
+
+
+@main.route('/professeur/mes-fiches-paie', methods=['GET'])
+@login_required
+@role_required('professeur')
+def professeur_mes_fiches_paie():
+    """Route API pour l'historique des fiches de paie du professeur."""
+    from app.models import Professeur, FichePaiePersonnel
+    prof = Professeur.query.filter_by(utilisateur_id=current_user.id).first()
+    if not prof:
+        return jsonify({"success": False, "error": "Profil professeur introuvable."}), 404
+
+    fiches = (
+        FichePaiePersonnel.query
+        .filter_by(professeur_id=prof.id, ecole_id=current_user.ecole_id)
+        .order_by(FichePaiePersonnel.annee.desc(), FichePaiePersonnel.mois.desc())
+        .all()
+    )
+
+    data = [
+        {
+            "id": f.id,
+            "mois": f.mois,
+            "annee": f.annee,
+            "periode_nom": f.periode_nom,
+            "heures_totales": f.heures_travaillees,
+            "salaire_brut": f.salaire_brut,
+            "net_a_payer": f.net_a_payer,
+            "statut_paiement": f.statut_paiement,
+            "montant_paye": f.montant_paye,
+            "reste_a_payer": f.reste_a_payer,
+            "date_paiement": f.date_paiement.strftime("%d/%m/%Y") if f.date_paiement else None,
+            "mode_paiement": f.mode_paiement,
+            "print_url": url_for('paie_personnel.print_bulletin', fiche_id=f.id)
+        }
+        for f in fiches
+    ]
+    return jsonify({"success": True, "fiches": data})
 
 
 @main.route('/professeur')

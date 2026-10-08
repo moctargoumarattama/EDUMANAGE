@@ -227,6 +227,8 @@ class Ecole(db.Model):
         passive_deletes=True,
         lazy=True,
     )
+    pointages_personnel = db.relationship('PointagePersonnel', back_populates='ecole', lazy=True, cascade="all, delete-orphan")
+    fiches_paie_personnel = db.relationship('FichePaiePersonnel', back_populates='ecole', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f'<Ecole {self.nom}>'
@@ -432,6 +434,11 @@ class Professeur(db.Model):
     code_prof = db.Column(db.String(50))
     mot_de_passe = db.Column(db.String(200))
 
+    # Rémunération & Contrat
+    type_remuneration = db.Column(db.String(20), default='fixe', nullable=False)  # 'fixe' ou 'horaire'
+    salaire_base = db.Column(db.Float, default=0.0, nullable=False)  # salaire mensuel de base
+    taux_horaire = db.Column(db.Float, default=0.0, nullable=False)  # taux horaire
+
     # Utilisateur 1-1 (force la liaison utilisateur <-> professeur)
     utilisateur_id = db.Column(
         db.Integer,
@@ -451,6 +458,8 @@ class Professeur(db.Model):
     utilisateur = db.relationship('Utilisateur', back_populates='professeur_rel', uselist=False)
     cours = db.relationship('Cours', back_populates='professeur', lazy=True, cascade="all, delete-orphan")
     emplois_du_temps = db.relationship('EmploiTemps', back_populates='professeur', lazy=True, cascade="all, delete-orphan")
+    pointages = db.relationship('PointagePersonnel', back_populates='professeur', lazy=True, cascade="all, delete-orphan")
+    fiches_paie = db.relationship('FichePaiePersonnel', back_populates='professeur', lazy=True, cascade="all, delete-orphan")
 
     classes_assignees = db.relationship(
         'Classe',
@@ -464,9 +473,7 @@ class Professeur(db.Model):
         return self.classes_assignees.all()
 
     def __repr__(self):
-
         return f'<Professeur {self.prenom} {self.nom}>'
-
 
     def to_dict(self):
         return {
@@ -483,6 +490,9 @@ class Professeur(db.Model):
             "date_embauche": self.date_embauche.isoformat() if self.date_embauche else None,
             "planning": self.planning,
             "code_prof": self.code_prof,
+            "type_remuneration": self.type_remuneration or 'fixe',
+            "salaire_base": float(self.salaire_base or 0.0),
+            "taux_horaire": float(self.taux_horaire or 0.0),
             "utilisateur_id": self.utilisateur_id,
             "ecole_id": self.ecole_id,
             "classes_assignees": [classe.to_dict() for classe in self.classes_assignees.all()]
@@ -1595,5 +1605,204 @@ class DemandePresentation(db.Model):
             "notes_admin": self.notes_admin,
             "created_at": self.created_at.strftime("%d/%m/%Y %H:%M") if self.created_at else None
         }
+
+
+# -----------------------------------------------------------------------------
+# Modèle Pointage Personnel / Professeurs (Pointage strict Administration - SANS CONGÉ)
+# -----------------------------------------------------------------------------
+class PointagePersonnel(db.Model):
+    __tablename__ = 'pointage_personnel'
+
+    id = db.Column(db.Integer, primary_key=True)
+    professeur_id = db.Column(db.Integer, db.ForeignKey('professeur.id', ondelete='CASCADE'), nullable=False, index=True)
+    ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id', ondelete='CASCADE'), nullable=False, index=True)
+    annee_scolaire_id = db.Column(db.Integer, db.ForeignKey('annee_scolaire.id', ondelete='SET NULL'), nullable=True, index=True)
+
+    date_pointage = db.Column(db.Date, nullable=False, index=True)
+    # Statuts stricts : 'present', 'retard', 'absent_justifie', 'absent_injustifie' (JAMAIS DE CONGÉ)
+    statut = db.Column(db.String(30), nullable=False, default='present')
+    retard_minutes = db.Column(db.Integer, default=0, nullable=False)
+
+    # Horaires et volume d'heures
+    creneau = db.Column(db.String(50), nullable=True)  # ex: '08:00 - 12:00' ou 'Journée'
+    heure_arrivee = db.Column(db.String(10), nullable=True)  # ex: '08:00'
+    heure_depart = db.Column(db.String(10), nullable=True)   # ex: '16:00'
+    heures_prevues = db.Column(db.Float, default=0.0, nullable=False)
+    heures_effectuees = db.Column(db.Float, default=0.0, nullable=False)
+
+    # Justification et notes
+    motif = db.Column(db.String(255), nullable=True)
+
+    # Admin qui a effectué le pointage
+    pointe_par_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id', ondelete='SET NULL'), nullable=True)
+
+    # Verrouillage / Validation de la journée
+    valide = db.Column(db.Boolean, default=False, nullable=False)
+    valide_par_user_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id', ondelete='SET NULL'), nullable=True)
+    date_validation = db.Column(db.DateTime, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relations
+    professeur = db.relationship('Professeur', back_populates='pointages')
+    ecole = db.relationship('Ecole', back_populates='pointages_personnel')
+    annee_scolaire = db.relationship('AnneeScolaire')
+    pointe_par = db.relationship('Utilisateur', foreign_keys=[pointe_par_id])
+    valide_par = db.relationship('Utilisateur', foreign_keys=[valide_par_user_id])
+
+    __table_args__ = (
+        db.UniqueConstraint('professeur_id', 'date_pointage', name='uq_pointage_prof_date'),
+        db.Index('ix_pointage_ecole_date', 'ecole_id', 'date_pointage'),
+        db.Index('ix_pointage_prof_date', 'professeur_id', 'date_pointage'),
+    )
+
+    def __repr__(self):
+        return f'<PointagePersonnel prof={self.professeur_id} date={self.date_pointage} statut={self.statut}>'
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "professeur_id": self.professeur_id,
+            "professeur_nom": f"{self.professeur.nom} {self.professeur.prenom}" if self.professeur else None,
+            "ecole_id": self.ecole_id,
+            "annee_scolaire_id": self.annee_scolaire_id,
+            "date_pointage": self.date_pointage.isoformat() if self.date_pointage else None,
+            "statut": self.statut,
+            "retard_minutes": self.retard_minutes,
+            "creneau": self.creneau,
+            "heure_arrivee": self.heure_arrivee,
+            "heure_depart": self.heure_depart,
+            "heures_prevues": self.heures_prevues,
+            "heures_effectuees": self.heures_effectuees,
+            "motif": self.motif,
+            "pointe_par_id": self.pointe_par_id,
+            "pointe_par_nom": f"{self.pointe_par.prenom} {self.pointe_par.nom}" if self.pointe_par else "Administration",
+            "valide": self.valide,
+            "valide_par_user_id": self.valide_par_user_id,
+            "date_validation": self.date_validation.strftime("%d/%m/%Y %H:%M") if self.date_validation else None,
+            "created_at": self.created_at.strftime("%d/%m/%Y %H:%M") if self.created_at else None,
+            "updated_at": self.updated_at.strftime("%d/%m/%Y %H:%M") if self.updated_at else None
+        }
+
+
+# -----------------------------------------------------------------------------
+# Modèle Fiche de Paie du Personnel / Professeurs (Calcul & Rémunération)
+# -----------------------------------------------------------------------------
+class FichePaiePersonnel(db.Model):
+    __tablename__ = 'fiche_paie_personnel'
+
+    id = db.Column(db.Integer, primary_key=True)
+    professeur_id = db.Column(db.Integer, db.ForeignKey('professeur.id', ondelete='CASCADE'), nullable=False, index=True)
+    ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id', ondelete='CASCADE'), nullable=False, index=True)
+    annee_scolaire_id = db.Column(db.Integer, db.ForeignKey('annee_scolaire.id', ondelete='SET NULL'), nullable=True, index=True)
+
+    # Période de paie
+    mois = db.Column(db.Integer, nullable=False)  # 1 à 12
+    annee = db.Column(db.Integer, nullable=False)  # ex: 2026
+    periode_nom = db.Column(db.String(50), nullable=False)  # ex: "Octobre 2026"
+
+    # Données salariales appliquées pour ce mois
+    type_remuneration = db.Column(db.String(20), default='fixe', nullable=False)  # 'fixe' ou 'horaire'
+    salaire_base = db.Column(db.Float, default=0.0, nullable=False)
+    taux_horaire = db.Column(db.Float, default=0.0, nullable=False)
+
+    # Données récapitulatives issues des pointages
+    heures_prevues = db.Column(db.Float, default=0.0, nullable=False)
+    heures_travaillees = db.Column(db.Float, default=0.0, nullable=False)
+    jours_presence = db.Column(db.Integer, default=0, nullable=False)
+    retards_total_minutes = db.Column(db.Integer, default=0, nullable=False)
+    absences_injustifiees = db.Column(db.Integer, default=0, nullable=False)
+    absences_justifiees = db.Column(db.Integer, default=0, nullable=False)
+
+    # Calculs financiers
+    salaire_brut = db.Column(db.Float, default=0.0, nullable=False)
+    primes = db.Column(db.Float, default=0.0, nullable=False)
+    deductions = db.Column(db.Float, default=0.0, nullable=False)
+    salaire_net = db.Column(db.Float, default=0.0, nullable=False)
+
+    # Statut du versement
+    statut_paiement = db.Column(db.String(30), default='en_attente', nullable=False)  # 'en_attente', 'paye', 'partiel'
+    montant_paye = db.Column(db.Float, default=0.0, nullable=False)
+    date_paiement = db.Column(db.Date, nullable=True)
+    mode_paiement = db.Column(db.String(50), nullable=True)  # 'especes', 'virement', 'cheque', 'orange_money', 'wave'
+    reference_paiement = db.Column(db.String(100), nullable=True)
+    note = db.Column(db.Text, nullable=True)
+
+    # Admin qui a généré ou validé
+    cree_par_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id', ondelete='SET NULL'), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relations
+    professeur = db.relationship('Professeur', back_populates='fiches_paie')
+    ecole = db.relationship('Ecole', back_populates='fiches_paie_personnel')
+    annee_scolaire = db.relationship('AnneeScolaire')
+    cree_par = db.relationship('Utilisateur', foreign_keys=[cree_par_id])
+
+    __table_args__ = (
+        db.UniqueConstraint('professeur_id', 'mois', 'annee', name='uq_fiche_paie_prof_mois_annee'),
+        db.Index('ix_fiche_paie_ecole_periode', 'ecole_id', 'annee', 'mois'),
+    )
+
+    @property
+    def net_a_payer(self):
+        return self.salaire_net
+
+    @property
+    def reste_a_payer(self):
+        return max(0.0, round((self.salaire_net or 0.0) - (self.montant_paye or 0.0), 2))
+
+    def recalculer_montants(self):
+        """Calcule automatiquement le salaire brut et net."""
+        if getattr(self, 'type_remuneration', 'fixe') == 'horaire' or (self.taux_horaire and float(self.taux_horaire) > 0 and not self.salaire_base):
+            self.salaire_brut = round(float(self.taux_horaire or 0.0) * float(self.heures_travaillees or 0.0), 2)
+        else:
+            self.salaire_brut = round(float(self.salaire_base or 0.0), 2)
+
+        self.salaire_net = round(self.salaire_brut + float(self.primes or 0.0) - float(self.deductions or 0.0), 2)
+        if self.salaire_net < 0:
+            self.salaire_net = 0.0
+
+    def __repr__(self):
+        return f'<FichePaiePersonnel prof={self.professeur_id} periode="{self.periode_nom}" net={self.salaire_net}>'
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "professeur_id": self.professeur_id,
+            "professeur_nom": f"{self.professeur.nom} {self.professeur.prenom}" if self.professeur else None,
+            "ecole_id": self.ecole_id,
+            "annee_scolaire_id": self.annee_scolaire_id,
+            "mois": self.mois,
+            "annee": self.annee,
+            "periode_nom": self.periode_nom,
+            "type_remuneration": getattr(self, 'type_remuneration', 'fixe') or 'fixe',
+            "salaire_base": self.salaire_base,
+            "taux_horaire": self.taux_horaire,
+            "heures_prevues": self.heures_prevues,
+            "heures_travaillees": self.heures_travaillees,
+            "jours_presence": self.jours_presence,
+            "retards_total_minutes": self.retards_total_minutes,
+            "absences_injustifiees": self.absences_injustifiees,
+            "absences_justifiees": self.absences_justifiees,
+            "salaire_brut": self.salaire_brut,
+            "primes": self.primes,
+            "deductions": self.deductions,
+            "salaire_net": self.salaire_net,
+            "net_a_payer": self.net_a_payer,
+            "statut_paiement": self.statut_paiement,
+            "montant_paye": self.montant_paye,
+            "solde_restant": self.reste_a_payer,
+            "reste_a_payer": self.reste_a_payer,
+            "date_paiement": self.date_paiement.isoformat() if self.date_paiement else None,
+            "mode_paiement": self.mode_paiement,
+            "reference_paiement": self.reference_paiement,
+            "note": self.note,
+            "created_at": self.created_at.strftime("%d/%m/%Y %H:%M") if self.created_at else None,
+            "updated_at": self.updated_at.strftime("%d/%m/%Y %H:%M") if self.updated_at else None
+        }
+
 
 

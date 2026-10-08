@@ -1,0 +1,125 @@
+<!-- Modal Popup Pointage & Présences Professeur (Sans nouvelle page) -->
+<div class="modal fade" id="modalPointageProf" tabindex="-1" aria-labelledby="modalPointageProfLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0 pt-3 px-3 px-md-4">
+                <div class="d-flex align-items-center gap-2.5">
+                    <div class="rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                        <i class="fas fa-calendar-check fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="modalPointageProfLabel">Mon Assiduité &amp; Pointages</h5>
+                        <p class="text-muted small mb-0">Récapitulatif validé par l'administration pour ce mois</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+
+            <div class="modal-body p-3 p-md-4">
+                <!-- 4 KPI compacts du mois -->
+                <div class="row g-2 mb-3">
+                    <div class="col-6 col-md-3">
+                        <div class="p-2.5 rounded-3 bg-light border text-center">
+                            <span class="text-muted small d-block" style="font-size: 0.76rem;">Heures effectuées</span>
+                            <h5 class="fw-bold text-primary mb-0 mt-0.5">{{ pointage_heures_total }} h</h5>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-2.5 rounded-3 bg-light border text-center">
+                            <span class="text-muted small d-block" style="font-size: 0.76rem;">Jours présence</span>
+                            <h5 class="fw-bold text-success mb-0 mt-0.5">{{ pointage_jours_presents }} j</h5>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-2.5 rounded-3 bg-light border text-center">
+                            <span class="text-muted small d-block" style="font-size: 0.76rem;">Retards cumulés</span>
+                            <h5 class="fw-bold text-warning mb-0 mt-0.5">{{ pointage_retards_min }} min</h5>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="p-2.5 rounded-3 bg-light border text-center">
+                            <span class="text-muted small d-block" style="font-size: 0.76rem;">Absences</span>
+                            <h5 class="fw-bold text-danger mb-0 mt-0.5">{{ pointage_absences_total }}</h5>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Historique récent -->
+                <h6 class="fw-bold text-dark mb-2" style="font-size: 0.9rem;">
+                    <i class="fas fa-list-check me-1.5 text-primary"></i>Détail des journées enregistrées
+                </h6>
+
+                {% if pointages_mois and pointages_mois|length > 0 %}
+                <div class="table-responsive rounded-3 border">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                        <thead class="table-light text-muted small text-uppercase fw-semibold">
+                            <tr>
+                                <th class="ps-3 py-2">Date</th>
+                                <th class="py-2 text-center">Statut</th>
+                                <th class="py-2 text-center">Créneau</th>
+                                <th class="py-2 text-center">Heures</th>
+                                <th class="pe-3 py-2">Observation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in pointages_mois %}
+                            <tr>
+                                <td class="ps-3 py-2 fw-semibold text-dark">
+                                    {{ p.date_pointage.strftime('%d/%m/%Y') }}
+                                </td>
+                                <td class="py-2 text-center">
+                                    {% if p.statut == 'present' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1">
+                                        <i class="fas fa-check me-1"></i>Présent
+                                    </span>
+                                    {% elif p.statut == 'retard' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2.5 py-1">
+                                        <i class="fas fa-clock me-1"></i>Retard ({{ p.retard_minutes }}m)
+                                    </span>
+                                    {% elif p.statut == 'absent_justifie' %}
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill px-2.5 py-1">
+                                        <i class="fas fa-file-alt me-1"></i>Justifié
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2.5 py-1">
+                                        <i class="fas fa-times me-1"></i>Injustifié
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="py-2 text-center text-muted">
+                                    {{ p.creneau or '08:00 - 16:00' }}
+                                </td>
+                                <td class="py-2 text-center fw-bold text-dark">
+                                    {{ "%.1f"|format(p.heures_effectuees) }} h
+                                </td>
+                                <td class="pe-3 py-2 text-muted text-truncate" style="max-width: 160px;">
+                                    {{ p.motif or '-' }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 bg-light rounded-3 border">
+                    <i class="fas fa-calendar-check text-muted fs-3 mb-2 opacity-50"></i>
+                    <p class="text-muted small mb-0">Aucun pointage enregistré pour vous ce mois-ci par l'administration.</p>
+                </div>
+                {% endif %}
+
+                <!-- Note de bas de modal -->
+                <div class="mt-3 p-2.5 rounded-3 bg-light-subtle border d-flex align-items-center gap-2 text-muted" style="font-size: 0.78rem;">
+                    <i class="fas fa-info-circle text-primary fs-6"></i>
+                    <span>Les heures et présences ci-dessus sont pointées et validées par la direction de votre école. En cas d'erreur, veuillez contacter le secrétariat.</span>
+                </div>
+            </div>
+
+            <div class="modal-footer border-0 pt-0 pb-3 px-3 px-md-4">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4 py-1.5 small" data-bs-dismiss="modal">
+                    Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+

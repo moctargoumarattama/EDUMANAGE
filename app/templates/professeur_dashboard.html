@@ -15,7 +15,24 @@
                 {% if annee_consultee %}Année scolaire {{ annee_consultee.nom }}{% else %}Espace pédagogique enseignant{% endif %}
             </p>
         </div>
-        <div class="d-flex align-items-center gap-1.5">
+        <div class="d-flex align-items-center gap-1.5 flex-wrap">
+            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1.5 fw-semibold d-flex align-items-center gap-1.5 shadow-xs" data-bs-toggle="modal" data-bs-target="#modalPointageProf" title="Voir mes heures et présences du mois">
+                <i class="fas fa-calendar-check text-primary"></i>
+                <span>Mon Assiduité ({{ pointage_heures_total }}h)</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1.5 fw-semibold d-flex align-items-center gap-1.5 shadow-xs" data-bs-toggle="modal" data-bs-target="#modalPaieProfesseur" title="Consulter mes fiches de rémunération">
+                <i class="fas fa-money-bill-wave text-success"></i>
+                <span>Ma Rémunération</span>
+                {% if fiche_paie_courante %}
+                    {% if fiche_paie_courante.statut_paiement == 'paye' %}
+                    <span class="badge bg-success text-white rounded-pill px-2 py-0.5" style="font-size: 0.68rem;">Réglé</span>
+                    {% elif fiche_paie_courante.statut_paiement == 'partiel' %}
+                    <span class="badge bg-warning text-dark rounded-pill px-2 py-0.5" style="font-size: 0.68rem;">Partiel</span>
+                    {% else %}
+                    <span class="badge bg-secondary text-white rounded-pill px-2 py-0.5" style="font-size: 0.68rem;">En cours</span>
+                    {% endif %}
+                {% endif %}
+            </button>
             <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1.5 rounded-pill fw-semibold small">
                 <i class="fas fa-calendar-day me-1"></i>{{ now.strftime('%d/%m/%Y') }}
             </span>
@@ -333,4 +350,6 @@
 </style>
 
 {% include 'partials/_modal_faire_appel.html' %}
+{% include 'partials/_modal_pointage_professeur.html' %}
+{% include 'partials/_modal_paie_professeur.html' %}
 {% endblock %}

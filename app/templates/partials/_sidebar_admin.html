@@ -135,6 +135,18 @@
             <div class="nav-section-label">Gestion & Comptabilité</div>
             <ul class="nav-list mb-3">
                 <li>
+                    <a href="{{ url_for('pointage_personnel.index') }}" class="nav-link-item {{ 'active' if request.endpoint and request.endpoint.startswith('pointage_personnel.') }}">
+                        <i class="fas fa-user-check nav-icon"></i>
+                        <span>Pointage Personnel</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('paie_personnel.index') }}" class="nav-link-item {{ 'active' if request.endpoint and request.endpoint.startswith('paie_personnel.') }}">
+                        <i class="fas fa-money-bill-wave nav-icon"></i>
+                        <span>Paie du Personnel</span>
+                    </a>
+                </li>
+                <li>
                     <a href="{{ url_for('main.paiements') }}" class="nav-link-item {{ 'active' if request.endpoint == 'main.paiements' }}">
                         <i class="fas fa-money-bill-wave nav-icon"></i>
                         <span>Paiements & Frais</span>

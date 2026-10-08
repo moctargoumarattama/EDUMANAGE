@@ -1,0 +1,213 @@
+<!-- Modal Appel Direct (Popup moderne 1-Tap) -->
+<div class="modal fade" id="modalAppelDirect" tabindex="-1" aria-labelledby="modalAppelDirectLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0 pt-3 px-3 px-md-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="rounded-3 bg-warning-subtle text-warning d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                        <i class="fas fa-clipboard-check fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="modalAppelDirectLabel">Faire l'appel</h5>
+                        <p class="text-muted small mb-0" id="modalAppelDirectSousTitre">Chargement du cours...</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+
+            <div class="modal-body p-3 p-md-4">
+                <!-- Zone statistiques rapides -->
+                <div class="d-flex align-items-center justify-content-between p-2.5 rounded-3 bg-light mb-3" style="font-size: 0.85rem;">
+                    <span class="text-muted"><i class="fas fa-users me-1"></i> <strong id="modalAppelTotalEleves">0</strong> élève(s)</span>
+                    <span class="text-danger"><i class="fas fa-user-times me-1"></i> <strong id="modalAppelTotalAbsents">0</strong> absent(s)</span>
+                    <button type="button" class="btn btn-sm btn-link text-decoration-none p-0" id="btnMarquerTousPresentsModal" onclick="marquerTousPresentsModal()">
+                        <i class="fas fa-check-double me-1"></i> Tous présents
+                    </button>
+                </div>
+
+                <!-- Loader -->
+                <div id="modalAppelLoading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    <p class="text-muted small mt-2 mb-0">Chargement de la liste des élèves...</p>
+                </div>
+
+                <!-- Liste des élèves -->
+                <div id="modalAppelListeContainer" class="d-none">
+                    <div id="modalAppelElevesList" class="d-flex flex-column gap-2"></div>
+                </div>
+
+                <!-- Message erreur -->
+                <div id="modalAppelError" class="alert alert-danger d-none py-2 px-3 small rounded-3 mt-2" role="alert"></div>
+            </div>
+
+            <div class="modal-footer border-0 pt-0 pb-3 px-3 px-md-4 d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-3 py-1.5 small" data-bs-dismiss="modal">
+                    Annuler
+                </button>
+                <button type="button" class="btn btn-success fw-bold rounded-pill px-4 py-1.5 shadow-sm d-flex align-items-center gap-1.5" id="btnValiderAppelModal" onclick="enregistrerAppelModal()">
+                    <i class="fas fa-check"></i>
+                    <span>Valider l'appel</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentModalClasseId = null;
+let currentModalCoursId = null;
+let modalElevesData = [];
+
+function ouvrirModalAppelDirect(classeId, classeNom, coursId, coursNom) {
+    currentModalClasseId = classeId;
+    currentModalCoursId = coursId;
+    
+    const labelTitle = document.getElementById('modalAppelDirectLabel');
+    const labelSub = document.getElementById('modalAppelDirectSousTitre');
+    const loader = document.getElementById('modalAppelLoading');
+    const listContainer = document.getElementById('modalAppelListeContainer');
+    const errorBox = document.getElementById('modalAppelError');
+
+    if (labelTitle) labelTitle.textContent = "Faire l'appel · " + (classeNom || '');
+    if (labelSub) labelSub.textContent = (coursNom || 'Cours') + " · Aujourd'hui";
+    if (loader) loader.classList.remove('d-none');
+    if (listContainer) listContainer.classList.add('d-none');
+    if (errorBox) errorBox.classList.add('d-none');
+
+    const modalEl = document.getElementById('modalAppelDirect');
+    const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modalInstance.show();
+
+    // Charger les élèves via l'endpoint de l'appel
+    fetch(`/absences/appel?classe_id=${classeId}&cours_id=${coursId}`, {
+        headers: { 'Accept': 'text/html, application/xhtml+xml', 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.text())
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const rows = doc.querySelectorAll('[data-inscription-id]');
+        
+        modalElevesData = [];
+        if (rows.length > 0) {
+            rows.forEach(r => {
+                const id = r.getAttribute('data-inscription-id');
+                const nom = r.querySelector('.eleve-nom')?.textContent?.trim() || r.querySelector('.fw-bold')?.textContent?.trim() || 'Élève';
+                const photo = r.querySelector('img')?.getAttribute('src') || '/static/img/default_avatar.png';
+                const isAbsent = r.classList.contains('absent') || r.classList.contains('status-absent');
+                modalElevesData.push({ id, nom, photo, absent: isAbsent });
+            });
+        }
+
+        renderModalEleves();
+        if (loader) loader.classList.add('d-none');
+        if (listContainer) listContainer.classList.remove('d-none');
+    })
+    .catch(err => {
+        console.error(err);
+        if (loader) loader.classList.add('d-none');
+        if (errorBox) {
+            errorBox.textContent = "Impossible de charger la liste des élèves pour ce cours.";
+            errorBox.classList.remove('d-none');
+        }
+    });
+}
+
+function renderModalEleves() {
+    const listEl = document.getElementById('modalAppelElevesList');
+    const totalEl = document.getElementById('modalAppelTotalEleves');
+    const absentsEl = document.getElementById('modalAppelTotalAbsents');
+    if (!listEl) return;
+
+    listEl.innerHTML = '';
+    let countAbsents = 0;
+
+    modalElevesData.forEach(eleve => {
+        if (eleve.absent) countAbsents++;
+
+        const item = document.createElement('div');
+        item.className = `p-2.5 rounded-3 border d-flex align-items-center justify-content-between transition-all ${eleve.absent ? 'bg-danger-subtle border-danger' : 'bg-white border-light-subtle'}`;
+        item.style.cursor = 'pointer';
+        item.onclick = () => toggleModalPresence(eleve.id);
+
+        item.innerHTML = `
+            <div class="d-flex align-items-center gap-2.5">
+                <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold ${eleve.absent ? 'bg-danger text-white' : 'bg-primary-subtle text-primary'}" style="width: 36px; height: 36px; font-size: 0.85rem;">
+                    ${eleve.nom.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                    <h6 class="mb-0 fw-semibold text-dark" style="font-size: 0.9rem;">${eleve.nom}</h6>
+                    <span class="small ${eleve.absent ? 'text-danger fw-bold' : 'text-success'}">
+                        ${eleve.absent ? '<i class="fas fa-times-circle me-1"></i>Absent' : '<i class="fas fa-check-circle me-1"></i>Présent'}
+                    </span>
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm ${eleve.absent ? 'btn-danger' : 'btn-outline-success'} rounded-pill px-3 py-1" style="font-size: 0.8rem;">
+                ${eleve.absent ? 'Absent' : 'Présent'}
+            </button>
+        `;
+        listEl.appendChild(item);
+    });
+
+    if (totalEl) totalEl.textContent = modalElevesData.length;
+    if (absentsEl) absentsEl.textContent = countAbsents;
+}
+
+function toggleModalPresence(id) {
+    const el = modalElevesData.find(e => e.id == id);
+    if (el) {
+        el.absent = !el.absent;
+        renderModalEleves();
+    }
+}
+
+function marquerTousPresentsModal() {
+    modalElevesData.forEach(e => e.absent = false);
+    renderModalEleves();
+}
+
+function enregistrerAppelModal() {
+    const btn = document.getElementById('btnValiderAppelModal');
+    const errorBox = document.getElementById('modalAppelError');
+    if (btn) btn.disabled = true;
+
+    const absents = modalElevesData.filter(e => e.absent).map(e => e.id);
+    
+    fetch(`/absences/appel?classe_id=${currentModalClasseId}&cours_id=${currentModalCoursId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ absent_inscription_ids: absents })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data && data.success) {
+            const modalEl = document.getElementById('modalAppelDirect');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) modalInstance.hide();
+            if (window.showToast) {
+                window.showToast("Appel validé avec succès !", "success");
+            } else {
+                alert("Appel validé avec succès !");
+            }
+        } else {
+            throw new Error(data?.message || 'Erreur lors de la validation');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        if (errorBox) {
+            errorBox.textContent = "Erreur lors de l'enregistrement de l'appel.";
+            errorBox.classList.remove('d-none');
+        }
+    })
+    .finally(() => {
+        if (btn) btn.disabled = false;
+    });
+}
+</script>
+
