@@ -1,0 +1,278 @@
+<!-- Modale de Génération Rapide de Certificat Administratif -->
+<div class="modal fade" id="modalGenererCertificat" tabindex="-1" aria-labelledby="modalGenererCertificatLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            
+            <!-- En-tête de la modale -->
+            <div class="modal-header border-0 pb-0 pt-3 px-3 px-md-4">
+                <div class="d-flex align-items-center gap-2.5">
+                    <div class="rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                        <i class="fas fa-stamp fs-5"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="modalGenererCertificatLabel">Délivrer un Certificat Officiel</h5>
+                        <p class="text-muted small mb-0">Émission certifiée avec référence unique et QR code anti-fraude</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+
+            <form id="formGenererCertificat" onsubmit="soumettreGenerationCertificat(event)">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" id="certEleveId" name="eleve_id" value="">
+
+                <div class="modal-body p-3 p-md-4">
+                    
+                    <!-- Fiche récapitulative de l'élève sélectionné -->
+                    <div class="card border-0 bg-light rounded-4 p-3 mb-3.5 d-flex flex-row align-items-center gap-3">
+                        <div class="rounded-circle bg-primary text-white fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width: 44px; height: 44px; font-size: 1.1rem;" id="certEleveInitials">
+                            ÉL
+                        </div>
+                        <div class="min-w-0 flex-grow-1">
+                            <h6 class="mb-0 fw-bold text-dark text-truncate" id="certEleveNom">Chargement de l'élève...</h6>
+                            <div class="d-flex align-items-center gap-2 flex-wrap mt-0.5">
+                                <span class="badge bg-white text-secondary border font-monospace" style="font-size: 0.74rem;" id="certEleveMatricule">Matricule : —</span>
+                                <span class="badge bg-primary-subtle text-primary" style="font-size: 0.74rem;" id="certEleveClasse">Classe : —</span>
+                                <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.74rem;" id="certEleveAnnee">Année : —</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Choix du Type de Certificat (3 Grands Badges Visuels) -->
+                    <label class="form-label small fw-bold text-dark mb-2">Sélectionnez le type de document :</label>
+                    <div class="row g-2.5 mb-3.5">
+                        
+                        <!-- Option 1 : Scolarité -->
+                        <div class="col-12 col-md-4">
+                            <label class="card border h-100 p-2.5 rounded-3 cursor-pointer text-center position-relative certificat-type-card active" id="cardTypeScolarite" onclick="selectionnerTypeCertificat('scolarite')">
+                                <input type="radio" name="type_certificat" value="scolarite" class="d-none" checked>
+                                <div class="mb-1 text-primary fs-4"><i class="fas fa-graduation-cap"></i></div>
+                                <h6 class="fw-bold mb-0.5 text-dark" style="font-size: 0.88rem;">Scolarité</h6>
+                                <small class="text-muted" style="font-size: 0.74rem;">Atteste de l'inscription et assiduité en cours</small>
+                            </label>
+                        </div>
+
+                        <!-- Option 2 : Inscription / Réinscription -->
+                        <div class="col-12 col-md-4">
+                            <label class="card border h-100 p-2.5 rounded-3 cursor-pointer text-center position-relative certificat-type-card" id="cardTypeInscription" onclick="selectionnerTypeCertificat('inscription')">
+                                <input type="radio" name="type_certificat" value="inscription" class="d-none">
+                                <div class="mb-1 text-success fs-4"><i class="fas fa-file-signature"></i></div>
+                                <h6 class="fw-bold mb-0.5 text-dark" style="font-size: 0.88rem;">Inscription</h6>
+                                <small class="text-muted" style="font-size: 0.74rem;">Certifie l'admission formelle de l'élève</small>
+                            </label>
+                        </div>
+
+                        <!-- Option 3 : Radiation / Transfert -->
+                        <div class="col-12 col-md-4">
+                            <label class="card border h-100 p-2.5 rounded-3 cursor-pointer text-center position-relative certificat-type-card" id="cardTypeTransfert" onclick="selectionnerTypeCertificat('transfert')">
+                                <input type="radio" name="type_certificat" value="transfert" class="d-none">
+                                <div class="mb-1 text-danger fs-4"><i class="fas fa-exchange-alt"></i></div>
+                                <h6 class="fw-bold mb-0.5 text-dark" style="font-size: 0.88rem;">Transfert / Radiation</h6>
+                                <small class="text-muted" style="font-size: 0.74rem;">Atteste du départ et radiation des effectifs</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Bloc conditionnel 1 : Spécificités Inscription -->
+                    <div id="blocOptionsInscription" class="card border-0 bg-success-subtle bg-opacity-25 rounded-3 p-3 mb-3 d-none">
+                        <label class="form-label small fw-bold text-success-emphasis mb-2">Modalité d'admission :</label>
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="type_admission" id="admInscription" value="Inscription" checked>
+                                <label class="form-check-label fw-semibold small" for="admInscription">Première Inscription</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="type_admission" id="admReinscription" value="Réinscription">
+                                <label class="form-check-label fw-semibold small" for="admReinscription">Réinscription</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bloc conditionnel 2 : Spécificités Transfert -->
+                    <div id="blocOptionsTransfert" class="card border-0 bg-danger-subtle bg-opacity-25 rounded-3 p-3 mb-3 d-none">
+                        <div class="row g-2.5">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small fw-bold text-danger-emphasis mb-1">Date effective de départ :</label>
+                                <input type="date" name="date_depart" id="certDateDepart" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small fw-bold text-danger-emphasis mb-1">Établissement de destination :</label>
+                                <input type="text" name="etablissement_destination" id="certDestination" class="form-control form-control-sm" placeholder="Ex: Lycée d'Excellence de Niamey">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Paramètres Signataire & Lieu (Accordéon sobre repliable) -->
+                    <div class="border rounded-3 p-2.5 mb-2 bg-white">
+                        <div class="d-flex align-items-center justify-content-between cursor-pointer" data-bs-toggle="collapse" data-bs-target="#collapseSignataire">
+                            <span class="small fw-bold text-muted"><i class="fas fa-feather-alt text-primary me-1.5"></i>Signataire &amp; Ville d'émission</span>
+                            <i class="fas fa-chevron-down text-muted small"></i>
+                        </div>
+                        <div class="collapse pt-2.5" id="collapseSignataire">
+                            <div class="row g-2">
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small text-muted mb-0.5">Titre du signataire</label>
+                                    <input type="text" name="signataire_titre" id="certSignataireTitre" class="form-control form-control-sm" value="Le Proviseur" placeholder="Ex: Le Proviseur">
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small text-muted mb-0.5">Nom complet du signataire</label>
+                                    <input type="text" name="signataire_nom" id="certSignataireNom" class="form-control form-control-sm" value="" placeholder="Nom du chef d'établissement">
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <label class="form-label small text-muted mb-0.5">Ville d'émission</label>
+                                    <input type="text" name="ville_emission" id="certVilleEmission" class="form-control form-control-sm" value="Niamey" placeholder="Ville">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer border-0 pt-0 pb-3 px-3 px-md-4 d-flex justify-content-between">
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-sm btn-primary rounded-pill px-4 fw-bold shadow-sm d-flex align-items-center gap-1.5" id="btnGenererCertificat">
+                        <i class="fas fa-print"></i>
+                        <span>Générer &amp; Imprimer</span>
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<style>
+.certificat-type-card {
+    transition: all 0.2s ease;
+    border-color: #e2e8f0 !important;
+}
+.certificat-type-card:hover {
+    border-color: #3b82f6 !important;
+    background-color: #f8fafc;
+}
+.certificat-type-card.active {
+    border-color: #2563eb !important;
+    background-color: #eff6ff !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+}
+</style>
+
+<script>
+// Sélection visuelle du type de certificat
+function selectionnerTypeCertificat(type) {
+    document.querySelectorAll('.certificat-type-card').forEach(el => el.classList.remove('active'));
+    
+    const radio = document.querySelector(`input[name="type_certificat"][value="${type}"]`);
+    if (radio) radio.checked = true;
+
+    const blocInscr = document.getElementById('blocOptionsInscription');
+    const blocTrans = document.getElementById('blocOptionsTransfert');
+
+    if (type === 'scolarite') {
+        document.getElementById('cardTypeScolarite').classList.add('active');
+        if (blocInscr) blocInscr.classList.add('d-none');
+        if (blocTrans) blocTrans.classList.add('d-none');
+    } else if (type === 'inscription') {
+        document.getElementById('cardTypeInscription').classList.add('active');
+        if (blocInscr) blocInscr.classList.remove('d-none');
+        if (blocTrans) blocTrans.classList.add('d-none');
+    } else if (type === 'transfert') {
+        document.getElementById('cardTypeTransfert').classList.add('active');
+        if (blocInscr) blocInscr.classList.add('d-none');
+        if (blocTrans) blocTrans.classList.remove('d-none');
+        // Pré-remplir la date du jour si vide
+        const dateDep = document.getElementById('certDateDepart');
+        if (dateDep && !dateDep.value) {
+            dateDep.value = new Date().toISOString().split('T')[0];
+        }
+    }
+}
+
+// Fonction d'ouverture globale appelée depuis n'importe quelle vue
+function ouvrirModalCertificat(eleveId, eleveNom = '', eleveMatricule = '', classeNom = '', anneeScolaire = '') {
+    document.getElementById('certEleveId').value = eleveId;
+    
+    if (eleveNom) {
+        document.getElementById('certEleveNom').textContent = eleveNom;
+        const initials = eleveNom.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+        document.getElementById('certEleveInitials').textContent = initials || 'ÉL';
+    }
+    if (eleveMatricule) {
+        document.getElementById('certEleveMatricule').textContent = `Matricule : ${eleveMatricule}`;
+    }
+    if (classeNom) {
+        document.getElementById('certEleveClasse').textContent = `Classe : ${classeNom}`;
+    }
+    if (anneeScolaire) {
+        document.getElementById('certEleveAnnee').textContent = `Année : ${anneeScolaire}`;
+    }
+
+    // Récupérer les détails frais via API si disponibles
+    fetch(`/certificats/eleve/${eleveId}/info`, {
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success && data.eleve) {
+            const e = data.eleve;
+            document.getElementById('certEleveNom').textContent = e.nom_complet;
+            document.getElementById('certEleveMatricule').textContent = `Matricule : ${e.matricule}`;
+            document.getElementById('certEleveClasse').textContent = `Classe : ${e.classe_nom}`;
+            document.getElementById('certEleveAnnee').textContent = `Année : ${e.annee_scolaire}`;
+            const initials = (e.prenom[0] || '') + (e.nom[0] || '');
+            document.getElementById('certEleveInitials').textContent = initials.toUpperCase() || 'ÉL';
+        }
+    })
+    .catch(() => {});
+
+    selectionnerTypeCertificat('scolarite');
+
+    const modalEl = document.getElementById('modalGenererCertificat');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+}
+
+// Soumission AJAX de génération et impression
+function soumettreGenerationCertificat(e) {
+    e.preventDefault();
+    const btn = document.getElementById('btnGenererCertificat');
+    if (btn) btn.disabled = true;
+
+    const form = document.getElementById('formGenererCertificat');
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+
+    fetch("{{ url_for('certificats.generer') }}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+            "X-CSRFToken": payload.csrf_token || "{{ csrf_token() }}"
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const modalEl = document.getElementById('modalGenererCertificat');
+            bootstrap.Modal.getInstance(modalEl).hide();
+            // Ouvrir l'impression dans un nouvel onglet
+            if (data.redirect_url) {
+                window.open(data.redirect_url, '_blank');
+            }
+        } else {
+            alert(data.error || "Une erreur est survenue lors de la génération.");
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Erreur de connexion.");
+    })
+    .finally(() => {
+        if (btn) btn.disabled = false;
+    });
+}
+</script>
+

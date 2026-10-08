@@ -229,6 +229,7 @@ class Ecole(db.Model):
     )
     pointages_personnel = db.relationship('PointagePersonnel', back_populates='ecole', lazy=True, cascade="all, delete-orphan")
     fiches_paie_personnel = db.relationship('FichePaiePersonnel', back_populates='ecole', lazy=True, cascade="all, delete-orphan")
+    certificats_emis = db.relationship('CertificatAdministratif', back_populates='ecole', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f'<Ecole {self.nom}>'
@@ -636,6 +637,7 @@ class Eleve(db.Model):
     paiements = db.relationship('Paiement', backref='eleve', lazy=True, cascade="all, delete-orphan")
     absences = db.relationship('Absence', backref='eleve', lazy=True, cascade="all, delete-orphan")
     alertes = db.relationship('Alerte', back_populates='eleve', lazy=True)
+    certificats = db.relationship('CertificatAdministratif', back_populates='eleve', lazy=True, cascade="all, delete-orphan")
     annee_premiere_ecole = db.Column(db.Integer)
 
     __table_args__ = (
@@ -1803,6 +1805,102 @@ class FichePaiePersonnel(db.Model):
             "created_at": self.created_at.strftime("%d/%m/%Y %H:%M") if self.created_at else None,
             "updated_at": self.updated_at.strftime("%d/%m/%Y %H:%M") if self.updated_at else None
         }
+
+
+# -----------------------------------------------------------------------------
+# Modèle CertificatAdministratif (Certificats officiels sécurisés par QR Code)
+# -----------------------------------------------------------------------------
+class CertificatAdministratif(db.Model):
+    __tablename__ = 'certificat_administratif'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id', ondelete='CASCADE'), nullable=False, index=True)
+    eleve_id = db.Column(db.Integer, db.ForeignKey('eleve.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # Type : 'scolarite', 'inscription', 'transfert'
+    type_certificat = db.Column(db.String(30), nullable=False)
+
+    # Référence unique officielle : 'CS-YYYY-XXXX', 'CI-YYYY-XXXX', 'CR-YYYY-XXXX'
+    reference = db.Column(db.String(50), unique=True, index=True, nullable=False)
+
+    # Métadonnées scolaires scellées au moment de l'émission
+    annee_scolaire = db.Column(db.String(20), nullable=False)
+    classe_nom = db.Column(db.String(80), nullable=False)
+    niveau = db.Column(db.String(50), nullable=True)
+
+    # Spécificités par type
+    type_admission = db.Column(db.String(30), default='Inscription')
+    date_depart = db.Column(db.Date, nullable=True)
+    etablissement_destination = db.Column(db.String(150), nullable=True)
+
+    # Signature et authentification
+    ville_emission = db.Column(db.String(80), default='Niamey')
+    date_emission = db.Column(db.Date, default=date.today)
+    signataire_nom = db.Column(db.String(120), nullable=False)
+    signataire_titre = db.Column(db.String(80), default='Le Proviseur')
+
+    # Jeton anti-fraude unique scannable par QR code
+    code_verification = db.Column(db.String(64), unique=True, index=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relations
+    eleve = db.relationship('Eleve', back_populates='certificats')
+    ecole = db.relationship('Ecole', back_populates='certificats_emis')
+
+    @property
+    def titre_document(self):
+        titres = {
+            'scolarite': 'CERTIFICAT DE SCOLARITÉ',
+            'inscription': "CERTIFICAT D'INSCRIPTION / RÉINSCRIPTION",
+            'transfert': 'CERTIFICAT DE RADIATION / TRANSFERT'
+        }
+        return titres.get(self.type_certificat, 'CERTIFICAT ADMINISTRATIF')
+
+    @property
+    def badge_type(self):
+        badges = {
+            'scolarite': 'primary',
+            'inscription': 'success',
+            'transfert': 'danger'
+        }
+        return badges.get(self.type_certificat, 'secondary')
+
+    @property
+    def nom_type_fr(self):
+        noms = {
+            'scolarite': 'Scolarité',
+            'inscription': 'Inscription / Réinscription',
+            'transfert': 'Radiation / Transfert'
+        }
+        return noms.get(self.type_certificat, self.type_certificat)
+
+    def __repr__(self):
+        return f'<CertificatAdministratif {self.reference} ({self.type_certificat}) - Eleve #{self.eleve_id}>'
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "ecole_id": self.ecole_id,
+            "eleve_id": self.eleve_id,
+            "eleve_nom": f"{self.eleve.nom} {self.eleve.prenom}" if self.eleve else None,
+            "type_certificat": self.type_certificat,
+            "titre_document": self.titre_document,
+            "nom_type_fr": self.nom_type_fr,
+            "reference": self.reference,
+            "annee_scolaire": self.annee_scolaire,
+            "classe_nom": self.classe_nom,
+            "niveau": self.niveau,
+            "type_admission": self.type_admission,
+            "date_depart": self.date_depart.isoformat() if self.date_depart else None,
+            "etablissement_destination": self.etablissement_destination,
+            "ville_emission": self.ville_emission,
+            "date_emission": self.date_emission.isoformat() if self.date_emission else None,
+            "signataire_nom": self.signataire_nom,
+            "signataire_titre": self.signataire_titre,
+            "code_verification": self.code_verification,
+            "created_at": self.created_at.strftime("%d/%m/%Y %H:%M") if self.created_at else None,
+        }
+
 
 
 

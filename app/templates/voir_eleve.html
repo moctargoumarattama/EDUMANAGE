@@ -28,6 +28,11 @@
                 <i class="fas fa-file-alt me-1"></i>Bulletin scolaire
             </a>
             {% endif %}
+            {% if current_user.role in ['admin', 'super_admin'] %}
+            <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center bg-white shadow-xs" onclick="ouvrirModalCertificat({{ eleve.id }}, '{{ eleve.nom }} {{ eleve.prenom }}', '{{ eleve.matricule }}', '{{ inscription_affichee.classe.nom if inscription_affichee and inscription_affichee.classe else '' }}', '{{ annee_affichee.nom if annee_affichee else '' }}')">
+                <i class="fas fa-stamp me-1"></i>Certificat
+            </button>
+            {% endif %}
             {% if current_user.role == 'admin' %}
             <a href="{{ url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url) }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center bg-white shadow-xs">
                 <i class="fas fa-edit me-1"></i>Modifier la fiche
@@ -1658,4 +1663,7 @@ ul#dossierTabs li.nav-item button.nav-link.active {
     });
 })();
 </script>
+
+{% include "partials/_modal_generer_certificat.html" %}
+
 {% endblock %}

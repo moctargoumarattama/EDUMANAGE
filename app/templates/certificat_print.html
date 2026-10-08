@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ cert.titre_document }} - {{ eleve.nom }} {{ eleve.prenom }} ({{ cert.reference }})</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=EB+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap');
+
+        body {
+            background-color: #f1f5f9;
+            color: #0f172a;
+            font-family: 'EB Garamond', Georgia, "Times New Roman", serif;
+            font-size: 16.5px;
+            line-height: 1.7;
+            margin: 0;
+            padding: 20px 0;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .sheet-container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: #ffffff;
+            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+            border-radius: 6px;
+            padding: 20mm 20mm 15mm 20mm;
+            box-sizing: border-box;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Barre d'action supérieure écran */
+        .print-control-bar {
+            max-width: 210mm;
+            margin: 0 auto 15px auto;
+        }
+
+        /* En-tête officiel */
+        .header-school {
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 16px;
+        }
+
+        .school-name {
+            font-family: 'Cinzel', Georgia, serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: 0.5px;
+            line-height: 1.25;
+            text-transform: uppercase;
+        }
+
+        .school-meta {
+            font-size: 13.5px;
+            color: #334155;
+            line-height: 1.45;
+        }
+
+        /* Boîte de titre officielle : cadre rectangulaire noir */
+        .official-title-box {
+            border: 2px solid #000000;
+            padding: 14px 20px;
+            text-align: center;
+            margin: 32px auto 36px auto;
+            background-color: #ffffff;
+            width: 90%;
+        }
+
+        .official-title-box h1 {
+            font-family: 'Cinzel', Georgia, serif;
+            font-size: 20px;
+            font-weight: 800;
+            color: #000000;
+            margin: 0;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .official-title-box .subtitle-badge {
+            font-family: 'EB Garamond', Georgia, serif;
+            font-size: 14px;
+            font-style: italic;
+            color: #334155;
+            margin-top: 4px;
+        }
+
+        /* Corps de texte officiel */
+        .certificat-body {
+            font-size: 17.5px;
+            text-align: justify;
+            text-justify: inter-word;
+            line-height: 2.0;
+            margin-bottom: 30px;
+        }
+
+        .certificat-body p {
+            margin-bottom: 18px;
+            text-indent: 32px;
+        }
+
+        .eleve-highlight {
+            font-weight: 700;
+            color: #000000;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .mention-legale-cloture {
+            font-style: italic;
+            text-align: right;
+            margin-top: 28px;
+            margin-bottom: 35px;
+            font-size: 16.5px;
+            color: #1e293b;
+        }
+
+        /* Pied de page à 3 colonnes */
+        .certificat-footer {
+            margin-top: auto;
+            padding-top: 15px;
+            border-top: 1px solid #cbd5e1;
+        }
+
+        .footer-left {
+            font-size: 15px;
+            color: #1e293b;
+        }
+
+        .footer-center {
+            text-align: center;
+        }
+
+        .qr-wrapper {
+            display: inline-block;
+            background: #ffffff;
+            padding: 4px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .footer-right {
+            text-align: right;
+        }
+
+        .signature-title {
+            font-weight: 700;
+            font-size: 15.5px;
+            color: #0f172a;
+        }
+
+        .signature-sub {
+            font-size: 13.5px;
+            color: #475569;
+        }
+
+        .signature-box {
+            margin-top: 45px;
+            border-top: 1px solid #000000;
+            width: 190px;
+            text-align: center;
+            font-size: 12px;
+            color: #64748b;
+            padding-top: 4px;
+            margin-left: auto;
+        }
+
+        .watermark-subtle {
+            position: absolute;
+            top: 52%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.035;
+            font-size: 120px;
+            color: #000000;
+            pointer-events: none;
+            z-index: 0;
+            user-select: none;
+        }
+
+        /* Impression propre format A4 */
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+                margin: 0;
+            }
+            .print-control-bar {
+                display: none !important;
+            }
+            .sheet-container {
+                box-shadow: none;
+                border-radius: 0;
+                width: 100%;
+                min-height: auto;
+                height: 100%;
+                padding: 15mm 18mm 12mm 18mm;
+                margin: 0;
+            }
+            @page {
+                size: A4 portrait;
+                margin: 10mm;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Barre de contrôle supérieure (masquée lors de l'impression) -->
+    <div class="print-control-bar d-flex align-items-center justify-content-between gap-2 px-3">
+        <a href="javascript:window.close()" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+            <i class="fas fa-arrow-left me-1"></i>Fermer
+        </a>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('certificats.registre') }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                <i class="fas fa-list me-1.5"></i>Registre des certificats
+            </a>
+            <button type="button" class="btn btn-sm btn-primary rounded-pill px-4 fw-bold shadow-sm" onclick="window.print()">
+                <i class="fas fa-print me-1.5"></i>Imprimer le certificat (A4)
+            </button>
+        </div>
+    </div>
+
+    <!-- Page A4 officielle -->
+    <div class="sheet-container">
+        
+        <!-- Filigrane discret -->
+        <div class="watermark-subtle">
+            <i class="fas fa-graduation-cap"></i>
+        </div>
+
+        <div>
+            <!-- En-tête officiel de l'école -->
+            <div class="header-school d-flex justify-content-between align-items-center gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    {% if ecole and ecole.logo_path and ecole.logo_path != 'default_logo.png' %}
+                    <img src="{{ url_for('static', filename=ecole.logo_path) }}" alt="Logo" style="height: 62px; max-width: 80px; object-fit: contain;">
+                    {% else %}
+                    <div class="rounded-3 border border-dark p-2 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px; font-size: 24px;">
+                        <i class="fas fa-school"></i>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <h2 class="school-name mb-0.5">{{ ecole.nom if ecole else "ÉTABLISSEMENT SCOLAIRE" }}</h2>
+                        <div class="school-meta">
+                            {{ ecole.adresse or "Adresse de l'établissement" }}
+                            {% if ecole and ecole.telephone %} • Tél : {{ ecole.telephone }}{% endif %}
+                            {% if ecole and ecole.email %} • Email : {{ ecole.email }}{% endif %}
+                        </div>
+                        {% if ecole and ecole.devise %}
+                        <div class="fst-italic text-muted" style="font-size: 12.5px;">« {{ ecole.devise }} »</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="text-end" style="min-width: 140px;">
+                    <div class="badge bg-light text-dark border font-monospace px-2.5 py-1 mb-1" style="font-size: 11.5px;">
+                        {{ cert.reference }}
+                    </div>
+                    <div class="text-muted" style="font-size: 12px;">Année : {{ cert.annee_scolaire }}</div>
+                </div>
+            </div>
+
+            <!-- Boîte de Titre Officielle (Cadre rectangulaire noir) -->
+            <div class="official-title-box">
+                <h1>{{ cert.titre_document }}</h1>
+                {% if cert.type_certificat == 'inscription' %}
+                <div class="subtitle-badge">Admission en {{ cert.type_admission }}</div>
+                {% endif %}
+            </div>
+
+            <!-- Corps de texte officiel -->
+            <div class="certificat-body">
+                
+                <p>
+                    Je soussigné(e), <strong>{{ cert.signataire_nom }}</strong>, en qualité de <strong>{{ cert.signataire_titre }}</strong> du <em>{{ ecole.nom if ecole else "l'Établissement" }}</em>, certifie par la présente que :
+                </p>
+
+                <p>
+                    L'élève <span class="eleve-highlight">{{ eleve.nom }} {{ eleve.prenom }}</span>, 
+                    {% if eleve.genre == 'F' %}née{% else %}né{% endif %} le <strong>{{ eleve.date_naissance.strftime('%d/%m/%Y') if eleve.date_naissance else '—' }}</strong>
+                    {% if eleve.lieu_naissance %} à <strong>{{ eleve.lieu_naissance }}</strong>{% endif %}, 
+                    immatriculé{% if eleve.genre == 'F' %}e{% endif %} sous le numéro : <strong class="font-monospace">{{ eleve.matricule }}</strong>,
+                </p>
+
+                <!-- Bloc spécifique au type de certificat -->
+                {% if cert.type_certificat == 'scolarite' %}
+                <p>
+                    est régulièrement inscrit{% if eleve.genre == 'F' %}e{% endif %} et suit assidûment les cours au sein de notre établissement pour l'année scolaire <strong>{{ cert.annee_scolaire }}</strong>, en classe de <strong>{{ cert.classe_nom }}</strong>{% if cert.niveau %} (Cycle / Niveau : {{ cert.niveau }}){% endif %}.
+                </p>
+
+                {% elif cert.type_certificat == 'inscription' %}
+                <p>
+                    a été officiellement admis{% if eleve.genre == 'F' %}e{% endif %} en <strong>{{ cert.type_admission }}</strong> dans notre établissement pour le compte de l'année scolaire <strong>{{ cert.annee_scolaire }}</strong>, et affecté{% if eleve.genre == 'F' %}e{% endif %} en classe de <strong>{{ cert.classe_nom }}</strong>{% if cert.niveau %} (Niveau : {{ cert.niveau }}){% endif %}.
+                </p>
+
+                {% elif cert.type_certificat == 'transfert' %}
+                <p>
+                    a été régulièrement inscrit{% if eleve.genre == 'F' %}e{% endif %} dans notre établissement pour l'année scolaire <strong>{{ cert.annee_scolaire }}</strong> en classe de <strong>{{ cert.classe_nom }}</strong>{% if cert.niveau %} (Niveau : {{ cert.niveau }}){% endif %}, et a quitté définitivement l'établissement le <strong>{{ cert.date_depart.strftime('%d/%m/%Y') if cert.date_depart else '—' }}</strong>.
+                </p>
+                <p>
+                    Il/Elle est formellement <strong>rayé{% if eleve.genre == 'F' %}e{% endif %} de nos effectifs</strong> à compter de cette même date.
+                    {% if cert.etablissement_destination %}
+                    <br>Établissement d'accueil / Destination : <strong>{{ cert.etablissement_destination }}</strong>.
+                    {% endif %}
+                </p>
+                {% endif %}
+
+                <!-- Formule de clôture juridique formelle -->
+                <div class="mention-legale-cloture">
+                    En foi de quoi, le présent certificat lui est délivré pour servir et valoir ce que de droit.
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Pied de page aligné en 3 colonnes -->
+        <div class="certificat-footer">
+            <div class="row align-items-end">
+                
+                <!-- Colonne Gauche : Date et Lieu de délivrance -->
+                <div class="col-4 footer-left">
+                    <div>Fait à <strong>{{ cert.ville_emission }}</strong>,</div>
+                    <div>le <strong>{{ cert.date_emission.strftime('%d/%m/%Y') }}</strong>.</div>
+                    <div class="text-muted small mt-2" style="font-size: 11px;">
+                        Document certifié conforme.<br>Registre officiel Klasora.
+                    </div>
+                </div>
+
+                <!-- Colonne Centrale : Référence et QR Code anti-fraude -->
+                <div class="col-4 footer-center">
+                    <div class="qr-wrapper mb-1">
+                        <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR Code Vérification" style="width: 65px; height: 65px; display: block;">
+                    </div>
+                    <div class="font-monospace text-dark fw-bold" style="font-size: 10.5px; letter-spacing: 0.5px;">
+                        {{ cert.reference }}
+                    </div>
+                    <div class="text-muted" style="font-size: 9.5px;">
+                        Scannez pour vérifier l'authenticité
+                    </div>
+                </div>
+
+                <!-- Colonne Droite : Nom, Titre & Signature -->
+                <div class="col-4 footer-right">
+                    <div class="signature-title">{{ cert.signataire_nom }}</div>
+                    <div class="signature-sub">{{ cert.signataire_titre }}</div>
+                    <div class="signature-box">
+                        Signature &amp; Cachet officiel
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
+

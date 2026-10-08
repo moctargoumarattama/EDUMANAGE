@@ -130,6 +130,12 @@
                         <span>Absences</span>
                     </a>
                 </li>
+                <li>
+                    <a href="{{ url_for('certificats.registre') }}" class="nav-link-item {{ 'active' if request.endpoint and request.endpoint.startswith('certificats.') }}">
+                        <i class="fas fa-stamp nav-icon"></i>
+                        <span>Certificats</span>
+                    </a>
+                </li>
             </ul>
 
             <div class="nav-section-label">Gestion & Comptabilité</div>

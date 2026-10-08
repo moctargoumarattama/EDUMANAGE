@@ -172,6 +172,8 @@ def create_app(config_class=None):
         app.register_blueprint(pointage_personnel_bp)
         from .routes.paie_personnel import paie_personnel_bp
         app.register_blueprint(paie_personnel_bp)
+        from .routes.certificats import certificats_bp
+        app.register_blueprint(certificats_bp)
 
         # Middleware global (maintenance, auto-backup, etc.)
         from .middleware import before_request_handler, after_request_handler

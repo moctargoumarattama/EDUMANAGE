@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Registre des Certificats Administratifs - KLASORA{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-4 py-3">
+
+    <!-- En-tête de page -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2.5 mb-3">
+        <div class="d-flex align-items-center gap-2.5">
+            <div class="rounded-4 bg-primary-subtle text-primary d-flex align-items-center justify-content-center shadow-xs flex-shrink-0" style="width: 44px; height: 44px;">
+                <i class="fas fa-stamp fs-5"></i>
+            </div>
+            <div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <h1 class="h4 mb-0 fw-bold text-dark">Certificats Administratifs</h1>
+                    <span class="badge bg-primary text-white rounded-pill px-2.5 py-1 font-monospace" style="font-size: 0.75rem;">
+                        <i class="fas fa-graduation-cap me-1"></i>{{ annee_active.nom if annee_active else 'Année active' }}
+                    </span>
+                </div>
+                <p class="text-muted small mb-0">Registre officiel des documents émis, certificats de scolarité et traçabilité anti-fraude</p>
+            </div>
+        </div>
+
+        <!-- Bouton d'action principal -->
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1.5 fw-bold d-flex align-items-center gap-1.5 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalSelectionEleveCertificat">
+                <i class="fas fa-plus-circle"></i>
+                <span>Délivrer un certificat</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Cartes KPI de synthèse -->
+    <div class="row g-2.5 mb-3.5">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <span class="text-muted small fw-semibold">Total Délivrés</span>
+                    <span class="badge bg-primary-subtle text-primary rounded-pill p-1.5"><i class="fas fa-file-contract"></i></span>
+                </div>
+                <h3 class="fw-bold text-dark mb-0">{{ total_count }}</h3>
+                <small class="text-muted" style="font-size: 0.74rem;">Documents officiels archivés</small>
+            </div>
+        </div>
+
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <span class="text-muted small fw-semibold">Scolarité</span>
+                    <span class="badge bg-info-subtle text-info-emphasis rounded-pill p-1.5"><i class="fas fa-graduation-cap"></i></span>
+                </div>
+                <h3 class="fw-bold text-primary mb-0">{{ scolarite_count }}</h3>
+                <small class="text-muted" style="font-size: 0.74rem;">Certificats de scolarité</small>
+            </div>
+        </div>
+
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <span class="text-muted small fw-semibold">Inscriptions</span>
+                    <span class="badge bg-success-subtle text-success rounded-pill p-1.5"><i class="fas fa-file-signature"></i></span>
+                </div>
+                <h3 class="fw-bold text-success mb-0">{{ inscription_count }}</h3>
+                <small class="text-muted" style="font-size: 0.74rem;">Attestations d'admission</small>
+            </div>
+        </div>
+
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white h-100">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <span class="text-muted small fw-semibold">Radiations / Transferts</span>
+                    <span class="badge bg-danger-subtle text-danger rounded-pill p-1.5"><i class="fas fa-exchange-alt"></i></span>
+                </div>
+                <h3 class="fw-bold text-danger mb-0">{{ transfert_count }}</h3>
+                <small class="text-muted" style="font-size: 0.74rem;">Certificats de départ</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barre de filtres et recherche -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3 bg-white">
+        <div class="card-body p-2.5 p-md-3">
+            <form method="get" action="{{ url_for('certificats.registre') }}" class="row g-2 align-items-center">
+                
+                <div class="col-12 col-md-5">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="q" class="form-control border-start-0 ps-1" placeholder="Rechercher élève, référence, matricule..." value="{{ q or '' }}">
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">Tous les types</option>
+                        <option value="scolarite" {% if type_filtre == 'scolarite' %}selected{% endif %}>Scolarité</option>
+                        <option value="inscription" {% if type_filtre == 'inscription' %}selected{% endif %}>Inscription</option>
+                        <option value="transfert" {% if type_filtre == 'transfert' %}selected{% endif %}>Transfert / Radiation</option>
+                    </select>
+                </div>
+
+                <div class="col-6 col-md-3">
+                    <input type="date" name="date" class="form-control form-control-sm" value="{{ date_filtre or '' }}" onchange="this.form.submit()" title="Filtrer par date d'émission">
+                </div>
+
+                <div class="col-12 col-md-1 d-flex gap-1 justify-content-end">
+                    {% if q or type_filtre or date_filtre %}
+                    <a href="{{ url_for('certificats.registre') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 w-100" title="Réinitialiser les filtres">
+                        <i class="fas fa-times"></i>
+                    </a>
+                    {% endif %}
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- Tableau du Registre Officiel -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-white">
+        <div class="card-header bg-white border-0 pt-3 pb-2 px-3 px-md-4 d-flex align-items-center justify-content-between">
+            <h5 class="fw-bold text-dark mb-0">
+                <i class="fas fa-list-alt text-primary me-2"></i>Journal d'audit des émissions
+            </h5>
+            <small class="text-muted">{{ certificats|length }} document(s) trouvé(s)</small>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light text-muted small text-uppercase fw-bold" style="font-size: 0.74rem;">
+                    <tr>
+                        <th class="ps-3 py-3" style="min-width: 130px;">Référence</th>
+                        <th class="py-3" style="min-width: 200px;">Élève</th>
+                        <th class="py-3 text-center" style="width: 140px;">Type de document</th>
+                        <th class="py-3 text-center" style="min-width: 140px;">Classe &amp; Année</th>
+                        <th class="py-3 text-center" style="min-width: 120px;">Délivré le</th>
+                        <th class="py-3 text-center" style="min-width: 130px;">Signataire</th>
+                        <th class="pe-3 py-3 text-end" style="min-width: 150px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in certificats %}
+                    <tr>
+                        <!-- Référence -->
+                        <td class="ps-3 py-2.5">
+                            <span class="badge bg-light text-dark border font-monospace px-2.5 py-1" style="font-size: 0.8rem;">
+                                {{ c.reference }}
+                            </span>
+                        </td>
+
+                        <!-- Élève -->
+                        <td class="py-2.5">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar-initials rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style="width: 34px; height: 34px; font-size: 0.8rem;">
+                                    {{ (c.eleve.prenom[0] if c.eleve and c.eleve.prenom else 'E') ~ (c.eleve.nom[0] if c.eleve and c.eleve.nom else '') }}
+                                </div>
+                                <div class="min-w-0">
+                                    <h6 class="mb-0 fw-semibold text-dark text-truncate" style="font-size: 0.9rem;">
+                                        {{ c.eleve.nom }} {{ c.eleve.prenom }}
+                                    </h6>
+                                    <span class="text-muted small font-monospace" style="font-size: 0.74rem;">
+                                        Matr. {{ c.eleve.matricule }}
+                                    </span>
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- Type de certificat -->
+                        <td class="py-2.5 text-center">
+                            {% if c.type_certificat == 'scolarite' %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.72rem;">
+                                <i class="fas fa-graduation-cap me-1"></i>Scolarité
+                            </span>
+                            {% elif c.type_certificat == 'inscription' %}
+                            <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.72rem;">
+                                <i class="fas fa-file-signature me-1"></i>{{ c.type_admission }}
+                            </span>
+                            {% elif c.type_certificat == 'transfert' %}
+                            <span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle rounded-pill px-2.5 py-1 fw-bold" style="font-size: 0.72rem;">
+                                <i class="fas fa-exchange-alt me-1"></i>Transfert
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Classe & Année -->
+                        <td class="py-2.5 text-center">
+                            <strong class="text-dark small d-block">{{ c.classe_nom }}</strong>
+                            <small class="text-muted" style="font-size: 0.74rem;">{{ c.annee_scolaire }}</small>
+                        </td>
+
+                        <!-- Date d'émission -->
+                        <td class="py-2.5 text-center">
+                            <span class="text-dark small fw-semibold">{{ c.date_emission.strftime('%d/%m/%Y') }}</span>
+                            <small class="text-muted d-block" style="font-size: 0.72rem;">{{ c.ville_emission }}</small>
+                        </td>
+
+                        <!-- Signataire -->
+                        <td class="py-2.5 text-center">
+                            <span class="text-dark small fw-semibold d-block text-truncate" style="max-width: 140px;">{{ c.signataire_nom }}</span>
+                            <small class="text-muted" style="font-size: 0.72rem;">{{ c.signataire_titre }}</small>
+                        </td>
+
+                        <!-- Actions -->
+                        <td class="pe-3 py-2.5 text-end">
+                            <div class="d-inline-flex align-items-center gap-1.5">
+                                <a href="{{ url_for('certificats.imprimer', certificat_id=c.id) }}" target="_blank" class="btn btn-sm btn-primary rounded-pill px-2.5 py-1 d-inline-flex align-items-center gap-1" title="Imprimer le certificat format A4">
+                                    <i class="fas fa-print"></i>
+                                    <span class="d-none d-md-inline" style="font-size: 0.75rem;">Imprimer</span>
+                                </a>
+                                <a href="{{ url_for('certificats.verifier', code=c.code_verification) }}" target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" title="Voir la page de vérification publique anti-fraude">
+                                    <i class="fas fa-qrcode"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="fas fa-stamp fs-1 d-block mb-2 text-secondary opacity-50"></i>
+                            Aucun certificat administratif émis pour le moment.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modale de sélection d'élève pour création directe -->
+<div class="modal fade" id="modalSelectionEleveCertificat" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0 pt-3 px-3">
+                <h6 class="modal-title fw-bold text-dark mb-0">Choisir un élève pour le certificat</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body p-3">
+                <label class="form-label small fw-bold text-muted mb-1">Sélectionnez l'élève :</label>
+                <select id="selectEleveCertificatDirect" class="form-select form-select-sm" style="font-size: 0.9rem;">
+                    <option value="">-- Choisir un élève --</option>
+                    {% for el in eleves %}
+                    <option value="{{ el.id }}" data-nom="{{ el.nom }} {{ el.prenom }}" data-mat="{{ el.matricule }}">
+                        {{ el.nom }} {{ el.prenom }} ({{ el.matricule }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="modal-footer border-0 pt-0 pb-3 px-3 d-flex justify-content-between">
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-bold" onclick="ouvrirDepuisSelecteur()">Continuer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Inclusion de la modale de génération rapide -->
+{% include "partials/_modal_generer_certificat.html" %}
+
+<script>
+function ouvrirDepuisSelecteur() {
+    const sel = document.getElementById('selectEleveCertificatDirect');
+    const eleveId = sel.value;
+    if (!eleveId) {
+        alert("Veuillez choisir un élève dans la liste.");
+        return;
+    }
+    const opt = sel.options[sel.selectedIndex];
+    const nom = opt.getAttribute('data-nom');
+    const mat = opt.getAttribute('data-mat');
+
+    // Fermer le premier modal
+    bootstrap.Modal.getInstance(document.getElementById('modalSelectionEleveCertificat')).hide();
+
+    // Ouvrir le modal de certificat complet
+    ouvrirModalCertificat(eleveId, nom, mat);
+}
+</script>
+{% endblock %}
+
