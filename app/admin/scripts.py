@@ -7,7 +7,10 @@ import shutil
 import sqlite3
 import subprocess
 import unicodedata
+from contextlib import closing
 from datetime import datetime, timedelta, date, time
+from pathlib import Path
+from time import monotonic
 from app import db
 from app.models import Log, ParametreSysteme
 import json
@@ -68,8 +71,9 @@ def _safe_backup_path(filename):
     return path
 
 
-def _cleanup_global_backups(prefixes=("backup_", "klasora-postgresql-"), keep=None):
+def _cleanup_global_backups(prefixes=("backup_", "klasora-postgresql-"), keep=None, protected_paths=()):
     keep = keep or _global_backup_retention()
+    protected = {os.path.realpath(path) for path in protected_paths if path}
     candidates = []
     for name in os.listdir(BACKUP_DIR):
         if not name.startswith(prefixes):
@@ -77,7 +81,7 @@ def _cleanup_global_backups(prefixes=("backup_", "klasora-postgresql-"), keep=No
         if not (name.endswith(".db") or name.endswith(".dump")):
             continue
         path = os.path.join(BACKUP_DIR, name)
-        if os.path.isfile(path):
+        if os.path.isfile(path) and os.path.realpath(path) not in protected:
             candidates.append((os.path.getmtime(path), path))
     candidates.sort(reverse=True)
     deleted = 0
@@ -101,41 +105,141 @@ class DatabaseBackupBackend:
         raise NotImplementedError
 
 
+def _sqlite_active_path():
+    """Resolve the SQLite file used by Flask, without opening a second database."""
+    engine = db.engine
+    if engine.dialect.name != "sqlite":
+        raise RuntimeError("Cette opération nécessite une base SQLite.")
+    filename = engine.url.database
+    if not filename or filename == ":memory:" or filename.startswith("file:"):
+        raise RuntimeError("La sauvegarde globale nécessite une base SQLite sur disque.")
+    return os.path.abspath(filename)
+
+
+def _open_active_sqlite(timeout=1.0):
+    # mode=rw refuses to silently create a database at a stale/configured path.
+    uri = Path(_sqlite_active_path()).as_uri() + "?mode=rw"
+    return sqlite3.connect(uri, uri=True, timeout=timeout)
+
+
+def _checkpoint_sqlite(connection):
+    # This autonomous connection must never commit the application session.
+    try:
+        result = connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+    except sqlite3.OperationalError as exc:
+        if getattr(exc, "sqlite_errorcode", None) not in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
+            raise
+        result = (1,)
+    if result and result[0]:
+        current_app.logger.warning(
+            "Checkpoint SQLite occupé ; la sauvegarde utilisera le snapshot SQLite avec son WAL."
+        )
+
+
+def _sqlite_backup_connection(source, destination):
+    deadline = monotonic() + 30.0
+
+    def progress(status, remaining, total):
+        if monotonic() > deadline:
+            raise TimeoutError("Délai dépassé pendant la sauvegarde SQLite.")
+
+    source.backup(destination, pages=256, progress=progress, sleep=0.05)
+
+
+def _write_sqlite_snapshot(source, filename):
+    """Publish a complete snapshot only after every page has been copied."""
+    staging = filename + ".tmp"
+    try:
+        with closing(sqlite3.connect(staging)) as destination:
+            _sqlite_backup_connection(source, destination)
+        os.replace(staging, filename)
+    finally:
+        if os.path.exists(staging):
+            os.remove(staging)
+
+
+def _log_global_backup_action(module, action, level="INFO"):
+    """Best-effort audit on an independent connection; preserve business work."""
+    getattr(current_app.logger, level.lower(), current_app.logger.info)("%s: %s", module, action)
+    values = {
+        "level": level, "module": module, "action": action,
+        "timestamp": datetime.utcnow(), "ip_address": "127.0.0.1",
+    }
+    try:
+        if db.engine.dialect.name == "sqlite":
+            with closing(_open_active_sqlite(timeout=0.1)) as connection:
+                connection.execute(
+                    "INSERT INTO log (level, module, action, timestamp, ip_address) VALUES (?, ?, ?, ?, ?)",
+                    (level, module, action, values["timestamp"].isoformat(" "), "127.0.0.1"),
+                )
+                connection.commit()
+        else:
+            with db.engine.begin() as connection:
+                connection.execute(Log.__table__.insert().values(**values))
+    except Exception as exc:
+        current_app.logger.warning("Impossible de journaliser la sauvegarde : %s", exc)
+
+
 class SQLiteBackupBackend(DatabaseBackupBackend):
     name = "sqlite"
 
     def create_global_backup(self):
         _ensure_backup_space()
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         backup_file = os.path.join(BACKUP_DIR, f"backup_{timestamp}.db")
-        shutil.copy2(DB_PATH, backup_file)
+        with closing(_open_active_sqlite()) as source:
+            _checkpoint_sqlite(source)
+            _write_sqlite_snapshot(source, backup_file)
         checksum = _sha256_file(backup_file)
         _cleanup_global_backups(prefixes=("backup_",), keep=_global_backup_retention())
-        log_action("SAUVEGARDE", f"Sauvegarde SQLite creee: {os.path.basename(backup_file)} checksum={checksum}")
-        optimize_database()
+        _log_global_backup_action("SAUVEGARDE", f"Sauvegarde SQLite creee: {os.path.basename(backup_file)} checksum={checksum}")
         return backup_file
 
     def restore_global_backup(self, filename):
         backup_file = _safe_backup_path(filename)
         if not os.path.exists(backup_file):
             raise Exception("Fichier de sauvegarde introuvable!")
-        current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if os.path.realpath(backup_file) == os.path.realpath(_sqlite_active_path()):
+            raise ValueError("La sauvegarde ne peut pas être la base active.")
+        session = db.session()
+        if session.new or session.dirty or session.deleted:
+            raise RuntimeError("Terminez les modifications en cours avant de restaurer la base.")
+        if session.in_transaction() and session.connection().connection.driver_connection.in_transaction:
+            raise RuntimeError("Terminez la transaction en cours avant de restaurer la base.")
+        _ensure_backup_space()
+        current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         recovery_file = os.path.join(BACKUP_DIR, f"recovery_{current_timestamp}.db")
-        shutil.copy2(DB_PATH, recovery_file)
-        shutil.copy2(backup_file, DB_PATH)
-        log_action("RESTAURATION", f"Restauration SQLite depuis: {filename}")
+        uri = Path(backup_file).as_uri() + "?mode=ro"
+        with closing(sqlite3.connect(uri, uri=True)) as snapshot:
+            integrity = snapshot.execute("PRAGMA integrity_check").fetchone()
+            if not integrity or integrity[0] != "ok":
+                raise ValueError("Le fichier de sauvegarde SQLite est invalide.")
+            db.session.remove()
+            db.engine.dispose()
+            try:
+                with closing(_open_active_sqlite()) as destination:
+                    _checkpoint_sqlite(destination)
+                    _write_sqlite_snapshot(destination, recovery_file)
+                    # The backup API replaces the database in a write transaction,
+                    # including its live WAL, rather than copying behind open handles.
+                    _sqlite_backup_connection(snapshot, destination)
+                    _checkpoint_sqlite(destination)
+            finally:
+                db.session.remove()
+                db.engine.dispose()
+        _log_global_backup_action("RESTAURATION", f"Restauration SQLite depuis: {filename}")
         return True
 
     def health(self):
         health = {
             "backend": "sqlite",
             "status": "OK",
-            "size_mb": round(os.path.getsize(DB_PATH) / (1024 * 1024), 2) if os.path.exists(DB_PATH) else 0,
+            "size_mb": round(os.path.getsize(_sqlite_active_path()) / (1024 * 1024), 2),
             "integrity": "Inconnue",
             "db_version": "SQLite",
             "table_count": 0,
         }
-        conn = sqlite3.connect(DB_PATH)
+        conn = _open_active_sqlite()
         try:
             cur = conn.cursor()
             cur.execute("PRAGMA integrity_check")
@@ -180,7 +284,7 @@ class PostgreSQLBackupBackend(DatabaseBackupBackend):
         if not pg_dump:
             raise RuntimeError("pg_dump introuvable sur le serveur.")
         _ensure_backup_space()
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         backup_file = os.path.join(BACKUP_DIR, f"klasora-postgresql-{timestamp}.dump")
         cmd = [pg_dump, "--format=custom", "--no-owner", "--no-privileges", "--file", backup_file] + self._connection_args()
         try:
@@ -190,8 +294,11 @@ class PostgreSQLBackupBackend(DatabaseBackupBackend):
             if not os.path.exists(backup_file) or os.path.getsize(backup_file) <= 0:
                 raise RuntimeError("pg_dump n'a pas cree de fichier valide.")
             checksum = _sha256_file(backup_file)
-            _cleanup_global_backups(prefixes=("klasora-postgresql-",), keep=_global_backup_retention())
-            log_action("SAUVEGARDE", f"Sauvegarde PostgreSQL creee: {os.path.basename(backup_file)} checksum={checksum}")
+            _cleanup_global_backups(
+                prefixes=("klasora-postgresql-",), keep=_global_backup_retention(),
+                protected_paths=(getattr(self, "_restore_source_path", None),),
+            )
+            _log_global_backup_action("SAUVEGARDE", f"Sauvegarde PostgreSQL creee: {os.path.basename(backup_file)} checksum={checksum}")
             return backup_file
         except Exception:
             if os.path.exists(backup_file):
@@ -208,12 +315,26 @@ class PostgreSQLBackupBackend(DatabaseBackupBackend):
         backup_file = _safe_backup_path(filename)
         if not os.path.exists(backup_file):
             raise Exception("Fichier de sauvegarde introuvable!")
-        safety_file = self.create_global_backup()
-        cmd = [pg_restore, "--no-owner", "--no-privileges", "--clean", "--if-exists"] + self._connection_args() + [backup_file]
-        result = subprocess.run(cmd, env=self._pg_env(), capture_output=True, text=True, timeout=900, shell=False)
+        session = db.session()
+        if session.new or session.dirty or session.deleted:
+            raise RuntimeError("Terminez les modifications en cours avant de restaurer la base.")
+        self._restore_source_path = backup_file
+        try:
+            safety_file = self.create_global_backup()
+        finally:
+            self._restore_source_path = None
+        cmd = [pg_restore, "--no-owner", "--no-privileges", "--clean", "--if-exists", "--single-transaction", "--exit-on-error"] + self._connection_args() + [backup_file]
+        # Release the request's read locks before pg_restore tries to drop tables.
+        db.session.remove()
+        db.engine.dispose()
+        try:
+            result = subprocess.run(cmd, env=self._pg_env(), capture_output=True, text=True, timeout=900, shell=False)
+        finally:
+            db.session.remove()
+            db.engine.dispose()
         if result.returncode != 0:
             raise RuntimeError(f"Restauration PostgreSQL echouee. Backup de securite: {os.path.basename(safety_file)}. {(result.stderr or '').strip()[:500]}")
-        log_action("RESTAURATION", f"Restauration PostgreSQL depuis: {filename}")
+        _log_global_backup_action("RESTAURATION", f"Restauration PostgreSQL depuis: {filename}")
         return True
 
     def health(self):
@@ -412,16 +533,15 @@ def optimize_database():
     if db.engine.dialect.name != "sqlite":
         return True
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("VACUUM")
-        cursor.execute("PRAGMA optimize")
-        conn.close()
+        with closing(_open_active_sqlite()) as conn:
+            cursor = conn.cursor()
+            cursor.execute("VACUUM")
+            cursor.execute("PRAGMA optimize")
         
-        log_action("OPTIMISATION", "Base de donnÃ©es optimisÃ©e")
+        _log_global_backup_action("OPTIMISATION", "Base de donnÃ©es optimisÃ©e")
         return True
     except Exception as e:
-        log_action("ERREUR", f"Erreur optimisation BD: {str(e)}", level="ERROR")
+        _log_global_backup_action("ERREUR", f"Erreur optimisation BD: {str(e)}", level="ERROR")
         return False
 
 # --- DÃ©ploiement ---
@@ -522,8 +642,19 @@ def integrity_check():
     results = []
     summary = {"total": 0, "success": 0, "errors": 0}
 
+    if db.engine.dialect.name != "sqlite":
+        try:
+            health = get_database_backup_backend().health()
+            results.append(f"Base {health['backend']} accessible : {health['table_count']} tables.")
+            summary.update(total=1, success=1)
+        except Exception as exc:
+            results.append(f"Erreur lors de la vérification : {exc}")
+            summary.update(total=1, errors=1)
+        return results, summary
+
+    conn = None
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = _open_active_sqlite()
         cursor = conn.cursor()
 
         # VÃ©rification globale
@@ -578,12 +709,16 @@ def integrity_check():
 
         conn.close()
         
-        log_action("INTEGRITE", f"VÃ©rification d'intÃ©gritÃ©: {summary['success']} succÃ¨s, {summary['errors']} erreurs")
+        _log_global_backup_action("INTEGRITE", f"VÃ©rification d'intÃ©gritÃ©: {summary['success']} succÃ¨s, {summary['errors']} erreurs")
         
     except Exception as e:
         results.append(f"Erreur lors de la vÃ©rification : {str(e)} âŒ")
         summary["errors"] += 1
-        log_action("ERREUR", f"Ã‰chec vÃ©rification intÃ©gritÃ©: {str(e)}", level="ERROR")
+        _log_global_backup_action("ERREUR", f"Ã‰chec vÃ©rification intÃ©gritÃ©: {str(e)}", level="ERROR")
+
+    finally:
+        if conn is not None:
+            conn.close()
 
     return results, summary
 
@@ -785,6 +920,29 @@ def run_daily_automatic_backups():
     return results
 
 
+def _serialiser_certificats_ecole(ecole_id, session=None):
+    """Conserve les liens papier par matricule, même si les IDs changent."""
+    from app.models import CertificatAdministratif, Eleve
+
+    session = session if session is not None else db.session
+    certificats = []
+    rows = (
+        session.query(CertificatAdministratif, Eleve.matricule)
+        .outerjoin(Eleve, db.and_(
+            Eleve.id == CertificatAdministratif.eleve_id,
+            Eleve.ecole_id == CertificatAdministratif.ecole_id,
+        ))
+        .filter(CertificatAdministratif.ecole_id == ecole_id)
+        .order_by(CertificatAdministratif.id)
+        .all()
+    )
+    for certificat, matricule in rows:
+        row = _serialize_instance(certificat)
+        row['matricule_eleve'] = matricule
+        certificats.append(row)
+    return certificats
+
+
 def create_school_backup(ecole_id, backup_type="manual"):
     """Sauvegarde complÃ¨te et sÃ©curisÃ©e des donnÃ©es d'une Ã©cole spÃ©cifique"""
     from app.models import (
@@ -792,7 +950,8 @@ def create_school_backup(ecole_id, backup_type="manual"):
         EcoleNiveauConfig, Classe, Eleve, Inscription, Cours, Note, Absence,
         Paiement, Bulletin, EmploiTemps, PeriodeBulletin, Presence, Alerte,
         ArchiveNote, ArchiveAbsence, EcoleGoogleMailConfig, JournalCorrection,
-        SyncOperationLog, SupportTicket, HistoriqueImport, MatriculeSequence, professeur_classes
+        SyncOperationLog, SupportTicket, HistoriqueImport, MatriculeSequence,
+        PointagePersonnel, FichePaiePersonnel, gestion_ecole, professeur_classes
     )
 
     today_str = datetime.now().strftime("%Y-%m-%d")
@@ -808,58 +967,65 @@ def create_school_backup(ecole_id, backup_type="manual"):
                     if (meta.get('ecole_id') == ecole_id and
                         meta.get('backup_type') == 'automatic' and
                         str(meta.get('created_at', '')).startswith(today_str)):
-                        log_action("BACKUP_AUTO_SKIP", f"Sauvegarde automatique dÃ©jÃ  existante aujourd'hui pour l'Ã©cole ID={ecole_id}")
+                        _log_global_backup_action("BACKUP_AUTO_SKIP", f"Sauvegarde automatique dÃ©jÃ  existante aujourd'hui pour l'Ã©cole ID={ecole_id}")
                         return fpath
                 except Exception:
                     continue
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    ecole = db.session.get(Ecole, ecole_id)
-    if not ecole:
-        raise ValueError("Ã‰cole non trouvÃ©e")
+    from app.admin.backup_database import lecture_snapshot
 
-    user_ids_subq = db.session.query(Utilisateur.id).filter_by(ecole_id=ecole_id)
-    eleve_ids_subq = db.session.query(Eleve.id).filter_by(ecole_id=ecole_id)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    with lecture_snapshot() as snapshot:
+        ecole = snapshot.get(Ecole, ecole_id)
+        if not ecole:
+            raise ValueError("École non trouvée")
 
-    prof_classes_raw = db.session.execute(
-        professeur_classes.select().where(professeur_classes.c.ecole_id == ecole_id)
-    ).all()
-    prof_classes_data = []
-    for r in prof_classes_raw:
-        row_dict = dict(r._mapping) if hasattr(r, '_mapping') else dict(r)
-        if isinstance(row_dict.get('date_assignation'), (datetime, date, time)):
-            row_dict['date_assignation'] = row_dict['date_assignation'].isoformat()
-        prof_classes_data.append(row_dict)
+        user_ids_subq = snapshot.query(Utilisateur.id).filter_by(ecole_id=ecole_id)
+        eleve_ids_subq = snapshot.query(Eleve.id).filter_by(ecole_id=ecole_id)
+        classe_ids_subq = snapshot.query(Classe.id).filter_by(ecole_id=ecole_id)
+        prof_classes_raw = snapshot.execute(
+            professeur_classes.select().where(professeur_classes.c.ecole_id == ecole_id)
+        ).all()
+        prof_classes_data = []
+        for r in prof_classes_raw:
+            row_dict = dict(r._mapping) if hasattr(r, '_mapping') else dict(r)
+            if isinstance(row_dict.get('date_assignation'), (datetime, date, time)):
+                row_dict['date_assignation'] = row_dict['date_assignation'].isoformat()
+            prof_classes_data.append(row_dict)
 
-    data = {
-        'ecole': _serialize_instance(ecole),
-        'ecole_niveau_configs': [_serialize_instance(c) for c in EcoleNiveauConfig.query.filter_by(ecole_id=ecole_id).all()],
-        'utilisateurs': [_serialize_instance(u) for u in Utilisateur.query.filter_by(ecole_id=ecole_id).filter(Utilisateur.role != 'super_admin').all()],
-        'professeurs': [_serialize_instance(p) for p in Professeur.query.filter_by(ecole_id=ecole_id).all()],
-        'annees_scolaires': [_serialize_instance(a) for a in AnneeScolaire.query.filter_by(ecole_id=ecole_id).all()],
-        'annee_niveau_configs': [_serialize_instance(c) for c in AnneeNiveauConfig.query.filter_by(ecole_id=ecole_id).all()],
-        'periodes_bulletin': [_serialize_instance(pb) for pb in PeriodeBulletin.query.filter_by(ecole_id=ecole_id).all()],
-        'classes': [_serialize_instance(c) for c in Classe.query.filter_by(ecole_id=ecole_id).all()],
-        'eleves': [_serialize_instance(e) for e in Eleve.query.filter_by(ecole_id=ecole_id).all()],
-        'matricule_sequences': [_serialize_instance(s) for s in MatriculeSequence.query.filter_by(ecole_id=ecole_id).all()],
-        'inscriptions': [_serialize_instance(i) for i in Inscription.query.filter_by(ecole_id=ecole_id).all()],
-        'cours': [_serialize_instance(c) for c in Cours.query.filter_by(ecole_id=ecole_id).all()],
-        'emplois_temps': [_serialize_instance(et) for et in EmploiTemps.query.filter((EmploiTemps.ecole_id == ecole_id) | (EmploiTemps.classe_id.in_(db.session.query(Classe.id).filter_by(ecole_id=ecole_id)))).all()],
-        'professeur_classes': prof_classes_data,
-        'notes': [_serialize_instance(n) for n in Note.query.filter_by(ecole_id=ecole_id).all()],
-        'absences': [_serialize_instance(a) for a in Absence.query.filter_by(ecole_id=ecole_id).all()],
-        'presences': [_serialize_instance(p) for p in Presence.query.join(Eleve).filter(Eleve.ecole_id == ecole_id).all()],
-        'paiements': [_serialize_instance(p) for p in Paiement.query.filter_by(ecole_id=ecole_id).all()],
-        'bulletins': [_serialize_instance(b) for b in Bulletin.query.filter_by(ecole_id=ecole_id).all()],
-        'archive_notes': [_serialize_instance(an) for an in ArchiveNote.query.filter(ArchiveNote.eleve_id.in_(eleve_ids_subq)).all()],
-        'archive_absences': [_serialize_instance(aa) for aa in ArchiveAbsence.query.filter(ArchiveAbsence.eleve_id.in_(eleve_ids_subq)).all()],
-        'alertes': [_serialize_instance(a) for a in Alerte.query.filter((Alerte.eleve_id.in_(eleve_ids_subq)) | (Alerte.utilisateur_id.in_(user_ids_subq))).all()],
-        'ecole_google_mail_configs': [_serialize_instance(g) for g in EcoleGoogleMailConfig.query.filter_by(ecole_id=ecole_id).all()],
-        'journal_corrections': [_serialize_instance(j) for j in JournalCorrection.query.filter_by(ecole_id=ecole_id).all()],
-        'sync_operation_logs': [_serialize_instance(s) for s in SyncOperationLog.query.filter_by(ecole_id=ecole_id).all()],
-        'support_tickets': [_serialize_instance(st) for st in SupportTicket.query.filter_by(ecole_id=ecole_id).all()],
-        'historique_imports': [_serialize_instance(hi) for hi in HistoriqueImport.query.filter(HistoriqueImport.utilisateur_id.in_(user_ids_subq)).all()],
-    }
+        data = {
+            'ecole': _serialize_instance(ecole),
+            'ecole_niveau_configs': [_serialize_instance(c) for c in snapshot.query(EcoleNiveauConfig).filter_by(ecole_id=ecole_id).all()],
+            'utilisateurs': [_serialize_instance(u) for u in snapshot.query(Utilisateur).filter_by(ecole_id=ecole_id).filter(Utilisateur.role != 'super_admin').all()],
+            'gestion_ecole': [dict(row) for row in snapshot.execute(gestion_ecole.select().where(gestion_ecole.c.ecole_id == ecole_id)).mappings()],
+            'professeurs': [_serialize_instance(p) for p in snapshot.query(Professeur).filter_by(ecole_id=ecole_id).all()],
+            'pointages_personnel': [_serialize_instance(p) for p in snapshot.query(PointagePersonnel).filter_by(ecole_id=ecole_id).all()],
+            'fiches_paie_personnel': [_serialize_instance(p) for p in snapshot.query(FichePaiePersonnel).filter_by(ecole_id=ecole_id).all()],
+            'annees_scolaires': [_serialize_instance(a) for a in snapshot.query(AnneeScolaire).filter_by(ecole_id=ecole_id).all()],
+            'annee_niveau_configs': [_serialize_instance(c) for c in snapshot.query(AnneeNiveauConfig).filter_by(ecole_id=ecole_id).all()],
+            'periodes_bulletin': [_serialize_instance(pb) for pb in snapshot.query(PeriodeBulletin).filter_by(ecole_id=ecole_id).all()],
+            'classes': [_serialize_instance(c) for c in snapshot.query(Classe).filter_by(ecole_id=ecole_id).all()],
+            'eleves': [_serialize_instance(e) for e in snapshot.query(Eleve).filter_by(ecole_id=ecole_id).all()],
+            'certificats_administratifs': _serialiser_certificats_ecole(ecole_id, snapshot),
+            'matricule_sequences': [_serialize_instance(s) for s in snapshot.query(MatriculeSequence).filter_by(ecole_id=ecole_id).all()],
+            'inscriptions': [_serialize_instance(i) for i in snapshot.query(Inscription).filter_by(ecole_id=ecole_id).all()],
+            'cours': [_serialize_instance(c) for c in snapshot.query(Cours).filter_by(ecole_id=ecole_id).all()],
+            'emplois_temps': [_serialize_instance(et) for et in snapshot.query(EmploiTemps).filter((EmploiTemps.ecole_id == ecole_id) | (EmploiTemps.classe_id.in_(classe_ids_subq))).all()],
+            'professeur_classes': prof_classes_data,
+            'notes': [_serialize_instance(n) for n in snapshot.query(Note).filter_by(ecole_id=ecole_id).all()],
+            'absences': [_serialize_instance(a) for a in snapshot.query(Absence).filter_by(ecole_id=ecole_id).all()],
+            'presences': [_serialize_instance(p) for p in snapshot.query(Presence).join(Eleve).filter(Eleve.ecole_id == ecole_id).all()],
+            'paiements': [_serialize_instance(p) for p in snapshot.query(Paiement).filter_by(ecole_id=ecole_id).all()],
+            'bulletins': [_serialize_instance(b) for b in snapshot.query(Bulletin).filter_by(ecole_id=ecole_id).all()],
+            'archive_notes': [_serialize_instance(an) for an in snapshot.query(ArchiveNote).filter(ArchiveNote.eleve_id.in_(eleve_ids_subq)).all()],
+            'archive_absences': [_serialize_instance(aa) for aa in snapshot.query(ArchiveAbsence).filter(ArchiveAbsence.eleve_id.in_(eleve_ids_subq)).all()],
+            'alertes': [_serialize_instance(a) for a in snapshot.query(Alerte).filter((Alerte.eleve_id.in_(eleve_ids_subq)) | (Alerte.utilisateur_id.in_(user_ids_subq))).all()],
+            'ecole_google_mail_configs': [_serialize_instance(g) for g in snapshot.query(EcoleGoogleMailConfig).filter_by(ecole_id=ecole_id).all()],
+            'journal_corrections': [_serialize_instance(j) for j in snapshot.query(JournalCorrection).filter_by(ecole_id=ecole_id).all()],
+            'sync_operation_logs': [_serialize_instance(s) for s in snapshot.query(SyncOperationLog).filter_by(ecole_id=ecole_id).all()],
+            'support_tickets': [_serialize_instance(st) for st in snapshot.query(SupportTicket).filter_by(ecole_id=ecole_id).all()],
+            'historique_imports': [_serialize_instance(hi) for hi in snapshot.query(HistoriqueImport).filter(HistoriqueImport.utilisateur_id.in_(user_ids_subq)).all()],
+        }
 
     counts = {k: len(v) if isinstance(v, list) else (1 if v else 0) for k, v in data.items()}
     checksum = _compute_backup_checksum(data)
@@ -867,7 +1033,7 @@ def create_school_backup(ecole_id, backup_type="manual"):
     metadata = {
         'type': 'school',
         'backup_type': backup_type,
-        'version': '2.0',
+        'version': '2.1',
         'ecole_id': ecole.id,
         'ecole_nom': ecole.nom,
         'timestamp': timestamp,
@@ -883,10 +1049,16 @@ def create_school_backup(ecole_id, backup_type="manual"):
 
     school_slug = slugify_school_name(ecole.nom)
     backup_file = os.path.join(BACKUP_DIR, f"school_{ecole.id}_{school_slug}_{timestamp}_{backup_type}.json")
-    with open(backup_file, 'w', encoding='utf-8') as f:
-        json.dump(backup_data, f, indent=2, ensure_ascii=False)
+    staging = backup_file + '.tmp'
+    try:
+        with open(staging, 'w', encoding='utf-8') as f:
+            json.dump(backup_data, f, indent=2, ensure_ascii=False)
+        os.replace(staging, backup_file)
+    finally:
+        if os.path.exists(staging):
+            os.remove(staging)
 
-    log_action("SAUVEGARDE", f"Sauvegarde ({backup_type}) Ã©cole '{ecole.nom}' (ID={ecole.id}) crÃ©Ã©e avec succÃ¨s: {os.path.basename(backup_file)}")
+    _log_global_backup_action("SAUVEGARDE", f"Sauvegarde ({backup_type}) Ã©cole '{ecole.nom}' (ID={ecole.id}) crÃ©Ã©e avec succÃ¨s: {os.path.basename(backup_file)}")
 
     if backup_type == "automatic":
         cleanup_old_automatic_backups(ecole_id, keep=3)
@@ -931,9 +1103,16 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
         EcoleNiveauConfig, Classe, Eleve, Inscription, Cours, Note, Absence,
         Paiement, Bulletin, EmploiTemps, PeriodeBulletin, Presence, Alerte,
         ArchiveNote, ArchiveAbsence, EcoleGoogleMailConfig, JournalCorrection,
-        SyncOperationLog, SupportTicket, HistoriqueImport, MatriculeSequence, professeur_classes
+        SyncOperationLog, SupportTicket, HistoriqueImport, MatriculeSequence,
+        CertificatAdministratif, PointagePersonnel, FichePaiePersonnel, gestion_ecole, professeur_classes
     )
     from app.services.matricule_service import matricule_conforme, verrouiller_ecole
+    session = db.session()
+    if session.new or session.dirty or session.deleted:
+        raise RuntimeError("Terminez les modifications en cours avant de restaurer l'établissement.")
+    if db.engine.dialect.name == 'sqlite' and session.in_transaction():
+        if session.connection().connection.driver_connection.in_transaction:
+            raise RuntimeError("Terminez la transaction en cours avant de restaurer l'établissement.")
     metadata, data = inspect_school_backup(filename)
     ecole_id = metadata.get('ecole_id')
     ecole_nom = metadata.get('ecole_nom', '')
@@ -956,7 +1135,7 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
     # Sauvegarde automatique de sÃ©curitÃ© avant la restauration (type safety_restore, hors rotation automatic)
     try:
         safety_file = create_school_backup(ecole_id, backup_type="safety_restore")
-        log_action("SAUVEGARDE_SECURITE", f"Sauvegarde de sÃ©curitÃ© crÃ©Ã©e avant restauration: {os.path.basename(safety_file)}")
+        _log_global_backup_action("SAUVEGARDE_SECURITE", f"Sauvegarde de sÃ©curitÃ© crÃ©Ã©e avant restauration: {os.path.basename(safety_file)}")
     except Exception as e:
         raise ValueError(f"Ã‰chec de la sauvegarde de sÃ©curitÃ© prÃ©alable : {e}. Restauration annulÃ©e par sÃ©curitÃ©.")
 
@@ -976,6 +1155,42 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
                     )
                 copie['matricule'] = courant
             eleves_restaures.append(copie)
+
+        # Les anciennes sauvegardes sans certificats conservent les documents
+        # actuels. Une liste vide explicite représente, elle, un snapshot vide.
+        certificats_restaures = data.get('certificats_administratifs')
+        if certificats_restaures is None:
+            certificats_restaures = _serialiser_certificats_ecole(ecole_id)
+        if not isinstance(certificats_restaures, list):
+            raise ValueError("RESTORE REFUSÉ : liste de certificats invalide.")
+        references, codes = set(), set()
+        for row in certificats_restaures:
+            if not isinstance(row, dict) or row.get('ecole_id', ecole_id) != ecole_id:
+                raise ValueError("RESTORE REFUSÉ : certificat d'un autre établissement ou invalide.")
+            reference, code = row.get('reference'), row.get('code_verification')
+            if not reference or not code or reference in references or code in codes:
+                raise ValueError("RESTORE REFUSÉ : référence ou code de certificat absent ou dupliqué.")
+            references.add(reference)
+            codes.add(code)
+        if references:
+            collision = CertificatAdministratif.query.filter(
+                CertificatAdministratif.ecole_id != ecole_id,
+                db.or_(
+                    CertificatAdministratif.reference.in_(references),
+                    CertificatAdministratif.code_verification.in_(codes),
+                ),
+            ).first()
+            if collision:
+                raise ValueError("RESTORE REFUSÉ : référence ou code de certificat déjà utilisé par un autre établissement.")
+
+        # Ces dépendances seraient supprimées par CASCADE sur PostgreSQL.
+        # Les anciennes sauvegardes les préservent au lieu de les perdre.
+        pointages = data.get('pointages_personnel')
+        if pointages is None:
+            pointages = [_serialize_instance(p) for p in PointagePersonnel.query.filter_by(ecole_id=ecole_id).all()]
+        fiches_paie = data.get('fiches_paie_personnel')
+        if fiches_paie is None:
+            fiches_paie = [_serialize_instance(p) for p in FichePaiePersonnel.query.filter_by(ecole_id=ecole_id).all()]
 
         # Une restauration ne doit jamais réutiliser un numéro déjà réservé.
         for row in data.get('matricule_sequences', []):
@@ -999,6 +1214,28 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
         eleve_ids_subq = db.session.query(Eleve.id).filter_by(ecole_id=ecole_id)
         classe_ids_subq = db.session.query(Classe.id).filter_by(ecole_id=ecole_id)
 
+        affectations_actuelles = list(db.session.execute(gestion_ecole.select().where(db.or_(
+            gestion_ecole.c.ecole_id == ecole_id,
+            gestion_ecole.c.utilisateur_id.in_(user_ids_subq),
+        ))).mappings())
+        affectations = data.get('gestion_ecole')
+        if affectations is None:
+            affectations = [dict(row) for row in affectations_actuelles if row['ecole_id'] == ecole_id]
+        if not isinstance(affectations, list) or any(row.get('ecole_id') != ecole_id for row in affectations):
+            raise ValueError("RESTORE REFUSÉ : affectations de gestion invalides.")
+        affectations = affectations + [dict(row) for row in affectations_actuelles if row['ecole_id'] != ecole_id]
+        db.session.execute(gestion_ecole.delete().where(db.or_(
+            gestion_ecole.c.ecole_id == ecole_id,
+            gestion_ecole.c.utilisateur_id.in_(user_ids_subq),
+        )))
+
+        log_users = db.session.query(Log.id, Log.utilisateur_id).filter(Log.utilisateur_id.in_(user_ids_subq)).all()
+        Log.query.filter(Log.utilisateur_id.in_(user_ids_subq)).update(
+            {Log.utilisateur_id: None}, synchronize_session=False,
+        )
+        PointagePersonnel.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        FichePaiePersonnel.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+
         SyncOperationLog.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
         JournalCorrection.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
         SupportTicket.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
@@ -1010,15 +1247,15 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
         ArchiveAbsence.query.filter(ArchiveAbsence.eleve_id.in_(eleve_ids_subq)).delete(synchronize_session=False)
         HistoriqueImport.query.filter(HistoriqueImport.utilisateur_id.in_(user_ids_subq)).delete(synchronize_session=False)
 
+        CertificatAdministratif.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
         Bulletin.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
         Paiement.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
         Absence.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
         Note.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
 
         EmploiTemps.query.filter((EmploiTemps.ecole_id == ecole_id) | (EmploiTemps.classe_id.in_(classe_ids_subq))).delete(synchronize_session=False)
-        Cours.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
-
         Inscription.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        Cours.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
         Eleve.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
         Classe.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
 
@@ -1040,8 +1277,10 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
             (PeriodeBulletin, data.get('periodes_bulletin', [])),
             (Classe, data.get('classes', [])),
             (Eleve, eleves_restaures),
-            (Inscription, data.get('inscriptions', [])),
             (Cours, data.get('cours', [])),
+            (Inscription, data.get('inscriptions', [])),
+            (PointagePersonnel, pointages),
+            (FichePaiePersonnel, fiches_paie),
             (EmploiTemps, data.get('emplois_temps', [])),
             (Note, data.get('notes', [])),
             (Absence, data.get('absences', [])),
@@ -1062,6 +1301,38 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
             for r in rows:
                 obj = _deserialize_row(model_cls, r)
                 db.session.add(obj)
+
+        db.session.flush()
+        user_ids_restaures = {row[0] for row in db.session.query(Utilisateur.id).filter_by(ecole_id=ecole_id).all()}
+        for log_id, user_id in log_users:
+            if user_id in user_ids_restaures:
+                db.session.execute(Log.__table__.update().where(Log.id == log_id).values(utilisateur_id=user_id))
+        utilisateurs_existants = {row[0] for row in db.session.query(Utilisateur.id).all()}
+        affectations_uniques = set()
+        for row in affectations:
+            cle = (row.get('utilisateur_id'), row.get('ecole_id'))
+            if cle[0] not in utilisateurs_existants or cle in affectations_uniques:
+                continue
+            db.session.execute(gestion_ecole.insert().values(utilisateur_id=cle[0], ecole_id=cle[1]))
+            affectations_uniques.add(cle)
+        eleve_map = dict(db.session.query(Eleve.matricule, Eleve.id).filter_by(ecole_id=ecole_id).all())
+        anciens_matricules = {row.get('id'): row.get('matricule') for row in eleves_restaures}
+        for row in certificats_restaures:
+            # Un ancien eleve_id ne remplace jamais un matricule explicite.
+            matricule = row.get('matricule_eleve')
+            if 'matricule_eleve' not in row:
+                matricule = anciens_matricules.get(row.get('eleve_id'))
+            eleve_id = eleve_map.get(matricule)
+            if not eleve_id:
+                current_app.logger.warning(
+                    "Certificat %s ignoré pendant la restauration de l'école %s : élève introuvable (matricule %s).",
+                    row.get('reference'), ecole_id, matricule,
+                )
+                continue
+            copie = dict(row)
+            copie.pop('id', None)
+            copie.update(ecole_id=ecole_id, eleve_id=eleve_id)
+            db.session.add(_deserialize_row(CertificatAdministratif, copie))
 
         for pc in data.get('professeur_classes', []):
             date_assign = pc.get('date_assignation')
@@ -1085,12 +1356,18 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
                     if col.name != 'id':
                         setattr(existing, col.name, getattr(ec, col.name))
 
+        from app.admin.backup_database import aligner_sequences_postgresql
+
+        db.session.flush()
+        aligner_sequences_postgresql(
+            db.session.connection(), [model for model, _ in model_mapping] + [CertificatAdministratif],
+        )
         db.session.commit()
-        log_action("RESTAURATION", f"Restauration de l'Ã©cole '{ecole_nom}' (ID={ecole_id}) rÃ©ussie depuis {filename}")
+        _log_global_backup_action("RESTAURATION", f"Restauration de l'Ã©cole '{ecole_nom}' (ID={ecole_id}) rÃ©ussie depuis {filename}")
         return True
     except Exception as e:
         db.session.rollback()
-        log_action("ERREUR_RESTAURATION", f"Ã‰chec restauration Ã©cole {ecole_id} : {e}", level="ERROR")
+        _log_global_backup_action("ERREUR_RESTAURATION", f"Ã‰chec restauration Ã©cole {ecole_id} : {e}", level="ERROR")
         raise e
 
 def get_school_backups(ecole_id):

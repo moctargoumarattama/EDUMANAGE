@@ -1,6 +1,8 @@
 import os
+import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -70,6 +72,108 @@ class BackupMultiBackendSQLiteTestCase(unittest.TestCase):
                 backup_scripts.create_backup()
         backups = [f for f in os.listdir(self.backup_dir) if f.startswith("backup_") and f.endswith(".db")]
         self.assertLessEqual(len(backups), 2)
+
+    def test_rotation_preserves_snapshot_selected_for_restoration(self):
+        paths = []
+        for number in range(3):
+            path = os.path.join(self.backup_dir, f"klasora-postgresql-{number}.dump")
+            with open(path, "wb") as snapshot:
+                snapshot.write(b"dump")
+            os.utime(path, (1000 + number, 1000 + number))
+            paths.append(path)
+
+        backup_scripts._cleanup_global_backups(
+            prefixes=("klasora-postgresql-",), keep=1, protected_paths=(paths[0],),
+        )
+
+        self.assertTrue(os.path.exists(paths[0]))
+        self.assertFalse(os.path.exists(paths[1]))
+        self.assertTrue(os.path.exists(paths[2]))
+
+    def test_backup_uses_configured_database_instead_of_legacy_path(self):
+        legacy_path = os.path.join(self.tmp.name, "wrong-database.db")
+        with closing(sqlite3.connect(legacy_path)) as legacy:
+            legacy.execute("CREATE TABLE sentinel (id INTEGER)")
+            legacy.commit()
+        backup_scripts.DB_PATH = legacy_path
+        db.session.add(Ecole(nom="Base réellement configurée"))
+        db.session.commit()
+
+        backup_file = backup_scripts.create_backup()
+
+        with closing(sqlite3.connect(backup_file)) as snapshot:
+            self.assertEqual(snapshot.execute("SELECT nom FROM ecole").fetchone()[0], "Base réellement configurée")
+        with closing(sqlite3.connect(legacy_path)) as legacy:
+            tables = legacy.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+            self.assertEqual(tables, [("sentinel",)])
+
+    def test_backup_remains_consistent_when_wal_checkpoint_is_busy(self):
+        with closing(sqlite3.connect(self.db_path)) as writer, closing(sqlite3.connect(self.db_path)) as reader:
+            writer.execute("PRAGMA wal_autocheckpoint=0")
+            writer.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            reader.execute("BEGIN")
+            reader.execute("SELECT COUNT(*) FROM ecole").fetchone()
+            writer.execute("INSERT INTO ecole (nom, onboarding_complete) VALUES ('Dernière écriture', 1)")
+            writer.commit()
+
+            backup_file = backup_scripts.create_backup()
+
+            with closing(sqlite3.connect(backup_file)) as snapshot:
+                self.assertEqual(snapshot.execute("SELECT nom FROM ecole").fetchone()[0], "Dernière écriture")
+            reader.rollback()
+
+    def test_restore_refreshes_pool_and_preserves_recovery_snapshot_with_live_wal(self):
+        db.session.add(Ecole(nom="Avant sauvegarde"))
+        db.session.commit()
+        backup_file = backup_scripts.create_backup()
+        db.session.add(Ecole(nom="Après sauvegarde"))
+        db.session.commit()
+        old_pool = db.engine.pool
+
+        self.assertTrue(backup_scripts.restore_backup(os.path.basename(backup_file)))
+
+        self.assertIsNot(db.engine.pool, old_pool)
+        self.assertEqual([school.nom for school in Ecole.query.all()], ["Avant sauvegarde"])
+        recovery = [name for name in os.listdir(self.backup_dir) if name.startswith("recovery_") and name.endswith(".db")]
+        self.assertEqual(len(recovery), 1)
+        with closing(sqlite3.connect(os.path.join(self.backup_dir, recovery[0]))) as snapshot:
+            self.assertEqual(snapshot.execute("SELECT COUNT(*) FROM ecole").fetchone()[0], 2)
+
+    def test_restore_refuses_uncommitted_business_changes(self):
+        backup_file = backup_scripts.create_backup()
+        pending = Ecole(nom="Modification en cours")
+        db.session.add(pending)
+
+        with self.assertRaisesRegex(RuntimeError, "modifications en cours"):
+            backup_scripts.restore_backup(os.path.basename(backup_file))
+
+        self.assertIn(pending, db.session.new)
+        self.assertIsNone(pending.id)
+
+    def test_backup_does_not_commit_flushed_business_transaction(self):
+        pending = Ecole(nom="Transaction non validée")
+        db.session.add(pending)
+        db.session.flush()
+
+        backup_file = backup_scripts.create_backup()
+
+        with closing(sqlite3.connect(backup_file)) as snapshot:
+            self.assertEqual(snapshot.execute("SELECT COUNT(*) FROM ecole").fetchone()[0], 0)
+        self.assertTrue(db.session.connection().connection.driver_connection.in_transaction)
+        db.session.rollback()
+        self.assertEqual(Ecole.query.count(), 0)
+
+    def test_restore_rejects_corrupt_snapshot_without_touching_database(self):
+        db.session.add(Ecole(nom="À conserver"))
+        db.session.commit()
+        filename = "corrupt.db"
+        with open(os.path.join(self.backup_dir, filename), "wb") as snapshot:
+            snapshot.write(b"This is not a SQLite database")
+
+        with self.assertRaises(sqlite3.DatabaseError):
+            backup_scripts.restore_backup(filename)
+
+        self.assertEqual(Ecole.query.one().nom, "À conserver")
 
 
 class AdminLogActionBestEffortTestCase(unittest.TestCase):
