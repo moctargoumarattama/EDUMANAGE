@@ -13,6 +13,7 @@ Règles canoniques :
 """
 
 from datetime import datetime
+from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload, joinedload
 from app import db
 from app.models import (
@@ -68,6 +69,59 @@ def get_inscriptions_paiements(ecole_id, annee, user=None):
     return query.order_by(Inscription.classe_id, Inscription.eleve_id).all()
 
 
+def _frais_du_inscription(inscription):
+    """Retourne les frais exigibles, en conservant la compatibilite historique."""
+    base = getattr(inscription, "frais_scolarite", None)
+    if base is None:
+        base = getattr(inscription, "frais_annuels", None)
+    if base is None:
+        base = getattr(getattr(inscription, "eleve", None), "frais_annuels", None)
+    if base is None:
+        base = 150000.0
+    remise = getattr(inscription, "remise", 0) or 0
+    frais_inscription = getattr(inscription, "frais_inscription", 0) or 0
+    return max(0.0, float(base) - float(remise) + float(frais_inscription))
+
+
+def _synthese_inscription(inscription):
+    frais = _frais_du_inscription(inscription)
+    total_paye = float(db.session.query(func.coalesce(func.sum(Paiement.montant), 0.0)).filter(
+        Paiement.inscription_id == inscription.id,
+        Paiement.ecole_id == inscription.ecole_id,
+        or_(Paiement.statut.is_(None), Paiement.statut != "annule"),
+    ).scalar() or 0.0)
+    reste = max(0.0, frais - total_paye)
+    pourcentage = 100.0 if frais == 0 else round((total_paye / frais) * 100.0, 1)
+    statut = "complet" if reste <= 0 else ("partiel" if total_paye > 0 else "aucun")
+    return {
+        "inscription": inscription,
+        "frais_du": frais,
+        "frais_scolarite": float(getattr(inscription, "frais_scolarite", None) or getattr(inscription, "frais_annuels", None) or 0),
+        "frais_annuels": frais,
+        "remise": float(getattr(inscription, "remise", 0) or 0),
+        "frais_inscription": float(getattr(inscription, "frais_inscription", 0) or 0),
+        "total_paye": total_paye,
+        "reste_a_payer": reste,
+        "pourcentage_paye": pourcentage,
+        "statut_solde": statut,
+    }
+
+
+def obtenir_synthese_financiere_eleve(eleve_id, annee_scolaire_id):
+    """Source canonique du solde d'un eleve pour une annee scolaire."""
+    inscription = Inscription.query.filter_by(
+        eleve_id=eleve_id, annee_scolaire_id=annee_scolaire_id
+    ).first()
+    if not inscription:
+        return {
+            "inscription": None, "frais_du": 0.0, "frais_scolarite": 0.0,
+            "frais_annuels": 0.0, "remise": 0.0, "frais_inscription": 0.0,
+            "total_paye": 0.0, "reste_a_payer": 0.0,
+            "pourcentage_paye": 0.0, "statut_solde": "aucun",
+        }
+    return _synthese_inscription(inscription)
+
+
 def get_finances_inscription(inscription):
     """Calcule le bilan financier strict pour une inscription annuelle donnée."""
     if not inscription:
@@ -79,38 +133,7 @@ def get_finances_inscription(inscription):
             "statut_solde": "aucun",
         }
 
-    # Tarif de l'inscription : inscription.frais_annuels avec fallback sur eleve.frais_annuels
-    frais = inscription.frais_annuels
-    if frais is None:
-        eleve = getattr(inscription, "eleve", None)
-        frais = getattr(eleve, "frais_annuels", None) if eleve else None
-        if frais is None:
-            frais = 150000.0
-    frais = float(frais)
-
-    paiements = getattr(inscription, "paiements", [])
-    total_paye = float(sum(p.montant for p in paiements if p.montant and (getattr(p, 'statut', None) or 'payé') != 'annule'))
-    reste = max(0.0, frais - total_paye)
-    if frais == 0:
-        reste = 0.0
-        pourcentage = 100.0
-        statut_solde = "complet"
-    else:
-        pourcentage = round((total_paye / frais) * 100, 1) if frais > 0 else 0.0
-        if reste <= 0:
-            statut_solde = "complet"
-        elif total_paye > 0:
-            statut_solde = "partiel"
-        else:
-            statut_solde = "aucun"
-
-    return {
-        "frais_annuels": frais,
-        "total_paye": total_paye,
-        "reste_a_payer": reste,
-        "pourcentage_paye": pourcentage,
-        "statut_solde": statut_solde,
-    }
+    return _synthese_inscription(inscription)
 
 
 def get_paiements_annee(ecole_id, annee, user=None, classe_id=None, eleve_id=None):
@@ -140,6 +163,7 @@ def get_paiements_annee(ecole_id, annee, user=None, classe_id=None, eleve_id=Non
         .filter(
             Paiement.ecole_id == ecole_id,
             Paiement.inscription_id.in_(inscription_ids),
+            or_(Paiement.statut.is_(None), Paiement.statut != "annule"),
         )
         .order_by(Paiement.date_paiement.desc(), Paiement.id.desc())
         .all()
@@ -204,31 +228,42 @@ def enregistrer_paiement(ecole_id, annee, user, eleve_id, montant, mois, annee_c
     inscription, error = valider_mutation_paiement(ecole_id, annee, user, eleve_id, montant)
     if error:
         return None, error
-
-    paiement = Paiement(
-        ecole_id=ecole_id,
-        eleve_id=eleve_id,
-        inscription_id=inscription.id,
-        montant=float(montant),
-        mois=mois,
-        annee=int(annee_civile),
-        mode_paiement=mode_paiement or "espèces",
-        reference=reference or None,
-        statut="payé",
-        date_paiement=datetime.utcnow(),
-    )
-    db.session.add(paiement)
-
-    # Conversion automatique du statut préinscrit vers inscrit lors d'un règlement
-    paiement.inscription_confirmee = False
-    if inscription and inscription.statut == "preinscrit":
-        inscription.statut = "inscrit"
-        paiement.inscription_confirmee = True
-        eleve = Eleve.query.filter_by(id=eleve_id, ecole_id=ecole_id).first()
-        if eleve and inscription.classe_id and getattr(annee, "statut", None) == "active":
-            eleve.classe_id = inscription.classe_id
-
-    db.session.flush()
+    montant_float = float(montant)
+    reference = (reference or "").strip() or None
+    try:
+        # PostgreSQL verrouille la ligne; SQLite sérialise l'écriture, ce qui
+        # garde le recalcul du solde dans la même unité transactionnelle.
+        with db.session.begin_nested():
+            inscription = Inscription.query.filter_by(
+                id=inscription.id, ecole_id=ecole_id, annee_scolaire_id=annee.id
+            ).with_for_update().first()
+            if not inscription:
+                return None, "Inscription introuvable dans cette année scolaire."
+            finances = get_finances_inscription(inscription)
+            if montant_float > finances["reste_a_payer"] + 0.01:
+                return None, f"Le montant ({montant_float:,.0f} FCFA) dépasse le reste à payer ({finances['reste_a_payer']:,.0f} FCFA)."
+            if reference and Paiement.query.filter_by(ecole_id=ecole_id, reference=reference).with_for_update().first():
+                return None, "Cette référence de paiement existe déjà."
+            paiement = Paiement(
+                ecole_id=ecole_id, eleve_id=eleve_id, inscription_id=inscription.id,
+                montant=montant_float, mois=mois, annee=int(annee_civile),
+                mode_paiement=mode_paiement or "espèces", reference=reference,
+                statut="payé", date_paiement=datetime.utcnow(),
+            )
+            db.session.add(paiement)
+            paiement.inscription_confirmee = False
+            if inscription.statut == "preinscrit":
+                inscription.statut = "inscrit"
+                paiement.inscription_confirmee = True
+                eleve = Eleve.query.filter_by(id=eleve_id, ecole_id=ecole_id).first()
+                if eleve and inscription.classe_id and getattr(annee, "statut", None) == "active":
+                    eleve.classe_id = inscription.classe_id
+            db.session.flush()
+    except Exception as exc:
+        db.session.rollback()
+        if "reference" in str(exc).lower() and reference:
+            return None, "Cette référence de paiement existe déjà."
+        raise
 
     try:
         from flask import current_app

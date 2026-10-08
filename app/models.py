@@ -797,6 +797,7 @@ class Paiement(db.Model):
     __table_args__ = (
         db.Index('ix_paiement_ecole_statut', 'ecole_id', 'statut'),
         db.Index('ix_paiement_eleve_id', 'eleve_id'),
+        db.UniqueConstraint('ecole_id', 'reference', name='uq_paiement_ecole_reference'),
     )
 
     inscription = db.relationship('Inscription', backref=db.backref('paiements', lazy=True))
@@ -1305,6 +1306,9 @@ class Inscription(db.Model):
 
     statut = db.Column(db.String(20), nullable=False, default='inscrit')
     frais_annuels = db.Column(db.Float, nullable=True)
+    frais_scolarite = db.Column(db.Float, nullable=True)
+    remise = db.Column(db.Float, nullable=False, default=0.0, server_default='0')
+    frais_inscription = db.Column(db.Float, nullable=False, default=0.0, server_default='0')
     date_inscription = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     date_sortie = db.Column(db.DateTime, nullable=True)
     motif_sortie = db.Column(db.String(255), nullable=True)
@@ -1334,6 +1338,9 @@ class Inscription(db.Model):
             "annee_scolaire_id": self.annee_scolaire_id,
             "statut": self.statut,
             "frais_annuels": self.frais_annuels,
+            "frais_scolarite": self.frais_scolarite,
+            "remise": self.remise,
+            "frais_inscription": self.frais_inscription,
             "date_inscription": self.date_inscription.isoformat() if self.date_inscription else None,
             "date_sortie": self.date_sortie.isoformat() if self.date_sortie else None,
             "motif_sortie": self.motif_sortie,

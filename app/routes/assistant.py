@@ -35,6 +35,7 @@ from app.ai_service import (
 from app.authorization import role_required
 from app.models import Absence, AnneeScolaire, Classe, Cours, Eleve, Inscription, Note, Paiement, Utilisateur
 from app.services.annees_scolaires import get_annee_active
+from app.services.paiements_annuels import obtenir_synthese_financiere_eleve
 
 logger = logging.getLogger(__name__)
 
@@ -639,9 +640,11 @@ def _build_eleve_dossier(eleve: Eleve, ecole_id: int, annee_id: Optional[int] = 
     else:
         moyenne = eleve.moyenne_generale() if not annee_id and not periode else None
 
-    frais = eleve.frais_annuels or 0.0
-    paye = eleve.total_paye()
-    reste = eleve.reste_a_payer()
+    if annee_id:
+        finance = obtenir_synthese_financiere_eleve(eleve.id, annee_id)
+        frais, paye, reste = finance["frais_du"], finance["total_paye"], finance["reste_a_payer"]
+    else:
+        frais, paye, reste = eleve.frais_annuels or 0.0, eleve.total_paye(), eleve.reste_a_payer()
 
     return {
         "eleve_id": eleve.id,
@@ -1064,8 +1067,9 @@ def _handle_taux_recouvrement(ecole_id: int, annee_id: Optional[int]) -> str:
         inscr_q = inscr_q.filter_by(annee_scolaire_id=annee_id)
     inscriptions = inscr_q.options(joinedload(Inscription.eleve)).all()
 
-    total_attendu = sum((i.eleve.frais_annuels or 0.0) for i in inscriptions if i.eleve)
-    total_paye = sum(i.eleve.total_paye() for i in inscriptions if i.eleve)
+    syntheses = [obtenir_synthese_financiere_eleve(i.eleve_id, i.annee_scolaire_id) for i in inscriptions if i.eleve]
+    total_attendu = sum(s["frais_du"] for s in syntheses)
+    total_paye = sum(s["total_paye"] for s in syntheses)
     reste_total = max(0.0, total_attendu - total_paye)
     taux = round((total_paye / total_attendu * 100.0), 1) if total_attendu > 0 else 0.0
 
@@ -1092,7 +1096,7 @@ def _handle_taux_recouvrement(ecole_id: int, annee_id: Optional[int]) -> str:
     return "\n".join(lines)
 
 
-def _handle_encaissements_periode(ecole_id: int, mois: Optional[str] = None) -> str:
+def _handle_encaissements_periode(ecole_id: int, mois: Optional[str] = None, annee_id: Optional[int] = None) -> str:
     """Calcule le volume total encaissé sur le mois en cours certifié en base de données."""
     now = dt.date.today()
     start_month = dt.date(now.year, now.month, 1)
@@ -1100,7 +1104,10 @@ def _handle_encaissements_periode(ecole_id: int, mois: Optional[str] = None) -> 
     paiements_mois = (
         Paiement.query.filter_by(ecole_id=ecole_id)
         .options(joinedload(Paiement.eleve))
-        .filter(Paiement.date_paiement >= start_month)
+        .filter(Paiement.date_paiement >= start_month,
+                or_(Paiement.statut.is_(None), Paiement.statut != "annule"))
+        .join(Paiement.inscription, isouter=True)
+        .filter(or_(annee_id is None, Inscription.annee_scolaire_id == annee_id))
         .all()
     )
     total_mois = sum(p.montant for p in paiements_mois if p.montant)
@@ -1136,10 +1143,11 @@ def _handle_impayes_par_classe(ecole_id: int, annee_id: Optional[int]) -> str:
     stats_classes = []
     for cl in all_classes:
         inscrits = Inscription.query.filter_by(classe_id=cl.id, ecole_id=ecole_id).options(joinedload(Inscription.eleve)).all()
-        attendu = sum((i.eleve.frais_annuels or 0.0) for i in inscrits if i.eleve)
-        paye = sum(i.eleve.total_paye() for i in inscrits if i.eleve)
-        reste = max(0.0, attendu - paye)
-        nb_en_retard = sum(1 for i in inscrits if i.eleve and i.eleve.reste_a_payer() > 0)
+        syntheses = [obtenir_synthese_financiere_eleve(i.eleve_id, i.annee_scolaire_id) for i in inscrits if i.eleve]
+        attendu = sum(s["frais_du"] for s in syntheses)
+        paye = sum(s["total_paye"] for s in syntheses)
+        reste = sum(s["reste_a_payer"] for s in syntheses)
+        nb_en_retard = sum(1 for s in syntheses if s["reste_a_payer"] > 0)
         taux = round((paye / attendu * 100.0), 1) if attendu > 0 else 100.0
         if reste > 0 or nb_en_retard > 0:
             stats_classes.append({
@@ -1635,14 +1643,15 @@ def _handle_impayes_scolarite(ecole_id: int, annee_id: Optional[int]) -> str:
     for insc in inscriptions:
         el = insc.eleve
         if el:
-            reste = el.reste_a_payer()
+            synthese = obtenir_synthese_financiere_eleve(el.id, insc.annee_scolaire_id)
+            reste = synthese["reste_a_payer"]
             if reste and reste > 0:
                 impayes.append({
                     "eleve_id": el.id,
                     "nom": f"{el.prenom} {el.nom}",
                     "classe": insc.classe.nom if insc.classe else "Sans classe",
                     "reste": reste,
-                    "frais": el.frais_annuels or 0,
+                    "frais": synthese["frais_du"],
                     "tel": el.contact_parent or el.telephone or "Non renseigné",
                 })
 
@@ -1820,7 +1829,7 @@ def api_assistant_stream():
     elif intention == "taux_recouvrement" and ecole_id:
         fast_reply = _handle_taux_recouvrement(ecole_id, target_annee_id)
     elif intention == "encaissements_periode" and ecole_id:
-        fast_reply = _handle_encaissements_periode(ecole_id)
+        fast_reply = _handle_encaissements_periode(ecole_id, annee_id=target_annee_id)
     elif intention == "impayes_par_classe" and ecole_id:
         fast_reply = _handle_impayes_par_classe(ecole_id, target_annee_id)
     elif intention == "effectif_classe" and ecole_id and classe_param:
@@ -2346,7 +2355,7 @@ def api_assistant_query_data():
 
         # FAST-PATH 8 : ENCAISSEMENTS DU MOIS / CAISSE
         elif intention == "encaissements_periode" and ecole_id:
-            reply = _handle_encaissements_periode(ecole_id)
+            reply = _handle_encaissements_periode(ecole_id, annee_id=target_annee_id)
             return jsonify({
                 "success": True,
                 "intention": "encaissements_periode",

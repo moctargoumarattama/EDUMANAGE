@@ -1080,6 +1080,10 @@ def api_modifier_eleve(eleve_id):
 
         eleve.parent_id = parent.id if parent else None
 
+    # Le changement de téléphone vers un parent déjà existant doit déplacer
+    # explicitement le lien de l'élève, sinon l'ancien parent garde l'accès.
+    eleve.parent_id = parent.id if parent else None
+
     eleve.contact_parent = parent.telephone if parent else (parent_tel or None)
     eleve.email_parent = None
 
