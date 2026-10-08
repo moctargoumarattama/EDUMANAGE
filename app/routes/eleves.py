@@ -58,6 +58,8 @@ from app.services.import_eleves_service import (
 )
 from app.services.phone_numbers import cles_telephone_equivalentes, normaliser_numero_whatsapp, normaliser_telephone_international
 from app.services.whatsapp_queue import enqueue_message
+from app.services.eleves import trouver_eleves_identiques
+from app.services.matricule_service import verrouiller_ecole
 
 
 def _url_with_args(endpoint, allowed_args, **values):
@@ -113,6 +115,14 @@ def _parent_label(parent):
     return f"{nom} ({contact})"
 
 
+def _message_doublon_eleve(nom, prenom, date_naissance, matricule):
+    return (
+        f"Un élève portant le nom {nom.strip()} {prenom.strip()}, "
+        f"né(e) le {date_naissance.strftime('%d/%m/%Y')}, existe déjà "
+        f"dans cette école (matricule {matricule})."
+    )
+
+
 def _notifier_whatsapp_inscription(eleve, classe=None, ecole=None):
     try:
         if not eleve:
@@ -132,7 +142,8 @@ def _notifier_whatsapp_inscription(eleve, classe=None, ecole=None):
         code_parent = getattr(eleve, "code_parent", None) or "fourni par le secretariat"
         message = (
             f"Bienvenue sur KLASORA. Nous sommes heureux d'accueillir votre enfant "
-            f"{eleve.prenom} {eleve.nom} a {ecole.nom}, en classe de {classe_nom}. "
+            f"{eleve.prenom} {eleve.nom} (matricule {eleve.matricule}) "
+            f"a {ecole.nom}, en classe de {classe_nom}. "
             f"Espace parent : https://klasora.com - Numero : {tel_parent}. "
             f"Mot de passe : {code_parent}."
         )
@@ -255,7 +266,7 @@ def eleves():
             db.or_(
                 Eleve.nom.ilike(like),
                 Eleve.prenom.ilike(like),
-                Eleve.code_parent.ilike(like),
+                Eleve.matricule.ilike(like),
                 Eleve.contact_parent.ilike(like),
                 Classe.nom.ilike(like),
                 Classe.niveau.ilike(like),
@@ -409,7 +420,7 @@ def eleves():
                     'nom': e.nom,
                     'prenom': e.prenom,
                     'genre': e.genre,
-                    'code_parent': e.code_parent,
+                    'matricule': e.matricule,
                     'contact_parent': e.contact_parent,
                     'classe_id': inscription_par_eleve[e.id].classe_id if e.id in inscription_par_eleve else e.classe_id,
                     'classe_nom': (inscription_par_eleve[e.id].classe.nom if (e.id in inscription_par_eleve and inscription_par_eleve[e.id].classe) else 'Sans classe'),
@@ -547,6 +558,21 @@ def ajouter_eleve():
                 flash("Classe invalide pour l'annee consultee.", "danger")
                 return redirect(url_for('main.eleves'))
 
+            # Sérialiser les créations dans l'école avant de revérifier l'identité.
+            verrouiller_ecole(ecole_id)
+            doublons = trouver_eleves_identiques(
+                ecole_id, form.nom.data, form.prenom.data, form.date_naissance.data,
+            )
+            if doublons:
+                flash(
+                    _message_doublon_eleve(
+                        form.nom.data, form.prenom.data, form.date_naissance.data, doublons[0].matricule,
+                    ) + " Utilisez la réinscription de ce dossier au lieu de créer un nouvel élève.",
+                    "warning",
+                )
+                db.session.rollback()
+                return redirect(url_for('main.eleves'))
+
             # ---------------- Gestion parent ----------------
             parent_id_final = None
             code_parent = None
@@ -629,7 +655,8 @@ def ajouter_eleve():
                 frais_annuels=form.frais_annuels.data or 0.0,
                 code_parent=code_parent,
                 parent_id=parent_id_final,
-                ecole_id=ecole_id
+                ecole_id=ecole_id,
+                annee_premiere_ecole=annee_consultee.date_debut.year,
             )
             db.session.add(nouvel_eleve)
             db.session.flush()
@@ -900,7 +927,7 @@ def api_fiche_eleve(eleve_id):
             'adresse': eleve.adresse or '',
             'age': age,
             'statut': inscription_active.statut if inscription_active else eleve.statut,
-            'code_parent': eleve.code_parent or f"ELV-{eleve.id}",
+            'matricule': eleve.matricule,
             'frais_annuels': total_frais,
         },
         'classe': {
@@ -957,6 +984,7 @@ def api_modifier_eleve(eleve_id):
     if annee_consultee and annee_consultee.statut == 'archivee':
         return jsonify({'success': False, 'error': 'Modification impossible pour une année archivée.'}), 403
 
+    verrouiller_ecole(ecole_id)
     eleve = Eleve.query.filter_by(id=eleve_id, ecole_id=ecole_id).first()
     if not eleve:
         return jsonify({'success': False, 'error': 'Élève introuvable.'}), 404
@@ -985,15 +1013,25 @@ def api_modifier_eleve(eleve_id):
     if genre not in ('M', 'F'):
         genre = 'M'
 
+    date_naissance = eleve.date_naissance
     date_naissance_str = (data.get('date_naissance') or '').strip()
     if date_naissance_str:
         try:
-            eleve.date_naissance = datetime.strptime(date_naissance_str, '%Y-%m-%d').date()
+            date_naissance = datetime.strptime(date_naissance_str, '%Y-%m-%d').date()
         except ValueError:
             return jsonify({'success': False, 'error': 'Format de date de naissance invalide (AAAA-MM-JJ attendu).'}), 400
 
+    doublons = trouver_eleves_identiques(
+        ecole_id, nom, prenom, date_naissance, exclure_id=eleve.id,
+    )
+    if doublons:
+        message = _message_doublon_eleve(nom, prenom, date_naissance, doublons[0].matricule)
+        db.session.rollback()
+        return jsonify({'success': False, 'error': message}), 409
+
     eleve.nom = nom
     eleve.prenom = prenom
+    eleve.date_naissance = date_naissance
     eleve.genre = genre
     eleve.lieu_naissance = (data.get('lieu_naissance') or '').strip() or None
     eleve.adresse = (data.get('adresse') or '').strip() or None
@@ -1116,6 +1154,7 @@ def export_notes_eleve_pdf(id):
     premiere_annee = str(eleve.annee_premiere_ecole) if eleve.annee_premiere_ecole else "N/A"
     info_text = f"""
     <b>Élève :</b> {eleve.prenom} {eleve.nom}<br/>
+    <b>Matricule :</b> {eleve.matricule}<br/>
     <b>Classe :</b> {classe_pdf.nom if classe_pdf else 'Non assignée'}<br/>
     <b>Date de naissance :</b> {eleve.date_naissance.strftime('%d/%m/%Y') if eleve.date_naissance else 'Non renseignée'}<br/>
     <b>Parent :</b> {eleve.parent.nom if eleve.parent else 'N/A'}<br/>
@@ -1216,6 +1255,7 @@ def export_eleves_excel():
 
     data = {
         'ID': [e.id for e, _classe in eleves_rows],
+        'Matricule': [e.matricule for e, _classe in eleves_rows],
         'Nom': [e.nom for e, _classe in eleves_rows],
         'Prenom': [e.prenom for e, _classe in eleves_rows],
         'Date de naissance': [e.date_naissance.strftime('%d/%m/%Y') if e.date_naissance else '' for e, _classe in eleves_rows],
@@ -1333,6 +1373,12 @@ def import_excel_confirm():
     annee_consultee = get_annee_consultee(ecole_id)
     if not annee_consultee or annee_consultee.statut == "archivee":
         flash("Importation impossible dans une année scolaire archivée.", "danger")
+        supprimer_preview_import(token)
+        session.pop('import_token', None)
+        return redirect(url_for('main.eleves'))
+
+    if annee_consultee.id != cached.get('annee_id'):
+        flash("L'année consultée a changé depuis la prévisualisation. Veuillez vérifier à nouveau le fichier.", "warning")
         supprimer_preview_import(token)
         session.pop('import_token', None)
         return redirect(url_for('main.eleves'))
@@ -1665,6 +1711,8 @@ def voir_eleve(eleve_id):
 @login_required
 @role_required('admin')
 def modifier_eleve(eleve_id):
+    if request.method == 'POST':
+        verrouiller_ecole(current_user.ecole_id)
     eleve = filtre_par_ecole(Eleve.query, Eleve).filter_by(id=eleve_id).first_or_404()
     return_url = _safe_return_url(url_for('main.eleves'))
     detail_url = url_for('main.voir_eleve', eleve_id=eleve.id, return_url=return_url)
@@ -1695,20 +1743,34 @@ def modifier_eleve(eleve_id):
             flash("Parent invalide pour cette ecole.", "danger")
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
 
-        eleve.nom = (request.form.get('nom') or eleve.nom).strip()
-        eleve.prenom = (request.form.get('prenom') or eleve.prenom).strip()
-        if request.form.get('genre'):
-            eleve.genre = request.form.get('genre')
-
-        date_naissance = request.form.get('date_naissance')
-        if date_naissance:
+        nom = (request.form.get('nom') or eleve.nom).strip()
+        prenom = (request.form.get('prenom') or eleve.prenom).strip()
+        date_naissance = eleve.date_naissance
+        date_naissance_str = (request.form.get('date_naissance') or '').strip()
+        if date_naissance_str:
             try:
-                eleve.date_naissance = datetime.strptime(date_naissance, '%Y-%m-%d').date()
+                date_naissance = datetime.strptime(date_naissance_str, '%Y-%m-%d').date()
             except ValueError:
                 flash("Date de naissance invalide.", "danger")
                 return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
-        else:
-            eleve.date_naissance = None
+        elif 'date_naissance' in request.form:
+            flash("La date de naissance est obligatoire.", "danger")
+            return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
+
+        doublons = trouver_eleves_identiques(
+            current_user.ecole_id, nom, prenom, date_naissance, exclure_id=eleve.id,
+        )
+        if doublons:
+            message = _message_doublon_eleve(nom, prenom, date_naissance, doublons[0].matricule)
+            db.session.rollback()
+            flash(message, "warning")
+            return redirect(url_for('main.modifier_eleve', eleve_id=eleve_id, return_url=return_url))
+
+        eleve.nom = nom
+        eleve.prenom = prenom
+        eleve.date_naissance = date_naissance
+        if request.form.get('genre'):
+            eleve.genre = request.form.get('genre')
 
         eleve.lieu_naissance = (request.form.get('lieu_naissance') or '').strip() or None
         eleve.adresse = (request.form.get('adresse') or '').strip() or None

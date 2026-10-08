@@ -374,7 +374,7 @@ def safe_delete_ecole(ecole_id):
     from app.models import (
         Absence, Alerte, AnneeScolaire, ArchiveAbsence, ArchiveNote,
         Bulletin, Classe, Cours, Eleve, EmploiTemps, HistoriqueImport,
-        Inscription, JournalCorrection, Log, Note, Paiement,
+        Inscription, JournalCorrection, Log, MatriculeSequence, Note, Paiement,
         PeriodeBulletin, Presence, Professeur, Utilisateur
     )
     ecole = Ecole.query.get_or_404(ecole_id)
@@ -406,6 +406,7 @@ def safe_delete_ecole(ecole_id):
     PeriodeBulletin.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
     JournalCorrection.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
     Log.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+    MatriculeSequence.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
 
     # 4. Tables de liaison n-m
     for table_query in [

@@ -792,7 +792,7 @@ def create_school_backup(ecole_id, backup_type="manual"):
         EcoleNiveauConfig, Classe, Eleve, Inscription, Cours, Note, Absence,
         Paiement, Bulletin, EmploiTemps, PeriodeBulletin, Presence, Alerte,
         ArchiveNote, ArchiveAbsence, EcoleGoogleMailConfig, JournalCorrection,
-        SyncOperationLog, SupportTicket, HistoriqueImport, professeur_classes
+        SyncOperationLog, SupportTicket, HistoriqueImport, MatriculeSequence, professeur_classes
     )
 
     today_str = datetime.now().strftime("%Y-%m-%d")
@@ -841,6 +841,7 @@ def create_school_backup(ecole_id, backup_type="manual"):
         'periodes_bulletin': [_serialize_instance(pb) for pb in PeriodeBulletin.query.filter_by(ecole_id=ecole_id).all()],
         'classes': [_serialize_instance(c) for c in Classe.query.filter_by(ecole_id=ecole_id).all()],
         'eleves': [_serialize_instance(e) for e in Eleve.query.filter_by(ecole_id=ecole_id).all()],
+        'matricule_sequences': [_serialize_instance(s) for s in MatriculeSequence.query.filter_by(ecole_id=ecole_id).all()],
         'inscriptions': [_serialize_instance(i) for i in Inscription.query.filter_by(ecole_id=ecole_id).all()],
         'cours': [_serialize_instance(c) for c in Cours.query.filter_by(ecole_id=ecole_id).all()],
         'emplois_temps': [_serialize_instance(et) for et in EmploiTemps.query.filter((EmploiTemps.ecole_id == ecole_id) | (EmploiTemps.classe_id.in_(db.session.query(Classe.id).filter_by(ecole_id=ecole_id)))).all()],
@@ -930,8 +931,9 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
         EcoleNiveauConfig, Classe, Eleve, Inscription, Cours, Note, Absence,
         Paiement, Bulletin, EmploiTemps, PeriodeBulletin, Presence, Alerte,
         ArchiveNote, ArchiveAbsence, EcoleGoogleMailConfig, JournalCorrection,
-        SyncOperationLog, SupportTicket, HistoriqueImport, professeur_classes
+        SyncOperationLog, SupportTicket, HistoriqueImport, MatriculeSequence, professeur_classes
     )
+    from app.services.matricule_service import matricule_conforme, verrouiller_ecole
     metadata, data = inspect_school_backup(filename)
     ecole_id = metadata.get('ecole_id')
     ecole_nom = metadata.get('ecole_nom', '')
@@ -959,6 +961,37 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
         raise ValueError(f"Ã‰chec de la sauvegarde de sÃ©curitÃ© prÃ©alable : {e}. Restauration annulÃ©e par sÃ©curitÃ©.")
 
     try:
+        verrouiller_ecole(ecole_id)
+        matricules_actuels = dict(db.session.query(Eleve.id, Eleve.matricule).filter_by(ecole_id=ecole_id).all())
+        eleves_restaures = []
+        for row in data.get('eleves', []):
+            copie = dict(row)
+            courant = matricules_actuels.get(copie.get('id'))
+            sauvegarde = copie.get('matricule')
+            if matricule_conforme(courant):
+                if sauvegarde and sauvegarde != courant:
+                    raise ValueError(
+                        f"RESTORE REFUSÉ : le matricule {courant} de l'élève ID #{copie.get('id')} "
+                        "est permanent et diffère de la sauvegarde."
+                    )
+                copie['matricule'] = courant
+            eleves_restaures.append(copie)
+
+        # Une restauration ne doit jamais réutiliser un numéro déjà réservé.
+        for row in data.get('matricule_sequences', []):
+            prefixe = row.get('prefixe')
+            numero = int(row.get('dernier_numero', 0))
+            if row.get('ecole_id') != ecole_id or not re.fullmatch(r'[0-9]{2}', prefixe or '') or not 0 <= numero <= 9999:
+                raise ValueError("RESTORE REFUSÉ : compteur de matricules invalide.")
+            sequence = db.session.get(MatriculeSequence, (ecole_id, prefixe))
+            if sequence:
+                sequence.dernier_numero = max(sequence.dernier_numero, numero)
+            else:
+                db.session.add(MatriculeSequence(
+                    ecole_id=ecole_id, prefixe=prefixe, dernier_numero=numero,
+                ))
+        db.session.flush()
+
         # Suppression des donnÃ©es existantes de l'Ã©cole dans l'ordre inverse des FK
         db.session.execute(professeur_classes.delete().where(professeur_classes.c.ecole_id == ecole_id))
 
@@ -1006,7 +1039,7 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
             (AnneeNiveauConfig, data.get('annee_niveau_configs', [])),
             (PeriodeBulletin, data.get('periodes_bulletin', [])),
             (Classe, data.get('classes', [])),
-            (Eleve, data.get('eleves', [])),
+            (Eleve, eleves_restaures),
             (Inscription, data.get('inscriptions', [])),
             (Cours, data.get('cours', [])),
             (EmploiTemps, data.get('emplois_temps', [])),

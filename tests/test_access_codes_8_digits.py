@@ -78,10 +78,10 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
             "code_prof": code_prof,
         }
 
-    def eleve_data(self, email="parent@example.com", code_parent="", parent_id="0", telephone="91000000"):
+    def eleve_data(self, email="parent@example.com", code_parent="", parent_id="0", telephone="91000000", prenom="Awa"):
         return {
             "nom": "Sow",
-            "prenom": "Awa",
+            "prenom": prenom,
             "genre": "F",
             "date_naissance": "2014-01-01",
             "lieu_naissance": "Niamey",
@@ -154,7 +154,7 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
 
         response = client.post(
             "/ajouter_eleve",
-            data=self.eleve_data(email="parent2@example.com", code_parent="87654321", telephone="92000000"),
+            data=self.eleve_data(email="parent2@example.com", code_parent="87654321", telephone="92000000", prenom="Fatou"),
             follow_redirects=False,
         )
 
@@ -165,7 +165,7 @@ class AccessCodes8DigitsTestCase(unittest.TestCase):
         parent2_hash = parent2.mot_de_passe
         response = client.post(
             "/ajouter_eleve",
-            data=self.eleve_data(email="", code_parent="", parent_id=str(parent2.id)),
+            data=self.eleve_data(email="", code_parent="", parent_id=str(parent2.id), prenom="Mariama"),
             follow_redirects=False,
         )
         self.assertEqual(response.status_code, 302)

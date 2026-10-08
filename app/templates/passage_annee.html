@@ -459,8 +459,8 @@
                                                     <a href="{{ url_for('main.voir_eleve', eleve_id=item.eleve.id) }}" class="fw-bold text-dark text-decoration-none">
                                                         {{ item.eleve.nom }} {{ item.eleve.prenom }}
                                                     </a>
-                                                    {% if item.eleve.code_parent %}
-                                                    <span class="text-muted d-block" style="font-size: 0.72rem;">{{ item.eleve.code_parent }}</span>
+                                                    {% if item.eleve.matricule %}
+                                                    <span class="text-muted d-block" style="font-size: 0.72rem;">{{ item.eleve.matricule }}</span>
                                                     {% endif %}
                                                 </div>
                                             </div>

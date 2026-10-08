@@ -10,7 +10,7 @@
 
             <div class="d-flex align-items-center gap-2 flex-wrap">
                 <h1 class="h4 fw-bold text-dark mb-0">{{ eleve.prenom }} {{ eleve.nom }}</h1>
-                <span class="badge bg-white text-secondary border font-monospace small shadow-xs">Matricule: {{ eleve.code_parent or ('ELV-' ~ eleve.id) }}</span>
+                <span class="badge bg-white text-secondary border font-monospace small shadow-xs">Matricule: {{ eleve.matricule }}</span>
                 {% if est_annee_archivee and annee_affichee %}
                 <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small">
                     <i class="fas fa-archive me-1"></i>Archive {{ annee_affichee.nom }}
@@ -1035,7 +1035,7 @@
     <table class="excel-table mb-2">
         <tr>
             <th style="width: 15%;">Matricule</th>
-            <td style="width: 35%; font-family: monospace; font-weight: bold;">{{ eleve.code_parent or ('ELV-' ~ eleve.id) }}</td>
+            <td style="width: 35%; font-family: monospace; font-weight: bold;">{{ eleve.matricule }}</td>
             <th style="width: 15%;">Classe</th>
             <td style="width: 35%; font-weight: bold; color: #1e3a8a;">{{ inscription_affichee.classe.nom if inscription_affichee and inscription_affichee.classe else 'Non assigné' }}</td>
         </tr>
@@ -1310,7 +1310,7 @@
                                 l’authenticité
                             </div>
                             <div style="font-size: 7.2pt; font-weight: 700; color: #1e293b; font-family: monospace; margin-top: 2px;">
-                                {{ eleve.code_parent or ('ELV-' ~ eleve.id) }}
+                                {{ eleve.matricule }}
                             </div>
                         </div>
                         <div style="border: 1px solid #cbd5e1; padding: 2px; border-radius: 4px; background: #ffffff; display: inline-block;">

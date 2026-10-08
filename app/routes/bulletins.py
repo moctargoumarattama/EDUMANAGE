@@ -514,10 +514,9 @@ def bulletins():
 
         if search:
             eleve_nom = f"{eleve.prenom} {eleve.nom}".lower() if eleve else ""
-            matricule = str(eleve.id if eleve else "")
-            code_p = (getattr(eleve, 'code_parent', '') or '').lower() if eleve else ""
+            matricule = (eleve.matricule or '').lower() if eleve else ""
             classe_nom = (ins.classe.nom if ins.classe else "").lower()
-            if search not in eleve_nom and search not in matricule and search not in code_p and search not in classe_nom:
+            if search not in eleve_nom and search not in matricule and search not in classe_nom:
                 continue
 
         matieres_manquantes = eval_info.get('missing_subjects_names', [])
@@ -1334,7 +1333,7 @@ def verifier_bulletin_public(token):
     is_official = bool(eval_info.get("is_official", False))
     statut_bulletin = "BULLETIN OFFICIEL" if is_official else "BULLETIN PROVISOIRE"
     statut_description = "Document authentique" if is_official else "Document authentique mais non définitif"
-    matricule = eleve.code_parent or f"#{eleve.id}"
+    matricule = eleve.matricule
 
     resp = make_response(render_template(
         'verifier_bulletin.html',

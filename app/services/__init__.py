@@ -783,7 +783,7 @@ def _construire_elements_bulletin(
 
     # SECTION 2 : CARTE IDENTITÉ ÉLÈVE (STYLE ACADÉMIQUE AVANCÉ)
     nom_prenom = f"{eleve.nom} {eleve.prenom}".strip().upper() if eleve else "ÉLÈVE INCONNU"
-    matricule = getattr(eleve, 'matricule', None) or getattr(eleve, 'code_parent', None) or (f"#{eleve.id}" if hasattr(eleve, 'id') and eleve.id else "-")
+    matricule = (eleve.matricule or "—") if eleve else "—"
     classe_affichee = classe_nom or "Non renseignée"
     date_nais = eleve.date_naissance.strftime('%d/%m/%Y') if (eleve and hasattr(eleve, 'date_naissance') and eleve.date_naissance) else "—"
 

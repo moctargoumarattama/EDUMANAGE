@@ -102,27 +102,14 @@
                         </div>
                     </div>
 
-                    <!-- Paramètres Signataire & Lieu (Accordéon sobre repliable) -->
-                    <div class="border rounded-3 p-2.5 mb-2 bg-white">
-                        <div class="d-flex align-items-center justify-content-between cursor-pointer" data-bs-toggle="collapse" data-bs-target="#collapseSignataire">
-                            <span class="small fw-bold text-muted"><i class="fas fa-feather-alt text-primary me-1.5"></i>Signataire &amp; Ville d'émission</span>
-                            <i class="fas fa-chevron-down text-muted small"></i>
+                    <!-- Sécurisation automatique par QR Code officiel (Pas besoin de saisie manuelle) -->
+                    <div class="d-flex align-items-center gap-2.5 p-3 rounded-3 border bg-light mb-2">
+                        <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 38px; height: 38px;">
+                            <i class="fas fa-qrcode fs-5"></i>
                         </div>
-                        <div class="collapse pt-2.5" id="collapseSignataire">
-                            <div class="row g-2">
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label small text-muted mb-0.5">Titre du signataire</label>
-                                    <input type="text" name="signataire_titre" id="certSignataireTitre" class="form-control form-control-sm" value="Le Proviseur" placeholder="Ex: Le Proviseur">
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label small text-muted mb-0.5">Nom complet du signataire</label>
-                                    <input type="text" name="signataire_nom" id="certSignataireNom" class="form-control form-control-sm" value="" placeholder="Nom du chef d'établissement">
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <label class="form-label small text-muted mb-0.5">Ville d'émission</label>
-                                    <input type="text" name="ville_emission" id="certVilleEmission" class="form-control form-control-sm" value="Niamey" placeholder="Ville">
-                                </div>
-                            </div>
+                        <div class="small text-muted" style="line-height: 1.35;">
+                            <span class="fw-bold text-dark d-block">QR Code officiel &amp; Traçabilité Anti-Fraude</span>
+                            Le certificat comportera automatiquement le QR Code de vérification publique en ligne et les références officielles de l'établissement.
                         </div>
                     </div>
 

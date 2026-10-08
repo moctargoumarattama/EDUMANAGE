@@ -10,6 +10,28 @@ from app import db
 from app.models import Classe, Eleve, Inscription
 
 
+def cle_identite_eleve(nom, prenom, date_naissance):
+    """Identité utilisée pour éviter plusieurs dossiers pour le même élève."""
+    return ((nom or "").strip().lower(), (prenom or "").strip().lower(), date_naissance)
+
+
+def trouver_eleves_identiques(ecole_id, nom, prenom, date_naissance, exclure_id=None):
+    """Cherche une identité exacte dans l'école, sans fusionner les homonymes."""
+    if not date_naissance:
+        return []
+    identite = cle_identite_eleve(nom, prenom, date_naissance)
+    query = Eleve.query.filter_by(
+        ecole_id=ecole_id, date_naissance=date_naissance,
+    )
+    if exclure_id is not None:
+        query = query.filter(Eleve.id != exclure_id)
+    candidats = query.order_by(Eleve.id).all()
+    return [
+        eleve for eleve in candidats
+        if cle_identite_eleve(eleve.nom, eleve.prenom, eleve.date_naissance) == identite
+    ]
+
+
 def rechercher_eleves(
     ecole_id: int,
     annee_id: int,
@@ -27,7 +49,7 @@ def rechercher_eleves(
     Paramètres :
         ecole_id   : identifiant de l'école courante (obligatoire).
         annee_id   : identifiant de l'année scolaire consultée (obligatoire).
-        search     : recherche textuelle sur nom, prénom, matricule ou code_parent.
+        search     : recherche textuelle sur nom, prénom, matricule ou contact.
         classe_id  : filtre par classe (l'appartenance à l'école est vérifiée).
         niveau     : filtre par niveau scolaire (chaîne, ex: "6ème").
         genre      : filtre par genre ("M" / "F").
@@ -58,7 +80,7 @@ def rechercher_eleves(
             db.or_(
                 Eleve.nom.ilike(pat),
                 Eleve.prenom.ilike(pat),
-                Eleve.code_parent.ilike(pat),
+                Eleve.matricule.ilike(pat),
                 Eleve.contact_parent.ilike(pat),
             )
         )

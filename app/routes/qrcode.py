@@ -92,6 +92,7 @@ def api_qr_info(eleve_id):
 
     response = jsonify({
         'nom': f"{eleve.prenom} {eleve.nom}",
+        'matricule': eleve.matricule,
         'ecole': eleve.ecole.nom if eleve.ecole else '',
         'annee_scolaire': annee_active.nom if annee_active else None,
         'classe': ins.classe.nom if (ins and ins.classe) else 'Aucune inscription active',

@@ -246,7 +246,7 @@
                                  data-student-id="{{ eleve.id }}"
                                  data-class-id="{{ grp.id }}"
                                  data-statut="{{ el_insc.statut if el_insc else 'inscrit' }}"
-                                 data-search="{{ (eleve.nom ~ ' ' ~ eleve.prenom ~ ' ' ~ (eleve.code_parent or '') ~ ' ' ~ (eleve.contact_parent or '') ~ ' ' ~ grp.nom) | lower }}">
+                                 data-search="{{ (eleve.nom ~ ' ' ~ eleve.prenom ~ ' ' ~ (eleve.matricule or '') ~ ' ' ~ (eleve.contact_parent or '') ~ ' ' ~ grp.nom) | lower }}">
                                 
                                 <div class="student-card-main" onclick="openFicheEleve({{ eleve.id }}, false)" role="button" tabindex="0" title="Cliquer pour ouvrir la fiche détaillée sur place">
                                     <div class="student-entry-avatar">
@@ -285,7 +285,7 @@
                                                         </a>
                                                     </li>
                                                     <li>
-                                                        <button type="button" class="dropdown-item py-2 small text-dark" onclick="ouvrirModalCertificat({{ eleve.id }}, '{{ eleve.prenom }} {{ eleve.nom }}', '{{ eleve.matricule or eleve.code_parent or '' }}', '{{ grp.nom if grp.id != 'sans-classe' else '' }}');">
+                                                        <button type="button" class="dropdown-item py-2 small text-dark" onclick="ouvrirModalCertificat({{ eleve.id }}, '{{ eleve.prenom }} {{ eleve.nom }}', '{{ eleve.matricule or '' }}', '{{ grp.nom if grp.id != 'sans-classe' else '' }}');">
                                                             <i class="fas fa-file-contract text-primary me-2"></i>Certificat administratif
                                                         </button>
                                                     </li>
@@ -307,7 +307,7 @@
                                         <div class="student-entry-meta mt-1">
                                             <span>
                                                 <i class="fas fa-id-badge text-muted me-1"></i>
-                                                {{ eleve.code_parent or ('ELV-' ~ eleve.id) }}
+                                                {{ eleve.matricule }}
                                             </span>
                                             <span class="text-truncate" style="max-width: 180px;">
                                                 <i class="fas fa-user-friends text-muted me-1"></i>
@@ -344,7 +344,7 @@
                                     </a>
                                     {% if current_user.role in ['admin', 'super_admin'] and (not annee_consultee or annee_consultee.statut != 'archivee') %}
                                     <button type="button" class="student-action-btn btn btn-sm btn-outline-secondary d-none d-md-inline-flex align-items-center justify-content-center"
-                                            onclick="ouvrirModalCertificat({{ eleve.id }}, '{{ eleve.prenom }} {{ eleve.nom }}', '{{ eleve.matricule or eleve.code_parent or '' }}', '{{ grp.nom if grp.id != 'sans-classe' else '' }}');"
+                                            onclick="ouvrirModalCertificat({{ eleve.id }}, '{{ eleve.prenom }} {{ eleve.nom }}', '{{ eleve.matricule or '' }}', '{{ grp.nom if grp.id != 'sans-classe' else '' }}');"
                                             title="Générer un certificat administratif (Scolarité, Inscription, Transfert)">
                                         <i class="fas fa-stamp me-1"></i>Certificat
                                     </button>
@@ -1132,7 +1132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (classeNom) classeNom.innerHTML = `<i class="fas fa-chalkboard me-1"></i>Classe : <strong>${cls.nom}</strong>`;
 
         const matricule = document.getElementById('mfeMatricule');
-        if (matricule) matricule.innerHTML = `<i class="fas fa-id-badge me-1"></i>Matricule : <strong>${el.code_parent}</strong>`;
+        if (matricule) matricule.innerHTML = `<i class="fas fa-id-badge me-1"></i>Matricule : <strong>${el.matricule || '—'}</strong>`;
 
         // Notes & Moyenne
         const moyenneEl = document.getElementById('mfeMoyenne');
@@ -1466,7 +1466,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div class="ancien-eleve-item list-group-item list-group-item-action d-flex align-items-center justify-content-between p-2.5 mb-1 bg-white rounded border"
                                      data-id="{{ e.id }}" 
                                      data-nom="{{ e.prenom }} {{ e.nom }}" 
-                                     data-matricule="{{ e.code_parent or ('ELV-' ~ e.id) }}"
+                                     data-matricule="{{ e.matricule }}"
                                      data-derniere-classe="{% if e.inscriptions %}{{ e.inscriptions[-1].classe.nom }}{% else %}Non assignée{% endif %}"
                                      style="cursor: pointer; transition: all 0.15s ease-in-out;">
                                     <div class="d-flex align-items-center gap-3">
@@ -1476,7 +1476,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <div>
                                             <div class="fw-bold text-dark item-nom">{{ e.prenom }} {{ e.nom }}</div>
                                             <div class="text-muted small item-meta">
-                                                Matricule : <span class="fw-semibold">{{ e.code_parent or ('ELV-' ~ e.id) }}</span>
+                                                Matricule : <span class="fw-semibold">{{ e.matricule }}</span>
                                                 {% if e.inscriptions %}
                                                 • Dernière classe : <span class="badge bg-secondary-subtle text-secondary">{{ e.inscriptions[-1].classe.nom }}</span>
                                                 {% endif %}

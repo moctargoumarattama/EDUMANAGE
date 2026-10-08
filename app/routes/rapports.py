@@ -691,7 +691,7 @@ def recherche():
         eleve_query = Eleve.query.filter(
             (Eleve.nom.ilike(like)) |
             (Eleve.prenom.ilike(like)) |
-            (Eleve.code_parent.ilike(like))
+            (Eleve.matricule.ilike(like))
         )
 
         if ecole_id:

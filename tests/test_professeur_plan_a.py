@@ -159,7 +159,11 @@ class TestProfesseurPlanA(unittest.TestCase):
         self.assertEqual(len(data['eleves']), 1)
         self.assertEqual(data['eleves'][0]['nom'], "Sow")
         self.assertEqual(data['eleves'][0]['prenom'], "Awa")
-        self.assertEqual(data['eleves'][0]['matricule'], "MAT-001")
+        self.assertEqual(data['eleves'][0]['matricule'], self.eleve.matricule)
+        self.assertRegex(data['eleves'][0]['matricule'], r"^[0-9]{2}-[0-9]{4}$")
+        self.assertNotEqual(data['eleves'][0]['matricule'], self.eleve.code_parent)
+        self.assertNotIn('code_parent', data['eleves'][0])
+        self.assertNotIn(self.eleve.code_parent, resp.get_data(as_text=True))
 
     def test_zero_fuite_admin_dans_notes_professeur(self):
         """Vérifie l'absence absolue de fuite de données admin dans la page notes pour le professeur."""

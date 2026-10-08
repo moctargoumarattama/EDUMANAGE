@@ -1233,7 +1233,7 @@ def api_professeur_offline_data():
                         'id': e.id,
                         'nom': e.nom,
                         'prenom': e.prenom,
-                        'matricule': getattr(e, 'matricule', None) or f"EL-{e.id}",
+                        'matricule': e.matricule,
                         'classe_id': insc.classe_id,
                         'classe_nom': insc.classe.nom if insc.classe else None
                     })
@@ -1347,7 +1347,7 @@ def api_admin_offline_data():
                     'id': e.id,
                     'nom': e.nom,
                     'prenom': e.prenom,
-                    'matricule': getattr(e, 'matricule', None) or f"EL-{e.id}",
+                    'matricule': e.matricule,
                     'classe_id': insc.classe_id,
                     'classe_nom': insc.classe.nom if insc.classe else None
                 })

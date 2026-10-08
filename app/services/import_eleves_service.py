@@ -17,6 +17,8 @@ from app import db
 from app.models import AnneeScolaire, Classe, Eleve, Inscription, Utilisateur
 from app.services.classes_annuelles import get_classes_ouvertes_annee
 from app.services.inscriptions_annuelles import creer_inscription_annuelle
+from app.services.eleves import cle_identite_eleve, trouver_eleves_identiques
+from app.services.matricule_service import verrouiller_ecole
 
 
 def _get_temp_import_filepath(token: str) -> str:
@@ -66,7 +68,7 @@ def generer_modele_excel_eleves() -> io.BytesIO:
         "Nom *",
         "Prénom *",
         "Genre (M/F)",
-        "Date de naissance (AAAA-MM-JJ)",
+        "Date de naissance (AAAA-MM-JJ) *",
         "Lieu de naissance",
         "Adresse",
         "Nom du parent",
@@ -180,8 +182,13 @@ def previsualiser_import_excel(file_stream, ecole_id: int, annee_consultee: Anne
     classes_ouvertes = get_classes_ouvertes_annee(ecole_id, annee_consultee.id)
     map_classes = {c.nom.strip().lower(): c for c in classes_ouvertes}
     
-    # Élèves existants dans l'établissement pour la détection des doublons
+    # Le matricule représente le dossier permanent, indépendamment des parents.
     eleves_ecole = Eleve.query.filter_by(ecole_id=ecole_id).all()
+    eleves_par_identite = {}
+    for eleve in eleves_ecole:
+        identite = cle_identite_eleve(eleve.nom, eleve.prenom, eleve.date_naissance)
+        eleves_par_identite.setdefault(identite, []).append(eleve)
+    identites_fichier = {}
     
     lignes_analysees = []
     count_valides = 0
@@ -217,6 +224,8 @@ def previsualiser_import_excel(file_stream, ecole_id: int, annee_consultee: Anne
         # Validation 1 : Nom & Prénom
         if not nom or not prenom:
             errs.append("Nom et prénom sont obligatoires.")
+        if not date_naissance:
+            errs.append("Une date de naissance valide est obligatoire.")
 
         # Validation 2 : Classe présente et ouverte dans l'année consultée
         if not classe_nom:
@@ -226,38 +235,32 @@ def previsualiser_import_excel(file_stream, ecole_id: int, annee_consultee: Anne
             if not classe_obj:
                 errs.append(f"Classe '{classe_nom}' introuvable ou fermée pour l'année {annee_consultee.nom}.")
 
-        # Validation 3 : Anti-doublons et détection de rapprochement
-        if nom and prenom:
-            candidats = [
-                e for e in eleves_ecole 
-                if e.nom.strip().lower() == nom.lower() and e.prenom.strip().lower() == prenom.lower()
-            ]
-            if len(candidats) == 1:
-                cand = candidats[0]
-                # Match certain si date de naissance ou contact correspond
-                match_certain = (
-                    (date_naissance and cand.date_naissance == date_naissance) or
-                    (telephone_parent and cand.contact_parent == telephone_parent) or
-                    (email_parent and cand.email_parent == email_parent)
-                )
-                if match_certain or not (date_naissance or cand.date_naissance):
-                    existing_eleve = cand
-                    # Vérifier si déjà inscrit cette année
-                    insc = Inscription.query.filter_by(
-                        ecole_id=ecole_id, eleve_id=cand.id, annee_scolaire_id=annee_consultee.id
-                    ).first()
-                    if insc:
-                        warns.append(f"Élève déjà inscrit en {insc.classe.nom} pour l'année {annee_consultee.nom} (sera ignoré).")
+        # Validation 3 : identité exacte, sans fusion basée sur le contact parent.
+        if nom and prenom and date_naissance:
+            identite = cle_identite_eleve(nom, prenom, date_naissance)
+            if identite in identites_fichier:
+                errs.append(f"Doublon de la ligne {identites_fichier[identite]} dans ce fichier.")
+                action = "Ignoré (Doublon du fichier)"
+            else:
+                identites_fichier[identite] = row_idx
+
+            candidats = eleves_par_identite.get(identite, [])
+            if len(candidats) > 1:
+                matricules = ", ".join(e.matricule for e in candidats)
+                errs.append(f"Plusieurs dossiers existants pour cette identité ({matricules}). Vérifiez-les avant l'import.")
+            elif candidats:
+                existing_eleve = candidats[0]
+                insc = Inscription.query.filter_by(
+                    ecole_id=ecole_id, eleve_id=existing_eleve.id, annee_scolaire_id=annee_consultee.id,
+                ).first()
+                if insc:
+                    warns.append(f"Matricule {existing_eleve.matricule} déjà inscrit pour l'année {annee_consultee.nom} (sera ignoré).")
+                    if not errs:
                         action = "Déjà inscrit"
-                    else:
-                        action = "Réinscription"
-                        warns.append(f"Élève permanent existant (ID #{cand.id}). Une nouvelle inscription sera créée.")
                 else:
-                    warns.append("Doublon potentiel (même nom/prénom mais infos différentes). Pas d'auto-fusion : créé comme NOUVEL élève.")
-                    action = "Nouveau (Doublon à vérifier)"
-            elif len(candidats) > 1:
-                warns.append(f"{len(candidats)} élèves portent le même nom/prénom. Aucune fusion automatique. Créé comme NOUVEL élève.")
-                action = "Nouveau (Doublons multiples)"
+                    warns.append(f"Dossier existant, matricule {existing_eleve.matricule}. Une nouvelle inscription sera créée.")
+                    if not errs:
+                        action = "Réinscription"
 
         status_row = "error" if errs else ("warning" if warns else "valid")
         if errs:
@@ -313,19 +316,48 @@ def executer_import_excel(lignes_valides: list, ecole_id: int, annee_consultee: 
     ignores = 0
 
     try:
+        # Le verrou est conservé jusqu'au commit, y compris durant les relectures.
+        verrouiller_ecole(ecole_id)
+        identites_traitees = set()
+        classes_autorisees = {
+            classe.id for classe in get_classes_ouvertes_annee(ecole_id, annee_consultee.id)
+        }
         for item in lignes_valides:
-            action = item.get('action')
-            if action == "Déjà inscrit" or item.get('status') == 'error':
+            if item.get('status') == 'error':
                 ignores += 1
                 continue
 
             classe_id = item.get('classe_id')
-            if not classe_id:
+            if classe_id not in classes_autorisees:
                 ignores += 1
                 continue
 
-            eleve_id = item.get('existing_eleve_id')
-            if eleve_id:
+            date_naiss = _parse_date(item.get('date_naissance'))
+            nom = (item.get('nom') or '').strip()
+            prenom = (item.get('prenom') or '').strip()
+            if not nom or not prenom or not date_naiss:
+                ignores += 1
+                continue
+            identite = cle_identite_eleve(nom, prenom, date_naiss)
+            if identite in identites_traitees:
+                ignores += 1
+                continue
+            identites_traitees.add(identite)
+
+            # Une autre importation a pu créer le dossier depuis la prévisualisation.
+            candidats = trouver_eleves_identiques(ecole_id, nom, prenom, date_naiss)
+            if len(candidats) > 1:
+                ignores += 1
+                continue
+
+            if candidats:
+                eleve_id = candidats[0].id
+                deja_inscrit = Inscription.query.filter_by(
+                    ecole_id=ecole_id, eleve_id=eleve_id, annee_scolaire_id=annee_consultee.id,
+                ).first()
+                if deja_inscrit:
+                    ignores += 1
+                    continue
                 # Élève existant -> créer uniquement l'inscription annuelle
                 insc, err = creer_inscription_annuelle(
                     ecole_id=ecole_id,
@@ -339,8 +371,6 @@ def executer_import_excel(lignes_valides: list, ecole_id: int, annee_consultee: 
                     ignores += 1
             else:
                 # Création d'un nouvel élève
-                date_naiss = _parse_date(item.get('date_naissance'))
-                
                 # Gestion facultative d'un utilisateur Parent
                 parent_id = None
                 email_parent = item.get('email_parent')
@@ -352,8 +382,8 @@ def executer_import_excel(lignes_valides: list, ecole_id: int, annee_consultee: 
                         parent_id = parent_user.id
 
                 nouveau = Eleve(
-                    nom=item['nom'].strip(),
-                    prenom=item['prenom'].strip(),
+                    nom=nom,
+                    prenom=prenom,
                     genre=item.get('genre', 'M'),
                     date_naissance=date_naiss,
                     lieu_naissance=item.get('lieu_naissance'),
@@ -362,6 +392,7 @@ def executer_import_excel(lignes_valides: list, ecole_id: int, annee_consultee: 
                     email_parent=email_parent,
                     ecole_id=ecole_id,
                     statut=item.get('statut', 'actif'),
+                    annee_premiere_ecole=annee_consultee.date_debut.year,
                 )
                 db.session.add(nouveau)
                 db.session.flush()
@@ -375,7 +406,7 @@ def executer_import_excel(lignes_valides: list, ecole_id: int, annee_consultee: 
                 if not err:
                     crees += 1
                 else:
-                    ignores += 1
+                    raise ValueError(err)
 
         db.session.commit()
         return True, "Importation réalisée avec succès.", crees, reinscrits, ignores

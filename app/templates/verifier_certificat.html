@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vérification de Document Officiel - KLASORA Authenticity</title>
+    <title>Vérification de Document - {{ ecole.nom if ecole else 'KLASORA' }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -23,7 +23,7 @@
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
             width: 100%;
-            max-width: 580px;
+            max-width: 560px;
             overflow: hidden;
             position: relative;
         }
@@ -38,13 +38,13 @@
         }
 
         .pulse-shield {
-            width: 76px;
-            height: 76px;
+            width: 72px;
+            height: 72px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 34px;
+            font-size: 32px;
             margin: 0 auto 16px auto;
             position: relative;
         }
@@ -76,7 +76,7 @@
         }
 
         .data-row {
-            padding: 10px 0;
+            padding: 11px 0;
             border-bottom: 1px dashed #e2e8f0;
             display: flex;
             justify-content: space-between;
@@ -91,6 +91,7 @@
         .data-label {
             color: #64748b;
             font-size: 13.5px;
+            font-weight: 500;
         }
 
         .data-val {
@@ -99,13 +100,13 @@
             text-align: right;
         }
 
-        .security-badge {
-            background-color: #f8fafc;
-            border: 1px solid #e2e8f0;
+        .notice-box {
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
             border-radius: 12px;
-            padding: 12px 16px;
-            font-size: 12.5px;
-            color: #475569;
+            padding: 13px 16px;
+            font-size: 13px;
+            color: #166534;
             line-height: 1.5;
         }
     </style>
@@ -114,18 +115,18 @@
 
     <div class="verify-card shadow-lg">
         
-        <!-- Barre supérieure de marque -->
+        <!-- Barre supérieure simple -->
         <div class="verify-top-bar">
             <div class="d-flex align-items-center gap-2">
-                <i class="fas fa-shield-alt text-primary fs-5"></i>
-                <span class="fw-bold tracking-wide">KLASORA VERIFY</span>
+                <i class="fas fa-check-circle text-success fs-5"></i>
+                <span class="fw-bold tracking-wide">Vérification de Document</span>
             </div>
-            <span class="badge bg-secondary-subtle text-light border border-secondary font-monospace" style="font-size: 11px;">
-                ANTI-FRAUDE SÉCURISÉ
+            <span class="badge bg-success-subtle text-success border border-success font-monospace" style="font-size: 11px;">
+                Document Officiel
             </span>
         </div>
 
-        <div class="p-4 p-md-4.5">
+        <div class="p-4 p-md-4">
             
             {% if valide and cert %}
             <!-- STATUT : AUTHENTIQUE & VÉRIFIÉ -->
@@ -133,83 +134,79 @@
                 <div class="pulse-shield success">
                     <i class="fas fa-check"></i>
                 </div>
-                <h4 class="fw-bold text-success mb-1">Document Officiel Authentifié</h4>
-                <p class="text-muted small mb-0">Le document scanné est certifié conforme au registre numérique de l'établissement.</p>
+                <h4 class="fw-bold text-success mb-1">Document Officiel Vérifié</h4>
+                <p class="text-muted small mb-0">Ce document est bien enregistré dans les registres de l'établissement scolaire.</p>
             </div>
 
             <!-- Fiche d'identité du certificat -->
             <div class="card border-0 bg-light rounded-4 p-3 mb-3">
                 <div class="data-row">
-                    <span class="data-label"><i class="fas fa-school me-1.5 text-primary"></i>Établissement</span>
-                    <span class="data-val">{{ ecole.nom if ecole else "Établissement Émetteur" }}</span>
+                    <span class="data-label"><i class="fas fa-school me-2 text-primary"></i>Établissement</span>
+                    <span class="data-val">{{ ecole.nom if ecole else "Établissement scolaire" }}</span>
                 </div>
                 <div class="data-row">
-                    <span class="data-label"><i class="fas fa-file-alt me-1.5 text-primary"></i>Document</span>
+                    <span class="data-label"><i class="fas fa-file-alt me-2 text-primary"></i>Document</span>
                     <span class="data-val text-primary">{{ cert.titre_document }}</span>
                 </div>
                 <div class="data-row">
-                    <span class="data-label"><i class="fas fa-barcode me-1.5 text-primary"></i>Référence</span>
+                    <span class="data-label"><i class="fas fa-barcode me-2 text-primary"></i>Référence</span>
                     <span class="data-val font-monospace badge bg-dark text-white px-2 py-1">{{ cert.reference }}</span>
                 </div>
                 <div class="data-row">
-                    <span class="data-label"><i class="fas fa-user-graduate me-1.5 text-primary"></i>Élève</span>
+                    <span class="data-label"><i class="fas fa-user-graduate me-2 text-primary"></i>Élève</span>
                     <span class="data-val text-uppercase">{{ eleve.nom }} {{ eleve.prenom }}</span>
                 </div>
                 <div class="data-row">
-                    <span class="data-label"><i class="fas fa-id-card me-1.5 text-primary"></i>Matricule scellé</span>
-                    <span class="data-val font-monospace text-muted">{{ matricule_masque }}</span>
+                    <span class="data-label"><i class="fas fa-id-card me-2 text-primary"></i>Matricule</span>
+                    <span class="data-val font-monospace text-dark">{{ eleve.matricule if eleve else '—' }}</span>
                 </div>
                 <div class="data-row">
-                    <span class="data-label"><i class="fas fa-chalkboard me-1.5 text-primary"></i>Classe &amp; Niveau</span>
+                    <span class="data-label"><i class="fas fa-chalkboard me-2 text-primary"></i>Classe &amp; Niveau</span>
                     <span class="data-val">{{ cert.classe_nom }}{% if cert.niveau %} ({{ cert.niveau }}){% endif %}</span>
                 </div>
                 <div class="data-row">
-                    <span class="data-label"><i class="fas fa-graduation-cap me-1.5 text-primary"></i>Année Scolaire</span>
+                    <span class="data-label"><i class="fas fa-graduation-cap me-2 text-primary"></i>Année Scolaire</span>
                     <span class="data-val">{{ cert.annee_scolaire }}</span>
                 </div>
                 <div class="data-row">
-                    <span class="data-label"><i class="fas fa-calendar-check me-1.5 text-primary"></i>Date d'émission</span>
-                    <span class="data-val">{{ cert.date_emission.strftime('%d/%m/%Y') }} ({{ cert.ville_emission }})</span>
-                </div>
-                <div class="data-row">
-                    <span class="data-label"><i class="fas fa-signature me-1.5 text-primary"></i>Signataire</span>
-                    <span class="data-val">{{ cert.signataire_nom }} <small class="text-muted fw-normal">({{ cert.signataire_titre }})</small></span>
+                    <span class="data-label"><i class="fas fa-calendar-check me-2 text-primary"></i>Date d'émission</span>
+                    <span class="data-val">{{ cert.date_emission.strftime('%d/%m/%Y') }}{% if cert.ville_emission %} ({{ cert.ville_emission }}){% endif %}</span>
                 </div>
             </div>
 
-            <!-- Avertissement légal -->
-            <div class="security-badge">
-                <i class="fas fa-info-circle text-primary me-1"></i>
-                <strong>Notice d'intégrité :</strong> Cette attestation numérique fait foi. Toute divergence entre le certificat papier physique et les données affichées ci-dessus indique une falsification ou une altération non autorisée.
+            <!-- Notice simple et claire -->
+            <div class="notice-box">
+                <i class="fas fa-info-circle me-1"></i>
+                Ces informations sont conformes au registre officiel de l'établissement. En cas de doute ou pour tout renseignement, veuillez contacter directement l'école.
             </div>
 
             {% else %}
-            <!-- STATUT : INVALIDE OU INTROUVABLE -->
+            <!-- STATUT : INTROUVABLE -->
             <div class="text-center my-3">
                 <div class="pulse-shield danger">
                     <i class="fas fa-times"></i>
                 </div>
-                <h4 class="fw-bold text-danger mb-1">Document Invalide ou Inconnu</h4>
-                <p class="text-muted small mb-3">Aucun document administratif ne correspond à ce code de vérification.</p>
+                <h4 class="fw-bold text-danger mb-1">Document non trouvé</h4>
+                <p class="text-muted small mb-3">Aucun document ne correspond à ce code de vérification.</p>
 
                 <div class="card border border-danger-subtle bg-danger-subtle bg-opacity-25 rounded-4 p-3 text-start mb-3">
                     <div class="small text-danger fw-semibold mb-1">
-                        <i class="fas fa-exclamation-triangle me-1"></i>Alerte de sécurité anti-fraude
+                        <i class="fas fa-exclamation-circle me-1"></i>Vérification impossible
                     </div>
                     <div class="small text-muted">
-                        Le code <code>{{ code }}</code> n'est enregistré dans aucun registre officiel d'établissement KLASORA. Ce document papier présente un risque élevé de falsification.
+                        Ce code n'est pas enregistré dans l'établissement scolaire. Si vous détenez ce document papier, veuillez vous adresser directement au secrétariat de l'école.
                     </div>
                 </div>
 
-                <div class="security-badge text-start">
-                    Pour toute vérification d'authenticité, veuillez vous adresser directement au secrétariat de l'établissement concerné.
+                <div class="alert alert-secondary py-2 px-3 small text-start rounded-3 mb-0">
+                    Pour toute question ou confirmation, veuillez contacter l'administration de l'établissement concerné.
                 </div>
             </div>
             {% endif %}
 
             <div class="text-center mt-3 pt-2">
                 <small class="text-muted" style="font-size: 11px;">
-                    Propulsé par <strong>KLASORA Secure Document Engine</strong> &copy; {{ now.year if now else '2026' }}
+                    KLASORA &copy; {{ now.year if now else '2026' }} • Gestion scolaire
                 </small>
             </div>
 

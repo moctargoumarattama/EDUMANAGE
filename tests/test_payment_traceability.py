@@ -10,6 +10,7 @@ Couvre :
 """
 
 from datetime import date, datetime
+import re
 import unittest
 
 from app import create_app, db
@@ -192,10 +193,13 @@ class PaymentTraceabilityTestCase(unittest.TestCase):
         res = self.client.get("/paiements/tracabilite")
         html = res.get_data(as_text=True)
 
-        # Aucune action destructrice
-        self.assertNotIn('method="POST"', html.upper())
-        self.assertNotIn("btn-outline-danger", html)
-        self.assertIn("Lecture seule", html)
+        # Vérifier la page d'audit, indépendamment des fenêtres globales du layout.
+        main = re.search(r"<main\b[^>]*>(.*?)</main>", html, re.S | re.I)
+        self.assertIsNotNone(main)
+        contenu = main.group(1)
+        self.assertNotRegex(contenu, r"(?i)method\s*=\s*['\"]post['\"]")
+        self.assertNotIn("btn-outline-danger", contenu)
+        self.assertIn("Lecture seule", contenu)
 
     # ------------------------------------------------------------------
     # 3. Traçabilité des opérations, compte opérateur et horodatage

@@ -112,7 +112,7 @@ class EleveParentPhoneOnlyTestCase(unittest.TestCase):
             ("+226 70 12 34 56", "+22670123456"),
         ), start=1):
             payload = self.eleve_payload(telephone=raw_phone, email="")
-            payload["nom"] = f"Moussa{stored_phone[-2:]}"
+            payload["nom"] = f"Moussa{index}-{stored_phone[-2:]}"
             payload["prenom"] = "Amina"
 
             with patch("app.routes.eleves.generate_access_code", return_value=f"77{index}{stored_phone[-5:]}"):

@@ -130,7 +130,7 @@
                         <select class="form-select form-select-sm" id="sortQrSelect">
                             <option value="name_asc">Nom & Prénom (A → Z)</option>
                             <option value="name_desc">Nom & Prénom (Z → A)</option>
-                            <option value="id_asc">ID Élève (Croissant)</option>
+                            <option value="matricule_asc">Matricule (Croissant)</option>
                         </select>
                     </div>
 
@@ -162,7 +162,7 @@
         {% for classe_nom, group in qrcodes_par_classe.items() %}
             {% set eleves_names_list = [] %}
             {% for item in group.qrcodes %}
-                {% set _ = eleves_names_list.append(item.eleve.prenom ~ ' ' ~ item.eleve.nom ~ ' id' ~ item.eleve.id) %}
+                {% set _ = eleves_names_list.append(item.eleve.prenom ~ ' ' ~ item.eleve.nom ~ ' ' ~ item.eleve.matricule) %}
             {% endfor %}
             {% set eleves_str = eleves_names_list|join(' ') %}
             {% set niveau_raw = (group.classe_niveau or classe_nom) | lower %}
@@ -218,6 +218,7 @@
                         <div class="col-6 col-sm-4 col-md-3 col-lg-2 qr-item-col"
                              data-eleve="{{ (item.eleve.prenom ~ ' ' ~ item.eleve.nom) | lower }}"
                              data-id="{{ item.eleve.id }}"
+                             data-matricule="{{ item.eleve.matricule }}"
                              data-name-sort="{{ (item.eleve.nom ~ ' ' ~ item.eleve.prenom) | lower }}">
                             <div class="card h-100 border-0 shadow-sm rounded-4 p-3 bg-white text-center text-break qr-card-item hover-lift transition-all">
                                 <div class="mb-2 position-relative d-inline-block p-2 bg-white rounded-3 border">
@@ -229,7 +230,7 @@
                                 <h3 class="h6 fw-bold text-dark mb-1 text-truncate" title="{{ item.eleve.prenom }} {{ item.eleve.nom }}">
                                     {{ item.eleve.prenom }} {{ item.eleve.nom }}
                                 </h3>
-                                <div class="small text-muted mb-2"><span class="badge bg-light text-dark border">ID #{{ item.eleve.id }}</span></div>
+                                <div class="small text-muted mb-2"><span class="badge bg-light text-dark border">Matricule {{ item.eleve.matricule }}</span></div>
 
                                 <div class="mt-auto d-print-none">
                                     <a href="{{ url_for('main.generer_qrcode_eleve', id=item.eleve.id) }}"
@@ -317,5 +318,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/qrcodes.js') }}?v=20260923_1"></script>
+<script src="{{ url_for('static', filename='js/qrcodes.js') }}?v=20261008_matricules_2"></script>
 {% endblock %}

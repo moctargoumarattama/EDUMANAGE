@@ -149,13 +149,10 @@ def generer():
 
     etablissement_destination = (data.get('etablissement_destination') or '').strip() or None
 
-    # Signataire et émission
-    signataire_nom = (data.get('signataire_nom') or '').strip()
-    if not signataire_nom:
-        signataire_nom = (getattr(ecole, 'directeur', None) or current_user.nom_complet or 'La Direction').strip()
-
-    signataire_titre = (data.get('signataire_titre') or '').strip() or 'Le Proviseur'
-    ville_emission = (data.get('ville_emission') or getattr(ecole, 'ville', None) or 'Niamey').strip()
+    # Émission & Ville (prise automatiquement depuis la page profil-école)
+    ville_emission = (getattr(ecole, 'ville', None) or data.get('ville_emission') or 'Niamey').strip()
+    signataire_nom = (data.get('signataire_nom') or getattr(ecole, 'nom', None) or 'La Direction').strip()
+    signataire_titre = (data.get('signataire_titre') or 'La Direction').strip()
 
     date_emission = date.today()
     date_emission_str = data.get('date_emission', '').strip()
@@ -222,6 +219,18 @@ def imprimer(certificat_id):
     eleve = cert.eleve
     ecole = cert.ecole or db.session.get(Ecole, cert.ecole_id)
 
+    # Résolution du logo comme pour le bulletin scolaire
+    logo_url = None
+    if ecole:
+        if ecole.logo_path and ecole.logo_path != 'default_logo.png':
+            logo_url = url_for('static', filename=ecole.logo_path)
+        elif ecole.logo and ecole.logo != 'default_logo.png':
+            logo_url = url_for('static', filename='uploads/logos/' + ecole.logo)
+
+    nom_ecole = ecole.nom if ecole else "ÉTABLISSEMENT SCOLAIRE"
+    mots = [w for w in nom_ecole.replace('-', ' ').split() if w]
+    monogramme_initiales = ''.join(w[0].upper() for w in mots[:2]) if mots else 'KL'
+
     # URL publique absolue pour le QR Code
     verification_url = url_for('certificats.verifier', code=cert.code_verification, _external=True)
     qr_base64 = _generer_qr_code_base64(verification_url)
@@ -231,6 +240,8 @@ def imprimer(certificat_id):
         cert=cert,
         eleve=eleve,
         ecole=ecole,
+        logo_url=logo_url,
+        monogramme_initiales=monogramme_initiales,
         verification_url=verification_url,
         qr_base64=qr_base64
     )
@@ -307,7 +318,7 @@ def registre():
                 CertificatAdministratif.reference.ilike(search_pattern),
                 Eleve.nom.ilike(search_pattern),
                 Eleve.prenom.ilike(search_pattern),
-                Eleve.code_parent.ilike(search_pattern)
+                Eleve.matricule.ilike(search_pattern)
             )
         )
 

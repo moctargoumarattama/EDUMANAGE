@@ -380,6 +380,10 @@ class Utilisateur(db.Model, UserMixin):
     def is_admin(self) -> bool:
         return self.role == 'admin'
 
+    @property
+    def nom_complet(self) -> str:
+        return f"{self.prenom or ''} {self.nom or ''}".strip()
+
     def get_professeur(self):
         return self.professeur_rel if self.role == 'professeur' else None
 
@@ -620,6 +624,7 @@ class Eleve(db.Model):
     email_parent = db.Column(db.String(120))
     genre = db.Column(db.String(1), default='M')
     frais_annuels = db.Column(db.Float, default=150000.0)
+    matricule = db.Column(db.String(12), nullable=True, index=True)
     code_parent = db.Column(db.String(10), unique=True, nullable=True)
     photo = db.Column(db.String(200), default='default_eleve.png')
     statut = db.Column(db.String(20), default='actif')
@@ -641,6 +646,7 @@ class Eleve(db.Model):
     annee_premiere_ecole = db.Column(db.Integer)
 
     __table_args__ = (
+        db.UniqueConstraint('ecole_id', 'matricule', name='uq_eleve_ecole_matricule'),
         db.Index('ix_eleve_parent_id', 'parent_id'),
         db.Index('ix_eleve_ecole_id', 'ecole_id'),
     )
@@ -668,10 +674,6 @@ class Eleve(db.Model):
         total_coeff = sum(n.coefficient for n in self.notes)
         return round(total_pondere / total_coeff, 2) if total_coeff > 0 else 0
 
-    @property
-    def matricule(self):
-        return self.code_parent or (f"ELV-{self.id}" if self.id else "")
-
     def __repr__(self):
         return f'<Élève {self.prenom} {self.nom}>'
 
@@ -689,7 +691,7 @@ class Eleve(db.Model):
             "email_parent": self.email_parent,
             "genre": self.genre,
             "frais_annuels": self.frais_annuels,
-            "code_parent": self.code_parent,
+            "matricule": self.matricule,
             "photo": self.photo,
             "statut": self.statut,
             "date_inscription": self.date_inscription.isoformat() if self.date_inscription else None,
@@ -697,6 +699,18 @@ class Eleve(db.Model):
             "parent_id": self.parent_id,
             "annee_premiere_ecole": self.annee_premiere_ecole
         }
+class MatriculeSequence(db.Model):
+    """Réservations transactionnelles par école et préfixe annuel."""
+    __tablename__ = 'matricule_sequence'
+
+    ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id', ondelete='CASCADE'), primary_key=True)
+    prefixe = db.Column(db.String(2), primary_key=True)
+    dernier_numero = db.Column(db.Integer, nullable=False, default=0)
+    __table_args__ = (
+        db.CheckConstraint('dernier_numero >= 0 AND dernier_numero <= 9999', name='ck_matricule_sequence_capacite'),
+    )
+
+
 # -----------------------
 # Note
 # -----------------------
@@ -1900,6 +1914,14 @@ class CertificatAdministratif(db.Model):
             "code_verification": self.code_verification,
             "created_at": self.created_at.strftime("%d/%m/%Y %H:%M") if self.created_at else None,
         }
+
+
+# Charger les services seulement une fois tous les modèles définis.
+from app.services.matricule_service import attribuer_matricule, proteger_matricule, installer_protection_matricule
+
+event.listen(Eleve, 'before_insert', attribuer_matricule)
+event.listen(Eleve, 'before_update', proteger_matricule)
+event.listen(Eleve.__table__, 'after_create', installer_protection_matricule)
 
 
 

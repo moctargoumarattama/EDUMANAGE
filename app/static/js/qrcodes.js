@@ -147,8 +147,8 @@
                         return (a.dataset.nameSort || '').localeCompare(b.dataset.nameSort || '');
                     } else if (mode === 'name_desc') {
                         return (b.dataset.nameSort || '').localeCompare(a.dataset.nameSort || '');
-                    } else if (mode === 'id_asc') {
-                        return (parseInt(a.dataset.id) || 0) - (parseInt(b.dataset.id) || 0);
+                    } else if (mode === 'matricule_asc') {
+                        return (a.dataset.matricule || '').localeCompare(b.dataset.matricule || '', undefined, { numeric: true });
                     }
                     return 0;
                 });
@@ -210,8 +210,8 @@
                     var cardVisibleStudents = 0;
                     items.forEach(function (item) {
                         var eleveNom = normalizeStr(item.dataset.eleve);
-                        var eleveId = normalizeStr(item.dataset.id);
-                        if (!query || eleveNom.includes(query) || classeNom.includes(query) || eleveId.includes(query)) {
+                        var eleveMatricule = normalizeStr(item.dataset.matricule);
+                        if (!query || eleveNom.includes(query) || classeNom.includes(query) || eleveMatricule.includes(query)) {
                             item.style.display = '';
                             cardVisibleStudents++;
                         } else {

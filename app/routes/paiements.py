@@ -280,7 +280,7 @@ def paiements():
             db.or_(
                 Eleve.nom.ilike(like),
                 Eleve.prenom.ilike(like),
-                Eleve.code_parent.ilike(like),
+                Eleve.matricule.ilike(like),
                 Eleve.contact_parent.ilike(like),
                 Classe.nom.ilike(like),
                 Classe.niveau.ilike(like),

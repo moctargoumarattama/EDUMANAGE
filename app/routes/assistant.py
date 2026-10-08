@@ -497,6 +497,8 @@ def _search_eleves_in_ecole(search_term: str, ecole_id: int) -> List[Eleve]:
         return []
 
     clean_term = _clean_search_term(search_term)
+    clean_term = re.sub(r"^matricule\s*[:#]?\s*", "", clean_term, flags=re.IGNORECASE).strip()
+    clean_term = re.sub(r"^(\d{2})\s+(\d{4,})$", r"\1-\2", clean_term)
     if not clean_term:
         return []
 
@@ -521,7 +523,7 @@ def _search_eleves_in_ecole(search_term: str, ecole_id: int) -> List[Eleve]:
             or_(
                 Eleve.nom.ilike(pattern),
                 Eleve.prenom.ilike(pattern),
-                Eleve.code_parent.ilike(pattern),
+                Eleve.matricule.ilike(pattern),
             )
         ).limit(5).all()
     else:
@@ -644,7 +646,7 @@ def _build_eleve_dossier(eleve: Eleve, ecole_id: int, annee_id: Optional[int] = 
     return {
         "eleve_id": eleve.id,
         "nom_complet": f"{eleve.prenom} {eleve.nom}",
-        "matricule": eleve.code_parent or f"ELV-{eleve.id}",
+        "matricule": eleve.matricule,
         "classe": classe_nom,
         "statut": eleve.statut or "actif",
         "genre": eleve.genre or "M",
@@ -965,7 +967,7 @@ def _format_homonymes_choice(candidates: List[Eleve], search_term: str, ecole_id
     for idx, el in enumerate(candidates, 1):
         inscr = [i for i in el.inscriptions if i.ecole_id == ecole_id]
         cl_nom = inscr[-1].classe.nom if (inscr and inscr[-1].classe) else "Non assignée"
-        mat = el.code_parent or f"ELV-{el.id}"
+        mat = el.matricule
         nom_complet = f"{el.prenom} {el.nom}"
         lines.append(
             f"**{idx}. {nom_complet}** — Classe de **{cl_nom}** (Matricule : `{mat}`)\n"
@@ -1487,7 +1489,7 @@ def _handle_effectif_classe(ecole_id: int, annee_id: Optional[int], classe_nom: 
         lines.append("\n**Liste des élèves inscrits :**")
         for idx, insc in enumerate(inscrits[:25], 1):
             el = insc.eleve
-            mat = el.code_parent or f"ELV-{el.id}"
+            mat = el.matricule
             lines.append(f"{idx}. [{el.prenom} {el.nom}](/eleve/{el.id}) (Matricule: `{mat}`)")
         if total > 25:
             lines.append(f"\n*... et {total - 25} autre(s) élève(s).*")

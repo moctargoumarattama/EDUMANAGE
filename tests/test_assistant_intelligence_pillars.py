@@ -186,7 +186,10 @@ def test_pillar_1_homonym_disambiguation(intelligence_app_and_client):
     assert data_direct['success'] is True
     assert data_direct['intention'] == 'fiche_eleve'
     assert "6ème A" in data_direct['reply']
-    assert "ELV-6A-01" in data_direct['reply']
+    with app.app_context():
+        eleve = Eleve.query.filter_by(code_parent="ELV-6A-01").one()
+        assert eleve.matricule in data_direct['reply']
+        assert eleve.code_parent not in data_direct['reply']
 
 
 # =========================================================================

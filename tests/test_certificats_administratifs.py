@@ -26,10 +26,10 @@ class TestCertificatsAdministratifs(unittest.TestCase):
         db.create_all()
         self.client = self.app.test_client()
 
-        # Établissement A
-        self.ecole_a = Ecole(nom="Lycée d'Excellence Niamey", onboarding_complete=True, adresse="Quartier Plateau, Niamey")
+        # Établissement A (avec ville configurée dans son profil)
+        self.ecole_a = Ecole(nom="Lycée d'Excellence Niamey", onboarding_complete=True, adresse="Quartier Plateau, Niamey", ville="Niamey")
         # Établissement B (pour tester le cloisonnement étanche)
-        self.ecole_b = Ecole(nom="Collège Privé Espoir", onboarding_complete=True, adresse="Quartier Yantala, Niamey")
+        self.ecole_b = Ecole(nom="Collège Privé Espoir", onboarding_complete=True, adresse="Quartier Yantala, Niamey", ville="Niamey")
         db.session.add_all([self.ecole_a, self.ecole_b])
         db.session.commit()
 
@@ -302,9 +302,8 @@ class TestCertificatsAdministratifs(unittest.TestCase):
         self.assertIn("IDRISSA", html)
         self.assertIn("CS-2025-0042", html)
         self.assertIn("Terminale C", html)
-        self.assertIn("M. Ousmane Ibrahim", html)
-        self.assertIn("Le Proviseur", html)
-        # Vérification de la présence du QR code embarqué base64
+        # Vérification de l'absence de mention Proviseur et de la présence exclusive du QR Code
+        self.assertNotIn("Le Proviseur", html)
         self.assertIn("data:image/png;base64,", html)
         self.assertIn("Scannez pour", html)
 
@@ -312,7 +311,7 @@ class TestCertificatsAdministratifs(unittest.TestCase):
     # 4. TEST VÉRIFICATION PUBLIQUE SANS AUTHENTIFICATION
     # =========================================================================
     def test_verification_publique_certificat_authentique(self):
-        """Accès public sans login à l'URL de vérification QR code avec badge authentique."""
+        """Accès public sans login à l'URL de vérification QR code avec badge vérifié."""
         cert = CertificatAdministratif(
             ecole_id=self.ecole_a.id,
             eleve_id=self.eleve.id,
@@ -335,19 +334,20 @@ class TestCertificatsAdministratifs(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         html = resp.get_data(as_text=True)
 
-        self.assertIn("Document Officiel Authentifi", html)
+        self.assertIn("Document Officiel", html)
         self.assertIn("CS-2025-0099", html)
         self.assertIn("Lyc", html)
         self.assertIn("IDRISSA", html)
+        self.assertIn("registre officiel", html.lower())
 
     def test_verification_publique_certificat_invalide(self):
-        """Vérifie le retour pour un code falsifié ou inexistant."""
+        """Vérifie le retour pour un code introuvable."""
         resp = self.client.get("/certificats/verifier/fake-token-inconnu-999")
         self.assertEqual(resp.status_code, 404)
         html = resp.get_data(as_text=True)
 
-        self.assertIn("Document Invalide ou Inconnu", html)
-        self.assertIn("falsification", html.lower())
+        self.assertIn("Document non trouv", html)
+        self.assertIn("secr", html.lower())
 
     # =========================================================================
     # 5. SÉCURITÉ, ISOLATION MULTI-ÉTABLISSEMENT & ACCÈS RÔLES
@@ -443,6 +443,30 @@ class TestCertificatsAdministratifs(unittest.TestCase):
         self.assertEqual(data["eleve"]["nom"], "IDRISSA")
         self.assertEqual(data["eleve"]["classe_nom"], "Terminale C")
         self.assertEqual(data["eleve"]["annee_scolaire"], "2025-2026")
+
+    def test_ville_prise_depuis_profil_ecole(self):
+        """Vérifie que la ville d'émission est tirée de la page profil-école (ecole.ville)."""
+        self.ecole_a.ville = "Maradi"
+        db.session.commit()
+        self.login_admin_a()
+
+        payload = {
+            "eleve_id": self.eleve.id,
+            "type_certificat": "scolarite"
+        }
+        resp = self.client.post("/certificats/generer", json=payload)
+        self.assertEqual(resp.status_code, 200)
+
+        cert = CertificatAdministratif.query.filter_by(eleve_id=self.eleve.id).order_by(CertificatAdministratif.id.desc()).first()
+        self.assertEqual(cert.ville_emission, "Maradi")
+
+        # Impression : doit afficher Fait à Maradi et contenir le QR Code sans Proviseur
+        resp_print = self.client.get(f"/certificats/imprimer/{cert.id}")
+        self.assertEqual(resp_print.status_code, 200)
+        html = resp_print.get_data(as_text=True)
+        self.assertIn("Maradi", html)
+        self.assertNotIn("Le Proviseur", html)
+        self.assertIn("data:image/png;base64,", html)
 
 
 if __name__ == "__main__":

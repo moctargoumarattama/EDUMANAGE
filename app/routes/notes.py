@@ -180,7 +180,7 @@ def notes():
             Eleve.prenom.ilike(search_term),
             (Eleve.prenom + ' ' + Eleve.nom).ilike(search_term),
             (Eleve.nom + ' ' + Eleve.prenom).ilike(search_term),
-            Eleve.code_parent.ilike(search_term),
+            Eleve.matricule.ilike(search_term),
         ]
         if classe_id:
             search_clauses.append(Cours.nom.ilike(search_term))

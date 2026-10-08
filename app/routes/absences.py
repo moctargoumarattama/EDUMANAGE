@@ -243,7 +243,7 @@ def absences():
                 or_(
                     and_(Eleve.prenom.ilike(f"%{words[0]}%"), Eleve.nom.ilike(f"%{words[1]}%")),
                     and_(Eleve.nom.ilike(f"%{words[0]}%"), Eleve.prenom.ilike(f"%{words[1]}%")),
-                    Eleve.code_parent.ilike(search_pattern),
+                    Eleve.matricule.ilike(search_pattern),
                     Cours.nom.ilike(search_pattern),
                     Absence.motif.ilike(search_pattern),
                 )
@@ -253,7 +253,7 @@ def absences():
                 or_(
                     Eleve.prenom.ilike(search_pattern),
                     Eleve.nom.ilike(search_pattern),
-                    Eleve.code_parent.ilike(search_pattern),
+                    Eleve.matricule.ilike(search_pattern),
                     Cours.nom.ilike(search_pattern),
                     Absence.motif.ilike(search_pattern),
                 )

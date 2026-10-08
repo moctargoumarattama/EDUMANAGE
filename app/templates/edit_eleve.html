@@ -11,7 +11,7 @@
             </div>
             <div>
                 <h1 class="page-title">Modifier l'élève</h1>
-                <p class="page-subtitle">{{ eleve.prenom }} {{ eleve.nom }} · Matricule / Identifiant : #{{ eleve.id }}</p>
+                <p class="page-subtitle">{{ eleve.prenom }} {{ eleve.nom }} · Matricule : {{ eleve.matricule }}</p>
             </div>
         </div>
         <a href="{{ detail_url or url_for('main.voir_eleve', eleve_id=eleve.id) }}" class="btn btn-outline-secondary">

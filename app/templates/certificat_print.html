@@ -42,26 +42,76 @@
             margin: 0 auto 15px auto;
         }
 
-        /* En-tête officiel */
+        /* En-tête officiel style bulletin prestigieux */
         .header-school {
-            border-bottom: 2px solid #0f172a;
-            padding-bottom: 16px;
+            border-bottom: 2.5px solid #0f172a;
+            padding-bottom: 18px;
+        }
+
+        .school-logo-badge {
+            width: 96px;
+            height: 96px;
+            min-width: 96px;
+            border-radius: 50%;
+            border: 2.5px solid #cbd5e1;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+            flex-shrink: 0;
+            padding: 3px;
+        }
+
+        .school-logo-badge img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 50%;
+        }
+
+        .school-monogram-circle {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            border: 2px solid #93c5fd;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Cinzel', serif;
+            font-weight: 800;
+            font-size: 34px;
+            letter-spacing: 1.5px;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
         }
 
         .school-name {
             font-family: 'Cinzel', Georgia, serif;
-            font-size: 20px;
-            font-weight: 700;
+            font-size: 22px;
+            font-weight: 800;
             color: #0f172a;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
             line-height: 1.25;
             text-transform: uppercase;
         }
 
+        .school-devise {
+            font-size: 13.5px;
+            font-style: italic;
+            color: #b45309;
+            font-weight: 600;
+            margin-top: 2px;
+            line-height: 1.3;
+        }
+
         .school-meta {
             font-size: 13.5px;
-            color: #334155;
+            color: #475569;
             line-height: 1.45;
+            margin-top: 3px;
         }
 
         /* Boîte de titre officielle : cadre rectangulaire noir */
@@ -141,35 +191,10 @@
         .qr-wrapper {
             display: inline-block;
             background: #ffffff;
-            padding: 4px;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-        }
-
-        .footer-right {
-            text-align: right;
-        }
-
-        .signature-title {
-            font-weight: 700;
-            font-size: 15.5px;
-            color: #0f172a;
-        }
-
-        .signature-sub {
-            font-size: 13.5px;
-            color: #475569;
-        }
-
-        .signature-box {
-            margin-top: 45px;
-            border-top: 1px solid #000000;
-            width: 190px;
-            text-align: center;
-            font-size: 12px;
-            color: #64748b;
-            padding-top: 4px;
-            margin-left: auto;
+            padding: 5px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         .watermark-subtle {
@@ -237,34 +262,39 @@
         </div>
 
         <div>
-            <!-- En-tête officiel de l'école -->
+            <!-- En-tête officiel de l'école (Rendu prestigieux comme pour le bulletin) -->
             <div class="header-school d-flex justify-content-between align-items-center gap-3">
-                <div class="d-flex align-items-center gap-3">
-                    {% if ecole and ecole.logo_path and ecole.logo_path != 'default_logo.png' %}
-                    <img src="{{ url_for('static', filename=ecole.logo_path) }}" alt="Logo" style="height: 62px; max-width: 80px; object-fit: contain;">
-                    {% else %}
-                    <div class="rounded-3 border border-dark p-2 d-flex align-items-center justify-content-center" style="width: 54px; height: 54px; font-size: 24px;">
-                        <i class="fas fa-school"></i>
+                <div class="d-flex align-items-center gap-3 min-w-0">
+                    <div class="school-logo-badge">
+                        {% if logo_url %}
+                        <img src="{{ logo_url }}" alt="Logo École" onerror="this.style.display='none'; document.getElementById('fallbackMono').classList.remove('d-none');">
+                        <div id="fallbackMono" class="school-monogram-circle d-none">
+                            {{ monogramme_initiales }}
+                        </div>
+                        {% else %}
+                        <div class="school-monogram-circle">
+                            {{ monogramme_initiales }}
+                        </div>
+                        {% endif %}
                     </div>
-                    {% endif %}
                     <div>
-                        <h2 class="school-name mb-0.5">{{ ecole.nom if ecole else "ÉTABLISSEMENT SCOLAIRE" }}</h2>
+                        <h2 class="school-name mb-0">{{ ecole.nom if ecole else "ÉTABLISSEMENT SCOLAIRE" }}</h2>
+                        {% if ecole and (ecole.devise or ecole.slogan) %}
+                        <div class="school-devise">« {{ ecole.devise or ecole.slogan }} »</div>
+                        {% endif %}
                         <div class="school-meta">
                             {{ ecole.adresse or "Adresse de l'établissement" }}
                             {% if ecole and ecole.telephone %} • Tél : {{ ecole.telephone }}{% endif %}
                             {% if ecole and ecole.email %} • Email : {{ ecole.email }}{% endif %}
                         </div>
-                        {% if ecole and ecole.devise %}
-                        <div class="fst-italic text-muted" style="font-size: 12.5px;">« {{ ecole.devise }} »</div>
-                        {% endif %}
                     </div>
                 </div>
 
-                <div class="text-end" style="min-width: 140px;">
-                    <div class="badge bg-light text-dark border font-monospace px-2.5 py-1 mb-1" style="font-size: 11.5px;">
+                <div class="text-end flex-shrink-0" style="min-width: 145px;">
+                    <div class="badge bg-light text-dark border font-monospace px-3 py-1.5 mb-1 shadow-xs" style="font-size: 12px; letter-spacing: 0.5px;">
                         {{ cert.reference }}
                     </div>
-                    <div class="text-muted" style="font-size: 12px;">Année : {{ cert.annee_scolaire }}</div>
+                    <div class="text-muted fw-semibold" style="font-size: 12px;">Année : {{ cert.annee_scolaire }}</div>
                 </div>
             </div>
 
@@ -280,7 +310,7 @@
             <div class="certificat-body">
                 
                 <p>
-                    Je soussigné(e), <strong>{{ cert.signataire_nom }}</strong>, en qualité de <strong>{{ cert.signataire_titre }}</strong> du <em>{{ ecole.nom if ecole else "l'Établissement" }}</em>, certifie par la présente que :
+                    L'administration de l'établissement <em>{{ ecole.nom if ecole else "l'Établissement" }}</em> certifie par la présente que :
                 </p>
 
                 <p>
@@ -321,38 +351,30 @@
             </div>
         </div>
 
-        <!-- Pied de page aligné en 3 colonnes -->
+        <!-- Pied de page officiel avec QR Code anti-fraude (sans signature ni proviseur) -->
         <div class="certificat-footer">
-            <div class="row align-items-end">
+            <div class="d-flex justify-content-between align-items-end flex-wrap gap-3">
                 
-                <!-- Colonne Gauche : Date et Lieu de délivrance -->
-                <div class="col-4 footer-left">
-                    <div>Fait à <strong>{{ cert.ville_emission }}</strong>,</div>
+                <!-- Colonne Gauche : Date et Lieu d'après le profil de l'école -->
+                <div class="footer-left">
+                    <div>Fait à <strong>{{ ecole.ville if ecole and ecole.ville else (cert.ville_emission or 'Niamey') }}</strong>,</div>
                     <div>le <strong>{{ cert.date_emission.strftime('%d/%m/%Y') }}</strong>.</div>
-                    <div class="text-muted small mt-2" style="font-size: 11px;">
-                        Document certifié conforme.<br>Registre officiel Klasora.
+                    <div class="text-muted small mt-2" style="font-size: 11.5px; line-height: 1.45;">
+                        Document officiel certifié conforme et infalsifiable.<br>
+                        Enregistré au registre numérique officiel KLASORA.
                     </div>
                 </div>
 
-                <!-- Colonne Centrale : Référence et QR Code anti-fraude -->
-                <div class="col-4 footer-center">
+                <!-- Colonne Droite : QR Code officiel de certification anti-fraude -->
+                <div class="footer-center text-center">
                     <div class="qr-wrapper mb-1">
-                        <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR Code Vérification" style="width: 65px; height: 65px; display: block;">
+                        <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR Code Vérification" style="width: 88px; height: 88px; display: block;">
                     </div>
-                    <div class="font-monospace text-dark fw-bold" style="font-size: 10.5px; letter-spacing: 0.5px;">
+                    <div class="font-monospace text-dark fw-bold" style="font-size: 11.5px; letter-spacing: 0.5px;">
                         {{ cert.reference }}
                     </div>
-                    <div class="text-muted" style="font-size: 9.5px;">
+                    <div class="text-muted fw-semibold" style="font-size: 10px;">
                         Scannez pour vérifier l'authenticité
-                    </div>
-                </div>
-
-                <!-- Colonne Droite : Nom, Titre & Signature -->
-                <div class="col-4 footer-right">
-                    <div class="signature-title">{{ cert.signataire_nom }}</div>
-                    <div class="signature-sub">{{ cert.signataire_titre }}</div>
-                    <div class="signature-box">
-                        Signature &amp; Cachet officiel
                     </div>
                 </div>
 
