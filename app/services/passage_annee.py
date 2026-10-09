@@ -290,6 +290,8 @@ def executer_passage_eleve(
     classe_cible_id=None,
     motif_sortie=None,
     statut_cible=None,
+    date_depart=None,
+    etablissement_destination=None,
 ):
     """
     Exécute atomiquement le passage d'année pour un élève.
@@ -444,17 +446,28 @@ def executer_passage_eleve(
                 "Un conflit existe : l'élève est déjà inscrit dans l'année cible "
                 f"dans une classe différente (classe_id={inscription_cible_existante.classe_id})."
             )
-        # Décisions sans cible : déjà traité si statut cohérent
-        if inscription_cible_existante:
-            return {
-                "ok": True,
-                "action": decision,
-                "eleve_id": eleve.id,
-                "inscription_source_id": inscription_source.id,
-                "inscription_cible_id": None,
-                "classe_cible_id": None,
-                "deja_traite": True,
-            }, None
+        if decision in DECISIONS_SANS_CIBLE:
+            # Si l'élève a une préinscription/inscription dans l'année cible,
+            # un transfert ou une radiation doit annuler cette inscription cible
+            # et ne jamais bloquer l'opération avec "déjà traité".
+            if inscription_cible_existante and inscription_cible_existante.statut != "annulee":
+                inscription_cible_existante.statut = "annulee"
+                inscription_cible_existante.motif_sortie = f"Annulé suite à décision {decision}"
+                inscription_cible_existante.updated_at = datetime.utcnow()
+                db.session.flush()
+
+            # Déjà traité uniquement si l'inscription source est DÉJÀ clôturée sous ce statut
+            statut_attendu = _STATUT_SOURCE.get(decision, "sorti")
+            if inscription_source.statut == statut_attendu and inscription_source.decision_fin_annee == decision:
+                return {
+                    "ok": True,
+                    "action": decision,
+                    "eleve_id": eleve.id,
+                    "inscription_source_id": inscription_source.id,
+                    "inscription_cible_id": None,
+                    "classe_cible_id": None,
+                    "deja_traite": True,
+                }, None
 
     # -----------------------------------------------------------------------
     # PHASE 2 : Mutations atomiques
@@ -492,6 +505,13 @@ def executer_passage_eleve(
         if error:
             return None, f"Erreur clôture inscription source : {error}"
 
+        if date_depart:
+            inscription_source.date_depart = date_depart
+        if etablissement_destination:
+            inscription_source.etablissement_destination = etablissement_destination
+        if decision in ("transfert", "sortie"):
+            eleve.statut = statut_source
+
         # 2c. Flush groupé — le commit appartient à l'appelant
         db.session.flush()
 
@@ -501,6 +521,7 @@ def executer_passage_eleve(
 
     return {
         "ok": True,
+        "succes": True,
         "action": decision,
         "eleve_id": eleve.id,
         "inscription_source_id": inscription_source.id,
@@ -946,40 +967,23 @@ def executer_passage_masse(
 # 7. Récupération des résultats académiques annuels (Quick Wins Ergonomiques)
 # ---------------------------------------------------------------------------
 
-def get_moyennes_annuelles_eleves(ecole_id, annee_id):
+def get_deliberations_annuelles_eleves(ecole_id, annee_id):
     """
-    Moyenne des deux semestres selon les mêmes règles que les bulletins.
-    Sans bulletin, les notes sont regroupées par matière puis pondérées avec le
-    coefficient officiel du cours. Un semestre manquant ne produit pas de
-    décision annuelle automatique.
+    Évalue le parcours annuel de chaque élève selon les règles académiques strictes :
+    1. Nombre de périodes obligatoires = len(annee.periodes) (ou 2 par défaut en cycle semestriel).
+    2. La moyenne annuelle est calculée en divisant par le nombre réglementaire de périodes officielles.
+    3. Si une ou plusieurs périodes sont manquantes (non évaluées / non scolarisées) :
+       - Statut de délibération = "Dossier Incomplet"
+       - Suggestion automatique de passage bloquée = "Décision réservée au conseil (cursus incomplet)"
+       - cursus_incomplet = True
+    4. Si le cursus est complet :
+       - Statut de délibération = "Complet"
+       - Suggestion = "passage" si moyenne >= 10.0 else "redoublement"
 
-    Retourne : dict {eleve_id: float_arrondi_2_decimales}
+    Retourne : dict {eleve_id: dict_deliberation}
     """
     if not ecole_id or not annee_id:
         return {}
-
-    moyennes = {}
-
-    # 1. Requête groupée sur les bulletins
-    bulletin_rows = (
-        db.session.query(
-            Bulletin.eleve_id,
-            func.avg(Bulletin.moyenne_generale)
-        )
-        .filter(
-            Bulletin.ecole_id == ecole_id,
-            Bulletin.annee_scolaire_id == annee_id,
-            Bulletin.moyenne_generale.isnot(None)
-        )
-        .group_by(Bulletin.eleve_id)
-        .all()
-    )
-    for eleve_id, moy in bulletin_rows:
-        if moy is not None:
-            try:
-                moyennes[eleve_id] = round(float(moy), 2)
-            except (ValueError, TypeError):
-                pass
 
     from collections import defaultdict
     from app.services.evaluations import calculer_moyenne_matiere
@@ -987,50 +991,169 @@ def get_moyennes_annuelles_eleves(ecole_id, annee_id):
         PERIODES_SEMESTRES, calculer_moyenne_generale_semestre, calculer_moyenne_annuelle,
     )
 
+    deliberations = {}
+
+    annee = db.session.get(AnneeScolaire, annee_id)
+    periodes_officielles = [p.nom for p in annee.periodes] if annee and annee.periodes else []
+    nb_attendues = len(periodes_officielles)
+
+    # Récupérer tous les bulletins existants pour cette année
+    bulletins_rows = (
+        Bulletin.query.filter(
+            Bulletin.ecole_id == ecole_id,
+            Bulletin.annee_scolaire_id == annee_id,
+            Bulletin.moyenne_generale.isnot(None),
+        ).all()
+    )
+
+    if nb_attendues == 0:
+        if bulletins_rows:
+            periodes_uniques = {b.periode for b in bulletins_rows if b.periode}
+            nb_attendues = max(1, len(periodes_uniques))
+        else:
+            nb_attendues = 2  # Par défaut cycle semestriel
+
+    bulletins_par_eleve = defaultdict(list)
+    for b in bulletins_rows:
+        bulletins_par_eleve[b.eleve_id].append(b)
+
+    for eleve_id, b_list in bulletins_par_eleve.items():
+        periodes_vues = {}
+        for b in b_list:
+            p_key = b.periode or f"periode_{len(periodes_vues)}"
+            periodes_vues[p_key] = float(b.moyenne_generale)
+
+        nb_evaluees = len(periodes_vues)
+        somme_moyennes = sum(periodes_vues.values())
+
+        if nb_attendues > 1 and nb_evaluees < nb_attendues:
+            # Cursus incomplet : diviser par le nombre réglementaire de périodes officielles
+            moyenne_reglementaire = round(somme_moyennes / nb_attendues, 2)
+            deliberations[eleve_id] = {
+                "moyenne": moyenne_reglementaire,
+                "cursus_incomplet": True,
+                "statut": "Dossier Incomplet",
+                "statut_deliberation": "Dossier Incomplet",
+                "suggestion": "Décision réservée au conseil (cursus incomplet)",
+                "periodes_evaluees": nb_evaluees,
+                "periodes_attendues": nb_attendues,
+                "nb_periodes_evaluees": nb_evaluees,
+                "nb_periodes_attendues": nb_attendues,
+            }
+        else:
+            diviseur = max(1, nb_attendues if nb_attendues > 1 else nb_evaluees)
+            moyenne_reglementaire = round(somme_moyennes / diviseur, 2)
+            statut_delib = "Admis" if moyenne_reglementaire >= 10.0 else "Ajourné"
+            deliberations[eleve_id] = {
+                "moyenne": moyenne_reglementaire,
+                "cursus_incomplet": False,
+                "statut": "Complet",
+                "statut_deliberation": statut_delib,
+                "suggestion": "passage" if moyenne_reglementaire >= 10.0 else "redoublement",
+                "periodes_evaluees": nb_evaluees,
+                "periodes_attendues": nb_attendues,
+                "nb_periodes_evaluees": nb_evaluees,
+                "nb_periodes_attendues": nb_attendues,
+            }
+
+    # 2. Pour les élèves sans bulletin, fallback sur les notes
     inscriptions = Inscription.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_id).all()
-    sans_bulletin = {i.eleve_id: i for i in inscriptions if i.eleve_id not in moyennes}
-    if not sans_bulletin:
-        return moyennes
+    sans_bulletin = {i.eleve_id: i for i in inscriptions if i.eleve_id not in deliberations}
 
-    notes = Note.query.filter(
-        Note.ecole_id == ecole_id, Note.annee_id == annee_id,
-        Note.eleve_id.in_(sans_bulletin), Note.valeur.isnot(None),
-        Note.periode.in_(PERIODES_SEMESTRES),
-    ).all()
-    cours_ids = {n.cours_id for n in notes}
-    cours_map = {c.id: c for c in Cours.query.filter(
-        Cours.ecole_id == ecole_id, Cours.id.in_(cours_ids)
-    ).all()} if cours_ids else {}
-    par_eleve = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
-    for note in notes:
-        inscription = sans_bulletin[note.eleve_id]
-        cours = cours_map.get(note.cours_id)
-        if not cours or not cours.classe or cours.classe.annee_scolaire_id != annee_id:
-            continue
-        # Les anciennes notes sans inscription sont recevables uniquement dans
-        # la classe actuelle. Les notes liées gardent leur classe historique.
-        if note.inscription_id not in (None, inscription.id):
-            continue
-        if note.inscription_id is None and cours.classe_id != inscription.classe_id:
-            continue
-        par_eleve[note.eleve_id][note.periode][cours.id].append(note)
+    if sans_bulletin:
+        notes = Note.query.filter(
+            Note.ecole_id == ecole_id,
+            Note.annee_id == annee_id,
+            Note.eleve_id.in_(sans_bulletin),
+            Note.valeur.isnot(None),
+            Note.periode.in_(PERIODES_SEMESTRES),
+        ).all()
 
-    for eleve_id, par_periode in par_eleve.items():
-        semestres = {}
-        for periode in PERIODES_SEMESTRES:
-            matieres = []
-            for cours_id, notes_matiere in par_periode.get(periode, {}).items():
-                moyenne = calculer_moyenne_matiere(notes_matiere)
-                if moyenne is not None:
-                    cours = cours_map[cours_id]
-                    coef = cours.coefficient if cours.coefficient and cours.coefficient > 0 else 1.0
-                    matieres.append((moyenne, coef))
-            semestres[periode] = calculer_moyenne_generale_semestre(matieres)
-        annuelle = calculer_moyenne_annuelle(*(semestres[p] for p in PERIODES_SEMESTRES))
-        if annuelle is not None:
-            moyennes[eleve_id] = annuelle
+        cours_ids = {n.cours_id for n in notes}
+        cours_map = {
+            c.id: c
+            for c in Cours.query.filter(
+                Cours.ecole_id == ecole_id, Cours.id.in_(cours_ids)
+            ).all()
+        } if cours_ids else {}
 
-    return moyennes
+        par_eleve = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+        for note in notes:
+            inscription = sans_bulletin[note.eleve_id]
+            cours = cours_map.get(note.cours_id)
+            if not cours or not cours.classe or cours.classe.annee_scolaire_id != annee_id:
+                continue
+            if note.inscription_id not in (None, inscription.id):
+                continue
+            if note.inscription_id is None and cours.classe_id != inscription.classe_id:
+                continue
+            par_eleve[note.eleve_id][note.periode][cours.id].append(note)
+
+        for eleve_id, par_periode in par_eleve.items():
+            semestres = {}
+            for periode in PERIODES_SEMESTRES:
+                matieres = []
+                for cours_id, notes_matiere in par_periode.get(periode, {}).items():
+                    moyenne = calculer_moyenne_matiere(notes_matiere)
+                    if moyenne is not None:
+                        cours = cours_map[cours_id]
+                        coef = cours.coefficient if cours.coefficient and cours.coefficient > 0 else 1.0
+                        matieres.append((moyenne, coef))
+                semestres[periode] = calculer_moyenne_generale_semestre(matieres)
+
+            nb_semestres_eval = sum(1 for p in PERIODES_SEMESTRES if semestres[p] is not None)
+            if nb_semestres_eval == len(PERIODES_SEMESTRES):
+                annuelle = calculer_moyenne_annuelle(*(semestres[p] for p in PERIODES_SEMESTRES))
+                if annuelle is not None:
+                    deliberations[eleve_id] = {
+                        "moyenne": annuelle,
+                        "cursus_incomplet": False,
+                        "statut_deliberation": "Complet",
+                        "suggestion": "passage" if annuelle >= 10.0 else "redoublement",
+                        "periodes_evaluees": nb_semestres_eval,
+                        "periodes_attendues": len(PERIODES_SEMESTRES),
+                    }
+            elif nb_semestres_eval > 0:
+                somme_eval = sum(semestres[p] for p in PERIODES_SEMESTRES if semestres[p] is not None)
+                moyenne_incomplet = round(somme_eval / len(PERIODES_SEMESTRES), 2)
+                deliberations[eleve_id] = {
+                    "moyenne": moyenne_incomplet,
+                    "cursus_incomplet": True,
+                    "statut_deliberation": "Dossier Incomplet",
+                    "suggestion": "Décision réservée au conseil (cursus incomplet)",
+                    "periodes_evaluees": nb_semestres_eval,
+                    "periodes_attendues": len(PERIODES_SEMESTRES),
+                    "_fallback_incomplet": True,
+                }
+
+    return deliberations
+
+
+def evaluer_deliberation_annuelle(ecole_id, annee_id, eleve_id):
+    """Évalue la situation de délibération d'un élève individuel."""
+    delibs = get_deliberations_annuelles_eleves(ecole_id, annee_id)
+    return delibs.get(eleve_id, {
+        "moyenne": None,
+        "cursus_incomplet": True,
+        "statut_deliberation": "Dossier Incomplet",
+        "suggestion": "Décision réservée au conseil (cursus incomplet)",
+        "periodes_evaluees": 0,
+        "periodes_attendues": 2,
+    })
+
+
+def get_moyennes_annuelles_eleves(ecole_id, annee_id):
+    """
+    Moyenne des deux semestres selon les mêmes règles que les bulletins.
+    Pour les élèves avec bulletins, divise par le nombre réglementaire de périodes officielles.
+    Un cursus incomplet en fallback de notes n'est pas émis pour préserver la règle académique.
+    """
+    delibs = get_deliberations_annuelles_eleves(ecole_id, annee_id)
+    return {
+        eid: data["moyenne"]
+        for eid, data in delibs.items()
+        if data.get("moyenne") is not None and not data.get("_fallback_incomplet")
+    }
 
 
 # ---------------------------------------------------------------------------

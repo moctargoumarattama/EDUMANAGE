@@ -630,3 +630,78 @@ def supprimer_bulletin(ecole_id, annee, user, bulletin_id):
     db.session.delete(bulletin)
     db.session.commit()
     return True, None
+
+
+def calculer_moyenne_annuelle_reglementaire(inscription_id, ecole_id):
+    """
+    Calcule la moyenne annuelle réglementaire d'un élève pour une inscription donnée.
+    Règle académique stricte :
+    - La division s'effectue obligatoirement par le nombre réglementaire de périodes officielles
+      (ex. 2 semestres ou 3 trimestres configurés pour l'année scolaire).
+    - Si une ou plusieurs périodes manquent à l'évaluation :
+      1. Statut = 'Dossier Incomplet'
+      2. cursus_incomplet = True
+      3. Suggestion = 'Décision réservée au conseil (cursus incomplet)'
+    """
+    vide = {
+        "moyenne_annuelle": None,
+        "statut": "Dossier Incomplet",
+        "statut_deliberation": "Dossier Incomplet",
+        "cursus_incomplet": True,
+        "nb_periodes_evaluees": 0,
+        "nb_periodes_attendues": 0,
+        "suggestion": "Décision réservée au conseil (cursus incomplet)",
+        "somme_moyennes": 0.0,
+        "bulletins": [],
+    }
+    if not inscription_id or not ecole_id:
+        return vide
+
+    inscription = Inscription.query.filter_by(id=inscription_id, ecole_id=ecole_id).first()
+    if not inscription:
+        return vide
+
+    annee = inscription.annee_scolaire
+    if annee and getattr(annee, "periodes_bulletin", None):
+        periodes_attendues = [p.nom for p in annee.periodes_bulletin]
+    else:
+        periodes_attendues = [SEMESTRE_1, SEMESTRE_2]
+
+    nb_attendues = max(1, len(periodes_attendues))
+
+    bulletins = Bulletin.query.filter_by(
+        ecole_id=ecole_id,
+        inscription_id=inscription.id,
+    ).filter(Bulletin.moyenne_generale.isnot(None)).all()
+
+    bulletins_map = {b.periode: b for b in bulletins if b.periode}
+    bulletins_utiles = [bulletins_map[p] for p in periodes_attendues if p in bulletins_map]
+
+    nb_evaluees = len(bulletins_utiles)
+    somme = sum(float(b.moyenne_generale) for b in bulletins_utiles)
+
+    cursus_incomplet = (nb_evaluees < nb_attendues)
+    moyenne_annuelle = round(somme / nb_attendues, 2) if nb_evaluees > 0 else None
+
+    if cursus_incomplet:
+        statut = "Dossier Incomplet"
+        suggestion = "Décision réservée au conseil (cursus incomplet)"
+    else:
+        statut = "Complet"
+        if moyenne_annuelle is not None:
+            suggestion = "Passage" if moyenne_annuelle >= 10.0 else "Redoublement"
+        else:
+            suggestion = "Décision réservée au conseil (cursus incomplet)"
+
+    return {
+        "moyenne_annuelle": moyenne_annuelle,
+        "statut": statut,
+        "statut_deliberation": statut,
+        "cursus_incomplet": cursus_incomplet,
+        "nb_periodes_evaluees": nb_evaluees,
+        "nb_periodes_attendues": nb_attendues,
+        "suggestion": suggestion,
+        "somme_moyennes": round(somme, 2),
+        "bulletins": bulletins_utiles,
+    }
+

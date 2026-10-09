@@ -8,7 +8,7 @@ import hashlib
 import os
 import threading
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 
 from flask import current_app, flash, url_for
 from flask_login import current_user
@@ -100,7 +100,7 @@ def get_statistics(classes):
 import time
 _ALERTES_CACHE = {}
 
-def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
+def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None, date_reference=None):
     from flask_login import current_user
     from app.utils import get_annee_consultee
     from app.models import AnneeScolaire, Inscription, Eleve
@@ -111,6 +111,8 @@ def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
     
     if annee is None:
         annee = get_annee_consultee(ecole_id)
+    elif isinstance(annee, int):
+        annee = AnneeScolaire.query.filter_by(id=annee, ecole_id=ecole_id).first()
     if not annee: return []
     if annee.statut == 'planifiee': return []
 
@@ -118,13 +120,15 @@ def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
     now = time.time()
     
     global _ALERTES_CACHE
-    if cache_key in _ALERTES_CACHE:
+    if not date_reference and cache_key in _ALERTES_CACHE:
         cached_data, timestamp = _ALERTES_CACHE[cache_key]
         if now - timestamp < 300:  # 5 minutes TTL
             return cached_data[:limit] if limit else cached_data
 
     alertes = []
-    maintenant = datetime.now()
+    maintenant = date_reference if date_reference is not None else datetime.now()
+    if isinstance(maintenant, date) and not isinstance(maintenant, datetime):
+        maintenant = datetime.combine(maintenant, datetime.min.time())
 
     # Construction de la timeline scolaire
     mois_scolaires_liste = get_mois_scolaires(annee)
@@ -283,10 +287,14 @@ def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None):
                 if (y, m_num) <= (maintenant.year, maintenant.month):
                     mois_dus.append(m_name)
 
-            mois_manquants = [m for m in mois_dus if m not in mois_payes]
-            if mois_manquants and total_paye < frais_annuels:
-                frais_mensuels = frais_annuels / len(timeline)
-                montant_du = round(min(frais_annuels - total_paye, frais_mensuels * len(mois_manquants)))
+            from app.services.paiements_annuels import calculer_retard_echeancier_inscription
+            retard_info = calculer_retard_echeancier_inscription(ins, annee, maintenant, seuil_tolerance=1000.0)
+            if retard_info["est_en_retard"]:
+                montant_du = round(retard_info["retard"])
+                frais_annuels = retard_info["frais_nets"]
+                mois_manquants = [m for m in mois_dus if m not in mois_payes]
+                if not mois_manquants:
+                    mois_manquants = mois_dus[-1:] if mois_dus else ["l'échéance courante"]
                 if montant_du > 0:
                     if jamais_paye:
                         type_alerte = 'danger'

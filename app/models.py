@@ -73,6 +73,11 @@ class AnneeScolaire(db.Model):
             return self.date_fin - timedelta(days=1)
         return None
 
+    @property
+    def periodes(self):
+        """Périodes d'évaluation officielles de l'année scolaire."""
+        return self.periodes_bulletin or []
+
     def __repr__(self):
         return f'<AnneeScolaire {self.nom} - {self.ecole.nom if self.ecole else "Sans école"}>'
 
@@ -1287,7 +1292,7 @@ class SyncLog(db.Model):
 # -----------------------
 # Inscriptions
 # -----------------------
-STATUTS_INSCRIPTION = {"preinscrit", "inscrit", "termine", "sorti", "transfere", "diplome"}
+STATUTS_INSCRIPTION = {"preinscrit", "inscrit", "termine", "sorti", "transfere", "diplome", "radie", "annulee"}
 
 class Inscription(db.Model):
     __tablename__ = "inscriptions"
@@ -1311,6 +1316,8 @@ class Inscription(db.Model):
     frais_inscription = db.Column(db.Float, nullable=False, default=0.0, server_default='0')
     date_inscription = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     date_sortie = db.Column(db.DateTime, nullable=True)
+    date_depart = db.Column(db.Date, nullable=True)
+    etablissement_destination = db.Column(db.String(150), nullable=True)
     motif_sortie = db.Column(db.String(255), nullable=True)
     decision_fin_annee = db.Column(db.String(30), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -1343,6 +1350,8 @@ class Inscription(db.Model):
             "frais_inscription": self.frais_inscription,
             "date_inscription": self.date_inscription.isoformat() if self.date_inscription else None,
             "date_sortie": self.date_sortie.isoformat() if self.date_sortie else None,
+            "date_depart": self.date_depart.isoformat() if self.date_depart else None,
+            "etablissement_destination": self.etablissement_destination,
             "motif_sortie": self.motif_sortie,
             "decision_fin_annee": self.decision_fin_annee
         }

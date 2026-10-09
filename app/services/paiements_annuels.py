@@ -102,21 +102,34 @@ def _synthese_inscription(inscription):
         "frais_inscription": float(getattr(inscription, "frais_inscription", 0) or 0),
         "total_paye": total_paye,
         "reste_a_payer": reste,
+        "solde_restant": reste,
+        "montant_net": frais,
         "pourcentage_paye": pourcentage,
         "statut_solde": statut,
     }
 
 
-def obtenir_synthese_financiere_eleve(eleve_id, annee_scolaire_id):
-    """Source canonique du solde d'un eleve pour une annee scolaire."""
-    inscription = Inscription.query.filter_by(
-        eleve_id=eleve_id, annee_scolaire_id=annee_scolaire_id
-    ).first()
+def obtenir_synthese_financiere_eleve(arg1, arg2, arg3=None):
+    """Source canonique du solde d'un élève pour une année scolaire.
+    Supporte (eleve_id, annee_scolaire_id) ou (ecole_id, eleve_id, annee_scolaire_id).
+    """
+    if arg3 is not None:
+        ecole_id, eleve_id, annee_scolaire_id = arg1, arg2, arg3
+        inscription = Inscription.query.filter_by(
+            ecole_id=ecole_id, eleve_id=eleve_id, annee_scolaire_id=annee_scolaire_id
+        ).first()
+    else:
+        eleve_id, annee_scolaire_id = arg1, arg2
+        inscription = Inscription.query.filter_by(
+            eleve_id=eleve_id, annee_scolaire_id=annee_scolaire_id
+        ).first()
+
     if not inscription:
         return {
             "inscription": None, "frais_du": 0.0, "frais_scolarite": 0.0,
             "frais_annuels": 0.0, "remise": 0.0, "frais_inscription": 0.0,
-            "total_paye": 0.0, "reste_a_payer": 0.0,
+            "total_paye": 0.0, "reste_a_payer": 0.0, "solde_restant": 0.0,
+            "montant_net": 0.0,
             "pourcentage_paye": 0.0, "statut_solde": "aucun",
         }
     return _synthese_inscription(inscription)
@@ -367,7 +380,140 @@ def modifier_frais_inscription(arg1, arg2, arg3, arg4, user):
         return False, "Montant des frais invalide."
 
     inscription.frais_annuels = montant_float
+    inscription.frais_scolarite = montant_float
     inscription.updated_at = datetime.utcnow()
     db.session.commit()
     return True, None
+
+
+def synchroniser_frais_et_remises_inscription(inscription, nouveau_frais=None, nouvelle_remise=None):
+    """
+    Synchronise instantanément les frais et la remise sur une inscription :
+    1. Met à jour frais_scolarite et remise.
+    2. Recalcule le net dû : frais_scolarite - remise + frais_inscription.
+    """
+    if not inscription:
+        return None
+
+    if nouveau_frais is not None:
+        try:
+            val_frais = float(nouveau_frais)
+            inscription.frais_scolarite = val_frais
+            inscription.frais_annuels = val_frais
+            if inscription.eleve:
+                inscription.eleve.frais_annuels = val_frais
+        except (ValueError, TypeError):
+            pass
+
+    if nouvelle_remise is not None:
+        try:
+            val_remise = float(nouvelle_remise)
+            inscription.remise = val_remise
+        except (ValueError, TypeError):
+            pass
+
+    base = (
+        inscription.frais_scolarite
+        if inscription.frais_scolarite is not None
+        else (inscription.frais_annuels or 150000.0)
+    )
+    remise = inscription.remise or 0.0
+    frais_insc = getattr(inscription, "frais_inscription", 0.0) or 0.0
+    frais_nets = max(0.0, float(base) - float(remise) + float(frais_insc))
+
+    if hasattr(inscription, "frais_nets"):
+        inscription.frais_nets = frais_nets
+
+    inscription.updated_at = datetime.utcnow()
+    db.session.flush()
+    return inscription
+
+
+def calculer_retard_echeancier_inscription(
+    inscription,
+    annee_scolaire=None,
+    date_reference=None,
+    seuil_tolerance=1000.0,
+):
+    """
+    Calcule l'état d'impayé / retard selon l'échéancier réel :
+    - Montant exigible à date = prorata des mois écoulés de l'année scolaire.
+    - retard = montant_cumule_exigible_a_date - total_versements_valides.
+    - Si retard > seuil_tolerance : élève en retard, relance active.
+    - La présence de micro-versements (ex: 100 FCFA) n'annule PAS la relance
+      tant que le montant exigible à date n'est pas couvert.
+    """
+    if not inscription:
+        return {
+            "frais_nets": 0.0,
+            "total_paye": 0.0,
+            "montant_exigible_a_date": 0.0,
+            "retard": 0.0,
+            "est_en_retard": False,
+            "mois_ecoules": 0,
+            "total_mois": 0,
+            "mois_couverts": 0,
+            "seuil_tolerance": float(seuil_tolerance),
+        }
+
+    annee = annee_scolaire or inscription.annee_scolaire
+    frais_nets = _frais_du_inscription(inscription)
+
+    # Récupérer tous les paiements valides
+    total_paye = float(
+        sum(
+            float(p.montant or 0)
+            for p in inscription.paiements
+            if (getattr(p, "statut", None) or "payé") not in ("rejete", "annule")
+        )
+    )
+
+    # Calcul de la timeline
+    mois_scolaires_liste = get_mois_scolaires(annee)
+    total_mois = len(mois_scolaires_liste) or 9
+    maintenant = date_reference or datetime.now()
+
+    month_to_num = {
+        "Janvier": 1, "Février": 2, "Mars": 3, "Avril": 4,
+        "Mai": 5, "Juin": 6, "Juillet": 7, "Août": 8,
+        "Septembre": 9, "Octobre": 10, "Novembre": 11, "Décembre": 12,
+    }
+
+    # Calcul des mois écoulés (exigibles)
+    mois_ecoules = 0
+    if annee and annee.date_debut and annee.date_fin:
+        date_ref = maintenant.date() if isinstance(maintenant, datetime) else maintenant
+        if date_ref >= annee.date_fin:
+            mois_ecoules = total_mois
+        elif date_ref < annee.date_debut:
+            mois_ecoules = 0
+        else:
+            for m_name in mois_scolaires_liste:
+                m_num = month_to_num.get(m_name, 1)
+                y = annee.date_debut.year if m_num >= 8 else annee.date_fin.year
+                if (y, m_num) <= (date_ref.year, date_ref.month):
+                    mois_ecoules += 1
+    else:
+        mois_ecoules = 1
+
+    mois_ecoules = max(1, min(mois_ecoules, total_mois))
+    frais_mensuel = frais_nets / total_mois if total_mois > 0 else 0.0
+    montant_exigible_a_date = min(frais_nets, round(frais_mensuel * mois_ecoules, 2))
+
+    retard = max(0.0, round(montant_exigible_a_date - total_paye, 2))
+    est_en_retard = retard > float(seuil_tolerance)
+    mois_couverts = int(total_paye // frais_mensuel) if frais_mensuel > 0 else total_mois
+
+    return {
+        "frais_nets": frais_nets,
+        "total_paye": total_paye,
+        "montant_exigible_a_date": montant_exigible_a_date,
+        "retard": retard,
+        "est_en_retard": est_en_retard,
+        "mois_ecoules": mois_ecoules,
+        "nb_mois_ecoules": mois_ecoules,
+        "total_mois": total_mois,
+        "mois_couverts": mois_couverts,
+        "seuil_tolerance": float(seuil_tolerance),
+    }
 

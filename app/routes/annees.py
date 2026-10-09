@@ -1,4 +1,4 @@
-﻿from . import main
+from . import main
 from .common import (
     AnneeScolaire,
     CSRFForm,
@@ -43,6 +43,8 @@ from app.services.passage_annee import (
     preparer_passage_masse,
     executer_passage_masse,
     get_moyennes_annuelles_eleves,
+    get_deliberations_annuelles_eleves,
+    evaluer_deliberation_annuelle,
     reinscrire_ancien_eleve,
     annuler_decision_passage,
 )
@@ -838,8 +840,8 @@ def passage_annee(source_id, cible_id):
         .all()
     }
 
-    # Préparation des lignes avec moyennes annuelles
-    moyennes_eleves = get_moyennes_annuelles_eleves(ecole_id, source_id)
+    # Préparation des lignes avec délibérations annuelles
+    deliberations_eleves = get_deliberations_annuelles_eleves(ecole_id, source_id)
     items = []
     classes_source_set = set()
     for insc_src in inscriptions_source:
@@ -874,8 +876,11 @@ def passage_annee(source_id, cible_id):
             est_traite = True
             detail_statut = insc_src.statut.capitalize()
 
-        moyenne = moyennes_eleves.get(eleve.id)
-        suggestion = "passage" if (moyenne is not None and moyenne >= 10.0) else ("redoublement" if moyenne is not None else None)
+        delib = deliberations_eleves.get(eleve.id, {})
+        moyenne = delib.get("moyenne")
+        suggestion = delib.get("suggestion")
+        cursus_incomplet = delib.get("cursus_incomplet", False)
+        statut_deliberation = delib.get("statut_deliberation", "Complet")
 
         items.append({
             "eleve": eleve,
@@ -886,6 +891,8 @@ def passage_annee(source_id, cible_id):
             "detail_statut": detail_statut,
             "moyenne": moyenne,
             "suggestion": suggestion,
+            "cursus_incomplet": cursus_incomplet,
+            "statut_deliberation": statut_deliberation,
         })
 
     # Compteurs globaux
@@ -1078,9 +1085,11 @@ def passage_eleve(source_id, cible_id, eleve_id):
 
     inscription_cible = get_inscription(eleve, annee_cible)
 
-    moyennes_eleves = get_moyennes_annuelles_eleves(ecole_id, source_id)
-    moyenne = moyennes_eleves.get(eleve.id)
-    suggestion = "passage" if (moyenne is not None and moyenne >= 10.0) else ("redoublement" if moyenne is not None else None)
+    delib = evaluer_deliberation_annuelle(ecole_id, source_id, eleve.id)
+    moyenne = delib.get("moyenne")
+    suggestion = delib.get("suggestion")
+    cursus_incomplet = delib.get("cursus_incomplet", False)
+    statut_deliberation = delib.get("statut_deliberation", "Complet")
 
     return render_template(
         'passage_eleve.html',
@@ -1099,6 +1108,8 @@ def passage_eleve(source_id, cible_id, eleve_id):
         inscription_cible=inscription_cible,
         moyenne=moyenne,
         suggestion=suggestion,
+        cursus_incomplet=cursus_incomplet,
+        statut_deliberation=statut_deliberation,
         csrf_form=csrf_form,
     )
 
@@ -1510,6 +1521,7 @@ def onboarding_rentree(cible_id):
         }
 
         moyennes_eleves = get_moyennes_annuelles_eleves(ecole_id, annee_source.id)
+        deliberations_eleves = get_deliberations_annuelles_eleves(ecole_id, annee_source.id)
 
         inscriptions_par_classe = {}
         for insc in inscriptions_source:
@@ -1601,8 +1613,12 @@ def onboarding_rentree(cible_id):
             for insc_s in inscrips_active:
                 el = insc_s.eleve
                 insc_c = inscriptions_cible_map.get(el.id)
-                moy = moyennes_eleves.get(el.id)
-                sugg = "passage" if (moy is not None and moy >= 10.0) else ("redoublement" if moy is not None else None)
+                delib = deliberations_eleves.get(el.id, {})
+                moy = delib.get("moyenne", moyennes_eleves.get(el.id))
+                cursus_incomplet = delib.get("cursus_incomplet", False)
+                sugg = delib.get("suggestion")
+                if not sugg:
+                    sugg = "passage" if (moy is not None and moy >= 10.0) else ("redoublement" if moy is not None else None)
 
                 est_t = False
                 detail_statut = "En attente"
@@ -1625,6 +1641,8 @@ def onboarding_rentree(cible_id):
                     "detail_statut": detail_statut,
                     "moyenne": moy,
                     "suggestion": sugg,
+                    "cursus_incomplet": cursus_incomplet,
+                    "statut_deliberation": delib.get("statut_deliberation", "Dossier Incomplet" if cursus_incomplet else "Complet"),
                     "classe_suggeree_passage_id": classe_suggeree_passage_id,
                     "classe_suggeree_redoublement_id": classe_suggeree_redoublement_id,
                 })

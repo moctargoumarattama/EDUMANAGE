@@ -893,9 +893,19 @@ def api_fiche_eleve(eleve_id):
             )
             .all()
         )
-    total_paye = float(sum(p.montant or 0 for p in paiements))
-    total_frais = float(eleve.frais_annuels or 150000.0)
-    reste_a_payer = max(0.0, total_frais - total_paye)
+    from app.services.paiements_annuels import obtenir_synthese_financiere_eleve
+    target_annee_for_finances = annee_consultee.id if annee_consultee else (annee_active.id if annee_active else (inscription_active.annee_scolaire_id if inscription_active else None))
+    synthese = obtenir_synthese_financiere_eleve(eleve.id, target_annee_for_finances) if target_annee_for_finances else {
+        "frais_du": float(eleve.frais_annuels or 150000.0),
+        "frais_scolarite": float(eleve.frais_annuels or 150000.0),
+        "remise": 0.0,
+        "total_paye": float(sum(p.montant or 0 for p in paiements)),
+        "reste_a_payer": max(0.0, float(eleve.frais_annuels or 150000.0) - float(sum(p.montant or 0 for p in paiements))),
+    }
+    total_paye = synthese["total_paye"]
+    total_frais = synthese["frais_du"]
+    reste_a_payer = synthese["reste_a_payer"]
+    remise = synthese.get("remise", 0.0)
 
     # Âge
     age = None
@@ -1036,10 +1046,21 @@ def api_modifier_eleve(eleve_id):
     eleve.lieu_naissance = (data.get('lieu_naissance') or '').strip() or None
     eleve.adresse = (data.get('adresse') or '').strip() or None
 
-    frais_str = data.get('frais_annuels')
+    frais_str = data.get('frais_annuels') or data.get('frais_scolarite')
+    remise_str = data.get('remise')
+    frais_val = None
+    remise_val = None
+
     if frais_str is not None and str(frais_str).strip() != '':
         try:
-            eleve.frais_annuels = float(frais_str)
+            frais_val = float(frais_str)
+            eleve.frais_annuels = frais_val
+        except (ValueError, TypeError):
+            pass
+
+    if remise_str is not None and str(remise_str).strip() != '':
+        try:
+            remise_val = float(remise_str)
         except (ValueError, TypeError):
             pass
 
@@ -1097,6 +1118,18 @@ def api_modifier_eleve(eleve_id):
     if inscription_error:
         db.session.rollback()
         return jsonify({'success': False, 'error': inscription_error}), 400
+
+    # Synchronisation des frais et remises sur l'inscription
+    from app.services.paiements_annuels import synchroniser_frais_et_remises_inscription
+    if inscription:
+        synchroniser_frais_et_remises_inscription(inscription, nouveau_frais=frais_val, nouvelle_remise=remise_val)
+
+    # Si une inscription active existe sur l'année en cours (au cas où classe appartiendrait à une autre année)
+    annee_act = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
+    if annee_act and (not inscription or inscription.annee_scolaire_id != annee_act.id):
+        insc_act = Inscription.query.filter_by(ecole_id=ecole_id, eleve_id=eleve.id, annee_scolaire_id=annee_act.id).first()
+        if insc_act:
+            synchroniser_frais_et_remises_inscription(insc_act, nouveau_frais=frais_val, nouvelle_remise=remise_val)
 
     db.session.commit()
 
@@ -1598,10 +1631,21 @@ def voir_eleve(eleve_id):
             frais_base = eleve.frais_annuels or 150000.0
             paiements = []
 
-        total_frais = float(frais_base)
-        total_paye = float(sum(p.montant or 0 for p in paiements if (getattr(p, 'statut', None) or 'payé') != 'annule'))
-        reste_a_payer = max(0.0, total_frais - total_paye)
-        pourcentage_paye = round((total_paye / total_frais) * 100, 1) if total_frais > 0 else 0.0
+        from app.services.paiements_annuels import obtenir_synthese_financiere_eleve, calculer_retard_echeancier_inscription
+        target_annee_id = annee_affichee.id if annee_affichee else (inscription_affichee.annee_scolaire_id if inscription_affichee else None)
+        synthese = obtenir_synthese_financiere_eleve(eleve.id, target_annee_id) if target_annee_id else {
+            "frais_du": float(eleve.frais_annuels or 150000.0),
+            "frais_scolarite": float(eleve.frais_annuels or 150000.0),
+            "remise": 0.0,
+            "total_paye": float(sum(p.montant or 0 for p in paiements if (getattr(p, 'statut', None) or 'payé') != 'annule')),
+            "reste_a_payer": max(0.0, float(eleve.frais_annuels or 150000.0) - float(sum(p.montant or 0 for p in paiements if (getattr(p, 'statut', None) or 'payé') != 'annule'))),
+            "pourcentage_paye": 0.0,
+        }
+        total_frais = synthese["frais_du"]
+        total_paye = synthese["total_paye"]
+        reste_a_payer = synthese["reste_a_payer"]
+        pourcentage_paye = synthese.get("pourcentage_paye", 0.0)
+        remise = synthese.get("remise", 0.0)
 
         mois_scolaires = get_mois_scolaires(annee_affichee if annee_affichee else None)
         mois_payes_set = set(p.mois for p in paiements if p.mois and (getattr(p, 'statut', None) or 'payé') != 'annule')

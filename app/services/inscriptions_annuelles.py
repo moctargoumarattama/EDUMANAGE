@@ -6,8 +6,8 @@ from app.models import AnneeScolaire, Bulletin, Classe, Cours, Eleve, Inscriptio
 from app.services.classes_annuelles import classe_est_ouverte
 
 
-STATUTS_INSCRIPTION = {"preinscrit", "inscrit", "termine", "sorti", "transfere", "diplome"}
-DECISIONS_FIN_ANNEE = {"passage", "redoublement", "transfert", "sortie", "fin_cycle", "diplome"}
+STATUTS_INSCRIPTION = {"preinscrit", "inscrit", "termine", "sorti", "transfere", "diplome", "radie", "annulee"}
+DECISIONS_FIN_ANNEE = {"passage", "redoublement", "transfert", "sortie", "fin_cycle", "diplome", "radiation"}
 
 
 def get_inscription(eleve, annee):
@@ -251,3 +251,115 @@ def terminer_inscription(inscription, decision_fin_annee=None, statut="termine",
     inscription.updated_at = datetime.utcnow()
     db.session.flush()
     return inscription, None
+
+
+def transferer_ou_radier_eleve(
+    ecole_id,
+    eleve_id,
+    statut="transfere",
+    date_depart=None,
+    etablissement_destination=None,
+    motif_sortie=None,
+    annee_scolaire_id=None,
+    annee_source_id=None,
+    decision=None,
+):
+    """
+    Enregistre formellement le transfert ou la radiation d'un élève :
+    1. Met à jour l'inscription en cours : statut = 'transfere' ou 'radie',
+       avec enregistrement de date_depart et etablissement_destination.
+    2. Recherche toute inscription ou préinscription future rattachée à cet élève
+       (année non active ou date future) et l'annule automatiquement (statut = 'annulee')
+       pour libérer la place dans les effectifs prévisionnels.
+    3. Ne renvoie JAMAIS d'erreur d'idempotence « déjà traité » qui avorterait l'opération.
+    4. Met à jour le statut de l'élève (eleve.statut).
+    """
+    if annee_source_id and not annee_scolaire_id:
+        annee_scolaire_id = annee_source_id
+    if decision:
+        statut = decision
+
+    eleve = Eleve.query.filter_by(id=eleve_id, ecole_id=ecole_id).first()
+    if not eleve:
+        return None, "Élève introuvable pour cet établissement."
+
+    statut_normalise = "radie" if statut in ("radie", "radiation") else "transfere"
+    decision = "radiation" if statut_normalise == "radie" else "transfert"
+
+    inscription_en_cours = None
+    if annee_scolaire_id:
+        inscription_en_cours = Inscription.query.filter_by(
+            ecole_id=ecole_id, eleve_id=eleve_id, annee_scolaire_id=annee_scolaire_id
+        ).first()
+
+    if not inscription_en_cours:
+        annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
+        if annee_active:
+            inscription_en_cours = Inscription.query.filter_by(
+                ecole_id=ecole_id, eleve_id=eleve_id, annee_scolaire_id=annee_active.id
+            ).first()
+
+    if not inscription_en_cours:
+        inscription_en_cours = (
+            Inscription.query.join(AnneeScolaire)
+            .filter(
+                Inscription.ecole_id == ecole_id,
+                Inscription.eleve_id == eleve_id,
+                AnneeScolaire.statut != "archivee"
+            )
+            .order_by(AnneeScolaire.date_debut.desc())
+            .first()
+        )
+
+    if not inscription_en_cours:
+        return None, "Aucune inscription active ou en cours trouvée pour cet élève."
+
+    if isinstance(date_depart, str):
+        try:
+            date_depart_val = datetime.strptime(date_depart, "%Y-%m-%d").date()
+        except ValueError:
+            date_depart_val = datetime.utcnow().date()
+    elif hasattr(date_depart, "strftime") and hasattr(date_depart, "year"):
+        date_depart_val = date_depart if hasattr(date_depart, "month") else datetime.utcnow().date()
+    else:
+        date_depart_val = datetime.utcnow().date()
+
+    # 1. Mise à jour de l'inscription en cours
+    inscription_en_cours.statut = statut_normalise
+    inscription_en_cours.decision_fin_annee = decision
+    inscription_en_cours.motif_sortie = motif_sortie or f"{decision.capitalize()} de l'établissement"
+    inscription_en_cours.date_sortie = datetime.utcnow()
+    inscription_en_cours.date_depart = date_depart_val
+    if etablissement_destination:
+        inscription_en_cours.etablissement_destination = etablissement_destination
+    inscription_en_cours.updated_at = datetime.utcnow()
+
+    # 2. Mise à jour de l'élève
+    eleve.statut = statut_normalise
+    eleve.updated_at = datetime.utcnow()
+
+    # 3. Rechercher et annuler toute préinscription ou inscription future
+    annee_source = inscription_en_cours.annee_scolaire
+    inscriptions_futures = (
+        Inscription.query.join(AnneeScolaire)
+        .filter(
+            Inscription.ecole_id == ecole_id,
+            Inscription.eleve_id == eleve_id,
+            Inscription.id != inscription_en_cours.id,
+            or_(
+                AnneeScolaire.statut == "planifiee",
+                AnneeScolaire.date_debut > annee_source.date_debut,
+            ),
+            Inscription.statut.in_(("preinscrit", "inscrit")),
+        )
+        .all()
+    )
+
+    for fut_insc in inscriptions_futures:
+        fut_insc.statut = "annulee"
+        fut_insc.motif_sortie = f"Préinscription annulée suite au {decision} du {date_depart_val}"
+        fut_insc.date_sortie = datetime.utcnow()
+        fut_insc.updated_at = datetime.utcnow()
+
+    db.session.flush()
+    return inscription_en_cours, None
