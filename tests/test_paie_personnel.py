@@ -263,12 +263,12 @@ class TestPaiePersonnel(unittest.TestCase):
         self.assertEqual(data_p["fiche"]["montant_paye"], 40000.0)
         self.assertEqual(data_p["fiche"]["reste_a_payer"], 60000.0)
 
-        # 2. Paiement total : verser le solde complet (100 000 FCFA)
+        # 2. Versement complémentaire : régler les 60 000 FCFA restants
         resp_total = self.client.post(
             '/paie-personnel/enregistrer-reglement',
             json={
                 "fiche_id": fiche_h.id,
-                "montant_verse": 100000.0,
+                "montant_verse": 60000.0,
                 "mode_reglement": "virement",
                 "reference_recu": "VIR-TOT-001"
             },

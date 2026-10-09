@@ -3,6 +3,32 @@
 {% block title %}Paie du Personnel - KLASORA{% endblock %}
 
 {% block content %}
+{% set annee_archivee = annee_active and (annee_active.statut|default('')|trim|lower == 'archivee') %}
+{% macro historique_reglements(l) %}
+    {% if l.est_calculee and (l.historique_versements|default([]) or l.commentaire_ajustement|default('')) %}
+    <details class="mt-2 small text-start">
+        <summary class="text-primary" style="cursor: pointer;">Historique et commentaires</summary>
+        <div class="bg-light border rounded-3 p-2 mt-1" style="max-width: 320px; white-space: pre-wrap; overflow-wrap: anywhere;">
+            {% for evenement in l.historique_versements|default([]) %}
+            <div class="mb-2">
+                {% if evenement.type == 'versement' %}
+                <strong>Versement du {{ evenement.date }} :</strong> {{ evenement.montant }} FCFA
+                {% if evenement.mode %} · {{ evenement.mode }}{% endif %}
+                {% if evenement.reference %} · Réf. {{ evenement.reference }}{% endif %}
+                {% elif evenement.type == 'solde_initial_legacy' %}
+                <strong>Solde antérieur non détaillé :</strong> {{ evenement.montant }} FCFA
+                {% elif evenement.type == 'correction_total' %}
+                <strong>Correction du {{ evenement.date }} :</strong> {{ evenement.ancien_total }} → {{ evenement.nouveau_total }} FCFA
+                {% if evenement.motif %} · {{ evenement.motif }}{% endif %}
+                {% if evenement.reference %} · Réf. {{ evenement.reference }}{% endif %}
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% if l.commentaire_ajustement|default('') %}<div><strong>Commentaire :</strong> {{ l.commentaire_ajustement }}</div>{% endif %}
+        </div>
+    </details>
+    {% endif %}
+{% endmacro %}
 <div class="container-fluid px-2 px-md-4 py-3">
 
     <!-- En-tête de page -->
@@ -36,13 +62,22 @@
                 </select>
             </form>
 
+            {% if not annee_archivee %}
             <!-- Bouton Calculer / Actualiser en 1-Clic AJAX -->
             <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 py-1.5 fw-bold d-flex align-items-center gap-1.5 shadow-sm" id="btnCalculerMois" onclick="declencherCalculMois()">
                 <i class="fas fa-bolt text-warning"></i>
                 <span>Calculer / Actualiser</span>
             </button>
+            {% endif %}
         </div>
     </div>
+
+    {% if annee_archivee %}
+    <div class="alert alert-info d-flex align-items-center gap-2 mb-3" role="status">
+        <i class="fas fa-lock" aria-hidden="true"></i>
+        <span>Année scolaire archivée : les fiches de paie sont consultables et imprimables, mais ne peuvent plus être calculées, ajustées ou réglées.</span>
+    </div>
+    {% endif %}
 
     <!-- 4 Cartes Statistiques KPI en haut -->
     <div class="row g-2.5 mb-3.5">
@@ -151,10 +186,10 @@
                         <!-- Colonne 3 : Base de calcul -->
                         <td class="py-2.5 text-center font-monospace small">
                             {% if l.type_remuneration == 'horaire' %}
-                            <div>{{ "%.1f"|format(l.heures_travaillees) }} h × {{ "{:,.0f}".format(prof.taux_horaire or 0).replace(',', ' ') }}</div>
+                            <div>{{ "%.1f"|format(l.heures_travaillees) }} h × {{ "{:,.0f}".format(fiche.taux_horaire if fiche else (prof.taux_horaire or 0)).replace(',', ' ') }}</div>
                             <small class="text-muted">{{ "{:,.0f}".format(l.salaire_brut).replace(',', ' ') }} FCFA</small>
                             {% else %}
-                            <div class="fw-semibold text-dark">{{ "{:,.0f}".format(prof.salaire_base or 0).replace(',', ' ') }} FCFA</div>
+                            <div class="fw-semibold text-dark">{{ "{:,.0f}".format(fiche.salaire_base if fiche else (prof.salaire_base or 0)).replace(',', ' ') }} FCFA</div>
                             <small class="text-muted">Mensuel fixe</small>
                             {% endif %}
                         </td>
@@ -168,8 +203,13 @@
 
                         <!-- Colonne 5 : Primes / Retenues -->
                         <td class="py-2.5 text-center">
-                            {% if l.est_calculee %}
-                            <button type="button" class="btn btn-sm btn-light border rounded-pill px-2.5 py-1 text-muted" style="font-size: 0.76rem;" onclick="ouvrirModalAjustement({{ fiche.id }}, {{ fiche.primes }}, {{ fiche.deductions }}, '{{ fiche.note or '' }}', '{{ prof.prenom }} {{ prof.nom }}')">
+                            {% if l.est_calculee and annee_archivee %}
+                            <span class="small" title="Montants archivés">
+                                <span class="text-success fw-bold">+{{ "{:,.0f}".format(fiche.primes).replace(',', ' ') }}</span> /
+                                <span class="text-danger fw-bold">-{{ "{:,.0f}".format(fiche.deductions).replace(',', ' ') }}</span>
+                            </span>
+                            {% elif l.est_calculee %}
+                            <button type="button" class="btn btn-sm btn-light border rounded-pill px-2.5 py-1 text-muted" style="font-size: 0.76rem;" onclick='ouvrirModalAjustement({{ fiche.id }}, {{ fiche.primes }}, {{ fiche.deductions }}, {{ (l.commentaire_ajustement|default(""))|tojson }}, {{ (prof.prenom ~ " " ~ prof.nom)|tojson }})'>
                                 {% if fiche.primes > 0 or fiche.deductions > 0 %}
                                     <span class="text-success fw-bold">+{{ "{:,.0f}".format(fiche.primes).replace(',', ' ') }}</span> /
                                     <span class="text-danger fw-bold">-{{ "{:,.0f}".format(fiche.deductions).replace(',', ' ') }}</span>
@@ -189,6 +229,8 @@
                             {% if l.reste_a_payer > 0 and l.reste_a_payer < l.net_a_payer %}
                             <small class="text-danger">Reste : {{ "{:,.0f}".format(l.reste_a_payer).replace(',', ' ') }}</small>
                             {% endif %}
+                            {% if l.montant_paye > 0 %}<small class="text-muted d-block">Versé : {{ "{:,.0f}".format(l.montant_paye).replace(',', ' ') }}</small>{% endif %}
+                            {{ historique_reglements(l) }}
                             {% else %}
                             <span class="text-muted small">À calculer</span>
                             {% endif %}
@@ -219,15 +261,23 @@
                         <td class="pe-3 py-2.5 text-end">
                             <div class="d-inline-flex align-items-center gap-1.5">
                                 <!-- Bouton Contrat -->
-                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1" title="Paramètres du contrat" onclick="ouvrirModalContrat({{ prof.id }}, '{{ prof.type_remuneration or 'fixe' }}', {{ prof.salaire_base or 0 }}, {{ prof.taux_horaire or 0 }}, '{{ prof.prenom }} {{ prof.nom }}')">
+                                {% if not annee_archivee %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1" title="Paramètres du contrat" onclick='ouvrirModalContrat({{ prof.id }}, {{ (prof.type_remuneration or "fixe")|tojson }}, {{ prof.salaire_base or 0 }}, {{ prof.taux_horaire or 0 }}, {{ (prof.prenom ~ " " ~ prof.nom)|tojson }})'>
                                     <i class="fas fa-cog"></i>
                                 </button>
+                                {% endif %}
 
                                 {% if l.est_calculee %}
-                                <!-- Bouton Régler -->
-                                <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-2.5 py-1 fw-semibold" title="Enregistrer un règlement" onclick="ouvrirModalReglement({{ fiche.id }}, {{ l.net_a_payer }}, {{ l.montant_paye }}, '{{ prof.prenom }} {{ prof.nom }}')">
-                                    <i class="fas fa-money-bill-wave me-1"></i>Régler
+                                {% if not annee_archivee and l.reste_a_payer > 0 %}
+                                <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-2.5 py-1 fw-semibold" title="Ajouter un versement au total déjà payé" onclick='ouvrirModalReglement({{ fiche.id }}, {{ l.net_a_payer }}, {{ l.montant_paye }}, {{ (prof.prenom ~ " " ~ prof.nom)|tojson }})'>
+                                    <i class="fas fa-money-bill-wave me-1"></i>Verser
                                 </button>
+                                {% endif %}
+                                {% if not annee_archivee %}
+                                <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-2.5 py-1 fw-semibold" title="Corriger le total payé, avec justification" onclick='ouvrirModalCorrectionTotal({{ fiche.id }}, {{ l.net_a_payer }}, {{ l.montant_paye }}, {{ (prof.prenom ~ " " ~ prof.nom)|tojson }})'>
+                                    <i class="fas fa-pen me-1"></i>Corriger
+                                </button>
+                                {% endif %}
 
                                 <!-- Bouton Imprimer Bulletin -->
                                 <a href="{{ url_for('paie_personnel.print_bulletin', fiche_id=fiche.id) }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-1" title="Imprimer le bulletin de paie">
@@ -313,22 +363,42 @@
                             {{ "{:,.0f}".format(l.net_a_payer).replace(',', ' ') }} FCFA
                         </span>
                     </div>
+                    {% if l.est_calculee %}
+                    <div class="d-flex align-items-center justify-content-between mt-1 small">
+                        <span class="text-muted">Déjà versé :</span>
+                        <span class="fw-semibold">{{ "{:,.0f}".format(l.montant_paye).replace(',', ' ') }} FCFA</span>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between small">
+                        <span class="text-muted">Reste à verser :</span>
+                        <span class="fw-semibold">{{ "{:,.0f}".format(l.reste_a_payer).replace(',', ' ') }} FCFA</span>
+                    </div>
+                    {{ historique_reglements(l) }}
+                    {% endif %}
                 </div>
 
                 <!-- Ligne 3 : Actions en boutons larges -->
                 <div class="d-flex align-items-center gap-1.5 flex-wrap">
-                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1.5 flex-fill" onclick="ouvrirModalContrat({{ prof.id }}, '{{ prof.type_remuneration or 'fixe' }}', {{ prof.salaire_base or 0 }}, {{ prof.taux_horaire or 0 }}, '{{ prof.prenom }} {{ prof.nom }}')">
+                    {% if not annee_archivee %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1.5 flex-fill" onclick='ouvrirModalContrat({{ prof.id }}, {{ (prof.type_remuneration or "fixe")|tojson }}, {{ prof.salaire_base or 0 }}, {{ prof.taux_horaire or 0 }}, {{ (prof.prenom ~ " " ~ prof.nom)|tojson }})'>
                         <i class="fas fa-cog me-1"></i>Contrat
                     </button>
+                    {% endif %}
 
                     {% if l.est_calculee %}
-                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1.5 flex-fill" onclick="ouvrirModalAjustement({{ fiche.id }}, {{ fiche.primes }}, {{ fiche.deductions }}, '{{ fiche.note or '' }}', '{{ prof.prenom }} {{ prof.nom }}')">
+                    {% if not annee_archivee %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1.5 flex-fill" onclick='ouvrirModalAjustement({{ fiche.id }}, {{ fiche.primes }}, {{ fiche.deductions }}, {{ (l.commentaire_ajustement|default(""))|tojson }}, {{ (prof.prenom ~ " " ~ prof.nom)|tojson }})'>
                         <i class="fas fa-sliders-h me-1"></i>Primes
                     </button>
 
-                    <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-1.5 fw-bold flex-fill" onclick="ouvrirModalReglement({{ fiche.id }}, {{ l.net_a_payer }}, {{ l.montant_paye }}, '{{ prof.prenom }} {{ prof.nom }}')">
-                        <i class="fas fa-money-bill-wave me-1"></i>Régler
+                    {% if l.reste_a_payer > 0 %}
+                    <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-1.5 fw-bold flex-fill" onclick='ouvrirModalReglement({{ fiche.id }}, {{ l.net_a_payer }}, {{ l.montant_paye }}, {{ (prof.prenom ~ " " ~ prof.nom)|tojson }})'>
+                        <i class="fas fa-money-bill-wave me-1"></i>Nouveau versement
                     </button>
+                    {% endif %}
+                    <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-2.5 py-1.5 flex-fill" onclick='ouvrirModalCorrectionTotal({{ fiche.id }}, {{ l.net_a_payer }}, {{ l.montant_paye }}, {{ (prof.prenom ~ " " ~ prof.nom)|tojson }})'>
+                        <i class="fas fa-pen me-1"></i>Corriger le total
+                    </button>
+                    {% endif %}
 
                     <a href="{{ url_for('paie_personnel.print_bulletin', fiche_id=fiche.id) }}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-2.5 py-1.5">
                         <i class="fas fa-print"></i>
@@ -342,15 +412,16 @@
 
 </div>
 
+{% if not annee_archivee %}
 <!-- =================================================================== -->
-<!-- MODAL 1 : RÈGLEMENT DE PAIE -->
+<!-- MODAL 1 : NOUVEAU VERSEMENT -->
 <!-- =================================================================== -->
 <div class="modal fade" id="modalReglement" tabindex="-1" aria-labelledby="modalReglementLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header border-0 pb-0 pt-3 px-3">
                 <h6 class="modal-title fw-bold text-dark" id="modalReglementLabel">
-                    <i class="fas fa-money-bill-wave text-success me-1.5"></i>Enregistrer un règlement
+                    <i class="fas fa-money-bill-wave text-success me-1.5"></i>Nouveau versement
                 </h6>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
@@ -365,12 +436,17 @@
                         <span>Déjà versé :</span>
                         <strong class="text-success" id="reglementDejaVerse">0 FCFA</strong>
                     </div>
+                    <div class="d-flex justify-content-between small text-muted">
+                        <span>Solde à verser :</span>
+                        <strong class="text-danger" id="reglementSolde">0 FCFA</strong>
+                    </div>
                 </div>
 
                 <input type="hidden" id="reglementFicheId">
                 <div class="mb-2.5">
-                    <label class="form-label small fw-semibold text-muted mb-1">Montant versé (FCFA)</label>
-                    <input type="number" id="reglementMontant" class="form-control form-control-sm fw-bold font-monospace" min="0" step="500">
+                    <label class="form-label small fw-semibold text-muted mb-1" for="reglementMontant">Montant du nouveau versement (FCFA)</label>
+                    <input type="number" id="reglementMontant" class="form-control form-control-sm fw-bold font-monospace" min="0.01" step="0.01" required>
+                    <small class="text-muted">Ce montant s'ajoute au total déjà versé.</small>
                 </div>
 
                 <div class="mb-2.5">
@@ -390,7 +466,46 @@
             </div>
             <div class="modal-footer border-0 pt-0 pb-3 px-3 d-flex justify-content-between">
                 <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Annuler</button>
-                <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-bold" onclick="soumettreReglement()">Valider le paiement</button>
+                <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-bold" id="btnValiderReglement" onclick="soumettreReglement()">Enregistrer ce versement</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Correction du total enregistré, séparée des nouveaux versements -->
+<div class="modal fade" id="modalCorrectionTotal" tabindex="-1" aria-labelledby="modalCorrectionTotalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 pb-0 pt-3 px-3">
+                <h6 class="modal-title fw-bold text-dark" id="modalCorrectionTotalLabel">
+                    <i class="fas fa-pen text-warning me-1.5"></i>Corriger le total payé
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body p-3">
+                <p class="text-muted small mb-2" id="correctionProfNom">Enseignant</p>
+                <p class="small text-muted">Cette correction remplace le total enregistré. Pour un paiement supplémentaire, utilisez « Nouveau versement ».</p>
+                <div class="bg-light p-2 rounded-3 mb-3 small">
+                    <div class="d-flex justify-content-between"><span>Net à payer :</span><strong id="correctionNetTotal">0 FCFA</strong></div>
+                    <div class="d-flex justify-content-between"><span>Total actuellement payé :</span><strong id="correctionTotalActuel">0 FCFA</strong></div>
+                </div>
+                <input type="hidden" id="correctionFicheId">
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold" for="correctionMontantTotal">Nouveau total payé (FCFA)</label>
+                    <input type="number" id="correctionMontantTotal" class="form-control form-control-sm font-monospace" min="0" step="0.01" required>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold" for="correctionMotif">Motif de la correction (obligatoire)</label>
+                    <textarea id="correctionMotif" class="form-control form-control-sm" rows="2" minlength="3" maxlength="1000" required></textarea>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold" for="correctionRef">Référence du justificatif</label>
+                    <input type="text" id="correctionRef" class="form-control form-control-sm" maxlength="100">
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 pb-3 px-3 d-flex justify-content-between">
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-sm btn-warning rounded-pill px-3 fw-bold" id="btnValiderCorrection" onclick="soumettreCorrectionTotal()">Confirmer la correction</button>
             </div>
         </div>
     </div>
@@ -476,6 +591,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- Toast Container pour notifications fluides -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1090">
@@ -490,6 +606,7 @@
     </div>
 </div>
 
+{% if not annee_archivee %}
 <script>
 const MOIS_ACTUEL = {{ mois_selectionne }};
 const ANNEE_ACTUELLE = {{ annee_selectionnee }};
@@ -554,19 +671,33 @@ function ouvrirModalReglement(ficheId, netTotal, montantPaye, profNom) {
     document.getElementById('reglementNetTotal').textContent = `${Number(netTotal).toLocaleString()} FCFA`;
     document.getElementById('reglementDejaVerse').textContent = `${Number(montantPaye).toLocaleString()} FCFA`;
     
-    // Par défaut, proposer le net total si 0 versé, ou le solde
+    // Un versement supplémentaire s'ajoute toujours au total déjà payé.
     const solde = Math.max(0, netTotal - montantPaye);
-    document.getElementById('reglementMontant').value = solde > 0 ? solde : netTotal;
+    document.getElementById('reglementSolde').textContent = `${Number(solde).toLocaleString()} FCFA`;
+    document.getElementById('reglementMontant').max = String(solde);
+    document.getElementById('reglementMontant').value = solde > 0 ? solde : '';
+    document.getElementById('reglementMode').value = 'especes';
+    document.getElementById('reglementRef').value = '';
 
     const modal = new bootstrap.Modal(document.getElementById('modalReglement'));
     modal.show();
 }
 
 function soumettreReglement() {
+    const bouton = document.getElementById('btnValiderReglement');
+    if (bouton.disabled) return;
     const ficheId = document.getElementById('reglementFicheId').value;
     const montant = document.getElementById('reglementMontant').value;
     const mode = document.getElementById('reglementMode').value;
     const ref = document.getElementById('reglementRef').value;
+    const maximum = Number(document.getElementById('reglementMontant').max);
+    let rechargementProgramme = false;
+
+    if (montant.trim() === '' || !Number.isFinite(Number(montant)) || Number(montant) <= 0 || Number(montant) > maximum) {
+        alert(`Indiquez un montant supérieur à zéro et inférieur ou égal au solde de ${maximum.toLocaleString()} FCFA.`);
+        return;
+    }
+    bouton.disabled = true;
 
     fetch("{{ url_for('paie_personnel.enregistrer_reglement') }}", {
         method: "POST",
@@ -588,6 +719,7 @@ function soumettreReglement() {
             afficherToast(data.message);
             const modalEl = document.getElementById('modalReglement');
             bootstrap.Modal.getInstance(modalEl).hide();
+            rechargementProgramme = true;
             setTimeout(() => window.location.reload(), 700);
         } else {
             alert(data.error || "Erreur d'enregistrement.");
@@ -596,6 +728,81 @@ function soumettreReglement() {
     .catch(err => {
         console.error(err);
         alert("Erreur de communication.");
+    })
+    .finally(() => {
+        if (!rechargementProgramme) bouton.disabled = false;
+    });
+}
+
+// Une correction remplace le cumul payé et nécessite un motif.
+function ouvrirModalCorrectionTotal(ficheId, netTotal, montantPaye, profNom) {
+    document.getElementById('correctionFicheId').value = ficheId;
+    document.getElementById('correctionProfNom').textContent = profNom;
+    document.getElementById('correctionNetTotal').textContent = `${Number(netTotal).toLocaleString()} FCFA`;
+    document.getElementById('correctionTotalActuel').textContent = `${Number(montantPaye).toLocaleString()} FCFA`;
+    document.getElementById('correctionMontantTotal').max = String(netTotal);
+    document.getElementById('correctionMontantTotal').value = montantPaye;
+    document.getElementById('correctionMontantTotal').dataset.montantActuel = String(montantPaye);
+    document.getElementById('correctionMotif').value = '';
+    document.getElementById('correctionRef').value = '';
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCorrectionTotal')).show();
+}
+
+function soumettreCorrectionTotal() {
+    const bouton = document.getElementById('btnValiderCorrection');
+    if (bouton.disabled) return;
+    const ficheId = document.getElementById('correctionFicheId').value;
+    const montantTotal = document.getElementById('correctionMontantTotal').value;
+    const motif = document.getElementById('correctionMotif').value.trim();
+    const reference = document.getElementById('correctionRef').value.trim();
+    const maximum = Number(document.getElementById('correctionMontantTotal').max);
+    let rechargementProgramme = false;
+    if (montantTotal.trim() === '' || !Number.isFinite(Number(montantTotal)) || Number(montantTotal) < 0 || Number(montantTotal) > maximum) {
+        alert(`Le total corrigé doit être compris entre 0 et ${maximum.toLocaleString()} FCFA.`);
+        return;
+    }
+    if (Number(montantTotal) === Number(document.getElementById('correctionMontantTotal').dataset.montantActuel)) {
+        alert('Le nouveau total doit être différent du total actuel.');
+        return;
+    }
+    if (motif.length < 3 || motif.length > 1000) {
+        alert('Indiquez un motif précis de 3 à 1000 caractères.');
+        return;
+    }
+    if (!window.confirm('Confirmer le remplacement du total payé par ' + Number(montantTotal).toLocaleString() + ' FCFA ?')) return;
+    bouton.disabled = true;
+
+    fetch("{{ url_for('paie_personnel.corriger_total_reglement') }}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            fiche_id: ficheId,
+            montant_total: montantTotal,
+            motif: motif,
+            reference_recu: reference
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            afficherToast(data.message || 'Total payé corrigé.');
+            bootstrap.Modal.getInstance(document.getElementById('modalCorrectionTotal')).hide();
+            rechargementProgramme = true;
+            setTimeout(() => window.location.reload(), 700);
+        } else {
+            alert(data.error || 'Erreur lors de la correction.');
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Erreur de communication.');
+    })
+    .finally(() => {
+        if (!rechargementProgramme) bouton.disabled = false;
     });
 }
 
@@ -713,5 +920,6 @@ function soumettreContrat() {
     });
 }
 </script>
+{% endif %}
 {% endblock %}
 

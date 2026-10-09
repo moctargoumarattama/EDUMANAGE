@@ -228,7 +228,7 @@
                     <tr>
                         <td class="ps-3 py-2.5">
                             <strong class="text-success">Primes & Bonus</strong>
-                            <div class="text-muted small">{{ fiche.note or 'Indemnités exceptionnelles / primes pédagogiques' }}</div>
+                            <div class="text-muted small">{{ commentaire_ajustement or 'Indemnités exceptionnelles / primes pédagogiques' }}</div>
                         </td>
                         <td class="py-2.5 text-center text-muted font-monospace">-</td>
                         <td class="py-2.5 text-center text-muted font-monospace">-</td>
@@ -285,12 +285,32 @@
                         </span>
                         {% endif %}
                     </div>
-                    {% if fiche.mode_paiement %}
+                    {% if fiche.mode_paiement and fiche.montant_paye %}
                     <small class="text-muted d-block mt-1">
-                        Mode : <strong class="text-capitalize">{{ fiche.mode_paiement }}</strong>
+                        Dernier versement enregistré — mode : <strong class="text-capitalize">{{ fiche.mode_paiement }}</strong>
                         {% if fiche.reference_paiement %} • Réf / Quittance : <strong>{{ fiche.reference_paiement }}</strong>{% endif %}
                         {% if fiche.date_paiement %} • Date : {{ fiche.date_paiement.strftime('%d/%m/%Y') }}{% endif %}
                     </small>
+                    {% endif %}
+                    {% if historique_versements %}
+                    <div class="small mt-2">
+                        <strong>Historique des règlements</strong>
+                        {% for evenement in historique_versements %}
+                        <div>
+                            {{ evenement.date }} —
+                            {% if evenement.type == 'solde_initial_legacy' %}
+                            Solde antérieur non détaillé : {{ evenement.montant }} FCFA
+                            {% elif evenement.type == 'correction_total' %}
+                            Correction du total : {{ evenement.ancien_total }} → {{ evenement.nouveau_total }} FCFA
+                            {% if evenement.motif %} ({{ evenement.motif }}){% endif %}
+                            {% else %}
+                            Versement de {{ evenement.montant }} FCFA
+                            {% if evenement.mode %} par {{ evenement.mode }}{% endif %}
+                            {% endif %}
+                            {% if evenement.reference %} · Réf. {{ evenement.reference }}{% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
                     {% endif %}
                 </div>
                 <div class="col-5 text-end">
