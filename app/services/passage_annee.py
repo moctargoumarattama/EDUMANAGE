@@ -994,18 +994,25 @@ def get_deliberations_annuelles_eleves(ecole_id, annee_id):
         PERIODES_SEMESTRES, calculer_moyenne_generale_semestre, calculer_moyenne_annuelle,
     )
 
+    from app.services.niveaux import (
+        est_cycle_primaire,
+        get_periodes_attendues_inscription,
+        PERIODES_PRIMAIRE_DEFAULT,
+        PERIODES_SECONDAIRE_DEFAULT,
+    )
+
     deliberations = {}
 
     annee = db.session.get(AnneeScolaire, annee_id)
     periodes_officielles = [p.nom for p in annee.periodes] if annee and annee.periodes else []
-    nb_attendues = len(periodes_officielles)
 
     # Une inscription annulée n'a jamais donné lieu à un parcours à délibérer.
     # Les transferts/radiations restent visibles dans l'historique scolaire.
     inscriptions = Inscription.query.filter_by(
         ecole_id=ecole_id, annee_scolaire_id=annee_id
     ).filter(Inscription.statut != "annulee").all()
-    eleves_inscrits = {inscription.eleve_id for inscription in inscriptions}
+    inscriptions_map = {inscription.eleve_id: inscription for inscription in inscriptions}
+    eleves_inscrits = set(inscriptions_map.keys())
 
     # Récupérer tous les bulletins existants pour cette année
     bulletins_rows = (
@@ -1016,29 +1023,42 @@ def get_deliberations_annuelles_eleves(ecole_id, annee_id):
         ).all()
     )
 
-    if nb_attendues == 0:
-        if bulletins_rows:
-            periodes_uniques = {b.periode for b in bulletins_rows if b.periode}
-            nb_attendues = max(1, len(periodes_uniques))
-        else:
-            nb_attendues = 2  # Par défaut cycle semestriel
-
     bulletins_par_eleve = defaultdict(list)
     for b in bulletins_rows:
         if b.eleve_id in eleves_inscrits:
             bulletins_par_eleve[b.eleve_id].append(b)
 
+    def _cle_periode_index(nom):
+        s = (nom or "").strip().lower()
+        if "1" in s or "premier" in s or "première" in s:
+            return 1
+        if "2" in s or "deuxième" in s or "second" in s:
+            return 2
+        if "3" in s or "troisième" in s:
+            return 3
+        return s
+
     for eleve_id, b_list in bulletins_par_eleve.items():
+        ins = inscriptions_map.get(eleve_id)
+        is_primaire = est_cycle_primaire(ins) if ins else False
+        periodes_attendues_eleve = get_periodes_attendues_inscription(ins, annee) if ins else (list(PERIODES_PRIMAIRE_DEFAULT) if is_primaire else list(PERIODES_SECONDAIRE_DEFAULT))
+        nb_attendues = 3 if is_primaire else 2
+        if len(periodes_attendues_eleve) > nb_attendues:
+            nb_attendues = len(periodes_attendues_eleve)
+
         periodes_vues = {}
         for b in b_list:
-            p_key = b.periode or f"periode_{len(periodes_vues)}"
-            periodes_vues[p_key] = float(b.moyenne_generale)
+            p_raw = b.periode or f"periode_{len(periodes_vues)}"
+            idx = _cle_periode_index(p_raw)
+            k = idx if isinstance(idx, int) else p_raw
+            if k not in periodes_vues:
+                periodes_vues[k] = float(b.moyenne_generale)
 
         nb_evaluees = len(periodes_vues)
         somme_moyennes = sum(periodes_vues.values())
 
-        if nb_attendues > 1 and nb_evaluees < nb_attendues:
-            # Cursus incomplet : diviser par le nombre réglementaire de périodes officielles
+        if nb_evaluees < nb_attendues:
+            # Cursus incomplet : diviser par le nombre réglementaire de périodes officielles (3 pour primaire, 2 pour secondaire)
             moyenne_reglementaire = round(somme_moyennes / nb_attendues, 2)
             deliberations[eleve_id] = {
                 "moyenne": moyenne_reglementaire,
@@ -1050,10 +1070,10 @@ def get_deliberations_annuelles_eleves(ecole_id, annee_id):
                 "periodes_attendues": nb_attendues,
                 "nb_periodes_evaluees": nb_evaluees,
                 "nb_periodes_attendues": nb_attendues,
+                "cycle": "primaire" if is_primaire else "secondaire",
             }
         else:
-            diviseur = max(1, nb_attendues if nb_attendues > 1 else nb_evaluees)
-            moyenne_reglementaire = round(somme_moyennes / diviseur, 2)
+            moyenne_reglementaire = round(somme_moyennes / nb_attendues, 2)
             statut_delib = "Admis" if moyenne_reglementaire >= 10.0 else "Ajourné"
             deliberations[eleve_id] = {
                 "moyenne": moyenne_reglementaire,
@@ -1065,18 +1085,20 @@ def get_deliberations_annuelles_eleves(ecole_id, annee_id):
                 "periodes_attendues": nb_attendues,
                 "nb_periodes_evaluees": nb_evaluees,
                 "nb_periodes_attendues": nb_attendues,
+                "cycle": "primaire" if is_primaire else "secondaire",
             }
 
     # 2. Pour les élèves sans bulletin, fallback sur les notes
     sans_bulletin = {i.eleve_id: i for i in inscriptions if i.eleve_id not in deliberations}
 
+    toutes_periodes_connues = set(periodes_officielles) | set(PERIODES_SEMESTRES) | set(PERIODES_PRIMAIRE_DEFAULT)
     if sans_bulletin:
         notes = Note.query.filter(
             Note.ecole_id == ecole_id,
             Note.annee_id == annee_id,
             Note.eleve_id.in_(sans_bulletin),
             Note.valeur.isnot(None),
-            Note.periode.in_(PERIODES_SEMESTRES),
+            Note.periode.in_(toutes_periodes_connues),
         ).all()
 
         cours_ids = {n.cours_id for n in notes}
@@ -1100,49 +1122,72 @@ def get_deliberations_annuelles_eleves(ecole_id, annee_id):
             par_eleve[note.eleve_id][note.periode][cours.id].append(note)
 
         for eleve_id, par_periode in par_eleve.items():
-            semestres = {}
-            for periode in PERIODES_SEMESTRES:
-                matieres = []
-                for cours_id, notes_matiere in par_periode.get(periode, {}).items():
-                    moyenne = calculer_moyenne_matiere(notes_matiere)
-                    if moyenne is not None:
-                        cours = cours_map[cours_id]
-                        coef = cours.coefficient if cours.coefficient and cours.coefficient > 0 else 1.0
-                        matieres.append((moyenne, coef))
-                semestres[periode] = calculer_moyenne_generale_semestre(matieres)
+            ins = sans_bulletin[eleve_id]
+            is_primaire = est_cycle_primaire(ins)
+            periodes_cibles = list(PERIODES_PRIMAIRE_DEFAULT) if is_primaire else list(PERIODES_SEMESTRES)
+            nb_attendues = 3 if is_primaire else 2
 
-            nb_semestres_eval = sum(1 for p in PERIODES_SEMESTRES if semestres[p] is not None)
-            if nb_semestres_eval == len(PERIODES_SEMESTRES):
-                annuelle = calculer_moyenne_annuelle(*(semestres[p] for p in PERIODES_SEMESTRES))
+            moyennes_periodes = {}
+            for p_nom in periodes_cibles:
+                notes_p = par_periode.get(p_nom)
+                if not notes_p:
+                    p_idx = _cle_periode_index(p_nom)
+                    for pk, n_data in par_periode.items():
+                        if _cle_periode_index(pk) == p_idx:
+                            notes_p = n_data
+                            break
+                if notes_p:
+                    matieres = []
+                    for cours_id, notes_matiere in notes_p.items():
+                        moyenne = calculer_moyenne_matiere(notes_matiere)
+                        if moyenne is not None:
+                            cours = cours_map.get(cours_id)
+                            coef = cours.coefficient if (cours and cours.coefficient and cours.coefficient > 0) else 1.0
+                            matieres.append((moyenne, coef))
+                    moyennes_periodes[p_nom] = calculer_moyenne_generale_semestre(matieres)
+                else:
+                    moyennes_periodes[p_nom] = None
+
+            nb_eval = sum(1 for p in periodes_cibles if moyennes_periodes.get(p) is not None)
+            if nb_eval == nb_attendues:
+                annuelle = calculer_moyenne_annuelle(*(moyennes_periodes[p] for p in periodes_cibles))
                 if annuelle is not None:
                     deliberations[eleve_id] = {
                         "moyenne": annuelle,
                         "cursus_incomplet": False,
-                        "statut_deliberation": "Complet",
+                        "statut": "Complet",
+                        "statut_deliberation": "Admis" if annuelle >= 10.0 else "Ajourné",
                         "suggestion": "passage" if annuelle >= 10.0 else "redoublement",
-                        "periodes_evaluees": nb_semestres_eval,
-                        "periodes_attendues": len(PERIODES_SEMESTRES),
+                        "periodes_evaluees": nb_eval,
+                        "periodes_attendues": nb_attendues,
+                        "nb_periodes_evaluees": nb_eval,
+                        "nb_periodes_attendues": nb_attendues,
+                        "cycle": "primaire" if is_primaire else "secondaire",
                     }
-            elif nb_semestres_eval > 0:
-                somme_eval = sum(semestres[p] for p in PERIODES_SEMESTRES if semestres[p] is not None)
-                moyenne_incomplet = round(somme_eval / len(PERIODES_SEMESTRES), 2)
+            elif nb_eval > 0:
+                somme_eval = sum(moyennes_periodes[p] for p in periodes_cibles if moyennes_periodes.get(p) is not None)
+                moyenne_incomplet = round(somme_eval / float(nb_attendues), 2)
                 deliberations[eleve_id] = {
                     "moyenne": moyenne_incomplet,
                     "cursus_incomplet": True,
+                    "statut": "Dossier Incomplet",
                     "statut_deliberation": "Dossier Incomplet",
                     "suggestion": "Décision réservée au conseil (cursus incomplet)",
-                    "periodes_evaluees": nb_semestres_eval,
-                    "periodes_attendues": len(PERIODES_SEMESTRES),
+                    "periodes_evaluees": nb_eval,
+                    "periodes_attendues": nb_attendues,
+                    "nb_periodes_evaluees": nb_eval,
+                    "nb_periodes_attendues": nb_attendues,
                     "_fallback_incomplet": True,
+                    "cycle": "primaire" if is_primaire else "secondaire",
                 }
 
-    # Un bulletin ou une moyenne par semestre ne prouve pas que toutes les
+    # Un bulletin ou une moyenne par période ne prouve pas que toutes les
     # matières obligatoires de chaque période ont été évaluées.
-    periodes_a_verifier = periodes_officielles or PERIODES_SEMESTRES
     for inscription in inscriptions:
         resultat = deliberations.get(inscription.eleve_id)
         if resultat is None:
             continue
+        periodes_a_verifier = get_periodes_attendues_inscription(inscription, annee)
         completude = calculer_completude_annuelle_inscription(
             ecole_id, annee_id, inscription, periodes_a_verifier
         )
@@ -1160,14 +1205,26 @@ def get_deliberations_annuelles_eleves(ecole_id, annee_id):
 def evaluer_deliberation_annuelle(ecole_id, annee_id, eleve_id):
     """Évalue la situation de délibération d'un élève individuel."""
     delibs = get_deliberations_annuelles_eleves(ecole_id, annee_id)
-    return delibs.get(eleve_id, {
+    if eleve_id in delibs:
+        return delibs[eleve_id]
+
+    ins = Inscription.query.filter_by(
+        ecole_id=ecole_id, annee_scolaire_id=annee_id, eleve_id=eleve_id
+    ).first()
+    from app.services.niveaux import est_cycle_primaire
+    nb_att = 3 if (ins and est_cycle_primaire(ins)) else 2
+    return {
         "moyenne": None,
         "cursus_incomplet": True,
+        "statut": "Dossier Incomplet",
         "statut_deliberation": "Dossier Incomplet",
         "suggestion": "Décision réservée au conseil (cursus incomplet)",
         "periodes_evaluees": 0,
-        "periodes_attendues": 2,
-    })
+        "periodes_attendues": nb_att,
+        "nb_periodes_evaluees": 0,
+        "nb_periodes_attendues": nb_att,
+        "cycle": "primaire" if (ins and est_cycle_primaire(ins)) else "secondaire",
+    }
 
 
 def get_moyennes_annuelles_eleves(ecole_id, annee_id):

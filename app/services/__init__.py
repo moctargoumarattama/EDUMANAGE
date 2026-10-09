@@ -732,13 +732,8 @@ def _construire_elements_bulletin(
         ParagraphStyle('SchoolInfo', parent=styles['Normal'], leading=font_school + 2.5)
     )
 
-    per_str = str(periode_nom or "1er Semestre")
-    if "1" in per_str:
-        per_display = "1ER SEMESTRE"
-    elif "2" in per_str:
-        per_display = "2ÈME SEMESTRE"
-    else:
-        per_display = per_str.upper()
+    per_clean = str(periode_nom or "1er Semestre").strip()
+    per_display = per_clean.upper() if per_clean else "1ER SEMESTRE"
 
     annee_display = str(annee_scolaire_nom or "")
 

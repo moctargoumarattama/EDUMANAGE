@@ -464,16 +464,24 @@ def calculer_moyenne_generale_semestre(matieres_finalisees):
     return round(total_points / total_coef, 2)
 
 
-def calculer_moyenne_annuelle(moyenne_s1, moyenne_s2):
+def calculer_moyenne_annuelle(*args, **kwargs):
     """
-    Calcule la moyenne annuelle : (moyenne_s1 + moyenne_s2) / 2.
-    Nécessite que les deux semestres soient finalisés (non None).
-    Si l'un manque -> retourne None.
+    Calcule la moyenne annuelle réglementaire :
+    - 2 semestres (Secondaire) : (moyenne_s1 + moyenne_s2) / 2
+    - 3 compositions (Primaire) : (c1 + c2 + c3) / 3
+    Nécessite que toutes les périodes obligatoires soient finalisées (non None).
+    Si l'une manque -> retourne None.
     """
-    if moyenne_s1 is None or moyenne_s2 is None:
+    if len(args) == 1 and isinstance(args[0], (list, tuple)):
+        vals = args[0]
+    else:
+        vals = args
+
+    if not vals or any(v is None for v in vals):
         return None
     try:
-        return round((float(moyenne_s1) + float(moyenne_s2)) / 2.0, 2)
+        somme = sum(float(v) for v in vals)
+        return round(somme / float(len(vals)), 2)
     except (ValueError, TypeError):
         return None
 

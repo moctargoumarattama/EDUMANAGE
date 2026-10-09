@@ -346,3 +346,112 @@ def infer_niveau_from_classe_name(nom):
         return "2NDE"
     valid_codes = {code for code, _nom, _cycle in STANDARD_NIVEAUX}
     return normalized if normalized in valid_codes else None
+
+
+# -----------------------------------------------------------------------------
+# DÉTECTION ET DIFFÉRENCIATION DES CYCLES ACADÉMIQUES (PRIMAIRE vs SECONDAIRE)
+# -----------------------------------------------------------------------------
+
+NIVEAUX_CODES_PRIMAIRE = {'CI', 'CP', 'CE1', 'CE2', 'CM1', 'CM2'}
+CYCLES_PRIMAIRE = {'primaire', 'elementaire', 'maternelle'}
+CYCLES_SECONDAIRE = {'college', 'lycee', 'secondaire'}
+
+PERIODES_PRIMAIRE_DEFAULT = ("1ère Composition", "2ème Composition", "3ème Composition")
+PERIODES_SECONDAIRE_DEFAULT = ("1er Semestre", "2ème Semestre")
+
+
+def determiner_cycle_classe(classe) -> str:
+    """
+    Détermine le cycle académique d'une classe : 'primaire' ou 'secondaire'.
+    Cycle Primaire : CI, CP, CE1, CE2, CM1, CM2 (3 compositions annuelles).
+    Cycle Secondaire : Collège (6e à 3e) et Lycée (2nde à Terminale) (2 semestres).
+    """
+    if not classe:
+        return 'secondaire'
+
+    # 1. Vérification par NiveauScolaire relationnel
+    niveau_obj = getattr(classe, 'niveau_scolaire', None)
+    if not niveau_obj and getattr(classe, 'niveau_id', None):
+        niveau_obj = db.session.get(NiveauScolaire, classe.niveau_id)
+
+    if niveau_obj:
+        cycle_str = str(getattr(niveau_obj, 'cycle', '') or '').strip().lower()
+        if cycle_str in CYCLES_PRIMAIRE:
+            return 'primaire'
+        if cycle_str in CYCLES_SECONDAIRE:
+            return 'secondaire'
+        code_str = str(getattr(niveau_obj, 'code', '') or '').strip().upper()
+        if code_str in NIVEAUX_CODES_PRIMAIRE:
+            return 'primaire'
+        nom_str = str(getattr(niveau_obj, 'nom', '') or '').strip().upper()
+        if nom_str in NIVEAUX_CODES_PRIMAIRE:
+            return 'primaire'
+
+    # 2. Vérification par le champ textuel classe.niveau
+    niveau_texte = str(getattr(classe, 'niveau', '') or '').strip().upper()
+    if niveau_texte in NIVEAUX_CODES_PRIMAIRE or 'PRIMAIRE' in niveau_texte:
+        return 'primaire'
+    for code in NIVEAUX_CODES_PRIMAIRE:
+        if niveau_texte.startswith(code):
+            return 'primaire'
+
+    # 3. Vérification par le nom de la classe
+    nom_classe = str(getattr(classe, 'nom', '') or '').strip()
+    inferred = infer_niveau_from_classe_name(nom_classe)
+    if inferred in NIVEAUX_CODES_PRIMAIRE:
+        return 'primaire'
+
+    nom_upper = nom_classe.upper()
+    for code in NIVEAUX_CODES_PRIMAIRE:
+        if (
+            nom_upper == code
+            or nom_upper.startswith(f"{code} ")
+            or nom_upper.startswith(f"{code}-")
+            or nom_upper.startswith(f"{code}_")
+        ):
+            return 'primaire'
+
+    return 'secondaire'
+
+
+def est_cycle_primaire(classe_ou_inscription) -> bool:
+    """Indique si la classe ou l'inscription relève du cycle primaire."""
+    if not classe_ou_inscription:
+        return False
+    if hasattr(classe_ou_inscription, 'classe'):
+        classe = classe_ou_inscription.classe
+        if not classe and getattr(classe_ou_inscription, 'classe_id', None):
+            classe = db.session.get(Classe, classe_ou_inscription.classe_id)
+        return determiner_cycle_classe(classe) == 'primaire'
+    return determiner_cycle_classe(classe_ou_inscription) == 'primaire'
+
+
+def get_periodes_attendues_inscription(inscription, annee=None):
+    """
+    Retourne la liste ordonnée des périodes officielles attendues selon le cycle de l'élève :
+    - Primaire (CI, CP, CE1, CE2, CM1, CM2) : 3 compositions annuelles réglementaires
+    - Secondaire (Collège, Lycée) : 2 semestres réglementaires
+    """
+    is_primaire = est_cycle_primaire(inscription)
+    annee = annee or (getattr(inscription, 'annee_scolaire', None) if inscription else None)
+    periodes_cfg = [p.nom for p in annee.periodes_bulletin] if (annee and getattr(annee, 'periodes_bulletin', None)) else []
+
+    if is_primaire:
+        periodes_prim = [
+            p for p in periodes_cfg
+            if any(k in p.lower() for k in ("composition", "trimestre"))
+        ]
+        if len(periodes_prim) >= 3:
+            return periodes_prim
+        return list(PERIODES_PRIMAIRE_DEFAULT)
+    else:
+        periodes_sec = [
+            p for p in periodes_cfg
+            if "semestre" in p.lower()
+        ]
+        if len(periodes_sec) >= 2:
+            return periodes_sec
+        elif len(periodes_cfg) == 2 and not any(k in p.lower() for p in periodes_cfg for k in ("composition", "trimestre")):
+            return periodes_cfg
+        return list(PERIODES_SECONDAIRE_DEFAULT)
+

@@ -638,13 +638,14 @@ def supprimer_bulletin(ecole_id, annee, user, bulletin_id):
 def calculer_moyenne_annuelle_reglementaire(inscription_id, ecole_id):
     """
     Calcule la moyenne annuelle réglementaire d'un élève pour une inscription donnée.
-    Règle académique stricte :
-    - La division s'effectue obligatoirement par le nombre réglementaire de périodes officielles
-      (ex. 2 semestres ou 3 trimestres configurés pour l'année scolaire).
-    - Si une ou plusieurs périodes manquent à l'évaluation :
+    Règles académiques strictes :
+    - Primaire (CI à CM2) : 3 compositions annuelles obligatoires (division par 3).
+    - Secondaire (Collège : 6e à 3e, Lycée : 2nde à Tle) : 2 semestres obligatoires (division par 2).
+    - Si une ou plusieurs périodes manquent à l'évaluation (< 3 en primaire, < 2 en secondaire) :
       1. Statut = 'Dossier Incomplet'
       2. cursus_incomplet = True
       3. Suggestion = 'Décision réservée au conseil (cursus incomplet)'
+      4. La moyenne annuelle est divisée par le nombre réglementaire de périodes officielles (3 ou 2).
     """
     vide = {
         "moyenne_annuelle": None,
@@ -666,21 +667,46 @@ def calculer_moyenne_annuelle_reglementaire(inscription_id, ecole_id):
     if not inscription:
         return vide
 
-    annee = inscription.annee_scolaire
-    if annee and getattr(annee, "periodes_bulletin", None):
-        periodes_attendues = [p.nom for p in annee.periodes_bulletin]
-    else:
-        periodes_attendues = [SEMESTRE_1, SEMESTRE_2]
+    from app.services.niveaux import est_cycle_primaire, get_periodes_attendues_inscription
+    is_primaire = est_cycle_primaire(inscription)
 
-    nb_attendues = max(1, len(periodes_attendues))
+    annee = inscription.annee_scolaire
+    periodes_attendues = get_periodes_attendues_inscription(inscription, annee)
+    nb_attendues = 3 if is_primaire else 2
+    if len(periodes_attendues) > nb_attendues:
+        nb_attendues = len(periodes_attendues)
 
     bulletins = Bulletin.query.filter_by(
         ecole_id=ecole_id,
         inscription_id=inscription.id,
     ).filter(Bulletin.moyenne_generale.isnot(None)).all()
 
+    def _cle_periode_index(nom):
+        s = (nom or "").strip().lower()
+        if "1" in s or "premier" in s or "première" in s:
+            return 1
+        if "2" in s or "deuxième" in s or "second" in s:
+            return 2
+        if "3" in s or "troisième" in s:
+            return 3
+        return s
+
     bulletins_map = {b.periode: b for b in bulletins if b.periode}
-    bulletins_utiles = [bulletins_map[p] for p in periodes_attendues if p in bulletins_map]
+    bulletins_by_key = {_cle_periode_index(b.periode): b for b in bulletins if b.periode}
+
+    bulletins_utiles = []
+    vus = set()
+    for p in periodes_attendues:
+        b = bulletins_map.get(p) or bulletins_by_key.get(_cle_periode_index(p))
+        if b and b.id not in vus:
+            bulletins_utiles.append(b)
+            vus.add(b.id)
+
+    # Compléter par d'éventuels bulletins valides restants pour l'inscription
+    for b in bulletins:
+        if b.id not in vus and len(bulletins_utiles) < nb_attendues:
+            bulletins_utiles.append(b)
+            vus.add(b.id)
 
     nb_evaluees = len(bulletins_utiles)
     somme = sum(float(b.moyenne_generale) for b in bulletins_utiles)
@@ -719,5 +745,6 @@ def calculer_moyenne_annuelle_reglementaire(inscription_id, ecole_id):
         "bulletins": bulletins_utiles,
         "missing_subjects_names": completude["missing_subjects_names"],
         "missing_subjects_by_period": completude["missing_subjects_by_period"],
+        "cycle": "primaire" if is_primaire else "secondaire",
     }
 
