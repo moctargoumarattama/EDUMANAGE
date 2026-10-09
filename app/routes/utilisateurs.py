@@ -1,14 +1,10 @@
 from . import main
 from .common import (
-    CreateUserForm,
     Ecole,
     Eleve,
     IntegrityError,
     JournalCorrection,
-    User,
     Utilisateur,
-    ajouter_ecole_id,
-    bcrypt,
     current_app,
     current_user,
     datetime,
@@ -16,7 +12,6 @@ from .common import (
     filtre_par_ecole,
     flash,
     get_ecole_courante,
-    get_ecole_filter_query,
     joinedload,
     jsonify,
     login_required,
@@ -90,7 +85,7 @@ def _primary_admin_for_ecole(ecole_id):
         return None
     return (
         Utilisateur.query
-        .filter_by(ecole_id=ecole_id, role='admin')
+        .filter(Utilisateur.ecole_id == ecole_id, Utilisateur.role.in_(('admin', 'administrateur')))
         .order_by(Utilisateur.date_creation.asc(), Utilisateur.id.asc())
         .first()
     )
@@ -101,49 +96,52 @@ def _is_primary_admin(user):
     return bool(primary_admin and primary_admin.id == user.id)
 
 
+def _refuser_mutation_compte(action, user=None):
+    current_app.logger.warning(
+        "Tentative de mutation de compte non autorisee: acteur_id=%s cible_id=%s action=%s",
+        current_user.id, getattr(user, 'id', None), action,
+    )
+    return jsonify({'success': False, 'message': 'Action non autorisée sur ce compte.'}), 403
+
+
+def _garde_mutation_compte(user, action):
+    """Impose la même hiérarchie et le même périmètre à toutes les mutations."""
+    ecole = get_ecole_courante()
+    if not ecole or isinstance(ecole, tuple) or user.ecole_id != ecole.id:
+        return _refuser_mutation_compte(action, user)
+
+    roles_super_admin = ('super_admin', 'super-admin', 'superadmin')
+    acteur_super_admin = current_user.role in roles_super_admin
+    if user.role in roles_super_admin:
+        if not acteur_super_admin or user.id != current_user.id or action in ('suppression', 'statut'):
+            return _refuser_mutation_compte(action, user)
+    elif not acteur_super_admin:
+        if current_user.role not in ('admin', 'administrateur'):
+            return _refuser_mutation_compte(action, user)
+        if user.role in ('admin', 'administrateur') and not _is_primary_admin(current_user):
+            if user.id != current_user.id or action not in ('profil', 'mot_de_passe'):
+                return _refuser_mutation_compte(action, user)
+    return None
+
+
+def _garde_creation_admin():
+    ecole = get_ecole_courante()
+    if not ecole or isinstance(ecole, tuple) or ecole.id != current_user.ecole_id or not _is_primary_admin(current_user):
+        return _refuser_mutation_compte('creation_admin')
+    return None
+
+
 @main.route('/admin/create_user', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
 def create_user():
-    """Création d'utilisateurs par l'administrateur"""
-    form = CreateUserForm()
-    form.eleve_id.choices = [(0, "--- Aucun ---")] + [(e.id, f"{e.nom} {e.prenom} ({e.classe})") for e in get_ecole_filter_query(Eleve).all()]
-
-    if form.validate_on_submit():
-        try:
-            if form.role.data != 'admin':
-                flash("La creation directe est limitee aux comptes admin.", "warning")
-                return redirect(url_for('main.create_user'))
-
-            hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
-            user = Utilisateur(
-                nom=form.nom.data,
-                email=form.email.data,
-                mot_de_passe=hashed_password,
-                role=form.role.data
-            )
-
-            if form.role.data == 'parent' and form.eleve_id.data != 0:
-                user.eleve_id = form.eleve_id.data
-
-            db.session.add(user)
-            db.session.commit()
-            flash(f"Utilisateur {user.nom} créé avec succès !", "success")
-            return redirect(url_for('main.dashboard'))
-
-        except IntegrityError as e:
-            db.session.rollback()
-            if 'email' in str(e):
-                flash("Cet email est d?j? utilisé.", "danger")
-            else:
-                flash("Erreur lors de la création de l'utilisateur.", "danger")
-                current_app.logger.error(f"IntegrityError: {e}")
-        except Exception as e:
-            db.session.rollback()
-            flash("Erreur inattendue lors de la création.", "danger")
-            current_app.logger.error(f"Erreur création utilisateur: {e}")
-
-    return render_template('admin/create_user.html', form=form)
+    """Compatibilité de l'ancienne URL avec la création canonique sécurisée."""
+    refus = _garde_creation_admin()
+    if refus:
+        return refus
+    if request.method == 'POST':
+        return creer_utilisateur()
+    return redirect(url_for('main.creer_utilisateur'))
 
 @main.route('/admin/utilisateurs')
 @login_required
@@ -212,18 +210,16 @@ def gestion_utilisateurs():
 @login_required
 @role_required('admin')
 def creer_utilisateur():
-    from werkzeug.security import generate_password_hash
-
-    if not _is_primary_admin(current_user):
-        flash("Seul l'administrateur principal peut créer un autre administrateur.", "danger")
-        return redirect(url_for('main.gestion_utilisateurs'))
+    refus = _garde_creation_admin()
+    if refus:
+        return refus
 
     if request.method == 'POST':
         nom = request.form.get('nom', '').strip()
-        email = request.form.get('email', '').strip()
-        telephone = request.form.get('telephone', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        telephone = request.form.get('telephone', '').strip() or None
         role = 'admin'
-        mot_de_passe = request.form.get('mot_de_passe', '').strip()
+        mot_de_passe = request.form.get('mot_de_passe', request.form.get('password', '')).strip()
 
         if not all([nom, email]):
             flash("Tous les champs obligatoires doivent être remplis.", "warning")
@@ -233,8 +229,8 @@ def creer_utilisateur():
         if mot_de_passe_genere:
             mot_de_passe = generate_access_code()
 
-        if Utilisateur.query.filter_by(email=email).first():
-            flash('Cet email est d?j? utilisé', 'danger')
+        if Utilisateur.query.filter(db.func.lower(Utilisateur.email) == email).first():
+            flash('Cet email est déjà utilisé', 'danger')
             return redirect(url_for('main.gestion_utilisateurs'))
 
         try:
@@ -244,11 +240,10 @@ def creer_utilisateur():
                 email=email,
                 telephone=telephone,
                 role=role,
-                mot_de_passe=generate_password_hash(mot_de_passe),
+                ecole_id=current_user.ecole_id,
                 statut='actif'
             )
-
-            ajouter_ecole_id(nouvel_utilisateur)
+            nouvel_utilisateur.set_mot_de_passe(mot_de_passe)
 
             db.session.add(nouvel_utilisateur)
             db.session.commit()
@@ -257,6 +252,10 @@ def creer_utilisateur():
                 flash(f"Administrateur créé avec succès. Code d'accès généré : {mot_de_passe}", 'success')
             else:
                 flash('Administrateur créé avec succès', 'success')
+            return redirect(url_for('main.gestion_utilisateurs'))
+        except IntegrityError:
+            db.session.rollback()
+            flash("Cet email ou ce téléphone est déjà utilisé.", "danger")
             return redirect(url_for('main.gestion_utilisateurs'))
         except Exception as e:
             db.session.rollback()
@@ -268,21 +267,28 @@ def creer_utilisateur():
 
 @main.route('/admin/utilisateur/<int:id>/modifier', methods=['GET', 'POST'])
 @login_required
-@role_required('admin')
+@role_required('admin', 'super_admin')
 def modifier_utilisateur(id):
-    if current_user.role == 'super_admin':
-        return redirect(url_for('main.gestion_ecoles'))
-
     user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=id).first_or_404()
-    if user.role == 'super_admin' and current_user.id != user.id:
-        flash("Le compte Super Administrateur est protégé et ne peut pas être modifié par un autre administrateur.", "danger")
-        return redirect(url_for('main.gestion_utilisateurs'))
+    refus = _garde_mutation_compte(user, 'profil')
+    if refus:
+        return refus
 
     if request.method == 'POST':
-        statut = request.form.get('statut', '').strip() or 'actif'
+        statut = request.form.get('statut')
+        if statut is None:
+            statut = user.statut
+        else:
+            statut = statut.strip()
+            if statut not in ('actif', 'bloque'):
+                return jsonify({'success': False, 'message': 'Statut invalide'}), 400
+        if statut != user.statut:
+            refus = _garde_mutation_compte(user, 'statut')
+            if refus:
+                return refus
         email = request.form.get('email', '').strip().lower()
 
-        doublon = Utilisateur.query.filter(Utilisateur.email == email, Utilisateur.id != user.id).first()
+        doublon = Utilisateur.query.filter(db.func.lower(Utilisateur.email) == email, Utilisateur.id != user.id).first()
         if doublon:
             flash("Cet email est déjà utilisé.", "danger")
             return redirect(url_for('main.modifier_utilisateur', id=user.id))
@@ -295,6 +301,8 @@ def modifier_utilisateur(id):
 
         db.session.commit()
         flash("Utilisateur modifié avec succès.", "success")
+        if current_user.role == 'super_admin':
+            return redirect(url_for('main.gestion_ecoles'))
         return redirect(url_for('main.gestion_utilisateurs'))
 
     return render_template(
@@ -306,13 +314,13 @@ def modifier_utilisateur(id):
 
 @main.route('/admin/utilisateur/<int:user_id>/statut', methods=['POST'])
 @login_required
-@role_required('admin')
+@role_required('admin', 'super_admin')
 def changer_statut_utilisateur(user_id):
+    user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
+    refus = _garde_mutation_compte(user, 'statut')
+    if refus:
+        return refus
     try:
-        user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
-        if user.role == 'super_admin':
-            return jsonify({'success': False, 'message': 'Le compte Super Administrateur est protégé et ne peut pas être désactivé.'}), 403
-
         data = request.get_json()
         if not data or 'statut' not in data:
             return jsonify({'success': False, 'message': 'Données JSON requises'}), 400
@@ -331,15 +339,12 @@ def changer_statut_utilisateur(user_id):
 
 @main.route('/admin/utilisateur/<int:user_id>', methods=['DELETE'])
 @login_required
-@role_required('admin')
+@role_required('admin', 'super_admin')
 def supprimer_utilisateur(user_id):
     user = Utilisateur.query.filter_by(id=user_id).first_or_404()
-
-    if user.ecole_id != current_user.ecole_id:
-        return jsonify({'success': False, 'message': 'Non autorise'}), 403
-
-    if user.role == 'super_admin':
-        return jsonify({'success': False, 'message': 'Le compte Super Administrateur est protégé et ne peut jamais être supprimé.'}), 403
+    refus = _garde_mutation_compte(user, 'suppression')
+    if refus:
+        return refus
 
     if user.id == current_user.id:
         return jsonify({'success': False, 'message': 'Vous ne pouvez pas vous supprimer vous-même'}), 403
@@ -362,7 +367,7 @@ def supprimer_utilisateur(user_id):
 
 @main.route('/admin/utilisateur/<int:user_id>/reset-password', methods=['POST'])
 @login_required
-@role_required('admin')
+@role_required('admin', 'super_admin')
 def admin_reset_password(user_id):
     """Génère un nouveau mot de passe permanent à 8 chiffres pour l'utilisateur"""
     # Vérification multi-tenant et chargement de l'utilisateur
@@ -371,9 +376,9 @@ def admin_reset_password(user_id):
     if not user:
         return jsonify({'success': False, 'message': "Utilisateur introuvable ou non autorisé."}), 404
 
-    # Protection des comptes d'administration supérieurs
-    if user.role == 'super_admin' and current_user.role != 'super_admin':
-        return jsonify({'success': False, 'message': "Action non autorisée sur un super-administrateur."}), 403
+    refus = _garde_mutation_compte(user, 'mot_de_passe')
+    if refus:
+        return refus
 
     try:
         nouveau_mdp = generate_access_code()
@@ -445,105 +450,23 @@ def envoyer_credentials_parent(parent_id):
         'telephone': parent.telephone,
     }), 200
 
-def seed_critical_corrections_if_empty():
-    """Génère des données d'audit critiques initiales si la table est vide pour la démonstration"""
-    try:
-        if JournalCorrection.query.count() > 0:
-            return
-        ecoles = Ecole.query.all()
-        if not ecoles:
-            return
-        admin_user = Utilisateur.query.filter_by(role='super_admin').first() or Utilisateur.query.first()
-        admin_id = admin_user.id if admin_user else None
-
-        sample_cases = [
-            {
-                "action": "Suppression de note d'examen",
-                "description": "Note trimestrielle de Mathématiques supprimée manuellement (Élève #4)",
-                "ancienne_valeur": "17.0 / 20 (Coeff: 3.0)",
-                "nouvelle_valeur": "Supprimée manuellement",
-                "cible_type": "note",
-                "cible_id": 4,
-                "niveau": "critique",
-                "hours_ago": 2
-            },
-            {
-                "action": "Altération tarifaire de scolarité",
-                "description": "Modification manuelle du montant de scolarité sans justificatif comptable",
-                "ancienne_valeur": "3 000 MAD (Solde initial)",
-                "nouvelle_valeur": "1 500 MAD (Remise non autorisée)",
-                "cible_type": "paiement",
-                "cible_id": 8,
-                "niveau": "critique",
-                "hours_ago": 6
-            },
-            {
-                "action": "Suppression définitive d'un élève",
-                "description": "Dossier élève, historique des notes et paiements supprimés en cascade",
-                "ancienne_valeur": "Élève ID #10 (Karim Amrani - 3ème B)",
-                "nouvelle_valeur": "Suppression irréversible effectuée",
-                "cible_type": "eleve",
-                "cible_id": 10,
-                "niveau": "critique",
-                "hours_ago": 18
-            },
-            {
-                "action": "Modification coefficient cours",
-                "description": "Changement rétroactif du coefficient d'examen officiel en cours d'année scolaire",
-                "ancienne_valeur": "Coefficient 4.0",
-                "nouvelle_valeur": "Coefficient 1.0",
-                "cible_type": "cours",
-                "cible_id": 3,
-                "niveau": "critique",
-                "hours_ago": 28
-            },
-            {
-                "action": "Réévaluation après clôture",
-                "description": "Modification de note sur bulletin déjà validé et imprimé",
-                "ancienne_valeur": "Note: 10.5 / 20",
-                "nouvelle_valeur": "Note: 14.0 / 20",
-                "cible_type": "bulletin",
-                "cible_id": 6,
-                "niveau": "warning",
-                "hours_ago": 40
-            }
-        ]
-
-        for ecole in ecoles:
-            for item in sample_cases:
-                jc = JournalCorrection(
-                    action=item["action"],
-                    description=item["description"],
-                    ancienne_valeur=item["ancienne_valeur"],
-                    nouvelle_valeur=item["nouvelle_valeur"],
-                    cible_type=item["cible_type"],
-                    cible_id=item["cible_id"],
-                    niveau=item["niveau"],
-                    date=datetime.utcnow() - timedelta(hours=item["hours_ago"]),
-                    ecole_id=ecole.id,
-                    user_id=admin_id
-                )
-                db.session.add(jc)
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.warning(f"Erreur seed corrections: {e}")
 
 
 @main.route('/journaux_corrections', methods=['GET'])
 @login_required
 @role_required('admin', 'super_admin')
 def journaux_corrections():
-    # S'assurer que des cas critiques de test sont présents si la table est vide
-    seed_critical_corrections_if_empty()
-
     # Récupération des écoles accessibles
-    if current_user.role == 'super_admin':
+    ecoles_accessibles = None
+    if current_user.role in ('super_admin', 'super-admin', 'superadmin'):
         toutes_ecoles = Ecole.query.order_by(Ecole.nom).all()
         tous_users = Utilisateur.query.order_by(Utilisateur.nom).all()
     else:
-        toutes_ecoles = get_ecole_filter_query(Ecole).all()
-        tous_users = get_ecole_filter_query(User).all()
+        ecoles_accessibles = {e.id for e in getattr(current_user, 'ecoles_gerees', [])}
+        if current_user.ecole_id:
+            ecoles_accessibles.add(current_user.ecole_id)
+        toutes_ecoles = Ecole.query.filter(Ecole.id.in_(ecoles_accessibles)).order_by(Ecole.nom).all()
+        tous_users = Utilisateur.query.filter(Utilisateur.ecole_id.in_(ecoles_accessibles)).order_by(Utilisateur.nom).all()
 
     # Récupération des filtres
     ecole_id = request.args.get('ecole_id', type=int)
@@ -566,11 +489,10 @@ def journaux_corrections():
         joinedload(JournalCorrection.user)
     )
 
-    if current_user.role != 'super_admin':
-        ecoles_accessibles = [e.id for e in getattr(current_user, 'ecoles_gerees', [])]
-        if getattr(current_user, 'ecole', None):
-            ecoles_accessibles.append(current_user.ecole.id)
+    if ecoles_accessibles is not None:
         query = query.filter(JournalCorrection.ecole_id.in_(ecoles_accessibles))
+
+    statistiques_query = query
 
     if ecole_id:
         query = query.filter(JournalCorrection.ecole_id == ecole_id)
@@ -601,9 +523,9 @@ def journaux_corrections():
 
     corrections = query.order_by(JournalCorrection.date.desc()).all()
 
-    # Statistiques globales
-    total_critique = JournalCorrection.query.filter_by(niveau='critique').count()
-    total_warning = JournalCorrection.query.filter_by(niveau='warning').count()
+    # Statistiques du même périmètre d'accès que les événements affichés.
+    total_critique = statistiques_query.filter_by(niveau='critique').count()
+    total_warning = statistiques_query.filter_by(niveau='warning').count()
 
     # Organisation groupée par école
     ecoles_groupes = []
@@ -641,14 +563,14 @@ def journaux_corrections():
 
 @main.route('/api/users/<int:user_id>/status', methods=['PUT'])
 @login_required
-@role_required('admin')
+@role_required('admin', 'super_admin')
 def toggle_user_status(user_id):
     """Changer le statut d'un utilisateur"""
     user = filtre_par_ecole(Utilisateur.query, Utilisateur).filter_by(id=user_id).first_or_404()
 
-    # Vérifier les permissions
-    if user.ecole_id != current_user.ecole_id:
-        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
+    refus = _garde_mutation_compte(user, 'statut')
+    if refus:
+        return refus
 
     # Empêcher de se désactiver soi-même
     if user.id == current_user.id:
@@ -661,17 +583,14 @@ def toggle_user_status(user_id):
 
 @main.route('/api/users/<int:user_id>', methods=['DELETE'])
 @login_required
-@role_required('admin')
+@role_required('admin', 'super_admin')
 def delete_user(user_id):
     """Supprimer un utilisateur et toutes ses dépendances (enfants + inscriptions)"""
     user = Utilisateur.query.filter_by(id=user_id).first_or_404()
 
-    if user.role == 'super_admin':
-        return jsonify({'success': False, 'message': 'Le compte Super Administrateur est protege et ne peut jamais etre supprime.'}), 403
-
-    # Empêcher un admin de supprimer un utilisateur d'une autre école
-    if user.ecole_id != current_user.ecole_id:
-        return jsonify({'success': False, 'message': 'Non autorisé'}), 403
+    refus = _garde_mutation_compte(user, 'suppression')
+    if refus:
+        return refus
 
     # Empêcher de se supprimer soi-même
     if user.id == current_user.id:

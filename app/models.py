@@ -376,6 +376,10 @@ class Utilisateur(db.Model, UserMixin):
     logs = db.relationship('Log', back_populates='utilisateur', lazy=True)
 
     # ---------- utilitaires ----------
+    @property
+    def is_active(self):
+        return self.statut != 'bloque' and getattr(self, 'est_actif', True)
+
     def set_mot_de_passe(self, mot_de_passe_plain: str):
         self.mot_de_passe = generate_password_hash(mot_de_passe_plain)
 

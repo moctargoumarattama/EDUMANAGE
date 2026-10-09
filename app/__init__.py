@@ -145,7 +145,15 @@ def create_app(config_class=None):
         # user_loader
         @login_manager.user_loader
         def load_user(user_id):
-            return db.session.get(Utilisateur, int(user_id))
+            from flask import session
+
+            user = db.session.get(Utilisateur, int(user_id))
+            if user and not user.is_active:
+                # Ne pas appeler logout_user ici : il recharge current_user.
+                session.clear()
+                session['_remember'] = 'clear'
+                return None
+            return user
 
         @login_manager.unauthorized_handler
         def unauthorized_callback():

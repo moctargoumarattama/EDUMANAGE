@@ -453,6 +453,14 @@ def login():
         if utilisateur and check_password_hash(utilisateur.mot_de_passe, password):
             # utilisateur existe et mot de passe correct
 
+            if not utilisateur.is_active:
+                flash("Votre compte a été suspendu. Veuillez contacter l'administration.", "danger")
+                current_app.logger.warning(
+                    "Connexion refusée (compte bloqué id=%s) depuis %s",
+                    utilisateur.id, ip,
+                )
+                return redirect(url_for("main.login"))
+
             # Vérification école pour tous sauf super_admin
             if utilisateur.role != "super_admin" and not utilisateur.ecole_id:
                 flash("Votre compte n'est associé à aucune école. Contactez l'administrateur.", "danger")
