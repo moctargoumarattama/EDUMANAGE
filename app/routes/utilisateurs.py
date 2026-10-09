@@ -54,7 +54,7 @@ def _notifier_whatsapp_reset_password(user, nouveau_mdp):
             ecole_id=ecole.id,
             destinataire=telephone,
             message=message,
-            type_message="general",
+            type_message="auth_credentials",
             commit=True,
         )
     except Exception as exc:

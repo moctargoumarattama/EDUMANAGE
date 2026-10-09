@@ -8,13 +8,17 @@ from app.models import Ecole, MessageQueue
 from app.services.phone_numbers import normaliser_numero_whatsapp
 
 
-VALID_MESSAGE_TYPES = {'absence', 'note', 'paiement', 'inscription', 'compte_professeur', 'general'}
+VALID_MESSAGE_TYPES = {'absence', 'note', 'paiement', 'inscription', 'compte_professeur', 'auth_credentials', 'general'}
 STATUS_PENDING = 'en_attente'
 STATUS_SENT = 'envoye'
 STATUS_FAILED = 'echec'
 STATUS_EXPIRED = 'expire'
-BAILEYS_BASE_URL = 'http://127.0.0.1:3001'
+import os
+BAILEYS_BASE_URL = os.environ.get("WHATSAPP_GATEWAY_BASE_URL", "http://127.0.0.1:3001")
 
+def _get_gateway_headers():
+    secret = os.environ.get("WHATSAPP_GATEWAY_SECRET", "secret-gateway-local-klasora-2024")
+    return {"X-Gateway-Secret": secret}
 
 def normaliser_numero_niger(numero):
     """Compat: local Niger ou numero international vers format WhatsApp +XXX."""
@@ -81,10 +85,10 @@ def envoyer_via_baileys(destinataire, texte, queue_item=None):
     if not ecole_id:
         raise RuntimeError("Ecole introuvable pour l'envoi WhatsApp Baileys.")
 
-    url = f"{BAILEYS_BASE_URL}/session/{ecole_id}/send"
+    url = f"{BAILEYS_BASE_URL.rstrip('/')}/session/{ecole_id}/send"
     payload = {"to": destinataire, "text": texte}
     try:
-        response = requests.post(url, json=payload, timeout=5)
+        response = requests.post(url, json=payload, headers=_get_gateway_headers(), timeout=5)
     except requests.RequestException as exc:
         raise RuntimeError(f"Passerelle Baileys indisponible: {exc}") from exc
 
@@ -170,6 +174,10 @@ def process_queue(send_func, ecole_id=None, limit=50, now=None, commit=True):
             item.statut = STATUS_PENDING
             if not item.erreur_details:
                 item.erreur_details = "Envoi WhatsApp echoue, nouvelle tentative prevue."
+
+        if item.statut in (STATUS_SENT, STATUS_FAILED) and item.type_message in ('auth_credentials', 'compte_professeur'):
+            date_str = item.date_envoi.strftime('%d/%m/%Y') if item.date_envoi else now.strftime('%d/%m/%Y')
+            item.message = f"[CONFIDENTIEL - TRANSMIS LE {date_str}]"
 
         processed.append(item)
 

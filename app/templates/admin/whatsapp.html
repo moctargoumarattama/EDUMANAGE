@@ -34,6 +34,21 @@
                             Expediteur actif :
                             <strong id="whatsappConnectedPhone">{{ whatsapp_status.phone or 'numero en cours de lecture' }}</strong>
                         </p>
+
+                        <form method="POST" action="{{ url_for('main.whatsapp_toggle') }}" class="mb-4 bg-light p-3 rounded-4 border d-inline-block">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="form-check form-switch d-flex align-items-center justify-content-center gap-3 m-0" style="font-size: 1.15rem;">
+                                <input class="form-check-input m-0" type="checkbox" role="switch" id="whatsappEnabledSwitch" name="whatsapp_enabled" value="1" onchange="this.form.submit()" style="cursor: pointer; width: 3rem; height: 1.5rem;" {% if ecole and ecole.whatsapp_enabled %}checked{% endif %}>
+                                <label class="form-check-label fw-medium text-dark m-0" for="whatsappEnabledSwitch" style="cursor: pointer;">
+                                    {% if ecole and ecole.whatsapp_enabled %}
+                                        Notifications WhatsApp <span class="badge bg-success ms-1">Actives</span>
+                                    {% else %}
+                                        Notifications WhatsApp <span class="badge bg-secondary ms-1">En pause</span>
+                                    {% endif %}
+                                </label>
+                            </div>
+                        </form>
+
                         <form method="POST" action="{{ url_for('main.whatsapp_logout') }}">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-outline-danger rounded-pill px-4">

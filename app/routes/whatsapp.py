@@ -16,10 +16,13 @@ WHATSAPP_ALLOWED_STATUSES = {"CONNECTE", "ATTENTE_SCAN", "DECONNECTE", "INDISPON
 def _gateway_url(path):
     return f"{WHATSAPP_GATEWAY_BASE_URL.rstrip('/')}{path}"
 
+def _get_gateway_headers():
+    secret = os.environ.get("WHATSAPP_GATEWAY_SECRET", "secret-gateway-local-klasora-2024")
+    return {"X-Gateway-Secret": secret}
 
 def _sanitize_gateway_payload(payload):
     if not isinstance(payload, dict):
-        return {"status": "INDISPONIBLE"}
+        return {"status": "INDISPONIBLE", "connected": False}
 
     status = payload.get("status")
     if status not in WHATSAPP_ALLOWED_STATUSES:
@@ -38,17 +41,38 @@ def _sanitize_gateway_payload(payload):
     return result
 
 
+def sync_ecole_whatsapp_enabled(ecole_id, is_connected):
+    from app import db
+    from app.models import Ecole
+    ecole = db.session.get(Ecole, ecole_id)
+    if ecole:
+        # Check current manual state, only update if it matches connection state changes?
+        # Actually, the instructions say: atomiquement ecole.whatsapp_enabled = True.
+        if is_connected and not ecole.whatsapp_enabled:
+            ecole.whatsapp_enabled = True
+            db.session.commit()
+        elif not is_connected and ecole.whatsapp_enabled:
+            ecole.whatsapp_enabled = False
+            db.session.commit()
+
 def get_whatsapp_gateway_status(ecole_id=None, include_qr=True):
     ecole_id = ecole_id or getattr(current_user, "ecole_id", None)
     if not ecole_id:
         return {"status": "INDISPONIBLE", "connected": False}
     endpoint = "qr" if include_qr else "status"
     try:
-        response = requests.get(_gateway_url(f"/session/{ecole_id}/{endpoint}"), timeout=WHATSAPP_GATEWAY_TIMEOUT)
+        response = requests.get(
+            _gateway_url(f"/session/{ecole_id}/{endpoint}"),
+            headers=_get_gateway_headers(),
+            timeout=WHATSAPP_GATEWAY_TIMEOUT
+        )
         response.raise_for_status()
-        return _sanitize_gateway_payload(response.json())
+        payload = _sanitize_gateway_payload(response.json())
+        sync_ecole_whatsapp_enabled(ecole_id, payload.get("connected", False))
+        return payload
     except (requests.RequestException, ValueError, TypeError) as exc:
         current_app.logger.warning("Passerelle WhatsApp indisponible: %s", exc)
+        sync_ecole_whatsapp_enabled(ecole_id, False)
         return {"status": "INDISPONIBLE", "connected": False}
 
 
@@ -61,7 +85,10 @@ def whatsapp_connect():
         return redirect_resp
 
     whatsapp_status = get_whatsapp_gateway_status(current_user.ecole_id, include_qr=True)
-    return render_template("admin/whatsapp.html", whatsapp_status=whatsapp_status)
+    from app import db
+    from app.models import Ecole
+    ecole = db.session.get(Ecole, current_user.ecole_id)
+    return render_template("admin/whatsapp.html", whatsapp_status=whatsapp_status, ecole=ecole)
 
 
 @main.route("/parametres/whatsapp/status", methods=["GET"])
@@ -88,16 +115,40 @@ def whatsapp_logout():
     try:
         response = requests.post(
             _gateway_url(f"/session/{current_user.ecole_id}/logout"),
+            headers=_get_gateway_headers(),
             timeout=WHATSAPP_GATEWAY_TIMEOUT,
         )
         response.raise_for_status()
+        sync_ecole_whatsapp_enabled(current_user.ecole_id, False)
         flash_message = "Session WhatsApp deconnectee."
         category = "success"
     except requests.RequestException as exc:
         current_app.logger.warning("Deconnexion WhatsApp impossible: %s", exc)
+        sync_ecole_whatsapp_enabled(current_user.ecole_id, False)
         flash_message = "Passerelle WhatsApp indisponible."
         category = "warning"
 
     from flask import flash
     flash(flash_message, category)
+@main.route("/parametres/whatsapp/toggle", methods=["POST"])
+@main.route("/admin/whatsapp/toggle", methods=["POST"])
+@login_required
+def whatsapp_toggle():
+    ok, redirect_resp = check_school_admin_access()
+    if not ok:
+        return redirect_resp
+
+    from app import db
+    from app.models import Ecole
+    from flask import request, flash
+    ecole = db.session.get(Ecole, current_user.ecole_id)
+    if ecole:
+        enabled = request.form.get("whatsapp_enabled") == "1"
+        ecole.whatsapp_enabled = enabled
+        db.session.commit()
+        if enabled:
+            flash("Notifications WhatsApp activées.", "success")
+        else:
+            flash("Notifications WhatsApp en pause.", "warning")
+
     return redirect(url_for("main.whatsapp_connect"))

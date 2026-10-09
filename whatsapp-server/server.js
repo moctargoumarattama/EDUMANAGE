@@ -14,6 +14,19 @@ const SESSIONS_ROOT = path.join(__dirname, 'sessions');
 
 app.use(express.json({ limit: '1mb' }));
 
+const GATEWAY_SECRET = process.env.WHATSAPP_GATEWAY_SECRET || 'secret-gateway-local-klasora-2024';
+
+app.use((req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const secretHeader = req.headers['x-gateway-secret'];
+  const providedSecret = secretHeader || (authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null);
+  
+  if (providedSecret !== GATEWAY_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+});
+
 const sessions = new Map();
 
 function ensureRoot() {
@@ -212,6 +225,6 @@ function restoreExistingSessions() {
 
 restoreExistingSessions();
 
-app.listen(PORT, () => {
+app.listen(PORT, '127.0.0.1', () => {
   console.log(`Passerelle WhatsApp multi-ecoles ecoute sur http://127.0.0.1:${PORT}`);
 });
