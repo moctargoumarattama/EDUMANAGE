@@ -17,7 +17,17 @@ NOMS_MOIS_FR = [
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
 ]
 
-MODES_REGLEMENT_AUTORISES = {'especes', 'virement', 'cheque', 'mobile_money', 'orange_money', 'wave'}
+MODES_PAIEMENT_NIGER = {
+    'especes': 'Espèces (Cash)',
+    'airtel_money': 'Airtel Money',
+    'moov_money': 'Moov Money (Flooz)',
+    'al_izza': 'Al Izza Transfert',
+    'nita': 'Nita Transfert',
+    'amana': 'Amana Transfert',
+    'virement': 'Virement bancaire',
+    'cheque': 'Chèque'
+}
+MODES_REGLEMENT_AUTORISES = set(MODES_PAIEMENT_NIGER.keys())
 HISTORIQUE_REGLEMENTS = '\n\n--- HISTORIQUE DES RÈGLEMENTS (LECTURE SEULE) ---\n'
 CENTIME = Decimal('0.01')
 

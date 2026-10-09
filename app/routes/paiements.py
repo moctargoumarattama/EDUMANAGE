@@ -38,6 +38,9 @@ from app.services.paiements_annuels import (
     get_finances_inscription,
     enregistrer_paiement,
     get_mois_scolaires,
+    MODES_PAIEMENT_NIGER,
+    MODES_REGLEMENT_AUTORISES,
+    normaliser_mode_paiement,
 )
 from app.services.whatsapp_queue import enqueue_message
 from app.services.payment_receipts import (
@@ -166,15 +169,47 @@ def paiements():
     form.mois.choices = [(m, m) for m in mois_list]
 
     # --- TRAITEMENT DU POST (ENCAISSEMENT) ---
+    if request.is_json or (request.method == 'POST' and request.headers.get("X-Requested-With") == "XMLHttpRequest" and not form.validate_on_submit() and request.get_json(silent=True)):
+        if annee.statut != 'active':
+            return jsonify({"success": False, "error": "Seule l'année active autorise l'encaissement de paiements."}), 400
+        data = request.get_json() or {}
+        mode_saisi = data.get("mode_paiement") or data.get("mode_reglement") or data.get("mode") or "especes"
+        mode_norm = normaliser_mode_paiement(mode_saisi)
+        if not mode_norm:
+            return jsonify({
+                "success": False,
+                "error": f"Mode de règlement invalide. Modes autorisés pour le Niger : Airtel Money, Moov Money, Al Izza, Nita, Amana, Espèces, Virement, Chèque."
+            }), 400
+        paiement, error = enregistrer_paiement(
+            ecole_id=ecole_id,
+            annee=annee,
+            user=current_user,
+            eleve_id=data.get("eleve_id"),
+            montant=data.get("montant"),
+            mois=data.get("mois"),
+            annee_civile=data.get("annee") or datetime.utcnow().year,
+            mode_paiement=mode_norm,
+            reference=data.get("reference") or data.get("reference_recu")
+        )
+        if error:
+            return jsonify({"success": False, "error": error}), 400
+        db.session.commit()
+        return jsonify({
+            "success": True,
+            "paiement_id": paiement.id,
+            "mode_paiement": paiement.mode_paiement,
+            "message": "Paiement enregistré avec succès !"
+        }), 200
+
     if form.validate_on_submit():
         if annee.statut == 'archivee':
-            flash("L'annÃ©e scolaire est archivÃ©e : les paiements sont en lecture seule stricte.", "danger")
+            flash("L'année scolaire est archivée : les paiements sont en lecture seule stricte.", "danger")
             return redirect(context_url)
         if annee.statut == 'planifiee':
-            flash("Les paiements pourront Ãªtre enregistrÃ©s lorsque cette annÃ©e sera active.", "warning")
+            flash("Les paiements pourront être enregistrés lorsque cette année sera active.", "warning")
             return redirect(context_url)
         if annee.statut != 'active':
-            flash("Seule l'annÃ©e active autorise l'encaissement de paiements.", "danger")
+            flash("Seule l'année active autorise l'encaissement de paiements.", "danger")
             return redirect(context_url)
 
         paiement, error = enregistrer_paiement(

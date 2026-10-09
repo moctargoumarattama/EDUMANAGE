@@ -88,6 +88,10 @@ class EleveForm(FlaskForm):
     genre = SelectField('Genre / Sexe', choices=[('M', 'Garçon'), ('F', 'Fille')], default='M', validators=[DataRequired()])
     date_naissance = DateField('Date de naissance', format='%Y-%m-%d', validators=[DataRequired()])
     lieu_naissance = StringField('Lieu de naissance', validators=[Optional(), Length(max=100)])
+    nationalite = StringField('Nationalité', default='Nigérienne', validators=[Optional(), Length(max=60)])
+    numero_acte = StringField("N° Acte de naissance / Jugement", validators=[Optional(), Length(max=100)])
+    nom_pere = StringField("Nom du père", validators=[Optional(), Length(max=150)])
+    nom_mere = StringField("Nom de la mère", validators=[Optional(), Length(max=150)])
     adresse = StringField('Adresse résidentielle', validators=[Optional(), Length(max=200)])
     
     # ---------------- Informations scolaires ----------------
@@ -236,10 +240,15 @@ class PaiementForm(FlaskForm):
     mois = SelectField('Mois', choices=[], validators=[DataRequired()])
     annee = IntegerField('Année', default=datetime.now().year, validators=[DataRequired()])
     mode_paiement = SelectField('Mode de paiement', choices=[
-        ('Espèces', 'Espèces'),
-        ('Mobile Money', 'Mobile Money'),
-        ('Virement bancaire', 'Virement bancaire')
-    ], validators=[DataRequired()])
+        ('especes', 'Espèces (Cash)'),
+        ('airtel_money', 'Airtel Money'),
+        ('moov_money', 'Moov Money (Flooz)'),
+        ('al_izza', 'Al Izza Transfert'),
+        ('nita', 'Nita Transfert'),
+        ('amana', 'Amana Transfert'),
+        ('virement', 'Virement bancaire'),
+        ('cheque', 'Chèque')
+    ], default='especes', validators=[DataRequired()])
     reference = StringField('Référence', validators=[Optional()])
     submit = SubmitField('Enregistrer le paiement')
 

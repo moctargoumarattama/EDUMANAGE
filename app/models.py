@@ -632,6 +632,10 @@ class Eleve(db.Model):
     email = db.Column(db.String(120))
     email_parent = db.Column(db.String(120))
     genre = db.Column(db.String(1), default='M')
+    nationalite = db.Column(db.String(60), default='Nigérienne', nullable=True)
+    numero_acte = db.Column(db.String(100), nullable=True)  # Numéro figurant sur l'acte ou le jugement
+    nom_pere = db.Column(db.String(150), nullable=True)
+    nom_mere = db.Column(db.String(150), nullable=True)
     frais_annuels = db.Column(db.Float, default=150000.0)
     matricule = db.Column(db.String(12), nullable=True, index=True)
     code_parent = db.Column(db.String(10), unique=True, nullable=True)
@@ -699,6 +703,10 @@ class Eleve(db.Model):
             "email": self.email,
             "email_parent": self.email_parent,
             "genre": self.genre,
+            "nationalite": self.nationalite or "Nigérienne",
+            "numero_acte": self.numero_acte,
+            "nom_pere": self.nom_pere,
+            "nom_mere": self.nom_mere,
             "frais_annuels": self.frais_annuels,
             "matricule": self.matricule,
             "photo": self.photo,

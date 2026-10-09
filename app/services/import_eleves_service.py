@@ -76,18 +76,24 @@ def generer_modele_excel_eleves() -> io.BytesIO:
         "Email parent",
         "Classe *",
         "Statut",
+        "Nationalité",
+        "N° Acte / Jugement",
+        "Nom du père",
+        "Nom de la mère",
     ]
     
     ws.append(headers)
     
     # Exemples indicatifs
     ws.append([
-        "DIALLO", "Amadou", "M", "2012-05-15", "Dakar", "Plateau Villa 12",
-        "Diallo Ousmane", "+221770001122", "ousmane.diallo@example.com", "6e A", "actif"
+        "MOUSSA", "Ibrahim", "M", "2012-05-15", "Niamey", "Plateau Villa 12",
+        "Moussa Abdoulaye", "+22790123456", "moussa.abdoulaye@example.com", "6e A", "actif",
+        "Nigérienne", "ACTE-1234/2012", "Moussa Abdoulaye", "Fati Salifou"
     ])
     ws.append([
-        "SOW", "Fatou", "F", "2013-09-20", "Saint-Louis", "Quartier Nord",
-        "Sow Mariama", "+221770003344", "mariama.sow@example.com", "6e A", "actif"
+        "SALIFOU", "Hadiza", "F", "2013-09-20", "Maradi", "Quartier Zongo",
+        "Salifou Ousmane", "+22788123456", "hadiza.salifou@example.com", "6e A", "actif",
+        "Nigérienne", "JUG-567/2013", "Salifou Ousmane", "Aïchatou Garba"
     ])
     
     # Style de l'en-tête
@@ -214,6 +220,10 @@ def previsualiser_import_excel(file_stream, ecole_id: int, annee_consultee: Anne
         email_parent = str(row[8]).strip().lower() if len(row) > 8 and row[8] is not None else ""
         classe_nom = str(row[9]).strip() if len(row) > 9 and row[9] is not None else ""
         statut = str(row[10]).strip().lower() if len(row) > 10 and row[10] is not None else "actif"
+        nationalite = str(row[11]).strip() if len(row) > 11 and row[11] is not None else "Nigérienne"
+        numero_acte = str(row[12]).strip() if len(row) > 12 and row[12] is not None else ""
+        nom_pere = str(row[13]).strip() if len(row) > 13 and row[13] is not None else ""
+        nom_mere = str(row[14]).strip() if len(row) > 14 and row[14] is not None else ""
 
         errs = []
         warns = []
@@ -285,6 +295,10 @@ def previsualiser_import_excel(file_stream, ecole_id: int, annee_consultee: Anne
             'classe_nom': classe_nom,
             'classe_id': classe_obj.id if classe_obj else None,
             'statut': statut,
+            'nationalite': nationalite or "Nigérienne",
+            'numero_acte': numero_acte or None,
+            'nom_pere': nom_pere or None,
+            'nom_mere': nom_mere or None,
             'existing_eleve_id': existing_eleve.id if existing_eleve else None,
             'status': status_row,
             'action': action,
@@ -393,6 +407,10 @@ def executer_import_excel(lignes_valides: list, ecole_id: int, annee_consultee: 
                     ecole_id=ecole_id,
                     statut=item.get('statut', 'actif'),
                     annee_premiere_ecole=annee_consultee.date_debut.year,
+                    nationalite=item.get('nationalite') or 'Nigérienne',
+                    numero_acte=item.get('numero_acte'),
+                    nom_pere=item.get('nom_pere'),
+                    nom_mere=item.get('nom_mere'),
                 )
                 db.session.add(nouveau)
                 db.session.flush()

@@ -38,9 +38,14 @@
                                 {{ f_paiement.mode_paiement(class="form-select", id="form_mode_paiement") }}
                             {% else %}
                                 <select name="mode_paiement" id="form_mode_paiement" class="form-select" required>
-                                    <option value="Espèces">Espèces</option>
-                                    <option value="Mobile Money">Mobile Money</option>
-                                    <option value="Virement bancaire">Virement bancaire</option>
+                                    <option value="especes" selected>Espèces (Cash)</option>
+                                    <option value="airtel_money">Airtel Money</option>
+                                    <option value="moov_money">Moov Money (Flooz)</option>
+                                    <option value="al_izza">Al Izza Transfert</option>
+                                    <option value="nita">Nita Transfert</option>
+                                    <option value="amana">Amana Transfert</option>
+                                    <option value="virement">Virement bancaire</option>
+                                    <option value="cheque">Chèque</option>
                                 </select>
                             {% endif %}
                         </div>

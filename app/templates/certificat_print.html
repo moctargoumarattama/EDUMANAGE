@@ -313,12 +313,24 @@
                     L'administration de l'établissement <em>{{ ecole.nom if ecole else "l'Établissement" }}</em> certifie par la présente que :
                 </p>
 
-                <p>
-                    L'élève <span class="eleve-highlight">{{ eleve.nom }} {{ eleve.prenom }}</span>, 
+                <p class="identite-eleve">
+                    est inscrit(e) l'élève <strong class="eleve-highlight">{{ eleve.nom.upper() }} {{ eleve.prenom }}</strong>,
+                    nationalité <strong>{{ eleve.nationalite or 'Nigérienne' }}</strong>,
                     {% if eleve.genre == 'F' %}née{% else %}né{% endif %} le <strong>{{ eleve.date_naissance.strftime('%d/%m/%Y') if eleve.date_naissance else '—' }}</strong>
-                    {% if eleve.lieu_naissance %} à <strong>{{ eleve.lieu_naissance }}</strong>{% endif %}, 
-                    immatriculé{% if eleve.genre == 'F' %}e{% endif %} sous le numéro : <strong class="font-monospace">{{ eleve.matricule }}</strong>,
+                    {% if eleve.lieu_naissance %} à <strong>{{ eleve.lieu_naissance }}</strong>{% endif %},
+                    {% if eleve.nom_pere or eleve.nom_mere %}
+                    <br>{% if eleve.genre == 'F' %}Fille{% else %}Fils{% endif %} de 
+                    <strong>{{ eleve.nom_pere or '....................' }}</strong>
+                    et de 
+                    <strong>{{ eleve.nom_mere or '....................' }}</strong>,
+                    {% endif %}
+                    immatriculé{% if eleve.genre == 'F' %}e{% endif %} sous le numéro : <strong class="font-monospace">{{ eleve.matricule }}</strong>.
                 </p>
+                {% if eleve.numero_acte %}
+                <p class="reference-acte text-muted" style="font-size: 14px; margin-top: -12px; margin-bottom: 16px;">
+                    Acte / Jugement de naissance N° : <strong>{{ eleve.numero_acte }}</strong>
+                </p>
+                {% endif %}
 
                 <!-- Bloc spécifique au type de certificat -->
                 {% if cert.type_certificat == 'scolarite' %}

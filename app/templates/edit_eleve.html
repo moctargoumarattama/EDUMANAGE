@@ -60,6 +60,22 @@
                         <input type="text" class="form-control" id="lieu_naissance" name="lieu_naissance" value="{{ eleve.lieu_naissance or '' }}" placeholder="Lieu de naissance">
                         <label for="lieu_naissance">Lieu de naissance</label>
                     </div>
+                    <div class="form-floating">
+                        <input type="text" class="form-control" id="nationalite" name="nationalite" value="{{ eleve.nationalite or 'Nigérienne' }}" placeholder="Nationalité">
+                        <label for="nationalite">Nationalité</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="text" class="form-control" id="numero_acte" name="numero_acte" value="{{ eleve.numero_acte or '' }}" placeholder="N° Acte / Jugement">
+                        <label for="numero_acte">N° Acte de naissance / Jugement</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="text" class="form-control" id="nom_pere" name="nom_pere" value="{{ eleve.nom_pere or '' }}" placeholder="Nom du père">
+                        <label for="nom_pere">Nom et prénom du père</label>
+                    </div>
+                    <div class="form-floating">
+                        <input type="text" class="form-control" id="nom_mere" name="nom_mere" value="{{ eleve.nom_mere or '' }}" placeholder="Nom de la mère">
+                        <label for="nom_mere">Nom et prénom de la mère</label>
+                    </div>
                 </div>
             </div>
 

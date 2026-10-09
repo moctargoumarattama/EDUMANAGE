@@ -29,6 +29,57 @@ MOIS_SCOLAIRES_BASE = [
     "Février", "Mars", "Avril", "Mai", "Juin"
 ]
 
+MODES_PAIEMENT_NIGER = {
+    'especes': 'Espèces (Cash)',
+    'airtel_money': 'Airtel Money',
+    'moov_money': 'Moov Money (Flooz)',
+    'al_izza': 'Al Izza Transfert',
+    'nita': 'Nita Transfert',
+    'amana': 'Amana Transfert',
+    'virement': 'Virement bancaire',
+    'cheque': 'Chèque'
+}
+MODES_REGLEMENT_AUTORISES = set(MODES_PAIEMENT_NIGER.keys())
+
+
+def normaliser_mode_paiement(mode):
+    """Valide et normalise le mode de paiement selon les canaux réels du Niger.
+    Retourne la clé canonique ou None si mode non reconnu / banni (wave, orange_money, etc.)."""
+    if not mode:
+        return 'especes'
+    m = str(mode).strip().lower()
+    if m in MODES_REGLEMENT_AUTORISES:
+        return m
+    aliases = {
+        'espèces': 'especes',
+        'especes': 'especes',
+        'espèces (cash)': 'especes',
+        'especes (cash)': 'especes',
+        'cash': 'especes',
+        'airtel money': 'airtel_money',
+        'moov money': 'moov_money',
+        'moov money (flooz)': 'moov_money',
+        'flooz': 'moov_money',
+        'al izza': 'al_izza',
+        'al izza transfert': 'al_izza',
+        'al_izza transfert': 'al_izza',
+        'nita': 'nita',
+        'nita transfert': 'nita',
+        'amana': 'amana',
+        'amana transfert': 'amana',
+        'virement': 'virement',
+        'virement bancaire': 'virement',
+        'chèque': 'cheque',
+        'cheque': 'cheque',
+    }
+    if m in aliases:
+        return aliases[m]
+    for k, v in MODES_PAIEMENT_NIGER.items():
+        if m == v.lower():
+            return k
+    return None
+
+
 def get_mois_scolaires(annee_scolaire=None):
     """
     Retourne la liste ordonnée des mois de l'année scolaire.
@@ -236,8 +287,11 @@ def valider_mutation_paiement(ecole_id, annee, user, eleve_id, montant):
     return inscription, None
 
 
-def enregistrer_paiement(ecole_id, annee, user, eleve_id, montant, mois, annee_civile, mode_paiement="espèces", reference=None):
+def enregistrer_paiement(ecole_id, annee, user, eleve_id, montant, mois, annee_civile, mode_paiement="especes", reference=None):
     """Enregistre un nouveau paiement lié à l'inscription de l'année active."""
+    mode_canonique = normaliser_mode_paiement(mode_paiement)
+    if not mode_canonique:
+        return None, "Mode de règlement invalide. Modes autorisés pour le Niger : Airtel Money, Moov Money, Al Izza, Nita, Amana, Espèces, Virement, Chèque."
     inscription, error = valider_mutation_paiement(ecole_id, annee, user, eleve_id, montant)
     if error:
         return None, error
@@ -260,7 +314,7 @@ def enregistrer_paiement(ecole_id, annee, user, eleve_id, montant, mois, annee_c
             paiement = Paiement(
                 ecole_id=ecole_id, eleve_id=eleve_id, inscription_id=inscription.id,
                 montant=montant_float, mois=mois, annee=int(annee_civile),
-                mode_paiement=mode_paiement or "espèces", reference=reference,
+                mode_paiement=mode_canonique, reference=reference,
                 statut="payé", date_paiement=datetime.utcnow(),
             )
             db.session.add(paiement)

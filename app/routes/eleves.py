@@ -640,6 +640,11 @@ def ajouter_eleve():
                 return redirect(url_for('main.eleves'))
 
             # ---------------- Création élève ----------------
+            nationalite_val = (request.form.get('nationalite') or (getattr(form, 'nationalite', None) and form.nationalite.data) or 'Nigérienne').strip()
+            numero_acte_val = (request.form.get('numero_acte') or (getattr(form, 'numero_acte', None) and form.numero_acte.data) or '').strip() or None
+            nom_pere_val = (request.form.get('nom_pere') or (getattr(form, 'nom_pere', None) and form.nom_pere.data) or '').strip() or None
+            nom_mere_val = (request.form.get('nom_mere') or (getattr(form, 'nom_mere', None) and form.nom_mere.data) or '').strip() or None
+
             nouvel_eleve = Eleve(
                 nom=form.nom.data.strip(),
                 prenom=form.prenom.data.strip(),
@@ -657,6 +662,10 @@ def ajouter_eleve():
                 parent_id=parent_id_final,
                 ecole_id=ecole_id,
                 annee_premiere_ecole=annee_consultee.date_debut.year,
+                nationalite=nationalite_val,
+                numero_acte=numero_acte_val,
+                nom_pere=nom_pere_val,
+                nom_mere=nom_mere_val,
             )
             db.session.add(nouvel_eleve)
             db.session.flush()
@@ -1829,6 +1838,14 @@ def modifier_eleve(eleve_id):
 
         eleve.lieu_naissance = (request.form.get('lieu_naissance') or '').strip() or None
         eleve.adresse = (request.form.get('adresse') or '').strip() or None
+        if 'nationalite' in request.form:
+            eleve.nationalite = (request.form.get('nationalite') or 'Nigérienne').strip()
+        if 'numero_acte' in request.form:
+            eleve.numero_acte = (request.form.get('numero_acte') or '').strip() or None
+        if 'nom_pere' in request.form:
+            eleve.nom_pere = (request.form.get('nom_pere') or '').strip() or None
+        if 'nom_mere' in request.form:
+            eleve.nom_mere = (request.form.get('nom_mere') or '').strip() or None
         try:
             eleve.frais_annuels = float(request.form.get('frais_annuels') or 0)
         except (TypeError, ValueError):
