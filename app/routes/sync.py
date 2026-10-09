@@ -5,6 +5,7 @@ import math
 from datetime import date, datetime
 
 from flask_wtf.csrf import generate_csrf
+from sqlalchemy import func
 
 from . import main
 from .common import (
@@ -29,7 +30,7 @@ from .common import (
     send_from_directory,
 )
 from app.services.annees_scolaires import get_annee_consultee
-from app.services.notes_annuelles import erreur_verrou_notes
+from app.services.notes_annuelles import erreur_verrou_notes, est_evaluation_sommative
 from app.utils_classes import classes_triees_pedagogique
 from app.services.absences_annuelles import (
     resolve_annee_absence,
@@ -156,11 +157,64 @@ def _process_note_item(item, client_op_id):
         if not inscription:
             return {'client_op_id': client_op_id, 'status': 'error', 'message': 'L\'élève n\'est pas inscrit dans la classe de ce cours'}
 
+    # Contrôle strict du statut de scolarisation de l'élève (Point 1 de l'audit)
+    if not inscription or inscription.statut not in ('inscrit', 'actif') or getattr(inscription, 'est_active', True) is False:
+        return {
+            'client_op_id': client_op_id,
+            'status': 'conflict',
+            'reason': 'inactive_enrollment',
+            'message': 'Inscription non active (statut radié ou annulé).'
+        }
+
+    if not inscription.annee_scolaire or inscription.annee_scolaire.statut != 'active':
+        return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Les notes exigent une année scolaire active'}
+
+    # Contrôle calendrier : date d'évaluation dans l'année scolaire active (Point 1 de l'audit)
+    date_eval_d = date_eval.date() if isinstance(date_eval, datetime) else date_eval
+    annee_active = inscription.annee_scolaire
+    if annee_active.date_debut and date_eval_d < annee_active.date_debut:
+        return {
+            'client_op_id': client_op_id,
+            'status': 'conflict',
+            'reason': 'date_outside_school_year',
+            'message': f"Date d'évaluation ({date_eval_d}) antérieure au début de l'année scolaire active ({annee_active.date_debut})."
+        }
+    if annee_active.date_fin and date_eval_d > annee_active.date_fin:
+        return {
+            'client_op_id': client_op_id,
+            'status': 'conflict',
+            'reason': 'date_outside_school_year',
+            'message': f"Date d'évaluation ({date_eval_d}) postérieure à la fin de l'année scolaire active ({annee_active.date_fin})."
+        }
+
     type_eval = str(item.get('type_evaluation') or 'Devoir')
     periode = str(item.get('periode') or '')
 
-    if not inscription or not inscription.annee_scolaire or inscription.annee_scolaire.statut != 'active':
-        return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Les notes exigent une année scolaire active'}
+    # Validation de la période : rejet des périodes fantômes (Point 1 de l'audit)
+    if periode and periode.strip():
+        periodes_bulletin = PeriodeBulletin.query.filter_by(
+            ecole_id=eleve.ecole_id,
+            annee_id=inscription.annee_scolaire_id
+        ).all()
+        periodes_valides_ecole = {p.nom.strip().casefold() for p in periodes_bulletin if p.nom}
+        periodes_standards = {
+            "semestre 1", "semestre 2", "1er semestre", "2eme semestre", "2ème semestre",
+            "trimestre 1", "trimestre 2", "trimestre 3", "1er trimestre", "2eme trimestre", "2ème trimestre", "3eme trimestre", "3ème trimestre",
+            "1ere composition", "1ère composition", "2eme composition", "2ème composition", "3eme composition", "3ème composition",
+            "composition 1", "composition 2", "composition 3",
+            "session 1", "session 2"
+        }
+        periode_norm = periode.strip().casefold()
+        est_valide = (periode_norm in periodes_valides_ecole) or (periode_norm in periodes_standards)
+        if not est_valide:
+            return {
+                'client_op_id': client_op_id,
+                'status': 'conflict',
+                'reason': 'invalid_period',
+                'message': f"Période non reconnue ou invalide ('{periode}')."
+            }
+
+    is_composition = est_evaluation_sommative(type_eval)
 
     note_id = item.get('note_id') or item.get('id')
     existing_note = None
@@ -178,6 +232,29 @@ def _process_note_item(item, client_op_id):
             type_evaluation=type_eval,
             ecole_id=eleve.ecole_id
         ).first()
+
+    # Règle absolue d'unicité de la composition (Point 1 de l'audit)
+    if is_composition:
+        target_comp_periode = (periode.strip() if periode and periode.strip() else None)
+        comp_query = Note.query.filter(
+            Note.eleve_id == eleve.id,
+            Note.cours_id == cours.id,
+            func.lower(func.trim(Note.type_evaluation)).in_(("composition", "examen")),
+            Note.ecole_id == eleve.ecole_id
+        )
+        if target_comp_periode:
+            comp_query = comp_query.filter(Note.periode == target_comp_periode)
+        existing_comp = comp_query.first()
+
+        if existing_comp:
+            if existing_note and existing_note.id != existing_comp.id:
+                return {
+                    'client_op_id': client_op_id,
+                    'status': 'conflict',
+                    'reason': 'duplicate_composition',
+                    'message': f"Une composition existe déjà pour cet élève en {cours.nom} pour la période {existing_comp.periode or target_comp_periode}."
+                }
+            existing_note = existing_comp
 
     if existing_note and (existing_note.eleve_id != eleve.id or existing_note.cours_id != cours.id):
         return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Cette note ne correspond pas à l’élève et au cours indiqués'}
@@ -340,6 +417,24 @@ def _process_note_item(item, client_op_id):
             'locked_by_admin': bool(existing_note.last_by_admin),
             'can_arbitrate': is_admin
         }
+
+    # Règle absolue d'unicité de la composition : interdiction de création de doublon
+    if is_composition:
+        comp_check = Note.query.filter(
+            Note.eleve_id == eleve.id,
+            Note.cours_id == cours.id,
+            func.lower(func.trim(Note.type_evaluation)).in_(("composition", "examen")),
+            Note.ecole_id == eleve.ecole_id
+        )
+        if periode and periode.strip():
+            comp_check = comp_check.filter(Note.periode == periode.strip())
+        if comp_check.first():
+            return {
+                'client_op_id': client_op_id,
+                'status': 'conflict',
+                'reason': 'duplicate_composition',
+                'message': f"Une composition existe déjà pour cet élève en {cours.nom} pour la période {periode}."
+            }
 
     note = Note(
         valeur=valeur,
@@ -634,6 +729,129 @@ def _process_absence_item(item, client_op_id):
     )
     db.session.add(log)
     return {'client_op_id': client_op_id, 'status': 'synced', 'message': 'Absence enregistrée avec succès', 'entity_id': absence.id, 'sync_version': 1, 'last_by_admin': absence.last_by_admin}
+
+
+def _process_appel_item(item, client_op_id):
+    """Traitement de synchronisation d'un appel collectif de classe pris hors-ligne."""
+    if isinstance(item.get('data'), dict):
+        merged = dict(item['data'])
+        for k in ('client_op_id', 'type', 'force', 'base_version'):
+            if k in item and k not in merged:
+                merged[k] = item[k]
+        item = merged
+
+    classe_id = item.get('classe_id')
+    cours_id = item.get('cours_id')
+    date_appel_raw = item.get('date_appel') or item.get('date')
+
+    if not classe_id:
+        return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Classe obligatoire pour l\'appel'}
+
+    if isinstance(date_appel_raw, str):
+        try:
+            date_appel = datetime.strptime(date_appel_raw[:10], '%Y-%m-%d').date()
+        except ValueError:
+            return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Format de date invalide (attendu: AAAA-MM-JJ)'}
+    elif isinstance(date_appel_raw, (datetime, date)):
+        date_appel = date_appel_raw if isinstance(date_appel_raw, date) else date_appel_raw.date()
+    else:
+        date_appel = datetime.utcnow().date()
+
+    annee_consultee = get_annee_consultee(current_user.ecole_id)
+    if not annee_consultee or annee_consultee.statut != 'active':
+        return {
+            'client_op_id': client_op_id,
+            'status': 'forbidden',
+            'message': statut_annee_absences(annee_consultee) or "Aucune année active disponible pour l'appel."
+        }
+
+    classe = Classe.query.filter_by(id=classe_id, ecole_id=current_user.ecole_id).first()
+    if not classe:
+        return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Classe introuvable pour cette école'}
+
+    cours = None
+    if cours_id:
+        cours = Cours.query.filter_by(id=cours_id, ecole_id=current_user.ecole_id).first()
+        if not cours or cours.classe_id != classe.id:
+            return {'client_op_id': client_op_id, 'status': 'error', 'message': 'Cours introuvable ou non associé à cette classe'}
+
+    # Contrôle de rôle professeur
+    if current_user.role == 'professeur':
+        prof = getattr(current_user, 'professeur_rel', None)
+        if not prof:
+            return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Profil professeur introuvable'}
+        if cours and cours.professeur_id != prof.id:
+            return {'client_op_id': client_op_id, 'status': 'forbidden', 'message': 'Vous ne pouvez faire l\'appel que pour vos propres cours'}
+
+    # Inscriptions actives dans la classe pour l'année active
+    inscriptions = Inscription.query.filter(
+        Inscription.classe_id == classe.id,
+        Inscription.ecole_id == current_user.ecole_id,
+        Inscription.annee_scolaire_id == annee_consultee.id,
+        Inscription.statut.in_(('inscrit', 'actif'))
+    ).all()
+    inscription_ids = {ins.id for ins in inscriptions}
+    eleve_to_ins = {ins.eleve_id: ins for ins in inscriptions}
+
+    # Liste des absents déclarés
+    raw_absent_inscriptions = item.get('absent_inscription_ids') or []
+    raw_absent_eleves = item.get('absent_eleve_ids') or []
+    absent_ins_set = {int(x) for x in raw_absent_inscriptions if str(x).isdigit() and int(x) in inscription_ids}
+    for e_id in raw_absent_eleves:
+        if str(e_id).isdigit() and int(e_id) in eleve_to_ins:
+            absent_ins_set.add(eleve_to_ins[int(e_id)].id)
+
+    # Récupérer les absences existantes pour cette date et ce cours
+    abs_query = Absence.query.filter(
+        Absence.ecole_id == current_user.ecole_id,
+        Absence.date_absence == date_appel,
+        Absence.inscription_id.in_(list(inscription_ids)) if inscription_ids else db.false()
+    )
+    if cours:
+        abs_query = abs_query.filter(Absence.cours_id == cours.id)
+    absences_existantes = {a.inscription_id: a for a in abs_query.all()}
+
+    # Mettre à jour les absences : supprimer celles qui ne sont plus absentes
+    for ins_id, abs_obj in list(absences_existantes.items()):
+        if ins_id not in absent_ins_set:
+            db.session.delete(abs_obj)
+
+    # Créer les nouvelles absences
+    nouvelles = 0
+    for ins in inscriptions:
+        if ins.id in absent_ins_set and ins.id not in absences_existantes:
+            nouv_abs = Absence(
+                date_absence=date_appel,
+                motif="Absence signalée pendant l'appel (sync)",
+                justifiee=False,
+                eleve_id=ins.eleve_id,
+                cours_id=cours.id if cours else None,
+                ecole_id=current_user.ecole_id,
+                inscription_id=ins.id,
+                sync_version=1
+            )
+            db.session.add(nouv_abs)
+            nouvelles += 1
+
+    db.session.flush()
+
+    log = SyncOperationLog(
+        client_op_id=client_op_id,
+        ecole_id=current_user.ecole_id,
+        user_id=current_user.id,
+        entity_type='appel',
+        entity_id=classe.id,
+        status='synced'
+    )
+    db.session.add(log)
+
+    return {
+        'client_op_id': client_op_id,
+        'status': 'synced',
+        'message': f"Appel synchronisé avec succès ({len(absent_ins_set)} absent(s))",
+        'entity_id': classe.id,
+        'absents_count': len(absent_ins_set)
+    }
 
 
 def _process_eleve_creation_item(item, client_op_id, local_uuid_to_id=None):
@@ -1017,7 +1235,7 @@ def api_sync():
                 return 2
             if t in ('inscription', 'inscription_annuelle'):
                 return 3
-            if t in ('note', 'absence', 'test'):
+            if t in ('note', 'absence', 'appel', 'test'):
                 return 4
             return 5
 
@@ -1057,7 +1275,7 @@ def api_sync():
                     results.append({
                         'client_op_id': client_op_id,
                         'status': 'forbidden',
-                        'message': 'OpÃ©ration non autorisÃ©e pour ce compte'
+                        'message': 'Opération non autorisée pour ce compte'
                     })
                     continue
 
@@ -1071,7 +1289,7 @@ def api_sync():
                     results.append({
                         'client_op_id': client_op_id,
                         'status': 'forbidden',
-                        'message': 'OpÃ©ration non autorisÃ©e pour cette Ã©cole'
+                        'message': 'Opération non autorisée pour cette école'
                     })
                     continue
 
@@ -1129,11 +1347,11 @@ def api_sync():
                     d['eleve_id'] = local_uuid_to_id[str(d.get('local_student_uuid'))]
 
             item_type = item.get('type')
-            if item_type not in ('note', 'absence', 'test'):
+            if item_type not in ('note', 'absence', 'appel', 'test'):
                 results.append({
                     'client_op_id': client_op_id,
                     'status': 'forbidden',
-                    'message': 'Connexion Internet requise pour cette opÃ©ration.'
+                    'message': 'Connexion Internet requise pour cette opération.'
                 })
                 continue
 
@@ -1152,6 +1370,8 @@ def api_sync():
                         res = _process_note_item(item, client_op_id)
                     elif item_type == 'absence':
                         res = _process_absence_item(item, client_op_id)
+                    elif item_type == 'appel':
+                        res = _process_appel_item(item, client_op_id)
                     elif item_type == 'paiement':
                         res = _process_paiement_item(item, client_op_id)
                     elif item_type in ('annee', 'annee_scolaire', 'classe', 'structure', 'utilisateur', 'user', 'permission', 'backup', 'restore', 'parametres'):

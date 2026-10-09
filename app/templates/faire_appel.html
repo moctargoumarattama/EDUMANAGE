@@ -123,10 +123,12 @@
                     <div class="eleve-appel-row d-flex align-items-center justify-content-between p-2.5 px-3 border-bottom {% if loop.last %}border-bottom-0{% endif %} bg-white transition-all user-select-none {% if is_absent %}is-absent-row bg-danger bg-opacity-10{% endif %}"
                          style="cursor: pointer; min-height: 54px;"
                          data-nom="{{ ins.eleve.prenom|lower }} {{ ins.eleve.nom|lower }}"
-                         data-matricule="{{ (ins.eleve.matricule or '')|lower }}">
+                         data-matricule="{{ (ins.eleve.matricule or '')|lower }}"
+                         data-eleve-id="{{ ins.eleve_id }}"
+                         data-inscription-id="{{ ins.id }}">
 
                         <!-- Checkbox caché mais fonctionnel pour le formulaire -->
-                        <input class="visually-hidden appel-absent-check" type="checkbox" name="absent_inscription_ids" value="{{ ins.id }}" {% if is_absent %}checked{% endif %} {% if not can_mutate %}disabled{% endif %}>
+                        <input class="visually-hidden appel-absent-check" type="checkbox" name="absent_inscription_ids" value="{{ ins.id }}" data-eleve-id="{{ ins.eleve_id }}" {% if is_absent %}checked{% endif %} {% if not can_mutate %}disabled{% endif %}>
 
                         <!-- Informations de l'élève -->
                         <div class="d-flex align-items-center gap-2.5 overflow-hidden me-2">
@@ -275,6 +277,54 @@ document.addEventListener('DOMContentLoaded', function () {
                     row.style.display = 'none';
                 }
             });
+        });
+    }
+
+    // Branchement file d'attente hors-ligne (Point 12 de l'audit)
+    const appelForm = document.getElementById('appelForm');
+    if (appelForm) {
+        appelForm.addEventListener('submit', async function (e) {
+            if (!navigator.onLine && typeof offlineManager !== 'undefined' && offlineManager && typeof offlineManager.addToSync === 'function') {
+                e.preventDefault();
+                const classeId = appelForm.querySelector('input[name="classe_id"]')?.value;
+                const coursId = appelForm.querySelector('input[name="cours_id"], select[name="cours_id"]')?.value || null;
+                const dateAppel = appelForm.querySelector('input[name="date_appel"]')?.value || new Date().toISOString().slice(0, 10);
+                const heureAppel = new Date().toTimeString().slice(0, 5);
+                const currentUserId = (window.KLASORA_USER && window.KLASORA_USER.id) || (typeof offlineDB !== 'undefined' ? offlineDB.getCurrentUserId() : null);
+                const currentEcoleId = (window.KLASORA_USER && window.KLASORA_USER.ecoleId) || (typeof offlineDB !== 'undefined' ? offlineDB.getCurrentEcoleId() : null);
+
+                const absentChecks = Array.from(appelForm.querySelectorAll('.appel-absent-check:checked'));
+                const absentInscriptionIds = absentChecks.map(c => parseInt(c.value, 10)).filter(id => !isNaN(id));
+                const absentEleveIds = absentChecks.map(c => {
+                    const eid = c.getAttribute('data-eleve-id');
+                    return eid ? parseInt(eid, 10) : null;
+                }).filter(id => id !== null && !isNaN(id));
+
+                const appelPayload = {
+                    classe_id: parseInt(classeId, 10),
+                    cours_id: coursId ? parseInt(coursId, 10) : null,
+                    professeur_id: currentUserId,
+                    user_id: currentUserId,
+                    ecole_id: currentEcoleId,
+                    date_appel: dateAppel,
+                    date: dateAppel,
+                    heure: heureAppel,
+                    absent_inscription_ids: absentInscriptionIds,
+                    absent_eleve_ids: absentEleveIds
+                };
+
+                try {
+                    await offlineManager.addToSync('appel', appelPayload);
+                    if (typeof showNotification === 'function') {
+                        showNotification("Appel enregistré localement (hors-ligne). Il sera synchronisé dès le retour de la connexion.", 'warning');
+                    } else {
+                        alert("Appel enregistré localement (hors-ligne). Il sera synchronisé dès le retour de la connexion.");
+                    }
+                } catch (err) {
+                    console.error('Erreur sauvegarde appel hors-ligne:', err);
+                    alert("Erreur de sauvegarde locale: " + err.message);
+                }
+            }
         });
     }
 

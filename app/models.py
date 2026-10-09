@@ -1371,6 +1371,12 @@ class Inscription(db.Model):
             "decision_fin_annee": self.decision_fin_annee
         }
 
+    @property
+    def est_active(self) -> bool:
+        """Vérifie si l'inscription est active et scolarisée (non radiée, non annulée)."""
+        return self.statut in ('inscrit', 'actif')
+
+
 # -----------------------
 # JournalCorrection
 # -----------------------

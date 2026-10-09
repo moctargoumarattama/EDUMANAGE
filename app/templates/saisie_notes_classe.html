@@ -334,6 +334,74 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Branchement file d'attente hors-ligne (Point 13 de l'audit)
+    const formSaisie = document.getElementById('formSaisieClasse');
+    if (formSaisie) {
+        formSaisie.addEventListener('submit', async function (e) {
+            if (!navigator.onLine && typeof offlineManager !== 'undefined' && offlineManager && typeof offlineManager.addToSync === 'function') {
+                e.preventDefault();
+                const classeId = formSaisie.querySelector('select[name="classe_id"], input[name="classe_id"]')?.value;
+                const coursId = formSaisie.querySelector('select[name="cours_id"], input[name="cours_id"]')?.value;
+                const periode = formSaisie.querySelector('select[name="periode"], input[name="periode"]')?.value || 'Semestre 1';
+                const typeEval = formSaisie.querySelector('select[name="type_evaluation"], input[name="type_evaluation"]')?.value || 'Devoir';
+                const coef = parseFloat(formSaisie.querySelector('input[name="coefficient"]')?.value || '1.0');
+                const dateEval = new Date().toISOString().slice(0, 10);
+                const currentUserId = (window.KLASORA_USER && window.KLASORA_USER.id) || (typeof offlineDB !== 'undefined' ? offlineDB.getCurrentUserId() : null);
+                const currentEcoleId = (window.KLASORA_USER && window.KLASORA_USER.ecoleId) || (typeof offlineDB !== 'undefined' ? offlineDB.getCurrentEcoleId() : null);
+
+                if (!classeId || !coursId) {
+                    alert('Veuillez sélectionner une classe et un cours.');
+                    return;
+                }
+
+                let queuedCount = 0;
+                for (const inp of inputs) {
+                    const valStr = inp.value.trim();
+                    if (valStr === '') continue;
+                    const num = parseFloat(valStr);
+                    if (isNaN(num) || num < 0 || num > 20) continue;
+
+                    const eleveId = inp.name.replace('note_', '');
+                    if (!eleveId || isNaN(parseInt(eleveId, 10))) continue;
+
+                    const notePayload = {
+                        eleve_id: parseInt(eleveId, 10),
+                        cours_id: parseInt(coursId, 10),
+                        classe_id: parseInt(classeId, 10),
+                        valeur: num,
+                        type_evaluation: typeEval,
+                        coefficient: coef,
+                        periode: periode,
+                        date_evaluation: dateEval,
+                        user_id: currentUserId,
+                        ecole_id: currentEcoleId
+                    };
+
+                    try {
+                        await offlineManager.addToSync('note', notePayload);
+                        queuedCount++;
+                    } catch (err) {
+                        console.error('Erreur sauvegarde note hors-ligne:', err);
+                    }
+                }
+
+                if (queuedCount > 0) {
+                    const msg = `${queuedCount} note(s) enregistrée(s) localement (hors-ligne). Synchronisation dès le retour de la connexion.`;
+                    if (typeof showNotification === 'function') {
+                        showNotification([
+                            `${queuedCount} note(s) enregistrée(s) localement (hors-ligne).`,
+                            "Elles seront synchronisées dès le retour de la connexion."
+                        ], 'warning');
+                    } else {
+                        alert(msg);
+                    }
+                } else {
+                    alert("Veuillez saisir au moins une note valide avant d'enregistrer.");
+                }
+            }
+        });
+    }
+
     // Calcul initial
     updateCompteurs();
 

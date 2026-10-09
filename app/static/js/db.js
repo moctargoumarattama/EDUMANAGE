@@ -425,23 +425,49 @@ class OfflineDB {
     }
 
     /**
-     * Vider toutes les données en attente
+     * Vider UNIQUEMENT la file d\'attente de l\'utilisateur actif
+     * PROHIBITION STRICTE de store.clear() pour éviter d\'effacer les données d\'autres utilisateurs sur poste partagé
      */
-    async clearAllPending() {
+    async viderFileUtilisateurCourant(userId = null, ecoleId = null) {
         if (!this.db) await this.init();
+
+        const targetUserId = userId !== null ? userId : this.getCurrentUserId();
+        const targetEcoleId = ecoleId !== null ? ecoleId : this.getCurrentEcoleId();
+
+        if (!targetUserId) {
+            console.warn('🔒 Aucun utilisateur actif identifié pour la purge ciblée');
+            return 0;
+        }
 
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(['pendingSync'], 'readwrite');
             const store = tx.objectStore('pendingSync');
-            const request = store.clear();
+            const request = store.getAll();
 
             request.onsuccess = () => {
-                console.log('🗑️ Toutes les données en attente supprimées');
-                resolve();
+                const items = request.result || [];
+                let deletedCount = 0;
+                for (const item of items) {
+                    const matchUser = (item.user_id === targetUserId);
+                    const matchEcole = !targetEcoleId || !item.ecole_id || (item.ecole_id === targetEcoleId);
+                    if (matchUser && matchEcole) {
+                        store.delete(item.id);
+                        deletedCount++;
+                    }
+                }
+                console.log(🗑️ File d\'attente purgée pour l\'utilisateur  ( élément(s) supprimé(s)));
+                resolve(deletedCount);
             };
 
             request.onerror = () => reject(request.error);
         });
+    }
+
+    /**
+     * Vider les données en attente : restreint exclusivement à l\'utilisateur courant (prohibition de store.clear())
+     */
+    async clearAllPending(userId = null, ecoleId = null) {
+        return await this.viderFileUtilisateurCourant(userId, ecoleId);
     }
 
     /**

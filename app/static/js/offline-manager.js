@@ -775,9 +775,13 @@ class OfflineManager {
         this.emit('data-deleted', { id });
     }
 
-    async clearAll() {
-        await offlineDB.clearAllPending();
+    async clearAll(userId = null, ecoleId = null) {
+        await offlineDB.viderFileUtilisateurCourant(userId, ecoleId);
         this.emit('data-cleared');
+    }
+
+    async viderFileUtilisateurCourant(userId = null, ecoleId = null) {
+        return await this.clearAll(userId, ecoleId);
     }
 
     on(event, callback) {

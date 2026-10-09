@@ -273,6 +273,145 @@
         });
     }
 
+    // 4d. Interception de la feuille d'appel collective (Point 12 de l'audit)
+    function setupAppelOffline() {
+        const path = window.location.pathname;
+        const isAppelPage = path.includes('/appel') || path.includes('/faire-appel') || path.includes('/faire_appel') || path.includes('/presence');
+        const form = document.getElementById('appelForm') || (isAppelPage ? document.querySelector('form') : null);
+        if (!form) return;
+
+        form.addEventListener('submit', async function (e) {
+            if (canQueueOffline(form)) {
+                e.preventDefault();
+
+                const classeId = fieldValue(form, 'input[name="classe_id"]');
+                const coursId = fieldValue(form, 'input[name="cours_id"], select[name="cours_id"]') || null;
+                const dateAppel = fieldValue(form, 'input[name="date_appel"]') || new Date().toISOString().slice(0, 10);
+                const heureAppel = new Date().toTimeString().slice(0, 5);
+                const currentUserId = (typeof offlineDB !== 'undefined' ? offlineDB.getCurrentUserId() : null) || (window.KLASORA_USER && window.KLASORA_USER.id) || null;
+                const currentEcoleId = (typeof offlineDB !== 'undefined' ? offlineDB.getCurrentEcoleId() : null) || (window.KLASORA_USER && window.KLASORA_USER.ecoleId) || null;
+
+                if (!classeId) {
+                    alert("Classe manquante pour l'enregistrement de l'appel.");
+                    return;
+                }
+
+                const absentChecks = Array.from(form.querySelectorAll('.appel-absent-check:checked, input[name="absent_inscription_ids"]:checked'));
+                const absentInscriptionIds = absentChecks.map(c => parseInt(c.value, 10)).filter(id => !isNaN(id));
+                const absentEleveIds = absentChecks.map(c => {
+                    const eid = c.getAttribute('data-eleve-id') || c.closest('.eleve-appel-row')?.getAttribute('data-eleve-id');
+                    return eid ? parseInt(eid, 10) : null;
+                }).filter(id => id !== null && !isNaN(id));
+
+                form.dataset.offlineQueueing = '1';
+                try {
+                    const appelPayload = {
+                        classe_id: parseInt(classeId, 10),
+                        cours_id: coursId ? parseInt(coursId, 10) : null,
+                        professeur_id: currentUserId,
+                        user_id: currentUserId,
+                        ecole_id: currentEcoleId,
+                        date_appel: dateAppel,
+                        date: dateAppel,
+                        heure: heureAppel,
+                        absent_inscription_ids: absentInscriptionIds,
+                        absent_eleve_ids: absentEleveIds
+                    };
+
+                    await offlineManager.addToSync('appel', appelPayload);
+
+                    showNotification(
+                        "Appel enregistré localement (hors-ligne). Il sera synchronisé dès le retour de la connexion.",
+                        'warning'
+                    );
+
+                    updateSyncBadge();
+
+                } catch (err) {
+                    console.error('Erreur enregistrement appel hors-ligne:', err);
+                    alert("Erreur de sauvegarde locale de l'appel: " + err.message);
+                } finally {
+                    delete form.dataset.offlineQueueing;
+                }
+            }
+        });
+    }
+
+    // 4e. Interception de la saisie des notes par classe en lot (Point 13 de l'audit)
+    function setupSaisieNotesClasseOffline() {
+        const path = window.location.pathname;
+        const isSaisieClasse = path.includes('/saisie_notes_classe') || path.includes('/saisie-notes-classe');
+        const form = document.getElementById('formSaisieClasse') || (isSaisieClasse ? document.querySelector('form') : null);
+        if (!form) return;
+
+        form.addEventListener('submit', async function (e) {
+            if (canQueueOffline(form)) {
+                e.preventDefault();
+
+                const classeId = fieldValue(form, 'select[name="classe_id"], input[name="classe_id"]');
+                const coursId = fieldValue(form, 'select[name="cours_id"], input[name="cours_id"]');
+                const periode = fieldValue(form, 'select[name="periode"], input[name="periode"]') || 'Semestre 1';
+                const typeEval = fieldValue(form, 'select[name="type_evaluation"], input[name="type_evaluation"]') || 'Devoir';
+                const coef = parseFloat(fieldValue(form, 'input[name="coefficient"]', '1.0')) || 1.0;
+                const dateEval = new Date().toISOString().slice(0, 10);
+                const currentUserId = (typeof offlineDB !== 'undefined' ? offlineDB.getCurrentUserId() : null) || (window.KLASORA_USER && window.KLASORA_USER.id) || null;
+                const currentEcoleId = (typeof offlineDB !== 'undefined' ? offlineDB.getCurrentEcoleId() : null) || (window.KLASORA_USER && window.KLASORA_USER.ecoleId) || null;
+
+                if (!classeId || !coursId) {
+                    alert('Veuillez sélectionner une classe et un cours.');
+                    return;
+                }
+
+                const inputs = Array.from(form.querySelectorAll('.note-input, input[name^="note_"]'));
+                let queuedCount = 0;
+
+                form.dataset.offlineQueueing = '1';
+                try {
+                    for (const inp of inputs) {
+                        const valStr = inp.value.trim();
+                        if (valStr === '') continue;
+                        const num = parseFloat(valStr);
+                        if (isNaN(num) || num < 0 || num > 20) continue;
+
+                        const eleveId = inp.name.replace('note_', '');
+                        if (!eleveId || isNaN(parseInt(eleveId, 10))) continue;
+
+                        const notePayload = {
+                            eleve_id: parseInt(eleveId, 10),
+                            cours_id: parseInt(coursId, 10),
+                            classe_id: parseInt(classeId, 10),
+                            valeur: num,
+                            type_evaluation: typeEval,
+                            coefficient: coef,
+                            periode: periode,
+                            date_evaluation: dateEval,
+                            user_id: currentUserId,
+                            ecole_id: currentEcoleId
+                        };
+
+                        await offlineManager.addToSync('note', notePayload);
+                        queuedCount++;
+                    }
+
+                    if (queuedCount > 0) {
+                        showNotification([
+                            `${queuedCount} note(s) enregistrée(s) localement (hors-ligne).`,
+                            "Elles seront synchronisées dès le retour de la connexion."
+                        ], 'warning');
+                        updateSyncBadge();
+                    } else {
+                        alert("Veuillez saisir au moins une note valide avant d'enregistrer.");
+                    }
+                } catch (err) {
+                    console.error('Erreur enregistrement lot notes hors-ligne:', err);
+                    alert("Erreur de sauvegarde locale des notes: " + err.message);
+                } finally {
+                    delete form.dataset.offlineQueueing;
+                }
+            }
+        });
+    }
+
     // 4b. Interception du formulaire des Élèves (Création & Modification)
     function setupElevesOffline() {
         const path = window.location.pathname;
@@ -555,6 +694,8 @@
         updateSyncBadge();
         setupNotesOffline();
         setupAbsencesOffline();
+        setupAppelOffline();
+        setupSaisieNotesClasseOffline();
         setupOnlineOnlyRestrictions();
         setupLogoutProtection();
         populateOfflineOptions();
