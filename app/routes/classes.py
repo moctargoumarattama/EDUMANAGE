@@ -306,12 +306,12 @@ def generation_rapide_classes():
         ecole_id=ecole_id,
         annee_scolaire_id=annee_consultee.id
     ).all()
-    existing_map = {(c.niveau_id, (c.section or "").upper()) for c in existing_classes}
+    existing_map = {(c.niveau_id, f"{c.section or ''}{c.division or ''}".upper()) for c in existing_classes}
 
     grouped_niveaux = {"primaire": [], "college": [], "lycee": []}
     for n in niveaux:
-        if n.cycle == "lycee" and (n.code or "").upper() in ("1ERE", "TERMINALE"):
-            sections = ["A", "C", "D"]
+        if n.cycle == "lycee" and (n.code or "").upper() in ("1ERE", "TERMINALE", "TLE"):
+            sections = ["A", "A1", "A2", "C", "D", "D1", "D2"]
             libelle = "Série"
         elif n.cycle == "lycee" and (n.code or "").upper() in ("2NDE", "SECONDE"):
             sections = ["A", "B", "C", "S"]
@@ -394,8 +394,9 @@ def ajouter_classe():
                 ecole_id=current_user.ecole_id,
                 annee_scolaire_id=annee_cible.id,
                 niveau_id=form.niveau_id.data,
-                nom=None,
+                nom=form.nom.data,
                 section=form.section.data,
+                division=form.division.data,
                 capacite=capacite_val,
                 professeur_id=prof_id,
             )
@@ -613,6 +614,7 @@ def modifier_classe(classe_id):
         form.professeur_principal_id.data = classe.professeur_id or 0
         form.niveau_id.data = classe.niveau_id or 0
         form.section.data = classe.section
+        form.division.data = classe.division or ''
 
     if form.validate_on_submit():
         prof_id = form.professeur_principal_id.data if (form.professeur_principal_id.data and form.professeur_principal_id.data > 0) else None
@@ -624,6 +626,7 @@ def modifier_classe(classe_id):
             niveau_id=form.niveau_id.data,
             nom=form.nom.data,
             section=form.section.data,
+            division=form.division.data,
             capacite=capacite_val,
             professeur_id=prof_id,
         )

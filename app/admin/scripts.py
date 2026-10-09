@@ -913,7 +913,7 @@ def create_school_backup(ecole_id, backup_type="manual"):
     """Sauvegarde complÃ¨te et sÃ©curisÃ©e des donnÃ©es d'une Ã©cole spÃ©cifique"""
     from app.models import (
         Ecole, Utilisateur, Professeur, AnneeScolaire, AnneeNiveauConfig,
-        EcoleNiveauConfig, Classe, Eleve, Inscription, Cours, Note, Absence,
+        EcoleNiveauConfig, Classe, Eleve, Inscription, Cours, Note, Absence, DispenseMatiere,
         Paiement, Bulletin, EmploiTemps, PeriodeBulletin, Presence, Alerte,
         ArchiveNote, ArchiveAbsence, EcoleGoogleMailConfig, JournalCorrection,
         SyncOperationLog, SupportTicket, HistoriqueImport, MatriculeSequence,
@@ -979,6 +979,7 @@ def create_school_backup(ecole_id, backup_type="manual"):
             'emplois_temps': [_serialize_instance(et) for et in snapshot.query(EmploiTemps).filter((EmploiTemps.ecole_id == ecole_id) | (EmploiTemps.classe_id.in_(classe_ids_subq))).all()],
             'professeur_classes': prof_classes_data,
             'notes': [_serialize_instance(n) for n in snapshot.query(Note).filter_by(ecole_id=ecole_id).all()],
+            'dispenses_matieres': [_serialize_instance(d) for d in snapshot.query(DispenseMatiere).filter_by(ecole_id=ecole_id).all()],
             'absences': [_serialize_instance(a) for a in snapshot.query(Absence).filter_by(ecole_id=ecole_id).all()],
             'presences': [_serialize_instance(p) for p in snapshot.query(Presence).join(Eleve).filter(Eleve.ecole_id == ecole_id).all()],
             'paiements': [_serialize_instance(p) for p in snapshot.query(Paiement).filter_by(ecole_id=ecole_id).all()],
@@ -1066,7 +1067,7 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
     """
     from app.models import (
         Ecole, Utilisateur, Professeur, AnneeScolaire, AnneeNiveauConfig,
-        EcoleNiveauConfig, Classe, Eleve, Inscription, Cours, Note, Absence,
+        EcoleNiveauConfig, Classe, NiveauScolaire, Eleve, Inscription, Cours, Note, Absence, DispenseMatiere,
         Paiement, Bulletin, EmploiTemps, PeriodeBulletin, Presence, Alerte,
         ArchiveNote, ArchiveAbsence, EcoleGoogleMailConfig, JournalCorrection,
         SyncOperationLog, SupportTicket, HistoriqueImport, MatriculeSequence,
@@ -1122,6 +1123,27 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
                 copie['matricule'] = courant
             eleves_restaures.append(copie)
 
+        classes_restaures = []
+        niveaux_lycee = {
+            row[0] for row in db.session.query(NiveauScolaire.id)
+            .filter(NiveauScolaire.cycle == 'lycee').all()
+        }
+        for row in data.get('classes', []):
+            copie = dict(row)
+            if 'division' not in copie:
+                copie['division'] = ''
+                if copie.get('niveau_id') in niveaux_lycee:
+                    section = (copie.get('section') or '').strip().upper()
+                    match = re.fullmatch(r'([CDS])([1-9][0-9]?)', section)
+                    if not match and section in {'C', 'D', 'S'}:
+                        match = re.search(r'\b([CDS])([1-9][0-9]?)$',
+                                          (copie.get('nom') or '').strip().upper())
+                        if match and match.group(1) != section:
+                            match = None
+                    if match:
+                        copie['section'], copie['division'] = match.groups()
+            classes_restaures.append(copie)
+
         # Les anciennes sauvegardes sans certificats conservent les documents
         # actuels. Une liste vide explicite représente, elle, un snapshot vide.
         certificats_restaures = data.get('certificats_administratifs')
@@ -1157,6 +1179,44 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
         fiches_paie = data.get('fiches_paie_personnel')
         if fiches_paie is None:
             fiches_paie = [_serialize_instance(p) for p in FichePaiePersonnel.query.filter_by(ecole_id=ecole_id).all()]
+        dispenses_restaures = data.get('dispenses_matieres')
+        if dispenses_restaures is None:
+            # Une ancienne sauvegarde ne connaît pas les dispenses : conserver
+            # celles déjà enregistrées, si leurs références existent encore.
+            dispenses_restaures = [
+                _serialize_instance(d) for d in DispenseMatiere.query.filter_by(ecole_id=ecole_id).all()
+            ]
+        if not isinstance(dispenses_restaures, list):
+            raise ValueError("RESTORE REFUSÉ : liste de dispenses invalide.")
+        inscriptions_ids = {row.get('id') for row in data.get('inscriptions', [])}
+        cours_ids = {row.get('id') for row in data.get('cours', [])}
+        annees_ids = {row.get('id') for row in data.get('annees_scolaires', [])}
+        inscriptions_par_id = {row.get('id'): row for row in data.get('inscriptions', [])}
+        cours_par_id = {row.get('id'): row for row in data.get('cours', [])}
+        classes_par_id = {row.get('id'): row for row in data.get('classes', [])}
+        for row in dispenses_restaures:
+            if (not isinstance(row, dict) or row.get('ecole_id') != ecole_id
+                    or row.get('inscription_id') not in inscriptions_ids
+                    or row.get('cours_id') not in cours_ids
+                    or row.get('annee_id') not in annees_ids):
+                raise ValueError("RESTORE REFUSÉ : dispense invalide ou références absentes de la sauvegarde.")
+            inscription_liee = inscriptions_par_id[row['inscription_id']]
+            cours_lie = cours_par_id[row['cours_id']]
+            classe_liee = classes_par_id.get(cours_lie.get('classe_id'))
+            if (inscription_liee.get('ecole_id') != ecole_id
+                    or inscription_liee.get('annee_scolaire_id') != row['annee_id']
+                    or cours_lie.get('ecole_id') != ecole_id
+                    or not classe_liee or classe_liee.get('ecole_id') != ecole_id
+                    or classe_liee.get('annee_scolaire_id') != row['annee_id']):
+                raise ValueError("RESTORE REFUSÉ : dispense incompatible avec son inscription.")
+            if row.get('active') and any(
+                note.get('cours_id') == row['cours_id']
+                and note.get('eleve_id') == inscription_liee.get('eleve_id')
+                and note.get('annee_id') == row['annee_id']
+                and (row.get('periode') == '*' or note.get('periode') == row.get('periode'))
+                for note in data.get('notes', [])
+            ):
+                raise ValueError("RESTORE REFUSÉ : une note de la sauvegarde contredit une dispense active.")
 
         # Une restauration ne doit jamais réutiliser un numéro déjà réservé.
         for row in data.get('matricule_sequences', []):
@@ -1218,6 +1278,7 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
         Paiement.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
         Absence.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
         Note.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
+        DispenseMatiere.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
 
         EmploiTemps.query.filter((EmploiTemps.ecole_id == ecole_id) | (EmploiTemps.classe_id.in_(classe_ids_subq))).delete(synchronize_session=False)
         Inscription.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
@@ -1241,10 +1302,11 @@ def restore_school_backup(filename, target_ecole_id=None, confirmation_code=None
             (AnneeScolaire, data.get('annees_scolaires', [])),
             (AnneeNiveauConfig, data.get('annee_niveau_configs', [])),
             (PeriodeBulletin, data.get('periodes_bulletin', [])),
-            (Classe, data.get('classes', [])),
+            (Classe, classes_restaures),
             (Eleve, eleves_restaures),
             (Cours, data.get('cours', [])),
             (Inscription, data.get('inscriptions', [])),
+            (DispenseMatiere, dispenses_restaures),
             (PointagePersonnel, pointages),
             (FichePaiePersonnel, fiches_paie),
             (EmploiTemps, data.get('emplois_temps', [])),

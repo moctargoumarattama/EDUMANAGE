@@ -218,7 +218,7 @@
                         <p>
                             <span class="badge bg-light text-secondary border me-1">{{ classe.niveau or 'Niveau' }}</span>
                             {% if classe.section %}
-                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ 'Série' if is_lycee else 'Sec.' }} {{ classe.section }}</span>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ 'Série' if is_lycee else 'Sec.' }} {{ classe.section }}{{ classe.division or '' }}</span>
                             {% endif %}
                         </p>
                     </div>

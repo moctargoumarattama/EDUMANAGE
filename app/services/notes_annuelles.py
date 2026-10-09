@@ -697,6 +697,9 @@ def valider_mutation_note(
     verrou = erreur_verrou_notes(ecole_id, annee.id, target_periode, inscription)
     if verrou:
         return False, verrou, None, None, None
+    from app.services.dispenses import est_cours_dispense
+    if est_cours_dispense(ecole_id, inscription.id, cours.id, target_periode):
+        return False, "Cet élève est dispensé de cette matière pour la période.", None, None, None
 
     # Règle Composition : au plus une composition par élève / matière / semestre
     if target_type == TYPE_COMPOSITION:
@@ -1110,10 +1113,13 @@ def saisir_notes_classe(
 
     # Prévalidation de tout le lot : aucune note ne doit être mutée si un seul
     # bulletin du lot est clos, même quand la composition existe déjà.
+    from app.services.dispenses import est_cours_dispense
     for ins, _ in notes_to_create:
         verrou = erreur_verrou_notes(ecole_id, annee.id, per, ins)
         if verrou:
             return 0, verrou
+        if est_cours_dispense(ecole_id, ins.id, cours.id, per):
+            return 0, f"L'élève ID {ins.eleve_id} est dispensé de cette matière pour la période."
 
     is_admin = role in {"admin", "super_admin"}
     date_eval = date_evaluation or datetime.utcnow()

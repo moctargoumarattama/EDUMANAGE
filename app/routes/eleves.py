@@ -1996,8 +1996,12 @@ def supprimer_eleve_cascade(id):
     has_notes = Note.query.filter_by(eleve_id=id).first() is not None
     has_paiements = Paiement.query.filter_by(eleve_id=id).first() is not None
     has_absences = Absence.query.filter_by(eleve_id=id).first() is not None
+    from app.models import DispenseMatiere
+    has_dispenses = (DispenseMatiere.query.join(Inscription)
+                     .filter(Inscription.eleve_id == id, DispenseMatiere.ecole_id == eleve.ecole_id)
+                     .first() is not None)
 
-    if has_notes or has_paiements or has_absences:
+    if has_notes or has_paiements or has_absences or has_dispenses:
         msg_refus = "Impossible de supprimer un élève ayant un historique scolaire ou comptable. Veuillez changer son statut (radié/inactif)."
         if is_ajax:
             return jsonify({'success': False, 'message': msg_refus}), 400

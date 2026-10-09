@@ -293,9 +293,10 @@ class ResetPasswordForm(FlaskForm):
     submit = SubmitField('Réinitialiser le mot de passe')
 
 class ClasseForm(FlaskForm):
-    nom = StringField("Nom de la classe", validators=[DataRequired()])
+    nom = StringField("Nom de la classe", validators=[DataRequired(), Length(max=50)])
     niveau_id = SelectField("Niveau", coerce=int, validators=[DataRequired(message="Veuillez choisir un niveau.")])
     section = StringField("Section", validators=[Optional()])
+    division = StringField("Division du lycée", validators=[Optional()])
     niveau = SelectField("Niveau", choices=[], validators=[Optional()])
     # Capacité maximale définie par l'administrateur
     capacite = IntegerField("Capacité maximale d'élèves", default=35, validators=[DataRequired(message="Veuillez spécifier la capacité maximale."), NumberRange(min=1, max=500, message="La capacité doit être comprise entre 1 et 500 élèves.")])

@@ -1,5 +1,5 @@
 """Tests pour CHANTIER 3 :
-1. Idempotence de caisse et de paie (anti-doublons & garde-fou 30s)
+1. Idempotence de caisse et de paie par identité d'opération
 2. Scolarité à 0 FCFA pour boursiers / cas sociaux (InputRequired, zéro dette fantôme)
 3. Rigueur et intégrité des certificats administratifs (scolarité active, radiation atomique, gel à l'émission)
 """
@@ -184,8 +184,8 @@ class TestCaisseIdempotenceEtCertificatsStricts(unittest.TestCase):
         total_paiements = Paiement.query.filter_by(eleve_id=eleve.id).count()
         self.assertEqual(total_paiements, 1)
 
-    def test_02_anti_rejeu_paiement_immediat_sans_cle(self):
-        """Vérifie le garde-fou anti-rejeu < 30 secondes pour le même élève, montant et mode."""
+    def test_02_deux_versements_identiques_sans_cle_restent_distincts(self):
+        """Deux remises d'argent sans clé explicite ne doivent pas être fusionnées."""
         self._login_admin()
 
         eleve = Eleve(
@@ -224,7 +224,7 @@ class TestCaisseIdempotenceEtCertificatsStricts(unittest.TestCase):
         data1 = resp1.get_json()
         self.assertTrue(data1["success"])
 
-        # 2ème versement immédiat (dans la fenêtre des 30s) avec mêmes paramètres
+        # 2ème versement réel avec les mêmes paramètres
         resp2 = self.client.post("/paiements", json={
             "eleve_id": eleve.id,
             "montant": 50000,
@@ -235,11 +235,11 @@ class TestCaisseIdempotenceEtCertificatsStricts(unittest.TestCase):
         self.assertEqual(resp2.status_code, 200)
         data2 = resp2.get_json()
         self.assertTrue(data2["success"])
-        self.assertTrue(data2.get("deja_traite", False))
+        self.assertFalse(data2.get("deja_traite", False))
 
-        # Un seul paiement doit figurer en caisse
+        # Les deux opérations restent comptabilisées séparément.
         total_paiements = Paiement.query.filter_by(eleve_id=eleve.id).count()
-        self.assertEqual(total_paiements, 1)
+        self.assertEqual(total_paiements, 2)
 
     def test_03_paie_personnel_idempotence_et_anti_rejeu(self):
         """Vérifie l'idempotence et le blocage de doublon sur l'encaissement de salaire du personnel."""

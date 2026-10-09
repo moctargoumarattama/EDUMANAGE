@@ -11,6 +11,8 @@ Tests pour le CHANTIER 2 :
 from datetime import date, datetime
 import pytest
 from app import create_app, db
+from app.config import TestingConfig
+from sqlalchemy.pool import StaticPool
 from app.models import (
     AnneeScolaire,
     Classe,
@@ -28,14 +30,17 @@ from app.models import (
 
 @pytest.fixture
 def app_ctx():
-    app = create_app()
-    app.config.update({
-        "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-        "WTF_CSRF_ENABLED": False,
-        "SERVER_NAME": "localhost",
-    })
+    class SyncTestConfig(TestingConfig):
+        SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "poolclass": StaticPool,
+            "connect_args": {"check_same_thread": False},
+        }
+        SERVER_NAME = "localhost"
+
+    app = create_app(SyncTestConfig)
     with app.app_context():
+        assert str(db.engine.url) == "sqlite:///:memory:"
         db.create_all()
         yield app
         db.session.remove()
@@ -327,6 +332,99 @@ def test_sync_appel_collectif(app_ctx):
     # Idempotence : renvoi du même appel -> already_processed
     res_dup = client.post("/api/sync", json=appel_payload)
     assert res_dup.get_json()["results"][0]["status"] == "already_processed"
+
+
+def test_sync_refuse_type_et_periode_non_configures(app_ctx):
+    ecole, annee, classe, cours, admin, eleve, inscription = _setup_base_data()
+    client = app_ctx.test_client()
+    _login(client, admin)
+    note = {
+        "type": "note", "client_op_id": "type-inconnu", "eleve_id": eleve.id,
+        "cours_id": cours.id, "valeur": 12, "date_evaluation": "2026-10-15",
+        "periode": "Semestre 1", "type_evaluation": "Type inventé",
+    }
+    assert client.post('/api/sync', json=[note]).get_json()['results'][0]['reason'] == 'invalid_evaluation_type'
+    note.update(client_op_id='periode-non-configuree', type_evaluation='Devoir', periode='Trimestre 1')
+    assert client.post('/api/sync', json=[note]).get_json()['results'][0]['reason'] == 'invalid_period'
+    assert Note.query.count() == 0
+
+
+def test_sync_composition_insensible_a_la_casse(app_ctx):
+    ecole, annee, classe, cours, admin, eleve, inscription = _setup_base_data()
+    client = app_ctx.test_client()
+    _login(client, admin)
+    note = {
+        "type": "note", "client_op_id": "composition-casse-1", "eleve_id": eleve.id,
+        "cours_id": cours.id, "valeur": 8, "date_evaluation": "2026-10-15",
+        "periode": "Semestre 2", "type_evaluation": "Composition",
+    }
+    assert client.post('/api/sync', json=[note]).get_json()['results'][0]['status'] == 'synced'
+    note.update(client_op_id='composition-casse-2', valeur=18,
+                date_evaluation='2026-10-20', periode='semestre 2')
+    resultat = client.post('/api/sync', json=[note]).get_json()['results'][0]
+    assert resultat['status'] == 'conflict'
+    assert Note.query.count() == 1
+    assert Note.query.first().periode == 'Semestre 2'
+
+
+def test_primaire_saisie_et_sync_acceptent_trois_compositions(app_ctx):
+    from app.services.notes_annuelles import periodes_notes_classe, valider_mutation_note
+
+    ecole, annee, classe, cours, admin, eleve, inscription = _setup_base_data()
+    classe.nom = 'CM2 A'
+    classe.niveau = 'CM2'
+    db.session.commit()
+    attendues = ['1ère Composition', '2ème Composition', '3ème Composition']
+    assert periodes_notes_classe(classe, annee) == attendues
+    for periode in attendues:
+        valide, erreur, *_ = valider_mutation_note(
+            ecole.id, annee, admin, eleve.id, cours.id, 12,
+            type_evaluation='Composition', periode=periode,
+        )
+        assert valide, erreur
+
+    client = app_ctx.test_client()
+    _login(client, admin)
+    note = {"type": "note", "client_op_id": "primaire-comp-3", "eleve_id": eleve.id,
+            "cours_id": cours.id, "valeur": 12, "date_evaluation": "2026-10-15",
+            "periode": "3ème Composition", "type_evaluation": "Composition"}
+    assert client.post('/api/sync', json=[note]).get_json()['results'][0]['status'] == 'synced'
+    assert Note.query.one().periode == '3ème Composition'
+    Note.query.one().periode = '3ÈME COMPOSITION'
+    db.session.commit()
+    note.update(client_op_id='primaire-comp-3-bis', valeur=18, date_evaluation='2026-10-20')
+    assert client.post('/api/sync', json=[note]).get_json()['results'][0]['status'] == 'conflict'
+    assert Note.query.count() == 1
+
+
+def test_sync_appel_ne_supprime_pas_une_absence_justifiee(app_ctx):
+    ecole, annee, classe, cours, admin, eleve, inscription = _setup_base_data()
+    client = app_ctx.test_client()
+    _login(client, admin)
+    absence = Absence(date_absence=date(2026, 10, 10), eleve_id=eleve.id,
+                      cours_id=cours.id, ecole_id=ecole.id, inscription_id=inscription.id,
+                      justifiee=True, last_by_admin=True, sync_version=5)
+    db.session.add(absence)
+    db.session.commit()
+    appel = {"type": "appel", "client_op_id": "appel-protege", "classe_id": classe.id,
+             "cours_id": cours.id, "date_appel": "2026-10-10", "heure": "08:30",
+             "absent_inscription_ids": []}
+    resultat = client.post('/api/sync', json=[appel]).get_json()['results'][0]
+    assert resultat['status'] == 'conflict'
+    assert db.session.get(Absence, absence.id).justifiee is True
+
+    absence.justifiee = False
+    absence.last_by_admin = False
+    db.session.commit()
+    appel['client_op_id'] = 'appel-non-versionne'
+    resultat = client.post('/api/sync', json=[appel]).get_json()['results'][0]
+    assert resultat['status'] == 'conflict'
+    assert db.session.get(Absence, absence.id) is not None
+
+    appel.update(client_op_id='appel-date-invalide', date_appel='1999-01-01')
+    resultat = client.post('/api/sync', json=[appel]).get_json()['results'][0]
+    assert resultat['status'] == 'conflict'
+    assert Absence.query.count() == 1
 
 
 def test_simulation_purge_indexeddb_isolee_par_utilisateur():

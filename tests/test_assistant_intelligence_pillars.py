@@ -2,15 +2,20 @@ import json
 import datetime as dt
 import pytest
 from app import create_app, db
+from app.config import TestingConfig
+from sqlalchemy.pool import StaticPool
 from app.models import Utilisateur, Ecole, AnneeScolaire, Classe, Eleve, Inscription, Absence, Note, Cours, Paiement
 
 
 @pytest.fixture
 def intelligence_app_and_client():
-    app = create_app()
-    app.config['TESTING'] = True
-    app.config['WTF_CSRF_ENABLED'] = False
+    class IsolatedConfig(TestingConfig):
+        SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+        SQLALCHEMY_ENGINE_OPTIONS = {'poolclass': StaticPool, 'connect_args': {'check_same_thread': False}}
+
+    app = create_app(IsolatedConfig)
     with app.app_context():
+        assert str(db.engine.url) == 'sqlite:///:memory:'
         db.create_all()
 
         # Établissement

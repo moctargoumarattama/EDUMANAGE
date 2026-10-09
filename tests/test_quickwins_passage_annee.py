@@ -138,6 +138,18 @@ class TestQuickWinsPassageAnnee(unittest.TestCase):
         db.session.add_all([self.classe_source, self.classe_cible, self.classe_cible_cp])
         db.session.flush()
 
+        # Le primaire préparé exige ses trois compositions, indépendamment des semestres.
+        for nom, debut, fin in (
+            ('1ère Composition', date(2026, 9, 1), date(2026, 12, 15)),
+            ('2ème Composition', date(2026, 12, 16), date(2027, 3, 15)),
+            ('3ème Composition', date(2027, 3, 16), date(2027, 6, 30)),
+        ):
+            db.session.add(PeriodeBulletin(
+                nom=nom, ecole_id=self.ecole.id, annee_id=self.annee_cible.id,
+                date_debut=debut, date_fin=fin,
+            ))
+        db.session.flush()
+
         # Structure annuelle active
         sauvegarder_selection_annuelle(self.ecole.id, self.annee_source.id, [self.niveau_cp.id, self.niveau_ce1.id])
         sauvegarder_selection_annuelle(self.ecole.id, self.annee_cible.id, [self.niveau_cp.id, self.niveau_ce1.id])
@@ -200,90 +212,110 @@ class TestQuickWinsPassageAnnee(unittest.TestCase):
             sess["role"] = self.admin.role
             sess["ecole_id"] = self.ecole.id
 
+    def _bulletins_primaires(self, eleve, moyenne):
+        return [Bulletin(
+            ecole_id=self.ecole.id, annee_scolaire_id=self.annee_source.id,
+            eleve_id=eleve.id, classe_id=self.classe_source.id,
+            periode=periode, moyenne_generale=moyenne, statut='valide',
+        ) for periode in ('1ère Composition', '2ème Composition', '3ème Composition')]
+
     def test_get_moyennes_annuelles_eleves_avec_bulletins(self):
         """Vérifie le calcul des moyennes annuelles à partir des bulletins."""
-        bulletin_admis = Bulletin(
-            ecole_id=self.ecole.id,
-            annee_scolaire_id=self.annee_source.id,
-            eleve_id=self.eleve_admis.id,
-            classe_id=self.classe_source.id,
-            moyenne_generale=14.50,
-            statut="valide",
+        db.session.add_all(
+            self._bulletins_primaires(self.eleve_admis, 14.50)
+            + self._bulletins_primaires(self.eleve_redoublant, 8.75)
         )
-        bulletin_redoub = Bulletin(
-            ecole_id=self.ecole.id,
-            annee_scolaire_id=self.annee_source.id,
-            eleve_id=self.eleve_redoublant.id,
-            classe_id=self.classe_source.id,
-            moyenne_generale=8.75,
-            statut="valide",
-        )
-        db.session.add_all([bulletin_admis, bulletin_redoub])
         db.session.commit()
 
         moyennes = get_moyennes_annuelles_eleves(self.ecole.id, self.annee_source.id)
         self.assertEqual(moyennes[self.eleve_admis.id], 14.50)
         self.assertEqual(moyennes[self.eleve_redoublant.id], 8.75)
 
-    def test_get_moyennes_annuelles_eleves_avec_notes_fallback(self):
-        """Vérifie la formule semestrielle officielle en absence de bulletins."""
-        cours = Cours(
-            ecole_id=self.ecole.id,
-            classe_id=self.classe_source.id,
-            nom="Mathématiques",
-            coefficient=2.0,
-        )
-        db.session.add(cours)
-        db.session.commit()
-
-        # Un cours sur deux semestres : moyenne annuelle (14 + 16) / 2 = 15.
-        n1 = Note(
-            ecole_id=self.ecole.id,
-            eleve_id=self.eleve_admis.id,
-            cours_id=cours.id,
-            annee_id=self.annee_source.id,
-            valeur=14.0,
-            coefficient=1.0,
-            periode="Semestre 1",
-            type_evaluation="Devoir",
-        )
-        n2 = Note(
-            ecole_id=self.ecole.id,
-            eleve_id=self.eleve_admis.id,
-            cours_id=cours.id,
-            annee_id=self.annee_source.id,
-            valeur=16.0,
-            coefficient=2.0,
-            periode="Semestre 2",
-            type_evaluation="Devoir",
-        )
-        # Même règle pour l'autre élève : (6 + 8) / 2 = 7.
-        n3 = Note(
-            ecole_id=self.ecole.id,
-            eleve_id=self.eleve_redoublant.id,
-            cours_id=cours.id,
-            annee_id=self.annee_source.id,
-            valeur=6.0,
-            coefficient=1.0,
-            periode="Semestre 1",
-            type_evaluation="Devoir",
-        )
-        n4 = Note(
-            ecole_id=self.ecole.id,
-            eleve_id=self.eleve_redoublant.id,
-            cours_id=cours.id,
-            annee_id=self.annee_source.id,
-            valeur=8.0,
-            coefficient=2.0,
-            periode="Semestre 2",
-            type_evaluation="Devoir",
-        )
-        db.session.add_all([n1, n2, n3, n4])
+    def test_bulletin_partiel_ne_donne_pas_de_moyenne_annuelle(self):
+        db.session.add(self._bulletins_primaires(self.eleve_admis, 14.50)[0])
         db.session.commit()
 
         moyennes = get_moyennes_annuelles_eleves(self.ecole.id, self.annee_source.id)
-        self.assertAlmostEqual(moyennes[self.eleve_admis.id], 15.0, places=2)
-        self.assertAlmostEqual(moyennes[self.eleve_redoublant.id], 7.0, places=2)
+        self.assertNotIn(self.eleve_admis.id, moyennes)
+
+    def test_notes_fallback_utilise_les_compositions_configurees(self):
+        periodes = ('Trimestre 1', 'Trimestre 2', 'Trimestre 3')
+        plages = (
+            (date(2025, 9, 1), date(2025, 12, 15)),
+            (date(2025, 12, 16), date(2026, 3, 15)),
+            (date(2026, 3, 16), date(2026, 6, 30)),
+        )
+        for periode, (debut, fin) in zip(periodes, plages):
+            db.session.add(PeriodeBulletin(
+                nom=periode, ecole_id=self.ecole.id, annee_id=self.annee_source.id,
+                date_debut=debut, date_fin=fin,
+            ))
+        cours = Cours(ecole_id=self.ecole.id, classe_id=self.classe_source.id,
+                      nom='Mathématiques', coefficient=2.0)
+        db.session.add(cours)
+        db.session.flush()
+        for periode, valeur in zip(periodes, (13.0, 14.0, 15.0)):
+            db.session.add(Note(
+                ecole_id=self.ecole.id, eleve_id=self.eleve_admis.id,
+                inscription_id=self.insc_src_admis.id, cours_id=cours.id,
+                annee_id=self.annee_source.id, valeur=valeur,
+                periode=periode, type_evaluation='Composition',
+            ))
+        db.session.commit()
+
+        moyennes = get_moyennes_annuelles_eleves(self.ecole.id, self.annee_source.id)
+        self.assertEqual(moyennes[self.eleve_admis.id], 14.0)
+
+    def test_notes_historiques_secondaires_restent_lisibles(self):
+        niveau = NiveauScolaire(nom='Sixième', code='6E', ordre=7, cycle='college')
+        db.session.add(niveau)
+        db.session.flush()
+        classe = Classe(ecole_id=self.ecole.id, annee_scolaire_id=self.annee_source.id,
+                        nom='6E-A', niveau_id=niveau.id, statut='ouverte')
+        eleve = Eleve(ecole_id=self.ecole.id, nom='Issa', prenom='Mariam',
+                      date_naissance=date(2012, 1, 1), genre='F', statut='actif')
+        db.session.add_all([classe, eleve])
+        db.session.flush()
+        inscription = Inscription(ecole_id=self.ecole.id, annee_scolaire_id=self.annee_source.id,
+                                  eleve_id=eleve.id, classe_id=classe.id, statut='actif')
+        cours = Cours(ecole_id=self.ecole.id, classe_id=classe.id,
+                      nom='Mathématiques', coefficient=1.0)
+        db.session.add_all([inscription, cours])
+        db.session.flush()
+        for periode, valeur in (('1er Semestre', 13.0), ('2ème Semestre', 15.0)):
+            db.session.add(Note(
+                ecole_id=self.ecole.id, eleve_id=eleve.id,
+                inscription_id=inscription.id, cours_id=cours.id,
+                annee_id=self.annee_source.id, valeur=valeur,
+                periode=periode, type_evaluation='Composition',
+            ))
+        db.session.commit()
+
+        moyennes = get_moyennes_annuelles_eleves(self.ecole.id, self.annee_source.id)
+        self.assertEqual(moyennes[eleve.id], 14.0)
+
+    def test_get_moyennes_annuelles_eleves_avec_notes_fallback(self):
+        """Le primaire calcule sa moyenne sur trois compositions complètes."""
+        cours = Cours(ecole_id=self.ecole.id, classe_id=self.classe_source.id,
+                      nom="Mathématiques", coefficient=2.0)
+        db.session.add(cours)
+        db.session.flush()
+        for periode, note_admis, note_redoublant in (
+            ('1ère Composition', 14.0, 6.0),
+            ('2ème Composition', 15.0, 7.0),
+            ('3ème Composition', 16.0, 8.0),
+        ):
+            db.session.add_all([
+                Note(ecole_id=self.ecole.id, eleve_id=self.eleve_admis.id,
+                     inscription_id=self.insc_src_admis.id, cours_id=cours.id,
+                     annee_id=self.annee_source.id, valeur=note_admis,
+                     periode=periode, type_evaluation='Composition'),
+                Note(ecole_id=self.ecole.id, eleve_id=self.eleve_redoublant.id,
+                     inscription_id=self.insc_src_redoub.id, cours_id=cours.id,
+                     annee_id=self.annee_source.id, valeur=note_redoublant,
+                     periode=periode, type_evaluation='Composition'),
+            ])
+        db.session.commit()
 
         moyennes = get_moyennes_annuelles_eleves(self.ecole.id, self.annee_source.id)
         self.assertAlmostEqual(moyennes[self.eleve_admis.id], 15.0, places=2)
@@ -368,23 +400,10 @@ class TestQuickWinsPassageAnnee(unittest.TestCase):
     def test_tableau_passage_annee_resultat_annuel_et_selections(self):
         """Vérifie l'affichage de la colonne résultat annuel, badges suggérés et boutons rapides."""
         # Créer des bulletins pour afficher les moyennes
-        b1 = Bulletin(
-            ecole_id=self.ecole.id,
-            annee_scolaire_id=self.annee_source.id,
-            eleve_id=self.eleve_admis.id,
-            classe_id=self.classe_source.id,
-            moyenne_generale=14.50,
-            statut="valide",
+        db.session.add_all(
+            self._bulletins_primaires(self.eleve_admis, 14.50)
+            + self._bulletins_primaires(self.eleve_redoublant, 8.75)
         )
-        b2 = Bulletin(
-            ecole_id=self.ecole.id,
-            annee_scolaire_id=self.annee_source.id,
-            eleve_id=self.eleve_redoublant.id,
-            classe_id=self.classe_source.id,
-            moyenne_generale=8.75,
-            statut="valide",
-        )
-        db.session.add_all([b1, b2])
         db.session.commit()
 
         self._login()
@@ -408,15 +427,7 @@ class TestQuickWinsPassageAnnee(unittest.TestCase):
     def test_vue_passage_eleve_suggestion_preselectionnee(self):
         """Vérifie que sur passage_eleve, la suggestion est bien pré-cochée selon la moyenne."""
         # Eleve redoublant avec 8.75/20
-        b_redoub = Bulletin(
-            ecole_id=self.ecole.id,
-            annee_scolaire_id=self.annee_source.id,
-            eleve_id=self.eleve_redoublant.id,
-            classe_id=self.classe_source.id,
-            moyenne_generale=8.75,
-            statut="valide",
-        )
-        db.session.add(b_redoub)
+        db.session.add_all(self._bulletins_primaires(self.eleve_redoublant, 8.75))
         db.session.commit()
 
         self._login()

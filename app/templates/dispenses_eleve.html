@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Dispenses de matières{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <a href="{{ url_for('main.bulletins') }}" class="btn btn-outline-secondary btn-sm mb-3">← Bulletins</a>
+    <h1 class="h3">Dispenses de {{ inscription.eleve.prenom }} {{ inscription.eleve.nom }}</h1>
+    <p class="text-muted">{{ inscription.classe.nom }} · {{ inscription.annee_scolaire.nom }}</p>
+    <div class="alert alert-info">Une dispense validée retire la matière du calcul et des matières manquantes. Une matière simplement sans note reste « non évaluée ». Conservez le justificatif dans le dossier administratif ; n'indiquez ici ni diagnostic ni détail médical.</div>
+
+    {% if annee_modifiable %}
+    <form method="post" class="card card-body mb-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <h2 class="h5">Accorder une dispense médicale</h2>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label" for="cours_id">Matière</label>
+                <select id="cours_id" name="cours_id" class="form-select" required>
+                    <option value="">Choisir</option>
+                    {% for matiere in cours %}<option value="{{ matiere.id }}">{{ matiere.nom }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="periode">Période</label>
+                <select id="periode" name="periode" class="form-select" required>
+                    <option value="{{ annee_entiere }}">Toute l'année</option>
+                    {% for periode in periodes %}<option value="{{ periode }}">{{ periode }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label" for="reference_justificatif">Référence du justificatif</label>
+                <input id="reference_justificatif" name="reference_justificatif" class="form-control" maxlength="100" required placeholder="Ex. certificat médical du 10/10/2026">
+            </div>
+        </div>
+        <div class="mt-3"><button class="btn btn-primary" type="submit">Enregistrer la dispense</button></div>
+    </form>
+    {% endif %}
+
+    <h2 class="h5">Décisions enregistrées</h2>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead><tr><th>Matière</th><th>Période</th><th>Référence</th><th>État</th><th></th></tr></thead>
+            <tbody>
+            {% for dispense in dispenses %}
+                <tr>
+                    <td>{{ dispense.cours.nom }}</td>
+                    <td>{{ 'Toute l’année' if dispense.periode == annee_entiere else dispense.periode }}</td>
+                    <td>{{ dispense.reference_justificatif }}</td>
+                    <td>{{ 'Active' if dispense.active else 'Annulée' }}</td>
+                    <td>
+                        {% if annee_modifiable and dispense.active %}
+                        <form method="post" action="{{ url_for('main.annuler_dispense', dispense_id=dispense.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">Annuler</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="5" class="text-muted">Aucune dispense enregistrée.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

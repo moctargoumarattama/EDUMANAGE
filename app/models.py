@@ -524,6 +524,8 @@ class Classe(db.Model):
     niveau = db.Column(db.String(50))
     niveau_id = db.Column(db.Integer, db.ForeignKey('niveau_scolaire.id'), nullable=True)
     section = db.Column(db.String(30), nullable=True)
+    # Au lycée, section conserve la série (D, A1...), division distingue D1 de D2.
+    division = db.Column(db.String(8), nullable=False, default='', server_default='')
     effectif = db.Column(db.Integer, default=0)
     capacite = db.Column(db.Integer, default=30)
     statut = db.Column(db.String(20), nullable=False, default='ouverte', server_default='ouverte')
@@ -599,6 +601,9 @@ class Classe(db.Model):
             "nom": self.nom,
             "nom_complet": self.nom_complet,
             "niveau": self.niveau,
+            "serie": self.section if self.niveau_scolaire and self.niveau_scolaire.cycle == 'lycee' else None,
+            "section": self.section,
+            "division": self.division or '',
             "effectif": eff,
             "ecole_id": self.ecole_id,
             "salle": self.salle,
@@ -786,6 +791,33 @@ class Note(db.Model):
             "last_by_admin": bool(self.last_by_admin),
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
+
+class DispenseMatiere(db.Model):
+    """Décision nominative, annuelle ou limitée à une période, sans diagnostic médical."""
+    __tablename__ = 'dispense_matiere'
+
+    id = db.Column(db.Integer, primary_key=True)
+    ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'), nullable=False)
+    annee_id = db.Column(db.Integer, db.ForeignKey('annee_scolaire.id'), nullable=False)
+    inscription_id = db.Column(db.Integer, db.ForeignKey('inscriptions.id', ondelete='RESTRICT'), nullable=False)
+    cours_id = db.Column(db.Integer, db.ForeignKey('cours.id', ondelete='RESTRICT'), nullable=False)
+    periode = db.Column(db.String(50), nullable=False, default='*', server_default='*')
+    motif = db.Column(db.String(50), nullable=False, default='medicale', server_default='medicale')
+    reference_justificatif = db.Column(db.String(100), nullable=False)
+    active = db.Column(db.Boolean, nullable=False, default=True, server_default='1')
+    cree_par_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=True)
+    annulee_par_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=True)
+    date_creation = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    date_annulation = db.Column(db.DateTime, nullable=True)
+
+    inscription = db.relationship('Inscription', backref=db.backref('dispenses', lazy=True))
+    cours = db.relationship('Cours', backref=db.backref('dispenses', lazy=True))
+
+    __table_args__ = (
+        db.UniqueConstraint('inscription_id', 'cours_id', 'periode', name='uq_dispense_inscription_cours_periode'),
+        db.Index('ix_dispense_ecole_annee', 'ecole_id', 'annee_id'),
+    )
+
 
 # -----------------------
 # Paiement

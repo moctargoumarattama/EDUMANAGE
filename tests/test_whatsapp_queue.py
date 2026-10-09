@@ -5,6 +5,7 @@ from app import create_app, db
 from app.config import Config
 from app.models import Ecole, MessageQueue
 from app.services.whatsapp_queue import (
+    GatewayTemporarilyUnavailable,
     STATUS_EXPIRED,
     STATUS_FAILED,
     STATUS_PENDING,
@@ -104,6 +105,23 @@ class WhatsAppQueueTestCase(unittest.TestCase):
         self.assertEqual(item.statut, STATUS_FAILED)
         self.assertEqual(item.tentatives, 2)
         self.assertNotIn(item, get_pending_messages())
+
+    def test_panne_temporaire_garde_le_message_jusqu_au_retour(self):
+        item = enqueue_message(self.ecole.id, '90123456', 'Absence à notifier', 'absence',
+                               max_tentatives=2, commit=True)
+
+        def panne(*_):
+            raise GatewayTemporarilyUnavailable('passerelle arrêtée')
+
+        for _ in range(4):
+            process_queue(panne)
+        db.session.refresh(item)
+        self.assertEqual(item.statut, STATUS_PENDING)
+        self.assertEqual(item.tentatives, 0)
+
+        process_queue(lambda *_: True)
+        db.session.refresh(item)
+        self.assertEqual(item.statut, STATUS_SENT)
 
     def test_expired_message_is_not_sent(self):
         item = enqueue_message(

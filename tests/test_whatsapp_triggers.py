@@ -1,6 +1,6 @@
 import unittest
 from datetime import date
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import requests
 
@@ -293,8 +293,10 @@ class WhatsAppTriggersTestCase(unittest.TestCase):
         post_mock.assert_called_once_with(
             f"http://127.0.0.1:3001/session/{self.ecole.id}/send",
             json={"to": "+22790123456", "text": "Bonjour"},
+            headers=ANY,
             timeout=5,
         )
+        self.assertGreaterEqual(len(post_mock.call_args.kwargs['headers']['X-Gateway-Secret']), 32)
 
         with patch(
             "app.services.whatsapp_queue.requests.post",

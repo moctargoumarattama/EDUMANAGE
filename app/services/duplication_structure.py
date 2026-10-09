@@ -113,6 +113,7 @@ def dupliquer_structure_annee(annee_source_id: int, annee_cible_id: int, ecole_i
                 niveau=src_c.niveau,
                 niveau_id=src_c.niveau_id,
                 section=src_c.section,
+                division=src_c.division or '',
                 effectif=0,
                 capacite=src_c.capacite or src_c.capacite_max or 30,
                 capacite_max=src_c.capacite_max or src_c.capacite or 30,

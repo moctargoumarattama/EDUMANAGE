@@ -307,6 +307,31 @@ class TestCertificatsAdministratifs(unittest.TestCase):
         self.assertIn("data:image/png;base64,", html)
         self.assertIn("Scannez pour", html)
 
+    def test_champ_absent_a_emission_reste_absent_apres_modification_dossier(self):
+        self.eleve.lieu_naissance = None
+        self.eleve.nom_pere = None
+        db.session.commit()
+        self.login_admin_a()
+
+        response = self.client.post('/certificats/generer', json={
+            'eleve_id': self.eleve.id, 'type_certificat': 'scolarite',
+        })
+        self.assertEqual(response.status_code, 200)
+        cert = CertificatAdministratif.query.order_by(CertificatAdministratif.id.desc()).first()
+        self.assertIsNone(cert.lieu_naissance_eleve)
+        nom_emis = cert.to_dict()['eleve_nom']
+
+        self.eleve.lieu_naissance = 'LieuAjouteApresEmission'
+        self.eleve.nom_pere = 'PereAjouteApresEmission'
+        self.eleve.nom = 'NomModifieApresEmission'
+        db.session.commit()
+
+        html = self.client.get(f'/certificats/imprimer/{cert.id}').get_data(as_text=True)
+        self.assertNotIn('LieuAjouteApresEmission', html)
+        self.assertNotIn('PereAjouteApresEmission', html)
+        self.assertNotIn('NomModifieApresEmission', html)
+        self.assertEqual(cert.to_dict()['eleve_nom'], nom_emis)
+
     # =========================================================================
     # 4. TEST VÉRIFICATION PUBLIQUE SANS AUTHENTIFICATION
     # =========================================================================

@@ -398,7 +398,8 @@ def supprimer_annee_planifiee(annee_id):
         return redirect(url_for('main.gestion_annees'))
 
     try:
-        from app.models import Classe, Inscription, PeriodeBulletin, AnneeNiveauConfig
+        from app.models import Classe, DispenseMatiere, Inscription, PeriodeBulletin, AnneeNiveauConfig
+        DispenseMatiere.query.filter_by(annee_id=annee.id, ecole_id=annee.ecole_id).delete()
         Inscription.query.filter_by(annee_scolaire_id=annee.id).delete()
         for c in Classe.query.filter_by(annee_scolaire_id=annee.id).all():
             db.session.delete(c)

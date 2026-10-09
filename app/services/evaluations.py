@@ -136,6 +136,7 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
         "disciplines_details": dict,
         "missing_subjects": list,
         "missing_subjects_names": list[str],
+        "dispensed_subjects_names": list[str],
     }
     """
     if periode_publiee is None:
@@ -210,14 +211,19 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
             "disciplines_details": {},
             "missing_subjects": [],
             "missing_subjects_names": [],
+            "dispensed_subjects_names": [],
         }
 
     from app.services.inscriptions_annuelles import classe_effective_pour_periode
     classe_id = classe_effective_pour_periode(inscription, periode)
     if cours_attendus is None:
         cours_attendus = get_cours_attendus_classe(ecole_id, classe_id, annee_id)
-    expected_subjects = len(cours_attendus)
-    expected_coefficients = sum(c.coefficient if (c.coefficient and c.coefficient > 0) else 1.0 for c in cours_attendus)
+    from app.services.dispenses import cours_dispenses
+    dispenses_ids = cours_dispenses(ecole_id, inscription.id, periode)
+    dispenses_ids.intersection_update(c.id for c in cours_attendus)
+    cours_a_evaluer = [c for c in cours_attendus if c.id not in dispenses_ids]
+    expected_subjects = len(cours_a_evaluer)
+    expected_coefficients = sum(c.coefficient if (c.coefficient and c.coefficient > 0) else 1.0 for c in cours_a_evaluer)
 
     # Map cours attendus de la classe
     cours_map = {c.id: c for c in cours_attendus}
@@ -256,6 +262,13 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
     for c_id, c_obj in cours_map.items():
         c_notes = notes_par_cours.get(c_id, [])
         coef = c_obj.coefficient if (c_obj.coefficient and c_obj.coefficient > 0) else 1.0
+
+        if c_id in dispenses_ids:
+            disciplines_details[c_id] = {
+                "cours": c_obj, "moyenne": None, "coefficient": coef,
+                "points": None, "evalue": False, "dispense": True, "notes_count": 0,
+            }
+            continue
 
         if c_notes:
             moy_sem = calculer_moyenne_matiere(c_notes)
@@ -301,12 +314,14 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
         evaluated_coefficients = expected_coefficients
 
     missing_subjects = [
-        d["cours"] for d in disciplines_details.values() if not d["evalue"]
+        d["cours"] for d in disciplines_details.values() if not d["evalue"] and not d.get("dispense")
     ]
     missing_subjects_names = [c.nom for c in missing_subjects]
+    dispensed_subjects_names = [c.nom for c in cours_attendus if c.id in dispenses_ids]
     is_pedagogically_complete = (expected_subjects > 0 and evaluated_subjects >= expected_subjects)
 
-    # RÈGLE MANDATAIRE : Si expected_subjects == 0, aucune matière/cours attendu défini.
+    # Aucun résultat chiffré possible sans matière à évaluer (catalogue vide
+    # ou ensemble des matières dispensé).
     # Ne JAMAIS produire status = complete par simple division ou liste vide.
     if expected_subjects == 0:
         return {
@@ -325,6 +340,7 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
             "disciplines_details": {},
             "missing_subjects": [],
             "missing_subjects_names": [],
+            "dispensed_subjects_names": dispensed_subjects_names,
         }
 
     # Calcul des ratios et moyennes avec garde-fous stricts
@@ -375,6 +391,7 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
         "disciplines_details": disciplines_details,
         "missing_subjects": missing_subjects,
         "missing_subjects_names": missing_subjects_names,
+        "dispensed_subjects_names": dispensed_subjects_names,
     }
 
 

@@ -1,7 +1,8 @@
 from datetime import date
 
 from app import create_app, db
-from app.models import AnneeScolaire, Classe, Cours, Ecole
+from app.models import AnneeScolaire, Classe, Cours, Ecole, Eleve, Note
+from app.routes.cours import _erreur_reaffectation_cours
 from app.services.cours_uniqueness import find_duplicate_cours, normalize_cours_nom
 
 
@@ -61,5 +62,32 @@ def test_cours_duplicate_key_is_school_class_and_normalized_name():
         assert find_duplicate_cours(ecole_b.id, classe_b.id, "Mathematiques") is None
         assert find_duplicate_cours(ecole_a.id, classe_a.id, "Francais") is None
 
+        db.session.remove()
+        db.drop_all()
+
+
+def test_deplacer_un_cours_note_refuse_pour_preserver_la_classe_historique():
+    app = create_app(TestConfig)
+    with app.app_context():
+        assert str(db.engine.url) == 'sqlite:///:memory:'
+        db.create_all()
+        ecole = Ecole(nom='École isolée')
+        db.session.add(ecole)
+        db.session.flush()
+        annee = _annee(ecole.id, '2026-2027')
+        classe_source = _classe(ecole.id, annee.id, '6e A')
+        classe_cible = _classe(ecole.id, annee.id, '6e B')
+        eleve = Eleve(nom='Ali', prenom='Aïcha', date_naissance=date(2013, 1, 1), ecole_id=ecole.id)
+        cours = Cours(nom='Mathématiques', coefficient=1, ecole_id=ecole.id,
+                      classe_id=classe_source.id)
+        db.session.add_all([eleve, cours])
+        db.session.flush()
+        db.session.add(Note(valeur=12, eleve_id=eleve.id, cours_id=cours.id,
+                            ecole_id=ecole.id, annee_id=annee.id))
+        db.session.commit()
+
+        assert _erreur_reaffectation_cours(cours, classe_id=classe_cible.id,
+                                          professeur_id=cours.professeur_id)
+        assert cours.classe_id == classe_source.id
         db.session.remove()
         db.drop_all()

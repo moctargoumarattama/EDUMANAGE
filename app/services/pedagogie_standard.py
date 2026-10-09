@@ -14,7 +14,7 @@ from app.models import AnneeScolaire, Classe, Cours, Inscription, NiveauScolaire
 from app.services.cours_uniqueness import find_duplicate_cours
 from app.services.niveaux import (
     infer_niveau_from_classe_name,
-    normaliser_section_classe,
+    normaliser_serie_division,
     proposer_nom_classe,
 )
 from app.services.structure_annuelle import niveau_est_dans_structure
@@ -175,11 +175,11 @@ def generer_classes_batch(
         if not niveau_est_dans_structure(ecole_id, annee.id, niveau.id):
             continue
 
-        section, err = normaliser_section_classe(section_raw)
+        section, division, err = normaliser_serie_division(niveau, section_raw, conf.get('division'))
         if err:
             continue
 
-        nom = proposer_nom_classe(niveau, section)
+        nom = proposer_nom_classe(niveau, section, division)
 
         try:
             capacite = int(capacite_raw)
@@ -201,6 +201,7 @@ def generer_classes_batch(
                 annee_scolaire_id=annee.id,
                 niveau_id=niveau.id,
                 section=section,
+                division=division,
             ).first()
 
         if existing:
@@ -212,6 +213,7 @@ def generer_classes_batch(
             niveau=niveau.nom,
             niveau_id=niveau.id,
             section=section,
+            division=division,
             capacite=capacite,
             capacite_max=capacite,
             effectif=0,

@@ -15,6 +15,8 @@ Vérifie STRICTEMENT :
 
 import unittest
 from app import create_app, db
+from app.config import TestingConfig
+from sqlalchemy.pool import StaticPool
 from app.models import Ecole, Utilisateur
 
 
@@ -22,10 +24,15 @@ class TestLandingPage(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.app = create_app()
-        cls.app.config['TESTING'] = True
-        cls.app.config['WTF_CSRF_ENABLED'] = False
-        cls.app.config['SERVER_NAME'] = 'localhost'
+        class IsolatedConfig(TestingConfig):
+            SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+            SQLALCHEMY_ENGINE_OPTIONS = {'poolclass': StaticPool, 'connect_args': {'check_same_thread': False}}
+            SERVER_NAME = 'localhost'
+
+        cls.app = create_app(IsolatedConfig)
+        with cls.app.app_context():
+            assert str(db.engine.url) == 'sqlite:///:memory:'
+            db.create_all()
 
     def setUp(self):
         self.client = self.app.test_client()

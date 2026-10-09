@@ -64,8 +64,16 @@
 
                             <div class="col-md-5">
                                 <label class="form-label fw-semibold" for="modal_classe_section" id="modalSectionLabel">Section / Série</label>
-                                <input type="text" class="form-control" id="modal_classe_section" name="section" placeholder="Ex : A" maxlength="1" pattern="[A-Za-zÀ-ÖØ-öø-ÿ]" autocomplete="off">
-                                <div class="form-text text-muted small">Créez A, B, C... selon vos besoins.</div>
+                                <input type="text" class="form-control" id="modal_classe_section" name="section" placeholder="Ex : D ou A1" maxlength="3" pattern="[A-Za-zÀ-ÖØ-öø-ÿ][0-9]{0,2}" autocomplete="off">
+                                <div class="form-text">Au lycée, saisissez la série (D, A1, A2…).</div>
+                                <label class="form-label fw-semibold mt-2" for="modal_classe_division">Division (lycée uniquement)</label>
+                                <input type="text" class="form-control" id="modal_classe_division" name="division" placeholder="Ex : 1 ou 2" maxlength="2" pattern="[1-9][0-9]?" autocomplete="off">
+                                <div class="form-text text-muted small">D + 1 donnera D1, D + 2 donnera D2.</div>
+                            </div>
+
+                            <div class="col-md-12">
+                                <label class="form-label fw-semibold" for="modal_classe_nom">Intitulé personnalisé (facultatif)</label>
+                                <input type="text" class="form-control" id="modal_classe_nom" name="nom" maxlength="50" placeholder="Ex : Tle D1 ; laisser vide pour un nom automatique" autocomplete="off">
                             </div>
 
                             <div class="col-md-6">

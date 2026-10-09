@@ -238,7 +238,7 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
     - Coefficient officiel = Cours.coefficient.
     - Points matière = moyenne_semestre * Cours.coefficient.
     - Moyenne générale semestrielle = sum(points) / sum(coefficients) des matières finalisées.
-    - Les matières non évaluées (dispense, absence, saisie en attente) sont mentionnées "Non évalué"
+    - Les dispenses explicites sont mentionnées « Dispensé » ; une simple note absente reste « Non évalué ».
       et leur coefficient est retiré du diviseur pour ne pas pénaliser indûment l'élève.
     - Le bulletin n'est FINAL (officiel) SSI toutes les matières attendues sont notées ET la période est publiée.
     """
@@ -279,6 +279,8 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
 
     from app.services.evaluations import get_cours_attendus_classe, calculer_moyenne_matiere
     cours_attendus = get_cours_attendus_classe(ecole_id, classe_periode_id, annee.id) if classe_periode_id else []
+    from app.services.dispenses import cours_dispenses
+    dispenses_ids = cours_dispenses(ecole_id, inscription.id, target_periode)
 
     disciplines = []
     moyennes_par_cours = {}
@@ -293,13 +295,23 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
         cours_nom = cours.nom
         cours_coef = cours.coefficient if (cours.coefficient and cours.coefficient > 0) else 1.0
         c_notes = notes_par_cours_id.get(cours.id, [])
+        est_dispense = cours.id in dispenses_ids
 
         prof_nom = "Non assigné"
         if cours.professeur:
             p = cours.professeur
             prof_nom = f"{p.prenom or ''} {p.nom or ''}".strip() or "Non assigné"
 
-        if c_notes:
+        if est_dispense:
+            controles = []
+            comp = None
+            moy_controles = None
+            note_comp = None
+            moy_semestre = None
+            pts = None
+            est_fin = False
+            apprec_disc = "Dispensé"
+        elif c_notes:
             controles = [n for n in c_notes if n.type_evaluation in TYPES_CONTROLE_CONTINU]
             from app.services.notes_annuelles import est_evaluation_sommative
             comp = next((n for n in c_notes if est_evaluation_sommative(n.type_evaluation)), None)
@@ -330,6 +342,7 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
             'coefficient': cours_coef,
             'points': pts,
             'est_finalisee': est_fin,
+            'dispense': est_dispense,
             'appreciation': apprec_disc,
             'notes_controles': controles,
             'notes': c_notes,
@@ -341,7 +354,7 @@ def calculer_bulletin_data(ecole_id, annee, inscription, periode=None, periode_p
 
     # 2. Traitement d'éventuels cours hors liste officielle ayant des notes
     for n in notes:
-        if n.cours_id and n.cours_id not in vus_cours_ids:
+        if n.cours_id and n.cours_id not in vus_cours_ids and n.cours_id not in dispenses_ids:
             vus_cours_ids.add(n.cours_id)
             cours = n.cours
             cours_nom = cours.nom if cours else (n.matiere or "Non renseigné")

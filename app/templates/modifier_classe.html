@@ -62,8 +62,14 @@
 
                                 <div>
                                     {{ form.section.label(class="form-label fw-medium") }}
-                                    {{ form.section(class="form-control", placeholder="Ex: A, 1, Bleu, D1") }}
+                                    {{ form.section(class="form-control", placeholder="Ex : D, A1 ou D1") }}
+                                    <div class="form-text">Série au lycée : D, A1, A2…</div>
+                                    {{ form.division.label(class="form-label fw-medium mt-2") }}
+                                    {{ form.division(class="form-control", placeholder="Ex : 1 ou 2 (lycée uniquement)") }}
                                     {% for error in form.section.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                    {% for error in form.division.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
                                     {% endfor %}
                                 </div>

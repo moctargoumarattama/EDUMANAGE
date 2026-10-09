@@ -256,6 +256,15 @@ def _process_note_item(item, client_op_id):
                 'message': 'La période est obligatoire lorsqu’un bulletin est publié'}
 
     periode_cible = existing_note.periode if existing_note else periode
+    from app.models import DispenseMatiere
+    from app.services.dispenses import est_cours_dispense
+    if ((periode_cible and est_cours_dispense(eleve.ecole_id, inscription.id, cours.id, periode_cible))
+            or (not periode_cible and DispenseMatiere.query.filter_by(
+                ecole_id=eleve.ecole_id, inscription_id=inscription.id,
+                cours_id=cours.id, active=True,
+            ).first())):
+        return {'client_op_id': client_op_id, 'status': 'conflict', 'reason': 'student_exempt',
+                'message': 'Cet élève est dispensé de cette matière pour la période.'}
     if existing_note and periode and periode.casefold() != (existing_note.periode or '').strip().casefold():
         return {'client_op_id': client_op_id, 'status': 'conflict', 'reason': 'period_conflict', 'message': 'La période de la note existante est différente'}
     verrou = erreur_verrou_notes(eleve.ecole_id, inscription.annee_scolaire_id, periode_cible, inscription)

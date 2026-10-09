@@ -373,7 +373,7 @@ def safe_delete_ecole(ecole_id):
     """Supprime proprement et en cascade toutes les données liées à une école"""
     from app.models import (
         Absence, Alerte, AnneeScolaire, ArchiveAbsence, ArchiveNote,
-        Bulletin, Classe, Cours, Eleve, EmploiTemps, HistoriqueImport,
+        Bulletin, Classe, Cours, DispenseMatiere, Eleve, EmploiTemps, HistoriqueImport,
         Inscription, JournalCorrection, Log, MatriculeSequence, Note, Paiement,
         PeriodeBulletin, Presence, Professeur, Utilisateur
     )
@@ -388,6 +388,7 @@ def safe_delete_ecole(ecole_id):
     user_ids = [u.id for u in users if u.role != 'super_admin']
 
     # 2. Données liées aux élèves
+    DispenseMatiere.query.filter_by(ecole_id=ecole_id).delete(synchronize_session=False)
     if eleve_ids:
         Presence.query.filter(Presence.eleve_id.in_(eleve_ids)).delete(synchronize_session=False)
         Bulletin.query.filter(Bulletin.eleve_id.in_(eleve_ids)).delete(synchronize_session=False)

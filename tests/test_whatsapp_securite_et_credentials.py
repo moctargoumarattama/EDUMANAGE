@@ -1,20 +1,26 @@
 import unittest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
+from sqlalchemy.pool import StaticPool
 
 from app import create_app, db
+from app.config import TestingConfig
 from app.models import Ecole, Utilisateur, MessageQueue
 from app.services.whatsapp_queue import enqueue_message, process_queue, STATUS_SENT, STATUS_FAILED
 
 class TestWhatsappSecurite(unittest.TestCase):
     def setUp(self):
-        from app.config import get_config
-        config = get_config()
-        self.app = create_app(config)
-        self.app.config['TESTING'] = True
-        self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        class WhatsappTestConfig(TestingConfig):
+            SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+            SQLALCHEMY_ENGINE_OPTIONS = {
+                'poolclass': StaticPool,
+                'connect_args': {'check_same_thread': False},
+            }
+
+        self.app = create_app(WhatsappTestConfig)
         self.app_context = self.app.app_context()
         self.app_context.push()
+        self.assertEqual(str(db.engine.url), 'sqlite:///:memory:')
         db.create_all()
 
         self.ecole = Ecole(nom="Ecole Test WA")
@@ -39,8 +45,8 @@ class TestWhatsappSecurite(unittest.TestCase):
         self.app_context.pop()
 
     @patch('app.routes.whatsapp.requests.get')
-    def test_passerelle_status_sync(self, mock_get):
-        # 3. Transition de statut connecté -> ecole.whatsapp_enabled passe à True
+    def test_statut_passerelle_ne_change_pas_l_autorisation(self, mock_get):
+        # La connexion réseau et l'autorisation de notifier sont indépendantes.
         from app.routes.whatsapp import get_whatsapp_gateway_status
         
         mock_resp = MagicMock()
@@ -52,15 +58,18 @@ class TestWhatsappSecurite(unittest.TestCase):
         self.assertTrue(status["connected"])
         
         ecole = db.session.get(Ecole, self.ecole.id)
-        self.assertTrue(ecole.whatsapp_enabled)
+        self.assertFalse(ecole.whatsapp_enabled)
 
-        # Deconnexion -> passe à False
+        ecole.whatsapp_enabled = True
+        db.session.commit()
+
+        # Une déconnexion temporaire ne supprime pas l'autorisation manuelle.
         mock_resp.json.return_value = {"status": "DECONNECTE", "connected": False}
         status = get_whatsapp_gateway_status(self.ecole.id, include_qr=False)
         self.assertFalse(status["connected"])
         
         ecole = db.session.get(Ecole, self.ecole.id)
-        self.assertFalse(ecole.whatsapp_enabled)
+        self.assertTrue(ecole.whatsapp_enabled)
 
     @patch('app.services.whatsapp_queue.requests.post')
     def test_envoi_baileys_headers(self, mock_post):

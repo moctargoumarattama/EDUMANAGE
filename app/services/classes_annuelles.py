@@ -36,7 +36,7 @@ def set_classe_ouverte(ecole_id, classe_id, ouverte):
 def _classe_identity(classe):
     section = (classe.section or "").strip().upper()
     if classe.niveau_id:
-        return ("niveau_section", classe.niveau_id, section)
+        return ("niveau_section", classe.niveau_id, section, classe.division or '')
     return ("nom", (classe.nom or "").strip().upper())
 
 
@@ -108,6 +108,7 @@ def preparer_structure_classes(ecole_id, annee_cible_id, source_annee_id=None, s
             niveau=source_classe.niveau,
             niveau_id=source_classe.niveau_id,
             section=source_classe.section,
+            division=source_classe.division or '',
             effectif=0,
             capacite=source_classe.capacite or source_classe.capacite_max or 35,
             capacite_max=source_classe.capacite_max or source_classe.capacite or 35,

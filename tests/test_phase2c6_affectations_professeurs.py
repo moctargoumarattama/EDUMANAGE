@@ -261,6 +261,15 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
             302,
         )
         db.session.refresh(self.math_source)
+        # Le cours a un créneau chez Ali : une réaffectation implicite à Moussa
+        # doit rester refusée pour ne pas désynchroniser l'emploi du temps.
+        self.assertEqual(self.math_source.coefficient, 4.0)
+        donnees_actives["professeur_id"] = str(self.prof_ali.id)
+        self.assertEqual(
+            client.post(f"/cours/{self.math_source.id}/modifier", data=donnees_actives).status_code,
+            302,
+        )
+        db.session.refresh(self.math_source)
         self.assertEqual(self.math_source.coefficient, 5.0)
 
     def test_affectation_cours_envoie_whatsapp_au_professeur(self):

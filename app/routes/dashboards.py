@@ -611,14 +611,18 @@ def onboarding():
             ecole_id=ecole.id,
             annee_scolaire_id=active_year.id
         ).all()
-        existing_map = {(c.niveau_id, (c.section or "").upper()) for c in existing_classes}
+        existing_map = {(c.niveau_id, f"{c.section or ''}{c.division or ''}".upper()) for c in existing_classes}
 
         for n in niveaux_actifs:
             code_upper = (n.code or "").upper()
             if n.cycle == "lycee" and code_upper in ("1ERE", "TERMINALE", "TLE"):
                 sections = [
                     {"code": "A", "label": "A (Littéraire)"},
+                    {"code": "A1", "label": "A1 (série)"},
+                    {"code": "A2", "label": "A2 (série)"},
                     {"code": "D", "label": "D (Scientifique)"},
+                    {"code": "D1", "label": "D1 (division 1)"},
+                    {"code": "D2", "label": "D2 (division 2)"},
                     {"code": "C", "label": "C (Maths/PC)"},
                 ]
                 libelle = "Séries"

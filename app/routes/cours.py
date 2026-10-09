@@ -1,5 +1,5 @@
 from app.utils_classes import classes_triees_pedagogique, ordre_pedagogique_classe
-from app.models import Absence, EmploiTemps, NiveauScolaire
+from app.models import Absence, DispenseMatiere, EmploiTemps, Inscription, NiveauScolaire
 from . import main
 from flask import g
 from app.authorization import tenant_required
@@ -62,8 +62,9 @@ def _erreur_reaffectation_cours(cours, *, classe_id=None, professeur_id=None):
     if classe_id is not None and classe_id != cours.classe_id:
         if (Note.query.filter_by(cours_id=cours.id).first()
                 or Absence.query.filter_by(cours_id=cours.id).first()
+                or DispenseMatiere.query.filter_by(cours_id=cours.id).first()
                 or EmploiTemps.query.filter_by(cours_id=cours.id).first()):
-            return "Déplacement refusé : ce cours possède des notes, absences ou créneaux. Créez un cours dans la classe cible."
+            return "Déplacement refusé : ce cours possède des notes, absences, dispenses ou créneaux. Créez un cours dans la classe cible."
     if professeur_id != cours.professeur_id and EmploiTemps.query.filter_by(cours_id=cours.id).first():
         return "Affectation refusée : mettez d'abord à jour les créneaux de ce cours."
     return None
@@ -691,6 +692,18 @@ def import_notes_excel(id):
                     continue
 
                 # Ajout / mise ? jour
+                inscription = Inscription.query.filter_by(
+                    ecole_id=cours.ecole_id, annee_scolaire_id=annee.id,
+                    eleve_id=eleve.id,
+                ).first()
+                # Le fichier ne precise pas de periode fiable. Une dispense
+                # active rendrait toute nouvelle note pour ce cours ambigue.
+                if inscription and DispenseMatiere.query.filter_by(
+                    ecole_id=cours.ecole_id, inscription_id=inscription.id,
+                    cours_id=cours.id, active=True,
+                ).first():
+                    erreurs.append(f"Ligne {index+2}: eleve dispense de cette matiere")
+                    continue
                 note = Note.query.filter_by(cours_id=id, eleve_id=eleve.id, ecole_id=cours.ecole_id).first()
                 if note:
                     if note.annee_id and note.annee_id != annee.id:
@@ -868,9 +881,10 @@ def supprimer_cours(id):
         has_notes = Note.query.filter_by(cours_id=cours.id).first() is not None
         has_absences = Absence.query.filter_by(cours_id=cours.id).first() is not None
         has_emplois = EmploiTemps.query.filter_by(cours_id=cours.id).first() is not None
+        has_dispenses = DispenseMatiere.query.filter_by(cours_id=cours.id).first() is not None
 
-        if has_notes or has_absences or has_emplois:
-            msg = "Impossible de supprimer cette matière car elle contient des évaluations, absences ou séances d'emploi du temps associées."
+        if has_notes or has_absences or has_emplois or has_dispenses:
+            msg = "Impossible de supprimer cette matière car elle contient des évaluations, absences, dispenses ou séances d'emploi du temps associées."
             if is_ajax:
                 return jsonify({'success': False, 'message': msg}), 400
             flash(msg, "warning")

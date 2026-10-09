@@ -23,7 +23,7 @@ from app.admin import scripts
 from app.config import Config
 from app.models import (
     AnneeScolaire, CertificatAdministratif, Classe, Cours, Ecole, Eleve,
-    FichePaiePersonnel, Inscription, Log, PointagePersonnel, Professeur, Utilisateur,
+    DispenseMatiere, FichePaiePersonnel, Inscription, Log, NiveauScolaire, PointagePersonnel, Professeur, Utilisateur,
     gestion_ecole, professeur_classes,
 )
 
@@ -140,6 +140,59 @@ def _verifier_certificats_restaures(app, donnees, nouveaux_ids=None):
     assert scripts._serialize_instance(externe) == donnees["externe"]
     with db.engine.connect() as connexion:
         assert connexion.exec_driver_sql("PRAGMA foreign_key_check").all() == []
+
+
+def test_sauvegarde_restaure_et_preserve_dispenses_anciennes_versions(backup_app):
+    ecole = Ecole(nom="Ecole dispenses", onboarding_complete=True)
+    db.session.add(ecole)
+    db.session.flush()
+    annee = AnneeScolaire(nom="2026-2027", date_debut=date(2026, 9, 1),
+                          date_fin=date(2027, 7, 31), statut="active", ecole_id=ecole.id)
+    admin = Utilisateur(nom="Admin", role="admin", ecole_id=ecole.id,
+                        email="admin-dispenses@exemple.ne", mot_de_passe="hash")
+    niveau = NiveauScolaire(nom="Terminale", code="TERMINALE", ordre=13, cycle="lycee")
+    eleve = Eleve(nom="Issa", prenom="Amina", date_naissance=date(2010, 1, 1),
+                  annee_premiere_ecole=2026, ecole_id=ecole.id)
+    db.session.add_all([annee, admin, niveau, eleve])
+    db.session.flush()
+    classe = Classe(nom="Terminale D1", section="D", division="1", niveau="Terminale",
+                    niveau_id=niveau.id,
+                    ecole_id=ecole.id, annee_scolaire_id=annee.id)
+    db.session.add(classe)
+    db.session.flush()
+    cours = Cours(nom="EPS", ecole_id=ecole.id, classe_id=classe.id, coefficient=1)
+    inscription = Inscription(ecole_id=ecole.id, eleve_id=eleve.id,
+                              classe_id=classe.id, annee_scolaire_id=annee.id, statut="inscrit")
+    db.session.add_all([cours, inscription])
+    db.session.flush()
+    dispense = DispenseMatiere(ecole_id=ecole.id, annee_id=annee.id,
+                               inscription_id=inscription.id, cours_id=cours.id,
+                               reference_justificatif="CM-42", cree_par_id=admin.id)
+    db.session.add(dispense)
+    db.session.commit()
+
+    chemin = scripts.create_school_backup(ecole.id)
+    snapshot = json.loads(Path(chemin).read_text(encoding="utf-8"))
+    assert snapshot["data"]["classes"][0]["division"] == "1"
+    assert snapshot["data"]["dispenses_matieres"][0]["reference_justificatif"] == "CM-42"
+    db.session.delete(dispense)
+    db.session.commit()
+    scripts.restore_school_backup(Path(chemin).name, target_ecole_id=ecole.id)
+    assert DispenseMatiere.query.filter_by(ecole_id=ecole.id).count() == 1
+    assert Classe.query.filter_by(ecole_id=ecole.id).one().division == "1"
+
+    _reecrire_snapshot(chemin, lambda data: data.pop("dispenses_matieres"))
+    scripts.restore_school_backup(Path(chemin).name, target_ecole_id=ecole.id)
+    assert DispenseMatiere.query.filter_by(ecole_id=ecole.id).one().reference_justificatif == "CM-42"
+
+    def ancienne_classe(data):
+        data["classes"][0].pop("division")
+        data["classes"][0]["section"] = "D1"
+
+    _reecrire_snapshot(chemin, ancienne_classe)
+    scripts.restore_school_backup(Path(chemin).name, target_ecole_id=ecole.id)
+    classe_restauree = Classe.query.filter_by(ecole_id=ecole.id).one()
+    assert (classe_restauree.section, classe_restauree.division) == ("D", "1")
 
 
 def test_backup_sqlite_checkpoint_wal_et_zero_perte(backup_app, tmp_path, monkeypatch):

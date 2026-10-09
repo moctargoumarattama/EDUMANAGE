@@ -19,6 +19,7 @@ from . import eleves
 from . import professeurs
 from . import cours
 from . import notes
+from . import dispenses
 from . import paiements
 from . import absences
 from . import dashboards

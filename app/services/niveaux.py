@@ -189,19 +189,61 @@ def normaliser_section_classe(section):
     return section.upper(), None
 
 
+def normaliser_serie_division(niveau, section, division=None):
+    """Sépare la série de la division sans confondre les séries A1/A2."""
+    valeur = (section or '').strip().upper()
+    division_brute = (division or '').strip()
+    if getattr(niveau, 'cycle', None) == 'lycee':
+        if valeur in {'A1', 'A2'}:
+            serie = valeur
+        else:
+            match = re.fullmatch(r'([A-ZÀ-ÖØ-Þ])([1-9][0-9]?)?', valeur)
+            if not match:
+                return None, None, 'Série invalide (ex. A, A1, A2, C ou D1).'
+            serie = match.group(1)
+            if match.group(2):
+                if division_brute:
+                    return None, None, 'Indiquez la division une seule fois.'
+                division_brute = match.group(2)
+    else:
+        serie, erreur = normaliser_section_classe(section)
+        if erreur:
+            return None, None, erreur
+        if division_brute:
+            return None, None, 'La division séparée est réservée aux classes du lycée.'
+    if division_brute and not re.fullmatch(r'[1-9][0-9]?', division_brute):
+        return None, None, 'La division doit être un nombre de 1 à 99.'
+    return serie, division_brute, None
+
+
 def libelle_section_niveau(niveau):
     return "Serie" if getattr(niveau, "cycle", None) == "lycee" else "Section"
 
 
-def proposer_nom_classe(niveau, section):
+def proposer_nom_classe(niveau, section, division=None):
     niveau_nom = niveau.nom if hasattr(niveau, "nom") else str(niveau or "")
     section = (section or "").strip().upper()
     if getattr(niveau, "cycle", None) == "lycee":
-        return f"{niveau_nom} Serie {section}".strip()
+        if division:
+            return f"{niveau_nom} {section}{division}".strip()
+        return f"{niveau_nom} Serie {section}{division or ''}".strip()
     return f"{niveau_nom} {section}".strip()
 
 
-def creer_classe_depuis_niveau(ecole_id, annee_scolaire_id, niveau_id, nom=None, section=None, salle=None, capacite=35, professeur_id=None):
+def nom_classe_personnalise(niveau, section, division, nom):
+    nom = (nom or '').strip()
+    if not nom or nom.upper() == 'AUTO':
+        return proposer_nom_classe(niveau, section, division), None
+    if len(nom) > 50:
+        return None, 'Le nom de classe ne peut pas dépasser 50 caractères.'
+    if getattr(niveau, 'cycle', None) == 'lycee' and division:
+        attendu = f'{section}{division}'
+        if not nom.upper().endswith(attendu):
+            return None, f'Le nom de classe doit se terminer par {attendu}.'
+    return nom, None
+
+
+def creer_classe_depuis_niveau(ecole_id, annee_scolaire_id, niveau_id, nom=None, section=None, salle=None, capacite=35, professeur_id=None, division=None):
     annee = AnneeScolaire.query.filter_by(id=annee_scolaire_id, ecole_id=ecole_id).first()
     if not annee:
         return None, "L'annee scolaire specifiee est invalide pour cet etablissement."
@@ -215,10 +257,12 @@ def creer_classe_depuis_niveau(ecole_id, annee_scolaire_id, niveau_id, nom=None,
     if not niveau_est_dans_structure(ecole_id, annee.id, niveau.id):
         return None, f"Le niveau {niveau.nom} n'est pas retenu pour cette annee scolaire."
 
-    section, error = normaliser_section_classe(section)
+    section, division, error = normaliser_serie_division(niveau, section, division)
     if error:
         return None, error
-    nom = proposer_nom_classe(niveau, section)
+    nom, error = nom_classe_personnalise(niveau, section, division, nom)
+    if error:
+        return None, error
 
     try:
         capacite = int(capacite)
@@ -232,9 +276,10 @@ def creer_classe_depuis_niveau(ecole_id, annee_scolaire_id, niveau_id, nom=None,
         annee_scolaire_id=annee.id,
         niveau_id=niveau.id,
         section=section,
+        division=division,
     ).first()
     if existing:
-        return None, "Une classe existe deja pour ce niveau et cette section dans cette annee scolaire."
+        return None, "Une classe existe deja pour ce niveau, cette serie/section et cette division dans cette annee scolaire."
 
     existing_name = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee.id, nom=nom).first()
     if existing_name:
@@ -245,6 +290,7 @@ def creer_classe_depuis_niveau(ecole_id, annee_scolaire_id, niveau_id, nom=None,
         niveau=niveau.nom,
         niveau_id=niveau.id,
         section=section,
+        division=division,
         salle=(salle or "").strip() or None,
         capacite=capacite,
         capacite_max=capacite,
@@ -259,7 +305,7 @@ def creer_classe_depuis_niveau(ecole_id, annee_scolaire_id, niveau_id, nom=None,
     return classe, None
 
 
-def modifier_classe_depuis_niveau(classe, ecole_id, niveau_id, nom=None, section=None, capacite=35, professeur_id=None):
+def modifier_classe_depuis_niveau(classe, ecole_id, niveau_id, nom=None, section=None, capacite=35, professeur_id=None, division=None):
     if not classe or classe.ecole_id != ecole_id:
         return None, "Classe introuvable pour cet etablissement."
 
@@ -276,20 +322,28 @@ def modifier_classe_depuis_niveau(classe, ecole_id, niveau_id, nom=None, section
     if not niveau_est_dans_structure(ecole_id, annee.id, niveau.id):
         return None, f"Le niveau {niveau.nom} n'est pas retenu pour cette annee scolaire."
 
-    section, error = normaliser_section_classe(section)
+    section, division, error = normaliser_serie_division(niveau, section, division)
     if error:
         return None, error
-    nom = proposer_nom_classe(niveau, section)
+    # Lorsqu'un nom automatiquement proposé n'a pas été modifié dans le
+    # formulaire, le recalculer avec la nouvelle série/division.
+    ancien_niveau = classe.niveau_scolaire or classe.niveau
+    ancien_nom_auto = proposer_nom_classe(ancien_niveau, classe.section, classe.division)
+    nom_demande = None if (nom or '').strip() == ancien_nom_auto else nom
+    nom, error = nom_classe_personnalise(niveau, section, division, nom_demande)
+    if error:
+        return None, error
 
     existing = Classe.query.filter(
         Classe.ecole_id == ecole_id,
         Classe.annee_scolaire_id == annee.id,
         Classe.niveau_id == niveau.id,
         Classe.section == section,
+        Classe.division == division,
         Classe.id != classe.id,
     ).first()
     if existing:
-        return None, "Une classe existe deja pour ce niveau et cette section dans cette annee scolaire."
+        return None, "Une classe existe deja pour ce niveau, cette serie/section et cette division dans cette annee scolaire."
 
     existing_name = Classe.query.filter(
         Classe.ecole_id == ecole_id,
@@ -311,6 +365,7 @@ def modifier_classe_depuis_niveau(classe, ecole_id, niveau_id, nom=None, section
     classe.niveau = niveau.nom
     classe.niveau_id = niveau.id
     classe.section = section
+    classe.division = division
     classe.capacite = capacite
     classe.capacite_max = capacite
     from app.services.classes_annuelles import precharger_effectif_classe
