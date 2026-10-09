@@ -802,6 +802,7 @@ class Paiement(db.Model):
     statut = db.Column(db.String(20), default='payé')
     reference = db.Column(db.String(100))
     verification_token = db.Column(db.String(64), unique=True, index=True, nullable=True)
+    idempotency_key = db.Column(db.String(64), unique=True, index=True, nullable=True)
     eleve_id = db.Column(db.Integer, db.ForeignKey('eleve.id'), nullable=False)
     ecole_id = db.Column(db.Integer, db.ForeignKey('ecole.id'))
     inscription_id = db.Column(
@@ -814,6 +815,7 @@ class Paiement(db.Model):
     __table_args__ = (
         db.Index('ix_paiement_ecole_statut', 'ecole_id', 'statut'),
         db.Index('ix_paiement_eleve_id', 'eleve_id'),
+        db.Index('ix_paiement_idempotency', 'ecole_id', 'idempotency_key'),
         db.UniqueConstraint('ecole_id', 'reference', name='uq_paiement_ecole_reference'),
     )
 
@@ -856,6 +858,7 @@ class Paiement(db.Model):
             "statut": self.statut,
             "reference": self.reference,
             "verification_token": self.verification_token,
+            "idempotency_key": self.idempotency_key,
             "eleve_id": self.eleve_id,
             "ecole_id": self.ecole_id,
             "inscription_id": self.inscription_id
@@ -1870,6 +1873,18 @@ class CertificatAdministratif(db.Model):
     classe_nom = db.Column(db.String(80), nullable=False)
     niveau = db.Column(db.String(50), nullable=True)
 
+    # Snapshot / Gel de l'identité et de l'état civil de l'élève à l'émission (immutabilité)
+    nom_eleve = db.Column(db.String(100), nullable=True)
+    prenom_eleve = db.Column(db.String(100), nullable=True)
+    matricule_eleve = db.Column(db.String(20), nullable=True)
+    date_naissance_eleve = db.Column(db.Date, nullable=True)
+    lieu_naissance_eleve = db.Column(db.String(100), nullable=True)
+    nationalite_eleve = db.Column(db.String(100), nullable=True)
+    genre_eleve = db.Column(db.String(10), nullable=True)
+    nom_pere_eleve = db.Column(db.String(120), nullable=True)
+    nom_mere_eleve = db.Column(db.String(120), nullable=True)
+    numero_acte_eleve = db.Column(db.String(100), nullable=True)
+
     # Spécificités par type
     type_admission = db.Column(db.String(30), default='Inscription')
     date_depart = db.Column(db.Date, nullable=True)
@@ -1925,6 +1940,16 @@ class CertificatAdministratif(db.Model):
             "ecole_id": self.ecole_id,
             "eleve_id": self.eleve_id,
             "eleve_nom": f"{self.eleve.nom} {self.eleve.prenom}" if self.eleve else None,
+            "nom_eleve": self.nom_eleve,
+            "prenom_eleve": self.prenom_eleve,
+            "matricule_eleve": self.matricule_eleve,
+            "date_naissance_eleve": self.date_naissance_eleve.isoformat() if self.date_naissance_eleve else None,
+            "lieu_naissance_eleve": self.lieu_naissance_eleve,
+            "nationalite_eleve": self.nationalite_eleve,
+            "genre_eleve": self.genre_eleve,
+            "nom_pere_eleve": self.nom_pere_eleve,
+            "nom_mere_eleve": self.nom_mere_eleve,
+            "numero_acte_eleve": self.numero_acte_eleve,
             "type_certificat": self.type_certificat,
             "titre_document": self.titre_document,
             "nom_type_fr": self.nom_type_fr,

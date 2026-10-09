@@ -180,6 +180,7 @@ def paiements():
                 "success": False,
                 "error": f"Mode de règlement invalide. Modes autorisés pour le Niger : Airtel Money, Moov Money, Al Izza, Nita, Amana, Espèces, Virement, Chèque."
             }), 400
+        idempotency_key = (data.get("idempotency_key") or "").strip() or None
         paiement, error = enregistrer_paiement(
             ecole_id=ecole_id,
             annee=annee,
@@ -189,16 +190,20 @@ def paiements():
             mois=data.get("mois"),
             annee_civile=data.get("annee") or datetime.utcnow().year,
             mode_paiement=mode_norm,
-            reference=data.get("reference") or data.get("reference_recu")
+            reference=data.get("reference") or data.get("reference_recu"),
+            idempotency_key=idempotency_key
         )
         if error:
             return jsonify({"success": False, "error": error}), 400
         db.session.commit()
+        deja_traite = bool(getattr(paiement, 'deja_traite', False))
+        message_succes = "Paiement déjà enregistré (opération déjà traitée)." if deja_traite else "Paiement enregistré avec succès !"
         return jsonify({
             "success": True,
             "paiement_id": paiement.id,
             "mode_paiement": paiement.mode_paiement,
-            "message": "Paiement enregistré avec succès !"
+            "message": message_succes,
+            "deja_traite": deja_traite
         }), 200
 
     if form.validate_on_submit():
@@ -212,6 +217,7 @@ def paiements():
             flash("Seule l'année active autorise l'encaissement de paiements.", "danger")
             return redirect(context_url)
 
+        idempotency_key = (request.form.get("idempotency_key") or (getattr(form, 'idempotency_key', None) and form.idempotency_key.data) or "").strip() or None
         paiement, error = enregistrer_paiement(
             ecole_id=ecole_id,
             annee=annee,
@@ -221,7 +227,8 @@ def paiements():
             mois=form.mois.data,
             annee_civile=form.annee.data,
             mode_paiement=form.mode_paiement.data,
-            reference=form.reference.data
+            reference=form.reference.data,
+            idempotency_key=idempotency_key
         )
         if error:
             flash(error, "danger")
@@ -229,11 +236,15 @@ def paiements():
 
         try:
             db.session.commit()
+            if getattr(paiement, "deja_traite", False):
+                flash("Paiement déjà enregistré précédemment (opération déjà traitée).", "info")
+                return redirect(context_url)
+
             _notifier_whatsapp_paiement(paiement, ecole=getattr(current_user, "ecole", None))
             if getattr(paiement, "inscription_confirmee", False):
-                flash("Paiement enregistrÃ© avec succÃ¨s ! Inscription confirmÃ©e automatiquement suite Ã  la rÃ©ception du paiement.", "success")
+                flash("Paiement enregistré avec succès ! Inscription confirmée automatiquement suite à la réception du paiement.", "success")
             else:
-                flash("Paiement enregistrÃ© avec succÃ¨s !", "success")
+                flash("Paiement enregistré avec succès !", "success")
             return redirect(context_url)
         except Exception as e:
             db.session.rollback()

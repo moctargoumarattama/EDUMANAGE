@@ -12,7 +12,7 @@ Règles canoniques :
 - Règle 2C-5D : consommation exclusive de get_annee_consultee(ecole_id).
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload, joinedload
 from app import db
@@ -287,16 +287,46 @@ def valider_mutation_paiement(ecole_id, annee, user, eleve_id, montant):
     return inscription, None
 
 
-def enregistrer_paiement(ecole_id, annee, user, eleve_id, montant, mois, annee_civile, mode_paiement="especes", reference=None):
+def enregistrer_paiement(ecole_id, annee, user, eleve_id, montant, mois, annee_civile, mode_paiement="especes", reference=None, idempotency_key=None):
     """Enregistre un nouveau paiement lié à l'inscription de l'année active."""
     mode_canonique = normaliser_mode_paiement(mode_paiement)
     if not mode_canonique:
         return None, "Mode de règlement invalide. Modes autorisés pour le Niger : Airtel Money, Moov Money, Al Izza, Nita, Amana, Espèces, Virement, Chèque."
+
+    idempotency_key = (idempotency_key or "").strip() or None
+
+    # 1. Vérification idempotence explicite par clé unique
+    if idempotency_key:
+        paiement_existant = Paiement.query.filter_by(
+            ecole_id=ecole_id,
+            idempotency_key=idempotency_key
+        ).first()
+        if paiement_existant:
+            paiement_existant.deja_traite = True
+            return paiement_existant, None
+
     inscription, error = valider_mutation_paiement(ecole_id, annee, user, eleve_id, montant)
     if error:
         return None, error
     montant_float = float(montant)
     reference = (reference or "").strip() or None
+
+    # 2. Garde-fou anti-rejeu immédiat (< 30s) pour éviter les doubles clics accidentels
+    seuil_anti_rejeu = datetime.utcnow() - timedelta(seconds=30)
+    paiement_recent = Paiement.query.filter(
+        Paiement.ecole_id == ecole_id,
+        Paiement.eleve_id == eleve_id,
+        Paiement.montant == montant_float,
+        Paiement.mode_paiement == mode_canonique,
+        Paiement.inscription_id == inscription.id,
+        Paiement.date_paiement >= seuil_anti_rejeu,
+        or_(Paiement.statut.is_(None), Paiement.statut != "annule")
+    ).order_by(Paiement.id.desc()).first()
+
+    if paiement_recent:
+        paiement_recent.deja_traite = True
+        return paiement_recent, None
+
     try:
         # PostgreSQL verrouille la ligne; SQLite sérialise l'écriture, ce qui
         # garde le recalcul du solde dans la même unité transactionnelle.
@@ -316,6 +346,7 @@ def enregistrer_paiement(ecole_id, annee, user, eleve_id, montant, mois, annee_c
                 montant=montant_float, mois=mois, annee=int(annee_civile),
                 mode_paiement=mode_canonique, reference=reference,
                 statut="payé", date_paiement=datetime.utcnow(),
+                idempotency_key=idempotency_key,
             )
             db.session.add(paiement)
             paiement.inscription_confirmee = False
@@ -328,6 +359,11 @@ def enregistrer_paiement(ecole_id, annee, user, eleve_id, montant, mois, annee_c
             db.session.flush()
     except Exception as exc:
         db.session.rollback()
+        if idempotency_key and ("idempotency" in str(exc).lower() or "unique" in str(exc).lower()):
+            existant = Paiement.query.filter_by(ecole_id=ecole_id, idempotency_key=idempotency_key).first()
+            if existant:
+                existant.deja_traite = True
+                return existant, None
         if "reference" in str(exc).lower() and reference:
             return None, "Cette référence de paiement existe déjà."
         raise

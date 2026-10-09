@@ -96,7 +96,7 @@ class EleveForm(FlaskForm):
     
     # ---------------- Informations scolaires ----------------
     classe_id = SelectField('Classe', coerce=int, validators=[DataRequired(message="La classe est obligatoire. Un élève doit obligatoirement être inscrit dans une classe.")])
-    frais_annuels = FloatField('Frais annuels (FCFA)', validators=[DataRequired(), NumberRange(min=0)], default=150000)
+    frais_annuels = FloatField('Frais annuels (FCFA)', validators=[InputRequired(message="Les frais annuels sont obligatoires."), NumberRange(min=0, message="Les frais doivent être supérieurs ou égaux à 0.")], default=150000)
     
     # ---------------- Parent ----------------
     parent_id = SelectField('Parent existant', coerce=int, choices=[], validate_choice=False)
@@ -250,6 +250,7 @@ class PaiementForm(FlaskForm):
         ('cheque', 'Chèque')
     ], default='especes', validators=[DataRequired()])
     reference = StringField('Référence', validators=[Optional()])
+    idempotency_key = HiddenField('Clé d\'idempotence')
     submit = SubmitField('Enregistrer le paiement')
 
     def __init__(self, *args, **kwargs):

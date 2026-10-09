@@ -12,6 +12,7 @@
             <form method="POST" action="{{ url_for('main.paiements') }}" class="needs-validation d-flex flex-column flex-grow-1" id="formAjouterPaiement" novalidate style="min-height: 0;">
                 {{ f_paiement.hidden_tag() if f_paiement and f_paiement.hidden_tag is defined else '' }}
                 <input type="hidden" name="return_url" value="{{ return_url }}" data-return-url-field>
+                <input type="hidden" name="idempotency_key" id="paiement_idempotency_key" value="">
                 <div class="modal-body p-4">
                     <div class="row g-3">
                         <div class="col-12 col-md-6">
@@ -108,10 +109,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const submitBtn = modalEl.querySelector('#btnSubmitAjouterPaiement');
 
+    function renouvelerIdempotencyKey() {
+        const keyInput = document.getElementById('paiement_idempotency_key');
+        if (keyInput) {
+            keyInput.value = (window.crypto && window.crypto.randomUUID)
+                ? window.crypto.randomUUID()
+                : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+        }
+    }
+
+    renouvelerIdempotencyKey();
+    modalEl.addEventListener('show.bs.modal', renouvelerIdempotencyKey);
+
     // Reset à la fermeture
     modalEl.addEventListener('hidden.bs.modal', function () {
         formEl.reset();
         formEl.classList.remove('was-validated');
+        renouvelerIdempotencyKey();
         if (submitBtn) {
             submitBtn.disabled = false;
             const spinner = submitBtn.querySelector('.submit-spinner');

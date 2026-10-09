@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ cert.titre_document }} - {{ eleve.nom }} {{ eleve.prenom }} ({{ cert.reference }})</title>
+    <title>{{ cert.titre_document }} - {{ cert.nom_eleve or eleve.nom }} {{ cert.prenom_eleve or eleve.prenom }} ({{ cert.reference }})</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -313,42 +313,53 @@
                     L'administration de l'établissement <em>{{ ecole.nom if ecole else "l'Établissement" }}</em> certifie par la présente que :
                 </p>
 
+                {% set nom_affiche = cert.nom_eleve or (eleve.nom if eleve else '') %}
+                {% set prenom_affiche = cert.prenom_eleve or (eleve.prenom if eleve else '') %}
+                {% set genre_affiche = cert.genre_eleve or (eleve.genre if eleve else 'M') %}
+                {% set date_naiss_affiche = cert.date_naissance_eleve or (eleve.date_naissance if eleve else None) %}
+                {% set lieu_naiss_affiche = cert.lieu_naissance_eleve or (eleve.lieu_naissance if eleve else '') %}
+                {% set nat_affiche = cert.nationalite_eleve or (eleve.nationalite if eleve else 'Nigérienne') %}
+                {% set pere_affiche = cert.nom_pere_eleve or (eleve.nom_pere if eleve else '') %}
+                {% set mere_affiche = cert.nom_mere_eleve or (eleve.nom_mere if eleve else '') %}
+                {% set mat_affiche = cert.matricule_eleve or (eleve.matricule if eleve else '') %}
+                {% set acte_affiche = cert.numero_acte_eleve or (eleve.numero_acte if eleve else '') %}
+
                 <p class="identite-eleve">
-                    est inscrit(e) l'élève <strong class="eleve-highlight">{{ eleve.nom.upper() }} {{ eleve.prenom }}</strong>,
-                    nationalité <strong>{{ eleve.nationalite or 'Nigérienne' }}</strong>,
-                    {% if eleve.genre == 'F' %}née{% else %}né{% endif %} le <strong>{{ eleve.date_naissance.strftime('%d/%m/%Y') if eleve.date_naissance else '—' }}</strong>
-                    {% if eleve.lieu_naissance %} à <strong>{{ eleve.lieu_naissance }}</strong>{% endif %},
-                    {% if eleve.nom_pere or eleve.nom_mere %}
-                    <br>{% if eleve.genre == 'F' %}Fille{% else %}Fils{% endif %} de 
-                    <strong>{{ eleve.nom_pere or '....................' }}</strong>
+                    est inscrit(e) l'élève <strong class="eleve-highlight">{{ nom_affiche.upper() }} {{ prenom_affiche }}</strong>,
+                    nationalité <strong>{{ nat_affiche }}</strong>,
+                    {% if genre_affiche == 'F' %}née{% else %}né{% endif %} le <strong>{{ date_naiss_affiche.strftime('%d/%m/%Y') if date_naiss_affiche else '—' }}</strong>
+                    {% if lieu_naiss_affiche %} à <strong>{{ lieu_naiss_affiche }}</strong>{% endif %},
+                    {% if pere_affiche or mere_affiche %}
+                    <br>{% if genre_affiche == 'F' %}Fille{% else %}Fils{% endif %} de 
+                    <strong>{{ pere_affiche or '....................' }}</strong>
                     et de 
-                    <strong>{{ eleve.nom_mere or '....................' }}</strong>,
+                    <strong>{{ mere_affiche or '....................' }}</strong>,
                     {% endif %}
-                    immatriculé{% if eleve.genre == 'F' %}e{% endif %} sous le numéro : <strong class="font-monospace">{{ eleve.matricule }}</strong>.
+                    immatriculé{% if genre_affiche == 'F' %}e{% endif %} sous le numéro : <strong class="font-monospace">{{ mat_affiche }}</strong>.
                 </p>
-                {% if eleve.numero_acte %}
+                {% if acte_affiche %}
                 <p class="reference-acte text-muted" style="font-size: 14px; margin-top: -12px; margin-bottom: 16px;">
-                    Acte / Jugement de naissance N° : <strong>{{ eleve.numero_acte }}</strong>
+                    Acte / Jugement de naissance N° : <strong>{{ acte_affiche }}</strong>
                 </p>
                 {% endif %}
 
                 <!-- Bloc spécifique au type de certificat -->
                 {% if cert.type_certificat == 'scolarite' %}
                 <p>
-                    est régulièrement inscrit{% if eleve.genre == 'F' %}e{% endif %} et suit assidûment les cours au sein de notre établissement pour l'année scolaire <strong>{{ cert.annee_scolaire }}</strong>, en classe de <strong>{{ cert.classe_nom }}</strong>{% if cert.niveau %} (Cycle / Niveau : {{ cert.niveau }}){% endif %}.
+                    est régulièrement inscrit{% if genre_affiche == 'F' %}e{% endif %} et suit assidûment les cours au sein de notre établissement pour l'année scolaire <strong>{{ cert.annee_scolaire }}</strong>, en classe de <strong>{{ cert.classe_nom }}</strong>{% if cert.niveau %} (Cycle / Niveau : {{ cert.niveau }}){% endif %}.
                 </p>
 
                 {% elif cert.type_certificat == 'inscription' %}
                 <p>
-                    a été officiellement admis{% if eleve.genre == 'F' %}e{% endif %} en <strong>{{ cert.type_admission }}</strong> dans notre établissement pour le compte de l'année scolaire <strong>{{ cert.annee_scolaire }}</strong>, et affecté{% if eleve.genre == 'F' %}e{% endif %} en classe de <strong>{{ cert.classe_nom }}</strong>{% if cert.niveau %} (Niveau : {{ cert.niveau }}){% endif %}.
+                    a été officiellement admis{% if genre_affiche == 'F' %}e{% endif %} en <strong>{{ cert.type_admission }}</strong> dans notre établissement pour le compte de l'année scolaire <strong>{{ cert.annee_scolaire }}</strong>, et affecté{% if genre_affiche == 'F' %}e{% endif %} en classe de <strong>{{ cert.classe_nom }}</strong>{% if cert.niveau %} (Niveau : {{ cert.niveau }}){% endif %}.
                 </p>
 
                 {% elif cert.type_certificat == 'transfert' %}
                 <p>
-                    a été régulièrement inscrit{% if eleve.genre == 'F' %}e{% endif %} dans notre établissement pour l'année scolaire <strong>{{ cert.annee_scolaire }}</strong> en classe de <strong>{{ cert.classe_nom }}</strong>{% if cert.niveau %} (Niveau : {{ cert.niveau }}){% endif %}, et a quitté définitivement l'établissement le <strong>{{ cert.date_depart.strftime('%d/%m/%Y') if cert.date_depart else '—' }}</strong>.
+                    a été régulièrement inscrit{% if genre_affiche == 'F' %}e{% endif %} dans notre établissement pour l'année scolaire <strong>{{ cert.annee_scolaire }}</strong> en classe de <strong>{{ cert.classe_nom }}</strong>{% if cert.niveau %} (Niveau : {{ cert.niveau }}){% endif %}, et a quitté définitivement l'établissement le <strong>{{ cert.date_depart.strftime('%d/%m/%Y') if cert.date_depart else '—' }}</strong>.
                 </p>
                 <p>
-                    Il/Elle est formellement <strong>rayé{% if eleve.genre == 'F' %}e{% endif %} de nos effectifs</strong> à compter de cette même date.
+                    Il/Elle est formellement <strong>rayé{% if genre_affiche == 'F' %}e{% endif %} de nos effectifs</strong> à compter de cette même date.
                     {% if cert.etablissement_destination %}
                     <br>Établissement d'accueil / Destination : <strong>{{ cert.etablissement_destination }}</strong>.
                     {% endif %}

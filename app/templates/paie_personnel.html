@@ -443,6 +443,7 @@
                 </div>
 
                 <input type="hidden" id="reglementFicheId">
+                <input type="hidden" id="reglementIdempotencyKey">
                 <div class="mb-2.5">
                     <label class="form-label small fw-semibold text-muted mb-1" for="reglementMontant">Montant du nouveau versement (FCFA)</label>
                     <input type="number" id="reglementMontant" class="form-control form-control-sm fw-bold font-monospace" min="0.01" step="0.01" required>
@@ -682,6 +683,12 @@ function ouvrirModalReglement(ficheId, netTotal, montantPaye, profNom) {
     document.getElementById('reglementMontant').value = solde > 0 ? solde : '';
     document.getElementById('reglementMode').value = 'especes';
     document.getElementById('reglementRef').value = '';
+    const keyEl = document.getElementById('reglementIdempotencyKey');
+    if (keyEl) {
+        keyEl.value = (window.crypto && window.crypto.randomUUID)
+            ? window.crypto.randomUUID()
+            : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16); });
+    }
 
     const modal = new bootstrap.Modal(document.getElementById('modalReglement'));
     modal.show();
@@ -694,6 +701,7 @@ function soumettreReglement() {
     const montant = document.getElementById('reglementMontant').value;
     const mode = document.getElementById('reglementMode').value;
     const ref = document.getElementById('reglementRef').value;
+    const idempotencyKey = document.getElementById('reglementIdempotencyKey') ? document.getElementById('reglementIdempotencyKey').value : '';
     const maximum = Number(document.getElementById('reglementMontant').max);
     let rechargementProgramme = false;
 
@@ -714,7 +722,8 @@ function soumettreReglement() {
             fiche_id: ficheId,
             montant_verse: montant,
             mode_reglement: mode,
-            reference_recu: ref
+            reference_recu: ref,
+            idempotency_key: idempotencyKey
         })
     })
     .then(r => r.json())

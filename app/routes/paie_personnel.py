@@ -547,8 +547,37 @@ def enregistrer_reglement():
     ancien_total = _montant_existant(fiche.montant_paye)
     if net is None or ancien_total is None or net <= 0 or ancien_total < 0 or ancien_total > net:
         return jsonify({"success": False, "error": "Montants de la fiche incohérents ; règlement refusé."}), 409
-    if ancien_total + montant_verse > net:
-        return jsonify({"success": False, "error": "Versement refusé : le cumul dépasserait le salaire net à payer."}), 400
+    idempotency_key = (data.get('idempotency_key') or '').strip() or None
+
+    # Garde-fou d'idempotence et anti-rejeu (< 30s)
+    _, evenements_existants = _decomposer_note(fiche.note)
+    maintenant = datetime.utcnow()
+    for ev in reversed(evenements_existants):
+        if ev.get('type') == 'versement':
+            # 1. Vérification clé d'idempotence
+            if idempotency_key and ev.get('idempotency_key') == idempotency_key:
+                return jsonify({
+                    "success": True,
+                    "message": "Règlement déjà enregistré (opération déjà traitée).",
+                    "deja_traite": True,
+                    "fiche": fiche.to_dict()
+                }), 200
+
+            # 2. Vérification anti-rejeu immédiat (< 30s) pour même montant et mode
+            ev_date_str = ev.get('date')
+            if ev_date_str and ev.get('montant') == f'{montant_verse:.2f}' and ev.get('mode') == mode_reglement:
+                try:
+                    clean_date_str = ev_date_str.rstrip('Z')
+                    ev_dt = datetime.fromisoformat(clean_date_str)
+                    if (maintenant - ev_dt).total_seconds() < 30:
+                        return jsonify({
+                            "success": True,
+                            "message": "Règlement déjà enregistré précédemment (opération déjà traitée).",
+                            "deja_traite": True,
+                            "fiche": fiche.to_dict()
+                        }), 200
+                except Exception:
+                    pass
 
     evenement = {
         'type': 'versement',
@@ -557,6 +586,7 @@ def enregistrer_reglement():
         'mode': mode_reglement,
         'reference': reference_recu,
         'utilisateur_id': current_user.id,
+        'idempotency_key': idempotency_key,
     }
     # Le SET et la condition sur le solde sont exécutés par la base en une seule
     # instruction : deux versements simultanés ne peuvent plus perdre un acompte.

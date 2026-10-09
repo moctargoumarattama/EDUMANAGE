@@ -14,11 +14,12 @@ from app.services.annees_scolaires import get_annee_consultee, get_annee_active
 
 certificats_bp = Blueprint('certificats', __name__, url_prefix='/certificats')
 
-TYPES_CERTIFICAT_VALIDES = {'scolarite', 'inscription', 'transfert'}
+TYPES_CERTIFICAT_VALIDES = {'scolarite', 'inscription', 'transfert', 'radiation'}
 PREFIX_REFERENCES = {
     'scolarite': 'CS',
     'inscription': 'CI',
-    'transfert': 'CR'
+    'transfert': 'CR',
+    'radiation': 'CR',
 }
 
 
@@ -123,6 +124,14 @@ def generer():
             ecole_id=ecole_id
         ).order_by(Inscription.id.desc()).first()
 
+    # RÈGLE POINT 6 : Certificat de scolarité strictement conditionné à une inscription active
+    if type_certificat == 'scolarite':
+        if not inscription or inscription.statut not in ('inscrit', 'actif'):
+            return jsonify({
+                "success": False,
+                "error": "Impossible de délivrer un certificat de scolarité pour un élève sans inscription active (statut radié, transféré ou non scolarisé)."
+            }), 400
+
     annee_scolaire_str = (
         inscription.annee_scolaire.nom if (inscription and inscription.annee_scolaire)
         else (annee_active.nom if annee_active else f"{date.today().year}-{date.today().year + 1}")
@@ -135,9 +144,9 @@ def generer():
     if type_admission not in ('Inscription', 'Réinscription'):
         type_admission = 'Inscription'
 
-    # Champs spécifiques pour transfert
+    # Champs spécifiques pour transfert / radiation
     date_depart = None
-    if type_certificat == 'transfert':
+    if type_certificat in ('transfert', 'radiation'):
         date_depart_str = data.get('date_depart', '').strip()
         if date_depart_str:
             try:
@@ -148,6 +157,24 @@ def generer():
             date_depart = date.today()
 
     etablissement_destination = (data.get('etablissement_destination') or '').strip() or None
+
+    # RÈGLE POINT 7 : Radiation / Transfert effectif liant l'inscription de manière atomique
+    if type_certificat in ('transfert', 'radiation'):
+        from app.services.inscriptions_annuelles import transferer_ou_radier_eleve
+        statut_cible = "radie" if type_certificat == "radiation" else "transfere"
+        transf_insc, transf_err = transferer_ou_radier_eleve(
+            ecole_id=ecole_id,
+            eleve_id=eleve.id,
+            statut=statut_cible,
+            date_depart=date_depart,
+            etablissement_destination=etablissement_destination,
+            motif_sortie=f"Délivrance de certificat de {type_certificat}",
+            annee_scolaire_id=inscription.annee_scolaire_id if inscription else None
+        )
+        if transf_insc:
+            inscription = transf_insc
+        # Normaliser pour le stockage et le rendu sous 'transfert'
+        type_certificat = 'transfert'
 
     # Émission & Ville (prise automatiquement depuis la page profil-école)
     ville_emission = (getattr(ecole, 'ville', None) or data.get('ville_emission') or 'Niamey').strip()
@@ -169,6 +196,16 @@ def generer():
     certificat = CertificatAdministratif(
         ecole_id=ecole_id,
         eleve_id=eleve.id,
+        nom_eleve=eleve.nom,
+        prenom_eleve=eleve.prenom,
+        matricule_eleve=eleve.matricule,
+        date_naissance_eleve=eleve.date_naissance,
+        lieu_naissance_eleve=eleve.lieu_naissance,
+        nationalite_eleve=eleve.nationalite or 'Nigérienne',
+        genre_eleve=eleve.genre or 'M',
+        nom_pere_eleve=eleve.nom_pere,
+        nom_mere_eleve=eleve.nom_mere,
+        numero_acte_eleve=eleve.numero_acte,
         type_certificat=type_certificat,
         reference=reference,
         annee_scolaire=annee_scolaire_str,
@@ -269,7 +306,8 @@ def verifier(code):
 
     eleve = cert.eleve
     ecole = cert.ecole
-    matricule_masque = _masquer_matricule(eleve.matricule) if eleve else "—"
+    matricule_brut = cert.matricule_eleve or (eleve.matricule if eleve else None)
+    matricule_masque = _masquer_matricule(matricule_brut)
 
     return render_template(
         'verifier_certificat.html',

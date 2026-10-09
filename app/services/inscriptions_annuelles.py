@@ -122,9 +122,10 @@ def creer_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id,
         return None, "Une inscription existe deja pour cet eleve et cette annee scolaire."
 
     # Règle Phase 3B :
-    # Si frais_annuels est fourni -> utiliser cette valeur
-    # Sinon -> snapshot de Eleve.frais_annuels (ou fallback 150000.0)
-    montant_frais = frais_annuels if frais_annuels is not None else getattr(eleve, "frais_annuels", 150000.0)
+    # Si frais_annuels est fourni -> utiliser cette valeur (y compris 0.0)
+    # Sinon -> snapshot de Eleve.frais_annuels (ou fallback 150000.0 si None)
+    val_eleve = getattr(eleve, "frais_annuels", None)
+    montant_frais = frais_annuels if frais_annuels is not None else (val_eleve if val_eleve is not None else 150000.0)
 
     inscription = Inscription(
         ecole_id=ecole_id,
