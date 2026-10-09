@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from flask import request
-from wtforms import StringField, PasswordField, SubmitField, DateField, FloatField, SelectField, TextAreaField, BooleanField, IntegerField
-from wtforms.validators import DataRequired, Email, Length, Optional, NumberRange, EqualTo
+from wtforms import StringField, PasswordField, SubmitField, DateField, FloatField, DecimalField, SelectField, TextAreaField, BooleanField, IntegerField
+from wtforms.validators import DataRequired, InputRequired, Email, Length, Optional, NumberRange, EqualTo
 from datetime import datetime, date
 from app.models import Utilisateur, Classe, Professeur, Eleve, Cours
 from app.middleware import get_ecole_courante, filtre_par_ecole
@@ -185,7 +185,10 @@ class CoursForm(FlaskForm):
 class NoteForm(FlaskForm):
     eleve_id = SelectField('Élève', coerce=int, validators=[DataRequired()])
     cours_id = SelectField('Cours', coerce=int, validators=[DataRequired()])
-    valeur = FloatField('Note', validators=[DataRequired(), NumberRange(min=0, max=20)])
+    valeur = DecimalField('Note', validators=[
+        InputRequired(message="Veuillez saisir une note."),
+        NumberRange(min=0, max=20, message="La note doit être comprise entre 0 et 20."),
+    ])
     annee_id = SelectField("Année scolaire", coerce=int, validators=[DataRequired()])
     coefficient = FloatField('Coefficient', default=1.0, validators=[DataRequired()])
     type_evaluation = SelectField('Type d\'évaluation', choices=[

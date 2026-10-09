@@ -761,9 +761,11 @@
                                 <div class="col-sm-6">
                                     <strong>Adresse du domicile :</strong> <span id="mfeAdresse" class="text-dark">--</span>
                                 </div>
-                                <div class="col-sm-6">
+                                {% if current_user.role != 'professeur' %}
+                                <div class="col-sm-6" id="mfeFraisContainer">
                                     <strong>Scolarité :</strong> <span id="mfeFraisStatus" class="badge bg-success-subtle text-success">--</span>
                                 </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -1247,7 +1249,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         const fraisStatus = document.getElementById('mfeFraisStatus');
-        if (fraisStatus) {
+        const fraisContainer = document.getElementById('mfeFraisContainer');
+        if (fraisContainer) fraisContainer.classList.toggle('d-none', !com);
+        if (fraisStatus && com) {
             if (com.est_a_jour) {
                 fraisStatus.className = 'badge bg-success-subtle text-success';
                 fraisStatus.textContent = 'À jour des frais';

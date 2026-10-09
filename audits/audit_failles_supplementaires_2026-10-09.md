@@ -1,10 +1,10 @@
 # Audit complémentaire de Klasora — 9 octobre 2026
 
-Mise à jour après les lots A et B : les constats **1, 2, 3, 4, 6, 9 et 11** ont été corrigés. Les validations sont suivies dans [le rapport du lot A](validation_lot_a_securite_comptes_2026-10-09.md) et [celui du lot B](validation_lot_b_paie_rh_2026-10-09.md). Les descriptions et références ci-dessous documentent l'état audité avant ces corrections.
+Mise à jour après les lots A, B et C : les **douze constats** ont été corrigés. Les validations sont suivies dans [le rapport du lot A](validation_lot_a_securite_comptes_2026-10-09.md), [celui du lot B](validation_lot_b_paie_rh_2026-10-09.md) et [celui du lot C](validation_lot_c_pedagogie_confidentialite_2026-10-09.md). Les descriptions et références ci-dessous documentent l'état audité avant ces corrections.
 
 Douze autres défauts ont été confirmés dans les comptes, la paie et les règles pédagogiques. Ce rapport complète celui du 8 octobre : les problèmes d'archives concernent ici les cours et la paie; le problème de délibération concerne des matières manquantes malgré deux semestres évalués.
 
-Le code applicatif et la base réelle n'ont pas été modifiés. Les reproductions utilisent les modèles et les routes ou services réels, avec SQLite en mémoire dans des applications Flask minimales, sans appeler `create_app()`.
+Lors de l'audit initial, le code applicatif et la base réelle n'avaient pas été modifiés. Les reproductions initiales utilisaient les modèles et les routes ou services réels, avec SQLite en mémoire dans des applications Flask minimales, sans appeler `create_app()`.
 
 | N° | Priorité | Défaut confirmé | Conséquence |
 | --- | --- | --- | --- |
@@ -178,6 +178,6 @@ Deux scripts de reproduction de l'état initial sont conservés dans `scratch/`,
 - `python -m scratch.audit_acces_20261009` : compte bloqué, reset du principal et finances professeur; notifications WhatsApp désactivées.
 - `python -m scratch.audit_nouvelles_20261009` : journal fictif et ancienne création admin.
 
-Les autres scénarios initiaux ont été exécutés par des scripts isolés non conservés. Au stade de cet audit initial, aucun test complet de la suite ni audit exhaustif de production n'était revendiqué; les validations ultérieures des lots A et B sont documentées séparément. Les montants présentés sont des données de test; ils ne prouvent pas que ces anomalies ont déjà affecté les données réelles.
+Les autres scénarios initiaux ont été exécutés par des scripts isolés non conservés. Au stade de cet audit initial, aucun test complet de la suite ni audit exhaustif de production n'était revendiqué; les validations ultérieures des lots A, B et C sont documentées séparément. Les montants présentés sont des données de test; ils ne prouvent pas que ces anomalies ont déjà affecté les données réelles.
 
-Ordre proposé lors de l'audit initial : protéger les comptes; fiabiliser les versements; fermer les mutations d'archives; retirer les faux journaux; harmoniser les droits JSON et les règles de complétude. Les constats restants nécessitent toujours une correction et une validation ciblées, sans réparation aveugle des données historiques.
+Ordre proposé lors de l'audit initial : protéger les comptes; fiabiliser les versements; fermer les mutations d'archives; retirer les faux journaux; harmoniser les droits JSON et les règles de complétude. Les douze constats de ce rapport ont été traités dans les lots A, B et C, sans réparation aveugle des données historiques.

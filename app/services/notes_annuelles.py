@@ -36,6 +36,8 @@ from app.utils_classes import classes_triees_pedagogique
 MESSAGE_ANNEE_PLANIFIEE = "Les notes pourront être saisies lorsque cette année sera active."
 MESSAGE_ANNEE_ARCHIVEE = "Cette année est archivée : les notes sont consultables en lecture seule."
 
+STATUTS_INSCRIPTION_SCOLARISEE = ("inscrit", "actif")
+
 SEMESTRE_1 = "Semestre 1"
 SEMESTRE_2 = "Semestre 2"
 PERIODES_SEMESTRES = [SEMESTRE_1, SEMESTRE_2]
@@ -659,6 +661,15 @@ def valider_mutation_note(
             None,
         )
 
+    if inscription.statut not in STATUTS_INSCRIPTION_SCOLARISEE:
+        return (
+            False,
+            "La saisie de notes est interdite pour une inscription annulée ou non scolarisée.",
+            None,
+            None,
+            None,
+        )
+
     verrou = erreur_verrou_notes(ecole_id, annee.id, target_periode, inscription)
     if verrou:
         return False, verrou, None, None, None
@@ -1055,6 +1066,9 @@ def saisir_notes_classe(
 
         if eleve_id not in inscriptions_by_eleve_id:
             return 0, f"L'élève ID {eleve_id} n'est pas inscrit dans cette classe pour l'année scolaire active."
+
+        if inscriptions_by_eleve_id[eleve_id].statut not in STATUTS_INSCRIPTION_SCOLARISEE:
+            return 0, f"La saisie de notes est interdite pour l'inscription annulée ou non scolarisée de l'élève ID {eleve_id}."
 
         try:
             val_float = float(val_str)

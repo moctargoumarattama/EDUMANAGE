@@ -19,6 +19,7 @@ from app.models import (
 )
 from app.utils_classes import classes_triees_pedagogique
 from app.services.notes_annuelles import (
+    STATUTS_INSCRIPTION_SCOLARISEE,
     TYPES_CONTROLE_CONTINU,
     TYPE_COMPOSITION,
     calculer_moyenne_controles,
@@ -33,7 +34,6 @@ STATUS_COMPLETE = "complete"
 LABEL_NON_EVALUE = "Non évalué"
 LABEL_PROVISOIRE = "Moyenne provisoire"
 LABEL_COMPLETE = "Moyenne générale"
-
 
 def get_cours_attendus_classe(ecole_id, classe_id, annee_id):
     """
@@ -378,6 +378,43 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
     }
 
 
+def calculer_completude_annuelle_inscription(ecole_id, annee_id, inscription, periodes):
+    """Vérifie chaque matière attendue pour chacune des périodes officielles.
+
+    Une classe sans cours configuré n'ajoute aucune matière manquante. La
+    présence des périodes reste contrôlée séparément par la délibération.
+    """
+    manquants_par_periode = {}
+    noms_manquants = []
+    # Les anciennes notes pouvaient ne pas porter inscription_id. Elles restent
+    # recevables si école, année, élève et cours de la période concordent.
+    notes_annee = Note.query.filter(
+        Note.ecole_id == ecole_id,
+        Note.annee_id == annee_id,
+        Note.eleve_id == inscription.eleve_id,
+        db.or_(Note.inscription_id == inscription.id, Note.inscription_id.is_(None)),
+    ).all()
+    for periode in dict.fromkeys(periodes):
+        evaluation = calculer_completude_inscription(
+            ecole_id, annee_id, inscription, periode=periode,
+            periode_publiee=False,
+            notes=[note for note in notes_annee if note.periode == periode],
+        )
+        if evaluation["expected_subjects"] == 0:
+            continue
+        manquants = evaluation["missing_subjects_names"]
+        if manquants:
+            manquants_par_periode[periode] = manquants
+            for nom in manquants:
+                if nom not in noms_manquants:
+                    noms_manquants.append(nom)
+    return {
+        "is_pedagogically_complete": not manquants_par_periode,
+        "missing_subjects_names": noms_manquants,
+        "missing_subjects_by_period": manquants_par_periode,
+    }
+
+
 def preparer_dossier_notes_eleve(notes_eleve):
     """
     Organise les notes d'un élève matière par matière pour la page Notes.
@@ -488,6 +525,12 @@ def calculer_stats_et_classements_classe(ecole_id, classe_id, annee_id, periode=
         }
 
     if precomputed_evals is not None:
+        actifs = []
+        for item in precomputed_evals:
+            inscription = item[0] if isinstance(item, (tuple, list)) else item.get('inscription')
+            if inscription and inscription.statut in STATUTS_INSCRIPTION_SCOLARISEE:
+                actifs.append(item)
+        precomputed_evals = actifs
         effectif_total = len(precomputed_evals)
         if effectif_total == 0:
             return {
@@ -524,7 +567,8 @@ def calculer_stats_et_classements_classe(ecole_id, classe_id, annee_id, periode=
     else:
         from app.services.inscriptions_annuelles import classe_effective_pour_periode
         inscriptions = [ins for ins in Inscription.query.options(joinedload(Inscription.eleve))
-            .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_id).all()
+            .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_id)
+            .filter(Inscription.statut.in_(STATUTS_INSCRIPTION_SCOLARISEE)).all()
             if classe_effective_pour_periode(ins, periode) == classe_id]
         effectif_total = len(inscriptions)
         if effectif_total == 0:
@@ -643,6 +687,7 @@ def verifier_eligibilite_publication_periode(ecole_id, annee_id, periode_nom):
         inscriptions = (
             Inscription.query.options(joinedload(Inscription.eleve))
             .filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_id, classe_id=classe.id)
+            .filter(Inscription.statut.in_(STATUTS_INSCRIPTION_SCOLARISEE))
             .all()
         )
         if not inscriptions:

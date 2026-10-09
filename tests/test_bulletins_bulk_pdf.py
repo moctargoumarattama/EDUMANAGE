@@ -12,6 +12,7 @@ from werkzeug.security import generate_password_hash
 from app import create_app, db
 from app.models import (
     AnneeScolaire,
+    Bulletin,
     Classe,
     Cours,
     Ecole,
@@ -360,6 +361,35 @@ class BulletinsBulkPdfTestCase(unittest.TestCase):
         resp_sec = self.client.get(url)
         self.assertEqual(resp_sec.status_code, 200)
         self.assertEqual(resp_sec.content_type, "application/pdf")
+
+    def test_export_archive_ignore_inscription_annulee_sans_bulletin(self):
+        eleve_annule = Eleve(
+            nom="Annule", prenom="Dossier", date_naissance=date(2013, 1, 1),
+            ecole_id=self.ecole_a.id,
+        )
+        db.session.add(eleve_annule)
+        db.session.flush()
+        db.session.add(Inscription(
+            eleve_id=eleve_annule.id, classe_id=self.classe_a.id,
+            annee_scolaire_id=self.annee_a.id, ecole_id=self.ecole_a.id,
+            statut="annulee",
+        ))
+        for inscription in (self.ins1, self.ins2):
+            db.session.add(Bulletin(
+                ecole_id=self.ecole_a.id, annee_scolaire_id=self.annee_a.id,
+                inscription_id=inscription.id, eleve_id=inscription.eleve_id,
+                classe_id=self.classe_a.id, periode=self.periode_a.nom,
+                moyenne_generale=14.0, statut="archive",
+            ))
+        self.annee_a.statut = "archivee"
+        db.session.commit()
+
+        self._login(self.admin_a)
+        url = f"/bulletins/classes/{self.classe_a.id}/export-pdf-groupe?periode_id={self.periode_a.id}"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content_type, "application/pdf")
+        self.assertTrue(response.data.startswith(b"%PDF-"))
 
 
 if __name__ == "__main__":

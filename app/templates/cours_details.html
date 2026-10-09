@@ -12,6 +12,9 @@
                     <h2 class="card-title mb-1 fw-bold text-primary">
                         <i class="fas fa-book-open me-2"></i>{{ cours.nom }}
                     </h2>
+                    {% if cours_archive %}
+                    <span class="badge bg-info text-dark"><i class="fas fa-lock me-1"></i>Année archivée — lecture seule</span>
+                    {% endif %}
                     <div class="d-flex flex-wrap gap-2 mt-2">
                         {% if cours.coefficient %}
                         <span class="badge bg-light text-primary border p-2">
@@ -33,7 +36,7 @@
                     <a href="{{ url_for('main.cours') }}" class="btn btn-outline-secondary btn-sm">
                         <i class="fas fa-arrow-left me-1"></i>Retour
                     </a>
-                    {% if current_user.role == 'admin' %}
+                    {% if current_user.role == 'admin' and not cours_archive %}
                     <a href="{{ url_for('main.modifier_cours', id=cours.id) }}" class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-edit me-1"></i>Modifier
                     </a>
@@ -134,7 +137,7 @@
                 <div class="text-center py-4 premium-empty-state">
                     <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
                     <h5 class="text-muted">Aucune note enregistrée</h5>
-                    <p class="text-muted">Commencez par importer des notes ou les saisir manuellement.</p>
+                    <p class="text-muted">{{ 'Aucune note conservée pour cette année archivée.' if cours_archive else 'Commencez par importer des notes ou les saisir manuellement.' }}</p>
                 </div>
                 {% endif %}
             </div>
@@ -160,6 +163,9 @@
             </div>
         </div>
         <div class="card-body">
+            {% if cours_archive %}
+            <p class="mb-0 text-muted">Ce cours est archivé : aucune nouvelle note ne peut être importée.</p>
+            {% else %}
             <form action="{{ url_for('main.import_notes_excel', id=cours.id) }}" method="POST" enctype="multipart/form-data" class="premium-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
@@ -178,6 +184,7 @@
                     </div>
                 </div>
             </form>
+            {% endif %}
         </div>
     </div>
 {% endif %}

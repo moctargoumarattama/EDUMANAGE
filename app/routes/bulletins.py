@@ -32,6 +32,7 @@ from .common import (
 from app.models import Bulletin, Inscription, JournalCorrection
 from app.services import generer_bulletin_pdf, generer_bulletins_classe_pdf
 from app.services.annees_scolaires import get_annee_consultee
+from app.services.notes_annuelles import STATUTS_INSCRIPTION_SCOLARISEE
 from app.utils_classes import classes_triees_pedagogique
 from app.utils import sanitize_internal_url
 from app.services.bulletins_annuels import (
@@ -656,6 +657,8 @@ def bulletins():
         # Analyse des élèves incomplets pour la classe
         eleves_incomplets_liste = []
         for item in c_items:
+            if item['inscription'].statut not in STATUTS_INSCRIPTION_SCOLARISEE:
+                continue
             if not item.get('is_complet', False):
                 eleve_obj = item.get('eleve')
                 eleve_nom = f"{eleve_obj.prenom} {eleve_obj.nom}".strip() if eleve_obj else "Élève inconnu"
@@ -1025,7 +1028,9 @@ def export_pdf_groupe_classe(classe_id):
     periode_nom = periode_obj.nom
     periode_est_publiee = bool(periode_obj.publie)
 
-    # Récupération de tous les élèves inscrits dans cette classe pour l'année scolaire
+    # Récupération des élèves scolarisés et des anciens élèves qui possèdent
+    # déjà un bulletin pour cette période ; les annulations ne sont pas des
+    # dossiers à produire et ne doivent pas bloquer un export archivé.
     inscriptions = (
         Inscription.query.options(
             joinedload(Inscription.eleve),
@@ -1039,6 +1044,25 @@ def export_pdf_groupe_classe(classe_id):
         )
         .all()
     )
+
+    inscriptions_non_actives = [
+        ins.id for ins in inscriptions
+        if ins.statut not in STATUTS_INSCRIPTION_SCOLARISEE
+        and ins.statut != 'annulee'
+    ]
+    bulletins_existants_ids = {
+        row.inscription_id
+        for row in Bulletin.query.with_entities(Bulletin.inscription_id).filter(
+            Bulletin.ecole_id == ecole_id,
+            Bulletin.periode == periode_nom,
+            Bulletin.inscription_id.in_(inscriptions_non_actives),
+        ).all()
+    } if inscriptions_non_actives else set()
+    inscriptions = [
+        ins for ins in inscriptions
+        if ins.statut in STATUTS_INSCRIPTION_SCOLARISEE
+        or (ins.statut != 'annulee' and ins.id in bulletins_existants_ids)
+    ]
 
     if not inscriptions:
         flash(f"Aucun élève n'est inscrit dans la classe {classe.nom} pour l'année scolaire sélectionnée.", "warning")

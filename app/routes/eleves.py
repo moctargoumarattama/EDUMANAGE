@@ -880,32 +880,42 @@ def api_fiche_eleve(eleve_id):
     total_absences = len(absences)
     absences_injustifiees = sum(1 for a in absences if not a.justifiee)
 
-    # Paiements
-    paiements = []
-    if inscription_active:
-        paiements = (
-            Paiement.query
-            .filter(
-                Paiement.ecole_id == ecole_id,
-                Paiement.eleve_id == eleve.id,
-                Paiement.inscription_id == inscription_active.id,
-                db.or_(Paiement.statut.is_(None), Paiement.statut != 'annule'),
+    annee_target = annee_consultee or AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
+
+    # Les données financières sont réservées à l'administration. Ne pas même
+    # interroger les paiements pour un professeur consultant la fiche.
+    comptabilite = None
+    if current_user.role != 'professeur':
+        paiements = []
+        if inscription_active:
+            paiements = (
+                Paiement.query
+                .filter(
+                    Paiement.ecole_id == ecole_id,
+                    Paiement.eleve_id == eleve.id,
+                    Paiement.inscription_id == inscription_active.id,
+                    db.or_(Paiement.statut.is_(None), Paiement.statut != 'annule'),
+                )
+                .all()
             )
-            .all()
+        from app.services.paiements_annuels import obtenir_synthese_financiere_eleve
+        target_annee_for_finances = annee_target.id if annee_target else (
+            inscription_active.annee_scolaire_id if inscription_active else None
         )
-    from app.services.paiements_annuels import obtenir_synthese_financiere_eleve
-    target_annee_for_finances = annee_consultee.id if annee_consultee else (annee_active.id if annee_active else (inscription_active.annee_scolaire_id if inscription_active else None))
-    synthese = obtenir_synthese_financiere_eleve(eleve.id, target_annee_for_finances) if target_annee_for_finances else {
-        "frais_du": float(eleve.frais_annuels or 150000.0),
-        "frais_scolarite": float(eleve.frais_annuels or 150000.0),
-        "remise": 0.0,
-        "total_paye": float(sum(p.montant or 0 for p in paiements)),
-        "reste_a_payer": max(0.0, float(eleve.frais_annuels or 150000.0) - float(sum(p.montant or 0 for p in paiements))),
-    }
-    total_paye = synthese["total_paye"]
-    total_frais = synthese["frais_du"]
-    reste_a_payer = synthese["reste_a_payer"]
-    remise = synthese.get("remise", 0.0)
+        synthese = obtenir_synthese_financiere_eleve(eleve.id, target_annee_for_finances) if target_annee_for_finances else {
+            "frais_du": float(eleve.frais_annuels or 150000.0),
+            "frais_scolarite": float(eleve.frais_annuels or 150000.0),
+            "remise": 0.0,
+            "total_paye": float(sum(p.montant or 0 for p in paiements)),
+            "reste_a_payer": max(0.0, float(eleve.frais_annuels or 150000.0) - float(sum(p.montant or 0 for p in paiements))),
+        }
+        reste_a_payer = synthese["reste_a_payer"]
+        comptabilite = {
+            'total_frais': synthese["frais_du"],
+            'total_paye': synthese["total_paye"],
+            'reste_a_payer': reste_a_payer,
+            'est_a_jour': (reste_a_payer <= 0),
+        }
 
     # Âge
     age = None
@@ -914,7 +924,6 @@ def api_fiche_eleve(eleve_id):
         age = today.year - eleve.date_naissance.year - ((today.month, today.day) < (eleve.date_naissance.month, eleve.date_naissance.day))
 
     # Classes disponibles pour l'année
-    annee_target = annee_consultee or AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
     classes_query = get_classes_ouvertes_annee(ecole_id, annee_target.id) if annee_target else Classe.query.filter_by(ecole_id=ecole_id)
     classes_disp = classes_triees_pedagogique(classes_query).all()
 
@@ -924,7 +933,7 @@ def api_fiche_eleve(eleve_id):
     parent_prenom = eleve.parent.prenom if eleve.parent else ''
     parent_tel = eleve.parent.telephone if eleve.parent else (eleve.contact_parent or '')
 
-    return jsonify({
+    donnees_reponse = {
         'success': True,
         'eleve': {
             'id': eleve.id,
@@ -938,7 +947,6 @@ def api_fiche_eleve(eleve_id):
             'age': age,
             'statut': inscription_active.statut if inscription_active else eleve.statut,
             'matricule': eleve.matricule,
-            'frais_annuels': total_frais,
         },
         'classe': {
             'id': classe_actuelle.id if classe_actuelle else None,
@@ -966,12 +974,6 @@ def api_fiche_eleve(eleve_id):
             'absences_injustifiees': absences_injustifiees,
             'absences_justifiees': total_absences - absences_injustifiees,
         },
-        'comptabilite': {
-            'total_frais': total_frais,
-            'total_paye': total_paye,
-            'reste_a_payer': reste_a_payer,
-            'est_a_jour': (reste_a_payer <= 0),
-        },
         'classes_disponibles': [
             {'id': c.id, 'nom': c.nom, 'niveau': (c.niveau_scolaire.nom if c.niveau_scolaire else (c.niveau or ''))}
             for c in classes_disp
@@ -980,7 +982,11 @@ def api_fiche_eleve(eleve_id):
         'bulletin_url': url_for('main.bulletin_eleve', id=eleve.id),
         'pdf_url': url_for('main.export_notes_eleve_pdf', id=eleve.id),
         'dossier_url': url_for('main.voir_eleve', eleve_id=eleve.id),
-    })
+    }
+    if comptabilite is not None:
+        donnees_reponse['comptabilite'] = comptabilite
+        donnees_reponse['eleve']['frais_annuels'] = comptabilite['total_frais']
+    return jsonify(donnees_reponse)
 
 
 @main.route('/api/eleves/<int:eleve_id>/modifier', methods=['POST'])

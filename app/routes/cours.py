@@ -46,6 +46,17 @@ from app.services.whatsapp_notifications import notifier_professeur_affectation_
 from app.utils import get_annee_active
 
 
+_COURS_ARCHIVE_MESSAGE = (
+    "Action interdite : Les cours d'une année scolaire archivée sont scellés "
+    "et ne peuvent plus être modifiés."
+)
+
+
+def _cours_est_archive(cours):
+    annee = cours.classe.annee_scolaire if cours.classe else None
+    return bool(annee and annee.statut == "archivee")
+
+
 def _professeurs_affectables(ecole_id):
     return (
         Professeur.query
@@ -87,20 +98,20 @@ def _valider_affectation_professeur(ecole_id, cours_id, professeur_id):
         .first()
     )
     if not cours:
-        return None, None, "Cours introuvable pour cet etablissement."
+        return None, None, "Cours introuvable pour cet etablissement.", 400
     if not cours.classe:
-        return None, None, "Ce cours n'est rattache a aucune classe."
-    if cours.classe.annee_scolaire and cours.classe.annee_scolaire.statut == "archivee":
-        return None, None, "Impossible de modifier une affectation dans une annee archivee."
+        return None, None, "Ce cours n'est rattache a aucune classe.", 400
+    if _cours_est_archive(cours):
+        return None, None, _COURS_ARCHIVE_MESSAGE, 403
     if not classe_est_ouverte(cours.classe):
-        return None, None, "Impossible de modifier une affectation dans une classe fermee."
+        return None, None, "Impossible de modifier une affectation dans une classe fermee.", 400
     if not professeur_id:
-        return cours, None, None
+        return cours, None, None, None
 
     professeur = Professeur.query.filter_by(id=professeur_id, ecole_id=ecole_id).first()
     if not professeur:
-        return None, None, "Professeur invalide pour cet etablissement."
-    return cours, professeur, None
+        return None, None, "Professeur invalide pour cet etablissement.", 400
+    return cours, professeur, None, None
 
 
 @main.route('/cours')
@@ -286,10 +297,14 @@ def affecter_professeur_cours(cours_id):
     except (TypeError, ValueError):
         professeur_id = None
     professeur_id = professeur_id or None
-    cours_obj, professeur, error = _valider_affectation_professeur(ecole_courante.id, cours_id, professeur_id)
+    cours_obj, professeur, error, error_status = _valider_affectation_professeur(
+        ecole_courante.id, cours_id, professeur_id
+    )
     if error:
         if request.is_json:
-            return jsonify({"success": False, "message": error}), 400
+            return jsonify({"success": False, "message": error}), error_status
+        if error_status == 403:
+            abort(403, description=error)
         flash(error, "danger")
         return redirect(request.referrer or url_for('main.cours'))
 
@@ -315,6 +330,16 @@ def ajouter_cours():
 
     ecole_courante = get_ecole_courante()
     annee_consultee = get_annee_consultee(ecole_courante.id)
+    if annee_consultee and annee_consultee.statut == "archivee":
+        abort(403, description=_COURS_ARCHIVE_MESSAGE)
+    classe_demandee_id = request.form.get("classe_id", type=int)
+    if classe_demandee_id:
+        classe_demandee = Classe.query.filter_by(
+            id=classe_demandee_id, ecole_id=ecole_courante.id
+        ).first()
+        if (classe_demandee and classe_demandee.annee_scolaire
+                and classe_demandee.annee_scolaire.statut == "archivee"):
+            abort(403, description=_COURS_ARCHIVE_MESSAGE)
     form = CoursForm()
 
     # Choix restreints ? l'école courante
@@ -421,7 +446,8 @@ def cours_details(id):
                            cours=cours,
                            notes=notes,
                            moyenne_cours=moyenne_cours,
-                           eleves_avec_notes=eleves_avec_notes)
+                           eleves_avec_notes=eleves_avec_notes,
+                           cours_archive=_cours_est_archive(cours))
 
 @main.route('/cours/<int:id>/modifier', methods=['GET', 'POST'])
 @login_required
@@ -429,6 +455,17 @@ def cours_details(id):
 def modifier_cours(id):
     ecole_courante = get_ecole_courante()
     cours = Cours.query.filter_by(id=id, ecole_id=ecole_courante.id).first_or_404()
+    if _cours_est_archive(cours):
+        abort(403, description=_COURS_ARCHIVE_MESSAGE)
+    if request.method == 'POST':
+        classe_cible_id = request.form.get('classe_id', type=int)
+        if classe_cible_id:
+            classe_cible = Classe.query.filter_by(
+                id=classe_cible_id, ecole_id=ecole_courante.id
+            ).first()
+            if (classe_cible and classe_cible.annee_scolaire
+                    and classe_cible.annee_scolaire.statut == 'archivee'):
+                abort(403, description=_COURS_ARCHIVE_MESSAGE)
     form = CoursForm(obj=cours)
     professeurs = Professeur.query.filter_by(ecole_id=ecole_courante.id).order_by(Professeur.nom).all()
     classes = classes_triees_pedagogique(Classe.query.filter_by(ecole_id=ecole_courante.id)).all()
@@ -521,6 +558,9 @@ def import_notes_excel(id):
 
     if not can_manage_cours(cours):
         abort(403)
+
+    if _cours_est_archive(cours):
+        abort(403, description=_COURS_ARCHIVE_MESSAGE)
 
     if cours.classe_id:
         annee = cours.classe.annee_scolaire if cours.classe else None
@@ -793,6 +833,11 @@ def supprimer_cours(id):
             return jsonify({'success': False, 'message': 'Action non autorisée.'}), 403
         abort(403)
 
+    if _cours_est_archive(cours):
+        if is_ajax:
+            return jsonify({'success': False, 'message': _COURS_ARCHIVE_MESSAGE}), 403
+        abort(403, description=_COURS_ARCHIVE_MESSAGE)
+
     try:
         # Vérifier si la matière/cours est rattachée à des évaluations (notes), absences ou emplois du temps
         has_notes = Note.query.filter_by(cours_id=cours.id).first() is not None
@@ -861,6 +906,11 @@ def charger_matieres_standard(classe_id):
         if is_ajax:
             return jsonify({'success': False, 'message': 'Accès non autorisé.'}), 403
         abort(403)
+
+    if classe.annee_scolaire and classe.annee_scolaire.statut == "archivee":
+        if is_ajax:
+            return jsonify({'success': False, 'message': _COURS_ARCHIVE_MESSAGE}), 403
+        abort(403, description=_COURS_ARCHIVE_MESSAGE)
 
     from app.services.pedagogie_standard import injecter_matieres_standard
     cours_crees, err = injecter_matieres_standard(

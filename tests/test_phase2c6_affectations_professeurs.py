@@ -171,7 +171,7 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
 
         response = client.post(f"/cours/{self.archive_course.id}/professeur", json={"professeur_id": self.prof_moussa.id})
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 403)
         db.session.refresh(self.archive_course)
         self.assertEqual(self.archive_course.professeur_id, self.prof_ali.id)
 
@@ -206,6 +206,62 @@ class Phase2C6AffectationsProfesseursTestCase(unittest.TestCase):
         self.assertEqual(Absence.query.count(), 1)
         self.assertEqual(EmploiTemps.query.count(), 1)
         self.assertEqual(Inscription.query.count(), 1)
+
+    def test_cours_annee_archivee_reste_en_lecture_seule(self):
+        client = self.login_as(self.admin, self.ecole_a.id)
+        cours_id = self.archive_course.id
+        coefficient_initial = self.archive_course.coefficient
+        nom_initial = self.archive_course.nom
+
+        donnees = {
+            "nom": "Mathematiques modifiees",
+            "description": "Changement interdit",
+            "coefficient": "9",
+            "professeur_id": str(self.prof_moussa.id),
+            "classe_id": str(self.classe_archivee.id),
+        }
+        self.assertEqual(client.get(f"/cours/{cours_id}/modifier").status_code, 403)
+        self.assertEqual(client.post(f"/cours/{cours_id}/modifier", data=donnees).status_code, 403)
+        self.assertEqual(client.post(f"/cours/{cours_id}/supprimer", json={}).status_code, 403)
+        self.assertEqual(client.post(f"/cours/{cours_id}/import_notes_excel").status_code, 403)
+        self.assertEqual(
+            client.post(f"/classe/{self.classe_archivee.id}/charger-matieres-standard", json={}).status_code,
+            403,
+        )
+        self.assertEqual(client.post("/ajouter_cours", data=donnees).status_code, 403)
+
+        with client.session_transaction() as session:
+            session["annee_consultee"] = {str(self.ecole_a.id): self.archivee.id}
+        response = client.get("/cours")
+        self.assertEqual(response.status_code, 200)
+        page = response.get_data(as_text=True)
+        self.assertIn("lecture seule", page)
+        self.assertNotIn(f'/cours/{cours_id}/modifier', page)
+        self.assertNotIn(f'/cours/{cours_id}/supprimer', page)
+        details = client.get(f"/cours/{cours_id}")
+        self.assertEqual(details.status_code, 200)
+        self.assertIn("lecture seule", details.get_data(as_text=True))
+        self.assertNotIn(f'/cours/{cours_id}/import_notes_excel', details.get_data(as_text=True))
+        self.assertEqual(client.post("/ajouter_cours", data=donnees).status_code, 403)
+
+        db.session.refresh(self.archive_course)
+        self.assertEqual(self.archive_course.nom, nom_initial)
+        self.assertEqual(self.archive_course.coefficient, coefficient_initial)
+        self.assertEqual(self.archive_course.professeur_id, self.prof_ali.id)
+        self.assertIsNotNone(db.session.get(Cours, cours_id))
+
+        self.assertEqual(client.get(f"/cours/{self.math_source.id}/modifier").status_code, 200)
+        self.assertEqual(
+            client.post(f"/cours/{self.math_source.id}/modifier", data=donnees).status_code,
+            403,
+        )
+        donnees_actives = dict(donnees, nom="Mathematiques", coefficient="5", classe_id=str(self.classe_source.id))
+        self.assertEqual(
+            client.post(f"/cours/{self.math_source.id}/modifier", data=donnees_actives).status_code,
+            302,
+        )
+        db.session.refresh(self.math_source)
+        self.assertEqual(self.math_source.coefficient, 5.0)
 
     def test_affectation_cours_envoie_whatsapp_au_professeur(self):
         self.ecole_a.whatsapp_enabled = True

@@ -30,6 +30,7 @@ from app.models import (
     PeriodeBulletin,
 )
 from app.services.notes_annuelles import (
+    STATUTS_INSCRIPTION_SCOLARISEE,
     SEMESTRE_1,
     SEMESTRE_2,
     PERIODES_SEMESTRES,
@@ -117,6 +118,8 @@ def verifier_publication_periode(periode):
         inscriptions = Inscription.query.filter_by(
             ecole_id=periode.ecole_id, annee_scolaire_id=periode.annee_id,
             classe_id=classe.id,
+        ).filter(
+            Inscription.statut.in_(STATUTS_INSCRIPTION_SCOLARISEE)
         ).with_entities(Inscription.id).all()
         if not inscriptions:
             continue
@@ -653,6 +656,8 @@ def calculer_moyenne_annuelle_reglementaire(inscription_id, ecole_id):
         "suggestion": "Décision réservée au conseil (cursus incomplet)",
         "somme_moyennes": 0.0,
         "bulletins": [],
+        "missing_subjects_names": [],
+        "missing_subjects_by_period": {},
     }
     if not inscription_id or not ecole_id:
         return vide
@@ -693,6 +698,15 @@ def calculer_moyenne_annuelle_reglementaire(inscription_id, ecole_id):
         else:
             suggestion = "Décision réservée au conseil (cursus incomplet)"
 
+    from app.services.evaluations import calculer_completude_annuelle_inscription
+    completude = calculer_completude_annuelle_inscription(
+        ecole_id, inscription.annee_scolaire_id, inscription, periodes_attendues
+    )
+    if not completude["is_pedagogically_complete"]:
+        cursus_incomplet = True
+        statut = "Dossier Incomplet"
+        suggestion = "Décision réservée au conseil (matières manquantes)"
+
     return {
         "moyenne_annuelle": moyenne_annuelle,
         "statut": statut,
@@ -703,5 +717,7 @@ def calculer_moyenne_annuelle_reglementaire(inscription_id, ecole_id):
         "suggestion": suggestion,
         "somme_moyennes": round(somme, 2),
         "bulletins": bulletins_utiles,
+        "missing_subjects_names": completude["missing_subjects_names"],
+        "missing_subjects_by_period": completude["missing_subjects_by_period"],
     }
 

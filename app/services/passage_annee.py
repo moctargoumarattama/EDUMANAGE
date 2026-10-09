@@ -986,7 +986,10 @@ def get_deliberations_annuelles_eleves(ecole_id, annee_id):
         return {}
 
     from collections import defaultdict
-    from app.services.evaluations import calculer_moyenne_matiere
+    from app.services.evaluations import (
+        calculer_moyenne_matiere,
+        calculer_completude_annuelle_inscription,
+    )
     from app.services.notes_annuelles import (
         PERIODES_SEMESTRES, calculer_moyenne_generale_semestre, calculer_moyenne_annuelle,
     )
@@ -996,6 +999,13 @@ def get_deliberations_annuelles_eleves(ecole_id, annee_id):
     annee = db.session.get(AnneeScolaire, annee_id)
     periodes_officielles = [p.nom for p in annee.periodes] if annee and annee.periodes else []
     nb_attendues = len(periodes_officielles)
+
+    # Une inscription annulée n'a jamais donné lieu à un parcours à délibérer.
+    # Les transferts/radiations restent visibles dans l'historique scolaire.
+    inscriptions = Inscription.query.filter_by(
+        ecole_id=ecole_id, annee_scolaire_id=annee_id
+    ).filter(Inscription.statut != "annulee").all()
+    eleves_inscrits = {inscription.eleve_id for inscription in inscriptions}
 
     # Récupérer tous les bulletins existants pour cette année
     bulletins_rows = (
@@ -1015,7 +1025,8 @@ def get_deliberations_annuelles_eleves(ecole_id, annee_id):
 
     bulletins_par_eleve = defaultdict(list)
     for b in bulletins_rows:
-        bulletins_par_eleve[b.eleve_id].append(b)
+        if b.eleve_id in eleves_inscrits:
+            bulletins_par_eleve[b.eleve_id].append(b)
 
     for eleve_id, b_list in bulletins_par_eleve.items():
         periodes_vues = {}
@@ -1057,7 +1068,6 @@ def get_deliberations_annuelles_eleves(ecole_id, annee_id):
             }
 
     # 2. Pour les élèves sans bulletin, fallback sur les notes
-    inscriptions = Inscription.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_id).all()
     sans_bulletin = {i.eleve_id: i for i in inscriptions if i.eleve_id not in deliberations}
 
     if sans_bulletin:
@@ -1125,6 +1135,24 @@ def get_deliberations_annuelles_eleves(ecole_id, annee_id):
                     "periodes_attendues": len(PERIODES_SEMESTRES),
                     "_fallback_incomplet": True,
                 }
+
+    # Un bulletin ou une moyenne par semestre ne prouve pas que toutes les
+    # matières obligatoires de chaque période ont été évaluées.
+    periodes_a_verifier = periodes_officielles or PERIODES_SEMESTRES
+    for inscription in inscriptions:
+        resultat = deliberations.get(inscription.eleve_id)
+        if resultat is None:
+            continue
+        completude = calculer_completude_annuelle_inscription(
+            ecole_id, annee_id, inscription, periodes_a_verifier
+        )
+        resultat["missing_subjects_names"] = completude["missing_subjects_names"]
+        resultat["missing_subjects_by_period"] = completude["missing_subjects_by_period"]
+        if not completude["is_pedagogically_complete"]:
+            resultat["cursus_incomplet"] = True
+            resultat["statut"] = "Dossier Incomplet"
+            resultat["statut_deliberation"] = "Dossier Incomplet"
+            resultat["suggestion"] = "Décision réservée au conseil (matières manquantes)"
 
     return deliberations
 

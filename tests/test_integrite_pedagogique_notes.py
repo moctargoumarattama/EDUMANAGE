@@ -10,7 +10,10 @@ from app.models import (
     AnneeScolaire, Bulletin, Classe, Cours, Ecole, Eleve, Inscription,
     Note, PeriodeBulletin, Utilisateur,
 )
-from app.services.evaluations import calculer_moyenne_matiere, calculer_completude_inscription
+from app.services.evaluations import (
+    calculer_moyenne_matiere, calculer_completude_inscription,
+    calculer_completude_annuelle_inscription,
+)
 from app.services.bulletins_annuels import calculer_bulletin_data, generer_ou_recuperer_bulletin
 from app.services.inscriptions_annuelles import modifier_inscription_annuelle
 from app.services.notes_annuelles import get_palmares_notes_annuel, modifier_note, saisir_notes_classe, supprimer_note
@@ -181,6 +184,24 @@ def test_passage_sans_deux_semestres_ne_suggere_pas_de_decision(contexte):
     c = contexte
     note(c, c.maths_a, 18, "Semestre 1")
     assert c.eleve.id not in get_moyennes_annuelles_eleves(c.ecole.id, c.annee.id)
+
+
+def test_note_sans_periode_ne_complete_aucun_semestre_annuel(contexte):
+    c = contexte
+    ancienne_note = note(c, c.maths_a, 15, "Semestre 1")
+    ancienne_note.periode = None
+    db.session.commit()
+
+    completude = calculer_completude_annuelle_inscription(
+        c.ecole.id, c.annee.id, c.inscription, ["Semestre 1", "Semestre 2"]
+    )
+    assert not completude["is_pedagogically_complete"]
+    assert completude["missing_subjects_by_period"]["Semestre 1"] == [
+        "Français", "Mathématiques"
+    ]
+    assert completude["missing_subjects_by_period"]["Semestre 2"] == [
+        "Français", "Mathématiques"
+    ]
 
 
 def test_transfert_conserve_classe_close_et_reaffecte_periode_ouverte(contexte):
