@@ -300,6 +300,18 @@ def verifier_mutation_absence(ecole_id, annee, user, eleve_id, cours_id, date_ab
     inscription = get_inscription_eleve_annee(ecole_id, eleve_id, annee.id)
     if not inscription or not inscription.eleve or inscription.eleve.ecole_id != ecole_id:
         return None, None, None, "Élève non inscrit dans l'année scolaire consultée."
+    if inscription.statut not in ('inscrit', 'actif'):
+        sortie = inscription.date_depart or (
+            inscription.date_sortie.date() if inscription.date_sortie else None
+        )
+        correction_historique = (
+            inscription.statut in ('transfere', 'radie', 'sorti')
+            and sortie is not None and date_absence <= sortie
+        )
+        if not correction_historique:
+            return None, None, None, "L'inscription n'était pas scolarisée à la date de l'absence."
+    if inscription.date_depart and date_absence > inscription.date_depart:
+        return None, None, None, "L'élève avait quitté l'établissement à cette date."
 
     cours = None
     if cours_id:

@@ -292,6 +292,8 @@ def transferer_ou_radier_eleve(
         inscription_en_cours = Inscription.query.filter_by(
             ecole_id=ecole_id, eleve_id=eleve_id, annee_scolaire_id=annee_scolaire_id
         ).first()
+        if not inscription_en_cours:
+            return None, "Aucune inscription pour l'année scolaire demandée."
 
     if not inscription_en_cours:
         annee_active = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").first()
@@ -314,6 +316,11 @@ def transferer_ou_radier_eleve(
 
     if not inscription_en_cours:
         return None, "Aucune inscription active ou en cours trouvée pour cet élève."
+
+    if not inscription_en_cours.annee_scolaire or inscription_en_cours.annee_scolaire.statut != "active":
+        return None, "Un transfert ou une radiation exige une année scolaire active."
+    if inscription_en_cours.statut not in ("inscrit", "preinscrit", "actif"):
+        return None, "L'inscription ne permet plus une décision de transfert ou radiation."
 
     if isinstance(date_depart, str):
         try:

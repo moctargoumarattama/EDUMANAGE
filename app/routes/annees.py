@@ -877,7 +877,7 @@ def passage_annee(source_id, cible_id):
             detail_statut = insc_src.statut.capitalize()
 
         delib = deliberations_eleves.get(eleve.id, {})
-        moyenne = delib.get("moyenne")
+        moyenne = None if delib.get("cursus_incomplet") else delib.get("moyenne")
         suggestion = delib.get("suggestion")
         cursus_incomplet = delib.get("cursus_incomplet", False)
         statut_deliberation = delib.get("statut_deliberation", "Complet")
@@ -1086,7 +1086,7 @@ def passage_eleve(source_id, cible_id, eleve_id):
     inscription_cible = get_inscription(eleve, annee_cible)
 
     delib = evaluer_deliberation_annuelle(ecole_id, source_id, eleve.id)
-    moyenne = delib.get("moyenne")
+    moyenne = None if delib.get("cursus_incomplet") else delib.get("moyenne")
     suggestion = delib.get("suggestion")
     cursus_incomplet = delib.get("cursus_incomplet", False)
     statut_deliberation = delib.get("statut_deliberation", "Complet")
@@ -1614,8 +1614,8 @@ def onboarding_rentree(cible_id):
                 el = insc_s.eleve
                 insc_c = inscriptions_cible_map.get(el.id)
                 delib = deliberations_eleves.get(el.id, {})
-                moy = delib.get("moyenne", moyennes_eleves.get(el.id))
                 cursus_incomplet = delib.get("cursus_incomplet", False)
+                moy = None if cursus_incomplet else delib.get("moyenne", moyennes_eleves.get(el.id))
                 sugg = delib.get("suggestion")
                 if not sugg:
                     sugg = "passage" if (moy is not None and moy >= 10.0) else ("redoublement" if moy is not None else None)

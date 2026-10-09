@@ -154,11 +154,11 @@
                 </div>
                 <div class="data-row">
                     <span class="data-label"><i class="fas fa-user-graduate me-2 text-primary"></i>Élève</span>
-                    <span class="data-val text-uppercase">{{ cert.nom_eleve or (eleve.nom if eleve else '') }} {{ cert.prenom_eleve or (eleve.prenom if eleve else '') }}</span>
+                    <span class="data-val text-uppercase">{{ cert.nom_eleve if cert.nom_eleve is not none else (eleve.nom if eleve else '') }} {{ cert.prenom_eleve if cert.nom_eleve is not none else (eleve.prenom if eleve else '') }}</span>
                 </div>
                 <div class="data-row">
                     <span class="data-label"><i class="fas fa-id-card me-2 text-primary"></i>Matricule</span>
-                    <span class="data-val font-monospace text-dark">{{ cert.matricule_eleve or (eleve.matricule if eleve else '—') }}</span>
+                    <span class="data-val font-monospace text-dark">{{ cert.matricule_eleve if cert.nom_eleve is not none else (eleve.matricule if eleve else '—') }}</span>
                 </div>
                 <div class="data-row">
                     <span class="data-label"><i class="fas fa-chalkboard me-2 text-primary"></i>Classe &amp; Niveau</span>

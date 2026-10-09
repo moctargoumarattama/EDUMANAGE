@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Branchement file d'attente hors-ligne (Point 12 de l'audit)
     const appelForm = document.getElementById('appelForm');
-    if (appelForm) {
+    if (appelForm && !window.KLASORA_OFFLINE_FORMS_GLOBAL) {
         appelForm.addEventListener('submit', async function (e) {
             if (!navigator.onLine && typeof offlineManager !== 'undefined' && offlineManager && typeof offlineManager.addToSync === 'function') {
                 e.preventDefault();

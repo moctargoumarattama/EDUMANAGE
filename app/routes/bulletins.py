@@ -1362,11 +1362,19 @@ def creer_periode():
             return redirect(url_for('main.creer_periode'))
         if annee.statut == 'archivee':
             abort(403, description="Une année archivée est en lecture seule.")
+        if not (annee.date_debut <= form.date_debut.data <= form.date_fin.data <= annee.date_fin):
+            flash("Les dates de la période doivent être ordonnées et comprises dans l'année scolaire.", "danger")
+            return render_template('creer_periode.html', form=form), 400
+        if PeriodeBulletin.query.filter_by(ecole_id=ecole_id, annee_id=annee_id, nom=nom).first():
+            flash("Cette période existe déjà pour l'année.", "danger")
+            return render_template('creer_periode.html', form=form), 409
         
         nouvelle_periode = PeriodeBulletin(
             nom=nom,
             annee_id=annee_id,
             ecole_id=ecole_id,
+            date_debut=form.date_debut.data,
+            date_fin=form.date_fin.data,
             publie=False,
             periode_active=False
         )

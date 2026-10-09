@@ -180,7 +180,10 @@ def paiements():
                 "success": False,
                 "error": f"Mode de règlement invalide. Modes autorisés pour le Niger : Airtel Money, Moov Money, Al Izza, Nita, Amana, Espèces, Virement, Chèque."
             }), 400
-        idempotency_key = (data.get("idempotency_key") or "").strip() or None
+        raw_key = data.get("idempotency_key") or ""
+        if not isinstance(raw_key, str):
+            return jsonify({"success": False, "error": "Clé d'opération invalide."}), 400
+        idempotency_key = raw_key.strip() or None
         paiement, error = enregistrer_paiement(
             ecole_id=ecole_id,
             annee=annee,
@@ -197,6 +200,8 @@ def paiements():
             return jsonify({"success": False, "error": error}), 400
         db.session.commit()
         deja_traite = bool(getattr(paiement, 'deja_traite', False))
+        if not deja_traite:
+            _notifier_whatsapp_paiement(paiement, ecole=getattr(current_user, "ecole", None))
         message_succes = "Paiement déjà enregistré (opération déjà traitée)." if deja_traite else "Paiement enregistré avec succès !"
         return jsonify({
             "success": True,

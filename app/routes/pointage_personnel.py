@@ -17,16 +17,16 @@ NOMS_MOIS_FR = [
 
 
 def _calculer_duree_heures(debut_str, fin_str):
-    """Calcule la durée en heures décimales entre deux chaînes HH:MM."""
+    """Calcule une durée valide ; aucune durée fictive sur une heure erronée."""
     try:
         if not debut_str or not fin_str:
-            return 8.0
+            return None
         t1 = datetime.strptime(debut_str.strip(), "%H:%M")
         t2 = datetime.strptime(fin_str.strip(), "%H:%M")
         diff = (t2 - t1).total_seconds() / 3600.0
-        return max(0.0, round(diff, 2)) if diff > 0 else 8.0
-    except Exception:
-        return 8.0
+        return round(diff, 2) if diff > 0 else None
+    except (TypeError, ValueError):
+        return None
 
 
 def _generer_mois_annee_scolaire(annee_scolaire):
@@ -219,8 +219,8 @@ def marquer_tous_presents():
     """Action de masse AJAX : marque tous les professeurs actifs en 'présent' pour l'année active."""
     ecole_id = g.ecole_id
     annee_active = get_annee_consultee(ecole_id) or get_annee_active(ecole_id)
-    if not annee_active:
-        return jsonify({"success": False, "error": "Aucune année scolaire active."}), 400
+    if not annee_active or annee_active.statut != 'active':
+        return jsonify({"success": False, "error": "Le pointage exige une année scolaire active."}), 409
 
     data = request.get_json() or {}
     date_str = data.get('date', '').strip()
@@ -233,6 +233,10 @@ def marquer_tous_presents():
         return jsonify({"success": False, "error": "Format de date invalide."}), 400
 
     duree_heures = _calculer_duree_heures(creneau_debut, creneau_fin)
+    if duree_heures is None:
+        return jsonify({"success": False, "error": "Créneau horaire invalide : l'heure de fin doit suivre le début."}), 400
+    if not (annee_active.date_debut <= date_cible <= annee_active.date_fin):
+        return jsonify({"success": False, "error": "Date hors de l'année scolaire active."}), 400
     creneau_libelle = f"{creneau_debut} - {creneau_fin}"
 
     professeurs = Professeur.query.filter_by(ecole_id=ecole_id).all()
@@ -247,6 +251,8 @@ def marquer_tous_presents():
             date_pointage=date_cible
         ).all()
     }
+    if any(pointage.valide for pointage in pointages_existants.values()):
+        return jsonify({"success": False, "error": "La journée contient déjà des pointages validés."}), 409
 
     count_modifies = 0
     for prof in professeurs:
@@ -297,8 +303,8 @@ def sauvegarder_ligne():
     """Enregistrement instantané (AJAX) d'un pointage pour un enseignant."""
     ecole_id = g.ecole_id
     annee_active = get_annee_consultee(ecole_id) or get_annee_active(ecole_id)
-    if not annee_active:
-        return jsonify({"success": False, "error": "Aucune année scolaire active."}), 400
+    if not annee_active or annee_active.statut != 'active':
+        return jsonify({"success": False, "error": "Le pointage exige une année scolaire active."}), 409
 
     data = request.get_json() or {}
     professeur_id = data.get('professeur_id')
@@ -323,12 +329,16 @@ def sauvegarder_ligne():
         date_cible = datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"success": False, "error": "Format de date invalide."}), 400
+    if not (annee_active.date_debut <= date_cible <= annee_active.date_fin):
+        return jsonify({"success": False, "error": "Date hors de l'année scolaire active."}), 400
 
     prof = Professeur.query.filter_by(id=professeur_id, ecole_id=ecole_id).first()
     if not prof:
         return jsonify({"success": False, "error": "Professeur introuvable."}), 404
 
     duree_creneau = _calculer_duree_heures(creneau_debut, creneau_fin)
+    if duree_creneau is None:
+        return jsonify({"success": False, "error": "Créneau horaire invalide : l'heure de fin doit suivre le début."}), 400
     creneau_label = f"{creneau_debut} - {creneau_fin}"
 
     try:
@@ -352,6 +362,8 @@ def sauvegarder_ligne():
         annee_scolaire_id=annee_active.id,
         date_pointage=date_cible
     ).first()
+    if pointage and pointage.valide:
+        return jsonify({"success": False, "error": "Ce pointage validé ne peut plus être modifié."}), 409
 
     if not pointage:
         pointage = PointagePersonnel(
@@ -402,8 +414,8 @@ def valider_journee():
     """Verrouille tous les pointages de la date sélectionnée pour l'année active."""
     ecole_id = g.ecole_id
     annee_active = get_annee_consultee(ecole_id) or get_annee_active(ecole_id)
-    if not annee_active:
-        return jsonify({"success": False, "error": "Aucune année scolaire active."}), 400
+    if not annee_active or annee_active.statut != 'active':
+        return jsonify({"success": False, "error": "La validation exige une année scolaire active."}), 409
 
     if request.is_json:
         data = request.get_json() or {}

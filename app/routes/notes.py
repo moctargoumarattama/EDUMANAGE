@@ -40,6 +40,7 @@ from app.services.notes_annuelles import (
     statut_annee_notes,
     supprimer_note as service_supprimer_note,
     get_palmares_notes_annuel,
+    periodes_notes_classe,
 )
 
 
@@ -137,6 +138,12 @@ def notes():
                 cours_id = matched_crs.id
 
     form = NoteForm() if current_user.role == 'professeur' else None
+    periodes_proposees = list(dict.fromkeys(
+        periode_nom for classe in classes_list
+        for periode_nom in periodes_notes_classe(classe, annee_consultee)
+    ))
+    if form:
+        form.periode.choices = [(p, p) for p in periodes_proposees]
 
     # ------------------- Récupération des notes et statistiques (Requêtes SQL natives) -------------------
     query = get_notes_query(
@@ -329,6 +336,7 @@ def notes():
         eleve_id=eleve_id,
         niveau_id=niveau_param,
         periode=periode,
+        periodes_notes_disponibles=periodes_proposees,
         type_evaluation=type_evaluation,
         search=search,
         eleve_classe_map=eleve_classe_map,
@@ -504,6 +512,9 @@ def saisie_notes_classe():
         inscriptions=inscriptions,
         selected_classe_id=selected_classe_id,
         selected_cours_id=selected_cours_id,
+        periodes_saisie=periodes_notes_classe(
+            next((c for c in classes if c.id == selected_classe_id), None), annee_consultee
+        ) if selected_classe_id and annee_consultee else [],
         annee_consultee=annee_consultee,
         notes_modifiables=peut_modifier,
         message_annee=message_annee,
@@ -554,6 +565,7 @@ def modifier_note(note_id):
             abort(403)
 
     form = NoteForm(obj=note)
+    form.periode.choices = [(p, p) for p in periodes_notes_classe(note.cours.classe, annee_note)]
 
     # Choix limités à l'année de la note
     eleve_choices = get_eleves_choices_notes(ecole_id, annee_note, user=current_user)

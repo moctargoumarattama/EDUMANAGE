@@ -94,8 +94,9 @@
                     <div class="col-4">
                         <label for="selectPeriode" class="form-label small fw-semibold text-muted text-uppercase mb-1" style="font-size: 0.72rem;">Période <span class="text-danger">*</span></label>
                         <select name="periode" id="selectPeriode" class="form-select form-select-sm rounded-3 shadow-none" required>
-                            <option value="Semestre 1" selected>Semestre 1</option>
-                            <option value="Semestre 2">Semestre 2</option>
+                            {% for periode_nom in periodes_saisie %}
+                            <option value="{{ periode_nom }}">{{ periode_nom }}</option>
+                            {% endfor %}
                         </select>
                     </div>
 
@@ -336,7 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Branchement file d'attente hors-ligne (Point 13 de l'audit)
     const formSaisie = document.getElementById('formSaisieClasse');
-    if (formSaisie) {
+    if (formSaisie && !window.KLASORA_OFFLINE_FORMS_GLOBAL) {
         formSaisie.addEventListener('submit', async function (e) {
             if (!navigator.onLine && typeof offlineManager !== 'undefined' && offlineManager && typeof offlineManager.addToSync === 'function') {
                 e.preventDefault();

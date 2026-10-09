@@ -1945,7 +1945,10 @@ class CertificatAdministratif(db.Model):
             "id": self.id,
             "ecole_id": self.ecole_id,
             "eleve_id": self.eleve_id,
-            "eleve_nom": f"{self.eleve.nom} {self.eleve.prenom}" if self.eleve else None,
+            "eleve_nom": (
+                f"{self.nom_eleve or ''} {self.prenom_eleve or ''}".strip() if self.nom_eleve is not None
+                else f"{self.eleve.nom} {self.eleve.prenom}" if self.eleve else None
+            ),
             "nom_eleve": self.nom_eleve,
             "prenom_eleve": self.prenom_eleve,
             "matricule_eleve": self.matricule_eleve,

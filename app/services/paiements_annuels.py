@@ -12,7 +12,8 @@ Règles canoniques :
 - Règle 2C-5D : consommation exclusive de get_annee_consultee(ecole_id).
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
+import math
 from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload, joinedload
 from app import db
@@ -260,8 +261,10 @@ def valider_mutation_paiement(ecole_id, annee, user, eleve_id, montant):
 
     try:
         montant_float = float(montant)
-        if montant_float <= 0:
-            return None, "Le montant du paiement doit être supérieur à zéro."
+        if not math.isfinite(montant_float) or montant_float <= 0:
+            return None, "Le montant du paiement doit être positif et fini."
+        if not montant_float.is_integer():
+            return None, "Le montant du paiement doit être exprimé en FCFA entiers."
     except (TypeError, ValueError):
         return None, "Montant de paiement invalide."
 
@@ -294,6 +297,7 @@ def enregistrer_paiement(ecole_id, annee, user, eleve_id, montant, mois, annee_c
         return None, "Mode de règlement invalide. Modes autorisés pour le Niger : Airtel Money, Moov Money, Al Izza, Nita, Amana, Espèces, Virement, Chèque."
 
     idempotency_key = (idempotency_key or "").strip() or None
+    reference = (reference or "").strip() or None
 
     # 1. Vérification idempotence explicite par clé unique
     if idempotency_key:
@@ -302,6 +306,21 @@ def enregistrer_paiement(ecole_id, annee, user, eleve_id, montant, mois, annee_c
             idempotency_key=idempotency_key
         ).first()
         if paiement_existant:
+            try:
+                meme_operation = (
+                    paiement_existant.eleve_id == int(eleve_id)
+                    and paiement_existant.inscription is not None
+                    and paiement_existant.inscription.annee_scolaire_id == annee.id
+                    and paiement_existant.montant == float(montant)
+                    and paiement_existant.mois == mois
+                    and paiement_existant.annee == int(annee_civile)
+                    and paiement_existant.mode_paiement == mode_canonique
+                    and (paiement_existant.reference or None) == reference
+                )
+            except (TypeError, ValueError, AttributeError):
+                meme_operation = False
+            if not meme_operation:
+                return None, "Cette clé d'opération a déjà été utilisée pour un autre paiement."
             paiement_existant.deja_traite = True
             return paiement_existant, None
 
@@ -309,23 +328,6 @@ def enregistrer_paiement(ecole_id, annee, user, eleve_id, montant, mois, annee_c
     if error:
         return None, error
     montant_float = float(montant)
-    reference = (reference or "").strip() or None
-
-    # 2. Garde-fou anti-rejeu immédiat (< 30s) pour éviter les doubles clics accidentels
-    seuil_anti_rejeu = datetime.utcnow() - timedelta(seconds=30)
-    paiement_recent = Paiement.query.filter(
-        Paiement.ecole_id == ecole_id,
-        Paiement.eleve_id == eleve_id,
-        Paiement.montant == montant_float,
-        Paiement.mode_paiement == mode_canonique,
-        Paiement.inscription_id == inscription.id,
-        Paiement.date_paiement >= seuil_anti_rejeu,
-        or_(Paiement.statut.is_(None), Paiement.statut != "annule")
-    ).order_by(Paiement.id.desc()).first()
-
-    if paiement_recent:
-        paiement_recent.deja_traite = True
-        return paiement_recent, None
 
     try:
         # PostgreSQL verrouille la ligne; SQLite sérialise l'écriture, ce qui
@@ -362,8 +364,10 @@ def enregistrer_paiement(ecole_id, annee, user, eleve_id, montant, mois, annee_c
         if idempotency_key and ("idempotency" in str(exc).lower() or "unique" in str(exc).lower()):
             existant = Paiement.query.filter_by(ecole_id=ecole_id, idempotency_key=idempotency_key).first()
             if existant:
-                existant.deja_traite = True
-                return existant, None
+                return enregistrer_paiement(
+                    ecole_id, annee, user, eleve_id, montant, mois, annee_civile,
+                    mode_paiement=mode_canonique, reference=reference, idempotency_key=idempotency_key,
+                )
         if "reference" in str(exc).lower() and reference:
             return None, "Cette référence de paiement existe déjà."
         raise
@@ -586,7 +590,7 @@ def calculer_retard_echeancier_inscription(
     else:
         mois_ecoules = 1
 
-    mois_ecoules = max(1, min(mois_ecoules, total_mois))
+    mois_ecoules = max(0, min(mois_ecoules, total_mois))
     frais_mensuel = frais_nets / total_mois if total_mois > 0 else 0.0
     montant_exigible_a_date = min(frais_nets, round(frais_mensuel * mois_ecoules, 2))
 

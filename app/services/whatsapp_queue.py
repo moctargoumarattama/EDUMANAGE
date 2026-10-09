@@ -16,9 +16,13 @@ STATUS_EXPIRED = 'expire'
 import os
 BAILEYS_BASE_URL = os.environ.get("WHATSAPP_GATEWAY_BASE_URL", "http://127.0.0.1:3001")
 
+
+class GatewayTemporarilyUnavailable(RuntimeError):
+    """La passerelle ou sa session reviendra sans intervention sur le message."""
+
 def _get_gateway_headers():
-    secret = os.environ.get("WHATSAPP_GATEWAY_SECRET", "secret-gateway-local-klasora-2024")
-    return {"X-Gateway-Secret": secret}
+    from app.services.whatsapp_gateway_auth import get_gateway_secret
+    return {"X-Gateway-Secret": get_gateway_secret()}
 
 def normaliser_numero_niger(numero):
     """Compat: local Niger ou numero international vers format WhatsApp +XXX."""
@@ -59,6 +63,9 @@ def enqueue_message(
     if type_message not in VALID_MESSAGE_TYPES:
         type_message = 'general'
 
+    if type_message in ('auth_credentials', 'compte_professeur') and expire_le is None and not duree_validite_heures:
+        duree_validite_heures = 24
+
     if expire_le is None and duree_validite_heures:
         expire_le = datetime.utcnow() + timedelta(hours=int(duree_validite_heures))
 
@@ -90,7 +97,7 @@ def envoyer_via_baileys(destinataire, texte, queue_item=None):
     try:
         response = requests.post(url, json=payload, headers=_get_gateway_headers(), timeout=5)
     except requests.RequestException as exc:
-        raise RuntimeError(f"Passerelle Baileys indisponible: {exc}") from exc
+        raise GatewayTemporarilyUnavailable(f"Passerelle Baileys indisponible: {exc}") from exc
 
     try:
         data = response.json()
@@ -101,12 +108,13 @@ def envoyer_via_baileys(destinataire, texte, queue_item=None):
         return True
 
     error = data.get("error") or data.get("message") or response.text or f"HTTP {response.status_code}"
-    if response.status_code in (404, 409) or data.get("status") in {"DECONNECTE", "ATTENTE_SCAN", "INDISPONIBLE"}:
+    if response.status_code in (404, 409, 429) or response.status_code >= 500 or data.get("status") in {"DECONNECTE", "ATTENTE_SCAN", "INDISPONIBLE"}:
         current_app.logger.warning(
             "Envoi WhatsApp refuse: ecole_id=%s non appairee ou session inactive (%s)",
             ecole_id,
             error,
         )
+        raise GatewayTemporarilyUnavailable(f"Passerelle momentanément indisponible: {error}")
     raise RuntimeError(f"Echec envoi WhatsApp Baileys: {error}")
 
 
@@ -124,6 +132,8 @@ def expire_pending_messages(now=None, commit=False):
     for item in expired:
         item.statut = STATUS_EXPIRED
         item.erreur_details = "Message expire avant envoi."
+        if item.type_message in ('auth_credentials', 'compte_professeur'):
+            item.message = "[CONFIDENTIEL - EXPIRÉ SANS ENVOI]"
 
     if expired and commit:
         db.session.commit()
@@ -158,6 +168,10 @@ def process_queue(send_func, ecole_id=None, limit=50, now=None, commit=True):
         item.tentatives = (item.tentatives or 0) + 1
         try:
             sent = bool(send_func(item.destinataire, item.message, item))
+        except GatewayTemporarilyUnavailable as exc:
+            sent = False
+            item.tentatives -= 1
+            item.erreur_details = str(exc)[:2000]
         except Exception as exc:
             sent = False
             item.erreur_details = str(exc)[:2000]
@@ -176,8 +190,11 @@ def process_queue(send_func, ecole_id=None, limit=50, now=None, commit=True):
                 item.erreur_details = "Envoi WhatsApp echoue, nouvelle tentative prevue."
 
         if item.statut in (STATUS_SENT, STATUS_FAILED) and item.type_message in ('auth_credentials', 'compte_professeur'):
-            date_str = item.date_envoi.strftime('%d/%m/%Y') if item.date_envoi else now.strftime('%d/%m/%Y')
-            item.message = f"[CONFIDENTIEL - TRANSMIS LE {date_str}]"
+            if item.statut == STATUS_SENT:
+                date_str = item.date_envoi.strftime('%d/%m/%Y')
+                item.message = f"[CONFIDENTIEL - TRANSMIS LE {date_str}]"
+            else:
+                item.message = "[CONFIDENTIEL - NON TRANSMIS]"
 
         processed.append(item)
 

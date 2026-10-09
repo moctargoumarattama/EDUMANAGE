@@ -536,7 +536,8 @@ def enregistrer_reglement():
     if len(reference_recu) > 100:
         return jsonify({"success": False, "error": "La référence du règlement dépasse 100 caractères."}), 400
 
-    fiche = FichePaiePersonnel.query.filter_by(id=fiche_id, ecole_id=ecole_id).first()
+    fiche = (FichePaiePersonnel.query.filter_by(id=fiche_id, ecole_id=ecole_id)
+             .populate_existing().with_for_update().first())
     if not fiche:
         return jsonify({"success": False, "error": "Fiche de paie introuvable."}), 404
     erreur = _garde_fiche_mutable(fiche, ecole_id)
@@ -547,37 +548,31 @@ def enregistrer_reglement():
     ancien_total = _montant_existant(fiche.montant_paye)
     if net is None or ancien_total is None or net <= 0 or ancien_total < 0 or ancien_total > net:
         return jsonify({"success": False, "error": "Montants de la fiche incohérents ; règlement refusé."}), 409
-    idempotency_key = (data.get('idempotency_key') or '').strip() or None
+    raw_key = data.get('idempotency_key') or ''
+    if not isinstance(raw_key, str) or len(raw_key) > 128:
+        return jsonify({"success": False, "error": "Clé d'opération invalide."}), 400
+    idempotency_key = raw_key.strip() or None
 
-    # Garde-fou d'idempotence et anti-rejeu (< 30s)
+    # Une reprise se reconnaît uniquement à sa clé ou à la même référence de reçu.
     _, evenements_existants = _decomposer_note(fiche.note)
-    maintenant = datetime.utcnow()
     for ev in reversed(evenements_existants):
         if ev.get('type') == 'versement':
-            # 1. Vérification clé d'idempotence
-            if idempotency_key and ev.get('idempotency_key') == idempotency_key:
+            meme_cle = bool(idempotency_key and ev.get('idempotency_key') == idempotency_key)
+            meme_reference = bool(reference_recu and ev.get('reference') == reference_recu)
+            if meme_cle or meme_reference:
+                if (ev.get('montant') != f'{montant_verse:.2f}'
+                        or ev.get('mode') != mode_reglement
+                        or (ev.get('reference') or '') != reference_recu):
+                    return jsonify({
+                        "success": False,
+                        "error": "Cette clé ou référence correspond à un autre règlement."
+                    }), 409
                 return jsonify({
                     "success": True,
                     "message": "Règlement déjà enregistré (opération déjà traitée).",
                     "deja_traite": True,
                     "fiche": fiche.to_dict()
                 }), 200
-
-            # 2. Vérification anti-rejeu immédiat (< 30s) pour même montant et mode
-            ev_date_str = ev.get('date')
-            if ev_date_str and ev.get('montant') == f'{montant_verse:.2f}' and ev.get('mode') == mode_reglement:
-                try:
-                    clean_date_str = ev_date_str.rstrip('Z')
-                    ev_dt = datetime.fromisoformat(clean_date_str)
-                    if (maintenant - ev_dt).total_seconds() < 30:
-                        return jsonify({
-                            "success": True,
-                            "message": "Règlement déjà enregistré précédemment (opération déjà traitée).",
-                            "deja_traite": True,
-                            "fiche": fiche.to_dict()
-                        }), 200
-                except Exception:
-                    pass
 
     evenement = {
         'type': 'versement',

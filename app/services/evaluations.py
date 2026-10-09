@@ -395,10 +395,17 @@ def calculer_completude_annuelle_inscription(ecole_id, annee_id, inscription, pe
         db.or_(Note.inscription_id == inscription.id, Note.inscription_id.is_(None)),
     ).all()
     for periode in dict.fromkeys(periodes):
+        periode_notes = periode
+        anciens_libelles = {"Semestre 1": "1er Semestre", "Semestre 2": "2ème Semestre"}
+        ancien_libelle = anciens_libelles.get(periode)
+        if (ancien_libelle
+                and not any(note.periode == periode for note in notes_annee)
+                and any(note.periode == ancien_libelle for note in notes_annee)):
+            periode_notes = ancien_libelle
         evaluation = calculer_completude_inscription(
-            ecole_id, annee_id, inscription, periode=periode,
+            ecole_id, annee_id, inscription, periode=periode_notes,
             periode_publiee=False,
-            notes=[note for note in notes_annee if note.periode == periode],
+            notes=[note for note in notes_annee if note.periode == periode_notes],
         )
         if evaluation["expected_subjects"] == 0:
             continue

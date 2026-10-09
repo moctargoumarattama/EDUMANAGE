@@ -44,6 +44,7 @@ def _inscription_ids(ecole_id, annee_id):
         .filter(
             Inscription.ecole_id == ecole_id,
             Inscription.annee_scolaire_id == annee_id,
+            Inscription.statut != 'annulee',
         )
         .all()
     ]
@@ -122,7 +123,9 @@ def get_dashboard_admin_annuel(ecole_id, annee):
         .subquery()
     )
 
-    frais_expr = func.coalesce(Inscription.frais_annuels, Eleve.frais_annuels, 150000.0)
+    frais_base_expr = func.coalesce(Inscription.frais_scolarite, Inscription.frais_annuels, Eleve.frais_annuels, 150000.0)
+    frais_net_expr = frais_base_expr - func.coalesce(Inscription.remise, 0.0) + func.coalesce(Inscription.frais_inscription, 0.0)
+    frais_expr = case((frais_net_expr < 0, 0.0), else_=frais_net_expr)
     total_paye_expr = func.coalesce(paiements_par_inscription.c.total_paye, 0.0)
     stats["paiements_attente"] = (
         db.session.query(func.count(Inscription.id))
@@ -131,6 +134,7 @@ def get_dashboard_admin_annuel(ecole_id, annee):
         .filter(
             Inscription.ecole_id == ecole_id,
             Inscription.annee_scolaire_id == annee_id,
+            Inscription.statut != 'annulee',
             frais_expr > total_paye_expr,
         )
         .scalar()

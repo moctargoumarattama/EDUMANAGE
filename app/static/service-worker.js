@@ -1,6 +1,6 @@
 // static/service-worker.js - KLASORA PWA Service Worker
-// Version active du cache PWA (alignée avec ?v=15 de base.html)
-const CACHE_NAME = 'klasora-cache-v15';
+// Version active du cache PWA.
+const CACHE_NAME = 'klasora-cache-v16';
 // Référence version v15: CACHE_NAME = 'klasora-v15';
 // Ancien cache purgé lors de l'activation: CACHE_NAME = 'klasora-cache-v14';
 const CACHE_VERSION = CACHE_NAME;
@@ -14,10 +14,13 @@ const PRECACHE_ASSETS = [
     '/static/css/style.css?v=14',
     '/static/css/base-inline.css?v=15',
     '/static/css/assistant-widget.css?v=15',
+    '/static/js/db.js?v=16',
     '/static/js/db.js?v=15',
     '/static/js/db.js?v=14',
+    '/static/js/offline-manager.js?v=16',
     '/static/js/offline-manager.js?v=15',
     '/static/js/offline-manager.js?v=14',
+    '/static/js/offline-forms.js?v=16',
     '/static/js/offline-forms.js?v=15',
     '/static/js/offline-forms.js?v=14',
     '/static/js/pwa.js?v=15',
@@ -39,11 +42,14 @@ const PRECACHE_ASSETS = [
 ];
 
 self.addEventListener('install', event => {
+    const locaux = PRECACHE_ASSETS.filter(url => url.startsWith('/'));
+    const externes = PRECACHE_ASSETS.filter(url => !url.startsWith('/'));
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then(cache => cache.addAll(PRECACHE_ASSETS.map(url => new Request(url, { cache: 'reload' }))))
-            .catch(err => {
-                console.warn('[SW] Pre-cache partiel:', err);
+            .then(async cache => {
+                // Si les fichiers locaux manquent, conserver l'ancien service worker actif.
+                await cache.addAll(locaux.map(url => new Request(url, { cache: 'reload' })));
+                await Promise.allSettled(externes.map(url => cache.add(url)));
             })
             .then(() => self.skipWaiting())
     );

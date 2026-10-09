@@ -357,7 +357,7 @@ CYCLES_PRIMAIRE = {'primaire', 'elementaire', 'maternelle'}
 CYCLES_SECONDAIRE = {'college', 'lycee', 'secondaire'}
 
 PERIODES_PRIMAIRE_DEFAULT = ("1ère Composition", "2ème Composition", "3ème Composition")
-PERIODES_SECONDAIRE_DEFAULT = ("1er Semestre", "2ème Semestre")
+PERIODES_SECONDAIRE_DEFAULT = ("Semestre 1", "Semestre 2")
 
 
 def determiner_cycle_classe(classe) -> str:
@@ -434,7 +434,10 @@ def get_periodes_attendues_inscription(inscription, annee=None):
     """
     is_primaire = est_cycle_primaire(inscription)
     annee = annee or (getattr(inscription, 'annee_scolaire', None) if inscription else None)
-    periodes_cfg = [p.nom for p in annee.periodes_bulletin] if (annee and getattr(annee, 'periodes_bulletin', None)) else []
+    periodes_cfg = [p.nom for p in sorted(
+        annee.periodes_bulletin,
+        key=lambda p: (p.date_debut.isoformat() if p.date_debut else '9999', p.id or 0),
+    )] if (annee and getattr(annee, 'periodes_bulletin', None)) else []
 
     if is_primaire:
         periodes_prim = [

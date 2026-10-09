@@ -743,43 +743,9 @@ def download_backup_file(filename):
 
 # --- Sauvegardes par Ã©cole ---
 def create_complete_backup():
-    """Sauvegarde complÃ¨te de toutes les donnÃ©es"""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_file = os.path.join(BACKUP_DIR, f"complete_backup_{timestamp}.json")
-    
-    backup_data = {
-        'metadata': {
-            'type': 'complete',
-            'timestamp': timestamp,
-            'version': '1.0',
-            'app_version': current_app.config.get('VERSION', 'N/A')
-        },
-        'data': {}
-    }
-    
-    try:
-        ecoles = get_ecole_filter_query(Ecole).all()
-        backup_data['data']['ecoles'] = [ecole.to_dict() for ecole in ecoles]
-        
-        # Ajouter les annÃ©es scolaires
-        annees_scolaires = get_ecole_filter_query(AnneeScolaire).all()
-        backup_data['data']['annees_scolaires'] = [annee.to_dict() for annee in annees_scolaires]
-        
-        tables = [Classe, Eleve, Professeur, Note, Absence, Utilisateur]
-        for table in tables:
-            table_name = table.__tablename__
-            items = get_ecole_filter_query(table).all()
-            backup_data['data'][table_name] = [item.to_dict() for item in items]
-        
-        with open(backup_file, 'w', encoding='utf-8') as f:
-            json.dump(backup_data, f, indent=2, ensure_ascii=False)
-        
-        log_action("SAUVEGARDE", f"Sauvegarde complÃ¨te crÃ©Ã©e: {backup_file}")
-        return backup_file
-        
-    except Exception as e:
-        log_action("ERREUR", f"Erreur sauvegarde complÃ¨te: {str(e)}", level="ERROR")
-        raise e
+    """Sauvegarde de toute la base via le backend global de maintenance."""
+    return create_backup()
+
 
 def _serialize_instance(obj):
     if not obj:

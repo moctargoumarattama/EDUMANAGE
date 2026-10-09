@@ -36,7 +36,44 @@ def get_periode_semestre(ecole_id, annee_id, semestre):
 
 def calendrier_configure(ecole_id, annee_id):
     periodes = get_semestres_annee(ecole_id, annee_id)
-    return len(periodes) == 2 and all(p.date_debut and p.date_fin for p in periodes)
+    annee = db.session.get(AnneeScolaire, annee_id)
+    return bool(
+        annee and len(periodes) == 2
+        and all(p.date_debut and p.date_fin and annee.date_debut <= p.date_debut <= p.date_fin <= annee.date_fin
+                for p in periodes)
+        and periodes[0].date_fin < periodes[1].date_debut
+    )
+
+
+def calendrier_configure_pour_cycles(ecole_id, annee_id):
+    """Vérifie les périodes nécessaires aux classes réellement préparées."""
+    from app.models import Classe
+    from app.services.niveaux import determiner_cycle_classe
+
+    annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
+    if not annee:
+        return False, 'une année scolaire valide'
+    classes = Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=annee_id).all()
+    primaire = any(determiner_cycle_classe(classe) == 'primaire' for classe in classes)
+    secondaire = not classes or any(determiner_cycle_classe(classe) != 'primaire' for classe in classes)
+    manquants = []
+
+    if secondaire and not calendrier_configure(ecole_id, annee_id):
+        manquants.append('les semestres S1 et S2')
+    if primaire:
+        periodes = PeriodeBulletin.query.filter_by(ecole_id=ecole_id, annee_id=annee_id).all()
+        compositions = [p for p in periodes if p.nom and (
+            'composition' in p.nom.casefold() or 'trimestre' in p.nom.casefold()
+        )]
+        compositions.sort(key=lambda p: (p.date_debut or annee.date_fin, p.id or 0))
+        if (len(compositions) != 3 or len({p.nom.strip().casefold() for p in compositions}) != 3
+                or not all(p.date_debut and p.date_fin
+                           and annee.date_debut <= p.date_debut <= p.date_fin <= annee.date_fin
+                           for p in compositions)
+                or any(a.date_fin >= b.date_debut for a, b in zip(compositions, compositions[1:]))):
+            manquants.append('les trois compositions primaires datées')
+
+    return not manquants, ', '.join(manquants)
 
 
 def calculer_bornes_semestres(annee, fin_semestre_1):

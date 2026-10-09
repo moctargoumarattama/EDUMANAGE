@@ -50,6 +50,16 @@
                                         <div class="text-danger small mt-1">{{ error }}</div>
                                     {% endfor %}
                                 </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Début <span class="text-danger">*</span></label>
+                                    {{ form.date_debut(class="form-control") }}
+                                    {% for error in form.date_debut.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Fin <span class="text-danger">*</span></label>
+                                    {{ form.date_fin(class="form-control") }}
+                                    {% for error in form.date_fin.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                                </div>
                             </div>
                         </div>
 

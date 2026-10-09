@@ -469,4 +469,6 @@ class AssignerClassesForm(FlaskForm):
 class PeriodeForm(FlaskForm):
     nom = StringField('Nom de la période', validators=[DataRequired()])
     annee_id = SelectField('Année scolaire', coerce=int, validators=[DataRequired()])
+    date_debut = DateField('Début', validators=[DataRequired()])
+    date_fin = DateField('Fin', validators=[DataRequired()])
     submit = SubmitField('Créer la période') 

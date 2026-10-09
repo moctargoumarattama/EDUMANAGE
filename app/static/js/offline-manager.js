@@ -6,6 +6,7 @@ class OfflineManager {
         this.syncInProgress = false;
         this.autoSyncEnabled = true;
         this.syncInterval = null;
+        this.statusInterval = null;
         this.listeners = new Map();
         this.preloadPromises = new Map();
         this.retryDelay = 5000;
@@ -60,6 +61,11 @@ class OfflineManager {
 
             // Configurer les écouteurs d'événements
             this.setupEventListeners();
+
+            // Le Wi-Fi peut rester actif alors que Flask ne répond plus.
+            await this.updateOnlineStatus();
+            if (this.statusInterval) clearInterval(this.statusInterval);
+            this.statusInterval = setInterval(() => this.updateOnlineStatus(), 15000);
 
             // Démarrer la synchronisation automatique si en ligne
             this.startAutoSync();
@@ -329,14 +335,14 @@ class OfflineManager {
             console.log('[SYNC UI] navigator.onLine est false');
             return false;
         }
+        let timeoutId;
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            timeoutId = setTimeout(() => controller.abort(), 4000);
             const response = await fetch('/api/connectivity', {
                 cache: 'no-store',
                 signal: controller.signal
             });
-            clearTimeout(timeoutId);
             if (!response.ok) {
                 console.log('[SYNC UI] Réponse reçue status non-OK:', response.status);
                 return false;
@@ -349,6 +355,8 @@ class OfflineManager {
         } catch (error) {
             console.log('[SYNC UI] Erreur/Timeout fetch /api/connectivity:', error);
             return false;
+        } finally {
+            if (timeoutId) clearTimeout(timeoutId);
         }
     }
 

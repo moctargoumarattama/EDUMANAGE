@@ -28,7 +28,7 @@ import logging
 from app import db
 from app.models import AnneeScolaire, Classe, Eleve, Inscription
 from app.services.preparation_annee import get_etat_preparation_annee
-from app.services.semestres import calendrier_configure
+from app.services.semestres import calendrier_configure_pour_cycles
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +59,9 @@ def preparer_activation_annee(ecole_id, annee_id):
     if cible.statut != "planifiee":
         return None, f"Statut invalide pour l'activation : '{cible.statut}'."
 
-    if not calendrier_configure(ecole_id, cible.id):
-        return None, "Activation refusée : configurez d'abord les semestres S1 et S2 de cette année."
+    calendrier_ok, manque = calendrier_configure_pour_cycles(ecole_id, cible.id)
+    if not calendrier_ok:
+        return None, f"Activation refusée : configurez d'abord {manque} de cette année."
 
     # Vérification de l'unicité de l'année active existante
     actives = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").all()
@@ -222,8 +223,9 @@ def activer_annee_scolaire(ecole_id, annee_id, user_id=None):
         msg = f"Statut invalide pour l'activation : '{cible.statut}'."
         return False, msg, {"succes": False, "error": msg}
 
-    if not calendrier_configure(ecole_id, cible.id):
-        msg = "Activation refusée : configurez d'abord les semestres S1 et S2 de cette année."
+    calendrier_ok, manque = calendrier_configure_pour_cycles(ecole_id, cible.id)
+    if not calendrier_ok:
+        msg = f"Activation refusée : configurez d'abord {manque} de cette année."
         return False, msg, {"succes": False, "error": msg}
 
     actives = AnneeScolaire.query.filter_by(ecole_id=ecole_id, statut="active").all()

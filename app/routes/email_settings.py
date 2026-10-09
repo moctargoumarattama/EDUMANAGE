@@ -178,9 +178,8 @@ def google_mail_callback():
     try:
         connected_email = connect_school_gmail(current_user.ecole_id, code)
         flash(
-            f"Félicitations ! Votre compte Gmail ({connected_email}) a été connecté avec succès. "
-            "Votre établissement enverra désormais tous ses e-mails scolaires depuis cette adresse ✅",
-            "success",
+            f"Compte Gmail ({connected_email}) connecté. Le canal d'envoi scolaire reste désactivé.",
+            "info",
         )
     except GoogleOAuthError as e:
         flash(f"Impossible de finaliser la connexion Google : {e}", "danger")

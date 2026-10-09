@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ cert.titre_document }} - {{ cert.nom_eleve or eleve.nom }} {{ cert.prenom_eleve or eleve.prenom }} ({{ cert.reference }})</title>
+    <title>{{ cert.titre_document }} - {{ cert.nom_eleve if cert.nom_eleve is not none else eleve.nom }} {{ cert.prenom_eleve if cert.nom_eleve is not none else eleve.prenom }} ({{ cert.reference }})</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -313,16 +313,17 @@
                     L'administration de l'établissement <em>{{ ecole.nom if ecole else "l'Établissement" }}</em> certifie par la présente que :
                 </p>
 
-                {% set nom_affiche = cert.nom_eleve or (eleve.nom if eleve else '') %}
-                {% set prenom_affiche = cert.prenom_eleve or (eleve.prenom if eleve else '') %}
-                {% set genre_affiche = cert.genre_eleve or (eleve.genre if eleve else 'M') %}
-                {% set date_naiss_affiche = cert.date_naissance_eleve or (eleve.date_naissance if eleve else None) %}
-                {% set lieu_naiss_affiche = cert.lieu_naissance_eleve or (eleve.lieu_naissance if eleve else '') %}
-                {% set nat_affiche = cert.nationalite_eleve or (eleve.nationalite if eleve else 'Nigérienne') %}
-                {% set pere_affiche = cert.nom_pere_eleve or (eleve.nom_pere if eleve else '') %}
-                {% set mere_affiche = cert.nom_mere_eleve or (eleve.nom_mere if eleve else '') %}
-                {% set mat_affiche = cert.matricule_eleve or (eleve.matricule if eleve else '') %}
-                {% set acte_affiche = cert.numero_acte_eleve or (eleve.numero_acte if eleve else '') %}
+                {% set identite_figee = cert.nom_eleve is not none %}
+                {% set nom_affiche = cert.nom_eleve if identite_figee else (eleve.nom if eleve else '') %}
+                {% set prenom_affiche = cert.prenom_eleve if identite_figee else (eleve.prenom if eleve else '') %}
+                {% set genre_affiche = cert.genre_eleve if identite_figee else (eleve.genre if eleve else 'M') %}
+                {% set date_naiss_affiche = cert.date_naissance_eleve if identite_figee else (eleve.date_naissance if eleve else None) %}
+                {% set lieu_naiss_affiche = cert.lieu_naissance_eleve if identite_figee else (eleve.lieu_naissance if eleve else '') %}
+                {% set nat_affiche = cert.nationalite_eleve if identite_figee else (eleve.nationalite if eleve else 'Nigérienne') %}
+                {% set pere_affiche = cert.nom_pere_eleve if identite_figee else (eleve.nom_pere if eleve else '') %}
+                {% set mere_affiche = cert.nom_mere_eleve if identite_figee else (eleve.nom_mere if eleve else '') %}
+                {% set mat_affiche = cert.matricule_eleve if identite_figee else (eleve.matricule if eleve else '') %}
+                {% set acte_affiche = cert.numero_acte_eleve if identite_figee else (eleve.numero_acte if eleve else '') %}
 
                 <p class="identite-eleve">
                     est inscrit(e) l'élève <strong class="eleve-highlight">{{ nom_affiche.upper() }} {{ prenom_affiche }}</strong>,

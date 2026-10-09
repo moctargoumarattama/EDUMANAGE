@@ -2,6 +2,7 @@
 
 (function () {
     'use strict';
+    window.KLASORA_OFFLINE_FORMS_GLOBAL = true;
 
     function fieldValue(form, selector, fallback = '') {
         const field = form.querySelector(selector);
@@ -15,7 +16,7 @@
     }
 
     function canQueueOffline(form) {
-        return !navigator.onLine &&
+        return (!navigator.onLine || (typeof offlineManager !== 'undefined' && offlineManager.isOnline === false)) &&
             typeof offlineManager !== 'undefined' &&
             offlineManager &&
             typeof offlineManager.addToSync === 'function' &&
@@ -45,7 +46,7 @@
 
         try {
             const stats = await offlineDB.getStats();
-            const isOnline = navigator.onLine;
+            const isOnline = navigator.onLine && (!offlineManager || offlineManager.isOnline !== false);
 
             if (offlineManager && offlineManager.syncInProgress) {
                 badge.className = 'badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 d-flex align-items-center';

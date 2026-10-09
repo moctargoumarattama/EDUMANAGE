@@ -31,6 +31,7 @@ from app.models import (
     Professeur,
 )
 from app.utils_classes import classes_triees_pedagogique
+from app.services.niveaux import determiner_cycle_classe, PERIODES_PRIMAIRE_DEFAULT
 
 
 MESSAGE_ANNEE_PLANIFIEE = "Les notes pourront être saisies lorsque cette année sera active."
@@ -47,6 +48,25 @@ TYPE_INTERROGATION = "Interrogation"
 TYPE_COMPOSITION = "Composition"
 TYPES_CONTROLE_CONTINU = {TYPE_DEVOIR, TYPE_INTERROGATION}
 TYPES_EVALUATION = [TYPE_DEVOIR, TYPE_INTERROGATION, TYPE_COMPOSITION]
+
+
+def periodes_notes_classe(classe, annee):
+    """Libellés utilisables en saisie, identiques à ceux du bulletin du cycle."""
+    configurees = [p.nom for p in sorted(
+        getattr(annee, 'periodes_bulletin', None) or [],
+        key=lambda p: (p.date_debut.isoformat() if p.date_debut else '9999', p.id or 0),
+    ) if p.nom]
+    if determiner_cycle_classe(classe) == 'primaire':
+        compositions = [p for p in configurees if 'composition' in p.casefold() or 'trimestre' in p.casefold()]
+        return compositions if len(compositions) >= 3 else list(PERIODES_PRIMAIRE_DEFAULT)
+    semestres = [p for p in configurees if 'semestre' in p.casefold()]
+    if len(semestres) >= 2:
+        return semestres
+    if len(configurees) == 2 and not any(
+        mot in nom.casefold() for nom in configurees for mot in ('composition', 'trimestre')
+    ):
+        return configurees
+    return list(PERIODES_SEMESTRES)
 
 
 def est_evaluation_sommative(type_evaluation):
@@ -589,16 +609,8 @@ def valider_mutation_note(
     if role not in {"admin", "super_admin", "professeur"}:
         return False, "Vous n'êtes pas autorisé à gérer les notes.", None, None, None
 
-    # Validation de la période semestrielle
+    # La période dépend de la classe ; on la contrôle après le chargement du cours.
     target_periode = periode or SEMESTRE_1
-    if target_periode not in PERIODES_SEMESTRES:
-        return (
-            False,
-            f"Période non autorisée. Seuls les semestres sont acceptés ({', '.join(PERIODES_SEMESTRES)}).",
-            None,
-            None,
-            None,
-        )
 
     # Validation du type d'évaluation
     target_type = type_evaluation or TYPE_DEVOIR
@@ -646,6 +658,10 @@ def valider_mutation_note(
             return False, "La classe de ce cours n'appartient pas à l'année scolaire active.", None, None, None
         if cours.classe.ecole_id != ecole_id:
             return False, "La classe de ce cours n'appartient pas à votre école.", None, None, None
+
+    periodes_autorisees = periodes_notes_classe(cours.classe, annee)
+    if target_periode not in periodes_autorisees:
+        return False, f"Période non autorisée pour cette classe ({', '.join(periodes_autorisees)}).", None, None, None
 
     # Si professeur, vérifier qu'il enseigne bien ce cours
     if role == "professeur":
@@ -1018,8 +1034,6 @@ def saisir_notes_classe(
         return 0, "Vous n'êtes pas autorisé à gérer les notes."
 
     per = periode or SEMESTRE_1
-    if per not in PERIODES_SEMESTRES:
-        return 0, f"Période non autorisée. Seuls les semestres sont acceptés ({', '.join(PERIODES_SEMESTRES)})."
 
     type_eval = type_evaluation or TYPE_DEVOIR
     if type_eval not in TYPES_EVALUATION:
@@ -1037,6 +1051,9 @@ def saisir_notes_classe(
         return 0, "Classe introuvable pour cette école."
     if classe.annee_scolaire_id != annee.id:
         return 0, "Cette classe n'appartient pas à l'année scolaire active."
+    periodes_autorisees = periodes_notes_classe(classe, annee)
+    if per not in periodes_autorisees:
+        return 0, f"Période non autorisée pour cette classe ({', '.join(periodes_autorisees)})."
 
     cours = Cours.query.filter_by(id=cours_id, ecole_id=ecole_id).first()
     if not cours:

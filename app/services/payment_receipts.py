@@ -1,6 +1,7 @@
 import base64
 import io
 import os
+import math
 from datetime import datetime
 from urllib.parse import quote_plus
 
@@ -46,7 +47,12 @@ def receipt_number(paiement):
 
 def _format_money(value):
     try:
-        return f"{float(value):,.0f} FCFA".replace(",", " ")
+        montant = float(value)
+        if not math.isfinite(montant):
+            return ""
+        # Les anciennes écritures fractionnaires doivent rester fidèles au montant stocké.
+        precision = 0 if montant.is_integer() else 2
+        return f"{montant:,.{precision}f} FCFA".replace(",", " ")
     except (TypeError, ValueError):
         return ""
 

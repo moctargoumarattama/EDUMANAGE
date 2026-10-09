@@ -1,5 +1,5 @@
 from app.utils_classes import classes_triees_pedagogique, ordre_pedagogique_classe
-from app.models import NiveauScolaire
+from app.models import Absence, EmploiTemps, NiveauScolaire
 from . import main
 from flask import g
 from app.authorization import tenant_required
@@ -55,6 +55,18 @@ _COURS_ARCHIVE_MESSAGE = (
 def _cours_est_archive(cours):
     annee = cours.classe.annee_scolaire if cours.classe else None
     return bool(annee and annee.statut == "archivee")
+
+
+def _erreur_reaffectation_cours(cours, *, classe_id=None, professeur_id=None):
+    """Empêche de laisser notes, absences et créneaux liés à une autre affectation."""
+    if classe_id is not None and classe_id != cours.classe_id:
+        if (Note.query.filter_by(cours_id=cours.id).first()
+                or Absence.query.filter_by(cours_id=cours.id).first()
+                or EmploiTemps.query.filter_by(cours_id=cours.id).first()):
+            return "Déplacement refusé : ce cours possède des notes, absences ou créneaux. Créez un cours dans la classe cible."
+    if professeur_id != cours.professeur_id and EmploiTemps.query.filter_by(cours_id=cours.id).first():
+        return "Affectation refusée : mettez d'abord à jour les créneaux de ce cours."
+    return None
 
 
 def _professeurs_affectables(ecole_id):
@@ -309,6 +321,12 @@ def affecter_professeur_cours(cours_id):
         return redirect(request.referrer or url_for('main.cours'))
 
     ancien_prof_id = cours_obj.professeur_id
+    erreur_affectation = _erreur_reaffectation_cours(cours_obj, professeur_id=professeur.id if professeur else None)
+    if erreur_affectation:
+        if request.is_json:
+            return jsonify({"success": False, "message": erreur_affectation}), 409
+        flash(erreur_affectation, "danger")
+        return redirect(request.referrer or url_for('main.cours'))
     cours_obj.professeur_id = professeur.id if professeur else None
     db.session.commit()
     if professeur and ancien_prof_id != professeur.id:
@@ -494,6 +512,13 @@ def modifier_cours(id):
         doublon = find_duplicate_cours(ecole_courante.id, classe.id, nom_cours, exclude_id=cours.id)
         if doublon:
             flash("Un cours avec ce nom existe déjà pour cette classe.", "danger")
+            return redirect(url_for('main.modifier_cours', id=cours.id))
+
+        erreur_affectation = _erreur_reaffectation_cours(
+            cours, classe_id=classe.id, professeur_id=professeur.id
+        )
+        if erreur_affectation:
+            flash(erreur_affectation, "danger")
             return redirect(url_for('main.modifier_cours', id=cours.id))
 
         ancien_prof_id = cours.professeur_id

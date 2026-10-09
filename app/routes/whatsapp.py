@@ -17,8 +17,8 @@ def _gateway_url(path):
     return f"{WHATSAPP_GATEWAY_BASE_URL.rstrip('/')}{path}"
 
 def _get_gateway_headers():
-    secret = os.environ.get("WHATSAPP_GATEWAY_SECRET", "secret-gateway-local-klasora-2024")
-    return {"X-Gateway-Secret": secret}
+    from app.services.whatsapp_gateway_auth import get_gateway_secret
+    return {"X-Gateway-Secret": get_gateway_secret()}
 
 def _sanitize_gateway_payload(payload):
     if not isinstance(payload, dict):
@@ -42,17 +42,13 @@ def _sanitize_gateway_payload(payload):
 
 
 def sync_ecole_whatsapp_enabled(ecole_id, is_connected):
+    """Modifie l'autorisation uniquement après une action explicite de la direction."""
     from app import db
     from app.models import Ecole
     ecole = db.session.get(Ecole, ecole_id)
     if ecole:
-        # Check current manual state, only update if it matches connection state changes?
-        # Actually, the instructions say: atomiquement ecole.whatsapp_enabled = True.
-        if is_connected and not ecole.whatsapp_enabled:
-            ecole.whatsapp_enabled = True
-            db.session.commit()
-        elif not is_connected and ecole.whatsapp_enabled:
-            ecole.whatsapp_enabled = False
+        if ecole.whatsapp_enabled != bool(is_connected):
+            ecole.whatsapp_enabled = bool(is_connected)
             db.session.commit()
 
 def get_whatsapp_gateway_status(ecole_id=None, include_qr=True):
@@ -68,11 +64,9 @@ def get_whatsapp_gateway_status(ecole_id=None, include_qr=True):
         )
         response.raise_for_status()
         payload = _sanitize_gateway_payload(response.json())
-        sync_ecole_whatsapp_enabled(ecole_id, payload.get("connected", False))
         return payload
     except (requests.RequestException, ValueError, TypeError) as exc:
         current_app.logger.warning("Passerelle WhatsApp indisponible: %s", exc)
-        sync_ecole_whatsapp_enabled(ecole_id, False)
         return {"status": "INDISPONIBLE", "connected": False}
 
 
@@ -124,12 +118,12 @@ def whatsapp_logout():
         category = "success"
     except requests.RequestException as exc:
         current_app.logger.warning("Deconnexion WhatsApp impossible: %s", exc)
-        sync_ecole_whatsapp_enabled(current_user.ecole_id, False)
         flash_message = "Passerelle WhatsApp indisponible."
         category = "warning"
 
     from flask import flash
     flash(flash_message, category)
+    return redirect(url_for("main.whatsapp_connect"))
 @main.route("/parametres/whatsapp/toggle", methods=["POST"])
 @main.route("/admin/whatsapp/toggle", methods=["POST"])
 @login_required

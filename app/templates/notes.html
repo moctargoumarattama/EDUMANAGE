@@ -177,8 +177,9 @@
                                     {{ form.periode(class="form-select", id="periode", required=true) }}
                                 {% else %}
                                     <select name="periode" id="periode" class="form-select" required>
-                                        <option value="Semestre 1" selected>Semestre 1</option>
-                                        <option value="Semestre 2">Semestre 2</option>
+                                        {% for periode_nom in periodes_notes_disponibles %}
+                                        <option value="{{ periode_nom }}">{{ periode_nom }}</option>
+                                        {% endfor %}
                                     </select>
                                 {% endif %}
                             </div>
@@ -240,8 +241,9 @@
                             <div class="col-4">
                                 <label class="form-label small fw-semibold text-muted mb-1" style="font-size: 0.72rem;">Période</label>
                                 <select class="form-select form-select-sm shadow-none" id="modalSaisiePeriodeSelect">
-                                    <option value="Semestre 1" selected>Semestre 1</option>
-                                    <option value="Semestre 2">Semestre 2</option>
+                                    {% for periode_nom in periodes_notes_disponibles %}
+                                    <option value="{{ periode_nom }}">{{ periode_nom }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-4">
@@ -375,8 +377,9 @@
                     <div class="col-6 col-md-4 col-lg">
                         <select id="filterPeriodeSelect" class="form-select form-select-sm">
                             <option value="">Toutes périodes</option>
-                            <option value="Semestre 1" {% if periode == 'Semestre 1' or request.args.get('periode') == 'Semestre 1' %}selected{% endif %}>Semestre 1</option>
-                            <option value="Semestre 2" {% if periode == 'Semestre 2' or request.args.get('periode') == 'Semestre 2' %}selected{% endif %}>Semestre 2</option>
+                            {% for periode_nom in periodes_notes_disponibles %}
+                            <option value="{{ periode_nom }}" {% if periode == periode_nom or request.args.get('periode') == periode_nom %}selected{% endif %}>{{ periode_nom }}</option>
+                            {% endfor %}
                         </select>
                     </div>
 

@@ -455,7 +455,7 @@ class OfflineDB {
                         deletedCount++;
                     }
                 }
-                console.log(🗑️ File d\'attente purgée pour l\'utilisateur  ( élément(s) supprimé(s)));
+                console.log(`🗑️ File d'attente purgée pour l'utilisateur ${targetUserId} (${deletedCount} élément(s) supprimé(s))`);
                 resolve(deletedCount);
             };
 

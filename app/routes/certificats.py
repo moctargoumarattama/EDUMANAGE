@@ -111,6 +111,13 @@ def generer():
 
     # Résolution de l'année scolaire et de la classe de l'élève
     annee_active = get_annee_consultee(ecole_id) or get_annee_active(ecole_id)
+    if type_certificat in ('transfert', 'radiation') and (
+        not annee_active or annee_active.statut != 'active'
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Un transfert ou une radiation ne peut être décidé que pour l'année scolaire active."
+        }), 400
     inscription = Inscription.query.filter_by(
         eleve_id=eleve.id,
         ecole_id=ecole_id,
@@ -171,8 +178,10 @@ def generer():
             motif_sortie=f"Délivrance de certificat de {type_certificat}",
             annee_scolaire_id=inscription.annee_scolaire_id if inscription else None
         )
-        if transf_insc:
-            inscription = transf_insc
+        if transf_err or not transf_insc:
+            db.session.rollback()
+            return jsonify({"success": False, "error": transf_err or "Aucune inscription à transférer."}), 400
+        inscription = transf_insc
         # Normaliser pour le stockage et le rendu sous 'transfert'
         type_certificat = 'transfert'
 

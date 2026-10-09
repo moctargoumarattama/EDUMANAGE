@@ -1091,7 +1091,12 @@ def get_deliberations_annuelles_eleves(ecole_id, annee_id):
     # 2. Pour les élèves sans bulletin, fallback sur les notes
     sans_bulletin = {i.eleve_id: i for i in inscriptions if i.eleve_id not in deliberations}
 
-    toutes_periodes_connues = set(periodes_officielles) | set(PERIODES_SEMESTRES) | set(PERIODES_PRIMAIRE_DEFAULT)
+    # Les anciennes années utilisaient ces libellés avant « Semestre 1/2 ».
+    periodes_secondaires_historiques = {"1er Semestre", "2ème Semestre"}
+    toutes_periodes_connues = (
+        set(periodes_officielles) | set(PERIODES_SEMESTRES)
+        | set(PERIODES_PRIMAIRE_DEFAULT) | periodes_secondaires_historiques
+    )
     if sans_bulletin:
         notes = Note.query.filter(
             Note.ecole_id == ecole_id,
@@ -1124,8 +1129,8 @@ def get_deliberations_annuelles_eleves(ecole_id, annee_id):
         for eleve_id, par_periode in par_eleve.items():
             ins = sans_bulletin[eleve_id]
             is_primaire = est_cycle_primaire(ins)
-            periodes_cibles = list(PERIODES_PRIMAIRE_DEFAULT) if is_primaire else list(PERIODES_SEMESTRES)
-            nb_attendues = 3 if is_primaire else 2
+            periodes_cibles = get_periodes_attendues_inscription(ins, annee)
+            nb_attendues = len(periodes_cibles)
 
             moyennes_periodes = {}
             for p_nom in periodes_cibles:
@@ -1229,15 +1234,13 @@ def evaluer_deliberation_annuelle(ecole_id, annee_id, eleve_id):
 
 def get_moyennes_annuelles_eleves(ecole_id, annee_id):
     """
-    Moyenne des deux semestres selon les mêmes règles que les bulletins.
-    Pour les élèves avec bulletins, divise par le nombre réglementaire de périodes officielles.
-    Un cursus incomplet en fallback de notes n'est pas émis pour préserver la règle académique.
+    Moyenne annuelle seulement si toutes les périodes et matières sont évaluées.
     """
     delibs = get_deliberations_annuelles_eleves(ecole_id, annee_id)
     return {
         eid: data["moyenne"]
         for eid, data in delibs.items()
-        if data.get("moyenne") is not None and not data.get("_fallback_incomplet")
+        if data.get("moyenne") is not None and not data.get("cursus_incomplet")
     }
 
 

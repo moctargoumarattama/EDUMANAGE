@@ -281,12 +281,12 @@ def init_annees():
 # --- Sauvegarde complète ---
 @admin_bp.route('/admin/backup_complete', methods=['POST'])
 def backup_complete():
-    """Sauvegarde complète de toutes les écoles"""
+    """Sauvegarde globale de la base de données."""
     try:
         filename = create_complete_backup()
-        flash(f"Sauvegarde complète créée: {filename}", "success")
+        flash(f"Sauvegarde de la base créée : {filename}", "success")
     except Exception as e:
-        flash(f"Erreur lors de la sauvegarde complète: {str(e)}", "error")
+        flash(f"Erreur lors de la sauvegarde de la base : {str(e)}", "error")
     return redirect(url_for('admin.backup_page'))
 
 # --- Sauvegarde par école ---

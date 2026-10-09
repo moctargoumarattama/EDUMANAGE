@@ -404,7 +404,7 @@ def notifier_alertes(alertes):
                         a.get('eleve_id'),
                         a.get('titre'),
                     )
-                    a['notifie'] = True
+                    # Aucun envoi n'a été effectué : conserver l'alerte à traiter.
 
             try:
                 db.session.commit()
