@@ -15,7 +15,10 @@ Ce document décrit la procédure standard et reproductible pour déployer KLASO
 ## 2. Procédure d'Installation en 5 Étapes
 
 ### Étape 1 : Partir d'une base vierge
-Si une ancienne base de données de développement existe, la supprimer :
+Pour mettre à jour une base existante, conservez-la, effectuez une sauvegarde et
+passez directement à l'étape 2.
+
+Si une ancienne base de développement **jetable** existe, la supprimer :
 ```powershell
 Remove-Item -Force instance\ecole.db
 ```
@@ -28,8 +31,20 @@ Exécuter la montée en version complète du schéma relationnel :
 *Vérification du schéma :*
 ```powershell
 .\.venv\Scripts\python.exe -m flask db current
-# Doit afficher : 9bc234dfde56 (head)
+# Doit afficher : c8d2e4f6a9b1 (head)
 ```
+
+La révision `c8d2e4f6a9b1` intègre les champs d'état civil, la clé unique
+d'opération des paiements et l'identité conservée sur les certificats. Les scripts
+historiques `migrate_niger_pratique.py` et
+`migrate_caisse_idempotence_et_certificats.py` ne sont plus nécessaires pour ces
+ajouts. Une installation les ayant déjà exécutés est prise en charge : les
+colonnes et les données existantes sont conservées.
+
+Si des paiements partagent une clé d'opération, cette révision s'arrête avant tout ajout ; les
+doublons doivent être examinés sans supprimer arbitrairement un versement.
+Le retour arrière de cette révision est refusé afin de conserver les données
+administratives et financières.
 
 ### Étape 3 : Initialiser les données techniques fondamentales
 Lancer la commande canonique KLASORA :
