@@ -38,7 +38,13 @@ from .common import (
 from app.services.paiements_annuels import get_mois_scolaires
 from app.services.annees_scolaires import get_annee_consultee, get_annees_ecole, get_classes_annee
 from app.services.classes_annuelles import get_classes_ouvertes_annee
-from app.services.inscriptions_annuelles import creer_inscription_annuelle, get_inscription_active, get_parcours_eleve, modifier_inscription_annuelle
+from app.services.inscriptions_annuelles import (
+    CapaciteClasseDepasseeError,
+    creer_inscription_annuelle,
+    get_inscription_active,
+    get_parcours_eleve,
+    modifier_inscription_annuelle,
+)
 from app.access_codes import generate_access_code, is_valid_access_code
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -676,9 +682,15 @@ def ajouter_eleve():
                 annee_scolaire_id=classe_selectionnee.annee_scolaire_id,
                 classe_id=classe_selectionnee.id,
                 frais_annuels=nouvel_eleve.frais_annuels,
+                forcer_surcapacite=(request.form.get('forcer_surcapacite') == '1' and current_user.role == 'admin'),
             )
             if inscription_error:
                 raise ValueError(inscription_error)
+            if request.form.get('forcer_surcapacite') == '1':
+                current_app.logger.warning(
+                    "SURCAPACITE autorisée par %s: eleve=%s classe=%s annee=%s",
+                    current_user.id, nouvel_eleve.id, classe_selectionnee.id, classe_selectionnee.annee_scolaire_id,
+                )
 
             db.session.commit()
             _notifier_whatsapp_inscription(
@@ -709,6 +721,10 @@ def ajouter_eleve():
             flash("✅ Élève ajouté avec succès et inscrit à tous les cours de sa classe.", "success")
             return redirect(url_for('main.eleves'))
 
+        except CapaciteClasseDepasseeError as e:
+            db.session.rollback()
+            flash(str(e), "warning")
+            return redirect(url_for('main.eleves'))
         except Exception as e:
             db.session.rollback()
             import traceback
@@ -1119,12 +1135,17 @@ def api_modifier_eleve(eleve_id):
     eleve.email_parent = None
 
     # Inscription annuelle / mise à jour classe
-    inscription, inscription_error = modifier_inscription_annuelle(
-        ecole_id=ecole_id,
-        eleve_id=eleve.id,
-        annee_scolaire_id=classe.annee_scolaire_id,
-        classe_id=classe.id,
-    )
+    try:
+        inscription, inscription_error = modifier_inscription_annuelle(
+            ecole_id=ecole_id,
+            eleve_id=eleve.id,
+            annee_scolaire_id=classe.annee_scolaire_id,
+            classe_id=classe.id,
+            forcer_surcapacite=(str(data.get('forcer_surcapacite', '')).lower() in ('1', 'true', 'on') and current_user.role == 'admin'),
+        )
+    except CapaciteClasseDepasseeError as exc:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(exc)}), 409
     if inscription_error:
         db.session.rollback()
         return jsonify({'success': False, 'error': inscription_error}), 400
@@ -1872,17 +1893,28 @@ def modifier_eleve(eleve_id):
                 db.session.add(parent)
                 db.session.flush()
 
-        inscription, inscription_error = modifier_inscription_annuelle(
-            ecole_id=current_user.ecole_id,
-            eleve_id=eleve.id,
-            annee_scolaire_id=classe.annee_scolaire_id,
-            classe_id=classe.id,
-            frais_annuels=eleve.frais_annuels,
-        )
+        try:
+            inscription, inscription_error = modifier_inscription_annuelle(
+                ecole_id=current_user.ecole_id,
+                eleve_id=eleve.id,
+                annee_scolaire_id=classe.annee_scolaire_id,
+                classe_id=classe.id,
+                frais_annuels=eleve.frais_annuels,
+                forcer_surcapacite=(request.form.get('forcer_surcapacite') == '1' and current_user.role == 'admin'),
+            )
+        except CapaciteClasseDepasseeError as exc:
+            db.session.rollback()
+            flash(str(exc), "warning")
+            return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
         if inscription_error:
             db.session.rollback()
             flash(inscription_error, "danger")
             return redirect(url_for('main.modifier_eleve', eleve_id=eleve.id, return_url=return_url))
+        if request.form.get('forcer_surcapacite') == '1':
+            current_app.logger.warning(
+                "SURCAPACITE autorisée par %s: eleve=%s classe=%s annee=%s",
+                current_user.id, eleve.id, classe.id, classe.annee_scolaire_id,
+            )
 
         eleve.parent_id = parent.id if parent else None
         eleve.email_parent = None

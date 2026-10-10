@@ -19,6 +19,27 @@ from app.services.classes_annuelles import get_classes_ouvertes_annee
 from app.services.inscriptions_annuelles import creer_inscription_annuelle
 from app.services.eleves import cle_identite_eleve, trouver_eleves_identiques
 from app.services.matricule_service import verrouiller_ecole
+from app.services.phone_numbers import cles_telephone_equivalentes, normaliser_telephone_international
+from app.access_codes import generate_access_code
+
+
+def _parent_import(ecole_id, telephone, nom_parent=None, enfant_nom=None):
+    """Rattache ou crée un compte parent à partir d'un téléphone importé."""
+    telephone = normaliser_telephone_international(telephone)
+    if not telephone:
+        return None, None
+    cles = cles_telephone_equivalentes(telephone)
+    parent = next((p for p in Utilisateur.query.filter_by(ecole_id=ecole_id, role='parent').all()
+                   if cles_telephone_equivalentes(p.telephone) & cles), None)
+    if not parent:
+        parent = Utilisateur(
+            nom=(nom_parent or f"Parent {enfant_nom or ''}").strip() or "Parent",
+            prenom=None, email=None, telephone=telephone, role='parent', ecole_id=ecole_id,
+        )
+        parent.set_mot_de_passe(generate_access_code())
+        db.session.add(parent)
+        db.session.flush()
+    return parent, telephone
 
 
 def _get_temp_import_filepath(token: str) -> str:
@@ -80,6 +101,7 @@ def generer_modele_excel_eleves() -> io.BytesIO:
         "N° Acte / Jugement",
         "Nom du père",
         "Nom de la mère",
+        "Matricule permanent",
     ]
     
     ws.append(headers)
@@ -224,6 +246,7 @@ def previsualiser_import_excel(file_stream, ecole_id: int, annee_consultee: Anne
         numero_acte = str(row[12]).strip() if len(row) > 12 and row[12] is not None else ""
         nom_pere = str(row[13]).strip() if len(row) > 13 and row[13] is not None else ""
         nom_mere = str(row[14]).strip() if len(row) > 14 and row[14] is not None else ""
+        matricule = str(row[15]).strip() if len(row) > 15 and row[15] is not None else ""
 
         errs = []
         warns = []
@@ -248,13 +271,21 @@ def previsualiser_import_excel(file_stream, ecole_id: int, annee_consultee: Anne
         # Validation 3 : identité exacte, sans fusion basée sur le contact parent.
         if nom and prenom and date_naissance:
             identite = cle_identite_eleve(nom, prenom, date_naissance)
-            if identite in identites_fichier:
+            if identite in identites_fichier and not (matricule or numero_acte):
                 errs.append(f"Doublon de la ligne {identites_fichier[identite]} dans ce fichier.")
                 action = "Ignoré (Doublon du fichier)"
             else:
-                identites_fichier[identite] = row_idx
+                identites_fichier.setdefault(identite, row_idx)
 
-            candidats = eleves_par_identite.get(identite, [])
+            candidats_matricule = Eleve.query.filter_by(ecole_id=ecole_id, matricule=matricule).all() if matricule else []
+            candidats_acte = Eleve.query.filter_by(ecole_id=ecole_id, numero_acte=numero_acte).all() if numero_acte else []
+            candidats = (
+                candidats_matricule or candidats_acte
+                if (matricule or numero_acte)
+                else eleves_par_identite.get(identite, [])
+            )
+            if matricule and candidats_matricule and any(cle_identite_eleve(c.nom, c.prenom, c.date_naissance) != identite for c in candidats_matricule):
+                errs.append(f"Le matricule {matricule} appartient à une autre identité : arbitrage obligatoire.")
             if len(candidats) > 1:
                 matricules = ", ".join(e.matricule for e in candidats)
                 errs.append(f"Plusieurs dossiers existants pour cette identité ({matricules}). Vérifiez-les avant l'import.")
@@ -272,6 +303,8 @@ def previsualiser_import_excel(file_stream, ecole_id: int, annee_consultee: Anne
                     if not errs:
                         action = "Réinscription"
 
+        if not telephone_parent:
+            warns.append("Sans contact tuteur : aucun compte parent ne sera rattaché.")
         status_row = "error" if errs else ("warning" if warns else "valid")
         if errs:
             count_erreurs += 1
@@ -299,6 +332,8 @@ def previsualiser_import_excel(file_stream, ecole_id: int, annee_consultee: Anne
             'numero_acte': numero_acte or None,
             'nom_pere': nom_pere or None,
             'nom_mere': nom_mere or None,
+            'matricule': matricule or None,
+            'parent_status': 'Avec contact tuteur' if telephone_parent else 'Sans contact tuteur',
             'existing_eleve_id': existing_eleve.id if existing_eleve else None,
             'status': status_row,
             'action': action,
@@ -353,19 +388,37 @@ def executer_import_excel(lignes_valides: list, ecole_id: int, annee_consultee: 
                 ignores += 1
                 continue
             identite = cle_identite_eleve(nom, prenom, date_naiss)
-            if identite in identites_traitees:
+            matricule = (item.get('matricule') or '').strip()
+            numero_acte = (item.get('numero_acte') or '').strip()
+            cle_import = (identite, matricule.casefold(), numero_acte.casefold())
+            if cle_import in identites_traitees:
                 ignores += 1
                 continue
-            identites_traitees.add(identite)
+            identites_traitees.add(cle_import)
 
             # Une autre importation a pu créer le dossier depuis la prévisualisation.
-            candidats = trouver_eleves_identiques(ecole_id, nom, prenom, date_naiss)
+            matricule = (item.get('matricule') or '').strip()
+            numero_acte = (item.get('numero_acte') or '').strip()
+            if matricule:
+                candidats = Eleve.query.filter_by(ecole_id=ecole_id, matricule=matricule).all()
+            elif numero_acte:
+                candidats = Eleve.query.filter_by(ecole_id=ecole_id, numero_acte=numero_acte).all()
+            else:
+                candidats = trouver_eleves_identiques(ecole_id, nom, prenom, date_naiss)
+                # Sans identifiant permanent, une identité homonyme ne doit
+                # jamais être fusionnée silencieusement.
             if len(candidats) > 1:
                 ignores += 1
                 continue
 
             if candidats:
                 eleve_id = candidats[0].id
+                parent_user, telephone_normalise = _parent_import(
+                    ecole_id, item.get('telephone_parent'), item.get('nom_parent'), nom
+                )
+                if parent_user:
+                    candidats[0].parent_id = parent_user.id
+                    candidats[0].contact_parent = telephone_normalise
                 deja_inscrit = Inscription.query.filter_by(
                     ecole_id=ecole_id, eleve_id=eleve_id, annee_scolaire_id=annee_consultee.id,
                 ).first()
@@ -388,12 +441,12 @@ def executer_import_excel(lignes_valides: list, ecole_id: int, annee_consultee: 
                 # Gestion facultative d'un utilisateur Parent
                 parent_id = None
                 email_parent = item.get('email_parent')
-                telephone_parent = item.get('telephone_parent')
-                
-                if email_parent:
-                    parent_user = Utilisateur.query.filter_by(email=email_parent, ecole_id=ecole_id, role='parent').first()
-                    if parent_user:
-                        parent_id = parent_user.id
+                telephone_parent = normaliser_telephone_international(item.get('telephone_parent'))
+
+                parent_user, telephone_parent = _parent_import(
+                    ecole_id, telephone_parent, item.get('nom_parent'), nom
+                )
+                parent_id = parent_user.id if parent_user else None
 
                 nouveau = Eleve(
                     nom=nom,
@@ -404,13 +457,15 @@ def executer_import_excel(lignes_valides: list, ecole_id: int, annee_consultee: 
                     adresse=item.get('adresse'),
                     contact_parent=telephone_parent,
                     email_parent=email_parent,
+                    parent_id=parent_id,
                     ecole_id=ecole_id,
                     statut=item.get('statut', 'actif'),
                     annee_premiere_ecole=annee_consultee.date_debut.year,
                     nationalite=item.get('nationalite') or 'Nigérienne',
-                    numero_acte=item.get('numero_acte'),
+                    numero_acte=numero_acte or None,
                     nom_pere=item.get('nom_pere'),
                     nom_mere=item.get('nom_mere'),
+                    matricule=matricule or None,
                 )
                 db.session.add(nouveau)
                 db.session.flush()

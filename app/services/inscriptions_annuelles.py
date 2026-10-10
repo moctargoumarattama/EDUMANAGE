@@ -10,6 +10,36 @@ STATUTS_INSCRIPTION = {"preinscrit", "inscrit", "termine", "sorti", "transfere",
 DECISIONS_FIN_ANNEE = {"passage", "redoublement", "transfert", "sortie", "fin_cycle", "diplome", "radiation"}
 
 
+class CapaciteClasseDepasseeError(Exception):
+    """Inscription refusée lorsque la capacité configurée d'une classe est atteinte."""
+
+    def __init__(self, classe, effectif, capacite):
+        self.classe = classe
+        self.effectif = effectif
+        self.capacite = capacite
+        super().__init__(
+            f"Classe {classe.nom} saturée ({effectif}/{capacite} élèves). "
+            "Choisissez une autre division ou forcez l'inscription en tant qu'administrateur."
+        )
+
+
+def _verifier_capacite_classe(classe, *, inscription_id=None, forcer_surcapacite=False):
+    capacite = getattr(classe, "capacite_max", None)
+    if forcer_surcapacite or not capacite or capacite <= 0:
+        return
+    requete = Inscription.query.filter(
+        Inscription.ecole_id == classe.ecole_id,
+        Inscription.annee_scolaire_id == classe.annee_scolaire_id,
+        Inscription.classe_id == classe.id,
+        Inscription.statut.in_(("preinscrit", "inscrit", "actif")),
+    )
+    if inscription_id:
+        requete = requete.filter(Inscription.id != inscription_id)
+    effectif = requete.count()
+    if effectif >= capacite:
+        raise CapaciteClasseDepasseeError(classe, effectif, capacite)
+
+
 def get_inscription(eleve, annee):
     if not eleve or not annee:
         return None
@@ -100,7 +130,7 @@ def classe_effective_pour_periode(inscription, periode):
     return inscription.classe_id
 
 
-def creer_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id, statut=None, sync_active=True, frais_annuels=None, allow_archived=False):
+def creer_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id, statut=None, sync_active=True, frais_annuels=None, allow_archived=False, forcer_surcapacite=False):
     eleve, annee, classe, error = _validate_inscription_context(
         ecole_id, eleve_id, annee_scolaire_id, classe_id, allow_archived=allow_archived
     )
@@ -120,6 +150,8 @@ def creer_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id,
     ).first()
     if existing:
         return None, "Une inscription existe deja pour cet eleve et cette annee scolaire."
+
+    _verifier_capacite_classe(classe, forcer_surcapacite=forcer_surcapacite)
 
     # Règle Phase 3B :
     # Si frais_annuels est fourni -> utiliser cette valeur (y compris 0.0)
@@ -144,7 +176,7 @@ def creer_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id,
     return inscription, None
 
 
-def modifier_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id, statut=None, sync_active=True, frais_annuels=None):
+def modifier_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_id, statut=None, sync_active=True, frais_annuels=None, forcer_surcapacite=False):
     eleve, annee, classe, error = _validate_inscription_context(ecole_id, eleve_id, annee_scolaire_id, classe_id)
     if error:
         return None, error
@@ -163,12 +195,15 @@ def modifier_inscription_annuelle(ecole_id, eleve_id, annee_scolaire_id, classe_
             statut=statut or "inscrit",
             sync_active=sync_active,
             frais_annuels=frais_annuels,
+            forcer_surcapacite=forcer_surcapacite,
         )
 
     if statut is not None:
         if statut not in STATUTS_INSCRIPTION:
             return None, "Statut d'inscription invalide."
     if inscription.classe_id != classe.id:
+        if inscription.statut in ("preinscrit", "inscrit", "actif"):
+            _verifier_capacite_classe(classe, inscription_id=inscription.id, forcer_surcapacite=forcer_surcapacite)
         anciennes_notes = Note.query.join(Cours, Note.cours_id == Cours.id).filter(
             Note.ecole_id == ecole_id, Note.annee_id == annee.id,
             Note.eleve_id == eleve.id,
