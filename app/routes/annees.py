@@ -58,7 +58,16 @@ from app.services.activation_annee import (
     preparer_activation_annee,
     activer_annee_scolaire,
 )
-from app.services.semestres import calendrier_configure, configurer_semestres_annee, get_semestres_annee
+from app.services.semestres import (
+    calendrier_configure,
+    calendrier_configure_compositions,
+    calendrier_configure_mixte,
+    COMPOSITIONS_PRIMAIRES,
+    configurer_compositions_annee,
+    configurer_semestres_annee,
+    get_compositions_annee,
+    get_semestres_annee,
+)
 from app.services.duplication_structure import dupliquer_structure_annee
 
 
@@ -1369,23 +1378,53 @@ def onboarding_rentree(cible_id):
     annee_source = determiner_source_passage_pour_cible(annee_cible, toutes_annees_ecole)
     annee_active = next((a for a in toutes_annees_ecole if a.statut == 'active'), None)
 
+    # Le calendrier dépend des cycles réellement présents dans l'établissement.
+    # La structure de l'année cible peut être vide au premier affichage : dans
+    # ce cas, la structure de l'année source fournit le meilleur signal connu.
+    classes_cible = classes_triees_pedagogique(
+        Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=cible_id)
+    ).all()
+    classes_cycle = list(classes_cible)
+    if annee_source:
+        classes_cycle.extend(Classe.query.filter_by(
+            ecole_id=ecole_id, annee_scolaire_id=annee_source.id
+        ).all())
+    from app.services.niveaux import determiner_cycle_classe
+    cycles_detectes = {determiner_cycle_classe(classe) for classe in classes_cycle}
+    if cycles_detectes == {'primaire'}:
+        cycle_calendrier = 'primaire'
+    elif 'primaire' in cycles_detectes and cycles_detectes:
+        cycle_calendrier = 'mixte'
+    else:
+        cycle_calendrier = 'secondaire'
+
     # Traitement des actions POST
     if request.method == 'POST':
         action = request.form.get('action')
 
         if action == 'configurer_semestres':
-            fin_s1_str = request.form.get('fin_semestre_1')
-            if fin_s1_str:
-                try:
-                    fin_s1 = datetime.strptime(fin_s1_str, '%Y-%m-%d').date()
-                    ok, err = configurer_semestres_annee(ecole_id, annee_cible.id, fin_s1)
-                    if ok:
-                        flash("Semestres configurés avec succès !", "success")
-                        return redirect(url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='2'))
+            try:
+                def _date_formulaire(nom):
+                    valeur = request.form.get(nom, '').strip()
+                    return datetime.strptime(valeur, '%Y-%m-%d').date() if valeur else None
+
+                fins_compositions = [_date_formulaire(f'fin_composition_{index}') for index in range(1, 4)]
+                fin_s1 = _date_formulaire('fin_semestre_1')
+                resultats = []
+                if cycle_calendrier in ('primaire', 'mixte'):
+                    resultats.append(configurer_compositions_annee(ecole_id, annee_cible.id, fins_compositions))
+                if cycle_calendrier in ('secondaire', 'mixte'):
+                    if not fin_s1:
+                        resultats.append((None, "La date de fin du Semestre 1 est obligatoire."))
                     else:
-                        flash(err or "Erreur lors de la configuration des semestres.", "danger")
-                except ValueError:
-                    flash("Format de date invalide.", "danger")
+                        resultats.append(configurer_semestres_annee(ecole_id, annee_cible.id, fin_s1))
+                erreur = next((message for _periodes, message in resultats if message), None)
+                if not erreur:
+                    flash("Périodes scolaires configurées avec succès !", "success")
+                    return redirect(url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='2'))
+                flash(erreur, "danger")
+            except ValueError:
+                flash("Format de date invalide.", "danger")
             return redirect(url_for('main.onboarding_rentree', cible_id=annee_cible.id, step='1'))
 
         elif action == 'dupliquer_structure' and annee_source:
@@ -1469,19 +1508,27 @@ def onboarding_rentree(cible_id):
 
     # 1. Structure & Périodes
     semestres_list = get_semestres_annee(ecole_id, annee_cible.id)
+    compositions_list = get_compositions_annee(ecole_id, annee_cible.id)
     from types import SimpleNamespace
     ns = SimpleNamespace(
         s1=semestres_list[0] if len(semestres_list) > 0 else None,
         s2=semestres_list[1] if len(semestres_list) > 1 else None,
+        c1=compositions_list[0] if len(compositions_list) > 0 else None,
+        c2=compositions_list[1] if len(compositions_list) > 1 else None,
+        c3=compositions_list[2] if len(compositions_list) > 2 else None,
     )
-    classes_cible = classes_triees_pedagogique(
-        Classe.query.filter_by(ecole_id=ecole_id, annee_scolaire_id=cible_id)
-    ).all()
     total_classes = len(classes_cible)
     classes_ouvertes_count = sum(1 for c in classes_cible if classe_est_ouverte(c))
     periodes_count = PeriodeBulletin.query.filter_by(ecole_id=ecole_id, annee_id=cible_id).count()
-    is_cal_cfg = calendrier_configure(ecole_id, cible_id)
-    etape1_complete = (classes_ouvertes_count > 0 and (is_cal_cfg or periodes_count >= 2))
+    is_cal_cfg = (
+        calendrier_configure_compositions(ecole_id, cible_id)
+        if cycle_calendrier == 'primaire'
+        else calendrier_configure(ecole_id, cible_id)
+        if cycle_calendrier == 'secondaire'
+        else calendrier_configure_mixte(ecole_id, cible_id)
+    )
+    periodes_requises = 3 if cycle_calendrier == 'primaire' else 5 if cycle_calendrier == 'mixte' else 2
+    etape1_complete = (classes_ouvertes_count > 0 and (is_cal_cfg or periodes_count >= periodes_requises))
 
     # 2. Décisions du Conseil (Examen Classe par Classe)
     classes_source_statut = []
@@ -1717,6 +1764,10 @@ def onboarding_rentree(cible_id):
         classes_ouvertes_count=classes_ouvertes_count,
         periodes_count=periodes_count,
         is_cal_cfg=is_cal_cfg,
+        cycle_calendrier=cycle_calendrier,
+        is_primaire=(cycle_calendrier == 'primaire'),
+        is_mixte=(cycle_calendrier == 'mixte'),
+        compositions=compositions_list,
         etape1_complete=etape1_complete,
         # Étape 2 (Décisions par classe)
         nb_total_source=nb_total_source,

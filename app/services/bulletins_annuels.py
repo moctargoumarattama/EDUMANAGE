@@ -125,15 +125,9 @@ def verifier_publication_periode(periode):
             continue
         classes_avec_eleves += 1
         ids = [row.id for row in inscriptions]
-        notes_count = Note.query.join(Cours, Note.cours_id == Cours.id).filter(
-            Note.ecole_id == periode.ecole_id,
-            Note.inscription_id.in_(ids),
-            Note.periode == periode.nom,
-            Note.valeur.isnot(None),
-            Cours.classe_id == classe.id,
-        ).count()
-        if notes_count == 0:
-            return False, f"Impossible de publier : aucune note n'est saisie pour la classe {classe.nom} sur cette période."
+        # La complétude détaillée (composition obligatoire ou dispense) est
+        # évaluée par le service canonique ci-dessous. Cela permet notamment
+        # de publier une classe dont toutes les matières sont dispensées.
     if not classes_avec_eleves:
         return False, "Impossible de publier : aucun élève inscrit dans cette année."
 

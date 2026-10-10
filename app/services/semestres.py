@@ -4,11 +4,13 @@ from sqlalchemy.orm import joinedload
 
 from app import db
 from app.models import Absence, AnneeScolaire, Bulletin, Inscription, PeriodeBulletin, Presence
+from app.services.niveaux import PERIODES_PRIMAIRE_DEFAULT, determiner_cycle_classe
 
 
 SEMESTRE_1 = "Semestre 1"
 SEMESTRE_2 = "Semestre 2"
 SEMESTRES = (SEMESTRE_1, SEMESTRE_2)
+COMPOSITIONS_PRIMAIRES = tuple(PERIODES_PRIMAIRE_DEFAULT)
 MESSAGE_CALENDRIER_ABSENT = "Calendrier des semestres non configuré"
 MESSAGE_ARCHIVE_LECTURE_SEULE = "Année archivée : calendrier des semestres en lecture seule."
 
@@ -32,6 +34,90 @@ def get_periode_semestre(ecole_id, annee_id, semestre):
     if semestre not in SEMESTRES:
         return None
     return _periode_query(ecole_id, annee_id).filter(PeriodeBulletin.nom == semestre).first()
+
+
+def get_compositions_annee(ecole_id, annee_id):
+    """Retourne les trois périodes primaires dans leur ordre chronologique."""
+    if not ecole_id or not annee_id:
+        return []
+    periodes = PeriodeBulletin.query.filter(
+        PeriodeBulletin.ecole_id == ecole_id,
+        PeriodeBulletin.annee_id == annee_id,
+        PeriodeBulletin.nom.in_(COMPOSITIONS_PRIMAIRES),
+    ).all()
+    ordre = {nom.casefold(): index for index, nom in enumerate(COMPOSITIONS_PRIMAIRES)}
+    return sorted(periodes, key=lambda p: (ordre.get((p.nom or '').casefold(), 99), p.id or 0))
+
+
+def calendrier_configure_compositions(ecole_id, annee_id):
+    """Valide les trois compositions primaires et leurs bornes."""
+    annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
+    compositions = get_compositions_annee(ecole_id, annee_id)
+    if not annee or len(compositions) != 3:
+        return False
+    return (
+        all(
+            p.date_debut and p.date_fin
+            and annee.date_debut <= p.date_debut <= p.date_fin <= annee.date_fin
+            for p in compositions
+        )
+        and all(a.date_fin < b.date_debut for a, b in zip(compositions, compositions[1:]))
+    )
+
+
+def calendrier_configure_mixte(ecole_id, annee_id):
+    """Vérifie qu'un groupe scolaire mixte possède les deux calendriers."""
+    return calendrier_configure(ecole_id, annee_id) and calendrier_configure_compositions(ecole_id, annee_id)
+
+
+def calculer_bornes_compositions(annee, fins):
+    """Construit des périodes contiguës à partir des trois dates de fin."""
+    if not annee or not annee.date_debut or not annee.date_fin:
+        return None, "Les dates de l'année scolaire sont obligatoires."
+    if not fins or len(fins) != 3 or any(not date_fin for date_fin in fins):
+        return None, "Les dates de fin des trois compositions sont obligatoires."
+    if any(fins[index] >= fins[index + 1] for index in range(2)):
+        return None, "Les trois compositions doivent être dans l'ordre chronologique."
+    if not all(annee.date_debut < date_fin < annee.date_fin for date_fin in fins):
+        return None, "Les dates des compositions doivent être comprises dans l'année scolaire."
+    bornes = {}
+    debut = annee.date_debut
+    for nom, fin in zip(COMPOSITIONS_PRIMAIRES, fins):
+        bornes[nom] = (debut, fin)
+        debut = fin + timedelta(days=1)
+    return bornes, None
+
+
+def configurer_compositions_annee(ecole_id, annee_id, fins, *, force=False):
+    """Enregistre les trois compositions primaires sans modifier le schéma."""
+    annee = AnneeScolaire.query.filter_by(id=annee_id, ecole_id=ecole_id).first()
+    if not annee:
+        return None, "Année scolaire introuvable ou non autorisée."
+    if annee.statut == "archivee":
+        return None, MESSAGE_ARCHIVE_LECTURE_SEULE
+    bornes, err = calculer_bornes_compositions(annee, fins)
+    if err:
+        return None, err
+    existantes = {
+        p.nom: p for p in PeriodeBulletin.query.filter_by(
+            ecole_id=ecole_id, annee_id=annee_id
+        ).filter(PeriodeBulletin.nom.in_(COMPOSITIONS_PRIMAIRES)).all()
+    }
+    if annee.statut == "active" and any(p.publie for p in existantes.values()) and not force:
+        return None, "Modification refusée : une composition est déjà publiée."
+    periodes = []
+    for nom in COMPOSITIONS_PRIMAIRES:
+        periode = existantes.get(nom)
+        if not periode:
+            periode = PeriodeBulletin(
+                nom=nom, annee_id=annee_id, ecole_id=ecole_id,
+                publie=False, periode_active=False,
+            )
+            db.session.add(periode)
+        periode.date_debut, periode.date_fin = bornes[nom]
+        periodes.append(periode)
+    db.session.commit()
+    return periodes, None
 
 
 def calendrier_configure(ecole_id, annee_id):

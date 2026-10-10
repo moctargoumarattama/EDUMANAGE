@@ -502,7 +502,8 @@ def bulletins():
             moyenne = bulletin_fige.moyenne_generale
             eval_info['average'] = moyenne
 
-        if periode_publiee and moyenne is not None:
+        if (periode_publiee and moyenne is not None
+                and eval_info.get("is_pedagogically_complete")):
             status = STATUS_COMPLETE
             eval_info["status"] = STATUS_COMPLETE
             eval_info["is_official"] = True
@@ -546,7 +547,7 @@ def bulletins():
 
         matieres_manquantes = eval_info.get('missing_subjects_names', [])
         matieres_manquantes_count = len(matieres_manquantes)
-        is_complet = (matieres_manquantes_count == 0)
+        is_complet = bool(eval_info.get('is_pedagogically_complete'))
 
         eleves_avec_moyennes.append({
             'inscription': ins,

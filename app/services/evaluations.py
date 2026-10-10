@@ -22,6 +22,7 @@ from app.services.notes_annuelles import (
     STATUTS_INSCRIPTION_SCOLARISEE,
     TYPES_CONTROLE_CONTINU,
     TYPE_COMPOSITION,
+    est_evaluation_sommative,
     calculer_moyenne_controles,
     calculer_moyenne_matiere_semestre,
     calculer_points_matiere,
@@ -115,7 +116,8 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
 
     Règles officielles :
     - Un bulletin est FINAL (STATUS_COMPLETE) SSI :
-      1. Toutes les matières attendues de cet élève ont au moins une note valide (complétude pédagogique).
+      1. Toutes les matières attendues de cet élève ont une composition (ou examen)
+         valide, sauf dispense médicale validée.
       2. La période est explicitement publiée par l'administration (periode_publiee=True).
     - Tant que la période n'est pas publiée, le bulletin reste PROVISOIRE même avec 100% des matières notées.
 
@@ -137,6 +139,7 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
         "missing_subjects": list,
         "missing_subjects_names": list[str],
         "dispensed_subjects_names": list[str],
+        "missing_composition_subjects_names": list[str],
     }
     """
     if periode_publiee is None:
@@ -212,6 +215,7 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
             "missing_subjects": [],
             "missing_subjects_names": [],
             "dispensed_subjects_names": [],
+            "missing_composition_subjects_names": [],
         }
 
     from app.services.inscriptions_annuelles import classe_effective_pour_periode
@@ -254,9 +258,11 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
         notes_par_cours[n.cours_id].append(n)
 
     evaluated_subjects = 0
+    composition_evaluated_subjects = 0
     evaluated_coefficients = 0.0
     matieres_finalisees = []
     disciplines_details = {}
+    missing_composition_subjects = []
     
     # Traitement de chaque cours attendu officiel de la classe
     for c_id, c_obj in cours_map.items():
@@ -266,14 +272,21 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
         if c_id in dispenses_ids:
             disciplines_details[c_id] = {
                 "cours": c_obj, "moyenne": None, "coefficient": coef,
-                "points": None, "evalue": False, "dispense": True, "notes_count": 0,
+                "points": None, "evalue": False, "dispense": True, "composition_complete": True,
+                "notes_count": 0,
             }
             continue
 
         if c_notes:
+            has_composition = any(
+                getattr(note, "valeur", None) is not None
+                and est_evaluation_sommative(getattr(note, "type_evaluation", None))
+                for note in c_notes
+            )
             moy_sem = calculer_moyenne_matiere(c_notes)
-            if moy_sem is not None:
+            if moy_sem is not None and has_composition:
                 evaluated_subjects += 1
+                composition_evaluated_subjects += 1
                 evaluated_coefficients += coef
                 pts = round(moy_sem * coef, 2)
                 matieres_finalisees.append({"moyenne": moy_sem, "coefficient": coef, "points": pts})
@@ -283,24 +296,39 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
                     "coefficient": coef,
                     "points": pts,
                     "evalue": True,
+                    "composition_complete": True,
                     "notes_count": len(c_notes),
                 }
             else:
+                if not has_composition:
+                    missing_composition_subjects.append(c_obj)
+                # Une moyenne provisoire peut rester visible avec les devoirs
+                # saisis, sans rendre la matière éligible à la publication.
+                if moy_sem is not None:
+                    evaluated_subjects += 1
+                    evaluated_coefficients += coef
+                    pts = round(moy_sem * coef, 2)
+                    matieres_finalisees.append({"moyenne": moy_sem, "coefficient": coef, "points": pts})
                 disciplines_details[c_id] = {
                     "cours": c_obj,
                     "moyenne": None,
                     "coefficient": coef,
                     "points": None,
                     "evalue": False,
-                    "notes_count": 0,
+                    "composition_complete": has_composition,
+                    "missing_composition": not has_composition,
+                    "notes_count": len(c_notes),
                 }
         else:
+            missing_composition_subjects.append(c_obj)
             disciplines_details[c_id] = {
                 "cours": c_obj,
                 "moyenne": None,
                 "coefficient": coef,
                 "points": None,
                 "evalue": False,
+                "composition_complete": False,
+                "missing_composition": True,
                 "notes_count": 0,
             }
 
@@ -314,15 +342,40 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
         evaluated_coefficients = expected_coefficients
 
     missing_subjects = [
-        d["cours"] for d in disciplines_details.values() if not d["evalue"] and not d.get("dispense")
+        d["cours"] for d in disciplines_details.values()
+        if not d["evalue"] and not d.get("dispense")
+        and (d.get("notes_count", 0) == 0 or not d.get("missing_composition"))
     ]
     missing_subjects_names = [c.nom for c in missing_subjects]
     dispensed_subjects_names = [c.nom for c in cours_attendus if c.id in dispenses_ids]
-    is_pedagogically_complete = (expected_subjects > 0 and evaluated_subjects >= expected_subjects)
+    is_pedagogically_complete = (
+        expected_subjects > 0 and composition_evaluated_subjects >= expected_subjects
+    )
 
     # Aucun résultat chiffré possible sans matière à évaluer (catalogue vide
     # ou ensemble des matières dispensé).
     # Ne JAMAIS produire status = complete par simple division ou liste vide.
+    if expected_subjects == 0 and cours_attendus:
+        # Toutes les matières sont couvertes par une dispense médicale valide.
+        return {
+            "status": STATUS_COMPLETE if est_publiee else STATUS_PROVISOIRE,
+            "average": None,
+            "evaluated_subjects": 0,
+            "expected_subjects": 0,
+            "completion_ratio": 1.0,
+            "completion_percent": 100.0,
+            "is_official": est_publiee,
+            "is_pedagogically_complete": True,
+            "periode_publiee": est_publiee,
+            "evaluated_coefficients": 0.0,
+            "expected_coefficients": 0.0,
+            "label": LABEL_COMPLETE if est_publiee else LABEL_PROVISOIRE,
+            "disciplines_details": disciplines_details,
+            "missing_subjects": [],
+            "missing_subjects_names": [],
+            "dispensed_subjects_names": dispensed_subjects_names,
+            "missing_composition_subjects_names": [],
+        }
     if expected_subjects == 0:
         return {
             "status": STATUS_NON_EVALUE,
@@ -341,13 +394,14 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
             "missing_subjects": [],
             "missing_subjects_names": [],
             "dispensed_subjects_names": dispensed_subjects_names,
+            "missing_composition_subjects_names": [c.nom for c in missing_composition_subjects],
         }
 
     # Calcul des ratios et moyennes avec garde-fous stricts
     completion_ratio = min(1.0, round(evaluated_coefficients / expected_coefficients, 4)) if expected_coefficients > 0 else 0.0
     completion_percent = round(completion_ratio * 100.0, 1)
 
-    if evaluated_subjects == 0:
+    if evaluated_subjects == 0 and not matieres_finalisees:
         status = STATUS_NON_EVALUE
         average = None
         is_official = False
@@ -392,6 +446,7 @@ def calculer_completude_inscription(ecole_id, annee_id, inscription, periode=Non
         "missing_subjects": missing_subjects,
         "missing_subjects_names": missing_subjects_names,
         "dispensed_subjects_names": dispensed_subjects_names,
+        "missing_composition_subjects_names": [c.nom for c in missing_composition_subjects],
     }
 
 
@@ -729,7 +784,10 @@ def verifier_eligibilite_publication_periode(ecole_id, annee_id, periode_nom):
 
             if not ev["is_pedagogically_complete"]:
                 total_incomplets += 1
-                manquants = ev["missing_subjects_names"]
+                manquants = list(dict.fromkeys(
+                    ev["missing_subjects_names"]
+                    + ev.get("missing_composition_subjects_names", [])
+                ))
                 details_par_classe[classe.nom].append({
                     "inscription_id": ins.id,
                     "eleve": eleve,

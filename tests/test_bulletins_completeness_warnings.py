@@ -144,8 +144,11 @@ class BulletinsCompletenessWarningsTestCase(unittest.TestCase):
         n2_math = Note(valeur=12.0, coefficient=1.0, type_evaluation="Devoir", periode="Semestre 1", inscription_id=self.ins2.id, eleve_id=self.eleve2.id, cours_id=self.cours_math.id, ecole_id=self.ecole.id, annee_id=self.annee.id)
         n2_fr = Note(valeur=14.0, coefficient=1.0, type_evaluation="Devoir", periode="Semestre 1", inscription_id=self.ins2.id, eleve_id=self.eleve2.id, cours_id=self.cours_fr.id, ecole_id=self.ecole.id, annee_id=self.annee.id)
         n2_eps = Note(valeur=15.0, coefficient=1.0, type_evaluation="Devoir", periode="Semestre 1", inscription_id=self.ins2.id, eleve_id=self.eleve2.id, cours_id=self.cours_eps.id, ecole_id=self.ecole.id, annee_id=self.annee.id)
+        n2_math_comp = Note(valeur=12.0, coefficient=1.0, type_evaluation="Composition", periode="Semestre 1", inscription_id=self.ins2.id, eleve_id=self.eleve2.id, cours_id=self.cours_math.id, ecole_id=self.ecole.id, annee_id=self.annee.id)
+        n2_fr_comp = Note(valeur=14.0, coefficient=1.0, type_evaluation="Composition", periode="Semestre 1", inscription_id=self.ins2.id, eleve_id=self.eleve2.id, cours_id=self.cours_fr.id, ecole_id=self.ecole.id, annee_id=self.annee.id)
+        n2_eps_comp = Note(valeur=15.0, coefficient=1.0, type_evaluation="Composition", periode="Semestre 1", inscription_id=self.ins2.id, eleve_id=self.eleve2.id, cours_id=self.cours_eps.id, ecole_id=self.ecole.id, annee_id=self.annee.id)
 
-        db.session.add_all([n1_math, n1_fr, n2_math, n2_fr, n2_eps])
+        db.session.add_all([n1_math, n1_fr, n2_math, n2_fr, n2_eps, n2_math_comp, n2_fr_comp, n2_eps_comp])
         db.session.commit()
 
     def tearDown(self):
