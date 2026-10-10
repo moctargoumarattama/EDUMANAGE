@@ -17,7 +17,10 @@ from sqlalchemy import func
 from app import db
 from app.models import Absence, Cours, Eleve, Inscription, Note, Paiement, Professeur
 from app.utils import get_ecole_filter_query
-from app.services.paiements_annuels import get_mois_scolaires
+from app.services.paiements_annuels import (
+    calculer_finances_inscriptions,
+    get_mois_scolaires,
+)
 
 
 PER_PAGE_ALERTES = 10
@@ -154,6 +157,17 @@ def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None, date_ref
         )
         .all()
     )
+    finances_par_inscription = calculer_finances_inscriptions(
+        inscriptions,
+        {
+            ins.id: sum(
+                float(p.montant or 0)
+                for p in ins.paiements
+                if p.statut not in ('rejete', 'annule')
+            )
+            for ins in inscriptions
+        },
+    )
 
     def _safe_url_eleve(eleve_id):
         try:
@@ -233,15 +247,16 @@ def generer_alertes_automatiques(ecole_id=None, annee=None, limit=None, date_ref
             })
 
         # 3. Alertes Paiements (Retards de scolarité & élèves n'ayant jamais payé)
-        frais_annuels = float(ins.frais_annuels if ins.frais_annuels is not None else (eleve.frais_annuels or 150000.0))
+        finances = finances_par_inscription[ins.id]
+        frais_annuels = finances["frais_annuels"]
         paiements_valides = [p for p in ins.paiements if p.statut not in ('rejete', 'annule')]
-        total_paye = sum(float(p.montant or 0) for p in paiements_valides)
+        total_paye = finances["total_paye"]
         mois_payes = [p.mois for p in paiements_valides if p.mois]
         jamais_paye = (len(paiements_valides) == 0 or total_paye == 0)
 
         if is_archivee:
-            if total_paye < frais_annuels:
-                montant_du = round(frais_annuels - total_paye)
+            if finances["reste_a_payer"] > 0:
+                montant_du = round(finances["reste_a_payer"])
                 titre = "Aucun paiement effectué (Jamais payé)" if jamais_paye else "Retard de paiement de scolarité"
                 message = (
                     f"{eleve.prenom} {eleve.nom} ({classe_nom}) n'a effectué aucun versement (0 FCFA versé sur {frais_annuels:,.0f} FCFA)."

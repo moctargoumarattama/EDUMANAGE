@@ -20,7 +20,10 @@ from app.models import (
 )
 from app.services.bulletins_annuels import calculer_bulletin_data
 from app.services.notes_annuelles import SEMESTRE_1, SEMESTRE_2
-from app.services.paiements_annuels import get_finances_inscription
+from app.services.paiements_annuels import (
+    expression_frais_net_inscription,
+    get_finances_inscription,
+)
 from app.utils_classes import classes_triees_pedagogique
 
 
@@ -123,9 +126,7 @@ def get_dashboard_admin_annuel(ecole_id, annee):
         .subquery()
     )
 
-    frais_base_expr = func.coalesce(Inscription.frais_scolarite, Inscription.frais_annuels, Eleve.frais_annuels, 150000.0)
-    frais_net_expr = frais_base_expr - func.coalesce(Inscription.remise, 0.0) + func.coalesce(Inscription.frais_inscription, 0.0)
-    frais_expr = case((frais_net_expr < 0, 0.0), else_=frais_net_expr)
+    frais_expr = expression_frais_net_inscription()
     total_paye_expr = func.coalesce(paiements_par_inscription.c.total_paye, 0.0)
     stats["paiements_attente"] = (
         db.session.query(func.count(Inscription.id))

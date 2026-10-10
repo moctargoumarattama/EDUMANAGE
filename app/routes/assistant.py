@@ -35,7 +35,10 @@ from app.ai_service import (
 from app.authorization import role_required
 from app.models import Absence, AnneeScolaire, Classe, Cours, Eleve, Inscription, Note, Paiement, Utilisateur
 from app.services.annees_scolaires import get_annee_active
-from app.services.paiements_annuels import obtenir_synthese_financiere_eleve
+from app.services.paiements_annuels import (
+    get_finances_inscription,
+    obtenir_synthese_financiere_eleve,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -640,11 +643,12 @@ def _build_eleve_dossier(eleve: Eleve, ecole_id: int, annee_id: Optional[int] = 
     else:
         moyenne = eleve.moyenne_generale() if not annee_id and not periode else None
 
-    if annee_id:
-        finance = obtenir_synthese_financiere_eleve(eleve.id, annee_id)
-        frais, paye, reste = finance["frais_du"], finance["total_paye"], finance["reste_a_payer"]
-    else:
-        frais, paye, reste = eleve.frais_annuels or 0.0, eleve.total_paye(), eleve.reste_a_payer()
+    finance = get_finances_inscription(inscr_active) if inscr_active else {
+        "frais_du": 0.0,
+        "total_paye": 0.0,
+        "reste_a_payer": 0.0,
+    }
+    frais, paye, reste = finance["frais_du"], finance["total_paye"], finance["reste_a_payer"]
 
     return {
         "eleve_id": eleve.id,

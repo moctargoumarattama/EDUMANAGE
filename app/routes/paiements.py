@@ -36,6 +36,8 @@ from app.services.structure_annuelle import get_niveaux_annee
 from app.services.paiements_annuels import (
     get_inscriptions_paiements,
     get_finances_inscription,
+    calculer_finances_inscriptions,
+    expression_frais_net_inscription,
     enregistrer_paiement,
     get_mois_scolaires,
     MODES_PAIEMENT_NIGER,
@@ -266,7 +268,10 @@ def paiements():
         Classe
     )
 
-    frais_expr = func.coalesce(Inscription.frais_annuels, Eleve.frais_annuels, 150000.0)
+    # Source unique : le montant net inclut remise et frais d'inscription.
+    # L'expression est fournie par le service pour garder les filtres SQL
+    # strictement alignés sur get_finances_inscription().
+    frais_expr = expression_frais_net_inscription()
     paiement_valide_filters = (
         Paiement.ecole_id == ecole_id,
         db.or_(Paiement.statut.is_(None), Paiement.statut != 'annule'),
@@ -407,6 +412,11 @@ def paiements():
             .all()
         )
 
+    finances_par_inscription = calculer_finances_inscriptions(
+        inscriptions_filtrees,
+        paiements_totaux_page,
+    )
+
     # DonnÃ©es enrichies par Ã©lÃ¨ve / inscription
     paiements_par_eleve = {}
     eleves_par_classe = {c.id: [] for c in classes}
@@ -429,16 +439,21 @@ def paiements():
         e = ins.eleve
         if not e:
             continue
-        frais_annuels = float(ins.frais_annuels if ins.frais_annuels is not None else (e.frais_annuels or 150000.0))
-        total_paye_eleve = float(paiements_totaux_page.get(ins.id, 0.0) or 0.0)
-        reste_eleve = max(0.0, frais_annuels - total_paye_eleve)
-        pourcentage_paye = round((total_paye_eleve / frais_annuels) * 100, 1) if frais_annuels > 0 else 100.0
+        finances = finances_par_inscription[ins.id]
+        frais_annuels = finances['frais_annuels']
+        total_paye_eleve = finances['total_paye']
+        reste_eleve = finances['reste_a_payer']
+        pourcentage_paye = finances['pourcentage_paye']
+        stats[finances['statut_solde']] += 1
         # Classe historique de l'annÃ©e consultÃ©e
         e.annee_classe = ins.classe
         paiements_par_eleve[e.id] = {
             'total_paye': total_paye_eleve,
             'reste_a_payer': reste_eleve,
             'frais_annuels': frais_annuels,
+            'remise': finances['remise'],
+            'frais_inscription': finances['frais_inscription'],
+            'statut_solde': finances['statut_solde'],
             'eleve': e,
             'inscription': ins,
             'pourcentage_paye': pourcentage_paye
@@ -501,9 +516,12 @@ def paiements():
                     'classe_id': ins.classe_id,
                     'classe_nom': ins.classe.nom if ins.classe else "",
                     'frais_annuels': paiements_par_eleve.get(ins.eleve_id, {}).get('frais_annuels', 0),
+                     'net_a_payer': paiements_par_eleve.get(ins.eleve_id, {}).get('frais_annuels', 0),
+                     'remise': paiements_par_eleve.get(ins.eleve_id, {}).get('remise', 0),
+                     'frais_inscription': paiements_par_eleve.get(ins.eleve_id, {}).get('frais_inscription', 0),
                     'total_paye': paiements_par_eleve.get(ins.eleve_id, {}).get('total_paye', 0),
                     'reste_a_payer': paiements_par_eleve.get(ins.eleve_id, {}).get('reste_a_payer', 0),
-                    'statut_solde': 'complet' if paiements_par_eleve.get(ins.eleve_id, {}).get('reste_a_payer', 0) <= 0 else ('partiel' if paiements_par_eleve.get(ins.eleve_id, {}).get('total_paye', 0) > 0 else 'aucun')
+                     'statut_solde': paiements_par_eleve.get(ins.eleve_id, {}).get('statut_solde', 'aucun')
                 }
                 for ins in inscriptions_filtrees if ins.eleve
             ],
@@ -574,18 +592,11 @@ def details_paiements_inscription(inscription_id):
         Paiement.inscription_id == inscription.id,
         db.or_(Paiement.statut.is_(None), Paiement.statut != 'annule'),
     )
-    total_paye = float(
-        db.session.query(func.coalesce(func.sum(Paiement.montant), 0.0))
-        .filter(*paiement_valide_filters)
-        .scalar() or 0.0
-    )
-    frais_annuels = float(
-        inscription.frais_annuels
-        if inscription.frais_annuels is not None
-        else (inscription.eleve.frais_annuels or 150000.0)
-    )
-    reste = max(0.0, frais_annuels - total_paye)
-    taux = round((total_paye / frais_annuels) * 100, 1) if frais_annuels > 0 else 100.0
+    finances = get_finances_inscription(inscription)
+    frais_annuels = finances['frais_annuels']
+    total_paye = finances['total_paye']
+    reste = finances['reste_a_payer']
+    taux = finances['pourcentage_paye']
 
     paiements = (
         Paiement.query
@@ -604,6 +615,9 @@ def details_paiements_inscription(inscription_id):
         },
         'resume': {
             'frais_annuels': frais_annuels,
+            'net_a_payer': finances['net_a_payer'],
+            'remise': finances['remise'],
+            'frais_inscription': finances['frais_inscription'],
             'total_paye': total_paye,
             'reste_a_payer': reste,
             'taux': taux,

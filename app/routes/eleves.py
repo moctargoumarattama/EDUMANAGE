@@ -908,17 +908,10 @@ def api_fiche_eleve(eleve_id):
                 )
                 .all()
             )
-        from app.services.paiements_annuels import obtenir_synthese_financiere_eleve
-        target_annee_for_finances = annee_target.id if annee_target else (
-            inscription_active.annee_scolaire_id if inscription_active else None
-        )
-        frais_base_eleve = float(eleve.frais_annuels if eleve.frais_annuels is not None else 150000.0)
-        synthese = obtenir_synthese_financiere_eleve(eleve.id, target_annee_for_finances) if target_annee_for_finances else {
-            "frais_du": frais_base_eleve,
-            "frais_scolarite": frais_base_eleve,
-            "remise": 0.0,
-            "total_paye": float(sum(p.montant or 0 for p in paiements)),
-            "reste_a_payer": max(0.0, frais_base_eleve - float(sum(p.montant or 0 for p in paiements))),
+        from app.services.paiements_annuels import get_finances_inscription
+        synthese = get_finances_inscription(inscription_active) if inscription_active else {
+            "frais_du": 0.0, "frais_scolarite": 0.0, "remise": 0.0,
+            "frais_inscription": 0.0, "total_paye": 0.0, "reste_a_payer": 0.0,
         }
         reste_a_payer = synthese["reste_a_payer"]
         comptabilite = {
@@ -1633,10 +1626,6 @@ def voir_eleve(eleve_id):
         mois_impayes_list = []
     else:
         if inscription_affichee:
-            frais_base = (
-                inscription_affichee.frais_annuels if inscription_affichee.frais_annuels is not None
-                else (eleve.frais_annuels if eleve.frais_annuels is not None else 150000.0)
-            )
             paiements = (
                 Paiement.query
                 .filter(
@@ -1648,18 +1637,12 @@ def voir_eleve(eleve_id):
                 .all()
             )
         else:
-            frais_base = eleve.frais_annuels if eleve.frais_annuels is not None else 150000.0
             paiements = []
 
-        from app.services.paiements_annuels import obtenir_synthese_financiere_eleve, calculer_retard_echeancier_inscription
-        target_annee_id = annee_affichee.id if annee_affichee else (inscription_affichee.annee_scolaire_id if inscription_affichee else None)
-        frais_base_eleve = float(eleve.frais_annuels if eleve.frais_annuels is not None else 150000.0)
-        synthese = obtenir_synthese_financiere_eleve(eleve.id, target_annee_id) if target_annee_id else {
-            "frais_du": frais_base_eleve,
-            "frais_scolarite": frais_base_eleve,
-            "remise": 0.0,
-            "total_paye": float(sum(p.montant or 0 for p in paiements if (getattr(p, 'statut', None) or 'payé') != 'annule')),
-            "reste_a_payer": max(0.0, frais_base_eleve - float(sum(p.montant or 0 for p in paiements if (getattr(p, 'statut', None) or 'payé') != 'annule'))),
+        from app.services.paiements_annuels import get_finances_inscription, calculer_retard_echeancier_inscription
+        synthese = get_finances_inscription(inscription_affichee) if inscription_affichee else {
+            "frais_du": 0.0, "frais_scolarite": 0.0, "remise": 0.0,
+            "frais_inscription": 0.0, "total_paye": 0.0, "reste_a_payer": 0.0,
             "pourcentage_paye": 0.0,
         }
         total_frais = synthese["frais_du"]

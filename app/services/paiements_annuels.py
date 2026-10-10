@@ -14,7 +14,7 @@ Règles canoniques :
 
 from datetime import datetime
 import math
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, literal, or_
 from sqlalchemy.orm import selectinload, joinedload
 from app import db
 from app.models import (
@@ -135,30 +135,67 @@ def _frais_du_inscription(inscription):
     return max(0.0, float(base) - float(remise) + float(frais_inscription))
 
 
+def expression_frais_net_inscription():
+    """Construit l'expression SQL du montant net exigible.
+
+    Cette expression est le miroir SQL de :func:`_frais_du_inscription` et
+    sert aux listes et filtres qui doivent rester en une seule requête.
+    Toute nouvelle vue de caisse doit l'utiliser au lieu de soustraire le
+    tarif brut directement.
+    """
+    base = func.coalesce(
+        Inscription.frais_scolarite,
+        Inscription.frais_annuels,
+        Eleve.frais_annuels,
+        literal(150000.0),
+    )
+    net = (
+        base
+        - func.coalesce(Inscription.remise, literal(0.0))
+        + func.coalesce(Inscription.frais_inscription, literal(0.0))
+    )
+    return case((net < 0, literal(0.0)), else_=net)
+
+
+def calculer_finances_inscriptions(inscriptions, totaux_payes=None):
+    """Calcule en lot les soldes d'inscriptions déjà chargées.
+
+    ``totaux_payes`` est une correspondance ``inscription_id -> montant``
+    produite par une agrégation SQL. Elle évite le calcul paiement par
+    paiement de :func:`_synthese_inscription` pendant un listing.
+    """
+    totaux_payes = totaux_payes or {}
+    finances = {}
+    for inscription in inscriptions or []:
+        total_paye = float(totaux_payes.get(inscription.id, 0.0) or 0.0)
+        frais = _frais_du_inscription(inscription)
+        reste = max(0.0, frais - total_paye)
+        pourcentage = 100.0 if frais == 0 else round((total_paye / frais) * 100.0, 1)
+        finances[inscription.id] = {
+            "inscription": inscription,
+            "frais_du": frais,
+            "frais_scolarite": float(getattr(inscription, "frais_scolarite", None) or getattr(inscription, "frais_annuels", None) or 0),
+            "frais_annuels": frais,
+            "remise": float(getattr(inscription, "remise", 0) or 0),
+            "frais_inscription": float(getattr(inscription, "frais_inscription", 0) or 0),
+            "total_paye": total_paye,
+            "reste_a_payer": reste,
+            "solde_restant": reste,
+            "montant_net": frais,
+            "net_a_payer": frais,
+            "pourcentage_paye": pourcentage,
+            "statut_solde": "complet" if reste <= 0 else ("partiel" if total_paye > 0 else "aucun"),
+        }
+    return finances
+
+
 def _synthese_inscription(inscription):
-    frais = _frais_du_inscription(inscription)
     total_paye = float(db.session.query(func.coalesce(func.sum(Paiement.montant), 0.0)).filter(
         Paiement.inscription_id == inscription.id,
         Paiement.ecole_id == inscription.ecole_id,
         or_(Paiement.statut.is_(None), Paiement.statut != "annule"),
     ).scalar() or 0.0)
-    reste = max(0.0, frais - total_paye)
-    pourcentage = 100.0 if frais == 0 else round((total_paye / frais) * 100.0, 1)
-    statut = "complet" if reste <= 0 else ("partiel" if total_paye > 0 else "aucun")
-    return {
-        "inscription": inscription,
-        "frais_du": frais,
-        "frais_scolarite": float(getattr(inscription, "frais_scolarite", None) or getattr(inscription, "frais_annuels", None) or 0),
-        "frais_annuels": frais,
-        "remise": float(getattr(inscription, "remise", 0) or 0),
-        "frais_inscription": float(getattr(inscription, "frais_inscription", 0) or 0),
-        "total_paye": total_paye,
-        "reste_a_payer": reste,
-        "solde_restant": reste,
-        "montant_net": frais,
-        "pourcentage_paye": pourcentage,
-        "statut_solde": statut,
-    }
+    return calculer_finances_inscriptions([inscription], {inscription.id: total_paye})[inscription.id]
 
 
 def obtenir_synthese_financiere_eleve(arg1, arg2, arg3=None):
@@ -181,7 +218,7 @@ def obtenir_synthese_financiere_eleve(arg1, arg2, arg3=None):
             "inscription": None, "frais_du": 0.0, "frais_scolarite": 0.0,
             "frais_annuels": 0.0, "remise": 0.0, "frais_inscription": 0.0,
             "total_paye": 0.0, "reste_a_payer": 0.0, "solde_restant": 0.0,
-            "montant_net": 0.0,
+            "montant_net": 0.0, "net_a_payer": 0.0,
             "pourcentage_paye": 0.0, "statut_solde": "aucun",
         }
     return _synthese_inscription(inscription)
@@ -194,6 +231,9 @@ def get_finances_inscription(inscription):
             "frais_annuels": 0.0,
             "total_paye": 0.0,
             "reste_a_payer": 0.0,
+            "solde_restant": 0.0,
+            "montant_net": 0.0,
+            "net_a_payer": 0.0,
             "pourcentage_paye": 0.0,
             "statut_solde": "aucun",
         }
@@ -506,14 +546,7 @@ def synchroniser_frais_et_remises_inscription(inscription, nouveau_frais=None, n
         except (ValueError, TypeError):
             pass
 
-    base = (
-        inscription.frais_scolarite
-        if inscription.frais_scolarite is not None
-        else (inscription.frais_annuels or 150000.0)
-    )
-    remise = inscription.remise or 0.0
-    frais_insc = getattr(inscription, "frais_inscription", 0.0) or 0.0
-    frais_nets = max(0.0, float(base) - float(remise) + float(frais_insc))
+    frais_nets = _frais_du_inscription(inscription)
 
     if hasattr(inscription, "frais_nets"):
         inscription.frais_nets = frais_nets
